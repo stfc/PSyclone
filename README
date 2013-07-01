@@ -1,0 +1,172 @@
+What is this?
+-------------
+
+A prototype code parser and PSy layer generation tool based on f2py,
+designed for GungHo.
+
+Contents
+--------
+
+ghcodegen/   : the code parser and psy layer generation code
+README       : this file
+parse.py     : a simple script demonstrating the use of the parser
+psygen.py    : a simple script demonstrating the use of the psy generation system
+psygentest/  : a simple example that generates a psy layer and builds the resultant code
+
+Installation
+------------
+
+You will first need to install f2py version 3 ...
+# note, the following uses gfortran and gcc as the underlying compilers
+
+#f2py version 3 has a fortran parser
+#https://code.google.com/p/f2py/
+#http://projects.scipy.org/numpy/wiki/G3F2PY
+#https://code.google.com/p/f2py/source/checkout
+
+sudo apt-get install mercurial
+hg clone https://code.google.com/p/f2py/
+cd f2py
+sudo ./setup.py
+cgcc
+fgfortran
+1
+sudo ./setup.py
+cgcc
+fgfortran
+2
+#cgcc
+#fgfortran
+#3
+
+Setting your python path
+------------------------
+
+export PYTHONPATH=$PYTHONPATH:ghcodegen
+
+Using the parser
+----------------
+
+An example use of the parser is provided by a simple wrapper routine
+called parse.py
+
+python parse.py <fortran_file>
+
+An example algorithm layer code can be found in psygentest/alg.f90
+
+i.e.
+
+python parse.py psygentest/alg.f90
+
+This script will report on the kernels and arguments specified in the
+alg.f90 code.
+
+To use the parser from another code you should call the function
+algParse which is supplied in ghtools
+
+from ghtools import algParse
+algCalls=algParse(fileName,psyName="psy")
+
+fileName is the path to the algorithm layer code. This is assumed to
+be a fortran module with direct calls to the psy layer (as opposed to
+the current engine solution - but this can be simply changed if
+required). The optional psyName argument allows you to specify the
+name of the module implementing the psy layer. The default name is
+psy. The parser assumes that all calls to the psy layer from the
+algorithm layer are named in a psy layer use statement. If they are
+not, the parser will ignore them.
+
+The parser builds up relevant information about each psy layer call
+which can be used to generate appropriate psy layer code.
+
+Using the psy generator
+-----------------------
+
+An example use of the psy generator is provided by a simple wrapper
+routine called psygen.py
+
+python psygen.py <fortran_file>
+
+An example algorithm layer code can be found in psygentest/alg.f90
+
+i.e.
+
+python psygen.py psygentest/alg.f90
+
+This script will generate psy layer code from the algorithm layer.
+
+To use the psy generator from another code you should call the
+function psyGen which is supplied in ghtools
+
+from ghtools import algParse
+algCalls=algParse(fileName,psyName="psy")
+psyGen(algCalls,psyName="psy",infName="types",kernName="kern")
+
+algCalls is the information provide by the algPass function. The
+optional psyName, infName and kernName arguments allow you to specify
+the name of the modules implementing the psy layer, infrastructure and
+kernel layers respectively. The default names are psy,inf and
+kern. The generator assumes that all types used in the algorithm layer
+are provided by the infrastructure layer.
+
+An example
+----------
+
+There is an example in psygentest which uses makes use of the two
+proposed types of psy layer interface. The first is a simple call. The
+second is a so-called multi-function call which provides multiple
+functions to the psy layer via the argument list. The latter interface
+allows the psy layer to optimise accross these multiple calls (for
+example by re-ordering them or inlining them).
+
+The Makefile builds the example code, making use of the psygen.py
+function as part of the build process.
+
+Todo
+----
+
+make sure kernels passed as arguments have routine code generated.
+multi-function optimisation - call kernels directly.
+add kernelInfo and extend arginfo with required information (read/write/halo/elementIter/...)
+halo example : info on halos and their use
+openmp example : info on types and parallelism
+unit tests
+
+Using f2py directly ...
+-----------------------
+
+Look in tests http://code.google.com/p/f2py/source/browse/fparser/tests
+
+>>> from fparser import api
+>>> reader=api.get_reader("alg.f90",ignore_comments=False)
+>>> tree=api.parse("alg.f90",ignore_comments=False)
+>>> print tree.a
+>>> modules=tree.a.module
+>>> blockdata=tree.a.blockdata
+>>> external_subprogram=tree.a.external_subprogram
+>>> modules.keys()
+>>> module=modules['mod1']
+>>> print module.a
+>>> module_subprograms=module.a.module_subprogram
+>>> module_subprograms.keys()
+>>> module_subprogram=module_subprograms['test1']
+>>> print module_subprogram
+>>> # we can only use 'a' to access variables in a subprogram
+>>> mylist=module_subprogram.content
+>>> for mytype in mylist:
+>>>     print type(mytype)
+>>> import fparser
+>>> the following filters *and removes* the instances from the tree
+>>> call_list=fparser.utils.filter_stmts(module_subprogram.content,fparser.statements.Call)
+>>> # to filter ...
+>>> stmts=[]
+>>> class=fparser.statements.Call
+>>> for line in module_subprogram.content:
+>>>     if isinstance(line, class):
+            stmts.append(stmt)
+>>>call=stmt[0]
+>>>line=call.item # string with some extra stuff
+>>>type(line)
+<class 'fparser.readfortran.Line'>
+>>>call.designator # name of call
+>>>call.items # arguments of call
