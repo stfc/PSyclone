@@ -20,6 +20,12 @@
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
+# Distribution specific paths
+#-------------------------------------------------------------------------------
+
+GUNGHOSRC=../../../GungHo/src
+
+#-------------------------------------------------------------------------------
 # Defaults
 #-------------------------------------------------------------------------------
 
@@ -56,8 +62,8 @@ endif
 
 OBJ = integrate_one_module.o integrate_one.o
 
-LIBS=-L../../utils -L../../kernels -llfric -lgungho
-FFLAGS += -I../../utils -I../../kernels
+LIBS=-L${GUNGHOSRC}/utils -L${GUNGHOSRC}/kernels -llfric -lgungho
+FFLAGS += -I${GUNGHOSRC}/utils -I${GUNGHOSRC}/kernels
 EXE=integrate_one
 #-------------------------------------------------------------------------------
 # Targets
@@ -66,9 +72,9 @@ EXE=integrate_one
 all: $(EXE)
 
 integrate_one:
-	cd ../../utils;make
-	cd ../../kernels;make
-	python ../generator.py -oalg integrate_one_alg.F90 -opsy integrate_one_psy.F90 integrate_one.F90
+	cd ${GUNGHOSRC}/utils;make
+	cd ${GUNGHOSRC}/kernels;make
+	python ../src/generator.py -oalg integrate_one_alg.F90 -opsy integrate_one_psy.F90 integrate_one.F90
 	make integrate_one_generated
 
 integrate_one_generated: integrate_one_module.o integrate_one_psy.o integrate_one_alg.o

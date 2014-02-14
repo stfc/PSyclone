@@ -12,7 +12,7 @@ program main
 
   integer :: i
   
-  call read_triangle(state, "data/unitsquare.1",&
+  call read_triangle(state, "../data/unitsquare.1",&
        & layer_heights=[real(dp) :: (i/1000., i=0,1000)])
 
   x => state%extract_field("Coordinate")
