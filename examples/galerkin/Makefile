@@ -20,12 +20,6 @@
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
-# Distribution specific paths
-#-------------------------------------------------------------------------------
-
-GUNGHOSRC=../../../GungHo/src
-
-#-------------------------------------------------------------------------------
 # Defaults
 #-------------------------------------------------------------------------------
 
@@ -41,6 +35,7 @@ ifeq ($(ARCH), linux_gfortran)
   FC=gfortran
   LD=$(FC)
   FFLAGS  = -g -O0 -std=f2003 -Wuninitialized -Wall -Wextra -fbounds-check
+-fcheck=all
   LDFLAGS = -g
 endif
 ifeq ($(ARCH), linux_ifort)
@@ -60,25 +55,26 @@ endif
 # Object list
 #-------------------------------------------------------------------------------
 
-OBJ = integrate_one_module.o integrate_one.o
+OBJ = manual_invoke_populate_rhs.o manual_invoke_galerkin_rhs_kernel.o
 
-LIBS=-L${GUNGHOSRC}/utils -L${GUNGHOSRC}/kernels -llfric -lgungho
-FFLAGS += -I${GUNGHOSRC}/utils -I${GUNGHOSRC}/kernels
-EXE=integrate_one
+LIBS=-L../../utils -llfric 
+FFLAGS += -I../../utils -I../../kernels
+EXE=galerkin
 #-------------------------------------------------------------------------------
 # Targets
 #-------------------------------------------------------------------------------
 
 all: $(EXE)
 
-integrate_one:
-	cd ${GUNGHOSRC}/utils;make
-	cd ${GUNGHOSRC}/kernels;make
-	python ../../src/generator.py -oalg integrate_one_alg.F90 -opsy integrate_one_psy.F90 integrate_one.F90
-	make integrate_one_generated
+galerkin: manual_invoke_galerkin_rhs_kernel.o manual_invoke_populate_rhs.o manual_galerkin.F90
+	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ manual_galerkin.F90 manual_invoke_populate_rhs.o manual_invoke_galerkin_rhs_kernel.o $(LIBS)
 
-integrate_one_generated: integrate_one_module.o integrate_one_psy.o integrate_one_alg.o
-	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ integrate_one_module.o integrate_one_psy.o integrate_one_alg.o $(LIBS)
+gen:
+	python ../../generator/generator.py -oalg galerkin_alg.F90 -opsy galerkin_psy.F90 galerkin.F90
+	make galerkin_generated
+
+galerkin_generated: galerkin_module.o galerkin_psy.o galerkin_alg.o
+	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ galerkin_module.o galerkin_psy.o galerkin_alg.o $(LIBS)
 
 clean:
 	rm -f *.o *.mod *.out $(EXE) *_alg.F90 *_psy.F90 fparser.log *_generated
@@ -91,6 +87,12 @@ clean:
 #-------------------------------------------------------------------------------
 
 %.o:%.F90
-	$(FC) -c $(FFLAGS) $<
+	$(FC) -c $(FFLAGS)  -fdefault-real-8 $<
 %.o:%.f90
 	$(FC) -c $(FFLAGS) $<
+
+#-------------------------------------------------------------------------------
+# Dependencies
+#-------------------------------------------------------------------------------
+$(EXE): manual_galerkin.F90
+

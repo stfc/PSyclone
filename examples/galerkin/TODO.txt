@@ -1,0 +1,51 @@
+1:literal in arg list not supported by parser
+  Literals are returned as strings so modified the code to support this
+2:galerkin_matrix_free_update not in the use list in galerkin.F90
+  Added
+3: galerkin_matix_free_update_code not public in kernel code galerkin_module.F90
+  changed name to galerkin_matrix_free_update_code as it is just a typo issue
+4:non-kernel calls (set) not supported by the parser
+  Added a new InfCall class to mirror the KernelCall class
+5:Raise a ParseError when a kernel specification does not match the kernel implementation (previously an assert)
+  Added
+6:galerkin_matrix_free_update_code argument specification does not match code in galerkin_module.F90
+          arg(READ, (CG(1)*CG(1))**3, POINTWISE), &
+          arg(INC, CG(1)*CG(1), POINTWISE), &
+          arg(READ, CG(1)*CG(1), POINTWISE), &
+          arg(READ, CG(1)*CG(1), POINTWISE), &
+          arg(READ, CG(1)*CG(1), POINTWISE), &
+          arg(SUM, R, POINTWISE) &
+  I think the first definition should be INC and we need to remove the 2nd argument but then
+  I don't know how a **3 is updated from something that is not **3
+  **** Check with David
+  For the moment change 1st arg to inc and remove 2nd arg. Also reduce array size by 1.
+7:Raise a parseError when the number of arg specified in meta_args does not match the actual
+  number specified.
+  Done.
+
+Code now gets through the parser.
+
+8: fixed a bug in parser invokecall where self._name was not initialised to None and was never declared if certain "if" paths are taken.
+9: fixed a bug in algGen where the generation fails if there are multiple
+   calls per invoke. Note, adding a name="myname" does not work in the parser
+   at the moment.
+10: fixed a bug in algGen where a use statement was placed in the wrong location. Fixed it by going up the parse tree until an appropriate type found (program,module or subroutine) in the adduse function.
+11: stopped literals being passed and declared
+12: loop variable only declared once
+13:
+
+TODO:
+correct loop and code generation for a set call
+1: determine functionspace of a variable in set call
+  a: find next access of the variable that is a kernel call and use this.
+2: If R space then do not produce a loop (or do 1,1)
+3: write value directly rather than calling a function.
+Loop generation and/or indexing when iterates_over=dofs?
+  Current version needs to add index to the vars in the loop or remove loop and
+  call all at once with cells*nLayers*ndof
+Determine which space a kernel needs to iterate over
+1: take all writers and find largest space
+   write/inc CG ** x > write/inc CG(1) > SUM R
+Check types are what is expected.
+
+
