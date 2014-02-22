@@ -419,3 +419,95 @@ class KernelArgument(Argument):
 #        pass
 #unddo
 #redo
+
+class transformations(object):
+    '''
+    This class provides information about, and access, to the available transformations in this implementation of PSyclone. New transformations will be picked up automatically as long as they subclass the abstract Transformation class.
+
+    For example:
+
+    >>> from optimise import transformations
+    >>> t=transformations()
+    >>> print t.list()
+    There is 1 transformation available:
+      1: testTrans, A test transformation
+    >>> t.getTransNum(1)
+    >>> t.getTransName("testTrans")
+
+'''
+
+    def __init__(self,module=None,baseclass=None):
+        ''' if module and/or baseclass are provided then use these else use the default module "optimise" (this module) and the default base_class "transformation"'''
+        import optimise
+        if module is None:
+            module=optimise
+        if baseclass is None:
+            baseclass=optimise.transformation
+        # find our transformations.
+        self._classes=self._find_subclasses(module,baseclass)
+
+        # create our transformations
+        self._objects=[]
+        self._objmap={}
+        for myclass in self._classes:
+            myobject=myclass()
+            self._objects.append(myobject)
+            self._objmap[myobject.name]=myobject
+
+    @property
+    def list(self):
+        ''' return a string with a human readable list of the available transformations '''
+        import os
+        if len(self._objects)==1:
+            s="There is 1 transformation available:"
+        else:
+            s="There are {0} transformations available:".format(len(self._objects))
+        s+=os.linesep
+        for idx,myobject in enumerate(self._objects):
+            s+="  "+str(idx+1)+": "+myobject.name+": "+str(myobject)+os.linesep
+        return s
+
+    @property
+    def numTrans(self):
+        ''' return the number of transformations available '''
+        return len(self._objects)
+
+    def getTransNum(self,number):
+        ''' return the transformation with this number (use list() first to see available transformations) '''
+        if number<1 or number>len(self._objects):
+            raise GenerationError("Invalid transformation number supplied")
+        return self._objects[number-1]
+
+    def getTransName(self,name):
+        ''' return the transformation with this name (use list() first to see available transformations) '''
+        try:
+            return self._objmap[name]
+        except KeyError:
+            raise GenerationError("Invalid transformation name supplied")
+
+    def _find_subclasses(self,module,baseclass):
+        ''' return a list of classes defined within the specified module that are a subclass of the specified baseclass. '''
+        import inspect
+        return [
+            cls
+                for name, cls in inspect.getmembers(module)
+                    if inspect.isclass(cls) and issubclass(cls, baseclass) and not cls is baseclass
+            ]
+
+import abc
+class transformation(object):
+    ''' abstract baseclass for a transformation. Use of abc means it can not be instantiated. '''
+    __metaclass__ = abc.ABCMeta
+    @abc.abstractmethod
+    def name(self):
+        return
+
+class testTrans(transformation):
+    ''' A placeholder test transformation '''
+    def __init__(self):
+        pass
+    def __str__(self):
+        return "A test transformation"
+    @property
+    def name(self):
+        return "testTrans"
