@@ -1,4 +1,6 @@
 # Copyright 2013 STFC, all rights reserved
+import abc
+
 class GenerationError(Exception):
     def __init__(self, value):
         self.value = "Generation Error: "+value
@@ -174,27 +176,45 @@ class Invoke(object):
         self.schedule.genCode(invoke_sub)
         parent.add(invoke_sub)
 
-class Schedule(object):
-    def __init__(self,alg_calls):
-        from parse import InfCall,KernelCall
-        self._sequence=[]
-        for call in alg_calls:
-            if isinstance(call,InfCall):
-                self._sequence.append(Inf(call))
-            else:
-                self._sequence.append(Loop(call))
+
+class Node(object):
+    ''' baseclass for a node in a schedule '''
+
+    def __init__(self,children=[],parent=None):
+        self._children=children
+        self._parent=parent
+
     def __str__(self):
-        return "Schedule ..."
-    def kernCalls(self):
-        ''' return all kernel calls in this schedule '''
-        #print "looking for kernCalls"
-        return self.walk(self._sequence,Kern)
-    def infCalls(self):
-        ''' return all infrastructure calls in this schedule '''
-        return self.walk(self._sequence,Inf)
-    def loops(self):
-        ''' return all loops currently in this schedule '''
-        return self.walk(self._sequence,Loop)
+        raise NotImplementedError("Please implement me")
+
+    @property
+    def children(self):
+        return self._children
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def position(self):
+        if self.parent is None: return 0
+        return self.parent.children.index(self)
+
+    @property
+    def getRoot(self):
+        node=self
+        while node.parent is not None:
+            node=node.parent
+        return node
+
+    def sameRoot(self,node2):
+        if self.getRoot==node2.getRoot: return True
+        return False
+
+    def sameParent(self,node2):
+        if self.parent is None or node2.parent is None: return False
+        if self.parent==node2.parent: return True
+        return False
 
     def walk(self,children,mytype):
         ''' recurse through tree and return objects of mytype '''
@@ -206,36 +226,87 @@ class Schedule(object):
                 localList+=self.walk(child.children,mytype)
         return localList
 
+    def kernCalls(self):
+        ''' return all kernel calls in this schedule '''
+        #print "looking for kernCalls"
+        return self.walk(self._children,Kern)
+
+    def infCalls(self):
+        ''' return all infrastructure calls in this schedule '''
+        return self.walk(self._children,Inf)
+
+    def loops(self):
+        ''' return all loops currently in this schedule '''
+        return self.walk(self._children,Loop)
+
+    def genCode(self):
+        raise NotImplementedError("Please implement me")
+
+class Schedule(Node):
+
+    ''' Stores schedule information for an invocation call. Schedules can be optimised using transformations.
+        
+        >>> from parse import parse
+        >>> ast,info=parse("algorithm.f90")
+        >>> from optimise import PSy
+        >>> psy=PSy(info)
+        >>> invokes=psy.invokes
+        >>> invokes.names
+        >>> invoke=invokes.get("name")
+        >>> schedule=invoke.schedule
+        >>> print schedule
+
+    '''
+
+    def __init__(self,alg_calls=[]):
+            
+        # we need to separate calls into loops (an iteration space really) and calls
+        # so that we can perform optimisations separately on the two entities.
+        sequence=[]
+        from parse import InfCall
+        for call in alg_calls:
+            if isinstance(call,InfCall):
+                sequence.append(Inf(call,parent=self))
+            else:
+                sequence.append(Loop(call,parent=self))
+        Node.__init__(self,children=sequence)
+
+    def __str__(self):
+        result=""
+        for entity in self._children:
+            result+=str(entity)
+        return result
+
     def genCode(self,parent):
-        for entity in self._sequence:
+        for entity in self._children:
             entity.genCode(parent)
 
-# this is the wrong name for this as a loop is not a statement.
-# So what should it be called?
-class Statement(object):
-    def __init__(self):
-        pass
+class Loop(Node):
 
-class Loop(Statement):
-    def __init__(self,call,variable_name="column",topology_name="topology"):
-        self._children=[]
-        from parse import InfCall,KernelCall
-        if isinstance(call,InfCall):
-            self._children.append(Inf(call))
-        elif isinstance(call,KernelCall):
-            self._children.append(Kern(call))
-        else:
-            raise Exception
+    def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
+
+        children=[]
+        # we need to determine whether this is an infrastructure or kernel call
+        # so our schedule can do the right thing.
+        if call is not None:
+            from parse import InfCall,KernelCall
+            if isinstance(call,InfCall):
+                children.append(Inf(call,parent=self))
+            elif isinstance(call,KernelCall):
+                children.append(Kern(call,parent=self))
+            else:
+                raise Exception
+        Node.__init__(self,children=children,parent=parent)
+
         self._start="1"
         self._stop=topology_name+"%entity_counts({0})".format(self.children[0].iterates_over)
-        self._step=None
+        self._step=""
         self._variable_name=variable_name
         self._id="TBD"
+
     def __str__(self):
-        return "Loop: id="+self._id+" lower="+self._start+" upper="+self._stop+"step="+self._step+" var_name="+self._variable_name
-    @property
-    def children(self):
-        return self._children
+        return "Loop["+self._id+"]: "+self._variable_name+"="+self._id+" lower="+self._start+","+self._stop+","+self._step
+
     def genCode(self,parent):
         if self._start=="1" and self._stop=="1": # no need for a loop
             self.call.genCode(parent)
@@ -248,20 +319,23 @@ class Loop(Statement):
             my_decl=DeclGen(parent,datatype="integer",entity_decls=[self._variable_name])
             parent.add(my_decl)
 
-class Call(Statement):
-    def __init__(self):
-        pass
-    def genCode(self):
-        pass
+class Call(Node):
+
+    def __init__(self,parent):
+        Node.__init__(self,children=[],parent=parent)
     def iterates_over(self):
-        pass
+        raise NotImplementedError("I should be implemented")
 
 class Inf(Call):
-    def __init__(self,call):
+
+    def __init__(self,call,parent=None):
+        Call.__init__(self,parent=parent)
         self._supportedCalls=["set"]
         self._module_name=call.module_name
         self._name=call.func_name
         self._arglist=call.args
+    def __str__(self):
+        return "inf call"
     def genCode(self,parent):
         if self._name=="set":
             from f2pygen import AssignGen
@@ -294,11 +368,14 @@ class Inf(Call):
 #                print "arg: The name as a string ",arg
 
 class Kern(Call):
-    def __init__(self,call):
+    def __init__(self,call,parent=None):
+        Call.__init__(self,parent=parent)
         self._module_name=call.module_name
         self._name=call.ktype.procedure.name
         self._iterates_over=call.ktype.iterates_over
         self._arguments=KernelArguments(call)
+    def __str__(self):
+        return "kern call: "+self._name
     @property
     def arguments(self):
         return self._arguments
@@ -411,15 +488,6 @@ class KernelArgument(Argument):
         return self._stencil
 
 
-#class Transform(object):
-#    def __init__(self):
-#        pass
-#class OpenMPParallel(Transform):
-#    def __init__(self):
-#        pass
-#unddo
-#redo
-
 class transformations(object):
     '''
     This class provides information about, and access, to the available transformations in this implementation of PSyclone. New transformations will be picked up automatically as long as they subclass the abstract Transformation class.
@@ -430,9 +498,9 @@ class transformations(object):
     >>> t=transformations()
     >>> print t.list()
     There is 1 transformation available:
-      1: testTrans, A test transformation
+      1: SwapTrans, A test transformation
     >>> t.getTransNum(1)
-    >>> t.getTransName("testTrans")
+    >>> t.getTransName("SwapTrans")
 
 '''
 
@@ -494,20 +562,189 @@ class transformations(object):
                     if inspect.isclass(cls) and issubclass(cls, baseclass) and not cls is baseclass
             ]
 
-import abc
 class transformation(object):
-    ''' abstract baseclass for a transformation. Use of abc means it can not be instantiated. '''
+    ''' abstract baseclass for a transformation. Uses the abc module so it can not be instantiated.
+    '''
     __metaclass__ = abc.ABCMeta
-    @abc.abstractmethod
+    @abc.abstractproperty
     def name(self):
         return
+    @abc.abstractmethod
+    def apply(self):
+        return schedule,memento
 
-class testTrans(transformation):
-    ''' A placeholder test transformation '''
+#class OpenMPParallel(Transform):
+#    def __init__(self):
+#        pass
+class SwapTrans(transformation):
+    ''' A test transformation. This swaps two entries in a schedule. These entries must be siblings and next to eachother in the schedule.
+
+        For example:
+
+        >>> schedule=[please see schedule class for information]
+        >>> print schedule
+        >>> loop1=schedule.children[0]
+        >>> loop2=schedule.children[1]
+        >>> trans=SwapTrans()
+        >>> newSchedule,memento=SwapTrans.apply(loop1,loop2)
+        >>> print newSchedule
+
+    '''
     def __init__(self):
         pass
     def __str__(self):
-        return "A test transformation"
+        return "A test transformation that swaps to adjacent elements in a schedule"
     @property
     def name(self):
-        return "testTrans"
+        return "SwapTrans"
+
+    def apply(self,node1,node2):
+
+        # First perform any validity checks
+
+        # TBD check node1 and node2 are in the same schedule
+        if not node1.sameRoot(node2):
+            raise Exception("Error in transformation. nodes are not in the same schedule")
+        # TBD check node1 and node2 have the same parent
+        if not node1.sameParent(node2):
+            raise Exception("Error in transformation. nodes do not have the same parent")
+        # TBD check node1 and node2 are next to each other
+        if abs(node1.position-node2.position)!=1:
+            raise Exception("Error in transformation. nodes are not siblings who are next to eachother")
+
+        schedule=node1.getRoot
+
+        # create a memento of the schedule and the proposed transformation
+        keep=Memento(schedule,self,[node1,node2])
+
+        # find the nodes in the schedule
+        index1=node1.parent.children.index(node1)
+        index2=node2.parent.children.index(node2)
+
+        # swap nodes
+        node1.parent.children[index1]=node2
+        node2.parent.children[index2]=node1
+
+        return schedule,keep
+
+class LoopFuseTrans(transformation):
+
+    def __str__(self):
+        return "Fuse two adjacent loops together"
+
+    @property
+    def name(self):
+        return "LoopFuse"
+
+    def apply(self,node1,node2):
+
+        # check nodes are loops
+        if not isinstance(node1,Loop) or not isinstance(node2,Loop):
+            raise Exception("Error in LoopFuse transformation. at least one of the nodes is not a loop")
+        # check node1 and node2 have the same parent
+        if not node1.sameParent(node2):
+            raise Exception("Error in LoopFuse transformation. nodes do not have the same parent")
+        # check node1 and node2 are next to each other
+        if abs(node1.position-node2.position)!=1:
+            raise Exception("Error in LoopFuse transformation. nodes are not siblings who are next to eachother")
+        # TBD Check iteration space is the same
+
+        schedule=node1.getRoot
+
+        # create a memento of the schedule and the proposed transformation
+        keep=Memento(schedule,self,[node1,node2])
+
+        #add loop contents of node2 to node1
+        node1.children.extend(node2.children)
+
+        # TBD remove node2
+        node2.parent.children.remove(node2)
+
+        return schedule,keep
+
+class Memento:
+    ''' Stores a particular schedule and the transformation that was used to create this schedule (from the previous one). Takes a copy of the schedule and the transformation so that we are guaranteed to return what was provided. Without the copy another object could modify the schedule and transformation objects. '''
+    def __init__(self,schedule,transformation,mylist=[]):
+        from copy import deepcopy
+        # take copies of the schedule and transformations so that
+        # they can not be modified externally and thus we can
+        # guarantee to return them without modification.
+        self._schedule=deepcopy(schedule)
+        self._transformation=deepcopy(transformation)
+        self._mylist=deepcopy(mylist)
+    @property
+    def schedule(self):
+        return self._schedule
+    @property
+    def transformation(self):
+        return self._transformation,self._mylist
+
+class UR:
+    ''' provides undo/redo facility. There is support for unlimited undo's but no support for branching (multiple paths) so all values are lost beyond the position where the new object is added. For example, if you perform a set of transformations t1, t2 and t3 which correspond to schedule s1, s2 and s3 and we were to unddo the last transformation and apply a new transformation t4, we would end up storing t1,t2,t4 and a schedule s1,s2,s4 i.e. t3 and s3 would be deleted.
+
+        For example:
+
+        >>> from parse import parse
+        >>> ast,info=parse("algorithm.f90")
+        >>> from optimise import PSy
+        >>> psy=PSy(info)
+        >>> invokes=psy.invokes
+        >>> invokes.names
+        >>> invoke=invokes.get("name")
+        >>> schedule=invoke.schedule
+        >>> print schedule
+        >>> loop1=schedule.sequence[0]
+        >>> loop2=schedule.sequence[1]
+        >>> trans=SwapTrans()
+        >>> newSchedule,memento=SwapTrans.apply(loop1,loop2)
+        >>> ur=UR()
+        >>> ur.add(memento)
+        >>> invoke.schedule=newSchedule
+        >>> print invoke.schedule
+        >>> invoke.schedule=ur.undo.schedule
+        >>> print invoke.schedule
+        >>> invoke.schedule=ur.redo.schedule
+        >>> 
+        TBC ...
+    '''
+
+    def __init__(self,storageclass):
+        self._storageclass=storageclass
+        self._mylist=[]
+        self._position=0
+    def add(memento):
+        ''' add a new object to the stack. Raises an error if the type of the object is different from the one specified in the constructor. '''
+        if not isinstance(memento,self._storageclass): raise GenerationError("UR.add object is not the expected type.")
+        # remove anything beyond our current position (no support for branching)
+        if position!=len(self._mylist): del self._mylist[position:]
+        self._mylist.append(memento)
+    @property
+    def position(self):
+        ''' return the current position in the undo/redo stack. '''
+        return self._position
+    @property
+    def size(self):
+        ''' return the size of the undo/redo stack. '''
+        return len(self._mylist)
+    @property
+    def undoAvailable(self):
+        ''' return true if undo is possible '''
+        if self._position==0: return False
+        return True
+    @property
+    def undo(self):
+        ''' return the previous object in the stack if there is one, otherwise return an error. '''
+        if not self.undoAvailable: raise GenerationError("UR.undo. Error, there is nothing to undo.")
+        self._position-=1
+        return self._mylist[position]
+    @property
+    def redoAvailable(self):
+        ''' return true if redo is possible '''
+        if self._position==len(self._mylist): return False
+        return True                                                
+    @property
+    def redo(self):
+        ''' return the next object in the stack if there is one, otherwise return an error. '''
+        if not self.redoAvailable: raise GenerationError("UR.redo. Error, there is nothing to redo.")
+        self._position+=1
+        return self._mylist[position]
