@@ -70,7 +70,7 @@ galerkin: manual_invoke_galerkin_rhs_kernel.o manual_invoke_populate_rhs.o manua
 	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ manual_galerkin.F90 manual_invoke_populate_rhs.o manual_invoke_galerkin_rhs_kernel.o $(LIBS)
 
 gen:
-	python ../../generator/generator.py -oalg galerkin_alg.F90 -opsy galerkin_psy.F90 galerkin.F90
+	python ../../src/generator.py -oalg galerkin_alg.F90 -opsy galerkin_psy.F90 galerkin.F90
 	make galerkin_generated
 
 galerkin_generated: galerkin_module.o galerkin_psy.o galerkin_alg.o
