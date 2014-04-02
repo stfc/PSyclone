@@ -3,16 +3,16 @@ import fparser
 
 class Alg(object):
   '''
-  Generate a modified algorithm code for a single algorithm specification. Takes the ast of the algorithm specification output from the function :func:`parse.parse` and an instance of the :class:`optimise.PSy` class as input.
+  Generate a modified algorithm code for a single algorithm specification. Takes the ast of the algorithm specification output from the function :func:`parse.parse` and an instance of the :class:`psyGen.PSy` class as input.
 
   :param ast ast: An object containing an ast of the algorithm specification which was produced by the function :func:`parse.parse`.
-  :param PSy psy: An object (:class:`optimise.PSy`) containing information about the PSy layer.
+  :param PSy psy: An object (:class:`psyGen.PSy`) containing information about the PSy layer.
 
   For example:
 
   >>> from parse import parse
   >>> ast,info=parse("argspec.F90")
-  >>> from optimise import PSy
+  >>> from psyGen import PSy
   >>> psy=PSy(info)
   >>> from algGen import Alg
   >>> alg=Alg(ast,psy)
@@ -40,7 +40,7 @@ class Alg(object):
 
       if isinstance(stmt,fparser.statements.Call):
         if stmt.designator=="invoke":
-          from optimise import Invoke
+          from psyGen import Invoke
           invokeInfo=self._psy.invokes.invokeList[idx]
           stmt.designator=invokeInfo.name
           stmt.items=invokeInfo.unique_args

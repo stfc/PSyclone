@@ -17,7 +17,7 @@ class PSy(object):
 
     >>> from parse import parse
     >>> ast,info=parse("argspec.F90")
-    >>> from optimise import PSy
+    >>> from psyGen import PSy
     >>> psy=PSy(info)
     >>> print(psy.gen)
 
@@ -79,6 +79,23 @@ class Invokes(object):
             #print "invokes calling invoke"
             invoke.genCode(parent)
 
+class Dependencies(object):
+    from collections import defaultdict
+    def __init_(self):
+        self._precedes=defaultdict(list)
+        self._follows=defaultdict(list)
+    def addPrecedes(self,obj1,obj2):
+        # obj1 precedes obj2
+        self._precedes[obj1].append(obj2)
+        # obj2 follows obj1
+        self._follows[obj2].append(obj1)
+    def addFollows(self,obj1,obj2):
+        self.add_precedes(obj2,obj1)
+    def getPrecedes(obj1):
+        return self._precedes[obj1]
+    def getFollows(obj1):
+        return self._follows[obj1]
+
 class Invoke(object):
     def __str__(self):
         return self._name+"("+self.unique_args+")"
@@ -87,10 +104,16 @@ class Invoke(object):
         # now create the schedule functionality
         self._schedule=Schedule(alg_invocation.kcalls)
 
+        # set up the dependencies between the calls in the schedule
+        for call in self._schedule.calls():
+            for argument in call.arguments._args:
+                argument.setDependencies()
+            
+        #exit(1)
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
             self._name = alg_invocation.name
-        elif len(alg_invocation.kcalls) and alg_invocation.kcalls[0].type=="KernelCall":
+        elif len(alg_invocation.kcalls)==1 and alg_invocation.kcalls[0].type=="kernelCall":
             # use the name of the kernel call
             self._name = "invoke_"+alg_invocation.kcalls[0].ktype.name
         else:
@@ -200,15 +223,38 @@ class Node(object):
         if self.parent is None: return 0
         return self.parent.children.index(self)
 
+        current=self.root
+        position=0
+
     @property
-    def getRoot(self):
+    def absPosition(self):
+        ''' Find my position in the schedule. Needs to be computed dynamically as my position may change. '''
+
+        if self.root==self: return 0
+        found,position=self._findPosition(self.root.children,0)
+        if not found: raise Exception("Error in search for my position in the tree")
+        return position
+
+    def _findPosition(self,children,position):
+        ''' Recurse through the tree depth first returning position if found.'''
+        for child in children:
+            position+=1
+            if child==self:
+                return True,position
+            if isinstance(child,Loop):
+                found,position=self._findPosition(child.children,position)
+                if found: return True,position
+        return False,position
+
+    @property
+    def root(self):
         node=self
         while node.parent is not None:
             node=node.parent
         return node
 
     def sameRoot(self,node2):
-        if self.getRoot==node2.getRoot: return True
+        if self.root==node2.root: return True
         return False
 
     def sameParent(self,node2):
@@ -225,6 +271,24 @@ class Node(object):
             if isinstance(child,Loop):
                 localList+=self.walk(child.children,mytype)
         return localList
+
+    def calls(self):
+        ''' return all calls in this schedule '''
+        return self.walk(self.root.children,Call)
+
+    @property
+    def followingCalls(self):
+        ''' return all calls after me in the schedule '''
+        allcalls=self.calls()
+        position=allcalls.index(self)
+        return allcalls[position+1:]
+
+    @property
+    def precedingCalls(self):
+        ''' return all calls after me in the schedule '''
+        allcalls=self.calls()
+        position=allcalls.index(self)
+        return allcalls[:position+1]
 
     def kernCalls(self):
         ''' return all kernel calls in this schedule '''
@@ -248,7 +312,7 @@ class Schedule(Node):
         
         >>> from parse import parse
         >>> ast,info=parse("algorithm.f90")
-        >>> from optimise import PSy
+        >>> from psyGen import PSy
         >>> psy=PSy(info)
         >>> invokes=psy.invokes
         >>> invokes.names
@@ -269,6 +333,8 @@ class Schedule(Node):
                 sequence.append(Inf(call,parent=self))
             else:
                 sequence.append(Loop(call,parent=self))
+        #for call in alg_calls:
+        #    sequence.append(Loop(call,parent=self))
         Node.__init__(self,children=sequence)
 
     def __str__(self):
@@ -322,16 +388,17 @@ class Loop(Node):
 class Call(Node):
 
     def __init__(self,parent):
-        Node.__init__(self,children=[],parent=parent)
+        Node.__init__(self,children=[],parent=parent,call)
+        self._module_name=call.module_name
+
     def iterates_over(self):
         raise NotImplementedError("I should be implemented")
 
 class Inf(Call):
 
     def __init__(self,call,parent=None):
-        Call.__init__(self,parent=parent)
+        Call.__init__(self,parent=parent,call)
         self._supportedCalls=["set"]
-        self._module_name=call.module_name
         self._name=call.func_name
         self._arglist=call.args
     def __str__(self):
@@ -369,11 +436,10 @@ class Inf(Call):
 
 class Kern(Call):
     def __init__(self,call,parent=None):
-        Call.__init__(self,parent=parent)
-        self._module_name=call.module_name
+        Call.__init__(self,parent=parent,call)
         self._name=call.ktype.procedure.name
         self._iterates_over=call.ktype.iterates_over
-        self._arguments=KernelArguments(call)
+        self._arguments=KernelArguments(call,self)
     def __str__(self):
         return "kern call: "+self._name
     @property
@@ -399,11 +465,12 @@ class Arguments(object):
 
 class KernelArguments(Arguments):
     ''' functionality for arguments associated with a kernel call '''
-    def __init__(self,call):
+    def __init__(self,call,kernel):
         # kernels have metadata describing the expected arguments
+        self._kernel=kernel
         self._args=[]
         for (idx,arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(KernelArgument(arg,call.args[idx]))
+            self._args.append(KernelArgument(arg,call.args[idx],kernel))
         self._arglist=[]
         self._dofs={}
         if call.ktype.iterates_over=="dofs":
@@ -450,24 +517,40 @@ class InfArguments(Arguments):
         return self._arglist
 
 class Argument(object):
-    ''' argument abstract base class '''
-    def __init__(self):
-        pass
+    ''' argument base class '''
+    def __init__(self,call,argInfo,arg):
+        self._call=call
+        self._name=argInfo.value
+        self._form=argInfo.form
+        self._access=arg.stencil
+
+
+    def __str__(self):
+        raise NotImplementedError("Please implement me")
+
+    def setDependencies(self):
+        print "argument '"+str(self)+"' in call '"+str(self._call)+"' is access '"+self._access+"'"
+        for following_call in self._call.followingCalls:
+            for argument in following_call.arguments._args:
+                if argument.name==self._name:
+                    print "argument '"+str(self)+"' in call '"+str(self._call)+"' has the same name as argument '"+str(argument)+"' in call '"+str(following_call)+"'"
 
 class KernelArgument(Argument):
     ''' kernel argument functionality '''
-    def __init__(self,arg,argInfo):
+    def __init__(self,arg,argInfo,call):
+        Argument.__init__(self,call,argInfo,arg)
         mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
-        self._form=argInfo.form
-        self._name=argInfo.value
         self._stencil=arg.access
-        self._access=arg.stencil
         self._fs_dimension=arg.function_space.dimension
         self._fs_element=arg.element
         try:
             self._ptype=mapping[str(self._fs_element)]
         except:
             raise GenerationError("Kernel metadata mapping '{0}' is not supported for variable '{2}'. Supported values are '{1}'".format(str(self._fs_element),str(mapping),self._name))
+
+    def __str__(self):
+        return self._name
+
     @property
     def ptype(self):
         return self._ptype
@@ -494,9 +577,9 @@ class transformations(object):
 
     For example:
 
-    >>> from optimise import transformations
+    >>> from psyGen import transformations
     >>> t=transformations()
-    >>> print t.list()
+    >>> print t.list
     There is 1 transformation available:
       1: SwapTrans, A test transformation
     >>> t.getTransNum(1)
@@ -505,12 +588,14 @@ class transformations(object):
 '''
 
     def __init__(self,module=None,baseclass=None):
-        ''' if module and/or baseclass are provided then use these else use the default module "optimise" (this module) and the default base_class "transformation"'''
-        import optimise
+        ''' if module and/or baseclass are provided then use these else use the default module "transformations" and the default base_class "transformation"'''
         if module is None:
-            module=optimise
+            # default to the transformation module
+            import transformations
+            module=transformations
         if baseclass is None:
-            baseclass=optimise.transformation
+            import psyGen
+            baseclass=psyGen.transformation
         # find our transformations.
         self._classes=self._find_subclasses(module,baseclass)
 
@@ -572,179 +657,3 @@ class transformation(object):
     @abc.abstractmethod
     def apply(self):
         return schedule,memento
-
-#class OpenMPParallel(Transform):
-#    def __init__(self):
-#        pass
-class SwapTrans(transformation):
-    ''' A test transformation. This swaps two entries in a schedule. These entries must be siblings and next to eachother in the schedule.
-
-        For example:
-
-        >>> schedule=[please see schedule class for information]
-        >>> print schedule
-        >>> loop1=schedule.children[0]
-        >>> loop2=schedule.children[1]
-        >>> trans=SwapTrans()
-        >>> newSchedule,memento=SwapTrans.apply(loop1,loop2)
-        >>> print newSchedule
-
-    '''
-    def __init__(self):
-        pass
-    def __str__(self):
-        return "A test transformation that swaps to adjacent elements in a schedule"
-    @property
-    def name(self):
-        return "SwapTrans"
-
-    def apply(self,node1,node2):
-
-        # First perform any validity checks
-
-        # TBD check node1 and node2 are in the same schedule
-        if not node1.sameRoot(node2):
-            raise Exception("Error in transformation. nodes are not in the same schedule")
-        # TBD check node1 and node2 have the same parent
-        if not node1.sameParent(node2):
-            raise Exception("Error in transformation. nodes do not have the same parent")
-        # TBD check node1 and node2 are next to each other
-        if abs(node1.position-node2.position)!=1:
-            raise Exception("Error in transformation. nodes are not siblings who are next to eachother")
-
-        schedule=node1.getRoot
-
-        # create a memento of the schedule and the proposed transformation
-        keep=Memento(schedule,self,[node1,node2])
-
-        # find the nodes in the schedule
-        index1=node1.parent.children.index(node1)
-        index2=node2.parent.children.index(node2)
-
-        # swap nodes
-        node1.parent.children[index1]=node2
-        node2.parent.children[index2]=node1
-
-        return schedule,keep
-
-class LoopFuseTrans(transformation):
-
-    def __str__(self):
-        return "Fuse two adjacent loops together"
-
-    @property
-    def name(self):
-        return "LoopFuse"
-
-    def apply(self,node1,node2):
-
-        # check nodes are loops
-        if not isinstance(node1,Loop) or not isinstance(node2,Loop):
-            raise Exception("Error in LoopFuse transformation. at least one of the nodes is not a loop")
-        # check node1 and node2 have the same parent
-        if not node1.sameParent(node2):
-            raise Exception("Error in LoopFuse transformation. nodes do not have the same parent")
-        # check node1 and node2 are next to each other
-        if abs(node1.position-node2.position)!=1:
-            raise Exception("Error in LoopFuse transformation. nodes are not siblings who are next to eachother")
-        # TBD Check iteration space is the same
-
-        schedule=node1.getRoot
-
-        # create a memento of the schedule and the proposed transformation
-        keep=Memento(schedule,self,[node1,node2])
-
-        #add loop contents of node2 to node1
-        node1.children.extend(node2.children)
-
-        # TBD remove node2
-        node2.parent.children.remove(node2)
-
-        return schedule,keep
-
-class Memento:
-    ''' Stores a particular schedule and the transformation that was used to create this schedule (from the previous one). Takes a copy of the schedule and the transformation so that we are guaranteed to return what was provided. Without the copy another object could modify the schedule and transformation objects. '''
-    def __init__(self,schedule,transformation,mylist=[]):
-        from copy import deepcopy
-        # take copies of the schedule and transformations so that
-        # they can not be modified externally and thus we can
-        # guarantee to return them without modification.
-        self._schedule=deepcopy(schedule)
-        self._transformation=deepcopy(transformation)
-        self._mylist=deepcopy(mylist)
-    @property
-    def schedule(self):
-        return self._schedule
-    @property
-    def transformation(self):
-        return self._transformation,self._mylist
-
-class UR:
-    ''' provides undo/redo facility. There is support for unlimited undo's but no support for branching (multiple paths) so all values are lost beyond the position where the new object is added. For example, if you perform a set of transformations t1, t2 and t3 which correspond to schedule s1, s2 and s3 and we were to unddo the last transformation and apply a new transformation t4, we would end up storing t1,t2,t4 and a schedule s1,s2,s4 i.e. t3 and s3 would be deleted.
-
-        For example:
-
-        >>> from parse import parse
-        >>> ast,info=parse("algorithm.f90")
-        >>> from optimise import PSy
-        >>> psy=PSy(info)
-        >>> invokes=psy.invokes
-        >>> invokes.names
-        >>> invoke=invokes.get("name")
-        >>> schedule=invoke.schedule
-        >>> print schedule
-        >>> loop1=schedule.sequence[0]
-        >>> loop2=schedule.sequence[1]
-        >>> trans=SwapTrans()
-        >>> newSchedule,memento=SwapTrans.apply(loop1,loop2)
-        >>> ur=UR()
-        >>> ur.add(memento)
-        >>> invoke.schedule=newSchedule
-        >>> print invoke.schedule
-        >>> invoke.schedule=ur.undo.schedule
-        >>> print invoke.schedule
-        >>> invoke.schedule=ur.redo.schedule
-        >>> 
-        TBC ...
-    '''
-
-    def __init__(self,storageclass):
-        self._storageclass=storageclass
-        self._mylist=[]
-        self._position=0
-    def add(memento):
-        ''' add a new object to the stack. Raises an error if the type of the object is different from the one specified in the constructor. '''
-        if not isinstance(memento,self._storageclass): raise GenerationError("UR.add object is not the expected type.")
-        # remove anything beyond our current position (no support for branching)
-        if position!=len(self._mylist): del self._mylist[position:]
-        self._mylist.append(memento)
-    @property
-    def position(self):
-        ''' return the current position in the undo/redo stack. '''
-        return self._position
-    @property
-    def size(self):
-        ''' return the size of the undo/redo stack. '''
-        return len(self._mylist)
-    @property
-    def undoAvailable(self):
-        ''' return true if undo is possible '''
-        if self._position==0: return False
-        return True
-    @property
-    def undo(self):
-        ''' return the previous object in the stack if there is one, otherwise return an error. '''
-        if not self.undoAvailable: raise GenerationError("UR.undo. Error, there is nothing to undo.")
-        self._position-=1
-        return self._mylist[position]
-    @property
-    def redoAvailable(self):
-        ''' return true if redo is possible '''
-        if self._position==len(self._mylist): return False
-        return True                                                
-    @property
-    def redo(self):
-        ''' return the next object in the stack if there is one, otherwise return an error. '''
-        if not self.redoAvailable: raise GenerationError("UR.redo. Error, there is nothing to redo.")
-        self._position+=1
-        return self._mylist[position]

@@ -4,11 +4,11 @@ import sys
 import os
 import traceback
 from parse import parse,ParseError
-from optimise import PSy,GenerationError
+from psyGen import PSy,GenerationError
 
 def generate(filename):
     '''
-    Takes a GungHo algorithm specification as input and outputs the associated generated algorithm and psy codes suitable for compiling with the specified kernel(s) and GungHo infrastructure. Uses the :func:`parse.parse` function to parse the algorithm specification, the :class:`optimise.PSy` class to generate the PSy code and the :class:`algGen.Alg` class to generate the modified algorithm code.
+    Takes a GungHo algorithm specification as input and outputs the associated generated algorithm and psy codes suitable for compiling with the specified kernel(s) and GungHo infrastructure. Uses the :func:`parse.parse` function to parse the algorithm specification, the :class:`psyGen.PSy` class to generate the PSy code and the :class:`algGen.Alg` class to generate the modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
     :return: The algorithm code and the psy code.
