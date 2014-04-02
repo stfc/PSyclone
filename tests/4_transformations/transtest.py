@@ -22,9 +22,10 @@ else:
 try:
     from generator import generate,GenerationError,ParseError
     from parse import parse
-    from optimise import PSy,SwapTrans,LoopFuseTrans
+    from psyGen import PSy
+    from transformations import SwapTrans,LoopFuseTrans
 except ImportError:
-    print "Error in generator,parse, or optimise module import. Check your PYTHONPATH"
+    print "Error in generator,parse,psyGen or transformations module import. Check your PYTHONPATH"
     raise
 
 class TransformationTestCases(unittest.TestCase):

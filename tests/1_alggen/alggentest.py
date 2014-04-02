@@ -40,7 +40,6 @@ class AlgGeneratorTestCases(unittest.TestCase):
     def test_single_invoke(self):
         # single function specified in an invoke call
         alg,psy=generate("1_single_function.f90")
-        #print str(alg)
         self.assertTrue(str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
                         str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
 

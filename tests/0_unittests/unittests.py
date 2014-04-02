@@ -20,9 +20,9 @@ else:
     exit(1)
 
 try:
-    from optimise import transformations, transformation, GenerationError
+    from psyGen import transformations, transformation, GenerationError
 except ImportError:
-    print "Error in import of transformations from optimise. Check your PYTHONPATH"
+    print "Error in import of transformations from psyGen. Check your PYTHONPATH"
     raise
 
 class TransformationsClassTests(unittest.TestCase):
@@ -78,7 +78,7 @@ class TransformationsClassTests(unittest.TestCase):
 
     def test_valid_return_object_from_name(self):
         t=transformations()
-        transform=t.getTransName("testTrans")
+        transform=t.getTransName("SwapTrans")
         self.assertTrue(isinstance(transform,transformation))
 
 class TransformationClassTests(unittest.TestCase):
