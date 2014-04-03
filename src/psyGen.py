@@ -387,20 +387,32 @@ class Loop(Node):
 
 class Call(Node):
 
-    def __init__(self,parent):
-        Node.__init__(self,children=[],parent=parent,call)
+    def __init__(self,parent,call):
+        Node.__init__(self,children=[],parent=parent)
         self._module_name=call.module_name
-
+        self._arguments=None
+        self._name=None
+    def __str__(self):
+        raise NotImplementedError("I should be implemented")
+    @property
+    def arguments(self):
+        return self._arguments
+    @property
+    def name(self):
+        return self._name
     def iterates_over(self):
+        raise NotImplementedError("I should be implemented")
+    def genCode(self):
         raise NotImplementedError("I should be implemented")
 
 class Inf(Call):
 
     def __init__(self,call,parent=None):
-        Call.__init__(self,parent=parent,call)
+        Call.__init__(self,parent,call)
         self._supportedCalls=["set"]
         self._name=call.func_name
-        self._arglist=call.args
+        self._arguments=InfArguments(call,self)
+        #self._arglist=call.args
     def __str__(self):
         return "inf call"
     def genCode(self,parent):
@@ -436,18 +448,12 @@ class Inf(Call):
 
 class Kern(Call):
     def __init__(self,call,parent=None):
-        Call.__init__(self,parent=parent,call)
+        Call.__init__(self,parent,call)
         self._name=call.ktype.procedure.name
         self._iterates_over=call.ktype.iterates_over
         self._arguments=KernelArguments(call,self)
     def __str__(self):
         return "kern call: "+self._name
-    @property
-    def arguments(self):
-        return self._arguments
-    @property
-    def name(self):
-        return self._name
     @property
     def iterates_over(self):
         return self._iterates_over
@@ -465,12 +471,12 @@ class Arguments(object):
 
 class KernelArguments(Arguments):
     ''' functionality for arguments associated with a kernel call '''
-    def __init__(self,call,kernel):
+    def __init__(self,call,parentCall):
         # kernels have metadata describing the expected arguments
-        self._kernel=kernel
+        self._parentCall=parentCall
         self._args=[]
         for (idx,arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(KernelArgument(arg,call.args[idx],kernel))
+            self._args.append(KernelArgument(arg,call.args[idx],parentCall))
         self._arglist=[]
         self._dofs={}
         if call.ktype.iterates_over=="dofs":
@@ -507,8 +513,12 @@ class KernelArguments(Arguments):
 
 class InfArguments(Arguments):
     ''' functionality for arguments associated with an infrastructure call '''
-    def __init__(self):
-        pass
+    def __init__(self,callInfo,parentCall):
+        self._parentCall=parentCall
+        self._args=[]
+        for arg in callInfo.args:
+            print "**** "+str(type(arg))+" "+str(arg.form)+" "+str(arg.isLiteral())+" "+str(arg.value)
+        #self._args.append(InfArgument(arg,call.args[idx],parentCall))
     @property
     def arglist(self):
         ''' return a comma separated string with the required arguments.
