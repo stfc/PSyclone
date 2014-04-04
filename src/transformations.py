@@ -40,7 +40,7 @@ class SwapTrans(transformation):
         if abs(node1.position-node2.position)!=1:
             raise Exception("Error in transformation. nodes are not siblings who are next to eachother")
 
-        schedule=node1.getRoot
+        schedule=node1.root
 
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
@@ -79,7 +79,7 @@ class LoopFuseTrans(transformation):
             raise Exception("Error in LoopFuse transformation. nodes are not siblings who are next to eachother")
         # TBD Check iteration space is the same
 
-        schedule=node1.getRoot
+        schedule=node1.root
 
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento

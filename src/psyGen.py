@@ -330,7 +330,7 @@ class Schedule(Node):
         from parse import InfCall
         for call in alg_calls:
             if isinstance(call,InfCall):
-                sequence.append(Inf(call,parent=self))
+                sequence.append(Inf.create(call,parent=self))
             else:
                 sequence.append(Loop(call,parent=self))
         #for call in alg_calls:
@@ -357,7 +357,7 @@ class Loop(Node):
         if call is not None:
             from parse import InfCall,KernelCall
             if isinstance(call,InfCall):
-                children.append(Inf(call,parent=self))
+                children.append(Inf.create(call,parent=self))
             elif isinstance(call,KernelCall):
                 children.append(Kern(call,parent=self))
             else:
@@ -387,71 +387,56 @@ class Loop(Node):
 
 class Call(Node):
 
-    def __init__(self,parent,call):
+    def __init__(self,parent,call,name,arguments):
         Node.__init__(self,children=[],parent=parent)
         self._module_name=call.module_name
-        self._arguments=None
-        self._name=None
-    def __str__(self):
-        raise NotImplementedError("I should be implemented")
+        self._arguments=arguments
+        self._name=name
     @property
     def arguments(self):
         return self._arguments
     @property
     def name(self):
         return self._name
-    def iterates_over(self):
-        raise NotImplementedError("I should be implemented")
-    def genCode(self):
-        raise NotImplementedError("I should be implemented")
-
-class Inf(Call):
-
-    def __init__(self,call,parent=None):
-        Call.__init__(self,parent,call)
-        self._supportedCalls=["set"]
-        self._name=call.func_name
-        self._arguments=InfArguments(call,self)
-        #self._arglist=call.args
     def __str__(self):
-        return "inf call"
-    def genCode(self,parent):
-        if self._name=="set":
-            from f2pygen import AssignGen
-            field_name=self._arglist[0].value
-            var_name=field_name+"%data"
-            value=self._arglist[1].value
-            assign2=AssignGen(parent,lhs=var_name,rhs=value)
-            parent.add(assign2)
-        else:
-            raise GenerationError("Unknown infrastructure call. Supported calls are {0} but found {1}".format(str(self._supportedCalls),self._name))
-        return
+        raise NotImplementedError("Call.__str__ should be implemented")
+    def iterates_over(self):
+        raise NotImplementedError("Call.iterates_over should be implemented")
+    def genCode(self):
+        raise NotImplementedError("Call.genCode should be implemented")
 
-#        mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
-#        self._dofs={}
-#        for kcall in alg_invocation.kcalls:
-#            #print "kernel interates_over",kcall.ktype.iterates_over
-#            #print "kernel name",kcall.ktype.name
-#            #print "kernel nargs",kcall.ktype.nargs
-#            ##print kcall.ktype.procedure # the ast
-#            for descriptor in kcall.ktype.arg_descriptors:
-#                pass
-#                #print "descriptor access",descriptor.access
-#                #print "descriptor element",descriptor.element
-#                #print "descriptor function_space dimension",descriptor.function_space.dimension
-#                #print "descriptor function_space element",descriptor.function_space.element
-#                #print "descriptor stencil",descriptor.stencil
-#
-#            for arg in kcall.args:
-#                #print dir(kcall)
-#                print "arg: The name as a string ",arg
+class Inf(object):
+    ''' infrastructure call factory, Used to create a call specific class '''
+    @staticmethod
+    def create(call,parent=None):
+        supportedCalls=["set"]
+        if call.func_name not in supportedCalls:
+            raise GenerationError("Unknown infrastructure call. Supported calls are {0} but found {1}".format(str(supportedCalls),call.func_name))
+        if call.func_name=="set": return SetInfCall(call,parent)
+
+class SetInfCall(Call):
+    ''' the set infrastructure call '''
+    def __init__(self,call,parent=None):
+        assert call.func_name=="set", "Error"
+        access=["write",None]
+        Call.__init__(self,parent,call,call.func_name,InfArguments(call,self,access))
+        #self._arguments=InfArguments(call,self,access)
+    def __str__(self):
+        return "set inf call"
+    def genCode(self,parent):
+        from f2pygen import AssignGen
+        field_name=self._arguments.arglist[0]
+        var_name=field_name+"%data"
+        value=self._arguments.arglist[1]
+        assign2=AssignGen(parent,lhs=var_name,rhs=value)
+        parent.add(assign2)
+        return
 
 class Kern(Call):
     def __init__(self,call,parent=None):
-        Call.__init__(self,parent,call)
-        self._name=call.ktype.procedure.name
+        Call.__init__(self,parent,call,call.ktype.procedure.name,KernelArguments(call,self))
         self._iterates_over=call.ktype.iterates_over
-        self._arguments=KernelArguments(call,self)
+        #self._arguments=KernelArguments(call,self)
     def __str__(self):
         return "kern call: "+self._name
     @property
@@ -466,8 +451,12 @@ class Arguments(object):
     ''' arguments abstract base class '''
     def __init__(self):
         pass
+    @property
     def arglist(self):
-        pass
+        raise NotImplementedError("Arguments:arglist() should be implemented by subclass")
+    @property
+    def argNames(self):
+        raise NotImplementedError("Arguments:argNames() should be implemented by subclass")
 
 class KernelArguments(Arguments):
     ''' functionality for arguments associated with a kernel call '''
@@ -500,11 +489,9 @@ class KernelArguments(Arguments):
             if str(arg.element)=="r":
                 dataref+="(1)" # scalar in kernel
             self._arglist.append(arg.name+dataref)
-
     @property
     def dofs(self):
         return self._dofs
-
     @property
     def arglist(self):
         ''' return a comma separated string with the required arguments.
@@ -512,43 +499,63 @@ class KernelArguments(Arguments):
         return self._arglist
 
 class InfArguments(Arguments):
-    ''' functionality for arguments associated with an infrastructure call '''
-    def __init__(self,callInfo,parentCall):
+    ''' arguments associated with an infrastructure call '''
+    def __init__(self,callInfo,parentCall,access):
         self._parentCall=parentCall
         self._args=[]
-        for arg in callInfo.args:
-            print "**** "+str(type(arg))+" "+str(arg.form)+" "+str(arg.isLiteral())+" "+str(arg.value)
-        #self._args.append(InfArgument(arg,call.args[idx],parentCall))
+        for idx,arg in enumerate(callInfo.args):
+            self._args.append(InfArgument(arg,parentCall,access[idx]))
+    @property
+    def args(self):
+        return self._args
     @property
     def arglist(self):
-        ''' return a comma separated string with the required arguments.
-            Will need indexing info at some point '''
-        self._arglist="iarg1,iarg2,iarg3"
-        return self._arglist
+        myarglist=[]
+        for arg in self._args:
+            myarglist.append(arg.name)
+        return myarglist
 
 class Argument(object):
     ''' argument base class '''
-    def __init__(self,call,argInfo,arg):
+    def __init__(self,call,argInfo,access):
         self._call=call
         self._name=argInfo.value
         self._form=argInfo.form
-        self._access=arg.stencil
-
-
+        self._isLiteral=argInfo.isLiteral()
+        self._access=access
     def __str__(self):
-        raise NotImplementedError("Please implement me")
-
+        return self._name
+    @property
+    def name(self):
+        return self._name
+    @property
+    def form(self):
+        return self._form
+    @property
+    def isLiteral(self):
+        return self._isLiteral
+    @property
+    def access(self):
+        return self._access
     def setDependencies(self):
-        print "argument '"+str(self)+"' in call '"+str(self._call)+"' is access '"+self._access+"'"
-        for following_call in self._call.followingCalls:
-            for argument in following_call.arguments._args:
-                if argument.name==self._name:
-                    print "argument '"+str(self)+"' in call '"+str(self._call)+"' has the same name as argument '"+str(argument)+"' in call '"+str(following_call)+"'"
+        if self.isLiteral:
+            print "argument '"+str(self)+"' in call '"+str(self._call)+"' is a literal. Skipping dependence analysis."
+        else:
+            print "argument '"+str(self)+"' in call '"+str(self._call)+"' is access '"+self._access+"'"
+            for following_call in self._call.followingCalls:
+                for argument in following_call.arguments._args:
+                    if argument.name==self._name:
+                        print "argument '"+str(self)+"' in call '"+str(self._call)+"' has the same name as argument '"+str(argument)+"' in call '"+str(following_call)+"'"
 
+class InfArgument(Argument):
+    ''' infrastructure call argument '''
+    def __init__(self,argInfo,call,access):
+        Argument.__init__(self,call,argInfo,access)
+    
 class KernelArgument(Argument):
-    ''' kernel argument functionality '''
+    ''' kernel routine argument '''
     def __init__(self,arg,argInfo,call):
-        Argument.__init__(self,call,argInfo,arg)
+        Argument.__init__(self,call,argInfo,arg.stencil)
         mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
         self._stencil=arg.access
         self._fs_dimension=arg.function_space.dimension
@@ -557,25 +564,12 @@ class KernelArgument(Argument):
             self._ptype=mapping[str(self._fs_element)]
         except:
             raise GenerationError("Kernel metadata mapping '{0}' is not supported for variable '{2}'. Supported values are '{1}'".format(str(self._fs_element),str(mapping),self._name))
-
-    def __str__(self):
-        return self._name
-
     @property
     def ptype(self):
         return self._ptype
     @property
-    def name(self):
-        return self._name
-    @property
     def element(self):
         return self._fs_element
-    #@property
-    #def call(self):
-    #    return self._call
-    @property
-    def access(self):
-        return self._access
     @property
     def stencil(self):
         return self._stencil
