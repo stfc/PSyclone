@@ -81,6 +81,33 @@ class Invokes(object):
             invoke.genCode(parent)
 
 class Dependencies(object):
+    def __init__(self,thisArg):
+        self._arg=thisArg
+        self._precedes=[]
+        self._follows=[]
+    def set(self):
+        if self.isLiteral:
+            pass
+        else:
+            for following_call in self._call.followingCalls:
+                for argument in following_call.arguments._args:
+                    if argument.name==self._name:
+                        self._addFollows(argument)
+            for preceding_call in self._call.precedingCalls:
+                for argument in preceding_call.arguments._args:
+                    if argument.name==self._name:
+                        self._addPrecedes(argument)
+
+    def addPrecedes(self,obj):
+        self._precedes.append(obj)
+    def addFollows(self,obj):
+        self._follows.append(obj)
+    def getPrecedes():
+        return self._precedes
+    def getFollows:
+        return self._follows
+
+class DependenciesOLD(object):
     from collections import defaultdict
     def __init_(self):
         self._precedes=defaultdict(list)
@@ -102,15 +129,19 @@ class Invoke(object):
         return self._name+"("+self.unique_args+")"
     def __init__(self,alg_invocation,idx):
 
-        # now create the schedule functionality
+        # create the schedule
         self._schedule=Schedule(alg_invocation.kcalls)
 
-        # set up the dependencies between the calls in the schedule
+        # Set up the ordering constraints between the calls in the schedule
+        # Obviously the schedule must be created first
         for call in self._schedule.calls():
+            call.setConstraints()
             for argument in call.arguments._args:
                 argument.setDependencies()
-            
-        #exit(1)
+
+        # set up the constraints between the calls in the schedule
+        exit(1)
+    
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
             self._name = alg_invocation.name
@@ -286,10 +317,10 @@ class Node(object):
 
     @property
     def precedingCalls(self):
-        ''' return all calls after me in the schedule '''
+        ''' return all calls before me in the schedule '''
         allcalls=self.calls()
         position=allcalls.index(self)
-        return allcalls[:position+1]
+        return allcalls[:position-1]
 
     def kernCalls(self):
         ''' return all kernel calls in this schedule '''
@@ -393,6 +424,11 @@ class Call(Node):
         self._module_name=call.module_name
         self._arguments=arguments
         self._name=name
+    def setConstraints(self):
+        # first set up the dependencies of my arguments
+        self.arguments.setDependencies
+        # TODO: set up constraints between calls
+        
     @property
     def arguments(self):
         return self._arguments
@@ -450,22 +486,26 @@ class Kern(Call):
 
 class Arguments(object):
     ''' arguments abstract base class '''
-    def __init__(self):
-        pass
+    def __init__(self,parentCall):
+        self._parentCall=parentCall
+        self._args=[]
     @property
     def arglist(self):
         raise NotImplementedError("Arguments:arglist() should be implemented by subclass")
     @property
     def argNames(self):
         raise NotImplementedError("Arguments:argNames() should be implemented by subclass")
+    def setDependencies(self):
+        for argument in self._args:
+            argument.setDependencies()
+        # TODO create a summary of dependencies
 
 class KernelArguments(Arguments):
     ''' functionality for arguments associated with a kernel call '''
     def __init__(self,call,parentCall):
+        Arguments.__init__(self,parentCall)
         # kernels have metadata describing the expected arguments
-        self._parentCall=parentCall
         self._0toN=KernelArgument(None,None,None) # only here for pyreverse!
-        self._args=[]
         for (idx,arg) in enumerate (call.ktype.arg_descriptors):
             self._args.append(KernelArgument(arg,call.args[idx],parentCall))
         self._arglist=[]
@@ -503,9 +543,8 @@ class KernelArguments(Arguments):
 class InfArguments(Arguments):
     ''' arguments associated with an infrastructure call '''
     def __init__(self,callInfo,parentCall,access):
-        self._parentCall=parentCall
+        Arguments.__init__(self,parentCall)
         self._0toN=InfArgument() # only here for pyreverse!
-        self._args=[]
         for idx,arg in enumerate(callInfo.args):
             self._args.append(InfArgument(arg,parentCall,access[idx]))
     @property
@@ -521,7 +560,7 @@ class InfArguments(Arguments):
 class Argument(object):
     ''' argument base class '''
     def __init__(self,call,argInfo,access):
-        self._0toN=Dependencies() # only here for pyreverse!
+        self._dependencies=Dependencies(self)
         self._call=call
         self._name=argInfo.value
         self._form=argInfo.form
@@ -542,14 +581,30 @@ class Argument(object):
     def access(self):
         return self._access
     def setDependencies(self):
-        if self.isLiteral:
-            print "argument '"+str(self)+"' in call '"+str(self._call)+"' is a literal. Skipping dependence analysis."
-        else:
-            print "argument '"+str(self)+"' in call '"+str(self._call)+"' is access '"+self._access+"'"
-            for following_call in self._call.followingCalls:
-                for argument in following_call.arguments._args:
-                    if argument.name==self._name:
-                        print "argument '"+str(self)+"' in call '"+str(self._call)+"' has the same name as argument '"+str(argument)+"' in call '"+str(following_call)+"'"
+        writers=["WRITE","INC","SUM"]
+        readers=["READ","INC"]
+        for following_call in self._call.followingCalls:
+            for argument in following_call.arguments.args:
+                if argument.name==self._name:
+                    if self.access in writers and argument.access in readers:
+                        self._trueDependence.append(argument)
+                    if self.access in readers and argument.access in writers:
+                        self._antiDependence.append(argument)
+    def hasTrueDependence():
+        if len(self._trueDependence)>0: return True
+        return False
+    def hasAntiDependence():
+        if len(self._antiDependence)>0: return True
+        return False
+    def hasDependence():
+        if hasAntiDependence or hasTrueDependence: return True
+        return False
+    def trueDependencies():
+        return self._trueDependence
+    def antiDependencies():
+        return self._antiDependence
+    def dependencies():
+        return trueDependencies+antiDependencies
 
 class InfArgument(Argument):
     ''' infrastructure call argument '''
