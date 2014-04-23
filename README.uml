@@ -1,0 +1,7 @@
+# needed to add fake declarations to make "has a" work when there is a list - is there a known solution?
+pyreverse -p psyGen psyGen.py
+dotty classes_psyGen.dot
+dot -Tsvg classes_psyGen.dot > x.svg
+# svg can be imported into libreoffice, although there appears to be a bug with visuation (it looks OK in eog)
+# below might make it prettier?
+http://www.hokstad.com/making-graphviz-output-pretty-with-xsl

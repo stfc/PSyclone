@@ -58,6 +58,7 @@ class PSy(object):
 class Invokes(object):
     ''' Manage the invoke calls '''
     def __init__(self,alg_calls):
+        self._0toN=Invoke() # only here for pyreverse!
         self.invokeMap={}
         self.invokeList=[]
         for idx,alg_invocation in enumerate(alg_calls.values()):
@@ -463,6 +464,7 @@ class KernelArguments(Arguments):
     def __init__(self,call,parentCall):
         # kernels have metadata describing the expected arguments
         self._parentCall=parentCall
+        self._0toN=KernelArgument(None,None,None) # only here for pyreverse!
         self._args=[]
         for (idx,arg) in enumerate (call.ktype.arg_descriptors):
             self._args.append(KernelArgument(arg,call.args[idx],parentCall))
@@ -502,6 +504,7 @@ class InfArguments(Arguments):
     ''' arguments associated with an infrastructure call '''
     def __init__(self,callInfo,parentCall,access):
         self._parentCall=parentCall
+        self._0toN=InfArgument() # only here for pyreverse!
         self._args=[]
         for idx,arg in enumerate(callInfo.args):
             self._args.append(InfArgument(arg,parentCall,access[idx]))
@@ -518,6 +521,7 @@ class InfArguments(Arguments):
 class Argument(object):
     ''' argument base class '''
     def __init__(self,call,argInfo,access):
+        self._0toN=Dependencies() # only here for pyreverse!
         self._call=call
         self._name=argInfo.value
         self._form=argInfo.form
@@ -593,6 +597,9 @@ class transformations(object):
 
     def __init__(self,module=None,baseclass=None):
         ''' if module and/or baseclass are provided then use these else use the default module "transformations" and the default base_class "transformation"'''
+
+        self._0toN=transformation() # only here for pyreverse!
+
         if module is None:
             # default to the transformation module
             import transformations
@@ -600,7 +607,7 @@ class transformations(object):
         if baseclass is None:
             import psyGen
             baseclass=psyGen.transformation
-        # find our transformations.
+        # find our transformations
         self._classes=self._find_subclasses(module,baseclass)
 
         # create our transformations
