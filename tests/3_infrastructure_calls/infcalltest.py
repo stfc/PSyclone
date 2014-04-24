@@ -42,8 +42,6 @@ class AlgGeneratorTestCases(unittest.TestCase):
     def test_mixed_kernel_and_set(self):
         # single set infrastructure routine and single kernel routine specified in an invoke call
         alg,psy=generate("2_mixed_kernel_and_set.f90")
-        print alg
-        print psy
         self.assertTrue(str(alg).find("CALL invoke_0(one, f2, f3)")!=-1 and \
                         str(psy).find("one%data = 1.0")!=-1)
 

@@ -58,7 +58,7 @@ class PSy(object):
 class Invokes(object):
     ''' Manage the invoke calls '''
     def __init__(self,alg_calls):
-        self._0toN=Invoke() # only here for pyreverse!
+        self._0toN=Invoke(None,None) # only here for pyreverse!
         self.invokeMap={}
         self.invokeList=[]
         for idx,alg_invocation in enumerate(alg_calls.values()):
@@ -104,7 +104,7 @@ class Dependencies(object):
         self._follows.append(obj)
     def getPrecedes():
         return self._precedes
-    def getFollows:
+    def getFollows():
         return self._follows
 
 class DependenciesOLD(object):
@@ -129,6 +129,8 @@ class Invoke(object):
         return self._name+"("+self.unique_args+")"
     def __init__(self,alg_invocation,idx):
 
+        if alg_invocation==None and idx==None: return
+
         # create the schedule
         self._schedule=Schedule(alg_invocation.kcalls)
 
@@ -136,12 +138,7 @@ class Invoke(object):
         # Obviously the schedule must be created first
         for call in self._schedule.calls():
             call.setConstraints()
-            for argument in call.arguments._args:
-                argument.setDependencies()
 
-        # set up the constraints between the calls in the schedule
-        exit(1)
-    
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
             self._name = alg_invocation.name
@@ -490,6 +487,9 @@ class Arguments(object):
         self._parentCall=parentCall
         self._args=[]
     @property
+    def args(self):
+        return self._args
+    @property
     def arglist(self):
         raise NotImplementedError("Arguments:arglist() should be implemented by subclass")
     @property
@@ -544,7 +544,7 @@ class InfArguments(Arguments):
     ''' arguments associated with an infrastructure call '''
     def __init__(self,callInfo,parentCall,access):
         Arguments.__init__(self,parentCall)
-        self._0toN=InfArgument() # only here for pyreverse!
+        self._0toN=InfArgument(None,None,None) # only here for pyreverse!
         for idx,arg in enumerate(callInfo.args):
             self._args.append(InfArgument(arg,parentCall,access[idx]))
     @property
@@ -609,11 +609,13 @@ class Argument(object):
 class InfArgument(Argument):
     ''' infrastructure call argument '''
     def __init__(self,argInfo,call,access):
+        if access==None and argInfo==None and call==None:return
         Argument.__init__(self,call,argInfo,access)
     
 class KernelArgument(Argument):
     ''' kernel routine argument '''
     def __init__(self,arg,argInfo,call):
+        if arg==None and argInfo==None and call==None:return
         Argument.__init__(self,call,argInfo,arg.stencil)
         mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
         self._stencil=arg.access
@@ -653,7 +655,7 @@ class transformations(object):
     def __init__(self,module=None,baseclass=None):
         ''' if module and/or baseclass are provided then use these else use the default module "transformations" and the default base_class "transformation"'''
 
-        self._0toN=transformation() # only here for pyreverse!
+        self._0toN=DummyTransformation() # only here for pyreverse!
 
         if module is None:
             # default to the transformation module
@@ -723,3 +725,9 @@ class transformation(object):
     @abc.abstractmethod
     def apply(self):
         return schedule,memento
+
+class DummyTransformation(transformation):
+    def name(self):
+        return
+    def apply(self):
+        return None,None
