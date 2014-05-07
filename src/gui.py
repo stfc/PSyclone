@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from Tkinter import *
 import Tkinter as tk
 import tkFileDialog
 from parse import parse,ParseError
@@ -19,67 +20,63 @@ class PSyclone(tk.Frame):
 
     def createWidgets(self):
 
-        # create a popup menu
-        self.aMenu = tk.Menu(self, tearoff=0)
-        self.aMenu.add_command(label="Undo", command=self.hello)
-        self.aMenu.add_command(label="Redo", command=self.hello)
+        toolbar=Frame(self)
+        toolbar.pack()
+        #self.aMenu = tk.Menu(toolbar, tearoff=0)
+        #self.aMenu.add_command(label="Undo", command=self.hello)
+        #self.aMenu.add_command(label="Redo", command=self.hello)
 
-        #self.mainFrame = tk.Frame(self)
-        #self.mainFrame.grid(row=0, column=0, sticky="nsew")
-        #self.mainFrame.columnconfigure(0, weight=1)
-        #self.mainFrame.rowconfigure(0, weight=1)
-        self.mainFrame=self
-
-        self.mb=tk.Menubutton(self.mainFrame, text="File")
+        self.mb=tk.Menubutton(self, text="File")
         self.mb.menu=tk.Menu(self.mb,tearoff=False)
+
         self.mb["menu"]=self.mb.menu
         self.mb.menu.add_command(label="Open", underline=0, command=self.load)
         self.mb.menu.add_command(label="Quit", underline=0, command=self.quit)
-        
+        self.mb.pack()
 
-        #listbox = tk.Listbox(self.mainFrame)
-        #listbox.grid(row=0,column=0)
-        #listbox.insert(tk.END, "a list entry")
+        m1 = PanedWindow(self,showhandle=True,sashrelief=RAISED,height=600)
+        m1.pack(fill=BOTH, expand=1)
 
-        self.mb.grid()
-        #self.mb.columnconfigure(0, weight=1)
-        #self.mb.rowconfigure(0, weight=1)
+        left = LabelFrame(m1, text="Algorithm",width=1000,height=500)
+        m1.add(left)
+        self.algtext=tk.Text(left)
 
-        self.text=tk.Text(self.mainFrame,width=80)
-        self.text.grid(sticky="ns",row=1,column=0)
-        self.text.columnconfigure(0, weight=1)
-        self.text.rowconfigure(1, weight=1)
+        scr = tk.Scrollbar(left)
+        scr.config(command=self.algtext.yview)
+        self.algtext.config(yscrollcommand=scr.set)
 
-        self.text.tag_configure("highlight", background="orange", foreground="black",borderwidth=1,relief=tk.RAISED)
-        self.text.tag_configure("normal", background="white", foreground="black")
-        self.text.tag_bind('normal',"<Enter>", self.entry_normal)
-        self.text.tag_bind( 'normal', '<Leave>', self.leave_normal )
-        # attach popup to frame
-        self.text.bind("<Button-3>", self.popup)
+        scr.pack(side=LEFT,fill=Y) 
+        self.algtext.pack(side=LEFT,fill=BOTH,expand=1)
+       
 
-        scr = tk.Scrollbar(self.mainFrame)
-        scr.grid(sticky="ns",row=1,column=1)
-        scr.columnconfigure(1, weight=1)
-        scr.rowconfigure(1, weight=1)
-        scr.config(command=self.text.yview)
-        self.text.config(yscrollcommand=scr.set)
+        m2 = PanedWindow(m1, orient=VERTICAL,showhandle=True,sashrelief=RAISED)
+        m1.add(m2)
 
-    def entry_normal(self,event):
-        self.text.tag_configure("normal", background="white", foreground="black",borderwidth=2,relief=tk.SUNKEN)
-        print "normal in"
-    def leave_normal(self,event):
-        self.text.tag_configure("normal", background="white", foreground="black",relief=tk.FLAT)
-        print "normal out"
-    def entry(self,event):
-        self.text.tag_configure("highlight", background="orange", foreground="black",borderwidth=2,relief=tk.SUNKEN)
-        print "entry!"
+        top = LabelFrame(m2, text="PSy Canvas")
+        m2.add(top)
 
-    def leave(self,event):
-        self.text.tag_configure("highlight", background="orange", foreground="black",borderwidth=2,relief=tk.RAISED)
-        print "exit!"
+        c=tk.Canvas(top)
+        c.pack(side=LEFT,fill=BOTH,expand=1)
 
-    def button1(self,event):
-        print "button1 pressed!"
+        middle = LabelFrame(m2, text="Generated PSy code")
+        m2.add(middle)
+
+        self.psytext=tk.Text(middle)
+
+        scr = tk.Scrollbar(middle)
+        scr.config(command=self.psytext.yview)
+        self.algtext.config(yscrollcommand=scr.set)
+
+        scr.pack(side=LEFT,fill=Y) 
+        self.psytext.pack(side=LEFT,fill=BOTH,expand=1)
+
+        bottom = LabelFrame(m2, text="Python")
+        m2.add(bottom)
+
+        self.interact=tk.Text(bottom)
+        self.interact.pack(side=LEFT,fill=BOTH,expand=1)
+
+        #self.algtext.bind("<Button-3>", self.popup)
 
     def popup(self,event):
         self.aMenu.post(event.x_root, event.y_root)
@@ -90,6 +87,7 @@ class PSyclone(tk.Frame):
         path,filename=os.path.split(absfilename)
         os.chdir(path)
         ast,invokeInfo=parse(filename)
+        self.algtext.delete(1.0, END) 
         self.psy=PSy(invokeInfo)
         # *************************************
         # USE invoke object (or some unique text from the invoke) as the tag so each object gets its own callback?
@@ -99,17 +97,19 @@ class PSyclone(tk.Frame):
         for line in str(ast).split("\n"):
             if "invoke" in line.lower():
                 tag="invoke"+str(invokeCount)
-                self.text.insert(tk.INSERT, line+"\n", tag)
-                bind=Bind(self.text,tag,self.psy.invokes.invokeList[invokeCount])
-                self.text.tag_bind(tag,"<Enter>", bind.entry)
-                self.text.tag_bind( tag, '<Leave>', bind.leave )
-                self.text.tag_bind( tag, '<ButtonPress-1>', bind.button )
+                self.algtext.insert(tk.INSERT, line+"\n", tag)
+                bind=Bind(self.algtext,tag,self.psy.invokes.invokeList[invokeCount],self.psytext,self.interact)
+                self.algtext.tag_bind(tag,"<Enter>", bind.entry)
+                self.algtext.tag_bind( tag, '<Leave>', bind.leave )
+                self.algtext.tag_bind( tag, '<ButtonPress-1>', bind.button )
                 invokeCount+=1
             else:
-                self.text.insert(tk.INSERT, line+"\n")
+                self.algtext.insert(tk.INSERT, line+"\n")
 
 class Bind:
-    def __init__(self,text,tag,invoke):
+    def __init__(self,text,tag,invoke,psytext,interact):
+        self.interact=interact
+        self.psytext=psytext
         self._tag=tag
         self._text=text
         self._invoke=invoke
@@ -120,9 +120,51 @@ class Bind:
         self._text.tag_configure(self._tag, background="orange", foreground="black",borderwidth=2,relief=tk.RAISED)
     def button(self,event):
          print "button pressed for invoke "+self._invoke.name
+         self.psytext.delete(1.0, END) 
+         self.psytext.insert(tk.INSERT,str(self._invoke.gen()))
+
+if __name__ == '__main__':
+    app = PSyclone()
+    app.pack(fill=tk.BOTH, expand=tk.YES)
+    app.master.title('PSyclone')
+    app.mainloop()
 
 
-app = PSyclone()
-app.pack(fill=tk.BOTH, expand=tk.YES)
-app.master.title('PSyclone')
-app.mainloop()
+
+         #sh = Shell(self.interact)
+         #sh.interact()
+
+#class FileCacher:
+#    "Cache the stdout text so we can analyze it before returning it"
+#    def __init__(self): self.reset()
+#    def reset(self): self.out = []
+#    def write(self,line): self.out.append(line)
+#    def flush(self):
+#        output = '\n'.join(self.out)
+#        self.reset()
+#        return output
+
+#class Shell(InteractiveConsole):
+#    "Wrapper around Python that can filter input/output to the shell"
+#    def __init__(self,interact):
+#        self.interact=interact
+#        self.stdout = sys.stdout
+#        self.cache = FileCacher()
+#        InteractiveConsole.__init__(self)
+#        return
+
+#    def get_output(self): sys.stdout = self.cache
+#    def return_output(self): sys.stdout = self.stdout
+
+#    def push(self,line):
+#        self.get_output()
+#        # you can filter input here by doing something like
+#        # line = filter(line)
+#        InteractiveConsole.push(self,line)
+#        self.return_output()
+#        output = self.cache.flush()
+#        # you can filter the output here by doing something like
+#        # output = filter(output)
+#        print output # or do something else with it
+#        return 
+
