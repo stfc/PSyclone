@@ -78,7 +78,7 @@ class Invokes(object):
     def genCode(self,parent):
         for invoke in self.invokeList:
             #print "invokes calling invoke"
-            invoke.genCode(parent)
+            invoke.gen(parent)
 
 class Dependencies(object):
     def __init__(self,thisArg):
@@ -179,6 +179,12 @@ class Invoke(object):
     def schedule(self):
         return self._schedule
 
+    def gen(self):
+        from f2pygen import ModuleGen
+        module=ModuleGen("container")
+        self.genCode(module)
+        return module.root
+
     def genCode(self,parent):
         from f2pygen import SubroutineGen,TypeDeclGen,DeclGen,SelectionGen,AssignGen
         # create the subroutine
@@ -227,7 +233,6 @@ class Invoke(object):
         # create the subroutine kernel call content
         self.schedule.genCode(invoke_sub)
         parent.add(invoke_sub)
-
 
 class Node(object):
     ''' baseclass for a node in a schedule '''
