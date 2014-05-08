@@ -6,44 +6,6 @@ from parse import parse,ParseError
 from psyGen import PSy,GenerationError
 import os
 
-class callWidget:
-    def __init__(self,canvas,name,x,y,width=100,height=30):
-        self._canvas=canvas
-        self._name=name
-        self._x=x
-        self._y=y
-        self._width=width
-        self._height=height
-        self._create()
-    def _create(self):
-        callShape=self._canvas.create_rectangle(self._x,self._y,self._x+self._width,self._y+self._height,outline="red",fill="yellow",activeoutline="blue",width=2)
-
-        self._canvas.create_text(self._x+self._width/2, self._y+self._height/2, text=self._name)
-        
-class loopWidget:
-    def __init__(self,canvas,name,x,y,calls):
-        self._canvas=canvas
-        self._name=name
-        self._x=x
-        self._y=y
-        self._callWidth=100 # get from calls
-        self._callHeight=30 # get from calls
-        self._nCalls=1 # get from calls
-        self._loopWidth=30
-        self._loopHeight=30
-        self._create()
-    def nCalls(self,ncalls):
-        self._nCalls=ncalls
-        self._create()
-    def position(self,x,y):
-        self._x=x
-        self._y=y
-        self._create()
-    def _create(self):
-        loopShape = self._canvas.create_polygon(self._x,self._y, self._x+self._loopWidth+self._callWidth,self._y, self._x+self._loopWidth+self._callWidth,self._y+self._loopHeight, self._x+self._loopWidth,self._y+self._loopHeight, self._x+self._loopWidth,self._y+self._loopHeight+self._nCalls*self._callHeight, self._x,self._y+self._loopHeight+self._nCalls*self._callHeight,outline="red",fill="green",width=2,activeoutline="blue",joinstyle=ROUND)
-        text = self._canvas.create_text(self._x+(self._loopWidth+self._callWidth)/2, self._y+self._callHeight/2, text=self._name)
-
-
 class PSyclone(tk.Frame):
 
     def __init__(self, master=None):
@@ -89,26 +51,11 @@ class PSyclone(tk.Frame):
         m2 = PanedWindow(m1, orient=VERTICAL,showhandle=True,sashrelief=RAISED)
         m1.add(m2)
 
-        top = LabelFrame(m2, text="PSy Canvas")
+        top = LabelFrame(m2, text="PSy Schedule")
         m2.add(top)
 
         self.c=tk.Canvas(top)
         self.c.pack(side=LEFT,fill=BOTH,expand=1)
-
-        x=10
-        y=10
-        callWidth=100
-        callHeight=30
-        calls=[]
-
-        loop=loopWidget(self.c,"loop",x,y,calls)
-        call=callWidget(self.c,"call",x+30,y+30)
-
-        #loopWidth=30
-        #loopHeight=30
-        #callShape=self.c.create_rectangle(x+loopWidth,y+loopHeight,x+loopWidth+callWidth,y+loopHeight+callHeight,outline="red",fill="yellow",activeoutline="blue",width=2)
-
-        #self.c.create_text(x+loopWidth+callWidth/2, y+loopHeight+callHeight/2, text="kern")
 
         middle = LabelFrame(m2, text="Generated PSy code")
         m2.add(middle)
@@ -141,6 +88,7 @@ class PSyclone(tk.Frame):
         ast,invokeInfo=parse(filename)
         self.algtext.delete(1.0, END) 
         self.psy=PSy(invokeInfo)
+        canvasControl=CanvasControl()
         # *************************************
         # USE invoke object (or some unique text from the invoke) as the tag so each object gets its own callback?
         # need to link invoke objects to line numbers (need to be provided by parser)
@@ -150,7 +98,7 @@ class PSyclone(tk.Frame):
             if "invoke" in line.lower():
                 tag="invoke"+str(invokeCount)
                 self.algtext.insert(tk.INSERT, line+"\n", tag)
-                bind=Bind(self.algtext,tag,self.psy.invokes.invokeList[invokeCount],self.psytext,self.interact,self.c)
+                bind=Bind(self.algtext,tag,self.psy.invokes.invokeList[invokeCount],self.psytext,self.interact,self.c,canvasControl)
                 self.algtext.tag_bind(tag,"<Enter>", bind.entry)
                 self.algtext.tag_bind( tag, '<Leave>', bind.leave )
                 self.algtext.tag_bind( tag, '<ButtonPress-1>', bind.button )
@@ -158,8 +106,19 @@ class PSyclone(tk.Frame):
             else:
                 self.algtext.insert(tk.INSERT, line+"\n")
 
+class CanvasControl:
+    def __init__(self):
+        self._invoke=None
+    def setup(self,invoke):
+        # remove previous canvas display
+        if self._invoke is not None:
+            self._invoke.schedule.tkinter_delete()
+        self._invoke=invoke
+    
+
 class Bind:
-    def __init__(self,text,tag,invoke,psytext,interact,canvas):
+    def __init__(self,text,tag,invoke,psytext,interact,canvas,canvasControl):
+        self._canvasControl=canvasControl
         self.canvas=canvas
         self.interact=interact
         self.psytext=psytext
@@ -175,6 +134,8 @@ class Bind:
          print "button pressed for invoke "+self._invoke.name
          self.psytext.delete(1.0, END) 
          self.psytext.insert(tk.INSERT,str(self._invoke.gen()))
+         self._canvasControl.setup(self._invoke)
+         self._invoke.schedule.tkinter_display(self.canvas,30,30)
 
 
 if __name__ == '__main__':

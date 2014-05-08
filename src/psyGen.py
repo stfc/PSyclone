@@ -125,6 +125,7 @@ class DependenciesOLD(object):
         return self._follows[obj1]
 
 class Invoke(object):
+
     def __str__(self):
         return self._name+"("+self.unique_args+")"
     def __init__(self,alg_invocation,idx):
@@ -356,6 +357,16 @@ class Schedule(Node):
 
     '''
 
+    def tkinter_delete(self):
+        for entity in self._children:
+            entity.tkinter_delete()
+
+    def tkinter_display(self,canvas,x,y):
+        yOffset=0
+        for entity in self._children:
+            entity.tkinter_display(canvas,x,y+yOffset)
+            yOffset=yOffset+entity.height
+        
     def __init__(self,alg_calls=[]):
             
         # we need to separate calls into loops (an iteration space really) and calls
@@ -383,6 +394,49 @@ class Schedule(Node):
 
 class Loop(Node):
 
+    @property
+    def height(self):
+        callsHeight=0
+        for child in self.children:
+            callsHeight+=child.height
+        return self._height+callsHeight
+
+    def tkinter_delete(self):
+        if self._shape is not None:
+            assert self._canvas is not None, "Error"
+            self._canvas.delete(self._shape)
+        if self._text is not None:
+            assert self._canvas is not None, "Error"
+            self._canvas.delete(self._text)
+        for child in self.children:
+            child.tkinter_delete()
+
+    def tkinter_display(self,canvas,x,y):
+        self.tkinter_delete()
+        self._canvas=canvas
+        from Tkinter import ROUND
+        name="Loop"
+        minCallWidth=100
+        maxCallsWidth=minCallWidth
+        callsHeight=0
+        for child in self.children:
+            callsHeight+=child.height
+            maxCallsWidth=max(maxCallsWidth,child.width)
+
+        self._shape = canvas.create_polygon(x,y, \
+                                                x+self._width+maxCallsWidth,y, \
+                                                x+self._width+maxCallsWidth,y+self._height, \
+                                                x+self._width,y+self._height, \
+                                                x+self._width,y+self._height+callsHeight, \
+                                                x,y+self._height+callsHeight, \
+                                                outline="red",fill="green",width=2,activeoutline="blue",joinstyle=ROUND)
+        self._text = canvas.create_text(x+(self._width+maxCallsWidth)/2, y+self._height/2, text=name)
+
+        callHeight=0
+        for child in self.children:
+            child.tkinter_display(canvas,x+self._width,y+self._height+callHeight)
+            callHeight=callHeight+child.height
+
     def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
 
         children=[]
@@ -404,6 +458,13 @@ class Loop(Node):
         self._variable_name=variable_name
         self._id="TBD"
 
+        # visual properties
+        self._width=30
+        self._height=30
+        self._shape=None
+        self._text=None
+        self._canvas=None
+
     def __str__(self):
         return "Loop["+self._id+"]: "+self._variable_name+"="+self._id+" lower="+self._start+","+self._stop+","+self._step
 
@@ -421,11 +482,43 @@ class Loop(Node):
 
 class Call(Node):
 
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def height(self):
+        return self._height
+
+    def tkinter_delete(self):
+        if self._shape is not None:
+            assert self._canvas is not None, "Error"
+            self._canvas.delete(self._shape)
+        if self._text is not None:
+            assert self._canvas is not None, "Error"
+            self._canvas.delete(self._text)
+
+    def tkinter_display(self,canvas,x,y):
+        self.tkinter_delete()
+        self._canvas=canvas
+        self._x=x
+        self._y=y
+        self._shape=self._canvas.create_rectangle(self._x,self._y,self._x+self._width,self._y+self._height,outline="red",fill="yellow",activeoutline="blue",width=2)
+        self._text=self._canvas.create_text(self._x+self._width/2, self._y+self._height/2, text=self._name)
+
     def __init__(self,parent,call,name,arguments):
         Node.__init__(self,children=[],parent=parent)
         self._module_name=call.module_name
         self._arguments=arguments
         self._name=name
+
+        # visual properties
+        self._width=250
+        self._height=30
+        self._shape=None
+        self._text=None
+        self._canvas=None
+
     def setConstraints(self):
         # first set up the dependencies of my arguments
         self.arguments.setDependencies
