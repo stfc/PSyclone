@@ -13,6 +13,7 @@ class PSyclone(tk.Frame):
         self.grid(row=0,column=0,sticky="nesw")
         #self.rowconfigure(None,0,weight=1)
         #self.columnconfigure(None,0,weight=1)
+        self._canvasControl=CanvasControl()
         self.createWidgets()
 
     def hello(self):
@@ -21,23 +22,23 @@ class PSyclone(tk.Frame):
     def createWidgets(self):
 
         toolbar=Frame(self)
-        toolbar.pack()
+        toolbar.pack(fill=BOTH,expand=1)
         #self.aMenu = tk.Menu(toolbar, tearoff=0)
         #self.aMenu.add_command(label="Undo", command=self.hello)
         #self.aMenu.add_command(label="Redo", command=self.hello)
 
-        self.mb=tk.Menubutton(self, text="File")
+        self.mb=tk.Menubutton(toolbar, text="File")
         self.mb.menu=tk.Menu(self.mb,tearoff=False)
 
         self.mb["menu"]=self.mb.menu
         self.mb.menu.add_command(label="Open", underline=0, command=self.load)
         self.mb.menu.add_command(label="Quit", underline=0, command=self.quit)
-        self.mb.pack()
+        self.mb.pack(side="left")
 
         m1 = PanedWindow(self,showhandle=True,sashrelief=RAISED,height=600)
         m1.pack(fill=BOTH, expand=1)
 
-        left = LabelFrame(m1, text="Algorithm",width=1000,height=500)
+        left = LabelFrame(m1,labelanchor="n",text="Algorithm",width=1000,height=500)
         m1.add(left)
         self.algtext=tk.Text(left)
 
@@ -51,13 +52,13 @@ class PSyclone(tk.Frame):
         m2 = PanedWindow(m1, orient=VERTICAL,showhandle=True,sashrelief=RAISED)
         m1.add(m2)
 
-        top = LabelFrame(m2, text="PSy Schedule")
+        top = LabelFrame(m2,labelanchor="n",text="PSy Schedule")
         m2.add(top)
 
         self.c=tk.Canvas(top)
         self.c.pack(side=LEFT,fill=BOTH,expand=1)
 
-        middle = LabelFrame(m2, text="Generated PSy code")
+        middle = LabelFrame(m2,labelanchor="n",text="Generated PSy code")
         m2.add(middle)
 
         self.psytext=tk.Text(middle)
@@ -88,7 +89,6 @@ class PSyclone(tk.Frame):
         ast,invokeInfo=parse(filename)
         self.algtext.delete(1.0, END) 
         self.psy=PSy(invokeInfo)
-        canvasControl=CanvasControl()
         # *************************************
         # USE invoke object (or some unique text from the invoke) as the tag so each object gets its own callback?
         # need to link invoke objects to line numbers (need to be provided by parser)
@@ -98,7 +98,7 @@ class PSyclone(tk.Frame):
             if "invoke" in line.lower():
                 tag="invoke"+str(invokeCount)
                 self.algtext.insert(tk.INSERT, line+"\n", tag)
-                bind=Bind(self.algtext,tag,self.psy.invokes.invokeList[invokeCount],self.psytext,self.interact,self.c,canvasControl)
+                bind=Bind(self.algtext,tag,self.psy.invokes.invokeList[invokeCount],self.psytext,self.interact,self.c,self._canvasControl)
                 self.algtext.tag_bind(tag,"<Enter>", bind.entry)
                 self.algtext.tag_bind( tag, '<Leave>', bind.leave )
                 self.algtext.tag_bind( tag, '<ButtonPress-1>', bind.button )
