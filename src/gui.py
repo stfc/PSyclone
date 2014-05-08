@@ -79,13 +79,12 @@ class PSyclone(tk.Frame):
         m1.add(left)
         self.algtext=tk.Text(left)
 
-        scr = tk.Scrollbar(left)
-        scr.config(command=self.algtext.yview)
-        self.algtext.config(yscrollcommand=scr.set)
+        scr1 = tk.Scrollbar(left)
+        self.algtext.config(yscrollcommand=scr1.set)
+        scr1.config(command=self.algtext.yview)
 
-        scr.pack(side=LEFT,fill=Y) 
+        scr1.pack(side=LEFT,fill=Y) 
         self.algtext.pack(side=LEFT,fill=BOTH,expand=1)
-       
 
         m2 = PanedWindow(m1, orient=VERTICAL,showhandle=True,sashrelief=RAISED)
         m1.add(m2)
@@ -118,7 +117,7 @@ class PSyclone(tk.Frame):
 
         scr = tk.Scrollbar(middle)
         scr.config(command=self.psytext.yview)
-        self.algtext.config(yscrollcommand=scr.set)
+        self.psytext.config(yscrollcommand=scr.set)
 
         scr.pack(side=LEFT,fill=Y) 
         self.psytext.pack(side=LEFT,fill=BOTH,expand=1)
