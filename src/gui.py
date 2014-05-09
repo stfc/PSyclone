@@ -58,6 +58,9 @@ class PSyclone(tk.Frame):
         self.c=tk.Canvas(top)
         self.c.pack(side=LEFT,fill=BOTH,expand=1)
 
+        self.c.bind("<ButtonPress-1>", self.mouseDown)
+        self.c.bind("<B1-Motion>", self.mouseMove)
+
         middle = LabelFrame(m2,labelanchor="n",text="Generated PSy code")
         m2.add(middle)
 
@@ -77,6 +80,17 @@ class PSyclone(tk.Frame):
         self.interact.pack(side=LEFT,fill=BOTH,expand=1)
 
         #self.algtext.bind("<Button-3>", self.popup)
+
+    def mouseDown(self,event):
+       # remember where the mouse went down
+        self.lastx = event.x
+        self.lasty = event.y
+
+    def mouseMove(self,event):
+        # whatever the mouse is over gets tagged as CURRENT for free by tk.
+        self.c.move(CURRENT, event.x - self.lastx, event.y - self.lasty)
+        self.lastx = event.x
+        self.lasty = event.y
 
     def popup(self,event):
         self.aMenu.post(event.x_root, event.y_root)
