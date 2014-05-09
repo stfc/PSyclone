@@ -135,9 +135,20 @@ class KernelProcedure(object):
         bname = None
         for statement in ast.content:
             if isinstance(statement, fparser.statements.SpecificBinding):
-                bname = statement.bname
+                if statement.name=="code" and statement.bname!="":
+                    # prototype gungho style
+                    bname = statement.bname
+                elif statement.name.lower()!="code" and statement.bname!="":
+                    raise ParseError("Kernel type %s binds to a specific procedure but does not use 'code' as the generic name." % \
+                                     name)
+                else:
+                    # psyclone style
+                    bname=statement.name
         if bname is None:
             raise RuntimeError("Kernel type %s does not bind a specific procedure" % \
+                               name)
+        if bname=='':
+            raise ParseError("Internal error: empty kernel name returned for Kernel type %s." % \
                                name)
         code = None
         default_public=True
@@ -156,6 +167,8 @@ class KernelProcedure(object):
                     declared_public=True
             if isinstance(statement, fparser.block_statements.Subroutine) and \
                statement.name == bname:
+                if statement.is_public():
+                    declared_public=True
                 code = statement
         if code is None:
             raise RuntimeError("Kernel subroutine %s not implemented" % bname)
@@ -240,6 +253,8 @@ class KernelType(object):
             if isinstance(statement, fparser.block_statements.Type) \
                and statement.name == name:
                 ktype = statement
+                if statement.is_public():
+                    declared_public=True
         if ktype is None:
             raise RuntimeError("Kernel type %s not implemented" % name)
         if declared_private or (not default_public and not declared_public):
