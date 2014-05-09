@@ -78,7 +78,7 @@ class Invokes(object):
     def genCode(self,parent):
         for invoke in self.invokeList:
             #print "invokes calling invoke"
-            invoke.gen(parent)
+            invoke.genCode(parent)
 
 class Dependencies(object):
     def __init__(self,thisArg):
