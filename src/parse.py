@@ -192,22 +192,40 @@ class KernelProcedure(object):
         return self._ast.__str__()
 
 
+class KernelTypeFactory(object):
+    def __init__(self,myType="gunghoproto"):
+        self._type=myType
+        supportedTypes=["gunghoproto","dynamo0.1","gocean"]
+        if self._type not in supportedTypes:
+            raise ParseError("KernelTypeFactory: Unsupported kernel type '%s' specified. Supported types are %s." % self._myType, supportedTypes)
+    def create(self,name,ast):
+        if self._type=="gunghoproto":
+            return GHProtoKernelType(name,ast)
+        elif self._type=="dynamo0.1":
+            return DynKernelType(name,ast)
+        elif self._type=="gocean":
+            return GOKernelType(name,ast)
+        else:
+            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '%s' found. Should not be possible." % self._myType)
+
 class KernelType(object):
-    """A description of a kernel type.
+    """ Kernel Metadata baseclass
 
     This contains the elemental procedure and metadata associated with
     how that procedure is mapped over mesh entities."""
-    def __init__(self, name, ast):
+
+    def __init__(self,name,ast):
         self._name = name
         self._ast = ast
-        i, p, d = KernelType.parse_kernel_type(name, ast)
-        self._procedure = p
-        self._arg_descriptors = d
-        self._iterates_over = i
-
-    @staticmethod
-    def get_kernel_descriptors(ast):
-        descs = ast.get_variable('meta_args') # name to be decided
+        self.checkMetadataPublic(name,ast)
+        self._ktype=self.getKernelMetadata(name,ast)
+        self._iterates_over = self._ktype.get_variable('iterates_over').init
+        self._procedure = KernelProcedure(self._ktype, name, ast)
+        self._inits=self.getkerneldescriptors(self._ktype)
+        self._arg_descriptors=None # this is set up by the subclasses
+        
+    def getkerneldescriptors(self,ast):
+        descs = ast.get_variable('meta_args')
         if descs is None:
             raise ParseError("kernel call does not contain a meta_args type")
         try:
@@ -220,22 +238,35 @@ class KernelType(object):
             # there is a bug in f2py
             raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
         inits = expr.expression.parseString(descs.init)[0]
+        nargs=int(descs.shape[0])
         if len(inits) != nargs:
             raise ParseError("Error, in meta_args specification, the number of args %s and number of dimensions %s do not match" % (nargs,len(inits)))
-        ret = []
-        for init in inits:
-            if init.name != 'arg':
-                raise ParseError("Each meta_arg value must be of type 'arg', but found '{}'".format(init.name))
-            if len(init.args) != 3:
-                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
-            ret.append(Descriptor(init.args[0].name,
-                                  str(init.args[1]),
-                                  init.args[2].name))
-        return ret
+        return inits
 
-    @staticmethod
-    def parse_kernel_type(name, ast):
-        ktype = None
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def iterates_over(self):
+        return self._iterates_over
+
+    @property
+    def procedure(self):
+        return self._procedure
+
+    @property
+    def nargs(self):
+        return len(self._arg_descriptors)
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
+
+    def __repr__(self):
+        return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
+
+    def checkMetadataPublic(self,name,ast):
         default_public=True
         declared_private=False
         declared_public=False
@@ -251,45 +282,57 @@ class KernelType(object):
                 elif name in statement.items:
                     declared_public=True
             if isinstance(statement, fparser.block_statements.Type) \
-               and statement.name == name:
-                ktype = statement
-                if statement.is_public():
+               and statement.name == name and statement.is_public():
                     declared_public=True
-        if ktype is None:
-            raise RuntimeError("Kernel type %s not implemented" % name)
         if declared_private or (not default_public and not declared_public):
             raise ParseError("Kernel type '%s' is not public" % name)
-        iterates = ktype.get_variable('iterates_over').init
-        proc = KernelProcedure(ktype, name, ast)
+
+    def getKernelMetadata(self,name, ast):
+        ktype = None
+        for statement, depth  in api.walk(ast, -1):
+            if isinstance(statement, fparser.block_statements.Type) \
+               and statement.name == name:
+                ktype = statement
+        if ktype is None:
+            raise RuntimeError("Kernel type %s not implemented" % name)
+        return ktype
+
+class DynKernelType(KernelType):
+    def __init__(self,name,ast):
+        KernelType.__init__(self,name,ast)
+        print str(self._inits)
+        exit(1)
+        self._arg_descriptors=None
+
+class GOKernelType(KernelType):
+    def __init__(self,name,ast):
+        KernelType.__init__(self,name,ast)
+        print str(self._inits)
+        exit(1)
+        self._arg_descriptors=None
+
+class GHProtoKernelType(KernelType):
+
+    def __init__(self, name, ast):
+        KernelType.__init__(self,name,ast)
         try:
-            descs = KernelType.get_kernel_descriptors(ktype)
+            self._arg_descriptors = GHProtoKernelType.get_kernel_descriptors(self._inits)
         except Exception as e:
             print "Location: '"+name+"'"
             raise e
-        return iterates, proc, descs
 
-    @property
-    def nargs(self):
-        return len(self.arg_descriptors)
-
-    @property
-    def procedure(self):
-        return self._procedure
-
-    @property
-    def arg_descriptors(self):
-        return self._arg_descriptors
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def iterates_over(self):
-        return self._iterates_over
-
-    def __repr__(self):
-        return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
+    @staticmethod
+    def get_kernel_descriptors(inits):
+        ret = []
+        for init in inits:
+            if init.name != 'arg':
+                raise ParseError("Each meta_arg value must be of type 'arg', but found '{}'".format(init.name))
+            if len(init.args) != 3:
+                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
+            ret.append(Descriptor(init.args[0].name,
+                                  str(init.args[1]),
+                                  init.args[2].name))
+        return ret
 
 class InfCall(object):
     """An infrastructure call (appearing in
@@ -473,7 +516,6 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
                             modast = api.parse('%s.f90' % modulename)
                     else:
                         modast = api.parse('%s.F90' % modulename)
-                    statement_kcalls.append(KernelCall(modulename, KernelType(argname, modast),
-                                                   argargs))
+                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(myType="gunghoproto").create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)
