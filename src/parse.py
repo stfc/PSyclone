@@ -14,26 +14,42 @@ class ParseError(Exception):
 
 class Descriptor(object):
     """A description of how a kernel argument is accessed"""
-    def __init__(self, stencil, space, access):
-        self._stencil = stencil # topological relationships
-        self._space = FunctionSpace.unpack(space)
-        self._access = access
+    def __init__(self,stencil,access):
+        self._stencil=stencil
+        self._access=access
+        self._space=None # subclasses set this
 
     @property
     def stencil(self):
         return self._stencil
 
     @property
-    def element(self):
-        return self._space.element
+    def access(self):
+        return self._access
 
     @property
     def function_space(self):
         return self._space
 
+    def __repr__(self):
+        return 'Descriptor(%s, %s)' % (self.stencil, self.access)
+
+class DynDescriptor(Descriptor):
+    def __init__(self,access,funcspace,stencil,hmm1,hmm2,hmm3):
+        Descriptor.__init__(self,stencil,access)
+        self._space=funcspace
+        self._hmm1=hmm1
+        self._hmm2=hmm2
+        self._hmm3=hmm3
+
+class GHProtoDescriptor(Descriptor):
+    def __init__(self, access, space, stencil):
+        Descriptor.__init__(self,stencil,access)
+        self._space = FunctionSpace.unpack(space)
+
     @property
-    def access(self):
-        return self._access
+    def element(self):
+        return self._space.element
 
     def __repr__(self):
         return 'Descriptor(%s, %s, %s)' % (self.stencil, self.element, self.access)
@@ -234,7 +250,7 @@ class KernelType(object):
             raise ParseError("kernel call meta_args variable must be an array")
         if len(descs.shape) is not 1:
             raise ParseError("kernel call meta_args variable must be a 1 dimensional array")
-        if descs.init.find("[") is not -1 and descs.init.find("]") is -1:
+        if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
             raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
         inits = expr.expression.parseString(descs.init)[0]
@@ -300,14 +316,23 @@ class KernelType(object):
 class DynKernelType(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
-        print str(self._inits)
-        exit(1)
-        self._arg_descriptors=None
+        #print "DynKernelType *** "+str(self._inits)
+        self._arg_descriptors=[]
+        for init in self._inits:
+            if init.name != 'arg_type':
+                raise ParseError("Each meta_arg value must be of type 'arg_type' for the dynamo0.1 api, but found '{}'".format(init.name))
+            access=init.args[0].name
+            funcspace=init.args[1].name
+            stencil=init.args[2].name
+            hmm1=init.args[3].name
+            hmm2=init.args[4].name
+            hmm3=init.args[5].name
+            self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,hmm1,hmm2,hmm3))
 
 class GOKernelType(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
-        print str(self._inits)
+        print "GOKernelType *** "+str(self._inits)
         exit(1)
         self._arg_descriptors=None
 
@@ -315,24 +340,15 @@ class GHProtoKernelType(KernelType):
 
     def __init__(self, name, ast):
         KernelType.__init__(self,name,ast)
-        try:
-            self._arg_descriptors = GHProtoKernelType.get_kernel_descriptors(self._inits)
-        except Exception as e:
-            print "Location: '"+name+"'"
-            raise e
-
-    @staticmethod
-    def get_kernel_descriptors(inits):
-        ret = []
-        for init in inits:
+        self._arg_descriptors = []
+        for init in self._inits:
             if init.name != 'arg':
-                raise ParseError("Each meta_arg value must be of type 'arg', but found '{}'".format(init.name))
+                raise ParseError("Each meta_arg value must be of type 'arg' for the GungHo prototype API, but found '"+init.name+"'")
             if len(init.args) != 3:
                 raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
-            ret.append(Descriptor(init.args[0].name,
-                                  str(init.args[1]),
-                                  init.args[2].name))
-        return ret
+            self._arg_descriptors.append(GHProtoDescriptor(init.args[0].name,
+                                         str(init.args[1]),
+                                         init.args[2].name))
 
 class InfCall(object):
     """An infrastructure call (appearing in
@@ -516,6 +532,7 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
                             modast = api.parse('%s.f90' % modulename)
                     else:
                         modast = api.parse('%s.F90' % modulename)
-                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(myType="gunghoproto").create(argname, modast),argargs))
+                    # mytype one of dynamo0.1, gunghoproto, gocean
+                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(myType="dynamo0.1").create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)
