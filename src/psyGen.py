@@ -22,7 +22,18 @@ class PSy(object):
     >>> print(psy.gen)
 
     '''
-    def __init__(self,invoke_info):
+    def __init__(self,invoke_info,api=""):
+
+        if api=="":
+            from config import DEFAULTAPI
+            api=DEFAULTAPI
+        else:
+            from config import SUPPORTEDAPIS
+            if api not in SUPPORTEDAPIS:
+                raise GenerationError("PSy: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
+        if api in ["dynamo0.1","gocean"]:
+            raise GenerationError("PSy code generation does not yet support API {0}, sorry".format(api))
+
         self._name=invoke_info.name
         ''' populate the object using the parser information '''
         self._invokes=Invokes(invoke_info.calls)

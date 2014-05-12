@@ -1,7 +1,8 @@
 # Copyright 2013 Imperial College London, all rights reserved
 # Copyright 2013 STFC, all rights reserved
 import fparser
-from fparser import api, parsefortran
+from fparser import parsefortran
+from fparser import api as fpapi
 import expression as expr
 import logging
 import os
@@ -170,7 +171,7 @@ class KernelProcedure(object):
         default_public=True
         declared_private=False
         declared_public=False
-        for statement, depth in api.walk(modast, -1):
+        for statement, depth in fpapi.walk(modast, -1):
             if isinstance(statement, fparser.statements.Private):
                 if len(statement.items)==0:
                     default_public=False
@@ -209,11 +210,16 @@ class KernelProcedure(object):
 
 
 class KernelTypeFactory(object):
-    def __init__(self,myType="gunghoproto"):
-        self._type=myType
-        supportedTypes=["gunghoproto","dynamo0.1","gocean"]
-        if self._type not in supportedTypes:
-            raise ParseError("KernelTypeFactory: Unsupported kernel type '%s' specified. Supported types are %s." % self._myType, supportedTypes)
+    def __init__(self,api=""):
+        if api=="":
+            from config import DEFAULTAPI
+            self._type=DEFAULTAPI
+        else:
+            from config import SUPPORTEDAPIS as supportedTypes
+            self._type=api
+            if self._type not in supportedTypes:
+                raise ParseError("KernelTypeFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
+
     def create(self,name,ast):
         if self._type=="gunghoproto":
             return GHProtoKernelType(name,ast)
@@ -222,7 +228,7 @@ class KernelTypeFactory(object):
         elif self._type=="gocean":
             return GOKernelType(name,ast)
         else:
-            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '%s' found. Should not be possible." % self._myType)
+            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
 
 class KernelType(object):
     """ Kernel Metadata baseclass
@@ -286,7 +292,7 @@ class KernelType(object):
         default_public=True
         declared_private=False
         declared_public=False
-        for statement, depth  in api.walk(ast, -1):
+        for statement, depth  in fpapi.walk(ast, -1):
             if isinstance(statement, fparser.statements.Private):
                 if len(statement.items)==0:
                     default_public=False
@@ -305,7 +311,7 @@ class KernelType(object):
 
     def getKernelMetadata(self,name, ast):
         ktype = None
-        for statement, depth  in api.walk(ast, -1):
+        for statement, depth  in fpapi.walk(ast, -1):
             if isinstance(statement, fparser.block_statements.Type) \
                and statement.name == name:
                 ktype = statement
@@ -316,11 +322,10 @@ class KernelType(object):
 class DynKernelType(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
-        #print "DynKernelType *** "+str(self._inits)
         self._arg_descriptors=[]
         for init in self._inits:
             if init.name != 'arg_type':
-                raise ParseError("Each meta_arg value must be of type 'arg_type' for the dynamo0.1 api, but found '{}'".format(init.name))
+                raise ParseError("Each meta_arg value must be of type 'arg_type' for the dynamo0.1 api, but found '{0}'".format(init.name))
             access=init.args[0].name
             funcspace=init.args[1].name
             stencil=init.args[2].name
@@ -333,7 +338,7 @@ class GOKernelType(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
         print "GOKernelType *** "+str(self._inits)
-        exit(1)
+        raise ParseError("gocean api support is work in progress")
         self._arg_descriptors=None
 
 class GHProtoKernelType(KernelType):
@@ -453,7 +458,7 @@ class FileInfo(object):
     def calls(self):
         return self._calls
 
-def parse(filename, invoke_name="invoke", inf_name="inf"):
+def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
     '''
     Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
@@ -471,12 +476,21 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
     >>> ast,info=parse("argspec.F90")
 
     '''
+    if api=="":
+        from config import DEFAULTAPI
+        api=DEFAULTAPI
+    else:
+        from config import SUPPORTEDAPIS
+        if api not in SUPPORTEDAPIS:
+            raise ParseError("parse: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
+
+
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable('CRITICAL')
     if not os.path.isfile(filename):
         raise IOError("File %s not found" % filename)
-    ast = api.parse(filename, ignore_comments=False)
+    ast = fpapi.parse(filename, ignore_comments=False)
     name_to_module = {}
     try:
         from collections import OrderedDict
@@ -502,7 +516,7 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
     if container_name is None:
         raise ParseError("Error, program, module or subroutine not found in ast")
 
-    for statement, depth in api.walk(ast, -1):
+    for statement, depth in fpapi.walk(ast, -1):
         if isinstance(statement, fparser.statements.Use):
             for name in statement.items:
                 name_to_module[name] = statement.name
@@ -529,10 +543,9 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
                         if not os.path.isfile('%s.f90' % modulename):
                             raise IOError("Kernel file '%s.[fF]90' not found" % modulename)
                         else:
-                            modast = api.parse('%s.f90' % modulename)
+                            modast = fpapi.parse('%s.f90' % modulename)
                     else:
-                        modast = api.parse('%s.F90' % modulename)
-                    # mytype one of dynamo0.1, gunghoproto, gocean
-                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(myType="dynamo0.1").create(argname, modast),argargs))
+                        modast = fpapi.parse('%s.F90' % modulename)
+                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)
