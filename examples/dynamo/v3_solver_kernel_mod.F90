@@ -23,10 +23,10 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: v3_solver_kernel_type
   private
-  type(arg_type) :: meta_args(2) = [  &
+  type(arg_type) :: meta_args(2) = (/  &
        arg_type(gh_write,v3,fe,.true.,.false.,.true.),        &
        arg_type(gh_read ,v3,fe,.false.,.false.,.false.)       &
-       ]
+       /)
   integer :: iterates_over = cells
 contains
   procedure, nopass ::solver_v3_code

@@ -27,9 +27,9 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: v3_kernel_type
   private
-  type(arg_type) :: meta_args(1) = [ &
+  type(arg_type) :: meta_args(1) = (/ &
        arg_type(gh_rw,v3,fe,.true.,.false.,.true.) &
-       ]
+       /)
   integer :: iterates_over = cells
 
 contains
@@ -95,3 +95,5 @@ subroutine rhs_v3_code(nlayers,ndf,map,v3_basis,x,gq)
 end subroutine rhs_v3_code
 
 end module v3_kernel_mod
+
+
