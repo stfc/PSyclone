@@ -4,7 +4,7 @@ import sys
 import os
 import traceback
 from parse import parse,ParseError
-from psyGen import PSy,GenerationError
+from psyGen import PSyFactory,GenerationError
 
 def generate(filename,api=""):
     '''
@@ -35,7 +35,7 @@ def generate(filename,api=""):
     try:
         from algGen import Alg
         ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-        psy=PSy(invokeInfo,api=api)
+        psy=PSyFactory(api).create(invokeInfo)
         alg=Alg(ast,psy)
         #invokes=psy.invokes
         #print str(invokes)

@@ -7,6 +7,27 @@ class GenerationError(Exception):
     def __str__(self):
         return repr(self.value)
 
+class PSyFactory(object):
+    def __init__(self,api=""):
+        if api=="":
+            from config import DEFAULTAPI
+            self._type=DEFAULTAPI
+        else:
+            from config import SUPPORTEDAPIS as supportedTypes
+            self._type=api
+            if self._type not in supportedTypes:
+                raise GenerationError("PSyFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
+
+    def create(self,invoke_info):
+        if self._type=="gunghoproto":
+            return GHProtoPSy(invoke_info)
+        elif self._type=="dynamo0.1":
+            return DynamoPSy(invoke_info)
+        elif self._type=="gocean":
+            return GOPSy(invoke_info)
+        else:
+            raise GenerationError("PSyFactory: Internal Error: Unsupported api type '{0}' found. Should not be possible.".format(self._myType))
+
 class PSy(object):
     '''
     Manage and generate PSy code for a single algorithm file. Takes the invocation information output from the function :func:`parse.parse` as it's input and stores this is a way suitable for optimisation and code generation.
@@ -22,21 +43,11 @@ class PSy(object):
     >>> print(psy.gen)
 
     '''
-    def __init__(self,invoke_info,api=""):
-
-        if api=="":
-            from config import DEFAULTAPI
-            api=DEFAULTAPI
-        else:
-            from config import SUPPORTEDAPIS
-            if api not in SUPPORTEDAPIS:
-                raise GenerationError("PSy: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
-        if api in ["dynamo0.1","gocean"]:
-            raise GenerationError("PSy code generation does not yet support API {0}, sorry".format(api))
+    def __init__(self,invoke_info):
 
         self._name=invoke_info.name
-        ''' populate the object using the parser information '''
-        self._invokes=Invokes(invoke_info.calls)
+        self._invokes=None
+
     def __str__(self):
         return "PSy"
     @property
@@ -45,6 +56,15 @@ class PSy(object):
     @property
     def name(self):
         return "psy_"+self._name
+    @property
+    def gen(self):
+        raise NotImplementedError("Error: PSy.gen() must be implemented by subclass")
+
+class GHProtoPSy(PSy):
+    def __init__(self,invoke_info):
+        PSy.__init__(self,invoke_info)
+        self._invokes=Invokes(invoke_info.calls)
+
     @property
     def gen(self):
         '''
@@ -64,6 +84,44 @@ class PSy(object):
 
         # add in the subroutines for each invocation
         self.invokes.genCode(psy_module)
+        return psy_module.root
+
+class DynamoPSy(PSy):
+    def __init__(self,invoke_info):
+        PSy.__init__(self,invoke_info)
+        #self._invokes=DynamoInvokes(invoke_info.calls)
+    @property
+    def gen(self):
+        '''
+        Generate PSy code.
+
+        :rtype: ast
+
+        '''
+        from f2pygen import ModuleGen
+
+        # create an empty PSy layer module
+        psy_module=ModuleGen(self.name)
+        return psy_module.root
+
+
+class GOPSy(PSy):
+    def __init__(self,invoke_info):
+        PSy.__init__(self,invoke_info)
+        #self._invokes=DynamoInvokes(invoke_info.calls)
+    @property
+    def gen(self):
+        '''
+        Generate PSy code.
+
+        :rtype: ast
+
+        '''
+        from f2pygen import ModuleGen
+
+        # create an empty PSy layer module
+        psy_module=ModuleGen(self.name)
+
         return psy_module.root
 
 class Invokes(object):

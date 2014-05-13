@@ -3,7 +3,7 @@ from Tkinter import *
 import Tkinter as tk
 import tkFileDialog
 from parse import parse,ParseError
-from psyGen import PSy,GenerationError
+from psyGen import PSyFactory,GenerationError
 import os
 
 class PSyclone(tk.Frame):
@@ -100,9 +100,9 @@ class PSyclone(tk.Frame):
         # the parser requires us to be in the same directory. This should be fixed.
         path,filename=os.path.split(absfilename)
         os.chdir(path)
-        ast,invokeInfo=parse(filename)
+        ast,invokeInfo=parse(filename,api="gunghoproto")
         self.algtext.delete(1.0, END) 
-        self.psy=PSy(invokeInfo)
+        self.psy=PSyFactory("gunghoproto").create(invokeInfo)
         # *************************************
         # USE invoke object (or some unique text from the invoke) as the tag so each object gets its own callback?
         # need to link invoke objects to line numbers (need to be provided by parser)

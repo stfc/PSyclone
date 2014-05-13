@@ -226,7 +226,9 @@ class KernelTypeFactory(object):
         elif self._type=="dynamo0.1":
             return DynKernelType(name,ast)
         elif self._type=="gocean":
-            return GOKernelType(name,ast)
+            # we are using the GHProto api in GOcean at the moment
+            ###return GOKernelType(name,ast)
+            return GHProtoKernelType(name,ast)
         else:
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
 
