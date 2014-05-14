@@ -63,12 +63,12 @@ class PSy(object):
 class GHProtoPSy(PSy):
     def __init__(self,invoke_info):
         PSy.__init__(self,invoke_info)
-        self._invokes=Invokes(invoke_info.calls)
+        self._invokes=GHProtoInvokes(invoke_info.calls)
 
     @property
     def gen(self):
         '''
-        Generate PSy code.
+        Generate PSy code for the GungHoProto api.
 
         :rtype: ast
 
@@ -89,11 +89,11 @@ class GHProtoPSy(PSy):
 class DynamoPSy(PSy):
     def __init__(self,invoke_info):
         PSy.__init__(self,invoke_info)
-        #self._invokes=DynamoInvokes(invoke_info.calls)
+        self._invokes=DynamoInvokes(invoke_info.calls)
     @property
     def gen(self):
         '''
-        Generate PSy code.
+        Generate PSy code for the Dynamo0.1 api.
 
         :rtype: ast
 
@@ -108,31 +108,33 @@ class DynamoPSy(PSy):
 class GOPSy(PSy):
     def __init__(self,invoke_info):
         PSy.__init__(self,invoke_info)
-        #self._invokes=DynamoInvokes(invoke_info.calls)
+        self._invokes=GOInvokes(invoke_info.calls)
     @property
     def gen(self):
         '''
-        Generate PSy code.
+        Generate PSy code for the GOcean api.
 
         :rtype: ast
 
         '''
-        from f2pygen import ModuleGen
+        from f2pygen import ModuleGen,UseGen
 
         # create an empty PSy layer module
         psy_module=ModuleGen(self.name)
-
+        # include the kind_params module
+        kp_use=UseGen(psy_module,name="kind_params")
+        psy_module.add(kp_use)
+        # add in the subroutines for each invocation
+        self.invokes.genCode(psy_module)
         return psy_module.root
 
 class Invokes(object):
     ''' Manage the invoke calls '''
-    def __init__(self,alg_calls):
+    def __init__(self,alg_calls,Invoke):
         self._0toN=Invoke(None,None) # only here for pyreverse!
         self.invokeMap={}
         self.invokeList=[]
         for idx,alg_invocation in enumerate(alg_calls.values()):
-            # create invoke before adding it to the map as the name supplied
-            # by alg_invocation may be None (i.e. not supplied)
             myInvoke=Invoke(alg_invocation,idx)
             self.invokeMap[myInvoke.name]=myInvoke
             self.invokeList.append(myInvoke)
@@ -146,8 +148,19 @@ class Invokes(object):
         return self.invokeMap[invokeName]
     def genCode(self,parent):
         for invoke in self.invokeList:
-            #print "invokes calling invoke"
             invoke.genCode(parent)
+
+class GHProtoInvokes(Invokes):
+    def __init__(self,alg_calls):
+        Invokes.__init__(self,alg_calls,Invoke)
+
+class DynamoInvokes(Invokes):
+    def __init__(self,alg_calls):
+        Invokes.__init__(self,alg_calls,DynInvoke)
+
+class GOInvokes(Invokes):
+    def __init__(self,alg_calls):
+        Invokes.__init__(self,alg_calls,GOInvoke)
 
 class Dependencies(object):
     def __init__(self,thisArg):
@@ -197,7 +210,7 @@ class Invoke(object):
 
     def __str__(self):
         return self._name+"("+self.unique_args+")"
-    def __init__(self,alg_invocation,idx):
+    def __init__(self,alg_invocation,idx,Schedule):
 
         if alg_invocation==None and idx==None: return
 
@@ -302,6 +315,16 @@ class Invoke(object):
 
         # create the subroutine kernel call content
         self.schedule.genCode(invoke_sub)
+        parent.add(invoke_sub)
+
+class GOInvoke(Invoke):
+    def __init__(self,alg_invocation,idx):
+        Invoke.__init__(self,alg_invocation,idx,GOSchedule)
+
+    def genCode(self,parent):
+        from f2pygen import SubroutineGen
+        # create the subroutine
+        invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
         parent.add(invoke_sub)
 
 class Node(object):
@@ -460,6 +483,15 @@ class Schedule(Node):
     def genCode(self,parent):
         for entity in self._children:
             entity.genCode(parent)
+
+
+class GOSchedule(Schedule):
+    def __init__(self,dummy):
+        self._children=[]
+        pass
+    def calls(self):
+        return []
+
 
 class Loop(Node):
 
