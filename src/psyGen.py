@@ -152,7 +152,7 @@ class Invokes(object):
 
 class GHProtoInvokes(Invokes):
     def __init__(self,alg_calls):
-        Invokes.__init__(self,alg_calls,Invoke)
+        Invokes.__init__(self,alg_calls,GHInvoke)
 
 class DynamoInvokes(Invokes):
     def __init__(self,alg_calls):
@@ -315,6 +315,20 @@ class Invoke(object):
 
         # create the subroutine kernel call content
         self.schedule.genCode(invoke_sub)
+        parent.add(invoke_sub)
+
+class GHInvoke(Invoke):
+    def __init__(self,alg_invocation,idx):
+        Invoke.__init__(self,alg_invocation,idx,GHSchedule)
+
+class DynInvoke(Invoke):
+    def __init__(self,alg_invocation,idx):
+        Invoke.__init__(self,alg_invocation,idx,DynSchedule)
+
+    def genCode(self,parent):
+        from f2pygen import SubroutineGen
+        # create the subroutine
+        invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
         parent.add(invoke_sub)
 
 class GOInvoke(Invoke):
@@ -485,7 +499,18 @@ class Schedule(Node):
             entity.genCode(parent)
 
 
+class GHSchedule(Schedule):
+    def __init__(self,arg):
+        Schedule.__init__(self,arg)
+
 class GOSchedule(Schedule):
+    def __init__(self,dummy):
+        self._children=[]
+        pass
+    def calls(self):
+        return []
+
+class DynSchedule(Schedule):
     def __init__(self,dummy):
         self._children=[]
         pass
