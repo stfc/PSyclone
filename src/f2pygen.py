@@ -3,8 +3,9 @@
 from fparser.readfortran import FortranStringReader
 
 class BaseGen(object):
-    def __init__(self):
-        self._parent=None
+    def __init__(self,parent,root):
+        self._parent=parent
+        self._root=root
         self._children=[]
     @property
     def parent(self):
@@ -12,15 +13,70 @@ class BaseGen(object):
     @property
     def children(self):
         return self._children
-    def add(self,content):
-        raise NotImplementedError('I need to be implemented!')
     @property
     def root(self):
-        raise NotImplementedError('I need to be implemented!')
+        return self._root
+    def add(self,new_object,position=["append"]):
+        if position[0]=="auto":
+            raise Exception('Error: BaseGen:add: auto option must be implemented by the sub class!')
+        options=["append","first","after","before","insert"]
+        if position[0] not in options:
+            raise GenerationError("Error: BaseGen:add: supported positions are {0} but found {1}".format(str(options),position[0]))
+        if position[0]=="append":
+            self.root.content.append(new_object.root)
+        elif position[0]=="first":
+            self.root.content.insert(0,new_object.root)
+        elif position[0]=="insert":
+            index=position[1]
+            self.root.content.insert(index,new_object.root)
+        elif position[0]=="after":
+            self.root.content.insert(self.root.content.index(position[1].root)+1,new_object.root)
+        elif position[0]=="before":
+            self.root.content.insert(self.root.content.index(position[1].root),new_object.root)
+        else:
+            raise Exception("Error: BaseGen:add: internal error, should not get to here")
+        self.children.append(new_object)
+            
+class TestAdd:
+    ''' pyunit tests for adding code '''
+    def test_add_before(self):
+        ''' add the new code before a particular object '''
+        module=ModuleGen(name="testmodule")
+        subroutine=SubroutineGen(module,name="testsubroutine")
+        module.add(subroutine)
+        loop=DoGen(subroutine,"it","1","10")
+        subroutine.add(loop)
+        call=CallGen(subroutine,"testcall")
+        subroutine.add(call,position=["before",loop])
+        lines=str(module.root).splitlines()
+        # the call should be inserted before the loop
+        assert "SUBROUTINE testsubroutine" in lines[3]
+        assert "CALL testcall" in lines[4]
+        assert "DO it=1,10" in lines[5]
+        
+class TestModuleGen:
+    ''' pyunit tests for the ModuleGen class '''
+    def test_vanilla(self):
+        module=ModuleGen()
+        lines=str(module.root).splitlines()
+        assert "MODULE" in lines[0]
+        assert "IMPLICIT NONE" in lines[1]
+        assert "CONTAINS" in lines[2]
+        assert "END MODULE" in lines[3]
+    def test_module_name(self):
+        name="test"
+        module=ModuleGen(name=name)
+        assert "MODULE "+name in str(module.root)
+    def test_no_contains(self):
+        module=ModuleGen(name="test",contains=False)
+        assert "CONTAINS" not in str(module.root)
+    def test_no_implicit_none(implicitnone=False):
+        module=ModuleGen(name="test",implicitnone=False)
+        assert "IMPLICIT NONE" not in str(module.root)
+
 
 class ModuleGen(BaseGen):
     def __init__(self,name="",contains=True,implicitnone=True):
-        super(ModuleGen, self).__init__()
         from fparser import api
 
         code='''\
@@ -38,14 +94,11 @@ contains
 end module vanilla
 '''
         tree=api.parse(code,ignore_comments=False)
-        self._module=tree.content[0]
-        self._module.name=name
-        endmod=self._module.content[len(self._module.content)-1]
+        module=tree.content[0]
+        module.name=name
+        endmod=module.content[len(module.content)-1]
         endmod.name=name
-
-    @property
-    def root(self):
-        return self._module
+        BaseGen.__init__(self,None,module)
 
     def add(self,content):
         if not content.parent==self:
@@ -53,16 +106,15 @@ end module vanilla
             # this is an error as a module can not have a parent
             # in the current version of f2pygen
             #print "**",type(content)
-            raise Exception("The requested parent is "+str(type(content.parent))+" but it should be "+str(type(self._module)),str(type(self)))
+            raise Exception("The requested parent is "+str(type(content.parent))+" but it should be "+str(type(self.root)),str(type(self)))
             
         import fparser
         if isinstance(content.root,fparser.statements.Use):
             index=0
         else:
-            index=len(self._module.content)-1 # append
-        self._module.content.insert(index,content.root)
+            index=len(self.root.content)-1 # append
+        self.root.content.insert(index,content.root)
         self._children.append(content)
-
 
 def createmodule(name,contains=True,implicitnone=True):
     from fparser import api
@@ -108,8 +160,6 @@ def addexternal(names,parent):
 class SubroutineGen(BaseGen):
 
     def __init__(self,parent,name="",args=[],index=None):
-        super(SubroutineGen, self).__init__()
-        self._parent=parent
         from fparser import api
         reader=FortranStringReader("subroutine vanilla(vanilla_arg)\nend subroutine")
         reader.set_mode(True, True) # free form, strict
@@ -117,58 +167,59 @@ class SubroutineGen(BaseGen):
         endsubline=reader.next()
 
         from fparser.block_statements import Subroutine,EndSubroutine
-        self._sub=Subroutine(parent.root,subline)
-        self._sub.name=name
-        self._sub.args=args
+        sub=Subroutine(parent.root,subline)
+        sub.name=name
+        sub.args=args
+        endsub=EndSubroutine(sub,endsubline)
+        sub.content.append(endsub)
 
-        endsub=EndSubroutine(self._sub,endsubline)
-        self._sub.content.append(endsub)
+        BaseGen.__init__(self,parent,sub)
 
-    @property
-    def root(self):
-        return self._sub
-
-    def add(self,content):
+    def add(self,content,position=["auto"]):
         from fparser.typedecl_statements import TypeDeclarationStatement
         import fparser
-        if isinstance(content,DeclGen) or isinstance(content,TypeDeclGen):
-            # have I already been declared?
-            for child in self._children:
-                if isinstance(child,DeclGen) or isinstance(child,TypeDeclGen):
-                    for var_name in content.names:
-                        if var_name in child.names:
-                            if len(content.names)==1:
-                                #print "Skipping as",var_name,"already exists"
-                                return # as this variable already exists
-                            else:
-                                # remove it
-                                #print "Removing",var_name
-                                content.names.remove(var_name)
-                
-            # skip over any use statements
-            index=0
-            while isinstance(self._sub.content[index],fparser.statements.Use):
-                index+=1
-            # skip over any declarations which have an intent
-            try:
-                intent=True
-                while intent:
-                    intent=False
-                    for attr in self._sub.content[index].attrspec:
-                        if attr.find("intent")==0:
-                            intent=True
-                            index+=1
-                            break
-            except AttributeError:
-                pass
-            except Exception:
-                raise
-        elif isinstance(content.root,fparser.statements.Use):
-            index=0
-        else:
-            index=len(self._sub.content)-1 
-        self._sub.content.insert(index,content.root)
-        self._children.append(content)
+        if position[0]!="auto": # position[0] is not 'auto' so the baseclass can deal with it
+            BaseGen.add(self,content,position)
+        else: # position[0]=="auto" so insert in a context sensitive way
+
+            if isinstance(content,DeclGen) or isinstance(content,TypeDeclGen):
+                # have I already been declared?
+                for child in self._children:
+                    if isinstance(child,DeclGen) or isinstance(child,TypeDeclGen):
+                        for var_name in content.names:
+                            if var_name in child.names:
+                                if len(content.names)==1:
+                                    #print "Skipping as",var_name,"already exists"
+                                    return # as this variable already exists
+                                else:
+                                    # remove it
+                                    #print "Removing",var_name
+                                    content.names.remove(var_name)
+
+                # skip over any use statements
+                index=0
+                while isinstance(self.root.content[index],fparser.statements.Use):
+                    index+=1
+                # skip over any declarations which have an intent
+                try:
+                    intent=True
+                    while intent:
+                        intent=False
+                        for attr in self.root.content[index].attrspec:
+                            if attr.find("intent")==0:
+                                intent=True
+                                index+=1
+                                break
+                except AttributeError:
+                    pass
+                except Exception:
+                    raise
+            elif isinstance(content.root,fparser.statements.Use):
+                index=0
+            else:
+                index=len(self.root.content)-1 
+            self.root.content.insert(index,content.root)
+            self._children.append(content)
 
 def addsub(name,args,parent,index=None):
     from fparser import api
@@ -192,8 +243,6 @@ def addsub(name,args,parent,index=None):
 
 class CallGen(BaseGen):
     def __init__(self,parent,name="",args=[]):
-        super(CallGen, self).__init__()
-        self._parent=parent
         from fparser import api
 
         reader=FortranStringReader("call vanilla(vanilla_arg)")
@@ -205,15 +254,7 @@ class CallGen(BaseGen):
         self._call.designator=name
         self._call.items=args
 
-        self._parent=parent.root
-
-    @property
-    def root(self):
-        return self._call
-
-    @property
-    def parent(self):
-        return self._parent
+        BaseGen.__init__(self,parent,self._call)
 
 def addcall(name,args,parent,index=None):
     from fparser import api
@@ -289,19 +330,25 @@ def adduse(name,parent,only=False,funcnames=[]):
     return use
 
 class DeclGen(BaseGen):
-    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False):
+    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind=""):
         super(DeclGen, self).__init__()
         self._parent=parent
-        reader=FortranStringReader("integer :: vanilla")
-        reader.set_mode(True, False) # free form, strict
-        myline=reader.next()
         self._names=entity_decls
 
         if datatype=="integer":
             from fparser.typedecl_statements import Integer
+            reader=FortranStringReader("integer :: vanilla")
+            reader.set_mode(True, False) # free form, strict
+            myline=reader.next()
             self._decl=Integer(parent.root,myline)
+        elif datatype=="real":
+            from fparser.typedecl_statements import Real
+            reader=FortranStringReader("real :: vanilla")
+            reader.set_mode(True, False) # free form, strict
+            myline=reader.next()
+            self._decl=Real(parent.root,myline)
         else:
-            raise ParseError("Only integer is currently supported and you specified {0}".format(datatype))
+            raise RuntimeError("f2pygen:DeclGen:init: Only integer and real are currently supported and you specified "+datatype)
         self._decl.entity_decls=entity_decls
         my_attrspec=[]
         if intent != "":
@@ -309,6 +356,8 @@ class DeclGen(BaseGen):
         if pointer is not False:
             my_attrspec.append("pointer")
         self._decl.attrspec=my_attrspec
+        if kind is not "":
+            self._decl.selector=('',kind)
 
     @property
     def names(self):
@@ -466,32 +515,28 @@ class SelectionGen(BaseGen):
 
 class DoGen(BaseGen):
     def __init__(self,parent,variable_name,start,end,step=None):
-        super(DoGen, self).__init__()
         reader=FortranStringReader("do i=1,n\nend do")
         reader.set_mode(True, True) # free form, strict
         doline=reader.next()
         enddoline=reader.next()
-        self._parent=parent
         from fparser.block_statements import Do,EndDo
-        self._do=Do(parent.root,doline)
-        self._do.loopcontrol=variable_name+"="+start+","+end
+        do=Do(parent.root,doline)
+        do.loopcontrol=variable_name+"="+start+","+end
         if step is not None:
-            self._do.loopcontrol=self._do.loopcontrol+","+step
-        enddo=EndDo(self._do,enddoline)
-        self._do.content.append(enddo)
+            do.loopcontrol=do.loopcontrol+","+step
+        enddo=EndDo(do,enddoline)
+        do.content.append(enddo)
 
-    @property
-    def root(self):
-        return self._do
+        BaseGen.__init__(self,parent,do)
 
     def add(self,content):
         #print "The requested parent is "+str(type(content.parent))+" and I am "+str(type(self._do))
-        if not content.parent==self._do:
+        if not content.parent==self.root:
             #print "DoGen.add passing onto parent"
             self.parent.add(content)
         else:
-            index=len(self._do.content)-1
-            self._do.content.insert(index,content.root)
+            index=len(self.root.content)-1
+            self.root.content.insert(index,content.root)
             self._children.append(content)
 
         
