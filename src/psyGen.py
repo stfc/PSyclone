@@ -98,10 +98,15 @@ class DynamoPSy(PSy):
         :rtype: ast
 
         '''
-        from f2pygen import ModuleGen
+        from f2pygen import ModuleGen, UseGen
 
         # create an empty PSy layer module
         psy_module=ModuleGen(self.name)
+        # include the lfric module
+        lfric_use=UseGen(psy_module,name="lfric")
+        psy_module.add(lfric_use)
+        # add all invoke specific information
+        self.invokes.genCode(psy_module)
         return psy_module.root
 
 
@@ -329,6 +334,7 @@ class DynInvoke(Invoke):
         from f2pygen import SubroutineGen
         # create the subroutine
         invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
+        self.schedule.genCode(invoke_sub)
         parent.add(invoke_sub)
 
 class GOInvoke(Invoke):
@@ -339,6 +345,7 @@ class GOInvoke(Invoke):
         from f2pygen import SubroutineGen
         # create the subroutine
         invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
+        self.schedule.genCode(invoke_sub)
         parent.add(invoke_sub)
 
 class Node(object):
@@ -473,7 +480,7 @@ class Schedule(Node):
             entity.tkinter_display(canvas,x,y+yOffset)
             yOffset=yOffset+entity.height
         
-    def __init__(self,alg_calls=[]):
+    def __init__(self,Loop,Inf,alg_calls=[]):
             
         # we need to separate calls into loops (an iteration space really) and calls
         # so that we can perform optimisations separately on the two entities.
@@ -501,21 +508,23 @@ class Schedule(Node):
 
 class GHSchedule(Schedule):
     def __init__(self,arg):
-        Schedule.__init__(self,arg)
+        Schedule.__init__(self,GHLoop,GHInf,arg)
 
 class GOSchedule(Schedule):
-    def __init__(self,dummy):
-        self._children=[]
-        pass
-    def calls(self):
-        return []
+    def __init__(self,arg):
+        Schedule.__init__(self,GOLoop,GOInf,arg)
+        #self._children=[]
+        #pass
+    #def calls(self):
+    #    return []
 
 class DynSchedule(Schedule):
-    def __init__(self,dummy):
-        self._children=[]
-        pass
-    def calls(self):
-        return []
+    def __init__(self,arg):
+        Schedule.__init__(self,DynLoop,DynInf,arg)
+        #self._children=[]
+        #pass
+    #def calls(self):
+    #    return []
 
 
 class Loop(Node):
@@ -563,7 +572,7 @@ class Loop(Node):
             child.tkinter_display(canvas,x+self._width,y+self._height+callHeight)
             callHeight=callHeight+child.height
 
-    def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
+    def __init__(self,Inf,Kern,call=None,parent=None,variable_name="column",topology_name="topology"):
 
         children=[]
         # we need to determine whether this is an infrastructure or kernel call
@@ -578,11 +587,7 @@ class Loop(Node):
                 raise Exception
         Node.__init__(self,children=children,parent=parent)
 
-        self._start="1"
-        self._stop=topology_name+"%entity_counts({0})".format(self.children[0].iterates_over)
-        self._step=""
         self._variable_name=variable_name
-        self._id="TBD"
 
         # visual properties
         self._width=30
@@ -600,11 +605,32 @@ class Loop(Node):
         else:
             from f2pygen import DoGen,DeclGen
             do=DoGen(parent,self._variable_name,self._start,self._stop)
+            # need to add do loop before children as children may want to add info outside of do loop
+            parent.add(do)
             for child in self.children:
                 child.genCode(do)
-            parent.add(do)
             my_decl=DeclGen(parent,datatype="integer",entity_decls=[self._variable_name])
             parent.add(my_decl)
+
+class GHLoop(Loop):
+    def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
+        Loop.__init__(self,GHInf,GHKern,call,parent,variable_name,topology_name)
+        self._start="1"
+        self._stop=topology_name+"%entity_counts({0})".format(self.children[0].iterates_over)
+        self._step=""
+        self._id="TBD"
+
+class DynLoop(Loop):
+    def __init__(self,call=None,parent=None,variable_name="cell",topology_name="XXX"):
+        Loop.__init__(self,DynInf,DynKern,call,parent,variable_name,topology_name)
+        self._start="1"
+        self._stop=topology_name+"%get_ncell()"
+        self._step=""
+        self._id="TBD"
+
+class GOLoop(Loop):
+    def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
+        Loop.__init__(self,GOInf,GOKern,call,parent,variable_name,topology_name)
 
 class Call(Node):
 
@@ -672,6 +698,22 @@ class Inf(object):
             raise GenerationError("Unknown infrastructure call. Supported calls are {0} but found {1}".format(str(supportedCalls),call.func_name))
         if call.func_name=="set": return SetInfCall(call,parent)
 
+class GHInf(Loop):
+    @staticmethod
+    def create(call,parent=None):
+        return(Inf.create(call,parent))
+
+class DynInf(Loop):
+    @staticmethod
+    def create(call,parent=None):
+        return(Inf.create(call,parent))
+
+class GOInf(Loop):
+    @staticmethod
+    def create(call,parent=None):
+        return(Inf.create(call,parent))
+        
+
 class SetInfCall(Call):
     ''' the set infrastructure call '''
     def __init__(self,call,parent=None):
@@ -691,7 +733,7 @@ class SetInfCall(Call):
         return
 
 class Kern(Call):
-    def __init__(self,call,parent=None):
+    def __init__(self,KernelArguments,call,parent=None):
         Call.__init__(self,parent,call,call.ktype.procedure.name,KernelArguments(call,self))
         self._iterates_over=call.ktype.iterates_over
         #self._arguments=KernelArguments(call,self)
@@ -704,6 +746,32 @@ class Kern(Call):
         from f2pygen import CallGen,UseGen
         parent.add(CallGen(parent,self._name,self._arguments.arglist))
         parent.add(UseGen(parent,name=self._module_name,only=True,funcnames=[self._name]))
+
+class GHKern(Kern):
+    def __init__(self,call,parent=None):
+        Kern.__init__(self,KernelArguments,call,parent)
+
+class DynKern(Kern):
+    def __init__(self,call,parent=None):
+        Kern.__init__(self,DynKernelArguments,call,parent)
+    def genCode(self,parent):
+        from f2pygen import CallGen,DeclGen,AssignGen
+        fieldName="XXX"
+        parent.add(CallGen(parent,fieldName+"%vspace%get_cell_dofmap",["cell","map"]))
+        Kern.genCode(self,parent) # create call and use
+        parent.add(DeclGen(parent,datatype="integer",entity_decls=["cell"]))
+        parent.add(DeclGen(parent,datatype="integer",pointer=True,entity_decls=["map(:)"]))
+        parent.add(AssignGen(parent,lhs="nlayers",rhs=fieldName+"%get_nlayers()"))
+        parent.add(AssignGen(parent,lhs="ndf",rhs=fieldName+"%vspace%get_ndf()"))
+        parent.add(DeclGen(parent,datatype="integer",entity_decls=["nlayers","ndf"]))
+
+        parent.parent.add(CallGen(parent,fieldName+"%vspace%get_basis",["v3_basis"]),position=["before",parent])
+        parent.add(DeclGen(parent,datatype="real",kind="dp",pointer=True,entity_decls=["v3_basis(:,:,:,:,:)"]))
+
+
+class GOKern(Kern):
+    def __init__(self,call,parent=None):
+        Kern.__init__(self,GOKernelArguments,call,parent)
 
 class Arguments(object):
     ''' arguments abstract base class '''
@@ -762,6 +830,28 @@ class KernelArguments(Arguments):
     def arglist(self):
         ''' return a comma separated string with the required arguments.
             Will need indexing info at some point '''
+        return self._arglist
+
+class DynKernelArguments(Arguments):
+    def __init__(self,call,parentCall):
+        self._arglist=""
+        self._dofs={}
+    @property
+    def dofs(self):
+        return self._dofs
+    @property
+    def arglist(self):
+        return self._arglist
+
+class GOKernelArguments(Arguments):
+    def __init__(self,call,parentCall):
+        self._arglist=""
+        self._dofs={}
+    @property
+    def dofs(self):
+        return self._dofs
+    @property
+    def arglist(self):
         return self._arglist
 
 class InfArguments(Arguments):
