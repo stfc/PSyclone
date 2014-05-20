@@ -32,7 +32,16 @@ class BaseGen(object):
         elif position[0]=="after":
             self.root.content.insert(self.root.content.index(position[1].root)+1,new_object.root)
         elif position[0]=="before":
-            self.root.content.insert(self.root.content.index(position[1].root),new_object.root)
+            try:
+                self.root.content.insert(self.root.content.index(position[1].root),new_object.root)
+            except ValueError:
+                print "inserting:"
+                print str(new_object),str(new_object.root)
+                print "parent is: "
+                print str(self.root)
+                print "looking for: "
+                print str(position[1].root)
+                exit(1)
         else:
             raise Exception("Error: BaseGen:add: internal error, should not get to here")
         self.children.append(new_object)
@@ -277,8 +286,6 @@ def addcall(name,args,parent,index=None):
 
 class UseGen(BaseGen):
     def __init__(self,parent,name="",only=False,funcnames=[]):
-        super(UseGen, self).__init__()
-        self._parent=parent
         from fparser import api
         reader=FortranStringReader("use kern,only : func1_kern=>func1")
         reader.set_mode(True, True) # free form, strict
@@ -294,18 +301,12 @@ class UseGen(BaseGen):
         #print "UseGen new parent",type(root)
 
         from fparser.block_statements import Use
-        self._use=Use(root,myline)
-        self._use.name=name
-        self._use.isonly=only
-        if funcnames==[]: self._use.isonly=False
-        self._use.items=funcnames
-
-    @property
-    def parent(self):
-        return self._parent
-    @property
-    def root(self):
-        return self._use
+        use=Use(root,myline)
+        use.name=name
+        use.isonly=only
+        if funcnames==[]: use.isonly=False
+        use.items=funcnames
+        BaseGen.__init__(self,parent,use)
 
 
 def adduse(name,parent,only=False,funcnames=[]):
@@ -331,8 +332,6 @@ def adduse(name,parent,only=False,funcnames=[]):
 
 class DeclGen(BaseGen):
     def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind=""):
-        super(DeclGen, self).__init__()
-        self._parent=parent
         self._names=entity_decls
 
         if datatype=="integer":
@@ -358,13 +357,11 @@ class DeclGen(BaseGen):
         self._decl.attrspec=my_attrspec
         if kind is not "":
             self._decl.selector=('',kind)
+        BaseGen.__init__(self,parent,self._decl)
 
     @property
     def names(self):
         return self._names
-    @property
-    def root(self):
-        return self._decl
 
 def adddecl(datatype,entity_decls,parent,intent="",pointer=False):
 
@@ -564,8 +561,6 @@ def adddo(variable_name,start,end,parent,step=None):
 class AssignGen(BaseGen):
 
     def __init__(self,parent,lhs="",rhs="",pointer=False):
-        super(AssignGen, self).__init__()
-        self._parent=parent
         if pointer:
             reader=FortranStringReader("lhs=>rhs")
         else:
@@ -580,10 +575,7 @@ class AssignGen(BaseGen):
             self._assign=Assignment(parent.root,myline)
         self._assign.expr=rhs
         self._assign.variable=lhs
-
-    @property
-    def root(self):
-        return self._assign
+        BaseGen.__init__(self,parent,self._assign)
 
 def addassign(lhs,rhs,parent,pointer=False):
     if pointer:
