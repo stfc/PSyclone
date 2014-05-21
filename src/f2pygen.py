@@ -386,8 +386,6 @@ def adddecl(datatype,entity_decls,parent,intent="",pointer=False):
 
 class TypeDeclGen(BaseGen):
     def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,attrspec=[]):
-        super(TypeDeclGen, self).__init__()
-        self._parent=parent
         my_attrspec=[ spec for spec in attrspec ]
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
@@ -404,6 +402,7 @@ class TypeDeclGen(BaseGen):
         self._typedecl.selector=('',datatype)
         self._typedecl.attrspec=my_attrspec
         self._typedecl.entity_decls=entity_decls
+        BaseGen.__init__(self,parent,self._typedecl)
 
     @property
     def names(self):
@@ -526,16 +525,21 @@ class DoGen(BaseGen):
 
         BaseGen.__init__(self,parent,do)
 
-    def add(self,content):
-        #print "The requested parent is "+str(type(content.parent))+" and I am "+str(type(self._do))
-        if not content.parent==self.root:
-            #print "DoGen.add passing onto parent"
-            self.parent.add(content)
+    def add(self,content,position=["auto"]):
+        #print "The requested content is "+str(type(content))+", the contents parent is "+str(type(content.parent.root))+" and I am "+str(type(self.root))
+        if position[0]=="auto" or position[0]=="append":
+            if position[0]=="auto" and ( isinstance(content,UseGen) \
+                                      or isinstance(content,DeclGen) \
+                                      or isinstance(content,TypeDeclGen) ):
+                # a use and declarations can not appear in a do loop so pass on to parent
+                self.parent.add(content)
+            else:
+                # append at the end of the loop. This is not a simple append as
+                # the last element in the loop is the "end do" so we insert at the
+                # penultimate location
+                BaseGen.add(self,content,position=["insert",len(self.root.content)-1])
         else:
-            index=len(self.root.content)-1
-            self.root.content.insert(index,content.root)
-            self._children.append(content)
-
+            BaseGen.add(self,content,position=position)
         
 def adddo(variable_name,start,end,parent,step=None):
 
