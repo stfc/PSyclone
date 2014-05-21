@@ -466,11 +466,8 @@ class SelectionGen(BaseGen):
     """ STUFF """
 
     def __init__(self,parent,expr="UNSET",typeselect=False):
-        super(SelectionGen, self).__init__()
-        self._parent=parent
         """ INIT STUFF """
         from fparser.block_statements import Select,Case,EndSelect
-        #self._parent=parent
         self._typeselect=typeselect
         reader=FortranStringReader("SELECT CASE (x)\nCASE (1)\nCASE DEFAULT\nEND SELECT")
         reader.set_mode(True, True) # free form, strict
@@ -479,35 +476,32 @@ class SelectionGen(BaseGen):
         self._caseDefaultLine=reader.next()
         endSelectLine=reader.next()
         if self._typeselect:
-            self._select=TypeSelect(parent.root,selectLine)
+            select=TypeSelect(parent.root,selectLine)
         else:
-            self._select=Select(parent.root,selectLine)
-        endselect=EndSelect(self._select,endSelectLine)
-        self._select.expr=expr
-        self._select.content.append(endselect)
-
-    @property
-    def root(self):
-        return self._select
+            select=Select(parent.root,selectLine)
+        endselect=EndSelect(select,endSelectLine)
+        select.expr=expr
+        select.content.append(endselect)
+        BaseGen.__init__(self,parent,select)
 
     def addcase(self,casenames,content=[]):
         if self._typeselect:
-            case=TypeCase(self._select,self._caseLine)
+            case=TypeCase(self.root,self._caseLine)
         else:
-            case=Case(self._select,self._caseLine)
+            case=Case(self.root,self._caseLine)
         case.items=[casenames]
-        self._select.content.insert(0,case)
+        self.root.content.insert(0,case)
         idx=0
         for stmt in content:
             idx+=1
-            self._select.content.insert(idx,stmt.root)
+            self.root.content.insert(idx,stmt.root)
 
     def adddefault(self):
         if self._typeselect:
-            caseDefault=TypeCase(self._select,self._caseDefaultLine)
+            caseDefault=TypeCase(self.root,self._caseDefaultLine)
         else:
-            caseDefault=Case(self._select,self._caseDefaultLine)
-        self._select.content.insert(len(self._select.content)-1,caseDefault)
+            caseDefault=Case(self.root,self._caseDefaultLine)
+        self.root.content.insert(len(self.root.content)-1,caseDefault)
 
 class DoGen(BaseGen):
     def __init__(self,parent,variable_name,start,end,step=None):

@@ -1,4 +1,4 @@
-from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,Argument
+from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,Argument,Inf
 
 class GHProtoPSy(PSy):
     def __init__(self,invoke_info):
