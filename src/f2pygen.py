@@ -116,7 +116,8 @@ end module vanilla
             # in the current version of f2pygen
             #print "**",type(content)
             raise Exception("The requested parent is "+str(type(content.parent))+" but it should be "+str(type(self.root)),str(type(self)))
-            
+        if not content.root.parent==self.root:
+            content.root.parent=self.root
         import fparser
         if isinstance(content.root,fparser.statements.Use):
             index=0
@@ -185,6 +186,9 @@ class SubroutineGen(BaseGen):
         BaseGen.__init__(self,parent,sub)
 
     def add(self,content,position=["auto"]):
+        # content may have been passed on so make me the parent
+        if content.root.parent!=self.root:
+            content.root.parent=self.root
         from fparser.typedecl_statements import TypeDeclarationStatement
         import fparser
         if position[0]!="auto": # position[0] is not 'auto' so the baseclass can deal with it
@@ -224,6 +228,28 @@ class SubroutineGen(BaseGen):
                 except Exception:
                     raise
             elif isinstance(content.root,fparser.statements.Use):
+                # have I already been declared?
+                for child in self._children:
+                    if isinstance(child,UseGen):
+                        if child.root.name == content.root.name:
+                            # found an existing use with the same name
+                            if not child.root.isonly and not content.root.isonly:
+                                # both are generic use statements so skip this declaration
+                                return
+                            if child.root.isonly and not content.root.isonly:
+                                # new use is generic and existing use is specific so we can safely add
+                                pass
+                            if not child.root.isonly and content.root.isonly:
+                                # existing use is generic and new use is specific so we can skip this declaration
+                                return
+                            if child.root.isonly and content.root.isonly:
+                                # see if the same names are specified.
+                                for existing_name in child.root.items:
+                                    for new_name in content.root.items:
+                                        if existing_name.lower()==new_name.lower():
+                                            content.root.items.remove(new_name)
+                                            if len(content.root.items)==0:
+                                                return
                 index=0
             else:
                 index=len(self.root.content)-1 
@@ -290,16 +316,8 @@ class UseGen(BaseGen):
         reader=FortranStringReader("use kern,only : func1_kern=>func1")
         reader.set_mode(True, True) # free form, strict
         myline=reader.next()
-        # find an appropriate place to put the use statement
         import fparser
         root=parent.root
-        #print "UseGen original parent",type(root)
-        while not (isinstance(root,fparser.block_statements.Subroutine) or \
-                  isinstance(root,fparser.block_statements.Module) or \
-                  isinstance(root,fparser.block_statements.Program)):
-            root=root.parent
-        #print "UseGen new parent",type(root)
-
         from fparser.block_statements import Use
         use=Use(root,myline)
         use.name=name
@@ -307,7 +325,6 @@ class UseGen(BaseGen):
         if funcnames==[]: use.isonly=False
         use.items=funcnames
         BaseGen.__init__(self,parent,use)
-
 
 def adduse(name,parent,only=False,funcnames=[]):
 
@@ -331,23 +348,23 @@ def adduse(name,parent,only=False,funcnames=[]):
     return use
 
 class DeclGen(BaseGen):
-    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind=""):
+    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension=""):
         self._names=entity_decls
 
-        if datatype=="integer":
+        if datatype.lower()=="integer":
             from fparser.typedecl_statements import Integer
             reader=FortranStringReader("integer :: vanilla")
             reader.set_mode(True, False) # free form, strict
             myline=reader.next()
             self._decl=Integer(parent.root,myline)
-        elif datatype=="real":
+        elif datatype.lower()=="real":
             from fparser.typedecl_statements import Real
             reader=FortranStringReader("real :: vanilla")
             reader.set_mode(True, False) # free form, strict
             myline=reader.next()
             self._decl=Real(parent.root,myline)
         else:
-            raise RuntimeError("f2pygen:DeclGen:init: Only integer and real are currently supported and you specified "+datatype)
+            raise RuntimeError("f2pygen:DeclGen:init: Only integer and real are currently supported and you specified '"+datatype+"'")
         self._decl.entity_decls=entity_decls
         my_attrspec=[]
         if intent != "":
@@ -355,6 +372,8 @@ class DeclGen(BaseGen):
         if pointer is not False:
             my_attrspec.append("pointer")
         self._decl.attrspec=my_attrspec
+        if dimension != "":
+             my_attrspec.append("dimension({0})".format(dimension))
         if kind is not "":
             self._decl.selector=('',kind)
         BaseGen.__init__(self,parent,self._decl)
@@ -528,7 +547,6 @@ class DoGen(BaseGen):
                                       or isinstance(content,DeclGen) \
                                       or isinstance(content,TypeDeclGen) ):
                 # a use and declarations can not appear in a do loop so pass on to parent
-                content.root.parent=content.root.parent.parent
                 self.parent.add(content)
             else:
                 # append at the end of the loop. This is not a simple append as
