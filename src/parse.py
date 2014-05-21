@@ -36,12 +36,21 @@ class Descriptor(object):
         return 'Descriptor(%s, %s)' % (self.stencil, self.access)
 
 class DynDescriptor(Descriptor):
-    def __init__(self,access,funcspace,stencil,hmm1,hmm2,hmm3):
+    def __init__(self,access,funcspace,stencil,basis,diff_basis,gauss_quad):
         Descriptor.__init__(self,stencil,access)
         self._space=funcspace
-        self._hmm1=hmm1
-        self._hmm2=hmm2
-        self._hmm3=hmm3
+        self._basis=basis
+        self._diff_basis=diff_basis
+        self._gauss_quad=gauss_quad
+    @property
+    def basis(self):
+        return self._basis
+    @property
+    def diff_basis(self):
+        return self._diff_basis
+    @property
+    def gauss_quad(self):
+        return self._gauss_quad
 
 class GHProtoDescriptor(Descriptor):
     def __init__(self, access, space, stencil):
