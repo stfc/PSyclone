@@ -526,12 +526,15 @@ class DoGen(BaseGen):
         BaseGen.__init__(self,parent,do)
 
     def add(self,content,position=["auto"]):
-        #print "The requested content is "+str(type(content))+", the contents parent is "+str(type(content.parent.root))+" and I am "+str(type(self.root))
+        #print "The requested content is "+str(type(content))+\
+        #      ", the contents parent is "+str(type(content.parent.root))+\
+        #      " and I am "+str(type(self.root))
         if position[0]=="auto" or position[0]=="append":
             if position[0]=="auto" and ( isinstance(content,UseGen) \
                                       or isinstance(content,DeclGen) \
                                       or isinstance(content,TypeDeclGen) ):
                 # a use and declarations can not appear in a do loop so pass on to parent
+                content.root.parent=content.root.parent.parent
                 self.parent.add(content)
             else:
                 # append at the end of the loop. This is not a simple append as
