@@ -331,11 +331,14 @@ class DynInvoke(Invoke):
         Invoke.__init__(self,alg_invocation,idx,DynSchedule)
 
     def genCode(self,parent):
-        from f2pygen import SubroutineGen
+        from f2pygen import SubroutineGen,TypeDeclGen
         # create the subroutine
         invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
         self.schedule.genCode(invoke_sub)
         parent.add(invoke_sub)
+        # add the subroutine argument declarations
+        my_typedecl=TypeDeclGen(invoke_sub,datatype="field_type",entity_decls=self.unique_args,intent="inout")
+        invoke_sub.add(my_typedecl)
 
 class GOInvoke(Invoke):
     def __init__(self,alg_invocation,idx):
@@ -623,10 +626,15 @@ class GHLoop(Loop):
 class DynLoop(Loop):
     def __init__(self,call=None,parent=None,variable_name="cell",topology_name="XXX"):
         Loop.__init__(self,DynInf,DynKern,call,parent,variable_name,topology_name)
+        print dir(self.children[0])
+        topology_name=self.children[0].arguments.args[0].name # hack: need to sort this out
         self._start="1"
         self._stop=topology_name+"%get_ncell()"
         self._step=""
         self._id="TBD"
+    def topology_name(self,value):
+        self._stop=value+"%get_ncell()"
+        print "set stop to "+self._stop
 
 class GOLoop(Loop):
     def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
@@ -736,7 +744,6 @@ class Kern(Call):
     def __init__(self,KernelArguments,call,parent=None):
         Call.__init__(self,parent,call,call.ktype.procedure.name,KernelArguments(call,self))
         self._iterates_over=call.ktype.iterates_over
-        #self._arguments=KernelArguments(call,self)
     def __str__(self):
         return "kern call: "+self._name
     @property
@@ -749,22 +756,22 @@ class Kern(Call):
 
 class GHKern(Kern):
     def __init__(self,call,parent=None):
-        Kern.__init__(self,KernelArguments,call,parent)
+        Kern.__init__(self,GHKernelArguments,call,parent)
 
 class DynKern(Kern):
     def __init__(self,call,parent=None):
         Kern.__init__(self,DynKernelArguments,call,parent)
     def genCode(self,parent):
         from f2pygen import CallGen,DeclGen,AssignGen
-        fieldName="XXX"
+        fieldName=self.arguments.args[0].name # hack: simply choose first argument for the moment
         parent.add(CallGen(parent,fieldName+"%vspace%get_cell_dofmap",["cell","map"]))
         Kern.genCode(self,parent) # create call and use
         parent.add(DeclGen(parent,datatype="integer",entity_decls=["cell"]))
         parent.add(DeclGen(parent,datatype="integer",pointer=True,entity_decls=["map(:)"]))
-        parent.add(AssignGen(parent,lhs="nlayers",rhs=fieldName+"%get_nlayers()"))
-        parent.add(AssignGen(parent,lhs="ndf",rhs=fieldName+"%vspace%get_ndf()"))
         parent.add(DeclGen(parent,datatype="integer",entity_decls=["nlayers","ndf"]))
 
+        parent.parent.add(AssignGen(parent,lhs="nlayers",rhs=fieldName+"%get_nlayers()"),position=["before",parent])
+        parent.parent.add(AssignGen(parent,lhs="ndf",rhs=fieldName+"%vspace%get_ndf()"),position=["before",parent])
         parent.parent.add(CallGen(parent,fieldName+"%vspace%get_basis",["v3_basis"]),position=["before",parent])
         parent.add(DeclGen(parent,datatype="real",kind="dp",pointer=True,entity_decls=["v3_basis(:,:,:,:,:)"]))
 
@@ -792,14 +799,14 @@ class Arguments(object):
             argument.setDependencies()
         # TODO create a summary of dependencies
 
-class KernelArguments(Arguments):
-    ''' functionality for arguments associated with a kernel call '''
+class GHKernelArguments(Arguments):
+    ''' functionality for arguments associated with a gunghoproto api kernel call '''
     def __init__(self,call,parentCall):
         Arguments.__init__(self,parentCall)
         # kernels have metadata describing the expected arguments
-        self._0toN=KernelArgument(None,None,None) # only here for pyreverse!
+        self._0toN=GHKernelArgument(None,None,None) # only here for pyreverse!
         for (idx,arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(KernelArgument(arg,call.args[idx],parentCall))
+            self._args.append(GHKernelArgument(arg,call.args[idx],parentCall))
         self._arglist=[]
         self._dofs={}
         if call.ktype.iterates_over=="dofs":
@@ -834,7 +841,11 @@ class KernelArguments(Arguments):
 
 class DynKernelArguments(Arguments):
     def __init__(self,call,parentCall):
-        self._arglist=""
+        Arguments.__init__(self,parentCall)
+        for (idx,arg) in enumerate (call.ktype.arg_descriptors):
+            self._args.append(DynKernelArgument(arg,call.args[idx],parentCall))
+        self._arglist=[]
+        self._createArgList()
         self._dofs={}
     @property
     def dofs(self):
@@ -842,6 +853,33 @@ class DynKernelArguments(Arguments):
     @property
     def arglist(self):
         return self._arglist
+    def _createArgList(self):
+        self._arglist.append("nlayers")
+        self._arglist.append("ndf")
+        self._arglist.append("map")
+
+        print "********************************"
+        for arg in self._args:
+            print arg.name
+            print str(arg.requires_basis),str(arg.requires_diff_basis),str( arg.requires_gauss_quad)
+        found_gauss_quad=False
+        gauss_quad_arg=None
+        for arg in self._args:
+            if arg.requires_basis:
+                self._arglist.append("v3_basis")
+            if arg.requires_diff_basis:
+                raise GenerationError("differential basis has not yet been coded")
+            if arg.requires_gauss_quad:
+                if found_gauss_quad:
+                    raise GenerationError("found more than one gaussian quadrature in this kernel")
+                found_gauss_quad=True
+                gauss_quad_arg=arg
+            dataref="%data"
+            self._arglist.append(arg.name+dataref)
+
+        if found_gauss_quad:
+            gq="%gaussian_quadrature"
+            self._arglist.append(gauss_quad_arg.name+gq)
 
 class GOKernelArguments(Arguments):
     def __init__(self,call,parentCall):
@@ -925,9 +963,30 @@ class InfArgument(Argument):
     def __init__(self,argInfo,call,access):
         if access==None and argInfo==None and call==None:return
         Argument.__init__(self,call,argInfo,access)
-    
-class KernelArgument(Argument):
-    ''' kernel routine argument '''
+
+class DynKernelArgument(Argument):
+    def __init__(self,arg,argInfo,call):
+        if arg==None and argInfo==None and call==None:return
+        self._arg=arg
+        Argument.__init__(self,call,argInfo,arg.access)
+    @property
+    def requires_basis(self):
+        if self._arg.basis.lower()==".true.": return True
+        if self._arg.basis.lower()==".false.": return False
+        raise GenerationError("error: basis is not set to .true. or .false.")
+    @property
+    def requires_diff_basis(self):
+        if self._arg.diff_basis.lower()==".true.": return True
+        if self._arg.diff_basis.lower()==".false.": return False
+        raise GenerationError("error: diff_basis is not set to .true. or .false.")
+    @property
+    def requires_gauss_quad(self):
+        if self._arg.gauss_quad.lower()==".true.": return True
+        if self._arg.gauss_quad.lower()==".false.": return False
+        raise GenerationError("error: gaussian quadrature is not set to .true. or .false.")
+
+class GHKernelArgument(Argument):
+    ''' kernel routine argument for gunghoproto api'''
     def __init__(self,arg,argInfo,call):
         if arg==None and argInfo==None and call==None:return
         Argument.__init__(self,call,argInfo,arg.stencil)
