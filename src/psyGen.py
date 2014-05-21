@@ -20,10 +20,13 @@ class PSyFactory(object):
 
     def create(self,invoke_info):
         if self._type=="gunghoproto":
+            from ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
         elif self._type=="dynamo0.1":
+            from dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
         elif self._type=="gocean":
+            from gocean0p1 import GOPSy
             return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported api type '{0}' found. Should not be possible.".format(self._myType))
@@ -60,79 +63,6 @@ class PSy(object):
     def gen(self):
         raise NotImplementedError("Error: PSy.gen() must be implemented by subclass")
 
-class GHProtoPSy(PSy):
-    def __init__(self,invoke_info):
-        PSy.__init__(self,invoke_info)
-        self._invokes=GHProtoInvokes(invoke_info.calls)
-
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the GungHoProto api.
-
-        :rtype: ast
-
-        '''
-        from f2pygen import ModuleGen,UseGen
-
-        # create an empty PSy layer module
-        psy_module=ModuleGen(self.name)
-
-        # include the lfric module
-        lfric_use=UseGen(psy_module,name="lfric",only="['field_type']")
-        psy_module.add(lfric_use)
-
-        # add in the subroutines for each invocation
-        self.invokes.genCode(psy_module)
-        return psy_module.root
-
-class DynamoPSy(PSy):
-    def __init__(self,invoke_info):
-        PSy.__init__(self,invoke_info)
-        self._invokes=DynamoInvokes(invoke_info.calls)
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the Dynamo0.1 api.
-
-        :rtype: ast
-
-        '''
-        from f2pygen import ModuleGen, UseGen
-
-        # create an empty PSy layer module
-        psy_module=ModuleGen(self.name)
-        # include the lfric module
-        lfric_use=UseGen(psy_module,name="lfric")
-        psy_module.add(lfric_use)
-        # add all invoke specific information
-        self.invokes.genCode(psy_module)
-        return psy_module.root
-
-
-class GOPSy(PSy):
-    def __init__(self,invoke_info):
-        PSy.__init__(self,invoke_info)
-        self._invokes=GOInvokes(invoke_info.calls)
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the GOcean api.
-
-        :rtype: ast
-
-        '''
-        from f2pygen import ModuleGen,UseGen
-
-        # create an empty PSy layer module
-        psy_module=ModuleGen(self.name)
-        # include the kind_params module
-        kp_use=UseGen(psy_module,name="kind_params")
-        psy_module.add(kp_use)
-        # add in the subroutines for each invocation
-        self.invokes.genCode(psy_module)
-        return psy_module.root
-
 class Invokes(object):
     ''' Manage the invoke calls '''
     def __init__(self,alg_calls,Invoke):
@@ -154,18 +84,6 @@ class Invokes(object):
     def genCode(self,parent):
         for invoke in self.invokeList:
             invoke.genCode(parent)
-
-class GHProtoInvokes(Invokes):
-    def __init__(self,alg_calls):
-        Invokes.__init__(self,alg_calls,GHInvoke)
-
-class DynamoInvokes(Invokes):
-    def __init__(self,alg_calls):
-        Invokes.__init__(self,alg_calls,DynInvoke)
-
-class GOInvokes(Invokes):
-    def __init__(self,alg_calls):
-        Invokes.__init__(self,alg_calls,GOInvoke)
 
 class Dependencies(object):
     def __init__(self,thisArg):
@@ -319,35 +237,6 @@ class Invoke(object):
             invoke_sub.add(my_decl)
 
         # create the subroutine kernel call content
-        self.schedule.genCode(invoke_sub)
-        parent.add(invoke_sub)
-
-class GHInvoke(Invoke):
-    def __init__(self,alg_invocation,idx):
-        Invoke.__init__(self,alg_invocation,idx,GHSchedule)
-
-class DynInvoke(Invoke):
-    def __init__(self,alg_invocation,idx):
-        Invoke.__init__(self,alg_invocation,idx,DynSchedule)
-
-    def genCode(self,parent):
-        from f2pygen import SubroutineGen,TypeDeclGen
-        # create the subroutine
-        invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
-        self.schedule.genCode(invoke_sub)
-        parent.add(invoke_sub)
-        # add the subroutine argument declarations
-        my_typedecl=TypeDeclGen(invoke_sub,datatype="field_type",entity_decls=self.unique_args,intent="inout")
-        invoke_sub.add(my_typedecl)
-
-class GOInvoke(Invoke):
-    def __init__(self,alg_invocation,idx):
-        Invoke.__init__(self,alg_invocation,idx,GOSchedule)
-
-    def genCode(self,parent):
-        from f2pygen import SubroutineGen
-        # create the subroutine
-        invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
         self.schedule.genCode(invoke_sub)
         parent.add(invoke_sub)
 
@@ -508,28 +397,6 @@ class Schedule(Node):
         for entity in self._children:
             entity.genCode(parent)
 
-
-class GHSchedule(Schedule):
-    def __init__(self,arg):
-        Schedule.__init__(self,GHLoop,GHInf,arg)
-
-class GOSchedule(Schedule):
-    def __init__(self,arg):
-        Schedule.__init__(self,GOLoop,GOInf,arg)
-        #self._children=[]
-        #pass
-    #def calls(self):
-    #    return []
-
-class DynSchedule(Schedule):
-    def __init__(self,arg):
-        Schedule.__init__(self,DynLoop,DynInf,arg)
-        #self._children=[]
-        #pass
-    #def calls(self):
-    #    return []
-
-
 class Loop(Node):
 
     @property
@@ -615,31 +482,6 @@ class Loop(Node):
             my_decl=DeclGen(parent,datatype="integer",entity_decls=[self._variable_name])
             parent.add(my_decl)
 
-class GHLoop(Loop):
-    def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
-        Loop.__init__(self,GHInf,GHKern,call,parent,variable_name,topology_name)
-        self._start="1"
-        self._stop=topology_name+"%entity_counts({0})".format(self.children[0].iterates_over)
-        self._step=""
-        self._id="TBD"
-
-class DynLoop(Loop):
-    def __init__(self,call=None,parent=None,variable_name="cell",topology_name="XXX"):
-        Loop.__init__(self,DynInf,DynKern,call,parent,variable_name,topology_name)
-        print dir(self.children[0])
-        topology_name=self.children[0].arguments.args[0].name # hack: need to sort this out
-        self._start="1"
-        self._stop=topology_name+"%get_ncell()"
-        self._step=""
-        self._id="TBD"
-    def topology_name(self,value):
-        self._stop=value+"%get_ncell()"
-        print "set stop to "+self._stop
-
-class GOLoop(Loop):
-    def __init__(self,call=None,parent=None,variable_name="column",topology_name="topology"):
-        Loop.__init__(self,GOInf,GOKern,call,parent,variable_name,topology_name)
-
 class Call(Node):
 
     @property
@@ -706,22 +548,6 @@ class Inf(object):
             raise GenerationError("Unknown infrastructure call. Supported calls are {0} but found {1}".format(str(supportedCalls),call.func_name))
         if call.func_name=="set": return SetInfCall(call,parent)
 
-class GHInf(Loop):
-    @staticmethod
-    def create(call,parent=None):
-        return(Inf.create(call,parent))
-
-class DynInf(Loop):
-    @staticmethod
-    def create(call,parent=None):
-        return(Inf.create(call,parent))
-
-class GOInf(Loop):
-    @staticmethod
-    def create(call,parent=None):
-        return(Inf.create(call,parent))
-        
-
 class SetInfCall(Call):
     ''' the set infrastructure call '''
     def __init__(self,call,parent=None):
@@ -754,66 +580,6 @@ class Kern(Call):
         parent.add(CallGen(parent,self._name,self._arguments.arglist))
         parent.add(UseGen(parent,name=self._module_name,only=True,funcnames=[self._name]))
 
-class GHKern(Kern):
-    def __init__(self,call,parent=None):
-        Kern.__init__(self,GHKernelArguments,call,parent)
-
-class DynKern(Kern):
-    def __init__(self,call,parent=None):
-        Kern.__init__(self,DynKernelArguments,call,parent)
-    def genCode(self,parent):
-        from f2pygen import CallGen,DeclGen,AssignGen,UseGen
-
-        # hack: we simply choose the first field as the lookup for the moment
-        fieldName=self.arguments.args[0].name
-
-        # add a dofmap lookup using first field. This needs to be generalised to work for multiple dofmaps
-        parent.add(CallGen(parent,fieldName+"%vspace%get_cell_dofmap",["cell","map"]))
-        parent.add(DeclGen(parent,datatype="integer",entity_decls=["cell"]))
-        parent.add(DeclGen(parent,datatype="integer",pointer=True,entity_decls=["map(:)"]))
-
-        # create the argument list on the fly so we can also create appropriate variables and lookups
-        # this is generated by the Arguments class in gunghoproto
-        self._arglist=[]
-        self._arglist.append("nlayers")
-        self._arglist.append("ndf")
-        self._arglist.append("map")
-
-        found_gauss_quad=False
-        gauss_quad_arg=None
-        for arg in self._arguments.args:
-            if arg.requires_basis:
-                basisName=arg.function_space+"_basis_"+arg.name
-                self._arglist.append(basisName)
-                parent.parent.add(CallGen(parent.parent,fieldName+"%vspace%get_basis",[basisName]),position=["before",parent])
-                parent.add(DeclGen(parent,datatype="real",kind="dp",pointer=True,entity_decls=[basisName+"(:,:,:,:,:)"]))
-            if arg.requires_diff_basis:
-                raise GenerationError("differential basis has not yet been coded")
-            if arg.requires_gauss_quad:
-                if found_gauss_quad:
-                    raise GenerationError("found more than one gaussian quadrature in this kernel")
-                found_gauss_quad=True
-                gauss_quad_arg=arg
-            dataref="%data"
-            self._arglist.append(arg.name+dataref)
-
-        if found_gauss_quad:
-            gq="%gaussian_quadrature"
-            self._arglist.append(gauss_quad_arg.name+gq)
-
-        # generate the kernel call and associated use statement
-        parent.add(CallGen(parent,self._name,self._arglist))
-        parent.parent.add(UseGen(parent.parent,name=self._module_name,only=True,funcnames=[self._name]))
-
-        # declare and initialise the number of layers and the number of degrees of freedom. Needs to be generalised.
-        parent.add(DeclGen(parent,datatype="integer",entity_decls=["nlayers","ndf"]))
-        parent.parent.add(AssignGen(parent.parent,lhs="nlayers",rhs=fieldName+"%get_nlayers()"),position=["before",parent])
-        parent.parent.add(AssignGen(parent.parent,lhs="ndf",rhs=fieldName+"%vspace%get_ndf()"),position=["before",parent])
-
-class GOKern(Kern):
-    def __init__(self,call,parent=None):
-        Kern.__init__(self,GOKernelArguments,call,parent)
-
 class Arguments(object):
     ''' arguments abstract base class '''
     def __init__(self,parentCall):
@@ -832,67 +598,6 @@ class Arguments(object):
         for argument in self._args:
             argument.setDependencies()
         # TODO create a summary of dependencies
-
-class GHKernelArguments(Arguments):
-    ''' functionality for arguments associated with a gunghoproto api kernel call '''
-    def __init__(self,call,parentCall):
-        Arguments.__init__(self,parentCall)
-        # kernels have metadata describing the expected arguments
-        self._0toN=GHKernelArgument(None,None,None) # only here for pyreverse!
-        for (idx,arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(GHKernelArgument(arg,call.args[idx],parentCall))
-        self._arglist=[]
-        self._dofs={}
-        if call.ktype.iterates_over=="dofs":
-            self._arglist.append("nLayers*ndofs")
-        elif call.ktype.iterates_over=="cells":
-            self._arglist.append("nLayers")
-            for arg in self._args:
-                if arg.ptype is not None:
-                    dofmap=arg.ptype+"dofmap(:,column)"
-                    if dofmap not in self._arglist:
-                        self._arglist.append(dofmap)
-                    if not arg.ptype in self._dofs:
-                        self._dofs[arg.ptype]=[arg]
-                    else:
-                        self._dofs[arg.ptype].append(arg)
-        else:
-            print "Error, unsupported function space"
-            raise Exception
-        for arg in self._args:
-            dataref="%data"
-            if str(arg.element)=="r":
-                dataref+="(1)" # scalar in kernel
-            self._arglist.append(arg.name+dataref)
-    @property
-    def dofs(self):
-        return self._dofs
-    @property
-    def arglist(self):
-        ''' return a comma separated string with the required arguments.
-            Will need indexing info at some point '''
-        return self._arglist
-
-class DynKernelArguments(Arguments):
-    def __init__(self,call,parentCall):
-        Arguments.__init__(self,parentCall)
-        for (idx,arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(DynKernelArgument(arg,call.args[idx],parentCall))
-        self._dofs={}
-    @property
-    def dofs(self):
-        return self._dofs
-
-class GOKernelArguments(Arguments):
-    def __init__(self,call,parentCall):
-        self._arglist=""
-        self._dofs={}
-    @property
-    def dofs(self):
-        return self._dofs
-    @property
-    def arglist(self):
-        return self._arglist
 
 class InfArguments(Arguments):
     ''' arguments associated with an infrastructure call '''
@@ -965,54 +670,6 @@ class InfArgument(Argument):
     def __init__(self,argInfo,call,access):
         if access==None and argInfo==None and call==None:return
         Argument.__init__(self,call,argInfo,access)
-
-class DynKernelArgument(Argument):
-    def __init__(self,arg,argInfo,call):
-        if arg==None and argInfo==None and call==None:return
-        self._arg=arg
-        Argument.__init__(self,call,argInfo,arg.access)
-    @property
-    def function_space(self):
-        return self._arg.function_space
-    @property
-    def requires_basis(self):
-        if self._arg.basis.lower()==".true.": return True
-        if self._arg.basis.lower()==".false.": return False
-        raise GenerationError("error: basis is not set to .true. or .false.")
-    @property
-    def requires_diff_basis(self):
-        if self._arg.diff_basis.lower()==".true.": return True
-        if self._arg.diff_basis.lower()==".false.": return False
-        raise GenerationError("error: diff_basis is not set to .true. or .false.")
-    @property
-    def requires_gauss_quad(self):
-        if self._arg.gauss_quad.lower()==".true.": return True
-        if self._arg.gauss_quad.lower()==".false.": return False
-        raise GenerationError("error: gaussian quadrature is not set to .true. or .false.")
-
-class GHKernelArgument(Argument):
-    ''' kernel routine argument for gunghoproto api'''
-    def __init__(self,arg,argInfo,call):
-        if arg==None and argInfo==None and call==None:return
-        Argument.__init__(self,call,argInfo,arg.stencil)
-        mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
-        self._stencil=arg.access
-        self._fs_dimension=arg.function_space.dimension
-        self._fs_element=arg.element
-        try:
-            self._ptype=mapping[str(self._fs_element)]
-        except:
-            raise GenerationError("Kernel metadata mapping '{0}' is not supported for variable '{2}'. Supported values are '{1}'".format(str(self._fs_element),str(mapping),self._name))
-    @property
-    def ptype(self):
-        return self._ptype
-    @property
-    def element(self):
-        return self._fs_element
-    @property
-    def stencil(self):
-        return self._stencil
-
 
 class transformations(object):
     '''
