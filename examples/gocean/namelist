@@ -1,0 +1,10 @@
+&global_domain
+  m = 128,          ! points in the y direction
+  n = 128,          ! points in the x direction
+  itmax = 2000,     ! number of iterations
+  mprint = 2000     ! frequency of output prints
+/
+
+&io_control
+  l_out = .FALSE.   ! whether to include output
+/
