@@ -250,6 +250,9 @@ class Node(object):
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
+    def addchild(self,child):
+        self._children.append(child)
+
     @property
     def children(self):
         return self._children
