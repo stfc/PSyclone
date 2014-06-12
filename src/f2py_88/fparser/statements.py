@@ -908,6 +908,11 @@ class Use(Statement):
         modules = self.top.a.module
         if self.name not in modules:
             fn = self.reader.find_module_source_file(self.name)
+            # start: Rupert Ford: STFC
+            # skip analysis of other modules as the parser is not robust and
+            # this analysis is not required for our requirements
+            fn = None
+            # end
             if fn is not None:
                 from readfortran import FortranFileReader
                 from parsefortran import FortranParser

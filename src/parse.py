@@ -1,7 +1,8 @@
 # Copyright 2013 Imperial College London, all rights reserved
 # Copyright 2013 STFC, all rights reserved
 import fparser
-from fparser import api, parsefortran
+from fparser import parsefortran
+from fparser import api as fpapi
 import expression as expr
 import logging
 import os
@@ -14,26 +15,54 @@ class ParseError(Exception):
 
 class Descriptor(object):
     """A description of how a kernel argument is accessed"""
-    def __init__(self, stencil, space, access):
-        self._stencil = stencil # topological relationships
-        self._space = FunctionSpace.unpack(space)
-        self._access = access
+    def __init__(self,access,space,stencil):
+        self._access=access
+        self._space=space
+        self._stencil=stencil
 
     @property
-    def stencil(self):
-        return self._stencil
-
-    @property
-    def element(self):
-        return self._space.element
+    def access(self):
+        return self._access
 
     @property
     def function_space(self):
         return self._space
 
     @property
-    def access(self):
-        return self._access
+    def stencil(self):
+        return self._stencil
+
+    def __repr__(self):
+        return 'Descriptor(%s, %s)' % (self.stencil, self.access)
+
+class GODescriptor(Descriptor):
+    def __init__(self, access, space, stencil):
+        Descriptor.__init__(self,access,space,stencil)
+
+class DynDescriptor(Descriptor):
+    def __init__(self,access,funcspace,stencil,basis,diff_basis,gauss_quad):
+        Descriptor.__init__(self,access,funcspace,stencil)
+        self._basis=basis
+        self._diff_basis=diff_basis
+        self._gauss_quad=gauss_quad
+    @property
+    def basis(self):
+        return self._basis
+    @property
+    def diff_basis(self):
+        return self._diff_basis
+    @property
+    def gauss_quad(self):
+        return self._gauss_quad
+
+class GHProtoDescriptor(Descriptor):
+    def __init__(self, access, space, stencil):
+        self._space = FunctionSpace.unpack(space)
+        Descriptor.__init__(self,access,self._space,stencil)
+
+    @property
+    def element(self):
+        return self._space.element
 
     def __repr__(self):
         return 'Descriptor(%s, %s, %s)' % (self.stencil, self.element, self.access)
@@ -135,15 +164,26 @@ class KernelProcedure(object):
         bname = None
         for statement in ast.content:
             if isinstance(statement, fparser.statements.SpecificBinding):
-                bname = statement.bname
+                if statement.name=="code" and statement.bname!="":
+                    # prototype gungho style
+                    bname = statement.bname
+                elif statement.name.lower()!="code" and statement.bname!="":
+                    raise ParseError("Kernel type %s binds to a specific procedure but does not use 'code' as the generic name." % \
+                                     name)
+                else:
+                    # psyclone style
+                    bname=statement.name
         if bname is None:
             raise RuntimeError("Kernel type %s does not bind a specific procedure" % \
+                               name)
+        if bname=='':
+            raise ParseError("Internal error: empty kernel name returned for Kernel type %s." % \
                                name)
         code = None
         default_public=True
         declared_private=False
         declared_public=False
-        for statement, depth in api.walk(modast, -1):
+        for statement, depth in fpapi.walk(modast, -1):
             if isinstance(statement, fparser.statements.Private):
                 if len(statement.items)==0:
                     default_public=False
@@ -156,6 +196,8 @@ class KernelProcedure(object):
                     declared_public=True
             if isinstance(statement, fparser.block_statements.Subroutine) and \
                statement.name == bname:
+                if statement.is_public():
+                    declared_public=True
                 code = statement
         if code is None:
             raise RuntimeError("Kernel subroutine %s not implemented" % bname)
@@ -179,22 +221,45 @@ class KernelProcedure(object):
         return self._ast.__str__()
 
 
+class KernelTypeFactory(object):
+    def __init__(self,api=""):
+        if api=="":
+            from config import DEFAULTAPI
+            self._type=DEFAULTAPI
+        else:
+            from config import SUPPORTEDAPIS as supportedTypes
+            self._type=api
+            if self._type not in supportedTypes:
+                raise ParseError("KernelTypeFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
+
+    def create(self,name,ast):
+        if self._type=="gunghoproto":
+            return GHProtoKernelType(name,ast)
+        elif self._type=="dynamo0.1":
+            return DynKernelType(name,ast)
+        elif self._type=="gocean":
+            return GOKernelType(name,ast)
+        else:
+            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
+
 class KernelType(object):
-    """A description of a kernel type.
+    """ Kernel Metadata baseclass
 
     This contains the elemental procedure and metadata associated with
     how that procedure is mapped over mesh entities."""
-    def __init__(self, name, ast):
+
+    def __init__(self,name,ast):
         self._name = name
         self._ast = ast
-        i, p, d = KernelType.parse_kernel_type(name, ast)
-        self._procedure = p
-        self._arg_descriptors = d
-        self._iterates_over = i
-
-    @staticmethod
-    def get_kernel_descriptors(ast):
-        descs = ast.get_variable('meta_args') # name to be decided
+        self.checkMetadataPublic(name,ast)
+        self._ktype=self.getKernelMetadata(name,ast)
+        self._iterates_over = self._ktype.get_variable('iterates_over').init
+        self._procedure = KernelProcedure(self._ktype, name, ast)
+        self._inits=self.getkerneldescriptors(self._ktype)
+        self._arg_descriptors=None # this is set up by the subclasses
+        
+    def getkerneldescriptors(self,ast):
+        descs = ast.get_variable('meta_args')
         if descs is None:
             raise ParseError("kernel call does not contain a meta_args type")
         try:
@@ -203,30 +268,43 @@ class KernelType(object):
             raise ParseError("kernel call meta_args variable must be an array")
         if len(descs.shape) is not 1:
             raise ParseError("kernel call meta_args variable must be a 1 dimensional array")
-        if descs.init.find("[") is not -1 and descs.init.find("]") is -1:
+        if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
             raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
         inits = expr.expression.parseString(descs.init)[0]
+        nargs=int(descs.shape[0])
         if len(inits) != nargs:
             raise ParseError("Error, in meta_args specification, the number of args %s and number of dimensions %s do not match" % (nargs,len(inits)))
-        ret = []
-        for init in inits:
-            if init.name != 'arg':
-                raise ParseError("Each meta_arg value must be of type 'arg', but found '{}'".format(init.name))
-            if len(init.args) != 3:
-                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
-            ret.append(Descriptor(init.args[0].name,
-                                  str(init.args[1]),
-                                  init.args[2].name))
-        return ret
+        return inits
 
-    @staticmethod
-    def parse_kernel_type(name, ast):
-        ktype = None
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def iterates_over(self):
+        return self._iterates_over
+
+    @property
+    def procedure(self):
+        return self._procedure
+
+    @property
+    def nargs(self):
+        return len(self._arg_descriptors)
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
+
+    def __repr__(self):
+        return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
+
+    def checkMetadataPublic(self,name,ast):
         default_public=True
         declared_private=False
         declared_public=False
-        for statement, depth  in api.walk(ast, -1):
+        for statement, depth  in fpapi.walk(ast, -1):
             if isinstance(statement, fparser.statements.Private):
                 if len(statement.items)==0:
                     default_public=False
@@ -238,43 +316,63 @@ class KernelType(object):
                 elif name in statement.items:
                     declared_public=True
             if isinstance(statement, fparser.block_statements.Type) \
+               and statement.name == name and statement.is_public():
+                    declared_public=True
+        if declared_private or (not default_public and not declared_public):
+            raise ParseError("Kernel type '%s' is not public" % name)
+
+    def getKernelMetadata(self,name, ast):
+        ktype = None
+        for statement, depth  in fpapi.walk(ast, -1):
+            if isinstance(statement, fparser.block_statements.Type) \
                and statement.name == name:
                 ktype = statement
         if ktype is None:
             raise RuntimeError("Kernel type %s not implemented" % name)
-        if declared_private or (not default_public and not declared_public):
-            raise ParseError("Kernel type '%s' is not public" % name)
-        iterates = ktype.get_variable('iterates_over').init
-        proc = KernelProcedure(ktype, name, ast)
-        try:
-            descs = KernelType.get_kernel_descriptors(ktype)
-        except Exception as e:
-            print "Location: '"+name+"'"
-            raise e
-        return iterates, proc, descs
+        return ktype
 
-    @property
-    def nargs(self):
-        return len(self.arg_descriptors)
+class DynKernelType(KernelType):
+    def __init__(self,name,ast):
+        KernelType.__init__(self,name,ast)
+        self._arg_descriptors=[]
+        for init in self._inits:
+            if init.name != 'arg_type':
+                raise ParseError("Each meta_arg value must be of type 'arg_type' for the dynamo0.1 api, but found '{0}'".format(init.name))
+            access=init.args[0].name
+            funcspace=init.args[1].name
+            stencil=init.args[2].name
+            x1=init.args[3].name
+            x2=init.args[4].name
+            x3=init.args[5].name
+            self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,x1,x2,x3))
 
-    @property
-    def procedure(self):
-        return self._procedure
+class GOKernelType(KernelType):
+    def __init__(self,name,ast):
+        KernelType.__init__(self,name,ast)
+        self._arg_descriptors=[]
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError("Each meta_arg value must be of type 'arg' for the gocean0.1 api, but found '{0}'".format(init.name))
+            access=init.args[0].name
+            funcspace=init.args[1].name
+            stencil=init.args[2].name
+            if len(init.args) != 3:
+                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
+        
+class GHProtoKernelType(KernelType):
 
-    @property
-    def arg_descriptors(self):
-        return self._arg_descriptors
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def iterates_over(self):
-        return self._iterates_over
-
-    def __repr__(self):
-        return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
+    def __init__(self, name, ast):
+        KernelType.__init__(self,name,ast)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError("Each meta_arg value must be of type 'arg' for the GungHo prototype API, but found '"+init.name+"'")
+            if len(init.args) != 3:
+                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GHProtoDescriptor(init.args[0].name,
+                                         str(init.args[1]),
+                                         init.args[2].name))
 
 class InfCall(object):
     """An infrastructure call (appearing in
@@ -348,7 +446,7 @@ class Arg(object):
     @property
     def value(self):
         return self._value
-    def isLiteral(self):
+    def is_literal(self):
         if self._form=="literal":
             return True
         return False
@@ -379,7 +477,7 @@ class FileInfo(object):
     def calls(self):
         return self._calls
 
-def parse(filename, invoke_name="invoke", inf_name="inf"):
+def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
     '''
     Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
@@ -397,12 +495,26 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
     >>> ast,info=parse("argspec.F90")
 
     '''
+    if api=="":
+        from config import DEFAULTAPI
+        api=DEFAULTAPI
+    else:
+        from config import SUPPORTEDAPIS
+        if api not in SUPPORTEDAPIS:
+            raise ParseError("parse: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
+
+
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable('CRITICAL')
     if not os.path.isfile(filename):
         raise IOError("File %s not found" % filename)
-    ast = api.parse(filename, ignore_comments=False)
+    try:
+        ast = fpapi.parse(filename, ignore_comments=False)
+    except:
+        import traceback
+        traceback.print_exc()
+	raise ParseError("Fatal error in external fparser tool")
     name_to_module = {}
     try:
         from collections import OrderedDict
@@ -428,7 +540,7 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
     if container_name is None:
         raise ParseError("Error, program, module or subroutine not found in ast")
 
-    for statement, depth in api.walk(ast, -1):
+    for statement, depth in fpapi.walk(ast, -1):
         if isinstance(statement, fparser.statements.Use):
             for name in statement.items:
                 name_to_module[name] = statement.name
@@ -455,10 +567,9 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
                         if not os.path.isfile('%s.f90' % modulename):
                             raise IOError("Kernel file '%s.[fF]90' not found" % modulename)
                         else:
-                            modast = api.parse('%s.f90' % modulename)
+                            modast = fpapi.parse('%s.f90' % modulename)
                     else:
-                        modast = api.parse('%s.F90' % modulename)
-                    statement_kcalls.append(KernelCall(modulename, KernelType(argname, modast),
-                                                   argargs))
+                        modast = fpapi.parse('%s.F90' % modulename)
+                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)

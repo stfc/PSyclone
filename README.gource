@@ -1,0 +1,26 @@
+install:
+	look for gource in ubuntu software centre
+
+install video generator:
+	install ffmpeg
+        follow instructions here: https://trac.ffmpeg.org/wiki/UbuntuCompilationGuide
+        May need to install libtool to configure ffmpeg
+	May need to install dev versions of some libraries to configure ffmpeg
+          e.g. libass (install libass-dev), theora (install libtheora-dev), Xfixes (install libxfixes-dev) from software centre
+
+run gource:
+        Works for git and svn. Just run in appropriate directory
+	Just type gource in the working copy / cloned repository
+
+run gource and create an mpeg file:
+    	Works for git and svn. Just run in appropriate directory
+        see: https://git.help.collab.net/entries/22604703-Visualize-Git-logs-using-Gource
+	> gource -1280x720 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -crf 1 -threads 0 -bf 0 gource.mp4
+	
+edit video:
+     install openshot:
+     	     look for openshot in ubuntu software centre
+	     drag and drop interface
+             scissors to cut
+             export to mp4
+

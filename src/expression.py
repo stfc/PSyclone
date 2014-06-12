@@ -186,7 +186,7 @@ lit_array_end = Literal( "]" ) | Literal( "/)" )
 
 # A Fortran name starts with a letter and continues with letters, numbers
 # and _. Can you start a name with _?
-name = Word(alphas, alphanums+"_")
+name = Word(alphas, alphanums+"_") | Literal(".false.") | Literal(".true.")
 
 expr = Forward()
 
