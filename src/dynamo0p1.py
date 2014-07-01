@@ -77,24 +77,26 @@ class DynSchedule(Schedule):
 class DynLoop(Loop):
     ''' The Dynamo specific Loop class. This passes the Dynamo specific
         loop information to the base class so it creates the one we require.
-        Adds a Dynamo specific topology_name method which tells the loop what
-        to iterate over. '''
-    def __init__(self, call = None, parent = None, variable_name = "cell",
-                 topology_name = "unset"):
-        Loop.__init__(self, DynInf, DynKern, call, parent, variable_name,
-                      topology_name)
-        # hack: need to sort out the line below
-        topology_name = self.children[0].arguments.args[0].name
+        Creates Dynamo specific loop bounds when the code is being generated.
+    '''
+    def __init__(self, call = None, parent = None):
+        Loop.__init__(self, DynInf, DynKern, call = call, parent = parent,
+                      valid_loop_types = ["colours", "colour"])
+    def gen_code(self,parent):
+        ''' Work out the appropriate loop bounds and variable name depending
+            on the loop type and then call the base class to generate the
+            code '''
         self._start = "1"
-        self._stop = topology_name+"%get_ncell()"
-        self._step = ""
-        self._id = "TBD"
-    def topology_name(self, value):
-        ''' The loop does not know what to iterate over. This method sets
-            the name of the argument from which to determine the iteration
-            space. This approach needs to be changed as it only supports
-            iteration over all cells. '''
-        self._stop = value+"%get_ncell()"
+        if self._loop_type == "colours":
+            self._variable_name = "colour"
+            self._stop = "ncolour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+            self._stop = "ncp_ncolour(colour)"
+        else:
+            self._variable_name = "cell"
+            self._stop = self.field_name+"%get_ncell()"
+        Loop.gen_code(self,parent)
 
 class DynInf(Inf):
     ''' A Dynamo 0.1 specific infrastructure call factory. No infrastructure
@@ -114,17 +116,20 @@ class DynKern(Kern):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent)
-        self._arglist = []
+
+    def local_vars(self):
+        return ["cell","map"]
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.1 specific psy code for a call to
             the dynamo kernel instance. '''
         from f2pygen import CallGen, DeclGen, AssignGen, UseGen
 
-        # hack: we simply choose the first field as the lookup for the moment
+        # TODO: we simply choose the first field as the lookup for the moment
         field_name = self.arguments.args[0].name
 
         # add a dofmap lookup using first field.
-        # This needs to be generalised to work for multiple dofmaps
+        # TODO: This needs to be generalised to work for multiple dofmaps
         parent.add(CallGen(parent, field_name+"%vspace%get_cell_dofmap",
                            ["cell", "map"]))
         parent.add(DeclGen(parent, datatype = "integer",
@@ -134,20 +139,24 @@ class DynKern(Kern):
 
         # create the argument list on the fly so we can also create
         # appropriate variables and lookups
-        self._arglist.append("nlayers")
-        self._arglist.append("ndf")
-        self._arglist.append("map")
+        arglist = []
+        arglist.append("nlayers")
+        arglist.append("ndf")
+        arglist.append("map")
 
         found_gauss_quad = False
         gauss_quad_arg = None
         for arg in self._arguments.args:
             if arg.requires_basis:
                 basis_name = arg.function_space+"_basis_"+arg.name
-                self._arglist.append(basis_name)
-                parent.parent.add(CallGen(parent.parent,
-                                          field_name+"%vspace%get_basis",
-                                          [basis_name]),
-                                  position = ["before", parent])
+                arglist.append(basis_name)
+                position = parent.start_parent_loop()
+                new_parent = position.parent
+                new_parent.add(CallGen(new_parent,
+                                       field_name+"%vspace%get_basis",
+                                       [basis_name]),
+                               position = ["before",
+                                           position])
                 parent.add(DeclGen(parent, datatype = "real", kind = "dp",
                                    pointer = True,
                                    entity_decls = [basis_name+"(:,:,:,:,:)"]))
@@ -161,14 +170,14 @@ class DynKern(Kern):
                 found_gauss_quad = True
                 gauss_quad_arg = arg
             dataref = "%data"
-            self._arglist.append(arg.name+dataref)
+            arglist.append(arg.name+dataref)
 
         if found_gauss_quad:
             gq_name = "gaussian_quadrature"
-            self._arglist.append(gauss_quad_arg.name+"%"+gq_name)
+            arglist.append(gauss_quad_arg.name+"%"+gq_name)
 
         # generate the kernel call and associated use statement
-        parent.add(CallGen(parent, self._name, self._arglist))
+        parent.add(CallGen(parent, self._name, arglist))
         parent.parent.add(UseGen(parent.parent, name = self._module_name,
                                  only = True, funcnames = [self._name]))
 
@@ -176,12 +185,14 @@ class DynKern(Kern):
         # of degrees of freedom. Needs to be generalised.
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["nlayers", "ndf"]))
-        parent.parent.add(AssignGen(parent.parent, lhs = "nlayers",
+        position = parent.start_parent_loop()
+        new_parent=position.parent
+        new_parent.add(AssignGen(new_parent, lhs = "nlayers",
                                     rhs = field_name+"%get_nlayers()"),
-                          position = ["before", parent])
-        parent.parent.add(AssignGen(parent.parent, lhs = "ndf",
-                                    rhs = field_name+"%vspace%get_ndf()"),
-                          position = ["before", parent])
+                          position = ["before", position])
+        new_parent.add(AssignGen(new_parent, lhs = "ndf",
+                                 rhs = field_name+"%vspace%get_ndf()"),
+                       position = ["before", position])
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,
@@ -197,6 +208,15 @@ class DynKernelArguments(Arguments):
             self._args.append(DynKernelArgument(arg, call.args[idx],
                                                 parent_call))
         self._dofs = []
+
+    def iteration_space_arg(self, mapping={}):
+        if mapping != {}:
+            my_mapping = mapping
+        else:
+            my_mapping = {"write":"gh_write", "read":"gh_read","readwrite":"gh_rw", "inc":"gh_inc"}
+        arg = Arguments.iteration_space_arg(self,my_mapping)
+        return arg
+
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no

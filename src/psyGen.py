@@ -194,6 +194,9 @@ class Invoke(object):
         # create the schedule
         self._schedule = Schedule(alg_invocation.kcalls)
 
+        # let the schedule have access to me
+        self._schedule.invoke = self
+
         # Set up the ordering constraints between the calls in the schedule
         # Obviously the schedule must be created first
         for call in self._schedule.calls():
@@ -340,6 +343,14 @@ class Node(object):
             result += str(entity)+"\n"
         return result
 
+    def list_to_string(self, my_list):
+        result = ""
+        for idx,value in enumerate(my_list):
+            result += str(value)
+            if idx < (len(my_list) - 1):
+                result += ","
+        return result
+
     def __init__(self, children = [], parent = None):
         self._children = children
         self._parent = parent
@@ -347,16 +358,27 @@ class Node(object):
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
-    def addchild(self, child):
-        self._children.append(child)
+    def addchild(self, child, index = None):
+        if index is not None:
+            self._children.insert(index,child)
+        else:
+            self._children.append(child)
 
     @property
     def children(self):
         return self._children
 
+    @children.setter
+    def children(self,my_children):
+        self._children=my_children
+
     @property
     def parent(self):
         return self._parent
+
+    @parent.setter
+    def parent(self,my_parent):
+        self._parent=my_parent
 
     @property
     def position(self):
@@ -474,7 +496,14 @@ class Schedule(Node):
         for entity in self._children:
             entity.tkinter_display(canvas, x, y+y_offset)
             y_offset = y_offset+entity.height
-        
+
+    @property
+    def invoke(self):
+        return self._invoke
+    @invoke.setter
+    def invoke(self,my_invoke):
+        self._invoke = my_invoke
+
     def __init__(self, Loop, Inf, alg_calls = []):
             
         # we need to separate calls into loops (an iteration space really)
@@ -490,12 +519,12 @@ class Schedule(Node):
         #for call in alg_calls:
         #    sequence.append(Loop(call, parent = self))
         Node.__init__(self, children = sequence)
+        self._invoke = None
 
     def view(self, indent = 0):
-        print self.indent(indent)+"Schedule"
+        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+"']"
         for entity in self._children:
-            entity.view(indent = indent+1)
-        print self.indent(indent)+"End Schedule"
+            entity.view(indent = indent + 1)
 
     def __str__(self):
         result = "Schedule:\n"
@@ -508,12 +537,102 @@ class Schedule(Node):
         for entity in self._children:
             entity.gen_code(parent)
 
+class LoopDirective(Node):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"LoopDirective"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+class OMPLoopDirective(LoopDirective):
+
+    def gen_code(self,parent):
+        from f2pygen import CommentGen
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(CommentGen(parent, "$omp parallel do default(shared), private({0})".format(private_str)))
+        for child in self.children:
+            child.gen_code(parent)
+        parent.add(CommentGen(parent, "$omp end parallel do"))
+
+    def _get_private_list(self):
+        # returns the variable name used for any loops within a directive and
+        # any variables that have been declared private by a Call within the directive.
+        result=[]
+        # get variable names from all loops that are a child of this node
+        for loop in self.loops():
+            if loop._variable_name.lower() not in result:
+                result.append(loop._variable_name.lower())
+        # get variable names from all calls that are a child of this node
+        for call in self.calls():
+            for variable_name in call.local_vars():
+                if variable_name.lower() not in result:
+                    result.append(variable_name.lower())
+        return result
+
 class Loop(Node):
 
+    @property
+    def loop_type(self):
+        #assert self._loop_type is not None, "Error, loop_type has not yet been set"
+        return self._loop_type
+
+    @loop_type.setter
+    def loop_type(self,value):
+        assert value in self._valid_loop_types, "Error, loop_type value is invalid"
+        self._loop_type=value
+
+    def __init__(self, Inf, Kern, call = None, parent = None,
+                 variable_name = "column", topology_name = "topology", valid_loop_types=[]):
+
+        children = []
+        # we need to determine whether this is an infrastructure or kernel
+        # call so our schedule can do the right thing.
+
+        self._valid_loop_types = valid_loop_types
+        self._loop_type = None       # inner, outer, colour, colours, ...
+        # TODO Perhaps store a field, so we can get field.name as well as field.space?????
+        self._field_name = None      # name of the field
+        self._field_space = None     # v0, v1, ...,     cu, cv, ...
+        self._iteration_space = None # cells, ...,      cu, cv, ...
+
+        # TODO replace iterates_over with iteration_space
+        self._iterates_over = "unknown"
+        if call is not None:
+            from parse import InfCall, KernelCall
+            if isinstance(call, InfCall):
+                my_call = Inf.create(call, parent = self)
+                self._iteration_space = "unknown"
+                self._iterates_over = "unknown" # needs to inherit this?
+                self._field_space = "any"
+            elif isinstance(call, KernelCall):
+                my_call = Kern(call, parent = self)
+                self._iterates_over = my_call.iterates_over
+                self._iteration_space = my_call.iterates_over
+                self._field_space = my_call.arguments.iteration_space_arg().function_space
+                self._field_name = my_call.arguments.iteration_space_arg().name
+            else:
+                raise Exception
+            children.append(my_call)
+        Node.__init__(self, children = children, parent = parent)
+
+        self._variable_name = variable_name
+
+        self._start = None
+        self._stop = None
+        self._step = None
+        self._id = None
+
+        # visual properties
+        self._width = 30
+        self._height = 30
+        self._shape = None
+        self._text = None
+        self._canvas = None
+
     def view(self, indent = 0):
-        print self.indent(indent)+"LoopOver["+self.iterates_over+"]"
+        print self.indent(indent)+"Loop[type='{0}',field_space='{1}',it_space='{2}']".format(self._loop_type,self._field_space,self.iteration_space)
         for entity in self._children:
-            entity.view(indent = indent+1)
+            entity.view(indent = indent + 1)
 
     @property
     def height(self):
@@ -561,43 +680,29 @@ class Loop(Node):
                                   y+self._height+call_height)
             call_height += child.height
 
-    def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "column", topology_name = "topology"):
+    @property
+    def field_space(self):
+        return self._field_space
 
-        children = []
-        # we need to determine whether this is an infrastructure or kernel
-        # call so our schedule can do the right thing.
-        self._iteration_space = ""
-        if call is not None:
-            from parse import InfCall, KernelCall
-            if isinstance(call, InfCall):
-                my_call = Inf.create(call, parent = self)
-                self._iterates_over = "unknown" # needs to inherit this?
-            elif isinstance(call, KernelCall):
-                my_call = Kern(call, parent = self)
-                self._iterates_over = my_call.iterates_over
-            else:
-                raise Exception
-            children.append(my_call)
-        Node.__init__(self, children = children, parent = parent)
-
-        self._variable_name = variable_name
-
-        self._start = None
-        self._stop = None
-        self._step = None
-        self._id = None
-
-        # visual properties
-        self._width = 30
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
+    @field_space.setter
+    def field_space(self,my_field_space):
+        self._field_space = my_field_space
 
     @property
-    def iterates_over(self):
-        return self._iterates_over
+    def field_name(self):
+        return self._field_name
+
+    @field_name.setter
+    def field_name(self,my_field_name):
+        self._field_name = my_field_name
+
+    @property
+    def iteration_space(self):
+        return self._iteration_space
+
+    @iteration_space.setter
+    def iteration_space(self,it_space):
+        self._iteration_space = it_space
 
     def __str__(self):
         result = "Loop["+self._id+"]: "+self._variable_name+"="+self._id+ \
@@ -625,11 +730,28 @@ class Loop(Node):
 
 class Call(Node):
 
+    # added this functionality to the f2pycodegen
+    #def before_parent_loop(self,node):
+    #    ''' A call may want to add some content immediately before its parent
+    #        loop(s). However the number of loops and whether the top loop has
+    #        a directive before it is not known. This routine recurses up to
+    #        the top loop and returns a position before any directives.
+    #    '''
+    #    return node
+    #def after_parent_loop(self,node):
+    #    ''' A call may want to add some content immediately after its parent
+    #        loop(s). However the number of loops and whether the top loop has
+    #        a directive after it is not known by the call. This routine
+    #        recurses up to the top loop and returns a position after any
+    #        directives that follow the top loop.
+    #    '''
+    #    return node
+
     def view(self, indent = 0):
         print self.indent(indent)+"Call", \
               self.name+"("+str(self.arguments.raw_arg_list)+")"
         for entity in self._children:
-            entity.view(indent = indent+1)
+            entity.view(indent = indent + 1)
 
     @property
     def width(self):
@@ -688,6 +810,8 @@ class Call(Node):
         raise NotImplementedError("Call.__str__ should be implemented")
     def iterates_over(self):
         raise NotImplementedError("Call.iterates_over should be implemented")
+    def local_vars(self):
+        raise NotImplementedError("Call.local_vars should be implemented")
     def gen_code(self):
         raise NotImplementedError("Call.gen_code should be implemented")
 
@@ -757,23 +881,17 @@ class Arguments(object):
     @property
     def args(self):
         return self._args
-    def it_space_type(self, mapping):
-        for arg in self._args:
-            if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"]:
-                return arg.space
-        raise GenerationError("psyGen:arguments:iteration_space_type Error, "
-                              "we assume there is at least one writer or "
-                              "reader/writer as an argument")
 
-    def it_space_owner_name(self, mapping):
+    def iteration_space_arg(self, mapping={}):
+        assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error a mapping needs to be provided"
         for arg in self._args:
             if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"]:
-                return arg.name
-        raise GenerationError("psyGen:arguments:iterationOwnerName: Error, we "
-                              "assume there is at least one writer or "
-                              "reader/writer as an argument")
+               arg.access.lower() == mapping["readwrite"] or \
+               arg.access.lower() == mapping["inc"] :
+                return arg
+        raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
+                              "we assume there is at least one writer, "
+                              "reader/writer, or increment as an argument")
 
     def set_dependencies(self):
         for argument in self._args:
@@ -905,7 +1023,7 @@ class TransInfo(object):
             module = transformations
         if base_class is None:
             import psyGen
-            baseclass = psyGen.Transformation
+            base_class = psyGen.Transformation
         # find our transformations
         self._classes = self._find_subclasses(module, base_class)
 

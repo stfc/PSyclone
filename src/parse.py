@@ -253,7 +253,10 @@ class KernelType(object):
         self._ast = ast
         self.checkMetadataPublic(name,ast)
         self._ktype=self.getKernelMetadata(name,ast)
+        #print self._ktype
         self._iterates_over = self._ktype.get_variable('iterates_over').init
+        #print  self._ktype.get_variable('iterates_over')
+        #print self._iterates_over
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits=self.getkerneldescriptors(self._ktype)
         self._arg_descriptors=None # this is set up by the subclasses
@@ -265,9 +268,9 @@ class KernelType(object):
         try:
             nargs=int(descs.shape[0])
         except AttributeError as e:
-            raise ParseError("kernel call meta_args variable must be an array")
+            raise ParseError("kernel metadata {0}: meta_args variable must be an array".format(self._name))
         if len(descs.shape) is not 1:
-            raise ParseError("kernel call meta_args variable must be a 1 dimensional array")
+            raise ParseError("kernel metadata {0}: meta_args variable must be a 1 dimensional array".format(self._name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
             raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
@@ -510,7 +513,7 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
     if not os.path.isfile(filename):
         raise IOError("File %s not found" % filename)
     try:
-        ast = fpapi.parse(filename, ignore_comments=False)
+        ast = fpapi.parse(filename, ignore_comments = False, analyze = False)
     except:
         import traceback
         traceback.print_exc()
@@ -567,8 +570,10 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
                         if not os.path.isfile('%s.f90' % modulename):
                             raise IOError("Kernel file '%s.[fF]90' not found" % modulename)
                         else:
+                            #modast = fpapi.parse('%s.f90' % modulename, ignore_comments = False, analyze = False )
                             modast = fpapi.parse('%s.f90' % modulename)
                     else:
+                        #modast = fpapi.parse('%s.F90' % modulename, ignore_comments = False, analyze = False )
                         modast = fpapi.parse('%s.F90' % modulename)
                     statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
