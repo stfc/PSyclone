@@ -566,15 +566,16 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
                         modulename = name_to_module[argname]
                     except KeyError:
                         raise ParseError("kernel call '%s' must be named in a use statement" % argname)
-                    if not os.path.isfile('%s.F90' % modulename):
-                        if not os.path.isfile('%s.f90' % modulename):
+                    root_dir = os.path.abspath(os.path.dirname(filename))
+                    if not os.path.isfile(os.path.join(root_dir,'%s.F90' % modulename)):
+                        if not os.path.isfile(os.path.join(root_dir,'%s.f90' % modulename)):
                             raise IOError("Kernel file '%s.[fF]90' not found" % modulename)
                         else:
                             #modast = fpapi.parse('%s.f90' % modulename, ignore_comments = False, analyze = False )
-                            modast = fpapi.parse('%s.f90' % modulename)
+                            modast = fpapi.parse(os.path.join(root_dir,'%s.f90' % modulename))
                     else:
                         #modast = fpapi.parse('%s.F90' % modulename, ignore_comments = False, analyze = False )
-                        modast = fpapi.parse('%s.F90' % modulename)
+                        modast = fpapi.parse(os.path.join(root_dir,'%s.F90' % modulename))
                     statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)

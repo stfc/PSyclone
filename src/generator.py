@@ -37,20 +37,7 @@ def generate(filename,api=""):
         ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
         psy=PSyFactory(api).create(invokeInfo)
         alg=Alg(ast,psy)
-        #invokes=psy.invokes
-        #print str(invokes)
-        #print str(invokes.names)
-        #invoke=invokes.get("invoke_2")
-        #print str(invoke)
-        #schedule=invoke.schedule
-        #print str(schedule)
-        #schedule.transform.list
-        #schedule.transform.apply.sayHello()
-        #schedule.transform.undo
-        #schedule.transform.redo
-
     except Exception as msg:
-        # add contextual information here?
         raise
     return alg.gen,psy.gen
 

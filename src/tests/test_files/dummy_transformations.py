@@ -1,14 +1,14 @@
 # Copyright 2013 STFC, all rights reserved
 
 import abc
-class localtransformation(object):
+class LocalTransformation(object):
     ''' abstract baseclass for a transformation. Use of abc means it can not be instantiated. '''
     __metaclass__ = abc.ABCMeta
     @abc.abstractmethod
     def name(self):
         return
 
-class testTrans(localtransformation):
+class TestTrans(LocalTransformation):
     ''' A placeholder test transformation '''
     def __init__(self):
         pass

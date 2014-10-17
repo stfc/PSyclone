@@ -1,7 +1,32 @@
-''' Fortran code-generation library. This wraps the f2pygen fortran parser to
+''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 # Copyright 2013 STFC, all rights reserved
+
+''' This section subclasses the f2py comment class so that we can reason about directives '''
+
+from fparser.statements import Comment
+
+class OMPDirective(Comment):
+    ''' Subclass f2py comment for OpenMP directives so we can reason about them when walking the tree '''
+    def __init__(self,root,line,position,dir_type):
+        self._types = ["parallel do"]
+        self._positions = ["begin", "end"]
+        if not dir_type in self._types:
+            raise RuntimeError("Error, unknown dir_type")
+        if not position in self._positions:
+            raise RuntimeError("Error, unknown position")
+        self._my_type = dir_type
+        self._position = position
+        Comment.__init__(self,root,line)
+    @property
+    def type(self):
+        return self._my_type
+    @property
+    def position(self):
+        return self._position
+
+''' This section provides new classes which provide a relatively high level interface to creating code and adding code to an existing ast '''
 
 from fparser.readfortran import FortranStringReader
 
@@ -19,25 +44,23 @@ class BaseGen(object):
     @property
     def root(self):
         return self._root
-    def start_parent_loop(self):
-        ''' Returns the first location before a loop nest where code can be
-            added. Takes loop directives into account. '''
-        # iterate up loop hierarchy to top loop
-        current=self
-        while isinstance(current.parent,DoGen):
-            current=current.parent
-        # now skip any directives (actually we just skip comments)
-        my_index = current.parent.children.index(current)
-        while my_index>0 and isinstance(current.parent.children[my_index-1],
-                                        CommentGen):
-            my_index -= 1
-
-        return current.parent.children[my_index]
 
     def add(self,new_object,position=["append"]):
+
+        '''Adds a new object to the tree. The actual position is determined by
+        the position argument. Note, there are two trees, the first is
+        the f2pygen object tree, the other is the f2py generated code
+        tree. These are similar but different. At the moment we
+        specify where to add things in terms of the f2pygen tree
+        (which is a higher level api) but we also insert into the f2py
+        tree at exactly the same location which needs to be sorted out
+        at some point.
+
+        '''
+
         if position[0]=="auto":
             raise Exception('Error: BaseGen:add: auto option must be implemented by the sub class!')
-        options=["append","first","after","before","insert"]
+        options=["append","first","after","before","insert","after_index"]
         if position[0] not in options:
             raise GenerationError("Error: BaseGen:add: supported positions are {0} but found {1}".format(str(options),position[0]))
         if position[0]=="append":
@@ -48,70 +71,96 @@ class BaseGen(object):
             index=position[1]
             self.root.content.insert(index,new_object.root)
         elif position[0]=="after":
-            self.root.content.insert(self.root.content.index(position[1].root)+1,new_object.root)
+            self.root.content.insert(self.root.content.index(position[1])+1,new_object.root)
+        elif position[0]=="after_index":
+            self.root.content.insert(position[1]+1,new_object.root)
         elif position[0]=="before":
             try:
-                self.root.content.insert(self.root.content.index(position[1].root),new_object.root)
+                self.root.content.insert(self.root.content.index(position[1]),new_object.root)
             except ValueError:
                 print "ValueError when inserting:"
                 print str(new_object),str(new_object.root)
                 print "parent is: "
                 print str(self.root)
                 print "looking for this as one of the children: "
-                print str(position[1].root)
+                print str(position[1])
                 exit(1)
         else:
             raise Exception("Error: BaseGen:add: internal error, should not get to here")
         self.children.append(new_object)
-            
-class TestComment:
-    ''' pytest tests for comments. '''
-    def test_comment(self):
-        ''' check that a comment gets created succesfully. '''
-        module=ModuleGen(name="testmodule")
-        content="HELLO"
-        comment=CommentGen(module,content)
-        module.add(comment)
-        lines=str(module.root).splitlines()
-        assert "!"+content in lines[3]
 
-class TestAdd:
-    ''' pytest tests for adding code. '''
-    def test_add_before(self):
-        ''' add the new code before a particular object '''
-        module=ModuleGen(name="testmodule")
-        subroutine=SubroutineGen(module,name="testsubroutine")
-        module.add(subroutine)
-        loop=DoGen(subroutine,"it","1","10")
-        subroutine.add(loop)
-        call=CallGen(subroutine,"testcall")
-        subroutine.add(call,position=["before",loop])
-        lines=str(module.root).splitlines()
-        # the call should be inserted before the loop
-        assert "SUBROUTINE testsubroutine" in lines[3]
-        assert "CALL testcall" in lines[4]
-        assert "DO it=1,10" in lines[5]
+    def start_sibling_loop(self, debug = False):
+        from fparser.block_statements import Do
+        index = len(self.root.content)-1
+        found = False
+        while not found and index>0:
+            if isinstance(self.root.content[index],Do):
+                found = True
+            else:
+                index -= 1
+        if not found:
+            raise RuntimeError("Error, expecting to find a loop but none were found")
+        return self.root.content[index]
 
-class TestModuleGen:
-    ''' pytest tests for the ModuleGen class '''
-    def test_vanilla(self):
-        module=ModuleGen()
-        lines=str(module.root).splitlines()
-        assert "MODULE" in lines[0]
-        assert "IMPLICIT NONE" in lines[1]
-        assert "CONTAINS" in lines[2]
-        assert "END MODULE" in lines[3]
-    def test_module_name(self):
-        name="test"
-        module=ModuleGen(name=name)
-        assert "MODULE "+name in str(module.root)
-    def test_no_contains(self):
-        module=ModuleGen(name="test",contains=False)
-        assert "CONTAINS" not in str(module.root)
-    def test_no_implicit_none(implicitnone=False):
-        module=ModuleGen(name="test",implicitnone=False)
-        assert "IMPLICIT NONE" not in str(module.root)
-
+    def start_parent_loop(self, debug = False):
+        from fparser.block_statements import Subroutine, EndSubroutine, Do
+        from fparser.statements import Comment
+        if debug:
+            print "Entered before_parent_loop"
+            print "The type of the current node is "+str(type(self.root))
+            print "If the current node is a Do loop then move up to the top of the do loop nest"
+        current = self.root
+        local_current = self
+	while isinstance(current.parent,Do):
+            if debug:
+                print "Parent is a do loop so moving to the parent"
+	    current = current.parent
+            local_current = local_current.parent
+        if debug:
+            print "The type of the current node is now "+str(type(current))
+        if isinstance(current,Do):
+            if (debug):
+                print "The current node is a do loop"
+                print "The type of parent is "+str(type(current.parent))
+                print "Finding the loops position in its parent ..."
+            index = current.parent.content.index(current)
+            if (debug):
+                print "The loops index is ",index
+	    parent = current.parent
+            local_current = local_current.parent
+        else:
+            if debug:
+                print "The type of the current node is not a do loop"
+                print "Assume the do loop will be appended as a child and find the last childs index"
+            index = len(current.content)-1
+            if debug:
+                 print "The last childs index is ",index
+            parent = current
+        if debug:
+            print "The type of the object at the index is "+str(type(parent.content[index]))
+            print "If preceding node is a directive then move back one"
+        if index == 0:
+            if debug:
+                print "current index is 0 so finish"
+        elif isinstance(parent.content[index-1],OMPDirective):
+            if debug:
+                print "preceding node is a directive so find out what type ..."
+                print "type is "+parent.content[index-1].position
+                print "directive is "+str(parent.content[index-1])
+            if parent.content[index-1].position == "begin":
+                if debug:
+                    print "type of directive is begin so move back one"
+                index -= 1
+            else:
+                if debug:
+                    print "directive type is not begin so finish"
+        else:
+            if debug:
+                print "preceding node is not a directive so finish"
+        if debug:
+            print "type of final location ",type(parent.content[index])
+            print "code for final location ",str(parent.content[index])
+        return local_current, parent.content[index]
 
 class ModuleGen(BaseGen):
     def __init__(self,name="",contains=True,implicitnone=True):
@@ -207,6 +256,32 @@ class CommentGen(BaseGen):
         from fparser.block_statements import Comment
         my_comment=Comment(parent.root,subline)
         my_comment.content=content
+
+        BaseGen.__init__(self,parent,my_comment)
+
+class DirectiveGen(BaseGen):
+
+    def __init__(self, parent, language, position, directive_type, content):
+
+        self._supported_languages = ["omp"]
+        self._language = language
+        self._directive_type = directive_type
+
+        from fparser import api
+        reader=FortranStringReader("! content\n")
+        reader.set_mode(True, True) # free form, strict
+        subline=reader.next()
+
+        if language == "omp":
+            my_comment=OMPDirective(parent.root,subline, position, directive_type)
+            my_comment.content="$omp"
+            if position == "end":
+                my_comment.content+=" end"
+            my_comment.content+=" "+directive_type
+            if content!="":
+                my_comment.content+=" "+content
+        else:
+            raise RuntimeError("Error, unsupported directive language. Expecting one of "+str(self._supported_languages)+" but found '"+language+"'")
 
         BaseGen.__init__(self,parent,my_comment)
 
@@ -589,7 +664,7 @@ class DoGen(BaseGen):
                 BaseGen.add(self,content,position=["insert",len(self.root.content)-1])
         else:
             BaseGen.add(self,content,position=position)
-        
+
 def adddo(variable_name,start,end,parent,step=None):
 
     reader=FortranStringReader("do i=1,n\nend do")

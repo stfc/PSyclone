@@ -181,7 +181,7 @@ class NameSpace(object):
 class Invoke(object):
 
     def __str__(self):
-        return self._name+"("+self.unique_args+")"
+        return self._name+"("+str(self.unique_args)+")"
     def __init__(self, alg_invocation, idx, Schedule, reserved_names = []):
 
         if alg_invocation == None and idx == None: return
@@ -547,12 +547,14 @@ class LoopDirective(Node):
 class OMPLoopDirective(LoopDirective):
 
     def gen_code(self,parent):
-        from f2pygen import CommentGen
-        private_str = self.list_to_string(self._get_private_list())
-        parent.add(CommentGen(parent, "$omp parallel do default(shared), private({0})".format(private_str)))
+        from f2pygen import DirectiveGen
         for child in self.children:
             child.gen_code(parent)
-        parent.add(CommentGen(parent, "$omp end parallel do"))
+        # directive must be added after children are generated so get private list picks up the 
+        private_str = self.list_to_string(self._get_private_list())
+        position = parent.start_sibling_loop()
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do", "default(shared), private({0})".format(private_str)), position = ["before", position])
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
     def _get_private_list(self):
         # returns the variable name used for any loops within a directive and
@@ -582,7 +584,7 @@ class Loop(Node):
         self._loop_type=value
 
     def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "column", topology_name = "topology", valid_loop_types=[]):
+                 variable_name = "unset", topology_name = "topology", valid_loop_types=[]):
 
         children = []
         # we need to determine whether this is an infrastructure or kernel
@@ -617,10 +619,10 @@ class Loop(Node):
 
         self._variable_name = variable_name
 
-        self._start = None
-        self._stop = None
-        self._step = None
-        self._id = None
+        self._start = ""
+        self._stop = ""
+        self._step = ""
+        self._id = ""
 
         # visual properties
         self._width = 30

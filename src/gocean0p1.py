@@ -26,15 +26,12 @@ class GOPSy(PSy):
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
         # include the kind_params module
-        kp_use = UseGen(psy_module, name = "kind_params_mod")
-        psy_module.add(kp_use)
+        psy_module.add(UseGen(psy_module, name = "kind_params_mod"))
         # include the topology_mod module for loop bounds
-        tp_use = UseGen(psy_module, name="topology_mod")
-        psy_module.add(tp_use)
+        psy_module.add(UseGen(psy_module, name="topology_mod"))
         # include the field_mod module in case we have any r-space variables
-        fm_use = UseGen(psy_module, name = "field_mod",
-                        only=["scalar_field_type"])
-        psy_module.add(fm_use)
+        psy_module.add(UseGen(psy_module, name = "field_mod",
+                        only=["scalar_field_type"]))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         return psy_module.root
@@ -60,8 +57,6 @@ class GOInvoke(Invoke):
             self._schedule = GOSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
                         reserved_names = ["cf", "ct", "cu", "cv"])
-
-
 
     @property
     def unique_args_arrays(self):
@@ -98,8 +93,8 @@ class GOInvoke(Invoke):
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.unique_args)
-        self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
+        self.schedule.gen_code(invoke_sub)
         # add the subroutine argument declarations for arrays
         if len(self.unique_args_arrays) > 0:
             my_decl_arrays = DeclGen(invoke_sub, datatype = "REAL",
@@ -159,11 +154,6 @@ class GOLoop(Loop):
         Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
                       valid_loop_types = ["inner", "outer"])
 
-        # all loops will have the following information (or will be subclassed)
-        #self._loop_type==None # inner, outer, colour, colours
-        #self._iteration_space="unknown" # unknown, cu, cv, ...
-        #self._field_space="cu" # any, cu, cv, ...
-
     def gen_code(self,parent):
 
         if self._loop_type == "inner":
@@ -181,15 +171,14 @@ class GOLoop(Loop):
             self._start = "1"
             if self._loop_type == "inner":
                 self._stop = "idim1"
-                dim_size = AssignGen(parent.parent, lhs = self._stop,
-                                     rhs = "SIZE("+self.field_name+", 1)")
-                parent.parent.add(dim_size, position=["before",parent])
+                index = "1"
             elif self._loop_type == "outer":
                 self._stop = "idim2"
-                dim_size = AssignGen(parent, lhs = self._stop,
-                                     rhs = "SIZE("+self.field_name+", 2)")
-                parent.add(dim_size)
-
+                index = "2"
+            new_parent, position = parent.start_parent_loop()
+            dim_size = AssignGen(new_parent, lhs = self._stop,
+                                 rhs = "SIZE("+self.field_name+", "+index+")")
+            new_parent.add(dim_size, position = ["before", position])
 
             dims = DeclGen(parent, datatype = "INTEGER",
                            entity_decls = [self._stop])
@@ -206,6 +195,7 @@ class GOLoop(Loop):
                 self._stop = self.field_space+"%jstop"
 
         Loop.gen_code(self, parent)
+        
 
 class GOInf(Inf):
     ''' A GOcean specific infrastructure call factory. No infrastructure

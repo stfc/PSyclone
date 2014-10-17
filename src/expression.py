@@ -220,7 +220,7 @@ expr << (operator | operand)
 
 expression = StringStart() + expr + StringEnd()
 
-def test(name, parser, test_string, names=None):
+def my_test(name, parser, test_string, names=None):
     '''This function ensures that the parse-unparse and parse-repr-unparse
     operations are equivalent to the identity. Note that whitespace is not
     preserved by the parsing operation, so the test_string must conform to
@@ -235,14 +235,14 @@ def test(name, parser, test_string, names=None):
 
 
 if __name__=="__main__":
-    test("function calls", var_or_function, "foo(bar(baz, bam), wibble(wub))", 
+    my_test("function calls", var_or_function, "foo(bar(baz, bam), wibble(wub))", 
          names=["foo", "bar", "baz", "bam", "wibble", "wub"])
-    test("trivial slice", slicing, ":")
-    test("simple slice", slicing, "1:2:3")
-    test("stride slice", slicing, "::3")
-    test("exponent", expression, "2 ** 3 ** 4")
-    test("plus mult", expression, "f(x) + g(x, y) * 2", names=["f", "g", "x", "y"])
-    test("group", expression, "(x)", names="x")
-    test("real", expression, "-.5e-200")
-    test("group operations", expression, "(f(x + 2 * y, z:z + 2 + -.5) + (g + h) ** (z - 2))", 
+    my_test("trivial slice", slicing, ":")
+    my_test("simple slice", slicing, "1:2:3")
+    my_test("stride slice", slicing, "::3")
+    my_test("exponent", expression, "2 ** 3 ** 4")
+    my_test("plus mult", expression, "f(x) + g(x, y) * 2", names=["f", "g", "x", "y"])
+    my_test("group", expression, "(x)", names="x")
+    my_test("real", expression, "-.5e-200")
+    my_test("group operations", expression, "(f(x + 2 * y, z:z + 2 + -.5) + (g + h) ** (z - 2))", 
          names=["f", "g", "h", "x", "y", "z"])
