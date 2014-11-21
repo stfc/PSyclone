@@ -1,8 +1,9 @@
-#-----------------------------------------------------------------------------
-# (c) The copyright relating to this information/data is jointly owned by
-# the Crown, Met Office and NERC 2013.
-# The contribution of STFC in creating this information/data is acknowledged.
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 # Makefile for LFRIC test code. May be that we want to replace with FCM make or
@@ -40,7 +41,7 @@ ARCH=linux_gfortran
 ifeq ($(ARCH), linux_gfortran)
   FC=gfortran
   LD=$(FC)
-  FFLAGS  = -g -O0 -std=f2003 -Wuninitialized -Wall -Wextra -fbounds-check -fcheck=all
+  FFLAGS  = -g -O0 -std=f2003 -Wuninitialized -Wall -Wextra -fbounds-check
   LDFLAGS = -g
 endif
 ifeq ($(ARCH), linux_ifort)
@@ -60,31 +61,25 @@ endif
 # Object list
 #-------------------------------------------------------------------------------
 
-OBJ = 
+OBJ = integrate_one_module.o integrate_one.o
 
-LIBS=-L${GUNGHOSRC}/utils -llfric 
+LIBS=-L${GUNGHOSRC}/utils -L${GUNGHOSRC}/kernels -llfric -lgungho
 FFLAGS += -I${GUNGHOSRC}/utils -I${GUNGHOSRC}/kernels
-EXE=integrate_one galerkin tridiag_solve
+EXE=integrate_one
 #-------------------------------------------------------------------------------
 # Targets
 #-------------------------------------------------------------------------------
 
 all: $(EXE)
-tridiag_solve: \
-	manual_invoke_tridiag_solve_kernel.o \
-	manual_invoke_tridiag_testdata_kernel.o \
-	manual_invoke_tridiag_verify_kernel.o \
-	manual_tridiag_solve.o
-	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ manual_tridiag_solve.o manual_invoke_tridiag_solve_kernel.o manual_invoke_tridiag_testdata_kernel.o manual_invoke_tridiag_verify_kernel.o $(LIBS)
 
-gen: tridiag_solve_generate
+integrate_one:
+	cd ${GUNGHOSRC}/utils;make
+	cd ${GUNGHOSRC}/kernels;make
+	python ../../src/generator.py -oalg integrate_one_alg.F90 -opsy integrate_one_psy.F90 integrate_one.F90
+	make integrate_one_generated
 
-tridiag_solve_generate:
-	python ../../src/generator.py -oalg tridiag_solve_alg.F90 -opsy tridiag_solve_psy.F90 tridiag_solve.F90
-	make tridiag_solve_generated
-
-tridiag_solve_generated: tridiag_solve_module.o tridiag_solve_psy.o tridiag_solve_alg.o
-	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ tridiag_solve_module.o tridiag_solve_psy.o tridiag_solve_alg.o $(LIBS)
+integrate_one_generated: integrate_one_module.o integrate_one_psy.o integrate_one_alg.o
+	$(LD) $(FFLAGS) $(LDFLAGS) -o $@ integrate_one_module.o integrate_one_psy.o integrate_one_alg.o $(LIBS)
 
 clean:
 	rm -f *.o *.mod *.out $(EXE) *_alg.F90 *_psy.F90 fparser.log *_generated
@@ -100,12 +95,3 @@ clean:
 	$(FC) -c $(FFLAGS) $<
 %.o:%.f90
 	$(FC) -c $(FFLAGS) $<
-
-#-------------------------------------------------------------------------------
-# Dependencies
-#-------------------------------------------------------------------------------
-manual_invoke_tridiag_solve_kernel.o: manual_invoke_tridiag_solve_kernel.F90
-manual_invoke_tridiag_testdata_kernel.o: manual_invoke_tridiag_testdata_kernel.F90
-manual_invoke_tridiag_verify_kernel.o: manual_invoke_tridiag_verify_kernel.F90
-$(EXE):  manual_tridiag_solve.F90
-

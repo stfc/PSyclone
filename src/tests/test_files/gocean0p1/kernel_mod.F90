@@ -1,8 +1,9 @@
-!-----------------------------------------------------------------------------
-! (c) The copyright relating to this information/data is jointly owned by
-! the Crown, Met Office and NERC 2013.
-! The contribution of STFC in creating this information/data is acknowledged.
-!-----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------------
 ! NAME

@@ -1,7 +1,14 @@
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author R. Ford STFC Daresbury Lab
+
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
-# Copyright 2013 STFC, all rights reserved
 
 ''' This section subclasses the f2py comment class so that we can reason about directives '''
 

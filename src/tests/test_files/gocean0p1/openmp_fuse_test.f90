@@ -1,8 +1,16 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+! Author A. Porter STFC Daresbury Lab
+! Funded by the GOcean project
+
 PROGRAM openmp_fuse_test
 
   ! Fake Fortran program for testing aspects of
   ! the PSyclone code generation system.
-  ! Andrew Porter, August 2014
 
   use kind_params_mod
   use time_smooth_mod,  only: time_smooth_type

@@ -1,5 +1,12 @@
-# Copyright 2013 Imperial College London, all rights reserved
-# Copyright 2013 STFC, all rights reserved
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author L. Mitchell Imperial College
+# Modified by R. Ford STFC Daresbury Lab
+
 import fparser
 from fparser import parsefortran
 from fparser import api as fpapi

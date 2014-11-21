@@ -1,8 +1,9 @@
-#-----------------------------------------------------------------------------
-# (c) The copyright relating to this information/data is jointly owned by
-# the Crown, Met Office and NERC 2013.
-# The contribution of STFC in creating this information/data is acknowledged.
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 # Makefile for LFRIC test code. May be that we want to replace with FCM make or
@@ -18,6 +19,12 @@
 #
 # For GNU make.
 #-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+# Distribution specific paths
+#-------------------------------------------------------------------------------
+
+GUNGHOSRC=../../../GungHo/src
 
 #-------------------------------------------------------------------------------
 # Defaults
@@ -57,8 +64,8 @@ endif
 
 OBJ = manual_invoke_populate_rhs.o manual_invoke_galerkin_rhs_kernel.o
 
-LIBS=-L../../utils -llfric 
-FFLAGS += -I../../utils -I../../kernels
+LIBS=-L${GUNGHOSRC}/utils -llfric 
+FFLAGS += -I${GUNGHOSRC}/utils -I${GUNGHOSRC}/kernels
 EXE=galerkin
 #-------------------------------------------------------------------------------
 # Targets

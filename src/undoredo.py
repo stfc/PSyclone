@@ -1,3 +1,11 @@
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author R. Ford STFC Daresbury Lab
+
 class Memento:
     ''' Stores a particular schedule and the transformation that was used to create this schedule (from the previous one). Takes a copy of the schedule and the transformation so that we are guaranteed to return what was provided. Without the copy another object could modify the schedule and transformation objects. '''
     def __init__(self,schedule,transformation,mylist=[]):
