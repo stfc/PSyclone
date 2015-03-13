@@ -31,3 +31,15 @@ class TestGenerate:
       with pytest.raises(IOError):
          generate(os.path.join("test_files","dynamo0p1","1_single_function.f90"), api="dynamo0.1", kernel_path="does_not_exist")
 
+   def test_wrong_kernel_path(self):
+      ''' checks that algGen raises appropriate error when the kernel code cannot be found in the specified search path '''
+      import os
+      with pytest.raises(IOError):
+         generate(os.path.join("test_files","dynamo0p3","alg","1_single_function.f90"), api="dynamo0.1", kernel_path=os.path.join("test_files","dynamo0p3"))
+
+   @pytest.mark.xfail(reason="Not yet implemented")
+   def test_correct_kernel_path(self):
+      ''' checks that algGen succeeds when the location of the kernel source code is *not* the same as that of the algorithm code '''
+      import os
+      # We should really specify dynamo0.3 below but that's not yet supported
+      alg,psy=generate(os.path.join("test_files","dynamo0p3","alg","1_single_function.f90"), api="dynamo0.1", kernel_path=os.path.join("test_files","dynamo0p3","kernels"))
