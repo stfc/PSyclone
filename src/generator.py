@@ -13,14 +13,15 @@ import traceback
 from parse import parse,ParseError
 from psyGen import PSyFactory,GenerationError
 
-def generate(filename,api=""):
+def generate(filename,api="",kernel_path="./"):
     '''
     Takes a GungHo algorithm specification as input and outputs the associated generated algorithm and psy codes suitable for compiling with the specified kernel(s) and GungHo infrastructure. Uses the :func:`parse.parse` function to parse the algorithm specification, the :class:`psyGen.PSy` class to generate the PSy code and the :class:`algGen.Alg` class to generate the modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
+    :param str kernel_path: The location of the files containing the kernel source (if different from the location of the algorithm specification)
     :return: The algorithm code and the psy code.
     :rtype: ast
-    :raises IOError: if the filename does not exist
+    :raises IOError: if the filename or search path do not exist
 
     For example:
 
@@ -39,6 +40,8 @@ def generate(filename,api=""):
 
     if not os.path.isfile(filename):
         raise IOError, "file '%s' not found" % (filename)
+    if not os.access(kernel_path, os.R_OK):
+        raise IOError, "kernel search path '%s' not found" % (kernel_path)
     try:
         from algGen import Alg
         ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")

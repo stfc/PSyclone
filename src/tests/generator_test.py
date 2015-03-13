@@ -25,10 +25,9 @@ class TestGenerate:
        with pytest.raises(GenerationError):
            generate(os.path.join("test_files","dynamo0p1","1_single_function.f90"), api="invalid")
 
-   @pytest.mark.xfail(reason="Not yet implemented")
    def test_invalid_kernel_path(self):
-      ''' checks that algGen raises appropriate error when an invalid search parth for kernel source files is supplied '''
+      ''' checks that algGen raises appropriate error when an invalid search path for kernel source files is supplied '''
       import os
-      with pytest.raises(GenerationError):
+      with pytest.raises(IOError):
          generate(os.path.join("test_files","dynamo0p1","1_single_function.f90"), api="dynamo0.1", kernel_path="does_not_exist")
 
