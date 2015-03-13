@@ -7,6 +7,7 @@
 # Author R. Ford STFC Daresbury Lab
 
 from generator import generate, GenerationError
+import pytest
 
 class TestGenerate:
    ''' unit tests for the generate function '''
@@ -23,4 +24,11 @@ class TestGenerate:
        import pytest
        with pytest.raises(GenerationError):
            generate(os.path.join("test_files","dynamo0p1","1_single_function.f90"), api="invalid")
+
+   @pytest.mark.xfail(reason="Not yet implemented")
+   def test_invalid_kernel_path(self):
+      ''' checks that algGen raises appropriate error when an invalid search parth for kernel source files is supplied '''
+      import os
+      with pytest.raises(GenerationError):
+         generate(os.path.join("test_files","dynamo0p1","1_single_function.f90"), api="dynamo0.1", kernel_path="does_not_exist")
 
