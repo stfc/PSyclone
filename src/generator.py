@@ -44,7 +44,8 @@ def generate(filename,api="",kernel_path=""):
         raise IOError, "kernel search path '%s' not found" % (kernel_path)
     try:
         from algGen import Alg
-        ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
+        ast,invokeInfo=parse(filename,api=api,invoke_name="invoke",
+                             kernel_path=kernel_path)
         psy=PSyFactory(api).create(invokeInfo)
         alg=Alg(ast,psy)
     except Exception as msg:
