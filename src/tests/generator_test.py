@@ -37,7 +37,7 @@ class TestGenerate:
       with pytest.raises(IOError):
          generate(os.path.join("test_files","dynamo0p3","alg","1_single_function.f90"), api="dynamo0.1", kernel_path=os.path.join("test_files","gocean0p1"))
 
-   @pytest.mark.xfail(reason="Unknown")
+   #@pytest.mark.xfail(reason="Unknown")
    def test_correct_kernel_path(self):
       ''' checks that algGen succeeds when the location of the kernel source code is *not* the same as that of the algorithm code '''
       import os
