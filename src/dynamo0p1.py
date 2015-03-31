@@ -158,8 +158,7 @@ class DynKern(Kern):
             if arg.requires_basis:
                 basis_name = arg.function_space+"_basis_"+arg.name
                 arglist.append(basis_name)
-                position = parent.start_parent_loop()
-                new_parent = position.parent
+                new_parent, position = parent.start_parent_loop() 
                 new_parent.add(CallGen(new_parent,
                                        field_name+"%vspace%get_basis",
                                        [basis_name]),
@@ -193,8 +192,7 @@ class DynKern(Kern):
         # of degrees of freedom. Needs to be generalised.
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["nlayers", "ndf"]))
-        position = parent.start_parent_loop()
-        new_parent=position.parent
+        new_parent, position = parent.start_parent_loop() 
         new_parent.add(AssignGen(new_parent, lhs = "nlayers",
                                     rhs = field_name+"%get_nlayers()"),
                           position = ["before", position])

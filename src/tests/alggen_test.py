@@ -84,6 +84,6 @@ class TestAlgGenClassDynamo0p1:
     def test_single_invoke_dynamo0p1(self):
         ''' test for correct code transformation for a single function specified in an invoke call for the
         gunghoproto api '''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","1_single_function.f90"),api="dynamo0.1")
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","algorithm","1_single_function.f90"),api="dynamo0.1")
         assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
                   str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
