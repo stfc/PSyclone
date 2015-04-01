@@ -580,7 +580,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # Search for the file containing the kernel source
                     import fnmatch
 
-                    search_string = "{0}.?90".format(modulename)
+                    # We only consider files with the suffixes .f90 and .F90
+                    # when searching for the kernel source.
+                    search_string = "{0}.[fF]90".format(modulename)
 
                     # Our list of matching files (should have length == 1)
                     matches = []
@@ -600,20 +602,20 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                     matches.append(os.path.join(root, filename))
 
                     else:
-                        # We look *only* in the directory that contained the algorithm file
+                        # We look *only* in the directory that contained the 
+                        # algorithm file
                         cdir = os.path.abspath(os.path.dirname(alg_filename))
                         filenames = os.listdir(cdir)
                         for filename in fnmatch.filter(filenames, 
                                                        search_string):
                                     matches.append(os.path.join(cdir, filename))
 
-
                     # Check that we only found one match
                     if len(matches) != 1:
                         if len(matches) == 0:
                             raise IOError("Kernel file '{0}.[fF]90' not found in {1}".format(modulename, cdir))
                         else:
-                            raise IOError("More than one match for kernel file '%s.[fF]90'  found!" % modulename)
+                            raise IOError("More than one match for kernel file '{0}.[fF]90' found!".format(modulename))
                     else:
                         modast = fpapi.parse(matches[0])
 
