@@ -43,3 +43,25 @@ class TestGenerate:
       alg,psy=generate(os.path.join("test_files","dynamo0p1","algorithm","1_single_function.f90"), 
                        api="dynamo0.1",
                        kernel_path=os.path.join("test_files","dynamo0p1","kernels"))
+
+   def test_same_kernel_path(self):
+      ''' checks that the generator succeeds when the search directory is the same as the algorithm code directory and a path is specified '''
+      import os
+      path=os.path.join("test_files","dynamo0p1","algorithm")
+      alg,psy=generate(os.path.join(path,"1_single_function.f90"), 
+                       api="dynamo0.1",
+                       kernel_path=path)
+
+   def test_similar_kernel_name(self):
+      ''' checks that the generator does not match incorrect files '''
+      import os
+      alg,psy=generate(os.path.join("test_files","dynamo0p1","algorithm","1_single_function.f90"), 
+                       api="dynamo0.1",
+                       kernel_path=os.path.join("test_files","dynamo0p1","kernels2"))
+
+   def test_recurse_correct_kernel_path(self):
+      ''' checks that the generator succeeds when the location of the kernel source code is *not* the same as that of the algorithm code and recursion through subdirectories is required '''
+      import os
+      alg,psy=generate(os.path.join("test_files","dynamo0p1","algorithm","1_single_function.f90"), 
+                       api="dynamo0.1",
+                       kernel_path=os.path.join("test_files","dynamo0p1","kernels3"))
