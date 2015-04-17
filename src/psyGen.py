@@ -49,6 +49,9 @@ class PSyFactory(object):
         elif self._type == "gocean0.1":
             from gocean0p1 import GOPSy
             return GOPSy(invoke_info)
+        elif self._type == "gocean1.0":
+            from gocean1p0 import GOPSy
+            return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "

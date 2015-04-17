@@ -247,6 +247,8 @@ class KernelTypeFactory(object):
             return DynKernelType(name,ast)
         elif self._type=="gocean0.1":
             return GOKernelType(name,ast)
+        elif self._type=="gocean1.0":
+            return GOKernel1p0Type(name,ast)
         else:
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
 
@@ -370,7 +372,23 @@ class GOKernelType(KernelType):
             if len(init.args) != 3:
                 raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
+
+
+class GOKernel1p0Type(KernelType):
+    def __init__(self,name,ast):
+        KernelType.__init__(self,name,ast)
+        self._arg_descriptors=[]
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError("Each meta_arg value must be of type 'arg' for the gocean0.1 api, but found '{0}'".format(init.name))
+            access=init.args[0].name
+            funcspace=init.args[1].name
+            stencil=init.args[2].name
+            if len(init.args) != 3:
+                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
         
+
 class GHProtoKernelType(KernelType):
 
     def __init__(self, name, ast):
