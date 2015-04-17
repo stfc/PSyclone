@@ -55,8 +55,8 @@ class TestTransformationsGOcean:
 
     def test_openmp_loop_fuse_trans(self):
         ''' test of the OpenMP transformation of a fused loop '''
-        ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean0p1","openmp_fuse_test.f90"), api = "gocean")
-        psy=PSyFactory("gocean").create(info)
+        ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean0p1","openmp_fuse_test.f90"), api = "gocean0.1")
+        psy=PSyFactory("gocean0.1").create(info)
         invokes=psy.invokes
         invoke=invokes.get('invoke_0')
         schedule=invoke.schedule
@@ -97,8 +97,8 @@ class TestTransformationsGOcean:
     @pytest.mark.xfail(reason="unknown")
     def test_openmp_loop_trans(self):
         ''' test of the OpenMP transformation of an all-points loop '''
-        ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean0p1","openmp_fuse_test.f90"), api = "gocean")
-        psy=PSyFactory("gocean").create(info)
+        ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean0p1","openmp_fuse_test.f90"), api = "gocean0.1")
+        psy=PSyFactory("gocean0.1").create(info)
         invokes=psy.invokes
         invoke=invokes.get('invoke_0')
         schedule=invoke.schedule

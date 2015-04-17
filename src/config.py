@@ -6,5 +6,5 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-SUPPORTEDAPIS=["gunghoproto","dynamo0.1","gocean"]
+SUPPORTEDAPIS=["gunghoproto","dynamo0.1","gocean0.1"]
 DEFAULTAPI="dynamo0.1"

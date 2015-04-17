@@ -245,7 +245,7 @@ class KernelTypeFactory(object):
             return GHProtoKernelType(name,ast)
         elif self._type=="dynamo0.1":
             return DynKernelType(name,ast)
-        elif self._type=="gocean":
+        elif self._type=="gocean0.1":
             return GOKernelType(name,ast)
         else:
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))

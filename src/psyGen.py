@@ -46,7 +46,7 @@ class PSyFactory(object):
         elif self._type == "dynamo0.1":
             from dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
-        elif self._type == "gocean":
+        elif self._type == "gocean0.1":
             from gocean0p1 import GOPSy
             return GOPSy(invoke_info)
         else:
