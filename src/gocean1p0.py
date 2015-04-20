@@ -104,10 +104,9 @@ class GOInvoke(Invoke):
         self.schedule.gen_code(invoke_sub)
         # add the subroutine argument declarations for arrays
         if len(self.unique_args_arrays) > 0:
-            my_decl_arrays = DeclGen(invoke_sub, datatype = "REAL",
-                                     intent = "inout", kind = "wp",
-                                     entity_decls = self.unique_args_arrays,
-                                     dimension = ":,:")
+            my_decl_arrays = TypeDeclGen(invoke_sub, datatype = "r2d_field",
+                                     intent = "inout",
+                                     entity_decls = self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
         # add the subroutine argument declarations for scalars
         if len(self.unique_args_scalars) > 0:
