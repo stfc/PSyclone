@@ -233,10 +233,8 @@ class GOKern(Kern):
         from f2pygen import CallGen, UseGen
         arguments = ["i", "j"]
         for arg in self._arguments.args:
-            if arg.space.lower() == "r":
-                arguments.append(arg.name + "%data")
-            else:
-                arguments.append(arg.name)
+            arguments.append(arg.name + "%data")
+
         parent.add(CallGen(parent, self._name, arguments))
         parent.add(UseGen(parent, name = self._module_name, only = True,
                           funcnames = [self._name]))
