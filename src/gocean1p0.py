@@ -183,7 +183,8 @@ class GOLoop(Loop):
                 index = "2"
             new_parent, position = parent.start_parent_loop()
             dim_size = AssignGen(new_parent, lhs = self._stop,
-                                 rhs = "SIZE("+self.field_name+", "+index+")")
+                                 rhs = "SIZE("+self.field_name+"%data, "
+                                 +index+")")
             new_parent.add(dim_size, position = ["before", position])
 
             dims = DeclGen(parent, datatype = "INTEGER",
@@ -194,11 +195,11 @@ class GOLoop(Loop):
             
             # loop bounds
             if self._loop_type == "inner":
-                self._start= self.field_space+"%istart"
-                self._stop = self.field_space+"%istop"
+                self._start= self.field_name+"%internal%xstart"
+                self._stop = self.field_name+"%internal%xstop"
             elif self._loop_type == "outer":
-                self._start= self.field_space+"%jstart"
-                self._stop = self.field_space+"%jstop"
+                self._start= self.field_name+"%internal%ystart"
+                self._stop = self.field_name+"%internal%ystop"
 
         Loop.gen_code(self, parent)
         
