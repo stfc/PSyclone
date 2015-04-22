@@ -574,6 +574,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         if api not in SUPPORTEDAPIS:
             raise ParseError("parse: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
 
+    from pyparsing import ParseException
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -619,7 +620,11 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
            and statement.designator == invoke_name:
             statement_kcalls = []
             for arg in statement.items:
-                parsed = expr.expression.parseString(arg)[0]
+                try:
+                    parsed = expr.expression.parseString(arg)[0]
+                except ParseException:
+                    raise ParseError("Failed to parse string: {0}".format(arg))
+
                 argname = parsed.name
                 argargs=[]
                 for a in parsed.args:
