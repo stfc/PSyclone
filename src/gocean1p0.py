@@ -12,7 +12,7 @@
     Inf, Arguments and KernelArgument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   KernelArgument, Inf, Node
+                   KernelArgument, GenerationError, Inf, Node
 
 class GOPSy(PSy):
     ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
@@ -228,12 +228,19 @@ class GOKern(Kern):
         return []
 
     def gen_code(self, parent):
-        ''' Generates GOcean specific psy code for a call to the dynamo
+        ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
             kernel instance. '''
         from f2pygen import CallGen, UseGen
         arguments = ["i", "j"]
         for arg in self._arguments.args:
-            arguments.append(arg.name + "%data")
+
+            if len(arg.grid_prop) == 0:
+                arguments.append(arg.name + "%data")
+            else:
+                # Argument is a property of the grid which we can access via
+                # the grid member of any field object. For simplicity
+                # we use the first field argument in the list.
+                arguments.append(self._arguments.args[0].name+"%grid%"+arg.name)
 
         parent.add(CallGen(parent, self._name, arguments))
         parent.add(UseGen(parent, name = self._module_name, only = True,
@@ -248,9 +255,16 @@ class GOKernelArguments(Arguments):
             self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
         Arguments.__init__(self, parent_call)
         self._args = []
+        # Loop over the kernel arguments obtained from the meta data
         for (idx, arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(GOKernelArgument(arg, call.args[idx],
-                                               parent_call))
+            if len(arg.grid_prop) == 0:
+                # This is a kernel argument supplied by the Algorithm layer
+                self._args.append(GOKernelArgument(arg, call.args[idx],
+                                                   parent_call))
+            else:
+                # This is an argument supplied by the psy layer
+                self._args.append(GOKernelArgument(arg, None, parent_call))
+
         self._dofs = []
     @property
     def dofs(self):
@@ -269,11 +283,45 @@ class GOKernelArguments(Arguments):
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
-        as specified by the kernel argument metadata. Only passes information
-        onto the base class. '''
+        as specified by the kernel argument metadata. '''
     def __init__(self, arg, arg_info, call):
+
+        from parse import Arg
+
         self._arg = arg
-        KernelArgument.__init__(self, arg, arg_info, call)
+        # A dictionary giving the mapping from meta-data names for 
+        # properties of the grid to their names in the Fortran grid_type.
+        self._grid_properties = {"grid_area_t":"area_t",
+                                 "grid_area_u":"area_u",
+                                 "grid_area_v":"area_v",
+                                 "grid_mask_t":"tmask",
+                                 "grid_dx_t":"dx_t",
+                                 "grid_dx_u":"dx_u",
+                                 "grid_dx_v":"dx_v",
+                                 "grid_dy_t":"dy_t",
+                                 "grid_dy_u":"dy_u",
+                                 "grid_dy_v":"dy_v",
+                                 "grid_lat_u":"gphiu",
+                                 "grid_lat_v":"gphiv",
+                                 "grid_dx_const":"dx",
+                                 "grid_dy_const":"dy"}
+        if arg_info is None:
+            # We need to generate this argument
+            # - look-up the name of this property in the fortran grid_type
+            if self._grid_properties.has_key(arg.grid_prop):
+                my_arg = Arg("literal",self._grid_properties[arg.grid_prop])
+            else:
+                raise GenerationError("Unrecognised grid property specified. Expected one of {0} but found {1}".format(str(self._grid_properties.keys()), 
+                                  arg.grid_prop))
+            KernelArgument.__init__(self, arg, my_arg, call)
+        else:
+            KernelArgument.__init__(self, arg, arg_info, call)
+        self._grid_prop = arg.grid_prop
+
+    @property
+    def grid_prop(self):
+        return self._grid_prop
+
     @property
     def function_space(self):
         ''' Returns the expected finite difference space for this
