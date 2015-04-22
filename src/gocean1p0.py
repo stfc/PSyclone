@@ -37,8 +37,7 @@ class GOPSy(PSy):
         # include the kind_params module
         psy_module.add(UseGen(psy_module, name = "kind_params_mod"))
         # include the field_mod module
-        psy_module.add(UseGen(psy_module, name = "field_mod",
-                        only=["scalar_field"]))
+        psy_module.add(UseGen(psy_module, name = "field_mod"))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         return psy_module.root
@@ -81,7 +80,7 @@ class GOInvoke(Invoke):
     @property
     def unique_args_scalars(self):
         ''' find unique arguments that are scalars (defined as those that are
-            rspace). GOcean needs to kow this as we are dealing with arrays
+            rspace). GOcean needs to know this as we are dealing with arrays
             directly so need to declare them correctly. '''
         result = []
         for call in self._schedule.calls():
@@ -110,10 +109,9 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
         # add the subroutine argument declarations for scalars
         if len(self.unique_args_scalars) > 0:
-            my_decl_scalars = TypeDeclGen(invoke_sub,
-                                  datatype = "scalar_field",
-                                  entity_decls = self.unique_args_scalars,
-                                  intent = "inout")
+            my_decl_scalars = DeclGen(invoke_sub, datatype = "REAL", 
+                                     intent = "inout", kind = "wp", 
+                                     entity_decls = self.unique_args_scalars) 
             invoke_sub.add(my_decl_scalars)
 
 class GOSchedule(Schedule):
@@ -235,7 +233,10 @@ class GOKern(Kern):
         for arg in self._arguments.args:
 
             if len(arg.grid_prop) == 0:
-                arguments.append(arg.name + "%data")
+                if arg.space.lower() == "r": 
+                    arguments.append(arg.name)
+                else:
+                    arguments.append(arg.name + "%data")
             else:
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object. For simplicity
