@@ -38,7 +38,7 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name = "kind_params_mod"))
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name = "field_mod",
-                        only=["scalar_field_type"]))
+                        only=["scalar_field"]))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         return psy_module.root
@@ -111,7 +111,7 @@ class GOInvoke(Invoke):
         # add the subroutine argument declarations for scalars
         if len(self.unique_args_scalars) > 0:
             my_decl_scalars = TypeDeclGen(invoke_sub,
-                                  datatype = "scalar_field_type",
+                                  datatype = "scalar_field",
                                   entity_decls = self.unique_args_scalars,
                                   intent = "inout")
             invoke_sub.add(my_decl_scalars)
