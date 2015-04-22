@@ -47,6 +47,14 @@ class GODescriptor(Descriptor):
     def __init__(self, access, space, stencil):
         Descriptor.__init__(self,access,space,stencil)
 
+class GO1p0Descriptor(Descriptor):
+    def __init__(self, access, space="", stencil="", grid_var=""):
+        Descriptor.__init__(self,access,space,stencil)
+        self._grid_prop=grid_var
+    @property
+    def grid_prop(self):
+        return self._grid_prop
+
 class DynDescriptor(Descriptor):
     def __init__(self,access,funcspace,stencil,basis,diff_basis,gauss_quad):
         Descriptor.__init__(self,access,funcspace,stencil)
@@ -248,7 +256,7 @@ class KernelTypeFactory(object):
         elif self._type=="gocean0.1":
             return GOKernelType(name,ast)
         elif self._type=="gocean1.0":
-            return GOKernel1p0Type(name,ast)
+            return GOKernelType1p0(name,ast)
         else:
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
 
@@ -374,20 +382,50 @@ class GOKernelType(KernelType):
             self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
 
 
-class GOKernel1p0Type(KernelType):
+class GOKernelType1p0(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
+        # The list of kernel arguments
         self._arg_descriptors=[]
         for init in self._inits:
             if init.name != 'arg':
-                raise ParseError("Each meta_arg value must be of type 'arg' for the gocean0.1 api, but found '{0}'".format(init.name))
-            access=init.args[0].name
-            funcspace=init.args[1].name
-            stencil=init.args[2].name
-            if len(init.args) != 3:
-                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
-            self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
-        
+                raise ParseError("Each meta_arg value must be of type "+
+                                 "'arg' for the gocean1.0 api, but "+
+                                 "found '{0}'".format(init.name))
+
+            nargs = len(init.args)
+
+            if nargs == 3:
+                access=init.args[0].name
+                funcspace=init.args[1].name
+                stencil=init.args[2].name
+                grid_var=""
+
+            elif nargs == 2:
+                access=init.args[0].name
+                grid_var=init.args[1].name
+                funcspace=""
+                stencil=""
+                #self._psy_arg_descriptors.append(GO1p0Descriptor(access,funcspace,
+                 #                                        stencil,grid_var))
+            else:
+                raise ParseError("'arg' type expects 2 or 3 arguments but "+
+                                 "found '{}' in '{}'".format(str(len(init.args)), init.args))
+
+            self._arg_descriptors.append(GO1p0Descriptor(access,funcspace,
+                                                         stencil,grid_var))
+
+    # Override nargs from the base class so that it returns the no.
+    # of args specified in the algorithm layer (and thus excludes those
+    # that must be added in the PSy layer). This is done to simplify the
+    # check on the no. of arguments supplied in any invoke of the kernel.
+    @property
+    def nargs(self):
+        count = 0
+        for arg in self.arg_descriptors:
+            if len(arg.grid_prop) == 0:
+                count += 1
+        return count
 
 class GHProtoKernelType(KernelType):
 
@@ -463,6 +501,8 @@ class KernelCall(object):
         
 class Arg(object):
     ''' Descriptions of an argument '''
+    def __str__(self):
+        return 'Arg.value = '+self._value+', Arg.form = '+self._form
     def __init__(self,form,value):
         formOptions=["literal","variable"]
         self._form=form
