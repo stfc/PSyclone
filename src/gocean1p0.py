@@ -229,6 +229,39 @@ class GOKern(Kern):
         ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
             kernel instance. '''
         from f2pygen import CallGen, UseGen
+
+        # Before we do anything else, go through the arguments and 
+        # determine the best one from which to obtain the grid properties
+        # (should they be required). For this, an argument must not be on 
+        # r-space (i.e. not a scalar) and must be supplied by the algorithm
+        # layer. 
+        alg_flds = []
+        for arg in self._arguments.args:
+            if len(arg.grid_prop) == 0 and arg.space.lower() != "r":
+                alg_flds.append(arg)
+
+        # If possible it should also be a field that is read-only
+        # as otherwise compilers can get confused about data dependencies
+        # and refuse to SIMD vectorise.
+        # Look through our candidates and store one in each access category
+        #          write, readwrite, read
+        grid_args = [None, None, None]
+        for arg in alg_flds:
+            if arg.access.lower() ==  "read":
+                grid_args[2] = arg
+            elif arg.access.lower() == "readwrite":
+                grid_args[1] = arg
+            else:
+                grid_args[0] = arg
+
+        # Now choose the argument to obtain grid properties from:
+        # If we have found a field arg that is read-only then that is chosen
+        # otherwise, we go for readwrite and failing that we go for write-only.
+        grid_arg = None
+        for arg in grid_args:
+            if arg is not None:
+                grid_arg = arg
+
         arguments = ["i", "j"]
         for arg in self._arguments.args:
 
@@ -239,9 +272,12 @@ class GOKern(Kern):
                     arguments.append(arg.name + "%data")
             else:
                 # Argument is a property of the grid which we can access via
-                # the grid member of any field object. For simplicity
-                # we use the first field argument in the list.
-                arguments.append(self._arguments.args[0].name+"%grid%"+arg.name)
+                # the grid member of any field object.
+                # We use the most suitable field as chosen above.
+                if grid_arg is None:
+                    raise GenerationError("Error: kernel {0} requires grid property {1} but does not have any arguments that are fields".format(self._name, arg.name))
+                else:
+                    arguments.append(grid_arg.name+"%grid%"+arg.name)
 
         parent.add(CallGen(parent, self._name, arguments))
         parent.add(UseGen(parent, name = self._module_name, only = True,
