@@ -8,6 +8,7 @@
 
 import os
 from generator import generate
+from algGen import AlgorithmError
 import pytest
 
 class TestAlgGenClassGungHoProto:
@@ -87,3 +88,9 @@ class TestAlgGenClassDynamo0p1:
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","algorithm","1_single_function.f90"),api="dynamo0.1")
         assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
                   str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
+
+    def test_zero_invoke_dynamo0p1(self):
+        '''test that an exception is raised if the specified file does not contain any actual invoke() calls'''
+        import pytest
+        with pytest.raises(AlgorithmError):
+            alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","missing_invokes.f90"),api="dynamo0.1")
