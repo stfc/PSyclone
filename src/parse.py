@@ -384,7 +384,16 @@ class GOKernelType(KernelType):
 
 class GOKernelType1p0(KernelType):
     def __init__(self,name,ast):
+        # Initialise the base class
         KernelType.__init__(self,name,ast)
+
+        # Check that the meta-data for this kernel is valid
+        valid_iterates_over = ["ALL_PTS","INTERNAL_PTS","EXTERNAL_PTS"]
+        if self._iterates_over.upper() not in valid_iterates_over:
+            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER has value {1} but must be one of {2}".format(name,
+                                        self._iterates_over.upper(),
+                                        valid_iterates_over) )
+
         # The list of kernel arguments
         self._arg_descriptors=[]
         for init in self._inits:
@@ -406,8 +415,6 @@ class GOKernelType1p0(KernelType):
                 grid_var=init.args[1].name
                 funcspace=""
                 stencil=""
-                #self._psy_arg_descriptors.append(GO1p0Descriptor(access,funcspace,
-                 #                                        stencil,grid_var))
             else:
                 raise ParseError("'arg' type expects 2 or 3 arguments but "+
                                  "found '{}' in '{}'".format(str(len(init.args)), init.args))
