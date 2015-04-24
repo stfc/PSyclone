@@ -191,13 +191,25 @@ class GOLoop(Loop):
 
         else: # one of our spaces so use values provided by the infrastructure
             
-            # loop bounds
+            # loop bounds are pulled from the field object
+            self._start= self.field_name
+            self._stop = self.field_name
+
+            if self._iteration_space.lower() == "internal_pts":
+                self._start += "%internal"
+                self._stop  += "%internal"
+            elif self._iteration_space.lower() == "all_pts":
+                self._start += "%whole"
+                self._stop  += "%whole"
+            else:
+                raise GenerationError("Unrecognised iteration space, {0}. Cannot generate loop bounds.".format(self._iteration_space))
+
             if self._loop_type == "inner":
-                self._start= self.field_name+"%internal%xstart"
-                self._stop = self.field_name+"%internal%xstop"
+                self._start += "%xstart"
+                self._stop  += "%xstop"
             elif self._loop_type == "outer":
-                self._start= self.field_name+"%internal%ystart"
-                self._stop = self.field_name+"%internal%ystop"
+                self._start += "%ystart"
+                self._stop  += "%ystop"
 
         Loop.gen_code(self, parent)
         
