@@ -384,6 +384,10 @@ class GOKernelType(KernelType):
 
 class GOKernelType1p0(KernelType):
 
+    # Static list of the grid index offsets for each instance of
+    # this class.
+    _index_offsets = []
+
     def __str__(self):
         print "GOcean 1.0 kernel {0}:".format(self._name)
         print "    index-offset = {0}".format(self._index_offset)
@@ -397,11 +401,22 @@ class GOKernelType1p0(KernelType):
         self._index_offset = self._ktype.get_variable('index_offset').init
         valid_offsets = ["offset_se", "offset_sw", 
                          "offset_ne", "offset_nw", "offset_any"]
-        if self._index_offset not in valid_offsets:
+        if self._index_offset.lower() not in valid_offsets:
             raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET has value {1} but must be one of {2}".format(name,
                                        self._index_offset,
                                         valid_offsets))
-                                            
+        # Check that the grid-offset expected by this kernel is consistent
+        # with the other kernels that we've seen so far (unless it is
+        # "offset_any" because that *is* consistent with any other offset).
+        if self._index_offset.lower() != "offset_any":
+            for offset in GOKernelType1p0._index_offsets:
+                if offset != "offset_any":
+                    if offset != self._index_offset.lower():
+                        raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET of {1} does not match that ({2}) of other kernels. This is not supported.".format(name, self._index_offset, offset))
+        # Append this offset to the list of those that we've seen so far
+        if self._index_offset.lower() not in GOKernelType1p0._index_offsets:
+            GOKernelType1p0._index_offsets.append(self._index_offset.lower())
+
         # Check that the meta-data for this kernel is valid
         valid_iterates_over = ["ALL_PTS","INTERNAL_PTS","EXTERNAL_PTS"]
         if self._iterates_over.upper() not in valid_iterates_over:
