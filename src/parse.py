@@ -383,10 +383,25 @@ class GOKernelType(KernelType):
 
 
 class GOKernelType1p0(KernelType):
+
+    def __str__(self):
+        print "GOcean 1.0 kernel {0}:".format(self._name)
+        print "    index-offset = {0}".format(self._index_offset)
+        print "   iterates-over = {0}".format(self._iterates_over)
+
     def __init__(self,name,ast):
         # Initialise the base class
         KernelType.__init__(self,name,ast)
 
+        # What grid offset scheme this kernel expects
+        self._index_offset = self._ktype.get_variable('index_offset').init
+        valid_offsets = ["offset_se", "offset_sw", 
+                         "offset_ne", "offset_nw", "offset_any"]
+        if self._index_offset not in valid_offsets:
+            raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET has value {1} but must be one of {2}".format(name,
+                                       self._index_offset,
+                                        valid_offsets))
+                                            
         # Check that the meta-data for this kernel is valid
         valid_iterates_over = ["ALL_PTS","INTERNAL_PTS","EXTERNAL_PTS"]
         if self._iterates_over.upper() not in valid_iterates_over:
