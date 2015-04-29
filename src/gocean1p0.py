@@ -67,25 +67,36 @@ class GOInvoke(Invoke):
     @property
     def unique_args_arrays(self):
         ''' find unique arguments that are arrays (defined as those that are
-            not rspace). GOcean needs to kow this as we are dealing with
-            arrays directly so need to declare them correctly. '''
+            not I or R 'space'). '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if not arg.is_literal and not arg.space.lower()=="r" and \
-                   not arg.name in result:
+                   not arg.space.lower()=='i' and not arg.name in result:
                     result.append(arg.name)
         return result
 
     @property
-    def unique_args_scalars(self):
-        ''' find unique arguments that are scalars (defined as those that are
-            rspace). GOcean needs to know this as we are dealing with arrays
-            directly so need to declare them correctly. '''
+    def unique_args_rscalars(self):
+        ''' find unique arguments that are scalars of type real (defined 
+            as those that are R 'space'). '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if not arg.is_literal and arg.space.lower()=="r" and \
+                   not arg.name in result:
+                    result.append(arg.name)
+        return result
+
+
+    @property
+    def unique_args_iscalars(self):
+        ''' find unique arguments that are scalars of type integer (defined 
+            as those that are I 'space'). '''
+        result = []
+        for call in self._schedule.calls():
+            for arg in call.arguments.args:
+                if not arg.is_literal and arg.space.lower()=="i" and \
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -107,12 +118,18 @@ class GOInvoke(Invoke):
                                      intent = "inout",
                                      entity_decls = self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
-        # add the subroutine argument declarations for scalars
-        if len(self.unique_args_scalars) > 0:
-            my_decl_scalars = DeclGen(invoke_sub, datatype = "REAL", 
+        # add the subroutine argument declarations for real scalars
+        if len(self.unique_args_rscalars) > 0:
+            my_decl_rscalars = DeclGen(invoke_sub, datatype = "REAL", 
                                      intent = "inout", kind = "wp", 
-                                     entity_decls = self.unique_args_scalars) 
-            invoke_sub.add(my_decl_scalars)
+                                     entity_decls = self.unique_args_rscalars) 
+            invoke_sub.add(my_decl_rscalars)
+        # add the subroutine argument declarations for integer scalars
+        if len(self.unique_args_rscalars) > 0:
+            my_decl_iscalars = DeclGen(invoke_sub, datatype = "INTEGER", 
+                                     intent = "inout", 
+                                     entity_decls = self.unique_args_iscalars) 
+            invoke_sub.add(my_decl_iscalars)
 
 class GOSchedule(Schedule):
 
@@ -245,11 +262,11 @@ class GOKern(Kern):
         # Before we do anything else, go through the arguments and 
         # determine the best one from which to obtain the grid properties
         # (should they be required). For this, an argument must not be on 
-        # r-space (i.e. not a scalar) and must be supplied by the algorithm
-        # layer. 
+        # r- or i-space (i.e. not a scalar) and must be supplied by the 
+        # algorithm layer. 
         alg_flds = []
         for arg in self._arguments.args:
-            if len(arg.grid_prop) == 0 and arg.space.lower() != "r":
+            if len(arg.grid_prop) == 0 and arg.space.lower() != "r" and arg.space.lower() != "i":
                 alg_flds.append(arg)
 
         # If possible it should also be a field that is read-only
@@ -274,13 +291,17 @@ class GOKern(Kern):
             if arg is not None:
                 grid_arg = arg
 
+        # A GOcean 1.0 kernel always requires the [i,j] indices of the grid-point
+        # that is to be updated
         arguments = ["i", "j"]
         for arg in self._arguments.args:
 
             if len(arg.grid_prop) == 0:
-                if arg.space.lower() == "r": 
+                if arg.space.lower() == "r" or arg.space.lower() == "i": 
+                    # Scalar arguments require no de-referencing
                     arguments.append(arg.name)
                 else:
+                    # Field objects are derived-types
                     arguments.append(arg.name + "%data")
             else:
                 # Argument is a property of the grid which we can access via
