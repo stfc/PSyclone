@@ -71,19 +71,19 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if not arg.is_literal and not arg.space.lower()=="r" and \
-                   not arg.space.lower()=='i' and not arg.name in result:
+                if not arg.is_literal and not arg.space.lower()=="r_scalar" and \
+                   not arg.space.lower()=='i_scalar' and not arg.name in result:
                     result.append(arg.name)
         return result
 
     @property
     def unique_args_rscalars(self):
         ''' find unique arguments that are scalars of type real (defined 
-            as those that are R 'space'). '''
+            as those that are r_scalar 'space'. '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if not arg.is_literal and arg.space.lower()=="r" and \
+                if not arg.is_literal and arg.space.lower()=="r_scalar" and \
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -92,11 +92,11 @@ class GOInvoke(Invoke):
     @property
     def unique_args_iscalars(self):
         ''' find unique arguments that are scalars of type integer (defined 
-            as those that are I 'space'). '''
+            as those that are i_scalar 'space'). '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if not arg.is_literal and arg.space.lower()=="i" and \
+                if not arg.is_literal and arg.space.lower()=="i_scalar" and \
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -125,7 +125,7 @@ class GOInvoke(Invoke):
                                      entity_decls = self.unique_args_rscalars) 
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
-        if len(self.unique_args_rscalars) > 0:
+        if len(self.unique_args_iscalars) > 0:
             my_decl_iscalars = DeclGen(invoke_sub, datatype = "INTEGER", 
                                      intent = "inout", 
                                      entity_decls = self.unique_args_iscalars) 
@@ -266,7 +266,7 @@ class GOKern(Kern):
         # algorithm layer. 
         alg_flds = []
         for arg in self._arguments.args:
-            if len(arg.grid_prop) == 0 and arg.space.lower() != "r" and arg.space.lower() != "i":
+            if len(arg.grid_prop) == 0 and arg.space.lower() != "r_scalar" and arg.space.lower() != "i_scalar":
                 alg_flds.append(arg)
 
         # If possible it should also be a field that is read-only
@@ -297,7 +297,7 @@ class GOKern(Kern):
         for arg in self._arguments.args:
 
             if len(arg.grid_prop) == 0:
-                if arg.space.lower() == "r" or arg.space.lower() == "i": 
+                if arg.space.lower() == "r_scalar" or arg.space.lower() == "i_scalar": 
                     # Scalar arguments require no de-referencing
                     arguments.append(arg.name)
                 else:
