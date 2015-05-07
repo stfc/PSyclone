@@ -291,15 +291,13 @@ class GOKern(Kern):
         arguments = ["i", "j"]
         for arg in self._arguments.args:
 
-            if isinstance(arg, GOKernelArgument):
-                if arg.type == "scalar":
-                    # Scalar arguments require no de-referencing
-                    arguments.append(arg.name)
-                elif arg.type == "field":
-                    # Field objects are Fortran derived-types
-                    arguments.append(arg.name + "%data")
-
-            elif isinstance(arg, GOKernelGridArgument):
+            if arg.type == "scalar":
+                # Scalar arguments require no de-referencing
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                # Field objects are Fortran derived-types
+                arguments.append(arg.name + "%data")
+            elif arg.type == "grid_property":
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object.
                 # We use the most suitable field as chosen above.
@@ -310,6 +308,10 @@ class GOKern(Kern):
                                           "fields".format(self._name, arg.name))
                 else:
                     arguments.append(grid_arg.name+"%grid%"+arg.name)
+            else:
+                raise GenerationError("Kernel {0}, argument {1} has "
+                                      "unrecognised type: {2}".\
+                                      format(self._name, arg.name, arg.type))
 
         parent.add(CallGen(parent, self._name, arguments))
         parent.add(UseGen(parent, name = self._module_name, only = True,
