@@ -67,7 +67,7 @@ class GOInvoke(Invoke):
     @property
     def unique_args_arrays(self):
         ''' find unique arguments that are arrays (defined as those that are
-            not I or R 'space'). '''
+            field objects as opposed to scalars or properties of the grid). '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
@@ -250,8 +250,32 @@ class GOKern(Kern):
             self._arguments = GOKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, GOKernelArguments, call, parent)
 
+        # The different access types a field may have, ordered such that
+        # the earlier in the list, the better it is for the purposes
+        # of getting at a (read-only) grid property. e.g. some compilers
+        # see a quantity that is written when a read-only array is pulled
+        # from an object that has 'write' access. This then has 
+        # implications for the optimisations that the compiler will perform.
+        self._access_types = ["read","readwrite","write"]
+
     def local_vars(self):
         return []
+
+    def _find_grid_access(self):
+        ''' Determine the best kernel argument from which to get 
+            properties of the grid. For this, an argument must be a field
+           (i.e. not a scalar) and must be supplied by the algorithm layer. 
+           If possible it should also be a field that is read-only
+           as otherwise compilers can get confused about data dependencies
+           and refuse to SIMD vectorise. '''
+        for access in self._access_types:
+            for arg in self._arguments.args:
+                if arg.type == "field" and arg.access.lower() == access:
+                    return arg
+        # We failed to find any kernel argument which could be used
+        # to access the grid properties. This will only be a problem
+        # if the kernel requires a grid-property argument.
+        return None
 
     def gen_code(self, parent):
         ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
@@ -259,37 +283,8 @@ class GOKern(Kern):
         from f2pygen import CallGen, UseGen
 
         # Before we do anything else, go through the arguments and 
-        # determine the best one from which to obtain the grid properties
-        # (should they be required). For this, an argument must not be on 
-        # r- or i-space (i.e. not a scalar) and must be supplied by the 
-        # algorithm layer. 
-        alg_flds = []
-        for arg in self._arguments.args:
-            # arg is of type gocean1p0.GOKernelArgument
-            if arg.type == "field":
-                alg_flds.append(arg)
-
-        # If possible it should also be a field that is read-only
-        # as otherwise compilers can get confused about data dependencies
-        # and refuse to SIMD vectorise.
-        # Look through our candidates and store one in each access category
-        #          write, readwrite, read
-        grid_args = [None, None, None]
-        for arg in alg_flds:
-            if arg.access.lower() ==  "read":
-                grid_args[2] = arg
-            elif arg.access.lower() == "readwrite":
-                grid_args[1] = arg
-            else:
-                grid_args[0] = arg
-
-        # Now choose the argument to obtain grid properties from:
-        # If we have found a field arg that is read-only then that is chosen
-        # otherwise, we go for readwrite and failing that we go for write-only.
-        grid_arg = None
-        for arg in grid_args:
-            if arg is not None:
-                grid_arg = arg
+        # determine the best one from which to obtain the grid properties.
+        grid_arg = self._find_grid_access()
 
         # A GOcean 1.0 kernel always requires the [i,j] indices of the grid-point
         # that is to be updated
