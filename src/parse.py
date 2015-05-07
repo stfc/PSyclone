@@ -48,12 +48,36 @@ class GODescriptor(Descriptor):
         Descriptor.__init__(self,access,space,stencil)
 
 class GO1p0Descriptor(Descriptor):
-    def __init__(self, access, space="", stencil="", grid_var=""):
+
+    # The different grid-point types that a field can live on
+    _GO1p0_grid_pts = ["cu","cv","ct","cf","every"]
+
+    def __init__(self, access, space="", stencil="", grid_var=None):
         Descriptor.__init__(self,access,space,stencil)
-        self._grid_prop=grid_var
+
+        # Determine what type of argument this Descriptor represents
+        self._type = None
+
+        if grid_var is not None:
+            self._grid_prop = grid_var
+            self._type      = "grid_property"
+        else:
+            self._grid_prop = ""
+            for grid_pt in GO1p0Descriptor._GO1p0_grid_pts:
+                if grid_pt == space.lower():
+                    self._type = "field"
+                    break
+        if self._type is None:
+            self._type = "scalar"
+
+    def __str__(self):
+        return repr(self)
     @property
     def grid_prop(self):
         return self._grid_prop
+    @property
+    def type(self):
+        return self._type
 
 class DynDescriptor(Descriptor):
     def __init__(self,access,funcspace,stencil,basis,diff_basis,gauss_quad):
@@ -389,9 +413,7 @@ class GOKernelType1p0(KernelType):
     _index_offsets = []
 
     def __str__(self):
-        print "GOcean 1.0 kernel {0}:".format(self._name)
-        print "    index-offset = {0}".format(self._index_offset)
-        print "   iterates-over = {0}".format(self._iterates_over)
+        return 'GOcean 1.0 kernel '+self._name+', index-offset = '+self._index_offset +', iterates-over = '+self._iterates_over
 
     def __init__(self,name,ast):
         # Initialise the base class
@@ -438,7 +460,7 @@ class GOKernelType1p0(KernelType):
                 access=init.args[0].name
                 funcspace=init.args[1].name
                 stencil=init.args[2].name
-                grid_var=""
+                grid_var=None
 
             elif nargs == 2:
                 access=init.args[0].name
@@ -460,7 +482,7 @@ class GOKernelType1p0(KernelType):
     def nargs(self):
         count = 0
         for arg in self.arg_descriptors:
-            if len(arg.grid_prop) == 0:
+            if arg.type != "grid_property":
                 count += 1
         return count
 

@@ -71,8 +71,7 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if not arg.is_literal and not arg.space.lower()=="r_scalar" and \
-                   not arg.space.lower()=='i_scalar' and not arg.name in result:
+                if arg.type == 'field' and not arg.name in result:
                     result.append(arg.name)
         return result
 
@@ -83,7 +82,7 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if not arg.is_literal and arg.space.lower()=="r_scalar" and \
+                if arg.type == 'scalar' and arg.space.lower()=="r_scalar" and \
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -96,7 +95,7 @@ class GOInvoke(Invoke):
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if not arg.is_literal and arg.space.lower()=="i_scalar" and \
+                if arg.type == 'scalar' and arg.space.lower()=="i_scalar" and \
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -266,7 +265,8 @@ class GOKern(Kern):
         # algorithm layer. 
         alg_flds = []
         for arg in self._arguments.args:
-            if len(arg.grid_prop) == 0 and arg.space.lower() != "r_scalar" and arg.space.lower() != "i_scalar":
+            # arg is of type gocean1p0.GOKernelArgument
+            if arg.type == "field":
                 alg_flds.append(arg)
 
         # If possible it should also be a field that is read-only
@@ -296,13 +296,13 @@ class GOKern(Kern):
         arguments = ["i", "j"]
         for arg in self._arguments.args:
 
-            if len(arg.grid_prop) == 0:
-                if arg.space.lower() == "r_scalar" or arg.space.lower() == "i_scalar": 
-                    # Scalar arguments require no de-referencing
-                    arguments.append(arg.name)
-                else:
-                    # Field objects are derived-types
-                    arguments.append(arg.name + "%data")
+            print "Kernel arg type = ",arg.type
+            if arg.type == "scalar":
+                # Scalar arguments require no de-referencing
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                # Field objects are Fortran derived-types
+                arguments.append(arg.name + "%data")
             else:
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object.
@@ -324,17 +324,18 @@ class GOKernelArguments(Arguments):
         if False:
             self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
         Arguments.__init__(self, parent_call)
+
         self._args = []
         # Loop over the kernel arguments obtained from the meta data
         for (idx, arg) in enumerate (call.ktype.arg_descriptors):
-            if len(arg.grid_prop) == 0:
+            # arg is a GO1p0Descriptor object
+            if arg.type == "grid_property":
+                # This is an argument supplied by the psy layer
+                self._args.append(GOKernelArgument(arg, None, parent_call))
+            else:
                 # This is a kernel argument supplied by the Algorithm layer
                 self._args.append(GOKernelArgument(arg, call.args[idx],
                                                    parent_call))
-            else:
-                # This is an argument supplied by the psy layer
-                self._args.append(GOKernelArgument(arg, None, parent_call))
-
         self._dofs = []
     @property
     def dofs(self):
@@ -347,7 +348,8 @@ class GOKernelArguments(Arguments):
         if mapping != {}:
             my_mapping = mapping
         else:
-            my_mapping = {"write":"write", "read":"read","readwrite":"readwrite", "inc":"inc"}
+            my_mapping = {"write":"write", "read":"read","readwrite":"readwrite", 
+                          "inc":"inc"}
         arg = Arguments.iteration_space_arg(self,my_mapping)
         return arg
 
@@ -359,6 +361,7 @@ class GOKernelArgument(KernelArgument):
         from parse import Arg
 
         self._arg = arg
+
         # A dictionary giving the mapping from meta-data names for 
         # properties of the grid to their names in the Fortran grid_type.
         self._grid_properties = {"grid_area_t":"area_t",
@@ -387,6 +390,12 @@ class GOKernelArgument(KernelArgument):
         else:
             KernelArgument.__init__(self, arg, arg_info, call)
         self._grid_prop = arg.grid_prop
+
+    @property
+    def type(self):
+        ''' Return the type of this kernel argument - whether it is a field, 
+            a scalar or a grid_property (to be supplied by the PSy layer) '''
+        return self._arg._type
 
     @property
     def grid_prop(self):
