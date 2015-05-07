@@ -286,24 +286,28 @@ class GOKern(Kern):
         # determine the best one from which to obtain the grid properties.
         grid_arg = self._find_grid_access()
 
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the grid-point
-        # that is to be updated
+        # A GOcean 1.0 kernel always requires the [i,j] indices of the
+        # grid-point that is to be updated
         arguments = ["i", "j"]
         for arg in self._arguments.args:
 
-            print "Kernel arg type = ",arg.type
-            if arg.type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.type == "field":
-                # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
-            else:
+            if isinstance(arg, GOKernelArgument):
+                if arg.type == "scalar":
+                    # Scalar arguments require no de-referencing
+                    arguments.append(arg.name)
+                elif arg.type == "field":
+                    # Field objects are Fortran derived-types
+                    arguments.append(arg.name + "%data")
+
+            elif isinstance(arg, GOKernelGridArgument):
                 # Argument is a property of the grid which we can access via
                 # the grid member of any field object.
                 # We use the most suitable field as chosen above.
                 if grid_arg is None:
-                    raise GenerationError("Error: kernel {0} requires grid property {1} but does not have any arguments that are fields".format(self._name, arg.name))
+                    raise GenerationError("Error: kernel {0} requires "
+                                          "grid property {1} but does not "
+                                          "have any arguments that are "
+                                          "fields".format(self._name, arg.name))
                 else:
                     arguments.append(grid_arg.name+"%grid%"+arg.name)
 
@@ -326,7 +330,7 @@ class GOKernelArguments(Arguments):
             # arg is a GO1p0Descriptor object
             if arg.type == "grid_property":
                 # This is an argument supplied by the psy layer
-                self._args.append(GOKernelArgument(arg, None, parent_call))
+                self._args.append(GOKernelGridArgument(arg))
             else:
                 # This is a kernel argument supplied by the Algorithm layer
                 self._args.append(GOKernelArgument(arg, call.args[idx],
@@ -353,37 +357,8 @@ class GOKernelArgument(KernelArgument):
         as specified by the kernel argument metadata. '''
     def __init__(self, arg, arg_info, call):
 
-        from parse import Arg
-
         self._arg = arg
-
-        # A dictionary giving the mapping from meta-data names for 
-        # properties of the grid to their names in the Fortran grid_type.
-        self._grid_properties = {"grid_area_t":"area_t",
-                                 "grid_area_u":"area_u",
-                                 "grid_area_v":"area_v",
-                                 "grid_mask_t":"tmask",
-                                 "grid_dx_t":"dx_t",
-                                 "grid_dx_u":"dx_u",
-                                 "grid_dx_v":"dx_v",
-                                 "grid_dy_t":"dy_t",
-                                 "grid_dy_u":"dy_u",
-                                 "grid_dy_v":"dy_v",
-                                 "grid_lat_u":"gphiu",
-                                 "grid_lat_v":"gphiv",
-                                 "grid_dx_const":"dx",
-                                 "grid_dy_const":"dy"}
-        if arg_info is None:
-            # We need to generate this argument
-            # - look-up the name of this property in the fortran grid_type
-            if self._grid_properties.has_key(arg.grid_prop):
-                my_arg = Arg("literal",self._grid_properties[arg.grid_prop])
-            else:
-                raise GenerationError("Unrecognised grid property specified. Expected one of {0} but found {1}".format(str(self._grid_properties.keys()), 
-                                  arg.grid_prop))
-            KernelArgument.__init__(self, arg, my_arg, call)
-        else:
-            KernelArgument.__init__(self, arg, arg_info, call)
+        KernelArgument.__init__(self, arg, arg_info, call)
         self._grid_prop = arg.grid_prop
 
     @property
@@ -401,3 +376,45 @@ class GOKernelArgument(KernelArgument):
         ''' Returns the expected finite difference space for this
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
+
+class GOKernelGridArgument(object):
+    ''' Describes arguments that supply grid properties to a kernel.
+        These arguments are provided by the PSy layer rather than in
+        the Algorithm layer. '''
+
+    def __init__(self, arg):
+
+        # A dictionary giving the mapping from meta-data names for 
+        # properties of the grid to their names in the Fortran grid_type.
+        self._grid_properties = {"grid_area_t":"area_t",
+                                 "grid_area_u":"area_u",
+                                 "grid_area_v":"area_v",
+                                 "grid_mask_t":"tmask",
+                                 "grid_dx_t":"dx_t",
+                                 "grid_dx_u":"dx_u",
+                                 "grid_dx_v":"dx_v",
+                                 "grid_dy_t":"dy_t",
+                                 "grid_dy_u":"dy_u",
+                                 "grid_dy_v":"dy_v",
+                                 "grid_lat_u":"gphiu",
+                                 "grid_lat_v":"gphiv",
+                                 "grid_dx_const":"dx",
+                                 "grid_dy_const":"dy"}
+
+        if self._grid_properties.has_key(arg.grid_prop):
+            self._name = self._grid_properties[arg.grid_prop]
+        else:
+            raise GenerationError("Unrecognised grid property specified. Expected one of {0} but found {1}".format(str(self._grid_properties.keys()), 
+                                  arg.grid_prop))
+
+        # This object always represents an argument that is a grid_property
+        self._type = "grid_property"
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def type(self):
+        return self._type
+
