@@ -421,12 +421,16 @@ class GOKernelType1p0(KernelType):
 
         # What grid offset scheme this kernel expects
         self._index_offset = self._ktype.get_variable('index_offset').init
-        valid_offsets = ["offset_se", "offset_sw", 
-                         "offset_ne", "offset_nw", "offset_any"]
-        if self._index_offset.lower() not in valid_offsets:
+        VALID_OFFSET_NAMES = ["offset_se", "offset_sw", 
+                              "offset_ne", "offset_nw", "offset_any"]
+
+        if self._index_offset is None:
+            raise ParseError("Meta-data error in kernel {0}: an INDEX_OFFSET must be specified and must be one of {1}".format(name, VALID_OFFSET_NAMES))
+
+        if self._index_offset.lower() not in VALID_OFFSET_NAMES:
             raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET has value {1} but must be one of {2}".format(name,
                                        self._index_offset,
-                                        valid_offsets))
+                                        VALID_OFFSET_NAMES))
         # Check that the grid-offset expected by this kernel is consistent
         # with the other kernels that we've seen so far (unless it is
         # "offset_any" because that *is* consistent with any other offset).
