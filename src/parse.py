@@ -408,7 +408,7 @@ class GOKernelType(KernelType):
 
 class GOKernelType1p0(KernelType):
 
-    # Static list of the grid index offsets for each instance of
+    # Static list of the grid index offsets of each instance of
     # this class.
     _index_offsets = []
 
@@ -431,24 +431,22 @@ class GOKernelType1p0(KernelType):
             raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET has value {1} but must be one of {2}".format(name,
                                        self._index_offset,
                                         VALID_OFFSET_NAMES))
-        # Check that the grid-offset expected by this kernel is consistent
+        # Check that the grid-index-offset expected by this kernel is consistent
         # with the other kernels that we've seen so far (unless it is
         # "offset_any" because that *is* consistent with any other offset).
-        if self._index_offset.lower() != "offset_any":
-            for offset in GOKernelType1p0._index_offsets:
-                if offset != "offset_any":
-                    if offset != self._index_offset.lower():
-                        raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET of {1} does not match that ({2}) of other kernels. This is not supported.".format(name, self._index_offset, offset))
-        # Append this offset to the list of those that we've seen so far
-        if self._index_offset.lower() not in GOKernelType1p0._index_offsets:
-            GOKernelType1p0._index_offsets.append(self._index_offset.lower())
+        self._check_index_offset()
 
         # Check that the meta-data for this kernel is valid
-        valid_iterates_over = ["ALL_PTS","INTERNAL_PTS","EXTERNAL_PTS"]
-        if self._iterates_over.upper() not in valid_iterates_over:
+        VALID_ITERATES_OVER = ["ALL_PTS","INTERNAL_PTS","EXTERNAL_PTS"]
+
+        if self._iterates_over is None:
+            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
+                             "is missing. (Valid values are: {1})".\
+                             format(name, VALID_ITERATES_OVER))
+        if self._iterates_over.upper() not in VALID_ITERATES_OVER:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER has value {1} but must be one of {2}".format(name,
                                         self._iterates_over.upper(),
-                                        valid_iterates_over) )
+                                        VALID_ITERATES_OVER) )
 
         # The list of kernel arguments
         self._arg_descriptors=[]
@@ -477,6 +475,21 @@ class GOKernelType1p0(KernelType):
 
             self._arg_descriptors.append(GO1p0Descriptor(access,funcspace,
                                                          stencil,grid_var))
+
+    def _check_index_offset(self):
+        ''' Check that the grid-offset expected by this kernel is consistent
+            with the other kernels that we've seen so far (unless it is
+            "offset_any" because that *is* consistent with any other 
+            offset). '''
+        if self._index_offset.lower() != "offset_any":
+            for offset in GOKernelType1p0._index_offsets:
+                if offset != "offset_any":
+                    if offset != self._index_offset.lower():
+                        raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET of {1} does not match that ({2}) of other kernels. This is not supported.".format(self.name, self._index_offset, offset))
+
+        # Append this offset to the list of those that we've seen so far
+        if self._index_offset.lower() not in GOKernelType1p0._index_offsets:
+            GOKernelType1p0._index_offsets.append(self._index_offset.lower())
 
     # Override nargs from the base class so that it returns the no.
     # of args specified in the algorithm layer (and thus excludes those
