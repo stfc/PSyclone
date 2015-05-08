@@ -33,3 +33,9 @@ class TestParserGOcean1p0:
             missing the index_offset field. '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean1p0","test03_invoke_kernel_missing_offset.f90"),api="gocean1.0")
+
+    def test_kernel_invalid_index_offset(self):
+        ''' Check that we raise an error if a kernel's meta-data is 
+            contains an invalid value for the index_offset field. '''
+        with pytest.raises(ParseError):
+            parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean1p0","test04_invoke_kernel_invalid_offset.f90"),api="gocean1.0")
