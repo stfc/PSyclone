@@ -17,9 +17,7 @@ module compute_cu_mod
              arg(READ,  CT, POINTWISE),        & ! p
              arg(READ,  CU, POINTWISE)         & ! u
            /)
-     !> We only have one value per grid point and that means
-     !! we have a single DOF per grid point.
-     integer :: ITERATES_OVER = DOFS
+     integer :: ITERATES_OVER = INTERNAL_PTS
 
      ! A GOcean1.0 kernel must specify the index_offset that
      ! it is expecting. We provide an invalid value here in order
