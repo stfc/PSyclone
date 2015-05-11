@@ -448,7 +448,13 @@ class GOKernelType1p0(KernelType):
                                         self._iterates_over.upper(),
                                         VALID_ITERATES_OVER) )
 
+        # Valid values for the type of access a kernel argument may have
         VALID_ARG_ACCESSES = ["READ","WRITE","READWRITE"]
+
+        # Valid values for the grid-point type that a kernel argument
+        # may have. (We use the funcspace argument for this as it is
+        # similar to the space in Finite-Element world.)
+        VALID_FUNC_SPACES = ["CU", "CV", "CF", "CT", "R_SCALAR", "I_SCALAR"]
 
         # The list of kernel arguments
         self._arg_descriptors=[]
@@ -465,6 +471,13 @@ class GOKernelType1p0(KernelType):
                 funcspace=init.args[1].name
                 stencil=init.args[2].name
                 grid_var=None
+
+                if funcspace.upper() not in VALID_FUNC_SPACES:
+                    raise ParseError("Meta-data error in kernel {}: argument "
+                                     "grid-point type is {} but must be one "
+                                     "of {} ".format(name, 
+                                                     funcspace, 
+                                                     VALID_FUNC_SPACES))
 
             elif nargs == 2:
                 access=init.args[0].name
