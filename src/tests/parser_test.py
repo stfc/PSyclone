@@ -61,3 +61,9 @@ class TestParserGOcean1p0:
             something other than C{U,V,F,T}, I_SCALAR or R_SCALAR) '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean1p0","test07_invoke_kernel_wrong_gridpt_type.f90"),api="gocean1.0")
+
+    def test08_kernel_invalid_grid_property(self):
+        ''' Check that the parser raises an error if a kernel's meta-data
+            specifies an unrecognised grid property '''
+        with pytest.raises(ParseError):
+            parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean1p0","test08_invoke_kernel_invalid_grid_property.f90"),api="gocean1.0")           
