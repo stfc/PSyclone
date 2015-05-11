@@ -460,6 +460,25 @@ class GOKernelType1p0(KernelType):
         # similar to the space in Finite-Element world.)
         VALID_FUNC_SPACES = GO1p0Descriptor._FIELD_GRID_TYPES + GO1p0Descriptor._SCALAR_TYPES
 
+        # TODO: we should only have a single list of grid properties but
+        # at present this list is duplicated in gocean1p0.py. This will
+        # be overcome when GOcean1.0-specific parsing code is moved
+        # out of this file and into gocean1p0.py.
+        VALID_GRID_PROPERTIES = ["grid_area_t",
+                                 "grid_area_u",
+                                 "grid_area_v",
+                                 "grid_mask_t",
+                                 "grid_dx_t",
+                                 "grid_dx_u",
+                                 "grid_dx_v",
+                                 "grid_dy_t",
+                                 "grid_dy_u",
+                                 "grid_dy_v",
+                                 "grid_lat_u",
+                                 "grid_lat_v",
+                                 "grid_dx_const",
+                                 "grid_dy_const"]
+
         # The list of kernel arguments
         self._arg_descriptors=[]
         for init in self._inits:
@@ -471,6 +490,7 @@ class GOKernelType1p0(KernelType):
             nargs = len(init.args)
 
             if nargs == 3:
+                # Argument is either a field or a scalar
                 access=init.args[0].name
                 funcspace=init.args[1].name
                 stencil=init.args[2].name
@@ -484,10 +504,19 @@ class GOKernelType1p0(KernelType):
                                                      VALID_FUNC_SPACES))
 
             elif nargs == 2:
+                # Argument is a property of the grid
                 access=init.args[0].name
                 grid_var=init.args[1].name
                 funcspace=""
                 stencil=""
+
+                if grid_var.lower() not in VALID_GRID_PROPERTIES:
+                    raise ParseError("Meta-data error in kernel {}: "
+                                     "un-recognised grid property {} "
+                                     "requested. Must be "
+                                     "one of {}".format(name,
+                                                        grid_var, 
+                                                        VALID_GRID_PROPERTIES))
             else:
                 raise ParseError("Meta-data error in kernel {}: 'arg' type "
                                  "expects 2 or 3 arguments but "
