@@ -50,7 +50,8 @@ class GODescriptor(Descriptor):
 class GO1p0Descriptor(Descriptor):
 
     # The different grid-point types that a field can live on
-    _GO1p0_grid_pts = ["cu","cv","ct","cf","every"]
+    _FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
+    _SCALAR_TYPES = ["i_scalar", "r_scalar"]
 
     def __init__(self, access, space="", stencil="", grid_var=None):
         Descriptor.__init__(self,access,space,stencil)
@@ -63,7 +64,7 @@ class GO1p0Descriptor(Descriptor):
             self._type      = "grid_property"
         else:
             self._grid_prop = ""
-            for grid_pt in GO1p0Descriptor._GO1p0_grid_pts:
+            for grid_pt in GO1p0Descriptor._FIELD_GRID_TYPES:
                 if grid_pt == space.lower():
                     self._type = "field"
                     break
@@ -437,24 +438,27 @@ class GOKernelType1p0(KernelType):
         self._check_index_offset()
 
         # Check that the meta-data for this kernel is valid
-        VALID_ITERATES_OVER = ["ALL_PTS","INTERNAL_PTS","EXTERNAL_PTS"]
+        VALID_ITERATES_OVER = ["all_pts","internal_pts","external_pts"]
 
         if self._iterates_over is None:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
                              "is missing. (Valid values are: {1})".\
                              format(name, VALID_ITERATES_OVER))
-        if self._iterates_over.upper() not in VALID_ITERATES_OVER:
-            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER has value {1} but must be one of {2}".format(name,
-                                        self._iterates_over.upper(),
-                                        VALID_ITERATES_OVER) )
+
+        if self._iterates_over.lower() not in VALID_ITERATES_OVER:
+            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
+                             "has value {1} but must be one of {2}".\
+                             format(name,
+                                    self._iterates_over.lower(),
+                                    VALID_ITERATES_OVER) )
 
         # Valid values for the type of access a kernel argument may have
-        VALID_ARG_ACCESSES = ["READ","WRITE","READWRITE"]
+        VALID_ARG_ACCESSES = ["read","write","readwrite"]
 
         # Valid values for the grid-point type that a kernel argument
         # may have. (We use the funcspace argument for this as it is
         # similar to the space in Finite-Element world.)
-        VALID_FUNC_SPACES = ["CU", "CV", "CF", "CT", "R_SCALAR", "I_SCALAR"]
+        VALID_FUNC_SPACES = GO1p0Descriptor._FIELD_GRID_TYPES + GO1p0Descriptor._SCALAR_TYPES
 
         # The list of kernel arguments
         self._arg_descriptors=[]
@@ -472,7 +476,7 @@ class GOKernelType1p0(KernelType):
                 stencil=init.args[2].name
                 grid_var=None
 
-                if funcspace.upper() not in VALID_FUNC_SPACES:
+                if funcspace.lower() not in VALID_FUNC_SPACES:
                     raise ParseError("Meta-data error in kernel {}: argument "
                                      "grid-point type is {} but must be one "
                                      "of {} ".format(name, 
@@ -490,7 +494,7 @@ class GOKernelType1p0(KernelType):
                                  "found '{}' in '{}'".\
                                  format(name, str(len(init.args)), init.args))
 
-            if access.upper() not in VALID_ARG_ACCESSES:
+            if access.lower() not in VALID_ARG_ACCESSES:
                 raise ParseError("Meta-data error in kernel {}: argument "
                                  "access  is {} but must be one of {}".\
                                  format(name, access, VALID_ARG_ACCESSES))
