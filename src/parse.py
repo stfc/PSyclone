@@ -448,6 +448,8 @@ class GOKernelType1p0(KernelType):
                                         self._iterates_over.upper(),
                                         VALID_ITERATES_OVER) )
 
+        VALID_ARG_ACCESSES = ["READ","WRITE","READWRITE"]
+
         # The list of kernel arguments
         self._arg_descriptors=[]
         for init in self._inits:
@@ -470,8 +472,15 @@ class GOKernelType1p0(KernelType):
                 funcspace=""
                 stencil=""
             else:
-                raise ParseError("'arg' type expects 2 or 3 arguments but "+
-                                 "found '{}' in '{}'".format(str(len(init.args)), init.args))
+                raise ParseError("Meta-data error in kernel {}: 'arg' type "
+                                 "expects 2 or 3 arguments but "
+                                 "found '{}' in '{}'".\
+                                 format(name, str(len(init.args)), init.args))
+
+            if access.upper() not in VALID_ARG_ACCESSES:
+                raise ParseError("Meta-data error in kernel {}: argument "
+                                 "access  is {} but must be one of {}".\
+                                 format(name, access, VALID_ARG_ACCESSES))
 
             self._arg_descriptors.append(GO1p0Descriptor(access,funcspace,
                                                          stencil,grid_var))
