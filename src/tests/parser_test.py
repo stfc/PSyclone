@@ -55,3 +55,9 @@ class TestParserGOcean1p0:
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean1p0","test06_invoke_kernel_wrong_access.f90"),api="gocean1.0")
             
+    def test07_kernel_wrong_gridpt_type(self):
+        ''' Check that we raise an error if a kernel's meta-data specifies
+            an unrecognised grid-point type for a field argument (i.e. 
+            something other than C{U,V,F,T}, I_SCALAR or R_SCALAR) '''
+        with pytest.raises(ParseError):
+            parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean1p0","test07_invoke_kernel_wrong_gridpt_type.f90"),api="gocean1.0")
