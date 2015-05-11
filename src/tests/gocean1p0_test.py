@@ -76,3 +76,31 @@ class TestPSyGOcean1p0API:
   END MODULE psy_single_invoke_two_kernels"""
 
         assert str(generated_code).find(expected_output) != -1
+
+    def test_grid_property(self):
+        ''' Tests that an invoke containing a kernel call requiring
+            a property of the grid produces correct code '''
+        ast, invokeInfo = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_files", "gocean1p0", "single_invoke_grid_props.f90"), 
+                                api="gocean1.0")
+        psy = PSyFactory("gocean1.0").create(invokeInfo)
+        generated_code = psy.gen
+
+        expected_output = """  MODULE psy_single_invoke_with_grid_props_test
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_next_sshu(cu_fld, u_fld)
+      USE kernel_requires_grid_props, ONLY: next_sshu_code
+      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld
+      INTEGER j
+      INTEGER i
+      DO j=cu_fld%internal%ystart,cu_fld%internal%ystop
+        DO i=cu_fld%internal%xstart,cu_fld%internal%xstop
+          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_next_sshu
+  END MODULE psy_single_invoke_with_grid_props_test"""
+
+        assert str(generated_code).find(expected_output) != -1
