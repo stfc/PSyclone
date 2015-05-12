@@ -33,9 +33,7 @@ module kernel_scalar_int
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the North and East of it.
-     !! ARPDBG - workaround problem in test-suite by setting this offset
-     !! to match those of other kernels.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = OFFSET_NE
 
   contains
     procedure, nopass :: code => bc_ssh_code

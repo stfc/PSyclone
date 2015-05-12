@@ -27,9 +27,8 @@ module kernel_requires_grid_props
      !! which grid-point types have the same (i,j) index as a T
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
-     !! to the North and East of it. HOWEVER, THIS CAUSES ISSUES
-     !! WITH THE TESTING FRAMEWORK SO CURRENTLY SET to OFFSET_SW.
-     integer :: index_offset = OFFSET_SW
+     !! to the North and East of it.
+     integer :: index_offset = OFFSET_NE
 
   contains
     procedure, nopass :: code => next_sshu_code
