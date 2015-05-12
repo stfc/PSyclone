@@ -13,6 +13,8 @@ import os
 class TestParserGungHoProto:
 
     def test_single_invoke_undeclared(self):
+        ''' Check that an invoke of an undeclared function raises a
+            ParseError '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gunghoproto",
@@ -22,7 +24,7 @@ class TestParserGungHoProto:
 class TestParserGOcean1p0:
 
     def test01_kernels_different_grid_offsets_one_invoke(self):
-        ''' Check that the parser raises an error if two kernels in a 
+        ''' Check that the parser raises an error if two kernels in a
             single invoke specify different index offsets '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -40,7 +42,7 @@ class TestParserGOcean1p0:
                   api="gocean1.0")
 
     def test03_kernel_missing_index_offset(self):
-        ''' Check that we raise an error if a kernel's meta-data is 
+        ''' Check that we raise an error if a kernel's meta-data is
             missing the INDEX_OFFSET field. '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -49,7 +51,7 @@ class TestParserGOcean1p0:
                   api="gocean1.0")
 
     def test04_kernel_invalid_index_offset(self):
-        ''' Check that we raise an error if a kernel's meta-data is 
+        ''' Check that we raise an error if a kernel's meta-data is
             contains an invalid value for the INDEX_OFFSET field. '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -58,7 +60,7 @@ class TestParserGOcean1p0:
                   api="gocean1.0")
 
     def test05_kernel_invalid_index_offset(self):
-        ''' Check that we raise an error if a kernel's meta-data is 
+        ''' Check that we raise an error if a kernel's meta-data is
             missing the ITERATES_OVER field. '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -78,7 +80,7 @@ class TestParserGOcean1p0:
             
     def test07_kernel_wrong_gridpt_type(self):
         ''' Check that we raise an error if a kernel's meta-data specifies
-            an unrecognised grid-point type for a field argument (i.e. 
+            an unrecognised grid-point type for a field argument (i.e.
             something other than C{U,V,F,T}, I_SCALAR or R_SCALAR) '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),

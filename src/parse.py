@@ -476,6 +476,11 @@ class GOKernelType1p0(KernelType):
                                  "grid_dx_const",
                                  "grid_dy_const"]
 
+        # The list of valid stencil properties. We currently only support
+        # pointwise. This property could probably be removed from the
+        # GOcean API altogether.
+        VALID_STENCILS = ["pointwise"]
+
         # The list of kernel arguments
         self._arg_descriptors=[]
         for init in self._inits:
@@ -495,10 +500,15 @@ class GOKernelType1p0(KernelType):
 
                 if funcspace.lower() not in VALID_FUNC_SPACES:
                     raise ParseError("Meta-data error in kernel {}: argument "
-                                     "grid-point type is {} but must be one "
+                                     "grid-point type is '{}' but must be one "
                                      "of {} ".format(name, 
                                                      funcspace, 
                                                      VALID_FUNC_SPACES))
+                if stencil.lower() not in VALID_STENCILS:
+                    raise ParseError("Meta-data error in kernel {}: 3rd "
+                                     "descriptor (stencil) of field argument "
+                                     "is '{}' but must be one of {}".\
+                                     format(name, stencil, VALID_STENCILS))
 
             elif nargs == 2:
                 # Argument is a property of the grid
@@ -509,7 +519,7 @@ class GOKernelType1p0(KernelType):
 
                 if grid_var.lower() not in VALID_GRID_PROPERTIES:
                     raise ParseError("Meta-data error in kernel {}: "
-                                     "un-recognised grid property {} "
+                                     "un-recognised grid property '{}' "
                                      "requested. Must be "
                                      "one of {}".format(name,
                                                         grid_var, 
@@ -522,7 +532,7 @@ class GOKernelType1p0(KernelType):
 
             if access.lower() not in VALID_ARG_ACCESSES:
                 raise ParseError("Meta-data error in kernel {}: argument "
-                                 "access  is {} but must be one of {}".\
+                                 "access  is given as '{}' but must be one of {}".\
                                  format(name, access, VALID_ARG_ACCESSES))
 
             self._arg_descriptors.append(GO1p0Descriptor(access,funcspace,
@@ -537,7 +547,12 @@ class GOKernelType1p0(KernelType):
             for offset in GOKernelType1p0._index_offsets:
                 if offset != "offset_any":
                     if offset != self._index_offset.lower():
-                        raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET of {1} does not match that ({2}) of other kernels. This is not supported.".format(self.name, self._index_offset, offset))
+                        raise ParseError("Meta-data error in kernel {0}: "
+                                         "INDEX_OFFSET of '{1}' does not match "
+                                         "that ({2}) of other kernels. This is "
+                                         "not supported.".\
+                                         format(self.name, self._index_offset,
+                                                offset))
 
         # Append this offset to the list of those that we've seen so far
         if self._index_offset.lower() not in GOKernelType1p0._index_offsets:
