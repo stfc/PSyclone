@@ -35,9 +35,9 @@ class GOPSy(PSy):
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
         # include the kind_params module
-        psy_module.add(UseGen(psy_module, name = "kind_params_mod"))
+        psy_module.add(UseGen(psy_module, name="kind_params_mod"))
         # include the field_mod module
-        psy_module.add(UseGen(psy_module, name = "field_mod"))
+        psy_module.add(UseGen(psy_module, name="field_mod"))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         return psy_module.root
@@ -62,7 +62,7 @@ class GOInvoke(Invoke):
         if False:
             self._schedule = GOSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
-                        reserved_names = ["cf", "ct", "cu", "cv"])
+                        reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
     def unique_args_arrays(self):
@@ -77,12 +77,12 @@ class GOInvoke(Invoke):
 
     @property
     def unique_args_rscalars(self):
-        ''' find unique arguments that are scalars of type real (defined 
+        ''' find unique arguments that are scalars of type real (defined
             as those that are r_scalar 'space'. '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if arg.type == 'scalar' and arg.space.lower()=="r_scalar" and \
+                if arg.type == 'scalar' and arg.space.lower() == "r_scalar" and\
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -90,12 +90,12 @@ class GOInvoke(Invoke):
 
     @property
     def unique_args_iscalars(self):
-        ''' find unique arguments that are scalars of type integer (defined 
+        ''' find unique arguments that are scalars of type integer (defined
             as those that are i_scalar 'space'). '''
         result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
-                if arg.type == 'scalar' and arg.space.lower()=="i_scalar" and \
+                if arg.type == 'scalar' and arg.space.lower() == "i_scalar" and\
                    not arg.name in result:
                     result.append(arg.name)
         return result
@@ -107,27 +107,27 @@ class GOInvoke(Invoke):
             its arguments.'''
         from f2pygen import SubroutineGen, DeclGen, TypeDeclGen
         # create the subroutine
-        invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+        invoke_sub = SubroutineGen(parent, name=self.name,
+                                   args=self.unique_args)
         parent.add(invoke_sub)
         self.schedule.gen_code(invoke_sub)
         # add the subroutine argument declarations for arrays
         if len(self.unique_args_arrays) > 0:
-            my_decl_arrays = TypeDeclGen(invoke_sub, datatype = "r2d_field",
-                                     intent = "inout",
-                                     entity_decls = self.unique_args_arrays)
+            my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
+                                         intent="inout",
+                                         entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
         # add the subroutine argument declarations for real scalars
         if len(self.unique_args_rscalars) > 0:
-            my_decl_rscalars = DeclGen(invoke_sub, datatype = "REAL", 
-                                     intent = "inout", kind = "wp", 
-                                     entity_decls = self.unique_args_rscalars) 
+            my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
+                                       intent="inout", kind="wp",
+                                       entity_decls=self.unique_args_rscalars)
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
         if len(self.unique_args_iscalars) > 0:
-            my_decl_iscalars = DeclGen(invoke_sub, datatype = "INTEGER", 
-                                     intent = "inout", 
-                                     entity_decls = self.unique_args_iscalars) 
+            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
+                                       intent="inout",
+                                       entity_decls=self.unique_args_iscalars)
             invoke_sub.add(my_decl_iscalars)
 
 class GOSchedule(Schedule):
@@ -141,15 +141,15 @@ class GOSchedule(Schedule):
         from parse import InfCall
         for call in alg_calls:
             if isinstance(call, InfCall):
-                sequence.append(GOInf.create(call, parent = self))
+                sequence.append(GOInf.create(call, parent=self))
             else:
-                outer_loop = GOLoop(call = None, parent = self)
+                outer_loop = GOLoop(call=None, parent=self)
                 sequence.append(outer_loop)
                 outer_loop.loop_type = "outer"
-                inner_loop = GOLoop(call = None, parent = outer_loop)
+                inner_loop = GOLoop(call=None, parent=outer_loop)
                 inner_loop.loop_type = "inner"
                 outer_loop.addchild(inner_loop)
-                call = GOKern(call, parent = inner_loop)
+                call = GOKern(call, parent=inner_loop)
                 inner_loop.addchild(call)
                 # determine inner and outer loops space information from the
                 # child kernel call. This is only picked up automatically (by
@@ -157,11 +157,13 @@ class GOSchedule(Schedule):
                 # loop.
                 inner_loop.iteration_space = call.iterates_over
                 outer_loop.iteration_space = inner_loop.iteration_space
-                inner_loop.field_space = call.arguments.iteration_space_arg().function_space
+                inner_loop.field_space = call.arguments.iteration_space_arg().\
+                                         function_space
                 outer_loop.field_space = inner_loop.field_space
-                inner_loop.field_name = call.arguments.iteration_space_arg().name
+                inner_loop.field_name = call.arguments.iteration_space_arg().\
+                                        name
                 outer_loop.field_name = inner_loop.field_name
-        Node.__init__(self, children = sequence)
+        Node.__init__(self, children=sequence)
 
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
@@ -169,22 +171,22 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, call = None, parent = None, variable_name = "",
-                 topology_name = ""):
-        Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
-                      valid_loop_types = ["inner", "outer"])
+    def __init__(self, call=None, parent=None, variable_name="",
+                 topology_name=""):
+        Loop.__init__(self, GOInf, GOKern, call=call, parent=parent,
+                      valid_loop_types=["inner", "outer"])
 
-    def gen_code(self,parent):
+    def gen_code(self, parent):
 
         if self._loop_type == "inner":
             self._variable_name = "i"
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
-        if self.field_space=="every":
+        if self.field_space == "every":
             from f2pygen import DeclGen, AssignGen
-            dim_var = DeclGen(parent, datatype = "INTEGER",
-                           entity_decls = [self._variable_name])
+            dim_var = DeclGen(parent, datatype="INTEGER",
+                              entity_decls=[self._variable_name])
             parent.add(dim_var)
 
             # loop bounds
@@ -196,56 +198,57 @@ class GOLoop(Loop):
                 self._stop = "idim2"
                 index = "2"
             new_parent, position = parent.start_parent_loop()
-            dim_size = AssignGen(new_parent, lhs = self._stop,
-                                 rhs = "SIZE("+self.field_name+"%data, "
+            dim_size = AssignGen(new_parent, lhs=self._stop,
+                                 rhs="SIZE("+self.field_name+"%data, "
                                  +index+")")
-            new_parent.add(dim_size, position = ["before", position])
+            new_parent.add(dim_size, position=["before", position])
 
-            dims = DeclGen(parent, datatype = "INTEGER",
-                           entity_decls = [self._stop])
+            dims = DeclGen(parent, datatype="INTEGER",
+                           entity_decls=[self._stop])
             parent.add(dims)
 
         else: # one of our spaces so use values provided by the infrastructure
-            
+
             # loop bounds are pulled from the field object
-            self._start= self.field_name
+            self._start = self.field_name
             self._stop = self.field_name
 
             if self._iteration_space.lower() == "internal_pts":
                 self._start += "%internal"
-                self._stop  += "%internal"
+                self._stop += "%internal"
             elif self._iteration_space.lower() == "all_pts":
                 self._start += "%whole"
-                self._stop  += "%whole"
+                self._stop += "%whole"
             else:
-                raise GenerationError("Unrecognised iteration space, {0}. Cannot generate loop bounds.".format(self._iteration_space))
+                raise GenerationError("Unrecognised iteration space, {0}. "
+                                      "Cannot generate loop bounds.".\
+                                      format(self._iteration_space))
 
             if self._loop_type == "inner":
                 self._start += "%xstart"
-                self._stop  += "%xstop"
+                self._stop += "%xstop"
             elif self._loop_type == "outer":
                 self._start += "%ystart"
-                self._stop  += "%ystop"
+                self._stop += "%ystop"
 
         Loop.gen_code(self, parent)
-        
 
 class GOInf(Inf):
     ''' A GOcean specific infrastructure call factory. No infrastructure
         calls are supported in GOcean at the moment so we just call the base
         class (which currently recognises the set() infrastructure call). '''
     @staticmethod
-    def create(call, parent = None):
+    def create(call, parent=None):
         ''' Creates a specific infrastructure call. Currently just calls
             the base class method. '''
-        return(Inf.create(call, parent))
-        
+        return Inf.create(call, parent)
+
 class GOKern(Kern):
     ''' Stores information about GOcean Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
-    def __init__(self, call, parent = None):
+    def __init__(self, call, parent=None):
         if False:
             self._arguments = GOKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, GOKernelArguments, call, parent)
@@ -254,17 +257,17 @@ class GOKern(Kern):
         # the earlier in the list, the better it is for the purposes
         # of getting at a (read-only) grid property. e.g. some compilers
         # see a quantity that is written when a read-only array is pulled
-        # from an object that has 'write' access. This then has 
+        # from an object that has 'write' access. This then has
         # implications for the optimisations that the compiler will perform.
-        self._access_types = ["read","readwrite","write"]
+        self._access_types = ["read", "readwrite", "write"]
 
     def local_vars(self):
         return []
 
     def _find_grid_access(self):
-        ''' Determine the best kernel argument from which to get 
+        ''' Determine the best kernel argument from which to get
             properties of the grid. For this, an argument must be a field
-           (i.e. not a scalar) and must be supplied by the algorithm layer. 
+           (i.e. not a scalar) and must be supplied by the algorithm layer.
            If possible it should also be a field that is read-only
            as otherwise compilers can get confused about data dependencies
            and refuse to SIMD vectorise. '''
@@ -282,7 +285,7 @@ class GOKern(Kern):
             kernel instance. '''
         from f2pygen import CallGen, UseGen
 
-        # Before we do anything else, go through the arguments and 
+        # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
         grid_arg = self._find_grid_access()
 
@@ -314,8 +317,8 @@ class GOKern(Kern):
                                       format(self._name, arg.name, arg.type))
 
         parent.add(CallGen(parent, self._name, arguments))
-        parent.add(UseGen(parent, name = self._module_name, only = True,
-                          funcnames = [self._name]))
+        parent.add(UseGen(parent, name=self._module_name, only=True,
+                          funcnames=[self._name]))
 
 class GOKernelArguments(Arguments):
     ''' Provides information about GOcean kernel call arguments collectively,
@@ -328,7 +331,7 @@ class GOKernelArguments(Arguments):
 
         self._args = []
         # Loop over the kernel arguments obtained from the meta data
-        for (idx, arg) in enumerate (call.ktype.arg_descriptors):
+        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
             # arg is a GO1p0Descriptor object
             if arg.type == "grid_property":
                 # This is an argument supplied by the psy layer
@@ -349,9 +352,10 @@ class GOKernelArguments(Arguments):
         if mapping != {}:
             my_mapping = mapping
         else:
-            my_mapping = {"write":"write", "read":"read","readwrite":"readwrite", 
+            my_mapping = {"write":"write", "read":"read",
+                          "readwrite":"readwrite",
                           "inc":"inc"}
-        arg = Arguments.iteration_space_arg(self,my_mapping)
+        arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
 class GOKernelArgument(KernelArgument):
@@ -361,17 +365,12 @@ class GOKernelArgument(KernelArgument):
 
         self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
-        self._grid_prop = arg.grid_prop
 
     @property
     def type(self):
-        ''' Return the type of this kernel argument - whether it is a field, 
+        ''' Return the type of this kernel argument - whether it is a field,
             a scalar or a grid_property (to be supplied by the PSy layer) '''
-        return self._arg._type
-
-    @property
-    def grid_prop(self):
-        return self._grid_prop
+        return self._arg.type
 
     @property
     def function_space(self):
@@ -386,7 +385,7 @@ class GOKernelGridArgument(object):
 
     def __init__(self, arg):
 
-        # A dictionary giving the mapping from meta-data names for 
+        # A dictionary giving the mapping from meta-data names for
         # properties of the grid to their names in the Fortran grid_type.
         self._grid_properties = {"grid_area_t":"area_t",
                                  "grid_area_u":"area_u",
@@ -406,17 +405,24 @@ class GOKernelGridArgument(object):
         if self._grid_properties.has_key(arg.grid_prop):
             self._name = self._grid_properties[arg.grid_prop]
         else:
-            raise GenerationError("Unrecognised grid property specified. Expected one of {0} but found {1}".format(str(self._grid_properties.keys()), 
-                                  arg.grid_prop))
+            raise GenerationError("Unrecognised grid property specified. "
+                                  "Expected one of {0} but found {1}".\
+                                  format(str(self._grid_properties.keys()),
+                                         arg.grid_prop))
 
         # This object always represents an argument that is a grid_property
         self._type = "grid_property"
 
     @property
     def name(self):
+        ''' Returns the Fortran name of the grid property. This name is
+            used in the generated code like so: <fld>%grid%name '''
         return self._name
 
     @property
     def type(self):
+        ''' The type of this argument. We have this for compatibility with
+            GOKernelArgument objects since, for this class, it will always be
+            "grid_property". '''
         return self._type
 

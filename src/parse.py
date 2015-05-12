@@ -296,10 +296,7 @@ class KernelType(object):
         self._ast = ast
         self.checkMetadataPublic(name,ast)
         self._ktype=self.getKernelMetadata(name,ast)
-        #print self._ktype
         self._iterates_over = self._ktype.get_variable('iterates_over').init
-        #print  self._ktype.get_variable('iterates_over')
-        #print self._iterates_over
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits=self.getkerneldescriptors(self._ktype)
         self._arg_descriptors=None # this is set up by the subclasses
