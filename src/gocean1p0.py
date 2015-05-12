@@ -89,6 +89,35 @@ class GOInvokes(Invokes):
             self._0_to_n = GOInvoke(None, None) # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke)
 
+        index_offsets = []
+        # Loop over all of the kernels in all of the invoke() calls
+        # and check that they work on compatible grid-index offsets.
+        # Strictly speaking this check should be done in the parsing
+        # code since it is a check on the correctness of the meta-data.
+        # However, that would require a fundamental change to the parsing
+        # code since it requires information  on all of the invokes and
+        # kernels in an application. Therefore it is much simpler to
+        # do it here where we have easy access to that information.
+        for invoke in self.invoke_list:
+            for kern_call in invoke.schedule.kern_calls():
+                # We only care if the index offset is not offset_any (since
+                # that is compatible with any other offset)
+                if kern_call.index_offset != "offset_any":
+                    # Loop over the offsets we've seen so far
+                    for offset in index_offsets:
+                        if offset != kern_call.index_offset:
+                            raise GenerationError("Meta-data error in kernel "
+                                                  "{0}: INDEX_OFFSET of '{1}' "
+                                                  "does not match that ({2}) "
+                                                  "of other kernels. This is "
+                                                  "not supported.".\
+                                                  format(kern_call.name,
+                                                         kern_call.index_offset,
+                                                         offset))
+                    # Append the index-offset of this kernel to the list of
+                    # those seen so far
+                    index_offsets.append(kern_call.index_offset)
+
 class GOInvoke(Invoke):
     ''' The GOcean specific invoke class. This passes the GOcean specific
         schedule class to the base class so it creates the one we require.
@@ -300,6 +329,11 @@ class GOKern(Kern):
         # implications for the optimisations that the compiler will perform.
         self._access_types = ["read", "readwrite", "write"]
 
+        # Pull out the grid index-offset that this kernel expects and
+        # store it here. This is used to check that all of the kernels
+        # invoked by an application are using compatible index offsets.
+        self._index_offset = call.ktype.index_offset
+
     def local_vars(self):
         return []
 
@@ -358,6 +392,11 @@ class GOKern(Kern):
         parent.add(CallGen(parent, self._name, arguments))
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
+
+    @property
+    def index_offset(self):
+        ''' The grid index-offset convention that this kernel expects '''
+        return self._index_offset
 
 class GOKernelArguments(Arguments):
     ''' Provides information about GOcean kernel call arguments collectively,
@@ -486,14 +525,8 @@ class GO1p0Descriptor(Descriptor):
 
 class GOKernelType1p0(KernelType):
     ''' Description of a kernel including the grid index-offset it
-        expects and the region of the grid that it expects to 
+        expects and the region of the grid that it expects to
         operate upon '''
-
-    # Static list of the grid index offsets of each instance of
-    # this class. This is required because we must ensure that
-    # all kernels invoked by an application operate on/expect
-    # compatible index offsets.
-    _index_offsets = []
 
     def __str__(self):
         return 'GOcean 1.0 kernel '+self._name+', index-offset = '+\
@@ -513,14 +546,10 @@ class GOKernelType1p0(KernelType):
 
         if self._index_offset.lower() not in VALID_OFFSET_NAMES:
             raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET "
-                             "has value {1} but must be one of {2}".\
+                             "has value '{1}' but must be one of {2}".\
                              format(name,
                                     self._index_offset,
                                     VALID_OFFSET_NAMES))
-        # Check that the grid-index-offset expected by this kernel is consistent
-        # with the other kernels that we've seen so far (unless it is
-        # "offset_any" because that *is* consistent with any other offset).
-        self._check_index_offset()
 
         # Check that the meta-data for this kernel is valid
         if self._iterates_over is None:
@@ -530,7 +559,7 @@ class GOKernelType1p0(KernelType):
 
         if self._iterates_over.lower() not in VALID_ITERATES_OVER:
             raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
-                             "has value {1} but must be one of {2}".\
+                             "has value '{1}' but must be one of {2}".\
                              format(name,
                                     self._iterates_over.lower(),
                                     VALID_ITERATES_OVER))
@@ -600,34 +629,21 @@ class GOKernelType1p0(KernelType):
             self._arg_descriptors.append(GO1p0Descriptor(access, funcspace,
                                                          stencil, grid_var))
 
-    def _check_index_offset(self):
-        ''' Check that the grid index-offset expected by this kernel is
-            consistent with the other kernels that we've seen so far (unless it
-            is "offset_any" because that *is* consistent with any other
-            offset). '''
-        if self._index_offset.lower() != "offset_any":
-            for offset in GOKernelType1p0._index_offsets:
-                if offset != "offset_any":
-                    if offset != self._index_offset.lower():
-                        raise ParseError("Meta-data error in kernel {0}: "
-                                         "INDEX_OFFSET of '{1}' does not match "
-                                         "that ({2}) of other kernels. This is "
-                                         "not supported.".\
-                                         format(self.name, self._index_offset,
-                                                offset))
-
-        # Append this offset to the list of those that we've seen so far
-        if self._index_offset.lower() not in GOKernelType1p0._index_offsets:
-            GOKernelType1p0._index_offsets.append(self._index_offset.lower())
-
     # Override nargs from the base class so that it returns the no.
     # of args specified in the algorithm layer (and thus excludes those
     # that must be added in the PSy layer). This is done to simplify the
     # check on the no. of arguments supplied in any invoke of the kernel.
     @property
     def nargs(self):
+        ''' Count and return the number of arguments that this kernel
+            expects the Algorithm layer to provide '''
         count = 0
         for arg in self.arg_descriptors:
             if arg.type != "grid_property":
                 count += 1
         return count
+
+    @property
+    def index_offset(self):
+        ''' Return the grid index-offset that this kernel expects '''
+        return self._index_offset
