@@ -1,18 +1,57 @@
 #-------------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 #-------------------------------------------------------------------------------
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 # Funded by the GOcean project
 
-''' This module implements the emerging PSyclone GOcean API by specialising
+''' This module implements the  PSyclone GOcean 1.0 API by specialising
     the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
     Inf, Arguments and KernelArgument). '''
 
+from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
                    KernelArgument, GenerationError, Inf, Node
+
+# The different grid-point types that a field can live on
+VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
+
+# The two scalar types we support
+VALID_SCALAR_TYPES = ["i_scalar", "r_scalar"]
+
+# Index-offset schemes (for the Arakawa C-grid)
+VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
+                      "offset_ne", "offset_nw", "offset_any"]
+
+# The sets of grid points that a kernel may operate on
+VALID_ITERATES_OVER = ["all_pts","internal_pts","external_pts"]
+
+# Valid values for the type of access a kernel argument may have
+VALID_ARG_ACCESSES = ["read","write","readwrite"]
+
+# The list of valid stencil properties. We currently only support
+# pointwise. This property could probably be removed from the
+# GOcean API altogether.
+VALID_STENCILS = ["pointwise"]
+
+# A dictionary giving the mapping from meta-data names for
+# properties of the grid to their names in the Fortran grid_type.
+GRID_PROPERTY_DICT = {"grid_area_t":"area_t",
+                      "grid_area_u":"area_u",
+                      "grid_area_v":"area_v",
+                      "grid_mask_t":"tmask",
+                      "grid_dx_t":"dx_t",
+                      "grid_dx_u":"dx_u",
+                      "grid_dx_v":"dx_v",
+                      "grid_dy_t":"dy_t",
+                      "grid_dy_u":"dy_u",
+                      "grid_dy_v":"dy_v",
+                      "grid_lat_u":"gphiu",
+                      "grid_lat_v":"gphiv",
+                      "grid_dx_const":"dx",
+                      "grid_dy_const":"dy"}
 
 class GOPSy(PSy):
     ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
@@ -385,29 +424,12 @@ class GOKernelGridArgument(object):
 
     def __init__(self, arg):
 
-        # A dictionary giving the mapping from meta-data names for
-        # properties of the grid to their names in the Fortran grid_type.
-        self._grid_properties = {"grid_area_t":"area_t",
-                                 "grid_area_u":"area_u",
-                                 "grid_area_v":"area_v",
-                                 "grid_mask_t":"tmask",
-                                 "grid_dx_t":"dx_t",
-                                 "grid_dx_u":"dx_u",
-                                 "grid_dx_v":"dx_v",
-                                 "grid_dy_t":"dy_t",
-                                 "grid_dy_u":"dy_u",
-                                 "grid_dy_v":"dy_v",
-                                 "grid_lat_u":"gphiu",
-                                 "grid_lat_v":"gphiv",
-                                 "grid_dx_const":"dx",
-                                 "grid_dy_const":"dy"}
-
-        if self._grid_properties.has_key(arg.grid_prop):
-            self._name = self._grid_properties[arg.grid_prop]
+        if GRID_PROPERTY_DICT.has_key(arg.grid_prop):
+            self._name = GRID_PROPERTY_DICT[arg.grid_prop]
         else:
             raise GenerationError("Unrecognised grid property specified. "
-                                  "Expected one of {0} but found {1}".\
-                                  format(str(self._grid_properties.keys()),
+                                  "Expected one of {0} but found '{1}'".\
+                                  format(str(GRID_PROPERTY_DICT.keys()),
                                          arg.grid_prop))
 
         # This object always represents an argument that is a grid_property
@@ -426,3 +448,172 @@ class GOKernelGridArgument(object):
             "grid_property". '''
         return self._type
 
+class GO1p0Descriptor(Descriptor):
+
+    def __init__(self, access, space="", stencil="", grid_var=None):
+        Descriptor.__init__(self,access,space,stencil)
+
+        # Determine what type of argument this Descriptor represents
+        self._type = None
+
+        if grid_var is not None:
+            self._grid_prop = grid_var
+            self._type      = "grid_property"
+        else:
+            self._grid_prop = ""
+            for grid_pt in VALID_FIELD_GRID_TYPES:
+                if grid_pt == space.lower():
+                    self._type = "field"
+                    break
+        if self._type is None:
+            self._type = "scalar"
+
+    def __str__(self):
+        return repr(self)
+    @property
+    def grid_prop(self):
+        return self._grid_prop
+    @property
+    def type(self):
+        return self._type
+
+class GOKernelType1p0(KernelType):
+
+    # Static list of the grid index offsets of each instance of
+    # this class.
+    _index_offsets = []
+
+    def __str__(self):
+        return 'GOcean 1.0 kernel '+self._name+', index-offset = '+\
+            self._index_offset +', iterates-over = '+self._iterates_over
+
+    def __init__(self,name,ast):
+        # Initialise the base class
+        KernelType.__init__(self,name,ast)
+
+        # What grid offset scheme this kernel expects
+        self._index_offset = self._ktype.get_variable('index_offset').init
+
+        if self._index_offset is None:
+            raise ParseError("Meta-data error in kernel {0}: an INDEX_OFFSET "
+                             "must be specified and must be one of {1}".\
+                             format(name, VALID_OFFSET_NAMES))
+
+        if self._index_offset.lower() not in VALID_OFFSET_NAMES:
+            raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET "
+                             "has value {1} but must be one of {2}".\
+                             format(name,
+                                    self._index_offset,
+                                    VALID_OFFSET_NAMES))
+        # Check that the grid-index-offset expected by this kernel is consistent
+        # with the other kernels that we've seen so far (unless it is
+        # "offset_any" because that *is* consistent with any other offset).
+        self._check_index_offset()
+
+        # Check that the meta-data for this kernel is valid
+        if self._iterates_over is None:
+            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
+                             "is missing. (Valid values are: {1})".\
+                             format(name, VALID_ITERATES_OVER))
+
+        if self._iterates_over.lower() not in VALID_ITERATES_OVER:
+            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
+                             "has value {1} but must be one of {2}".\
+                             format(name,
+                                    self._iterates_over.lower(),
+                                    VALID_ITERATES_OVER) )
+
+
+        # Valid values for the grid-point type that a kernel argument
+        # may have. (We use the funcspace argument for this as it is
+        # similar to the space in Finite-Element world.)
+        valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
+
+        # The list of kernel arguments
+        self._arg_descriptors=[]
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError("Each meta_arg value must be of type "+
+                                 "'arg' for the gocean1.0 api, but "+
+                                 "found '{0}'".format(init.name))
+
+            nargs = len(init.args)
+
+            if nargs == 3:
+                # Argument is either a field or a scalar
+                access=init.args[0].name
+                funcspace=init.args[1].name
+                stencil=init.args[2].name
+                grid_var=None
+
+                if funcspace.lower() not in valid_func_spaces:
+                    raise ParseError("Meta-data error in kernel {}: argument "
+                                     "grid-point type is '{}' but must be one "
+                                     "of {} ".format(name, 
+                                                     funcspace, 
+                                                     valid_func_spaces))
+                if stencil.lower() not in VALID_STENCILS:
+                    raise ParseError("Meta-data error in kernel {}: 3rd "
+                                     "descriptor (stencil) of field argument "
+                                     "is '{}' but must be one of {}".\
+                                     format(name, stencil, VALID_STENCILS))
+
+            elif nargs == 2:
+                # Argument is a property of the grid
+                access=init.args[0].name
+                grid_var=init.args[1].name
+                funcspace=""
+                stencil=""
+
+                if not GRID_PROPERTY_DICT.has_key(grid_var.lower()):
+                    raise ParseError("Meta-data error in kernel {}: "
+                                     "un-recognised grid property '{}' "
+                                     "requested. Must be "
+                                     "one of {}".format(name,
+                                                        grid_var, 
+                                                        str(GRID_PROPERTY_DICT.keys())))
+            else:
+                raise ParseError("Meta-data error in kernel {}: 'arg' type "
+                                 "expects 2 or 3 arguments but "
+                                 "found '{}' in '{}'".\
+                                 format(name, str(len(init.args)), init.args))
+
+            if access.lower() not in VALID_ARG_ACCESSES:
+                raise ParseError("Meta-data error in kernel {}: argument "
+                                 "access  is given as '{}' but must be one of {}".\
+                                 format(name, access, VALID_ARG_ACCESSES))
+
+            self._arg_descriptors.append(GO1p0Descriptor(access,funcspace,
+                                                         stencil,grid_var))
+
+    def _check_index_offset(self):
+        ''' Check that the grid-offset expected by this kernel is consistent
+            with the other kernels that we've seen so far (unless it is
+            "offset_any" because that *is* consistent with any other 
+            offset). '''
+        if self._index_offset.lower() != "offset_any":
+            for offset in GOKernelType1p0._index_offsets:
+                if offset != "offset_any":
+                    if offset != self._index_offset.lower():
+                        raise ParseError("Meta-data error in kernel {0}: "
+                                         "INDEX_OFFSET of '{1}' does not match "
+                                         "that ({2}) of other kernels. This is "
+                                         "not supported.".\
+                                         format(self.name, self._index_offset,
+                                                offset))
+
+        # Append this offset to the list of those that we've seen so far
+        if self._index_offset.lower() not in GOKernelType1p0._index_offsets:
+            GOKernelType1p0._index_offsets.append(self._index_offset.lower())
+
+    # Override nargs from the base class so that it returns the no.
+    # of args specified in the algorithm layer (and thus excludes those
+    # that must be added in the PSy layer). This is done to simplify the
+    # check on the no. of arguments supplied in any invoke of the kernel.
+    @property
+    def nargs(self):
+        count = 0
+        for arg in self.arg_descriptors:
+            if arg.type != "grid_property":
+                count += 1
+        return count
