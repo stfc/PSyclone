@@ -26,10 +26,10 @@ VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
                       "offset_ne", "offset_nw", "offset_any"]
 
 # The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["all_pts","internal_pts","external_pts"]
+VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
 
 # Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["read","write","readwrite"]
+VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
 
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
@@ -449,16 +449,18 @@ class GOKernelGridArgument(object):
         return self._type
 
 class GO1p0Descriptor(Descriptor):
+    ''' Description of a kernel argument, as obtained by parsing the kernel
+        meta-data '''
 
     def __init__(self, access, space="", stencil="", grid_var=None):
-        Descriptor.__init__(self,access,space,stencil)
+        Descriptor.__init__(self, access, space, stencil)
 
         # Determine what type of argument this Descriptor represents
         self._type = None
 
         if grid_var is not None:
             self._grid_prop = grid_var
-            self._type      = "grid_property"
+            self._type = "grid_property"
         else:
             self._grid_prop = ""
             for grid_pt in VALID_FIELD_GRID_TYPES:
@@ -472,24 +474,34 @@ class GO1p0Descriptor(Descriptor):
         return repr(self)
     @property
     def grid_prop(self):
+        ''' The name of the grid-property that this argument is to supply
+            to the kernel '''
         return self._grid_prop
     @property
     def type(self):
+        ''' The type of this argument - whether it is a scalar, a field or
+            a grid-property. The latter are special because they must be
+            supplied by the PSy layer. '''
         return self._type
 
 class GOKernelType1p0(KernelType):
+    ''' Description of a kernel including the grid index-offset it
+        expects and the region of the grid that it expects to 
+        operate upon '''
 
     # Static list of the grid index offsets of each instance of
-    # this class.
+    # this class. This is required because we must ensure that
+    # all kernels invoked by an application operate on/expect
+    # compatible index offsets.
     _index_offsets = []
 
     def __str__(self):
         return 'GOcean 1.0 kernel '+self._name+', index-offset = '+\
             self._index_offset +', iterates-over = '+self._iterates_over
 
-    def __init__(self,name,ast):
+    def __init__(self, name, ast):
         # Initialise the base class
-        KernelType.__init__(self,name,ast)
+        KernelType.__init__(self, name, ast)
 
         # What grid offset scheme this kernel expects
         self._index_offset = self._ktype.get_variable('index_offset').init
@@ -521,7 +533,7 @@ class GOKernelType1p0(KernelType):
                              "has value {1} but must be one of {2}".\
                              format(name,
                                     self._iterates_over.lower(),
-                                    VALID_ITERATES_OVER) )
+                                    VALID_ITERATES_OVER))
 
 
         # Valid values for the grid-point type that a kernel argument
@@ -530,7 +542,7 @@ class GOKernelType1p0(KernelType):
         valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
 
         # The list of kernel arguments
-        self._arg_descriptors=[]
+        self._arg_descriptors = []
         for init in self._inits:
             if init.name != 'arg':
                 raise ParseError("Each meta_arg value must be of type "+
@@ -541,16 +553,16 @@ class GOKernelType1p0(KernelType):
 
             if nargs == 3:
                 # Argument is either a field or a scalar
-                access=init.args[0].name
-                funcspace=init.args[1].name
-                stencil=init.args[2].name
-                grid_var=None
+                access = init.args[0].name
+                funcspace = init.args[1].name
+                stencil = init.args[2].name
+                grid_var = None
 
                 if funcspace.lower() not in valid_func_spaces:
                     raise ParseError("Meta-data error in kernel {}: argument "
                                      "grid-point type is '{}' but must be one "
-                                     "of {} ".format(name, 
-                                                     funcspace, 
+                                     "of {} ".format(name,
+                                                     funcspace,
                                                      valid_func_spaces))
                 if stencil.lower() not in VALID_STENCILS:
                     raise ParseError("Meta-data error in kernel {}: 3rd "
@@ -560,18 +572,19 @@ class GOKernelType1p0(KernelType):
 
             elif nargs == 2:
                 # Argument is a property of the grid
-                access=init.args[0].name
-                grid_var=init.args[1].name
-                funcspace=""
-                stencil=""
+                access = init.args[0].name
+                grid_var = init.args[1].name
+                funcspace = ""
+                stencil = ""
 
                 if not GRID_PROPERTY_DICT.has_key(grid_var.lower()):
                     raise ParseError("Meta-data error in kernel {}: "
                                      "un-recognised grid property '{}' "
                                      "requested. Must be "
                                      "one of {}".format(name,
-                                                        grid_var, 
-                                                        str(GRID_PROPERTY_DICT.keys())))
+                                                        grid_var,
+                                                        str(GRID_PROPERTY_DICT.\
+                                                            keys())))
             else:
                 raise ParseError("Meta-data error in kernel {}: 'arg' type "
                                  "expects 2 or 3 arguments but "
@@ -580,16 +593,17 @@ class GOKernelType1p0(KernelType):
 
             if access.lower() not in VALID_ARG_ACCESSES:
                 raise ParseError("Meta-data error in kernel {}: argument "
-                                 "access  is given as '{}' but must be one of {}".\
+                                 "access  is given as '{}' but must be "
+                                 "one of {}".\
                                  format(name, access, VALID_ARG_ACCESSES))
 
-            self._arg_descriptors.append(GO1p0Descriptor(access,funcspace,
-                                                         stencil,grid_var))
+            self._arg_descriptors.append(GO1p0Descriptor(access, funcspace,
+                                                         stencil, grid_var))
 
     def _check_index_offset(self):
-        ''' Check that the grid-offset expected by this kernel is consistent
-            with the other kernels that we've seen so far (unless it is
-            "offset_any" because that *is* consistent with any other 
+        ''' Check that the grid index-offset expected by this kernel is
+            consistent with the other kernels that we've seen so far (unless it
+            is "offset_any" because that *is* consistent with any other
             offset). '''
         if self._index_offset.lower() != "offset_any":
             for offset in GOKernelType1p0._index_offsets:
