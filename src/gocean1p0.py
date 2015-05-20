@@ -7,9 +7,15 @@
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 # Funded by the GOcean project
 
-''' This module implements the  PSyclone GOcean 1.0 API by specialising
-    the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Inf, Arguments and KernelArgument). '''
+'''This module implements the PSyclone GOcean 1.0 API by specialising
+    the required base classes for both code generation (PSy, Invokes,
+    Invoke, Schedule, Loop, Kern, Inf, Arguments and KernelArgument)
+    and parsing (Descriptor and KernelType). It adds a
+    GOKernelGridArgument class to capture information on kernel arguments
+    that supply properties of the grid (and are generated in the PSy
+    layer).
+
+'''
 
 from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
@@ -52,6 +58,10 @@ GRID_PROPERTY_DICT = {"grid_area_t":"area_t",
                       "grid_lat_v":"gphiv",
                       "grid_dx_const":"dx",
                       "grid_dy_const":"dy"}
+
+# The valid types of loop. In this API we expect only doubly-nested
+# loops.
+VALID_LOOP_TYPES = ["inner", "outer"]
 
 class GOPSy(PSy):
     ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
@@ -124,13 +134,12 @@ class GOInvoke(Invoke):
         A set of GOcean infrastructure reserved names are also passed to
         ensure that there are no name clashes. Also overrides the gen_code
         method so that we generate GOcean specific invocation code and
-        provides to methods which separate arguments that are arrays from
-        arguments that are scalars. '''
+        provides three methods which separate arguments that are arrays from
+        arguments that are {integer, real} scalars. '''
     def __init__(self, alg_invocation, idx):
         if False:
             self._schedule = GOSchedule(None) # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule,
-                        reserved_names=["cf", "ct", "cu", "cv"])
+        Invoke.__init__(self, alg_invocation, idx, GOSchedule)
 
     @property
     def unique_args_arrays(self):
@@ -242,7 +251,7 @@ class GOLoop(Loop):
     def __init__(self, call=None, parent=None, variable_name="",
                  topology_name=""):
         Loop.__init__(self, GOInf, GOKern, call=call, parent=parent,
-                      valid_loop_types=["inner", "outer"])
+                      valid_loop_types=VALID_LOOP_TYPES)
 
     def gen_code(self, parent):
 
@@ -321,14 +330,6 @@ class GOKern(Kern):
             self._arguments = GOKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, GOKernelArguments, call, parent)
 
-        # The different access types a field may have, ordered such that
-        # the earlier in the list, the better it is for the purposes
-        # of getting at a (read-only) grid property. e.g. some compilers
-        # see a quantity that is written when a read-only array is pulled
-        # from an object that has 'write' access. This then has
-        # implications for the optimisations that the compiler will perform.
-        self._access_types = ["read", "readwrite", "write"]
-
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
         # invoked by an application are using compatible index offsets.
@@ -338,13 +339,16 @@ class GOKern(Kern):
         return []
 
     def _find_grid_access(self):
-        ''' Determine the best kernel argument from which to get
-            properties of the grid. For this, an argument must be a field
-           (i.e. not a scalar) and must be supplied by the algorithm layer.
-           If possible it should also be a field that is read-only
-           as otherwise compilers can get confused about data dependencies
-           and refuse to SIMD vectorise. '''
-        for access in self._access_types:
+        '''Determine the best kernel argument from which to get properties of
+            the grid. For this, an argument must be a field (i.e. not
+            a scalar) and must be supplied by the algorithm layer
+            (i.e. not a grid property). If possible it should also be
+            a field that is read-only as otherwise compilers can get
+            confused about data dependencies and refuse to SIMD
+            vectorise.
+
+        '''
+        for access in ["read", "readwrite", "write"]:
             for arg in self._arguments.args:
                 if arg.type == "field" and arg.access.lower() == access:
                     return arg
@@ -399,9 +403,14 @@ class GOKern(Kern):
         return self._index_offset
 
 class GOKernelArguments(Arguments):
-    ''' Provides information about GOcean kernel call arguments collectively,
-        as specified by the kernel argument metadata. This class ensures that
-        initialisation is performed correctly. It also adds three '''
+    '''Provides information about GOcean kernel-call arguments
+        collectively, as specified by the kernel argument
+        metadata. This class ensures that initialisation is performed
+        correctly. It also overrides the iteration_space_arg method to
+        supply a GOcean-specific dictionary for the mapping of
+        argument-access types.
+
+    '''
     def __init__(self, call, parent_call):
         if False:
             self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
@@ -414,10 +423,15 @@ class GOKernelArguments(Arguments):
             if arg.type == "grid_property":
                 # This is an argument supplied by the psy layer
                 self._args.append(GOKernelGridArgument(arg))
-            else:
+            elif arg.type == "scalar" or arg.type == "field":
                 # This is a kernel argument supplied by the Algorithm layer
                 self._args.append(GOKernelArgument(arg, call.args[idx],
                                                    parent_call))
+            else:
+                raise ParseError("Invalid kernel argument type. Found '{0}' "
+                                 "but must be one of {1}".\
+                                 format(arg.type, ["grid_property", "scalar", 
+                                                   "field"]))
         self._dofs = []
     @property
     def dofs(self):
@@ -430,9 +444,13 @@ class GOKernelArguments(Arguments):
         if mapping != {}:
             my_mapping = mapping
         else:
+            # We provide an empty mapping for inc as it is not supported
+            # in the GOcean 1.0 API. However, the entry has to be there
+            # in the dictionary as a field that has read access causes
+            # the code (that checks that a kernel has at least one argument
+            # that is written to) to attempt to lookup "inc".
             my_mapping = {"write":"write", "read":"read",
-                          "readwrite":"readwrite",
-                          "inc":"inc"}
+                          "readwrite":"readwrite", "inc":""}
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
