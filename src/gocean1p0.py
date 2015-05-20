@@ -506,26 +506,77 @@ class GOKernelGridArgument(object):
         return self._type
 
 class GO1p0Descriptor(Descriptor):
-    ''' Description of a kernel argument, as obtained by parsing the kernel
-        meta-data '''
+    '''Description of a GOcean 1.0 kernel argument, as obtained by
+        parsing the kernel meta-data
 
-    def __init__(self, access, space="", stencil="", grid_var=None):
-        Descriptor.__init__(self, access, space, stencil)
+    '''
 
-        # Determine what type of argument this Descriptor represents
-        self._type = None
+    def __init__(self, kernel_name, kernel_arg):
 
-        if grid_var is not None:
+        nargs = len(kernel_arg.args)
+
+        if nargs == 3:
+            # This kernel argument is supplied by the Algorithm layer
+            # and is either a field or a scalar
+
+            access = kernel_arg.args[0].name
+            funcspace = kernel_arg.args[1].name
+            stencil = kernel_arg.args[2].name
+        
+            # Valid values for the grid-point type that a kernel argument
+            # may have. (We use the funcspace argument for this as it is
+            # similar to the space in Finite-Element world.)
+            valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
+
+            self._grid_prop = ""
+            if funcspace.lower() in VALID_FIELD_GRID_TYPES:
+                self._type = "field"
+            elif funcspace.lower() in VALID_SCALAR_TYPES:
+                self._type = "scalar"
+            else:
+                raise ParseError("Meta-data error in kernel {}: argument "
+                                 "grid-point type is '{}' but must be one "
+                                 "of {} ".format(kernel_name, funcspace,
+                                                 valid_func_spaces))
+
+            if stencil.lower() not in VALID_STENCILS:
+                raise ParseError("Meta-data error in kernel {}: 3rd "
+                                 "descriptor (stencil) of field argument "
+                                 "is '{}' but must be one of {}".\
+                                 format(kernel_name, stencil, VALID_STENCILS))
+
+        elif nargs == 2:
+            # This kernel argument is a property of the grid
+            access = kernel_arg.args[0].name
+            grid_var = kernel_arg.args[1].name
+            funcspace = ""
+            stencil = ""
+
             self._grid_prop = grid_var
             self._type = "grid_property"
+
+            if not GRID_PROPERTY_DICT.has_key(grid_var.lower()):
+                raise ParseError("Meta-data error in kernel {}: "
+                                 "un-recognised grid property '{}' "
+                                 "requested. Must be "
+                                 "one of {}".format(kernel_name, grid_var,
+                                                    str(GRID_PROPERTY_DICT.\
+                                                        keys())))
         else:
-            self._grid_prop = ""
-            for grid_pt in VALID_FIELD_GRID_TYPES:
-                if grid_pt == space.lower():
-                    self._type = "field"
-                    break
-        if self._type is None:
-            self._type = "scalar"
+            raise ParseError("Meta-data error in kernel {}: 'arg' type "
+                             "expects 2 or 3 arguments but "
+                             "found '{}' in '{}'".\
+                             format(kernel_name, str(len(kernel_arg.args)), 
+                                    kernel_arg.args))
+
+        if access.lower() not in VALID_ARG_ACCESSES:
+            raise ParseError("Meta-data error in kernel {}: argument "
+                             "access  is given as '{}' but must be "
+                             "one of {}".\
+                             format(kernel_name, access, VALID_ARG_ACCESSES))
+
+        # Finally we can call the __init__ method of our base class
+        Descriptor.__init__(self, access, funcspace, stencil)
 
     def __str__(self):
         return repr(self)
@@ -582,12 +633,6 @@ class GOKernelType1p0(KernelType):
                                     self._iterates_over.lower(),
                                     VALID_ITERATES_OVER))
 
-
-        # Valid values for the grid-point type that a kernel argument
-        # may have. (We use the funcspace argument for this as it is
-        # similar to the space in Finite-Element world.)
-        valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
-
         # The list of kernel arguments
         self._arg_descriptors = []
         for init in self._inits:
@@ -595,57 +640,9 @@ class GOKernelType1p0(KernelType):
                 raise ParseError("Each meta_arg value must be of type "+
                                  "'arg' for the gocean1.0 api, but "+
                                  "found '{0}'".format(init.name))
-
-            nargs = len(init.args)
-
-            if nargs == 3:
-                # Argument is either a field or a scalar
-                access = init.args[0].name
-                funcspace = init.args[1].name
-                stencil = init.args[2].name
-                grid_var = None
-
-                if funcspace.lower() not in valid_func_spaces:
-                    raise ParseError("Meta-data error in kernel {}: argument "
-                                     "grid-point type is '{}' but must be one "
-                                     "of {} ".format(name,
-                                                     funcspace,
-                                                     valid_func_spaces))
-                if stencil.lower() not in VALID_STENCILS:
-                    raise ParseError("Meta-data error in kernel {}: 3rd "
-                                     "descriptor (stencil) of field argument "
-                                     "is '{}' but must be one of {}".\
-                                     format(name, stencil, VALID_STENCILS))
-
-            elif nargs == 2:
-                # Argument is a property of the grid
-                access = init.args[0].name
-                grid_var = init.args[1].name
-                funcspace = ""
-                stencil = ""
-
-                if not GRID_PROPERTY_DICT.has_key(grid_var.lower()):
-                    raise ParseError("Meta-data error in kernel {}: "
-                                     "un-recognised grid property '{}' "
-                                     "requested. Must be "
-                                     "one of {}".format(name,
-                                                        grid_var,
-                                                        str(GRID_PROPERTY_DICT.\
-                                                            keys())))
-            else:
-                raise ParseError("Meta-data error in kernel {}: 'arg' type "
-                                 "expects 2 or 3 arguments but "
-                                 "found '{}' in '{}'".\
-                                 format(name, str(len(init.args)), init.args))
-
-            if access.lower() not in VALID_ARG_ACCESSES:
-                raise ParseError("Meta-data error in kernel {}: argument "
-                                 "access  is given as '{}' but must be "
-                                 "one of {}".\
-                                 format(name, access, VALID_ARG_ACCESSES))
-
-            self._arg_descriptors.append(GO1p0Descriptor(access, funcspace,
-                                                         stencil, grid_var))
+            # Pass in the name of this kernel for the purposes
+            # of error reporting
+            self._arg_descriptors.append(GO1p0Descriptor(name, init))
 
     # Override nargs from the base class so that it returns the no.
     # of args specified in the algorithm layer (and thus excludes those
