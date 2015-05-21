@@ -15,14 +15,19 @@
 from fparser.statements import Comment
 
 class OMPDirective(Comment):
-    ''' Subclass f2py comment for OpenMP directives so we can reason about them when walking the tree '''
+    ''' Subclass f2py comment for OpenMP directives so we can 
+        reason about them when walking the tree '''
     def __init__(self,root,line,position,dir_type):
-        self._types = ["parallel do"]
+        self._types = ["parallel do", "parallel", "do"]
         self._positions = ["begin", "end"]
         if not dir_type in self._types:
-            raise RuntimeError("Error, unknown dir_type")
+            raise RuntimeError("Error, unrecognised directive type '{0}'. "
+                               "Should be one of {1}".\
+                               format(dir_type, self._types))
         if not position in self._positions:
-            raise RuntimeError("Error, unknown position")
+            raise RuntimeError("Error, unrecognised position '{0}'. "
+                               "Should be one of {1}".\
+                               format(position, self._positions))
         self._my_type = dir_type
         self._position = position
         Comment.__init__(self,root,line)
