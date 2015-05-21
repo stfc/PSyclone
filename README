@@ -5,18 +5,17 @@ Welcome to PSyclone. PSyclone is a code generation
 system that generates appropriate code for the PSyKAl code structure
 developed in the GungHo project.
 
-Please see the documentation in the doc directory for more information.
-
-If you have checked-out the software from the repository then you will
-need to build the documentation, please see the README file in the
+Please see psyclone.pdf in this directory for more information. If you
+would prefer to build the documentation, please see the README file in the
 doc directory.
 
 Structure
 =========
 
-doc/      : documentation
-example/  : a simple example (requires the PSyKAl infrastructure to run)
-README    : this file
-src/      : the python src code
-tests/    : unit and functional tests
+doc/         : documentation
+example/     : simple examples
+psyclone.pdf : generated documentation
+README       : this file
+src/         : the python src code
+tests/       : unit and functional tests
 

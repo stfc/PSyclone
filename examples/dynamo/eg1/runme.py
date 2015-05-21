@@ -8,12 +8,24 @@
 
 from parse import parse
 from psyGen import PSyFactory
+
+# This example uses version 0.1 of the Dynamo API
 api="dynamo0.1"
+
+# Parse the file containing the algorithm specification and
+# return the Abstract Syntax Tree and invokeInfo objects
 ast,invokeInfo=parse("dynamo.F90",api=api)
+
+# Create the PSy-layer object using the invokeInfo
 psy=PSyFactory(api).create(invokeInfo)
+# Generate the Fortran code for the PSy layer
 print psy.gen
 
+# List the invokes that the PSy layer has
 print psy.invokes.names
+
+# Examine the 'schedule' (e.g. loop structure) that each
+# invoke has
 schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
 schedule.view()
 

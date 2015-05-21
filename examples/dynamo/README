@@ -6,16 +6,17 @@
 #-------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-These scripts and this version of PSyclone work with version 0.1 of GOcean.
+The dynamo examples in the directories below the one containing this
+README use the Dynamo 0.1 API. They are primarily provided to
+illustrate the use of the PSyclone code-generation system. 
 
 In order to use PSyclone you must first add it to your PYTHONPATH:
 ::
     export PYTHONPATH=/path/to/PSyclone/src:${PYTHONPATH}
 
-PSyclone can be run in the directory containing this file by 
+PSyclone can be run for each of the examples by entering the directory and 
 executing, e.g.
 ::
     python ./runme.py
 
 Examine the runme*.py scripts themselves for further details.
-

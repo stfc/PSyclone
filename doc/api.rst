@@ -25,7 +25,17 @@ generator.py
  
 .. autofunction:: parse
 
-.. automodule:: optimise
+.. automodule:: transformations
+
+.. autoclass:: LoopFuseTrans
+
+.. autoclass:: SwapTrans
+
+.. autoclass:: OpenMPLoop
+
+.. autoclass :: ColourTrans
+
+.. automodule:: psyGen
 
 .. autoclass:: PSy
     :members:

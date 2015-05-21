@@ -6,16 +6,8 @@
 #-------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-These scripts and this version of PSyclone work with version 0.1 of GOcean.
-
-In order to use PSyclone you must first add it to your PYTHONPATH:
-::
-    export PYTHONPATH=/path/to/PSyclone/src:${PYTHONPATH}
-
-PSyclone can be run in the directory containing this file by 
-executing, e.g.
-::
-    python ./runme.py
-
-Examine the runme*.py scripts themselves for further details.
-
+The gunghoproto examples in the directories below the one containing
+this README use the Prototype GungHo API. The code for this must
+therefore be available in order to build the examples. The Makefiles
+for each example assume this code can be found in: ../../GungHo/src
+(relative to the directory containing this file).
