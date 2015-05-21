@@ -430,7 +430,7 @@ class GOKernelArguments(Arguments):
             else:
                 raise ParseError("Invalid kernel argument type. Found '{0}' "
                                  "but must be one of {1}".\
-                                 format(arg.type, ["grid_property", "scalar", 
+                                 format(arg.type, ["grid_property", "scalar",
                                                    "field"]))
         self._dofs = []
     @property
@@ -522,7 +522,7 @@ class GO1p0Descriptor(Descriptor):
             access = kernel_arg.args[0].name
             funcspace = kernel_arg.args[1].name
             stencil = kernel_arg.args[2].name
-        
+
             # Valid values for the grid-point type that a kernel argument
             # may have. (We use the funcspace argument for this as it is
             # similar to the space in Finite-Element world.)
@@ -566,7 +566,7 @@ class GO1p0Descriptor(Descriptor):
             raise ParseError("Meta-data error in kernel {}: 'arg' type "
                              "expects 2 or 3 arguments but "
                              "found '{}' in '{}'".\
-                             format(kernel_name, str(len(kernel_arg.args)), 
+                             format(kernel_name, str(len(kernel_arg.args)),
                                     kernel_arg.args))
 
         if access.lower() not in VALID_ARG_ACCESSES:
