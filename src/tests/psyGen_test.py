@@ -26,7 +26,7 @@ class TestPSyFactoryClass:
         ''' test that psyfactory returns a psyfactory object for all supported inputs '''
         psy_factory = PSyFactory()
         assert isinstance(psy_factory,PSyFactory)
-        for api in ["", "gunghoproto", "dynamo0.1", "gocean"]:
+        for api in ["", "gunghoproto", "dynamo0.1", "gocean0.1"]:
             psy_factory = PSyFactory(api = api)
             assert isinstance(psy_factory,PSyFactory)
 
