@@ -546,28 +546,54 @@ class Schedule(Node):
         for entity in self._children:
             entity.gen_code(parent)
 
-class LoopDirective(Node):
+class Directive(Node):
 
     def view(self,indent = 0):
-        print self.indent(indent)+"LoopDirective"
+        print self.indent(indent)+"Directive"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
-class OMPLoopDirective(LoopDirective):
+class OMPDirective(Directive):
 
-    def gen_code(self,parent):
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+class OMPParallelDirective(OMPDirective):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP Parallel]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self, parent):
         from f2pygen import DirectiveGen
-        for child in self.children:
-            child.gen_code(parent)
-        # directive must be added after children are generated so get private list picks up the 
-        private_str = self.list_to_string(self._get_private_list())
-        position = parent.start_sibling_loop()
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do", "default(shared), private({0})".format(private_str)), position = ["before", position])
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
+        # The parent is of type SubroutineGen
+        private_str = self.list_to_string(self._get_private_list())
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
+                                "default(shared), private({0})".\
+                                format(private_str)))
+
+        first_type = type(self.children[0])
+        for child in self.children:
+            if first_type != type(child):
+                raise NotImplementedError("Cannot correctly generate code"
+                                          " for an OpenMP parallel region"
+                                          " containing children of "
+                                          "different types")
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
+        
     def _get_private_list(self):
-        # returns the variable name used for any loops within a directive and
-        # any variables that have been declared private by a Call within the directive.
+        '''Returns the variable name used for any loops within a directive
+        and any variables that have been declared private by a Call
+        within the directive.
+
+        '''
         result=[]
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
@@ -580,11 +606,83 @@ class OMPLoopDirective(LoopDirective):
                     result.append(variable_name.lower())
         return result
 
+class OMPParallelDoDirective(OMPParallelDirective):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP parallel do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel do is not already within some parallel region
+        self._not_within_omp_region()
+
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
+                                "default(shared), private({0})".\
+                                format(private_str)))
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
+
+    def _not_within_omp_region(self):
+        ''' Check that this Directive is not within any other
+            parallel region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective):
+                raise GenerationError("OMPParallelDoDirective must not be "
+                                      "within a parallel region.")
+            myparent = myparent.parent
+
+class OMPDoDirective(OMPDirective):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # It is only at the point of code generation that
+        # we can check for correctness (given that we don't
+        # mandate the order that a user can apply transformations
+        # to the code). As an orphaned loop directive, we must
+        # have an OMPRegionDirective as a parent somewhere
+        # back up the tree.
+        self._within_omp_region()
+
+        # As we're an orphaned loop we don't specify the scope
+        # of any variables so we don't have to generate the
+        # code of our children first.
+        parent.add(DirectiveGen(parent, "omp", "begin", "do", ""))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "do", ""))
+
+    def _within_omp_region(self):
+        ''' Check that this orphaned OMP Loop Directive is actually
+            within an OpenMP Parallel Region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective) and\
+               not isinstance(myparent, OMPParallelDoDirective):
+                return
+            myparent = myparent.parent
+        raise GenerationError("OMPOrphanLoopDirective must have an "
+                              "OMPRegionDirective as ancestor")
+
 class Loop(Node):
 
     @property
     def loop_type(self):
-        #assert self._loop_type is not None, "Error, loop_type has not yet been set"
         return self._loop_type
 
     @loop_type.setter
