@@ -8,6 +8,15 @@
 
 from psyGen import Transformation
 
+class TransformationError(Exception):
+    ''' Provides a PSyclone-specific error class for errors found during
+        code transformation operations. '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Transformation Error: "+value
+    def __str__(self):
+        return repr(self.value)
+
 class SwapTrans(Transformation):
     ''' A test transformation. This swaps two entries in a schedule. These entries must be siblings and next to eachother in the schedule.
 
@@ -105,7 +114,7 @@ class LoopFuseTrans(Transformation):
 
 class OpenMPLoop(Transformation):
 
-    ''' Adds an OMP directive to a loop. 
+    ''' Adds an OMP PARALLEL directive to a loop. 
 
         For example:
 
@@ -144,8 +153,9 @@ class OpenMPLoop(Transformation):
 
         # add our OpenMP loop directive setting its parent to the node's
         # parent and its children to the node
-        from psyGen import OMPLoopDirective
-        directive = OMPLoopDirective(parent = node_parent, children = [node] )
+        from psyGen import OMPParallelDoDirective
+        directive = OMPParallelDoDirective(parent=node_parent, 
+                                           children=[node] )
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index = node_position)
@@ -157,6 +167,53 @@ class OpenMPLoop(Transformation):
         node_parent.children.remove(node)
 
         return schedule,keep
+
+class OpenMPOrphanLoop(OpenMPLoop):
+
+    ''' Adds an orphaned OMP directive to a loop. i.e. the directive
+        must be inside the scope of some OMP Parallel REGION. '''
+
+    @property
+    def name(self):
+        return "OpenMPOrphanLoop"
+
+    def __str__(self):
+        return "Adds an orphan OpenMP directive with no validity checks"
+
+    def apply(self,node):
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise Exception("Cannot apply an orphan OpenMP Loop "
+                            "directive to something that is not a loop")
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        # keep a reference to the node's original parent and its index as these
+        # are required and will change when we change the node's location
+        node_parent = node.parent
+        node_position = node.position
+
+        # add our orphan OpenMP loop directive setting its parent to
+        # the node's parent and its children to the node
+        from psyGen import OMPDoDirective
+        directive = OMPDoDirective(parent=node_parent, 
+                                   children=[node] )
+
+        # add the OpenMP loop directive as a child of the node's parent
+        node_parent.addchild(directive, index=node_position)
+
+        # change the node's parent to be the loop directive
+        node.parent = directive
+
+        # remove the original loop
+        node_parent.children.remove(node)
+
+        return schedule, keep
 
 class DynamoOpenMPLoop(OpenMPLoop):
 
@@ -214,6 +271,35 @@ class GOceanOpenMPLoop(OpenMPLoop):
             raise Exception("Error in "+self.name+" transformation. The requested loop is not of type inner or outer.")
 
         return OpenMPLoop.apply(self,node)
+
+
+class GOceanOpenMPOrphanLoop(OpenMPOrphanLoop):
+
+    ''' GOcean specific orphan OpenMP loop transformation. Adds GOcean specific
+        validity checks. Actual transformation is done by parent class. '''
+
+    @property
+    def name(self):
+        return "GOceanOpenMPOrphanLoop"
+
+    def __str__(self):
+        return "Add an orphaned OpenMP directive to a GOcean loop"
+
+    def apply(self,node):
+
+        ''' Perform GOcean specific loop validity checks then call the parent
+            class. '''
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node,Loop):
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "node is not a loop.")
+        # Check we are either an inner or outer loop
+        if node.loop_type not in ["inner","outer"]:
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "requested loop is not of type inner or outer.")
+
+        return OpenMPOrphanLoop.apply(self,node)
 
 class ColourTrans(Transformation):
 
@@ -280,3 +366,53 @@ class ColourTrans(Transformation):
         node_parent.children.remove(node)
 
         return schedule,keep
+
+class OpenMPRegion(Transformation):
+
+    def __str__(self):
+        return "Insert an OpenMP PARALLEL region"
+
+    @property
+    def name(self):
+        return "OpenMPRegion"
+
+    def apply(self, region):
+        ''' Apply this transformation to a subset of the nodes 
+            within a schedule - i.e. enclose the specified
+            Loops in the schedule within a single OpenMP region '''
+        from psyGen import OMPParallelDirective, Schedule, Loop
+
+        node_parent = region[0].parent
+        if not isinstance(node_parent, Schedule):
+            raise TransformationError("Error in OpenMPRegion transformation. "
+                            "Supplied node is not a child of a "
+                            "Schedule.")
+
+        for child in region:
+            if child.parent is not node_parent:
+                raise TransformationError("Error in OpenMPRegion transformation: "
+                                "supplied nodes are not children of the "
+                                "same Schedule/parent.")
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        schedule = region[0].root
+        from undoredo import Memento
+        keep=Memento(schedule,self)
+
+        # Create the OpenMP parallel directive as a child of the
+        # schedule and with the schedule's children as its children
+        directive = OMPParallelDirective(parent=node_parent,
+                                         children=region)
+
+        # Change all of the affected children so that they have
+        # the OpenMP directive as their parent
+        for child in region:
+            node_parent.children.remove(child)
+            child.parent = directive
+
+        # Add the OpenMP region directive as a child of the schedule
+        schedule.addchild(directive)
+       
+        return schedule,keep
+
