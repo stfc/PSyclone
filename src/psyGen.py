@@ -570,8 +570,11 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         from f2pygen import DirectiveGen
 
-        # The parent is of type SubroutineGen
         private_str = self.list_to_string(self._get_private_list())
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel region is not already within some parallel region
+        self._not_within_omp_parallel_region()
 
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 "default(shared), private({0})".\
@@ -606,6 +609,15 @@ class OMPParallelDirective(OMPDirective):
                     result.append(variable_name.lower())
         return result
 
+    def _not_within_omp_parallel_region(self):
+        ''' Check that this Directive is not within any other
+            parallel region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective):
+                raise GenerationError("Cannot nest OpenMP parallel regions.")
+            myparent = myparent.parent
+
 class OMPParallelDoDirective(OMPParallelDirective):
 
     def view(self,indent = 0):
@@ -618,7 +630,7 @@ class OMPParallelDoDirective(OMPParallelDirective):
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
-        self._not_within_omp_region()
+        self._not_within_omp_parallel_region()
 
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
@@ -628,16 +640,6 @@ class OMPParallelDoDirective(OMPParallelDirective):
             child.gen_code(parent)
 
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
-
-    def _not_within_omp_region(self):
-        ''' Check that this Directive is not within any other
-            parallel region '''
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective):
-                raise GenerationError("OMPParallelDoDirective must not be "
-                                      "within a parallel region.")
-            myparent = myparent.parent
 
 class OMPDoDirective(OMPDirective):
 

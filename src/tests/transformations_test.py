@@ -110,7 +110,7 @@ class TestTransformationsGOcean0p1:
 
     def test_loop_fuse_different_spaces(self):
         ''' Test that we raise an error if we attempt to fuse loops that are
-            over different spaces '''
+            over different grid-point types '''
         ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "test_files","gocean0p1",
                                     "fuse_different_spaces_test.f90"),
@@ -189,7 +189,7 @@ class TestTransformationsGOcean1p0:
         # a string
         gen = str(psy.gen)
         gen = gen.lower()
-        print gen
+
         # Iterate over the lines of generated code
         within_omp_region = False
         call_count = 0
@@ -229,6 +229,36 @@ class TestTransformationsGOcean1p0:
                 call_count += 1
 
         assert call_count==3
+
+    def test_openmp_region_retains_kernel_order(self):
+        ''' Test that we can pass the OpenMP PARALLEL region transformation
+            a list of nodes specified as a slice '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OpenMPRegion
+        ompr = OpenMPRegion()
+
+        omp_schedule,memento = ompr.apply(schedule.children[1:])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = omp_schedule
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        gen = gen.lower()
+        print gen
+        # Iterate over the lines of generated code
+        cu_idx = -1
+        cv_idx = -1
+        ts_idx = -1
+        for idx,line in enumerate(gen.split('\n')):
+            if 'call compute_cu' in line: cu_idx = idx
+            if 'call compute_cv' in line: cv_idx = idx
+            if 'call time_smooth' in line: ts_idx = idx
+
+        # Kernels should be in order {compute_cu, compute_cv, time_smooth}
+        assert cu_idx < cv_idx and cv_idx < ts_idx
 
     def test_openmp_region_before_loops_trans(self):
         ''' Test of the OpenMP PARALLEL region transformation where
@@ -425,14 +455,8 @@ class TestTransformationsGOcean1p0:
         for child in schedule.children:
             omp_schedule,memento = ompl.apply(child)
 
-        print "After first transformation:"
-        omp_schedule.view()
-
         # Now enclose all of the children within a parallel region
         schedule,memento = ompr.apply(omp_schedule.children)
-
-        print "After second transformation:"
-        schedule.view()
 
         # Replace the original loop schedule with the transformed one
         invoke._schedule = schedule
@@ -471,7 +495,7 @@ class TestTransformationsGOcean1p0:
         ompr = OpenMPRegion()
 
         # Put a parallel region around two of the loops
-        omp_schedule,memento = ompr.apply(schedule.children[0:1])
+        omp_schedule,memento = ompr.apply(schedule.children[0:2])
 
         # Put an OpenMP parallel do directive around one of those loops
         # (which is now a child of the region directive)
@@ -480,9 +504,10 @@ class TestTransformationsGOcean1p0:
         # Replace the original loop schedule with the transformed one
         invoke._schedule = schedule
 
+        schedule.view()
         # Attempt to generate the transformed code
-        #with pytest.raises(GenerationError):
-        gen = psy.gen
+        with pytest.raises(GenerationError):
+            gen = psy.gen
 
     @pytest.mark.xfail(reason="Not implemented")
     def test_openmp_region_with_children_of_different_types(self):
