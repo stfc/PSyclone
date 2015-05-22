@@ -83,16 +83,23 @@ class LoopFuseTrans(Transformation):
         # check nodes are loops
         from psyGen import Loop
         if not isinstance(node1,Loop) or not isinstance(node2,Loop):
-            raise Exception("Error in LoopFuse transformation. at least one of the nodes is not a loop")
+            raise TransformationError("Error in LoopFuse transformation. "
+                                      "At least one of the nodes is not "
+                                      "a loop")
         # check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
-            raise Exception("Error in LoopFuse transformation. loops do not have the same parent")
+            raise TransformationError("Error in LoopFuse transformation. "
+                                      "loops do not have the same parent")
         # check node1 and node2 are next to each other
         if abs(node1.position-node2.position)!=1:
-            raise Exception("Error in LoopFuse transformation. nodes are not siblings who are next to eachother")
+            raise TransformationError("Error in LoopFuse transformation. "
+                                      "nodes are not siblings who are "
+                                      "next to eachother")
         # Check iteration space is the same
         if not(node1.iteration_space == node2.iteration_space):
-            raise Exception("Error in LoopFuse transformation. loops do not have the same iteration space")
+            raise TransformationError("Error in LoopFuse transformation. "
+                                      "Loops do not have the same "
+                                      "iteration space")
 
         schedule=node1.root
 
@@ -111,6 +118,29 @@ class LoopFuseTrans(Transformation):
         node2.parent.children.remove(node2)
 
         return schedule,keep
+
+class GOceanLoopFuseTrans(LoopFuseTrans):
+
+    def __str__(self):
+        return ("Fuse two adjacent loops together with GOcean-specific "
+               "validity checks")
+
+    @property
+    def name(self):
+        return "GOceanLoopFuse"
+
+    def apply(self,node1,node2):
+
+        if node1.field_space != node2.field_space:
+            raise TransformationError("Error in GOceanLoopFuse "
+                                      "transformation. "
+                                      "Cannot fuse loops that are over "
+                                      "different grid-point types: "
+                                      "{0} {1}".\
+                                      format(node1.field_space,
+                                             node2.field_space))
+
+        return LoopFuseTrans.apply(self,node1,node2)
 
 class OpenMPLoop(Transformation):
 

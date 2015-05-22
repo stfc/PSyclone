@@ -9,7 +9,8 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, SwapTrans,\
-                            LoopFuseTrans, GOceanOpenMPLoop
+                            LoopFuseTrans,\
+                            GOceanLoopFuseTrans, GOceanOpenMPLoop
 from generator import GenerationError
 import os
 import pytest
@@ -73,7 +74,7 @@ class TestTransformationsGOcean0p1:
         invokes=psy.invokes
         invoke=invokes.get('invoke_0')
         schedule=invoke.schedule
-        lftrans=LoopFuseTrans()
+        lftrans=GOceanLoopFuseTrans()
         ompf=GOceanOpenMPLoop()
 
         # fuse all outer loops
@@ -107,7 +108,6 @@ class TestTransformationsGOcean0p1:
         # the DO loop itself
         assert outer_do_idx-omp_do_idx==1 and outer_do_idx-inner_do_idx==-1
 
-    @pytest.mark.xfail(reason="Not yet implemented")
     def test_loop_fuse_different_spaces(self):
         ''' Test that we raise an error if we attempt to fuse loops that are
             over different spaces '''
@@ -119,7 +119,7 @@ class TestTransformationsGOcean0p1:
         invokes=psy.invokes
         invoke=invokes.get('invoke_0')
         schedule=invoke.schedule
-        lftrans=LoopFuseTrans()
+        lftrans=GOceanLoopFuseTrans()
         with pytest.raises(TransformationError):
             lf_schedule,memento = lftrans.apply(schedule.children[0],
                                                 schedule.children[1])
