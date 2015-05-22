@@ -385,34 +385,43 @@ class OpenMPRegion(Transformation):
         node_parent = region[0].parent
         if not isinstance(node_parent, Schedule):
             raise TransformationError("Error in OpenMPRegion transformation. "
-                            "Supplied node is not a child of a "
-                            "Schedule.")
+                                      "Supplied node is not a child of a "
+                                      "Schedule.")
 
         for child in region:
             if child.parent is not node_parent:
                 raise TransformationError("Error in OpenMPRegion transformation: "
-                                "supplied nodes are not children of the "
-                                "same Schedule/parent.")
+                                          "supplied nodes are not children of "
+                                          "the same Schedule/parent.")
 
         # create a memento of the schedule and the proposed
         # transformation
         schedule = region[0].root
+
         from undoredo import Memento
         keep=Memento(schedule,self)
 
         # Create the OpenMP parallel directive as a child of the
-        # schedule and with the schedule's children as its children
+        # schedule and with the schedule's children as its children.
+        # We slice the region list in order to get a new list object
+        # (although the items in the list are still those in the
+        # original). If we don't do this then we get an infinite
+        # recursion in the new schedule.
         directive = OMPParallelDirective(parent=node_parent,
-                                         children=region)
+                                         children=region[:])
 
         # Change all of the affected children so that they have
-        # the OpenMP directive as their parent
-        for child in region:
+        # the OpenMP directive as their parent. Use a slice 
+        # of the list of nodes so that we're looping over a local
+        # copy of the list. Otherwise things get confused when
+        # we remove children from the list.
+        for child in region[:]:
+            # Remove child from the parent's list of children
             node_parent.children.remove(child)
             child.parent = directive
 
         # Add the OpenMP region directive as a child of the schedule
-        schedule.addchild(directive)
+        node_parent.addchild(directive)
        
         return schedule,keep
 

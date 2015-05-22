@@ -172,6 +172,64 @@ class TestTransformationsGOcean1p0:
         invoke = invokes.get('invoke_'+str(idx))
         return psy,invoke
 
+    def test_openmp_region_with_slice(self):
+        ''' Test that we can pass the OpenMP PARALLEL region transformation
+            a list of nodes specified as a slice '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OpenMPRegion
+        ompr = OpenMPRegion()
+
+        omp_schedule,memento = ompr.apply(schedule.children[1:])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = omp_schedule
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        gen = gen.lower()
+        print gen
+        # Iterate over the lines of generated code
+        within_omp_region = False
+        call_count = 0
+        for line in gen.split('\n'):
+            if '!$omp parallel default' in line:
+                within_omp_region = True
+            if '!$omp end parallel' in line:
+                within_omp_region = False
+            if ' call ' in line and within_omp_region:
+                call_count += 1
+
+        assert call_count==2
+
+    def test_openmp_region_no_slice(self):
+        ''' Test that we can pass the OpenMP PARALLEL region transformation
+            a list of nodes specified as node.children '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+        from transformations import OpenMPRegion
+        ompr = OpenMPRegion()
+        omp_schedule,memento = ompr.apply(schedule.children)
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = omp_schedule
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        gen = gen.lower()
+        # Iterate over the lines of generated code
+        within_omp_region = False
+        call_count = 0
+        for line in gen.split('\n'):
+            if '!$omp parallel default' in line:
+                within_omp_region = True
+            if '!$omp end parallel' in line:
+                within_omp_region = False
+            if ' call ' in line and within_omp_region:
+                call_count += 1
+
+        assert call_count==3
+
     def test_openmp_region_before_loops_trans(self):
         ''' Test of the OpenMP PARALLEL region transformation where
             we do the region transformation before the loop
@@ -184,7 +242,7 @@ class TestTransformationsGOcean1p0:
         # Put all of the loops in the schedule within a single
         # OpenMP region
         ompr = OpenMPRegion()
-        omp_schedule,memento = ompr.apply(schedule.children[:])
+        omp_schedule,memento = ompr.apply(schedule.children)
 
         # Put an OpenMP do directive around each loop contained
         # in the region
@@ -229,7 +287,7 @@ class TestTransformationsGOcean1p0:
         # Now put an OpenMP parallel region around that set of
         # loops
         ompr = OpenMPRegion()
-        schedule,memento = ompr.apply(omp_schedule.children[:])
+        schedule,memento = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
         invoke._schedule = schedule
@@ -271,7 +329,7 @@ class TestTransformationsGOcean1p0:
         # Now put an OpenMP parallel region around that set of
         # loops
         ompr = OpenMPRegion()
-        schedule,memento = ompr.apply(omp_schedule.children[:])
+        schedule,memento = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
         invoke._schedule = schedule
@@ -286,7 +344,7 @@ class TestTransformationsGOcean1p0:
         # OpenMP region
         schedule = orig_schedule
         ompr = OpenMPRegion()
-        omp_schedule,memento = ompr.apply(schedule.children[:])
+        omp_schedule,memento = ompr.apply(schedule.children)
 
         # Put an OpenMP do directive around each loop contained
         # in the region
@@ -371,7 +429,7 @@ class TestTransformationsGOcean1p0:
         omp_schedule.view()
 
         # Now enclose all of the children within a parallel region
-        schedule,memento = ompr.apply(omp_schedule.children[:])
+        schedule,memento = ompr.apply(omp_schedule.children)
 
         print "After second transformation:"
         schedule.view()
@@ -441,7 +499,7 @@ class TestTransformationsGOcean1p0:
         omp_schedule,memento = ompl.apply(schedule.children[1])
 
         # Now enclose all of the children within a parallel region
-        schedule,memento = ompr.apply(omp_schedule.children[:])
+        schedule,memento = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
         invoke._schedule = schedule
