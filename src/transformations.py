@@ -18,7 +18,8 @@ class TransformationError(Exception):
         return repr(self.value)
 
 class SwapTrans(Transformation):
-    ''' A test transformation. This swaps two entries in a schedule. These entries must be siblings and next to eachother in the schedule.
+    ''' A test transformation. This swaps two entries in a schedule. These
+        entries must be siblings and next to each other in the schedule.
 
         For example:
 
@@ -51,7 +52,8 @@ class SwapTrans(Transformation):
             raise Exception("Error in transformation. nodes do not have the same parent")
         # TBD check node1 and node2 are next to each other
         if abs(node1.position-node2.position)!=1:
-            raise Exception("Error in transformation. nodes are not siblings who are next to eachother")
+            raise Exception("Error in transformation. nodes are not siblings who are "
+                            "next to eachother")
 
         schedule=node1.root
 
@@ -406,19 +408,25 @@ class OpenMPRegion(Transformation):
     def name(self):
         return "OpenMPRegion"
 
-    def apply(self, region):
+    def apply(self, nodes):
         ''' Apply this transformation to a subset of the nodes 
             within a schedule - i.e. enclose the specified
             Loops in the schedule within a single OpenMP region '''
         from psyGen import OMPParallelDirective, Schedule, Loop
 
-        node_parent = region[0].parent
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within a parallel region. Also keep the index of 
+        # the first child to be enclosed as that will become the
+        # position of the new !$omp parallel directive.
+        node_parent = nodes[0].parent
+        node_position = nodes[0].position
+
         if not isinstance(node_parent, Schedule):
             raise TransformationError("Error in OpenMPRegion transformation. "
                                       "Supplied node is not a child of a "
                                       "Schedule.")
 
-        for child in region:
+        for child in nodes:
             if child.parent is not node_parent:
                 raise TransformationError("Error in OpenMPRegion transformation: "
                                           "supplied nodes are not children of "
@@ -426,32 +434,36 @@ class OpenMPRegion(Transformation):
 
         # create a memento of the schedule and the proposed
         # transformation
-        schedule = region[0].root
+        schedule = nodes[0].root
 
         from undoredo import Memento
         keep=Memento(schedule,self)
 
         # Create the OpenMP parallel directive as a child of the
-        # schedule and with the schedule's children as its children.
-        # We slice the region list in order to get a new list object
-        # (although the items in the list are still those in the
+        # parent of the nodes being enclosed and with those nodes 
+        # as its children.
+        # We slice the nodes list in order to get a new list object
+        # (although the actual items in the list are still those in the
         # original). If we don't do this then we get an infinite
         # recursion in the new schedule.
         directive = OMPParallelDirective(parent=node_parent,
-                                         children=region[:])
+                                         children=nodes[:])
 
         # Change all of the affected children so that they have
         # the OpenMP directive as their parent. Use a slice 
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
-        for child in region[:]:
+        for child in nodes[:]:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
             child.parent = directive
 
-        # Add the OpenMP region directive as a child of the schedule
-        node_parent.addchild(directive)
+        # Add the OpenMP region directive as a child of the parent
+        # of the nodes being enclosed and at the original location
+        # of the first of these nodes
+        node_parent.addchild(directive,
+                             index=node_position)
        
         return schedule,keep
 
