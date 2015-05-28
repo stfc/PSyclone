@@ -230,9 +230,9 @@ class TestTransformationsGOcean1p0:
 
         assert call_count==3
 
-    def test_openmp_region_retains_kernel_order(self):
-        ''' Test that we can pass the OpenMP PARALLEL region transformation
-            a list of nodes specified as a slice '''
+    def test_openmp_region_retains_kernel_order1(self):
+        ''' Test that applying the OpenMP PARALLEL region transformation
+            to a sub-set of nodes (last 2 of three) does not change their ordering '''
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
@@ -247,7 +247,72 @@ class TestTransformationsGOcean1p0:
         # a string
         gen = str(psy.gen)
         gen = gen.lower()
-        print gen
+
+        # Iterate over the lines of generated code
+        cu_idx = -1
+        cv_idx = -1
+        ts_idx = -1
+        for idx,line in enumerate(gen.split('\n')):
+            if 'call compute_cu' in line: cu_idx = idx
+            if 'call compute_cv' in line: cv_idx = idx
+            if 'call time_smooth' in line: ts_idx = idx
+
+        # Kernels should be in order {compute_cu, compute_cv, time_smooth}
+        assert cu_idx < cv_idx and cv_idx < ts_idx
+
+    def test_openmp_region_retains_kernel_order2(self):
+        ''' Test that applying the OpenMP PARALLEL region transformation
+            to a sub-set of nodes (first 2 of 3) does not change their ordering '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OpenMPRegion
+        ompr = OpenMPRegion()
+
+        omp_schedule,memento = ompr.apply(schedule.children[0:2])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = omp_schedule
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        gen = gen.lower()
+
+        # Iterate over the lines of generated code
+        cu_idx = -1
+        cv_idx = -1
+        ts_idx = -1
+        for idx,line in enumerate(gen.split('\n')):
+            if 'call compute_cu' in line: cu_idx = idx
+            if 'call compute_cv' in line: cv_idx = idx
+            if 'call time_smooth' in line: ts_idx = idx
+
+        # Kernels should be in order {compute_cu, compute_cv, time_smooth}
+        assert cu_idx < cv_idx and cv_idx < ts_idx
+
+    def test_openmp_region_retains_kernel_order3(self):
+        ''' Test that applying the OpenMP PARALLEL region transformation
+            to a sub-set of nodes (middle 1 of 3) does not change their ordering '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
+        ompr = OpenMPRegion()
+        ompl = GOceanOpenMPOrphanLoop()
+
+        # Put an OMP Do around the 2nd loop of the schedule
+        omp_schedule,memento = ompl.apply(schedule.children[1])
+
+        # Put an OMP Parallel around that single OMP Do
+        schedule,memento = ompr.apply([omp_schedule.children[1]])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = schedule
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        gen = gen.lower()
+
         # Iterate over the lines of generated code
         cu_idx = -1
         cv_idx = -1
@@ -392,10 +457,10 @@ class TestTransformationsGOcean1p0:
 
         assert region_before_loop_gen == loop_before_region_gen
 
-    def test_openmp_region_node_not_child_of_schedule(self):
+    def test_openmp_region_nodes_not_children_of_same_parent(self):
         ''' Test that we raise appropriate error if user attempts
-            to put a region around a node that is not an immediate child
-            of a schedule '''
+            to put a region around nodes that are not children of
+            the same parent '''
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
@@ -468,7 +533,7 @@ class TestTransformationsGOcean1p0:
     def test_openmp_parallel_region_inside_parallel_do(self):
         ''' Test that a generation error is raised if we attempt
             to have an OpenMP parallel region within an OpenMP 
-            parallel do '''
+            parallel do (with the latter applied first) '''
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
@@ -486,7 +551,7 @@ class TestTransformationsGOcean1p0:
     def test_openmp_parallel_do_around_parallel_region(self):
         ''' Test that a generation error is raised if we attempt
             to have an OpenMP parallel region around an OpenMP 
-            parallel do '''
+            parallel do (with the latter applied second) '''
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
@@ -504,12 +569,12 @@ class TestTransformationsGOcean1p0:
         # Replace the original loop schedule with the transformed one
         invoke._schedule = schedule
 
-        schedule.view()
         # Attempt to generate the transformed code
         with pytest.raises(GenerationError):
             gen = psy.gen
 
-    @pytest.mark.xfail(reason="Not implemented")
+    @pytest.mark.xfail(reason="OMP Region with children of different types "
+                       "not yet implemented")
     def test_openmp_region_with_children_of_different_types(self):
         ''' Test that we can generate code if we have an
             OpenMP parallel region enclosing children of different types. '''
@@ -531,28 +596,3 @@ class TestTransformationsGOcean1p0:
 
         # Attempt to generate the transformed code
         gen = psy.gen
-
-    @pytest.mark.xfail(reason="Test not implemented")
-    def test_openmp_region_around_last_two_of_three_loops(self):
-        ''' Test that we can generate code if we have an
-            OpenMP parallel region enclosing children of different types. '''
-        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
-
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
-        ompl = GOceanOpenMPOrphanLoop()
-        ompr = OpenMPRegion()
-
-    @pytest.mark.xfail(reason="Test not implemented")
-    def test_openmp_region_around_first_two_of_three_loops(self):
-        ''' Tests that we can safely put an OpenMP parallel region
-            around the first two of three loops in a schedule '''
-        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
-
-    @pytest.mark.xfail(reason="Test not implemented")
-    def test_openmp_region_around_middle_of_three_loops(self):
-        ''' Tests that we can safely put an OpenMP parallel region
-            around the middle of three loops in a schedule '''
-        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
