@@ -4,12 +4,12 @@
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 #-------------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, SwapTrans,\
-                            LoopFuseTrans,\
+                            LoopFuseTrans, OpenMPRegion,\
                             GOceanLoopFuseTrans, GOceanOpenMPLoop
 from generator import GenerationError
 import os
@@ -61,6 +61,44 @@ class TestTransformationsGHProto:
         # 4 lines should be in sequence as calls have been fused into one loop
         assert enddo_idx-call2_idx==1 and call2_idx-call1_idx==1 and\
             call1_idx-do_idx==1
+
+class TestTransformationsDynamo0p1:
+
+    @pytest.mark.xfail(reason="Bug: list of private variables not generated "
+                       "correctly")
+    def test_openmp_region(self):
+        ''' Test the application of an OpenMP parallel region transformation
+            to a single loop '''
+        test_api = "dynamo0.1"
+        ast,info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "test_files", "dynamo0p1", "algorithm",
+                                    "1_single_function.f90"),
+                         api=test_api)
+        psy = PSyFactory(test_api).create(info)
+        invokes = psy.invokes
+        invoke = invokes.get('invoke_testkern_type')
+        schedule = invoke.schedule
+        rtrans = OpenMPRegion()
+        new_schedule, memento = rtrans.apply(schedule.children[0])
+        invoke._schedule = new_schedule
+        gen = str(psy.gen)
+        print gen
+
+        # Check that our list of private variables is correct
+        assert gen.find("!$omp parallel default(shared), private(cell,map)") != -1
+
+        for idx,line in enumerate(gen.split('\n')):
+            if "!$omp parallel default(shared)" in line: startpara_idx = idx
+            if "DO cell=1,f1%get_ncell()" in line: do_idx = idx
+            if "CALL f1%vspace%get_cell_dofmap(cell, map)" in line: dmap_idx = idx
+            if "CALL testkern_code(nlayers, ndf, map, f1%data, f2%data, m1%data)" in line: kcall_idx = idx
+            if "END DO" in line: enddo_idx = idx
+            if "!$omp end parallel" in line: endpara_idx = idx
+        assert do_idx == startpara_idx + 1
+        assert dmap_idx == do_idx + 1
+        assert kcall_idx == dmap_idx + 1
+        assert enddo_idx == kcall_idx + 1
+        assert endpara_idx == enddo_idx + 1
 
 class TestTransformationsGOcean0p1:
 
@@ -171,6 +209,50 @@ class TestTransformationsGOcean1p0:
         invokes = psy.invokes
         invoke = invokes.get('invoke_'+str(idx))
         return psy,invoke
+
+    def test_openmp_region_with_wrong_arg_type(self):
+        ''' Test that the OpenMP PARALLEL region transformation
+            raises an appropriate error if passed something that is not
+            a list of Nodes or a single Node. '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OpenMPRegion
+        ompr = OpenMPRegion()
+
+        with pytest.raises(TransformationError):
+            omp_schedule,memento = ompr.apply(invoke)
+
+    def test_openmp_region_with_single_loop(self):
+        ''' Test that we can pass the OpenMP PARALLEL region transformation
+            a single node in a schedule '''
+        psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OpenMPRegion
+        ompr = OpenMPRegion()
+
+        omp_schedule,memento = ompr.apply(schedule.children[1])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = omp_schedule
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        gen = gen.lower()
+
+        # Iterate over the lines of generated code
+        within_omp_region = False
+        call_count = 0
+        for line in gen.split('\n'):
+            if '!$omp parallel default' in line:
+                within_omp_region = True
+            if '!$omp end parallel' in line:
+                within_omp_region = False
+            if ' call ' in line and within_omp_region:
+                call_count += 1
+
+        assert call_count==1
 
     def test_openmp_region_with_slice(self):
         ''' Test that we can pass the OpenMP PARALLEL region transformation
