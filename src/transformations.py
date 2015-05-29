@@ -414,19 +414,36 @@ class OpenMPRegion(Transformation):
             Loops in the schedule within a single OpenMP region '''
         from psyGen import OMPParallelDirective, Schedule, Loop
 
+        # Check whether we've been passed a list of nodes or just a 
+        # single node. If the latter then we create ourselves a 
+        # list containing just that node.
+        from psyGen import Node
+        if isinstance(nodes, list) and isinstance(nodes[0], Node):
+            node_list = nodes
+        elif isinstance(nodes, Node):
+            node_list = [nodes]
+        else:
+            arg_type = str(type(nodes))
+            raise TransformationError("Error in OpenMPRegion transformation. "
+                                      "Argument must be a single Node in a "
+                                      "schedule or a list of Nodes in a "
+                                      "schedule but have been passed an "
+                                      "object of type: {0}".\
+                                      format(arg_type))
+
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of 
         # the first child to be enclosed as that will become the
         # position of the new !$omp parallel directive.
-        node_parent = nodes[0].parent
-        node_position = nodes[0].position
+        node_parent = node_list[0].parent
+        node_position = node_list[0].position
 
         if not isinstance(node_parent, Schedule):
             raise TransformationError("Error in OpenMPRegion transformation. "
                                       "Supplied node is not a child of a "
                                       "Schedule.")
 
-        for child in nodes:
+        for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError("Error in OpenMPRegion transformation: "
                                           "supplied nodes are not children of "
@@ -434,7 +451,7 @@ class OpenMPRegion(Transformation):
 
         # create a memento of the schedule and the proposed
         # transformation
-        schedule = nodes[0].root
+        schedule = node_list[0].root
 
         from undoredo import Memento
         keep=Memento(schedule,self)
@@ -447,14 +464,14 @@ class OpenMPRegion(Transformation):
         # original). If we don't do this then we get an infinite
         # recursion in the new schedule.
         directive = OMPParallelDirective(parent=node_parent,
-                                         children=nodes[:])
+                                         children=node_list[:])
 
         # Change all of the affected children so that they have
         # the OpenMP directive as their parent. Use a slice 
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
-        for child in nodes[:]:
+        for child in node_list[:]:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
             child.parent = directive
