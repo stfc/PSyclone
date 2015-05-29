@@ -144,9 +144,9 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
         return LoopFuseTrans.apply(self,node1,node2)
 
-class OpenMPLoop(Transformation):
+class OMPParallelLoopTrans(Transformation):
 
-    ''' Adds an OMP PARALLEL directive to a loop. 
+    ''' Adds an OpenMP PARALLEL directive to a loop. 
 
         For example:
 
@@ -157,8 +157,8 @@ class OpenMPLoop(Transformation):
         >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> schedule.view()
         >>>
-        >>> from transformations import OpenMPLoop
-        >>> trans=OpenMPLoop()
+        >>> from transformations import OMPParallelLoopTrans
+        >>> trans=OMPParallelLoopTrans()
         >>> new_schedule,memento=trans.apply(schedule.children[0])
         >>> new_schedule.view()
 
@@ -200,22 +200,22 @@ class OpenMPLoop(Transformation):
 
         return schedule,keep
 
-class OpenMPOrphanLoop(OpenMPLoop):
+class OMPLoopTrans(Transformation):
 
-    ''' Adds an orphaned OMP directive to a loop. i.e. the directive
+    ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
         must be inside the scope of some OMP Parallel REGION. '''
 
     @property
     def name(self):
-        return "OpenMPOrphanLoop"
+        return "OMPLoopTrans"
 
     def __str__(self):
-        return "Adds an orphan OpenMP directive with no validity checks"
+        return "Adds an orphan OpenMP Do directive with no validity checks"
 
     def apply(self,node):
         from psyGen import Loop
         if not isinstance(node, Loop):
-            raise Exception("Cannot apply an orphan OpenMP Loop "
+            raise Exception("Cannot apply an OpenMP Loop "
                             "directive to something that is not a loop")
 
         schedule = node.root
@@ -247,17 +247,17 @@ class OpenMPOrphanLoop(OpenMPLoop):
 
         return schedule, keep
 
-class DynamoOpenMPLoop(OpenMPLoop):
+class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     ''' Dynamo specific OpenMP loop transformation. Adds Dynamo specific
         validity checks. Actual transformation is done by parent class. '''
 
     @property
     def name(self):
-        return "DynamoOpenMPLoop"
+        return "DynamoOMPParallelLoopTrans"
 
     def __str__(self):
-        return "Add an OpenMP directive to a Dynamo loop"
+        return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
     def apply(self,node):
 
@@ -266,29 +266,35 @@ class DynamoOpenMPLoop(OpenMPLoop):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node,Loop):
-            raise Exception("Error in "+self.name+" transformation. The node is not a loop.")
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "node is not a loop.")
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
-            raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "iteration space is not 'cells'.")
         # Check we do not need colouring
         if node.field_space != "v3" and node.loop_type is None:
-            raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is not 'v3'. Colouring is required.")
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "field space written to by the kernel is "
+                            "not 'v3'. Colouring is required.")
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
-            raise Exception("Error in "+self.name+" transformation. The requested loop is over colours and must be computed serially.")
-        return OpenMPLoop.apply(self,node)
+            raise Exception("Error in "+self.name+" transformation. "
+                            "The requested loop is over colours and must "
+                            "be computed serially.")
+        return OMPParallelLoopTrans.apply(self,node)
 
-class GOceanOpenMPLoop(OpenMPLoop):
+class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
-    ''' GOcean specific OpenMP loop transformation. Adds GOcean specific
+    ''' GOcean specific OpenMP Do loop transformation. Adds GOcean specific
         validity checks. Actual transformation is done by parent class. '''
 
     @property
     def name(self):
-        return "GOceanOpenMPLoop"
+        return "GOceanOMPParallelLoopTrans"
 
     def __str__(self):
-        return "Add an OpenMP directive to a GOcean loop"
+        return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
     def apply(self,node):
 
@@ -302,17 +308,17 @@ class GOceanOpenMPLoop(OpenMPLoop):
         if node.loop_type not in ["inner","outer"]:
             raise Exception("Error in "+self.name+" transformation. The requested loop is not of type inner or outer.")
 
-        return OpenMPLoop.apply(self,node)
+        return OMPParallelLoopTrans.apply(self,node)
 
 
-class GOceanOpenMPOrphanLoop(OpenMPOrphanLoop):
+class GOceanOMPLoopTrans(OMPLoopTrans):
 
     ''' GOcean specific orphan OpenMP loop transformation. Adds GOcean specific
         validity checks. Actual transformation is done by parent class. '''
 
     @property
     def name(self):
-        return "GOceanOpenMPOrphanLoop"
+        return "GOceanOMPLoopTrans"
 
     def __str__(self):
         return "Add an orphaned OpenMP directive to a GOcean loop"
@@ -331,7 +337,7 @@ class GOceanOpenMPOrphanLoop(OpenMPOrphanLoop):
             raise Exception("Error in "+self.name+" transformation. The "
                             "requested loop is not of type inner or outer.")
 
-        return OpenMPOrphanLoop.apply(self,node)
+        return OMPLoopTrans.apply(self,node)
 
 class ColourTrans(Transformation):
 
@@ -347,16 +353,21 @@ class ColourTrans(Transformation):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node,Loop):
-            raise Exception("Error in LoopColour transformation. The node is not a loop")
+            raise Exception("Error in LoopColour transformation. The "
+                            "node is not a loop")
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
-            raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "iteration space is not 'cells'.")
         # Check we need colouring
         if node.field_space == "v3":
-            raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is 'v3'. Colouring is not required.")
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "field space written to by the kernel is 'v3'. "
+                            "Colouring is not required.")
         # Check this is a kernel loop
         if node.loop_type is not None:
-            raise Exception("Error in "+self.name+" transformation. The loop is not the correct type for colouring.")
+            raise Exception("Error in "+self.name+" transformation. The "
+                            "loop is not the correct type for colouring.")
 
         schedule=node.root
 
@@ -399,14 +410,14 @@ class ColourTrans(Transformation):
 
         return schedule,keep
 
-class OpenMPRegion(Transformation):
+class OMPParallelTrans(Transformation):
 
     def __str__(self):
-        return "Insert an OpenMP PARALLEL region"
+        return "Insert an OpenMP Parallel region"
 
     @property
     def name(self):
-        return "OpenMPRegion"
+        return "OMPParallelTrans"
 
     def apply(self, nodes):
         ''' Apply this transformation to a subset of the nodes 
@@ -424,7 +435,7 @@ class OpenMPRegion(Transformation):
             node_list = [nodes]
         else:
             arg_type = str(type(nodes))
-            raise TransformationError("Error in OpenMPRegion transformation. "
+            raise TransformationError("Error in OMPParallel transformation. "
                                       "Argument must be a single Node in a "
                                       "schedule or a list of Nodes in a "
                                       "schedule but have been passed an "
@@ -439,13 +450,13 @@ class OpenMPRegion(Transformation):
         node_position = node_list[0].position
 
         if not isinstance(node_parent, Schedule):
-            raise TransformationError("Error in OpenMPRegion transformation. "
+            raise TransformationError("Error in OMPParallel transformation. "
                                       "Supplied node is not a child of a "
                                       "Schedule.")
 
         for child in node_list:
             if child.parent is not node_parent:
-                raise TransformationError("Error in OpenMPRegion transformation: "
+                raise TransformationError("Error in OMPParallel transformation: "
                                           "supplied nodes are not children of "
                                           "the same Schedule/parent.")
 

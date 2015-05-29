@@ -9,8 +9,8 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, SwapTrans,\
-                            LoopFuseTrans, OpenMPRegion,\
-                            GOceanLoopFuseTrans, GOceanOpenMPLoop
+                            LoopFuseTrans, OMPParallelTrans,\
+                            GOceanLoopFuseTrans, GOceanOMPParallelLoopTrans
 from generator import GenerationError
 import os
 import pytest
@@ -78,7 +78,7 @@ class TestTransformationsDynamo0p1:
         invokes = psy.invokes
         invoke = invokes.get('invoke_testkern_type')
         schedule = invoke.schedule
-        rtrans = OpenMPRegion()
+        rtrans = OMPParallelTrans()
         new_schedule, memento = rtrans.apply(schedule.children[0])
         invoke._schedule = new_schedule
         gen = str(psy.gen)
@@ -113,7 +113,7 @@ class TestTransformationsGOcean0p1:
         invoke=invokes.get('invoke_0')
         schedule=invoke.schedule
         lftrans=GOceanLoopFuseTrans()
-        ompf=GOceanOpenMPLoop()
+        ompf=GOceanOMPParallelLoopTrans()
 
         # fuse all outer loops
         lf1_schedule,memento = lftrans.apply(schedule.children[0],
@@ -172,7 +172,7 @@ class TestTransformationsGOcean0p1:
         invokes=psy.invokes
         invoke=invokes.get('invoke_0')
         schedule=invoke.schedule
-        ompf=GOceanOpenMPLoop()
+        ompf=GOceanOMPParallelLoopTrans()
 
         omp1_schedule,memento = ompf.apply(schedule.children[0])
 
@@ -217,8 +217,8 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
 
         with pytest.raises(TransformationError):
             omp_schedule,memento = ompr.apply(invoke)
@@ -229,8 +229,8 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
 
         omp_schedule,memento = ompr.apply(schedule.children[1])
 
@@ -260,8 +260,8 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
 
         omp_schedule,memento = ompr.apply(schedule.children[1:])
 
@@ -290,8 +290,8 @@ class TestTransformationsGOcean1p0:
             a list of nodes specified as node.children '''
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
-        from transformations import OpenMPRegion
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
         omp_schedule,memento = ompr.apply(schedule.children)
         # Replace the original loop schedule with the transformed one
         invoke._schedule = omp_schedule
@@ -318,8 +318,8 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
 
         omp_schedule,memento = ompr.apply(schedule.children[1:])
 
@@ -348,8 +348,8 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
 
         omp_schedule,memento = ompr.apply(schedule.children[0:2])
 
@@ -378,9 +378,9 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
-        ompr = OpenMPRegion()
-        ompl = GOceanOpenMPOrphanLoop()
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompr = OMPParallelTrans()
+        ompl = GOceanOMPLoopTrans()
 
         # Put an OMP Do around the 2nd loop of the schedule
         omp_schedule,memento = ompl.apply(schedule.children[1])
@@ -414,16 +414,16 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_two_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
 
         # Put all of the loops in the schedule within a single
         # OpenMP region
-        ompr = OpenMPRegion()
+        ompr = OMPParallelTrans()
         omp_schedule,memento = ompr.apply(schedule.children)
 
         # Put an OpenMP do directive around each loop contained
         # in the region
-        ompl = GOceanOpenMPOrphanLoop()
+        ompl = GOceanOMPLoopTrans()
         for child in omp_schedule.children[0].children:
             schedule,memento = ompl.apply(child)
             omp_schedule = schedule
@@ -453,17 +453,17 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_two_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
 
         # Put an OpenMP do directive around each loop contained
         # in the schedule
-        ompl = GOceanOpenMPOrphanLoop()
+        ompl = GOceanOMPLoopTrans()
         for child in schedule.children:
             omp_schedule,memento = ompl.apply(child)
 
         # Now put an OpenMP parallel region around that set of
         # loops
-        ompr = OpenMPRegion()
+        ompr = OMPParallelTrans()
         schedule,memento = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
@@ -495,17 +495,17 @@ class TestTransformationsGOcean1p0:
         import copy
         orig_schedule = copy.deepcopy(schedule)
 
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
 
         # Put an OpenMP do directive around each loop contained
         # in the schedule
-        ompl = GOceanOpenMPOrphanLoop()
+        ompl = GOceanOMPLoopTrans()
         for child in schedule.children:
             omp_schedule,memento = ompl.apply(child)
 
         # Now put an OpenMP parallel region around that set of
         # loops
-        ompr = OpenMPRegion()
+        ompr = OMPParallelTrans()
         schedule,memento = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
@@ -520,12 +520,12 @@ class TestTransformationsGOcean1p0:
         # Put all of the loops in the schedule within a single
         # OpenMP region
         schedule = orig_schedule
-        ompr = OpenMPRegion()
+        ompr = OMPParallelTrans()
         omp_schedule,memento = ompr.apply(schedule.children)
 
         # Put an OpenMP do directive around each loop contained
         # in the region
-        ompl = GOceanOpenMPOrphanLoop()
+        ompl = GOceanOMPLoopTrans()
         for child in omp_schedule.children[0].children:
             schedule,memento = ompl.apply(child)
             omp_schedule = schedule
@@ -546,9 +546,9 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPLoop
-        ompl = GOceanOpenMPLoop()
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans, GOceanOMPParallelLoopTrans
+        ompl = GOceanOMPParallelLoopTrans()
+        ompr = OMPParallelTrans()
 
         # Put an OpenMP parallel do around the first loop in the schedule
         lschedule,memento = ompl.apply(schedule.children[0])
@@ -567,12 +567,12 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
 
         # Put an OpenMP do directive around each loop contained
         # in the schedule
-        ompl = GOceanOpenMPOrphanLoop()
-        ompr = OpenMPRegion()
+        ompl = GOceanOMPLoopTrans()
+        ompr = OMPParallelTrans()
 
         for child in schedule.children:
             omp_schedule,memento = ompl.apply(child)
@@ -594,9 +594,9 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPLoop
-        ompl = GOceanOpenMPLoop()
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans, GOceanOMPParallelLoopTrans
+        ompl = GOceanOMPParallelLoopTrans()
+        ompr = OMPParallelTrans()
 
         # Put an OpenMP parallel do directive around all of the loops
         for child in schedule.children:
@@ -619,9 +619,9 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPLoop
-        ompl = GOceanOpenMPLoop()
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans, GOceanOMPParallelLoopTrans
+        ompl = GOceanOMPParallelLoopTrans()
+        ompr = OMPParallelTrans()
 
         # Put an OpenMP parallel do directive around one of the loops
         omp_schedule,memento = ompl.apply(schedule.children[1])
@@ -637,9 +637,9 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPLoop
-        ompl = GOceanOpenMPLoop()
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans, GOceanOMPParallelLoopTrans
+        ompl = GOceanOMPParallelLoopTrans()
+        ompr = OMPParallelTrans()
 
         # Put a parallel region around two of the loops
         omp_schedule,memento = ompr.apply(schedule.children[0:2])
@@ -663,9 +663,9 @@ class TestTransformationsGOcean1p0:
         psy,invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OpenMPRegion, GOceanOpenMPOrphanLoop
-        ompl = GOceanOpenMPOrphanLoop()
-        ompr = OpenMPRegion()
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans()
+        ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop
         omp_schedule,memento = ompl.apply(schedule.children[1])
