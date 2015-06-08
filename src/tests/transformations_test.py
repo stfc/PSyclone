@@ -140,9 +140,12 @@ class TestTransformationsGOcean0p1:
         new_sched, memento = ompf.apply(schedule.children[0])
         # Attempt to (erroneously) fuse this OMP parallel do
         # with the next loop in the schedule
-        with pytest.raises(TransformationError):
+        with pytest.raises(TransformationError) as ex:
             schedule, memento = lftrans.apply(new_sched.children[0],
                                               new_sched.children[1])
+        # Exercise the __str__ method of TransformationError
+        assert "Transformation" in str(ex)
+
     def test_loop_fuse_on_non_siblings(self):
         ''' Test that an appropriate error is raised when we attempt to
             fuse two loops that do not share the same parent node in
