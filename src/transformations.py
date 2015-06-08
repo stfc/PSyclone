@@ -133,14 +133,19 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
     def apply(self,node1,node2):
 
-        if node1.field_space != node2.field_space:
-            raise TransformationError("Error in GOceanLoopFuse "
-                                      "transformation. "
-                                      "Cannot fuse loops that are over "
-                                      "different grid-point types: "
-                                      "{0} {1}".\
-                                      format(node1.field_space,
-                                             node2.field_space))
+        try:
+            if node1.field_space != node2.field_space:
+                raise TransformationError("Error in GOceanLoopFuse "
+                                          "transformation. "
+                                          "Cannot fuse loops that are over "
+                                          "different grid-point types: "
+                                          "{0} {1}".\
+                                          format(node1.field_space,
+                                                 node2.field_space))
+        except TransformationError as e:
+            raise e
+        except Exception as e:
+            raise TransformationError("Unexpected exception: {}".format(e))
 
         return LoopFuseTrans.apply(self,node1,node2)
 
@@ -215,8 +220,9 @@ class OMPLoopTrans(Transformation):
     def apply(self,node):
         from psyGen import Loop
         if not isinstance(node, Loop):
-            raise Exception("Cannot apply an OpenMP Loop "
-                            "directive to something that is not a loop")
+            raise TransformationError("Cannot apply an OpenMP Loop "
+                                      "directive to something that is "
+                                      "not a loop")
 
         schedule = node.root
 
