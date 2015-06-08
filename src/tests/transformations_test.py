@@ -747,7 +747,7 @@ class TestTransformationsGOcean1p0:
         with pytest.raises(GenerationError):
             gen = psy.gen
 
-    def test_openmp_orphan_loop_applied_to_non_loop(self):
+    def test_omp_orphan_loop_applied_to_non_loop(self):
         ''' Test that we raise a TransformationError if we attempt
             to apply an OMP DO transformation to something that
             is not a loop '''
@@ -763,6 +763,43 @@ class TestTransformationsGOcean1p0:
         # OMP Loop transformation)
         with pytest.raises(TransformationError):
             schedule, memento = ompl.apply(omp_schedule.children[0])
+
+    def test_gocean_omp_loop_applied_to_non_loop(self):
+        ''' Test that we raise a TransformationError if we attempt
+            to apply a GOcean OMP DO transformation to something that
+            is not a loop '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans()
+        omp_schedule, memento = ompl.apply(schedule.children[0])
+
+        # Attempt to (erroneously) apply the GO OMP Loop transformation
+        # to the first node in the schedule (which is now itself an
+        # OMP Loop transformation)
+        with pytest.raises(TransformationError):
+            schedule, memento = ompl.apply(omp_schedule.children[0])
+
+    def test_gocean_omp_loop_applied_to_wrong_loop_type(self):
+        ''' Test that we raise a TransformationError if we attempt to
+            apply a GOcean OMP  DO transformation to a loop of
+            the wrong type '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        # Manually break the loop-type of the first loop in order to
+        # test that this error is handled. We have to work-around
+        # the setter method to do this since it has error checking
+        # too!
+        schedule.children[0]._loop_type = "wrong"
+
+        from transformations import GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans()
+        # Attempt to apply the transformation to the loop that has been
+        # given an incorrect type
+        with pytest.raises(TransformationError):
+            omp_schedule, memento = ompl.apply(schedule.children[0])
 
     def test_gocean_omp_parallel_loop_applied_to_non_loop(self):
         ''' Test that we raise a TransformationError if we attempt to
