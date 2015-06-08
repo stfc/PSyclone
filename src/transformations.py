@@ -309,10 +309,13 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node,Loop):
-            raise Exception("Error in "+self.name+" transformation. The node is not a loop.")
+            raise TransformationError("Error in "+self.name+" transformation."
+                                      " The node is not a loop.")
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner","outer"]:
-            raise Exception("Error in "+self.name+" transformation. The requested loop is not of type inner or outer.")
+            raise TransformationError("Error in "+self.name+" transformation."
+                                      " The requested loop is not of type "
+                                      "inner or outer.")
 
         return OMPParallelLoopTrans.apply(self,node)
 
