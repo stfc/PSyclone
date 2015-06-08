@@ -120,6 +120,95 @@ class TestTransformationsDynamo0p1:
 
 class TestTransformationsGOcean0p1:
 
+    def test_loop_fuse_with_not_a_loop(self):
+        ''' Test that an appropriate error is raised by the LoopFuseTrans
+            base class wen we attempt to fuse a loop with something that
+            is not a loop '''
+        ast, info = parse(os.path.join(os.path.
+                                       dirname(os.path.abspath(__file__)),
+                                       "test_files", "gocean0p1",
+                                       "openmp_fuse_test.f90"),
+                          api="gocean0.1")
+        psy = PSyFactory("gocean0.1").create(info)
+        invokes = psy.invokes
+        invoke = invokes.get('invoke_0')
+        schedule = invoke.schedule
+        # Use the bare LoopFuseTrans in order tests its error checking
+        lftrans = LoopFuseTrans()
+        ompf = GOceanOMPParallelLoopTrans()
+        # Enclose the first loop within an OMP parallel do
+        new_sched, memento = ompf.apply(schedule.children[0])
+        # Attempt to (erroneously) fuse this OMP parallel do
+        # with the next loop in the schedule
+        with pytest.raises(TransformationError):
+            schedule, memento = lftrans.apply(new_sched.children[0],
+                                              new_sched.children[1])
+    def test_loop_fuse_on_non_siblings(self):
+        ''' Test that an appropriate error is raised when we attempt to
+            fuse two loops that do not share the same parent node in
+            the schedule '''
+        ast, info = parse(os.path.join(os.path.
+                                       dirname(os.path.abspath(__file__)),
+                                       "test_files", "gocean0p1",
+                                       "openmp_fuse_test.f90"),
+                          api="gocean0.1")
+        psy = PSyFactory("gocean0.1").create(info)
+        invokes = psy.invokes
+        invoke = invokes.get('invoke_0')
+        schedule = invoke.schedule
+        lftrans = LoopFuseTrans()
+
+        # Attempt to fuse an outer loop with an inner loop
+        with pytest.raises(TransformationError):
+            lf1_schedule, memento = lftrans.apply(schedule.children[0],
+                                                  schedule.children[1].
+                                                  children[0])
+
+    def test_loop_fuse_non_adjacent_nodes(self):
+        ''' Test that an appropriate error is raised when we attempt to
+            fuse two loops that are not adjacent to one another in the
+            schedule '''
+        ast, info = parse(os.path.join(os.path.
+                                       dirname(os.path.abspath(__file__)),
+                                       "test_files", "gocean0p1",
+                                       "openmp_fuse_test.f90"),
+                          api="gocean0.1")
+        psy = PSyFactory("gocean0.1").create(info)
+        invokes = psy.invokes
+        invoke = invokes.get('invoke_0')
+        schedule = invoke.schedule
+        lftrans = LoopFuseTrans()
+
+        # Attempt to fuse two loops that are not adjacent to one another
+        # in the schedule
+        with pytest.raises(TransformationError):
+            lf1_schedule, memento = lftrans.apply(schedule.children[0],
+                                                  schedule.children[2])
+
+    def test_gocean_loop_fuse_with_not_a_loop(self):
+        ''' Test that an appropriate error is raised by the GOceanLoopFuseTrans
+            class wen we attempt to fuse a loop with something that
+            is not a loop '''
+        ast, info = parse(os.path.join(os.path.
+                                       dirname(os.path.abspath(__file__)),
+                                       "test_files", "gocean0p1",
+                                       "openmp_fuse_test.f90"),
+                          api="gocean0.1")
+        psy = PSyFactory("gocean0.1").create(info)
+        invokes = psy.invokes
+        invoke = invokes.get('invoke_0')
+        schedule = invoke.schedule
+        # Use the bare LoopFuseTrans in order tests its error checking
+        lftrans = GOceanLoopFuseTrans()
+        ompf = GOceanOMPParallelLoopTrans()
+        # Enclose the first loop within an OMP parallel do
+        new_sched, memento = ompf.apply(schedule.children[0])
+        # Attempt to (erroneously) fuse this OMP parallel do
+        # with the next loop in the schedule
+        with pytest.raises(TransformationError):
+            schedule, memento = lftrans.apply(new_sched.children[0],
+                                              new_sched.children[1])
+
     def test_openmp_loop_fuse_trans(self):
         ''' test of the OpenMP transformation of a fused loop '''
         ast, info = parse(os.path.join(os.path.
@@ -244,6 +333,20 @@ class TestTransformationsGOcean1p0:
         invokes = psy.invokes
         invoke = invokes.get('invoke_'+str(idx))
         return psy, invoke
+
+    def test_loop_fuse_different_iterates_over(self):
+        ''' Test that an appropriate error is raised when we attempt to
+            fuse two loops that have differing values of ITERATES_OVER '''
+        psy, invoke = self.get_invoke("test11_different_iterates_over_"
+                                      "one_invoke.f90", 0)
+        schedule = invoke.schedule
+        lftrans = LoopFuseTrans()
+
+        # Attempt to fuse two loops that are iterating over different
+        # things
+        with pytest.raises(TransformationError):
+            lf1_schedule, memento = lftrans.apply(schedule.children[0],
+                                                  schedule.children[1])
 
     def test_openmp_region_with_wrong_arg_type(self):
         ''' Test that the OpenMP PARALLEL region transformation
