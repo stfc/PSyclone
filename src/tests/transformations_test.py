@@ -744,6 +744,23 @@ class TestTransformationsGOcean1p0:
         with pytest.raises(GenerationError):
             gen = psy.gen
 
+    def test_openmp_orphan_loop_applied_to_non_loop(self):
+        ''' Test that we raise a TransformationError if we attempt
+            to apply an OMP DO transformation to something that
+            is not a loop '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OMPLoopTrans
+        ompl = OMPLoopTrans()
+        omp_schedule, memento = ompl.apply(schedule.children[0])
+
+        # Attempt to (erroneously) apply the OMP Loop transformation
+        # to the first node in the schedule (which is now itself an
+        # OMP Loop transformation)
+        with pytest.raises(TransformationError):
+            schedule, memento = ompl.apply(omp_schedule.children[0])
+
     def test_openmp_parallel_do_inside_parallel_region(self):
         ''' Test that a generation error is raised if we attempt
             to have an OpenMP parallel do within an OpenMP
