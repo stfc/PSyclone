@@ -576,6 +576,11 @@ class OMPParallelDirective(OMPDirective):
         # omp parallel region is not already within some parallel region
         self._not_within_omp_parallel_region()
 
+        # Check that this OpenMP PARALLEL directive encloses other
+        # OpenMP directives. Although it is valid OpenMP if it doesn't,
+        # this almost certainly indicates a user error.
+        self._encloses_omp_directive()
+
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 "default(shared), private({0})".\
                                 format(private_str)))
@@ -617,6 +622,23 @@ class OMPParallelDirective(OMPDirective):
             if isinstance(myparent, OMPParallelDirective):
                 raise GenerationError("Cannot nest OpenMP parallel regions.")
             myparent = myparent.parent
+
+    def _encloses_omp_directive(self):
+        ''' Check that this Parallel region contains other OpenMP
+            directives. While it doesn't have to (in order to be valid
+            OpenMP), it is likely that an absence of directives
+            is an error on the part of the user. '''
+        # We need to recurse down through all our children and check
+        # whether any of them are an OMPDirective.
+        node_list = self.walk(self.children, OMPDirective)
+        if len(node_list) == 0:
+            # TODO raise a warning here so that the user can decide
+            # whether or not this is OK.
+            pass
+            #raise GenerationError("OpenMP parallel region does not enclose "
+            #                      "any OpenMP directives. This is probably "
+            #                      "not what you want.")
+
 
 class OMPParallelDoDirective(OMPParallelDirective):
 
