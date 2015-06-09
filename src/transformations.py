@@ -117,10 +117,10 @@ class OMPParallelLoopTrans(Transformation):
 
     @property
     def name(self):
-        return "OpenMPLoop"
+        return "OMPParallelLoopTrans"
 
     def __str__(self):
-        return "Add an OpenMP directive with no validity checks"
+        return "Add an OpenMP PARALLEL DO directive with no validity checks"
 
     def apply(self,node):
 
