@@ -8,7 +8,7 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import TransformationError, SwapTrans,\
+from transformations import TransformationError,\
                             LoopFuseTrans, OMPParallelTrans,\
                             GOceanLoopFuseTrans, GOceanOMPParallelLoopTrans
 from generator import GenerationError
@@ -17,27 +17,6 @@ import pytest
 
 
 class TestTransformationsGHProto:
-
-    @pytest.mark.xfail(reason="bug 3")
-    def test_swap_trans(self):
-        ''' test of a (test) swap transformation which swaps two entries
-            in a schedule '''
-        ast, info = parse(os.path.
-                          join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "gunghoproto",
-                               "3_two_functions_shared_arguments.f90"),
-                          api="gunghoproto")
-        psy = PSyFactory("gunghoproto").create(info)
-        invokes = psy.invokes
-        invoke = invokes.get("invoke_0")
-        schedule = invoke.schedule
-        loop1 = schedule.children[0]
-        loop2 = schedule.children[1]
-        trans = SwapTrans()
-        schedule, memento = trans.apply(loop1, loop2)
-        gen = str(psy.gen)
-        # testkern1_code call should now be after testkern2_code call
-        assert gen.rfind("testkern1_code") > gen.rfind("testkern2_code")
 
     @pytest.mark.xfail(reason="bug 3")
     def test_loop_fuse_trans(self):
