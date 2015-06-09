@@ -706,9 +706,11 @@ class TestTransformationsGOcean1p0:
         ''' Test that we raise appropriate error if user attempts
             to put a region around nodes that are not children of
             the same schedule '''
-        psy1, invoke1 = self.get_invoke("test12_two_invokes_two_kernels.f90", 0)
+        psy1, invoke1 = self.get_invoke("test12_two_invokes_two_kernels.f90",
+                                        0)
         schedule1 = invoke1.schedule
-        psy2, invoke2 = self.get_invoke("test12_two_invokes_two_kernels.f90", 1)
+        psy2, invoke2 = self.get_invoke("test12_two_invokes_two_kernels.f90",
+                                        1)
         schedule2 = invoke2.schedule
 
         from transformations import OMPParallelTrans
