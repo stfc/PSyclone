@@ -334,7 +334,10 @@ class TestTransformationsGOcean1p0:
                           api="gocean1.0")
         psy = PSyFactory("gocean1.0").create(info)
         invokes = psy.invokes
-        invoke = invokes.get('invoke_'+str(idx))
+        # invokes does not have a method by which to request the i'th
+        # in the list so we do this rather clumsy lookup of the name
+        # of the invoke that we want
+        invoke = invokes.get(invokes.names[idx])
         return psy, invoke
 
     def test_loop_fuse_different_iterates_over(self):
@@ -719,6 +722,24 @@ class TestTransformationsGOcean1p0:
         with pytest.raises(TransformationError):
             rschedule, memento = ompr.apply([schedule.children[0].children[0],
                                              schedule.children[1]])
+
+    def test_openmp_region_nodes_not_children_of_same_schedule(self):
+        ''' Test that we raise appropriate error if user attempts
+            to put a region around nodes that are not children of
+            the same schedule '''
+        psy1, invoke1 = self.get_invoke("test12_two_invokes_two_kernels.f90", 0)
+        schedule1 = invoke1.schedule
+        psy2, invoke2 = self.get_invoke("test12_two_invokes_two_kernels.f90", 1)
+        schedule2 = invoke2.schedule
+
+        from transformations import OMPParallelTrans
+        ompr = OMPParallelTrans()
+
+        # Attempt to put an OpenMP parallel region the loops from the
+        # two different schedules
+        with pytest.raises(TransformationError):
+            rschedule, memento = ompr.apply([schedule1.children[0],
+                                             schedule2.children[0]])
 
     def test_openmp_orphan_loop_outside_region(self):
         ''' Test that a generation error is raised if we try and
