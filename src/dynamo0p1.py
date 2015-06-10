@@ -87,22 +87,28 @@ class DynLoop(Loop):
         loop information to the base class so it creates the one we require.
         Creates Dynamo specific loop bounds when the code is being generated.
     '''
-    def __init__(self, call = None, parent = None):
-        Loop.__init__(self, DynInf, DynKern, call = call, parent = parent,
-                      valid_loop_types = ["colours", "colour"])
-    def gen_code(self,parent):
-        ''' Work out the appropriate loop bounds and variable name depending
-            on the loop type and then call the base class to generate the
-            code '''
-        self._start = "1"
+    def __init__(self, call=None, parent=None, loop_type=""):
+        Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
+                      valid_loop_types=["colours", "colour"])
+        self.loop_type = loop_type
+
+        # Work out the variable name from  the loop type
         if self._loop_type == "colours":
             self._variable_name = "colour"
-            self._stop = "ncolour"
         elif self._loop_type == "colour":
             self._variable_name = "cell"
-            self._stop = "ncp_ncolour(colour)"
         else:
             self._variable_name = "cell"
+
+    def gen_code(self,parent):
+        ''' Work out the appropriate loop bounds and then call the base
+            class to generate the code '''
+        self._start = "1"
+        if self._loop_type == "colours":
+            self._stop = "ncolour"
+        elif self._loop_type == "colour":
+            self._stop = "ncp_ncolour(colour)"
+        else:
             self._stop = self.field_name+"%get_ncell()"
         Loop.gen_code(self,parent)
 

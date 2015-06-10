@@ -248,11 +248,11 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, call=None, parent=None, variable_name="",
+    def __init__(self, call=None, parent=None,
                  topology_name="", loop_type=""):
         Loop.__init__(self, GOInf, GOKern, call=call, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
-        self._loop_type = loop_type
+        self.loop_type = loop_type
 
         if self._loop_type == "inner":
             self._variable_name = "i"
