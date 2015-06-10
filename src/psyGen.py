@@ -597,7 +597,7 @@ class OMPParallelDirective(OMPDirective):
         parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
         
     def _get_private_list(self):
-        '''Returns the variable name used for any loops within a directive
+        '''Returns the variable names used for any loops within a directive
         and any variables that have been declared private by a Call
         within the directive.
 
@@ -605,11 +605,18 @@ class OMPParallelDirective(OMPDirective):
         result=[]
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
+            if loop._variable_name == "":
+                raise GenerationException("Internal error: name of loop "
+                                          "variable not set.")
             if loop._variable_name.lower() not in result:
                 result.append(loop._variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
+                if variable_name == "":
+                    raise GenerationException("Internal error: call has a "
+                                              "local variable but its name "
+                                              "is not set.")
                 if variable_name.lower() not in result:
                     result.append(variable_name.lower())
         return result
@@ -715,7 +722,7 @@ class Loop(Node):
         self._loop_type=value
 
     def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "unset", topology_name = "topology", valid_loop_types=[]):
+                 variable_name = "", topology_name = "topology", valid_loop_types=[]):
 
         children = []
         # we need to determine whether this is an infrastructure or kernel
