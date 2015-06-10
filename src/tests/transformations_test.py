@@ -52,8 +52,6 @@ class TestTransformationsGHProto:
 
 class TestTransformationsDynamo0p1:
 
-    @pytest.mark.xfail(reason="Bug: list of private variables not generated "
-                       "correctly")
     def test_openmp_region(self):
         ''' Test the application of an OpenMP parallel region transformation
             to a single loop '''
