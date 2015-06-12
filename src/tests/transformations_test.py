@@ -932,3 +932,136 @@ class TestTransformationsGOcean1p0:
 
         # Attempt to generate the transformed code
         gen = psy.gen
+
+    def test_openmp_do_schedule_default_static(self):
+        ''' Test that if no OMP schedule is specified then we default
+            to "static" '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans()
+        ompr = OMPParallelTrans()
+
+        # Put an OpenMP do directive around one loop without specifying
+        # the OMP schedule to use
+        omp_schedule, memento = ompl.apply(schedule.children[1])
+
+        # Now enclose it within a parallel region
+        schedule, memento = ompr.apply(omp_schedule.children[1])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = schedule
+
+        # Attempt to generate the transformed code
+        gen = str(psy.gen)
+
+        assert  '!$omp do schedule(static)' in gen
+
+    def test_openmp_do_schedule_runtime(self):
+        ''' Test that we can specify the schedule of an OMP do as
+            "runtime" '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans(omp_schedule="runtime")
+        ompr = OMPParallelTrans()
+
+        # Put an OpenMP do directive around one loop
+        omp_schedule, memento = ompl.apply(schedule.children[1])
+
+        # Now enclose it within a parallel region
+        schedule, memento = ompr.apply(omp_schedule.children[1])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = schedule
+
+        # Attempt to generate the transformed code
+        gen = str(psy.gen)
+
+        assert  '!$omp do schedule(runtime)' in gen
+
+    def test_openmp_do_schedule_dynamic(self):
+        ''' Test that we can specify the schedule of an OMP do as
+            "dynamic" '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans(omp_schedule="dynamic")
+        ompr = OMPParallelTrans()
+
+        # Put an OpenMP do directive around one loop
+        omp_schedule, memento = ompl.apply(schedule.children[1])
+
+        # Now enclose it within a parallel region
+        schedule, memento = ompr.apply(omp_schedule.children[1])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = schedule
+
+        # Attempt to generate the transformed code
+        gen = str(psy.gen)
+
+        assert  '!$omp do schedule(dynamic)' in gen
+
+    def test_openmp_do_schedule_guided(self):
+        ''' Test that we can specify the schedule of an OMP do as
+            "guided" '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans(omp_schedule="guided")
+        ompr = OMPParallelTrans()
+
+        # Put an OpenMP do directive around one loop
+        omp_schedule, memento = ompl.apply(schedule.children[1])
+
+        # Now enclose it within a parallel region
+        schedule, memento = ompr.apply(omp_schedule.children[1])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = schedule
+
+        # Attempt to generate the transformed code
+        gen = str(psy.gen)
+
+        assert  '!$omp do schedule(guided)' in gen
+
+    def test_openmp_do_schedule_guided_with_empty_chunk(self):
+        ''' Test that we raise an appropriate error if we miss off
+            the chunksize '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import GOceanOMPLoopTrans
+        with pytest.raises(TransformationError):
+            ompl = GOceanOMPLoopTrans(omp_schedule="guided, ")
+
+    def test_openmp_do_schedule_guided_with_chunk(self):
+        ''' Test that we can specify the schedule of an OMP do as
+            "guided,n" where n is some chunk size'''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
+        ompl = GOceanOMPLoopTrans(omp_schedule="guided,10")
+        ompr = OMPParallelTrans()
+
+        # Put an OpenMP do directive around one loop
+        omp_schedule, memento = ompl.apply(schedule.children[1])
+
+        # Now enclose it within a parallel region
+        schedule, memento = ompr.apply(omp_schedule.children[1])
+
+        # Replace the original loop schedule with the transformed one
+        invoke._schedule = schedule
+
+        # Attempt to generate the transformed code
+        gen = str(psy.gen)
+
+        assert  '!$omp do schedule(guided,10)' in gen
+
+

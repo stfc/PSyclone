@@ -646,31 +646,15 @@ class OMPParallelDirective(OMPDirective):
             #                      "any OpenMP directives. This is probably "
             #                      "not what you want.")
 
-
-class OMPParallelDoDirective(OMPParallelDirective):
-
-    def view(self,indent = 0):
-        print self.indent(indent)+"Directive[OMP parallel do]"
-        for entity in self._children:
-            entity.view(indent = indent + 1)
-
-    def gen_code(self,parent):
-        from f2pygen import DirectiveGen
-
-        # We're not doing nested parallelism so make sure that this
-        # omp parallel do is not already within some parallel region
-        self._not_within_omp_parallel_region()
-
-        private_str = self.list_to_string(self._get_private_list())
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "default(shared), private({0})".\
-                                format(private_str)))
-        for child in self.children:
-            child.gen_code(parent)
-
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
-
 class OMPDoDirective(OMPDirective):
+
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
+        self._omp_schedule = omp_schedule
+        # Call the init method of the base class once we've stored
+        # the OpenMP schedule
+        OMPDirective.__init__(self,
+                              children=children,
+                              parent=parent)
 
     def view(self,indent = 0):
         print self.indent(indent)+"Directive[OMP do]"
@@ -690,8 +674,11 @@ class OMPDoDirective(OMPDirective):
 
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
-        # code of our children first.
-        parent.add(DirectiveGen(parent, "omp", "begin", "do", ""))
+        # list of private variables
+        parent.add(DirectiveGen(parent, 
+                                "omp", "begin", "do",
+                                "schedule({0})".\
+                                format(self._omp_schedule)))
 
         for child in self.children:
             child.gen_code(parent)
@@ -710,6 +697,34 @@ class OMPDoDirective(OMPDirective):
         raise GenerationError("OMPOrphanLoopDirective must have an "
                               "OMPRegionDirective as ancestor")
 
+class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
+    ''' Class for the !$OMP PARALLEL DO directive. This inherits from
+        both OMPParallelDirective (because it creates a new OpenMP
+        thread-parallel region) and OMPDoDirective (because it
+        causes a loop to be parallelised). '''
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP parallel do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel do is not already within some parallel region
+        self._not_within_omp_parallel_region()
+
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
+                                "default(shared), private({0}), "
+                                "schedule({1})".\
+                                format(private_str, self._omp_schedule)))
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
+
 class Loop(Node):
 
     @property
@@ -722,7 +737,8 @@ class Loop(Node):
         self._loop_type=value
 
     def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "", topology_name = "topology", valid_loop_types=[]):
+                 variable_name = "", topology_name = "topology", 
+                 valid_loop_types=[]):
 
         children = []
         # we need to determine whether this is an infrastructure or kernel

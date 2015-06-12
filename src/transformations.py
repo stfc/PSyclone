@@ -8,6 +8,8 @@
 
 from psyGen import Transformation
 
+VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
+
 class TransformationError(Exception):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''
@@ -95,9 +97,88 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
         return LoopFuseTrans.apply(self,node1,node2)
 
-class OMPParallelLoopTrans(Transformation):
+class OMPLoopTrans(Transformation):
 
-    ''' Adds an OpenMP PARALLEL directive to a loop. 
+    ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
+        must be inside the scope of some other OMP Parallel REGION. This
+        condition is tested at code-generation time. '''
+
+    @property
+    def omp_schedule(self):
+        return self._omp_schedule
+
+    @omp_schedule.setter
+    def omp_schedule(self, value):
+        # Some schedules have an optional chunk size following a ','
+        value_parts = value.split(',')
+        if value_parts[0].lower() not in VALID_OMP_SCHEDULES:
+            raise TransformationError("Valid OpenMP schedules are {0} "
+                                      "but got {1}".\
+                                      format(VALID_OMP_SCHEDULES,
+                                             value_parts[0]))
+        if len(value_parts) > 1:
+            if value_parts[0] == "auto":
+                raise TransformationError("Cannot specify a chunk size "
+                                          "when using an OpenMP schedule"
+                                          " of 'auto'")
+            elif value_parts[1].strip() == "":
+                raise TransformationError("Supplied OpenMP schedule '{0}'"
+                                          " has missing chunk-size.".
+                                          format(value))
+
+        self._omp_schedule = value
+
+    def __init__(self, omp_schedule="static"):
+        self.omp_schedule = omp_schedule
+        Transformation.__init__(self)
+
+    @property
+    def name(self):
+        return "OMPLoopTrans"
+
+    def __str__(self):
+        return "Adds an orphan OpenMP Do directive with no validity checks"
+
+    def apply(self, node):
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError("Cannot apply an OpenMP Loop "
+                                      "directive to something that is "
+                                      "not a loop")
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        # keep a reference to the node's original parent and its index as these
+        # are required and will change when we change the node's location
+        node_parent = node.parent
+        node_position = node.position
+
+        # add our orphan OpenMP loop directive setting its parent to
+        # the node's parent and its children to the node
+        from psyGen import OMPDoDirective
+        directive = OMPDoDirective(parent=node_parent,
+                                   children=[node],
+                                   omp_schedule=self.omp_schedule)
+
+        # add the OpenMP loop directive as a child of the node's parent
+        node_parent.addchild(directive, index=node_position)
+
+        # change the node's parent to be the loop directive
+        node.parent = directive
+
+        # remove the original loop
+        node_parent.children.remove(node)
+
+        return schedule, keep
+
+class OMPParallelLoopTrans(OMPLoopTrans):
+
+    ''' Adds an OpenMP PARALLEL DO directive to a loop. 
 
         For example:
 
@@ -122,12 +203,12 @@ class OMPParallelLoopTrans(Transformation):
     def __str__(self):
         return "Add an OpenMP PARALLEL DO directive with no validity checks"
 
-    def apply(self,node):
+    def apply(self, node):
 
         schedule=node.root
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
-        keep=Memento(schedule,self,[node])
+        keep=Memento(schedule, self, [node])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -137,56 +218,9 @@ class OMPParallelLoopTrans(Transformation):
         # add our OpenMP loop directive setting its parent to the node's
         # parent and its children to the node
         from psyGen import OMPParallelDoDirective
-        directive = OMPParallelDoDirective(parent=node_parent, 
-                                           children=[node] )
-
-        # add the OpenMP loop directive as a child of the node's parent
-        node_parent.addchild(directive, index = node_position)
-
-        # change the node's parent to be the loop directive
-        node.parent = directive
-
-        # remove the original loop
-        node_parent.children.remove(node)
-
-        return schedule,keep
-
-class OMPLoopTrans(Transformation):
-
-    ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
-        must be inside the scope of some OMP Parallel REGION. '''
-
-    @property
-    def name(self):
-        return "OMPLoopTrans"
-
-    def __str__(self):
-        return "Adds an orphan OpenMP Do directive with no validity checks"
-
-    def apply(self,node):
-        from psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Cannot apply an OpenMP Loop "
-                                      "directive to something that is "
-                                      "not a loop")
-
-        schedule = node.root
-
-        # create a memento of the schedule and the proposed
-        # transformation
-        from undoredo import Memento
-        keep = Memento(schedule, self, [node])
-
-        # keep a reference to the node's original parent and its index as these
-        # are required and will change when we change the node's location
-        node_parent = node.parent
-        node_position = node.position
-
-        # add our orphan OpenMP loop directive setting its parent to
-        # the node's parent and its children to the node
-        from psyGen import OMPDoDirective
-        directive = OMPDoDirective(parent=node_parent, 
-                                   children=[node] )
+        directive = OMPParallelDoDirective(parent=node_parent,
+                                           children=[node],
+                                           omp_schedule=self.omp_schedule)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
@@ -197,7 +231,7 @@ class OMPLoopTrans(Transformation):
         # remove the original loop
         node_parent.children.remove(node)
 
-        return schedule, keep
+        return schedule,keep
 
 class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
@@ -211,7 +245,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self,node):
+    def apply(self, node):
 
         ''' Perform Dynamo specific loop validity checks then call the parent
             class. '''
@@ -248,7 +282,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
-    def apply(self,node):
+    def apply(self, node):
 
         ''' Perform GOcean specific loop validity checks then call the parent
             class. '''
@@ -263,8 +297,8 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
-        return OMPParallelLoopTrans.apply(self,node)
-
+        return OMPParallelLoopTrans.apply(self,
+                                          node)
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
@@ -278,7 +312,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an orphaned OpenMP directive to a GOcean loop"
 
-    def apply(self,node):
+    def apply(self, node):
 
         ''' Perform GOcean specific loop validity checks then call the parent
             class. '''
@@ -293,7 +327,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
-        return OMPLoopTrans.apply(self,node)
+        return OMPLoopTrans.apply(self, node)
 
 class ColourTrans(Transformation):
 
