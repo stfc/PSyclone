@@ -24,7 +24,7 @@ class TestPSyGOcean1p0API:
     USE kind_params_mod
     IMPLICIT NONE
     CONTAINS
-    SUBROUTINE invoke_compute_cu(cu_fld, p_fld, u_fld)
+    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)
       USE compute_cu_mod, ONLY: compute_cu_code
       TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld
       INTEGER j
@@ -34,7 +34,7 @@ class TestPSyGOcean1p0API:
           CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO 
-    END SUBROUTINE invoke_compute_cu
+    END SUBROUTINE invoke_0_compute_cu
   END MODULE psy_single_invoke_test"""
 
         assert str(generated_code).find(expected_output) != -1
@@ -90,7 +90,7 @@ class TestPSyGOcean1p0API:
     USE kind_params_mod
     IMPLICIT NONE
     CONTAINS
-    SUBROUTINE invoke_next_sshu(cu_fld, u_fld)
+    SUBROUTINE invoke_0_next_sshu(cu_fld, u_fld)
       USE kernel_requires_grid_props, ONLY: next_sshu_code
       TYPE(r2d_field), intent(inout) :: cu_fld, u_fld
       INTEGER j
@@ -100,7 +100,7 @@ class TestPSyGOcean1p0API:
           CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
         END DO 
       END DO 
-    END SUBROUTINE invoke_next_sshu
+    END SUBROUTINE invoke_0_next_sshu
   END MODULE psy_single_invoke_with_grid_props_test"""
 
         assert str(generated_code).find(expected_output) != -1
@@ -119,7 +119,7 @@ class TestPSyGOcean1p0API:
     USE kind_params_mod
     IMPLICIT NONE
     CONTAINS
-    SUBROUTINE invoke_bc_ssh(ncycle, ssh_fld)
+    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)
       USE kernel_scalar_int, ONLY: bc_ssh_code
       TYPE(r2d_field), intent(inout) :: ssh_fld
       INTEGER, intent(inout) :: ncycle
@@ -130,6 +130,6 @@ class TestPSyGOcean1p0API:
           CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, ssh_fld%grid%tmask)
         END DO 
       END DO 
-    END SUBROUTINE invoke_bc_ssh
+    END SUBROUTINE invoke_0_bc_ssh
   END MODULE psy_single_invoke_scalar_int_test"""
         assert str(generated_code).find(expected_output) != -1

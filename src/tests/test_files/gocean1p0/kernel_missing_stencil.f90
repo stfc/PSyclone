@@ -1,9 +1,9 @@
 module kernel_missing_stencil
-  use kind_params_mod
-  use kernel_mod
-  use argument_mod
-  use field_mod
-  use grid_mod
+  !use kind_params_mod
+  !use kernel_mod
+  !use argument_mod
+  !use field_mod
+  !use grid_mod
   implicit none
 
   private

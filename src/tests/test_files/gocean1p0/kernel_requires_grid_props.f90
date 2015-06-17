@@ -1,9 +1,9 @@
 module kernel_requires_grid_props
-  use kind_params_mod
-  use kernel_mod
-  use argument_mod
-  use grid_mod
-  use field_mod
+  !use kind_params_mod
+  !use kernel_mod
+  !use argument_mod
+  !use grid_mod
+  !use field_mod
   implicit none
 
   !=======================================
