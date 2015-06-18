@@ -59,7 +59,7 @@ class Alg(object):
           from psyGen import Invoke
           invokeInfo=self._psy.invokes.invoke_list[idx]
           stmt.designator=invokeInfo.name
-          stmt.items=invokeInfo.orig_unique_args
+          stmt.items=invokeInfo.alg_unique_args
           adduse(psyName,stmt.parent,only=True,funcnames=[invokeInfo.name])
           idx+=1
 

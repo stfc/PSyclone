@@ -228,7 +228,6 @@ class KernelProcedure(object):
     def __str__(self):
         return self._ast.__str__()
 
-
 class KernelTypeFactory(object):
     def __init__(self,api=""):
         if api=="":
@@ -247,6 +246,9 @@ class KernelTypeFactory(object):
             return GHProtoKernelType(name,ast)
         elif self._type=="dynamo0.1":
             return DynKernelType(name,ast)
+        elif self._type=="dynamo0.3":
+            from dynamo0p3 import DynKernelType03
+            return DynKernelType03(name,ast)
         elif self._type=="gocean0.1":
             return GOKernelType(name,ast)
         elif self._type=="gocean1.0":
@@ -273,23 +275,23 @@ class KernelType(object):
         self._inits=self.getkerneldescriptors(self._ktype)
         self._arg_descriptors=None # this is set up by the subclasses
         
-    def getkerneldescriptors(self,ast):
-        descs = ast.get_variable('meta_args')
+    def getkerneldescriptors(self,ast, var_name='meta_args'):
+        descs = ast.get_variable(var_name)
         if descs is None:
-            raise ParseError("kernel call does not contain a meta_args type")
+            raise ParseError("kernel call does not contain a {0} type".format(var_name))
         try:
             nargs=int(descs.shape[0])
         except AttributeError as e:
-            raise ParseError("kernel metadata {0}: meta_args variable must be an array".format(self._name))
+            raise ParseError("kernel metadata {0}: {1} variable must be an array".format(self._name, var_name))
         if len(descs.shape) is not 1:
-            raise ParseError("kernel metadata {0}: meta_args variable must be a 1 dimensional array".format(self._name))
+            raise ParseError("kernel metadata {0}: {1} variable must be a 1 dimensional array".format(self._name, var_name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
-            raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
+            raise ParseError("Parser does not currently support [...] initialisation for {0}, please use (/.../) instead".format(var_name))
         inits = expr.expression.parseString(descs.init)[0]
         nargs=int(descs.shape[0])
         if len(inits) != nargs:
-            raise ParseError("Error, in meta_args specification, the number of args %s and number of dimensions %s do not match" % (nargs,len(inits)))
+            raise ParseError("Error, in {0} specification, the number of args {1} and number of dimensions {2} do not match".format(var_name, nargs, len(inits)))
         return inits
 
     @property
@@ -343,7 +345,7 @@ class KernelType(object):
                and statement.name == name:
                 ktype = statement
         if ktype is None:
-            raise RuntimeError("Kernel type %s not implemented" % name)
+            raise RuntimeError("Kernel type %s does not exist" % name)
         return ktype
 
 class DynKernelType(KernelType):
@@ -426,8 +428,12 @@ class KernelCall(object):
         self._module_name = module_name
         self._ktype = ktype
         self._args = args
-        if self._ktype.nargs != len(self._args):
-            raise ParseError("Kernel %s called with incorrect number of arguments (%d not %d)" % (self._ktype, len(self._args), self._ktype.nargs))
+        if len(self._args) < self._ktype.nargs:
+            # we cannot test for equality here as API's may have extra arguments
+            # passed in from the algorithm layer (e.g. 'QR' in dynamo0.3), but
+            # we do expect there to be at least the same number of real
+            # arguments as arguments specified in the metadata.
+            raise ParseError("Kernel '{0}' called from the algorithm layer with an insufficient number of arguments as specified by the metadata. Expected at least '{1}' but found '{2}'.".format(self._ktype.name, self._ktype.nargs, len(self._args)))
 
     @property
     def ktype(self):
@@ -450,20 +456,24 @@ class KernelCall(object):
         
 class Arg(object):
     ''' Descriptions of an argument '''
-    def __str__(self):
-        return 'Arg.value = '+self._value+', Arg.form = '+self._form
-    def __init__(self,form,value):
-        formOptions=["literal","variable"]
+    def __init__(self,form,text,varName=None):
+        formOptions=["literal","variable","indexed_variable"]
         self._form=form
-        self._value=value
+        self._text=text
+        self._varName=varName
         if form not in formOptions:
             raise ParseError("Unknown arg type provided. Expected one of {0} but found {1}".format(str(formOptions),form))
+    def __str__(self):
+        return "Arg(form='{0}',text='{1}',varName='{2}'".format(self._form, self._text, str(self._varName))
     @property
     def form(self):
         return self._form
     @property
-    def value(self):
-        return self._value
+    def text(self):
+        return self._text
+    @property
+    def varName(self):
+        return self._varName
     def is_literal(self):
         if self._form=="literal":
             return True
@@ -580,7 +590,16 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     if type(a) is str: # a literal is being passed by argument
                         argargs.append(Arg('literal',a))
                     else: # assume argument parsed as a FunctionVar
-                        argargs.append(Arg('variable',a.name))
+                        variableName = a.name
+                        if a.args is not None:
+                            # argument is an indexed array so extract the full text
+                            fullText = ""
+                            for tok in a.walk_skipping_name():
+                                fullText+=str(tok)
+                            argargs.append(Arg('indexed_variable',fullText,variableName))
+                        else:
+                            # argument is a standard variable
+                            argargs.append(Arg('variable',variableName,variableName))
                 if argname in ['set']: # this is an infrastructure call
                     statement_kcalls.append(InfCall(inf_name,argname,argargs))
                 else:
@@ -605,6 +624,11 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     if len(kernel_path) > 0:
                         cdir = os.path.abspath(kernel_path)
 
+                        if not os.access(cdir, os.R_OK):
+                            raise IOError("Supplied kernel search path does not "
+                                          "exist or cannot be read: {0}".\
+                                          format(cdir))
+
                         # We recursively search down through the directory
                         # tree starting at the specified path
                         if os.path.exists(cdir):
@@ -625,12 +649,17 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # Check that we only found one match
                     if len(matches) != 1:
                         if len(matches) == 0:
-                            raise IOError("Kernel file '{0}.[fF]90' not found in {1}".format(modulename, cdir))
+                            raise IOError("Kernel file '{0}.[fF]90' not found in {1}".\
+                                          format(modulename, cdir))
                         else:
-                            raise IOError("More than one match for kernel file '{0}.[fF]90' found!".format(modulename))
+                            raise IOError("More than one match for kernel file "
+                                          "'{0}.[fF]90' found!".format(modulename))
                     else:
                         modast = fpapi.parse(matches[0])
 
-                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
+                    statement_kcalls.append(KernelCall(modulename, 
+                                                       KernelTypeFactory(api=api).\
+                                                       create(argname, modast),
+                                                       argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)

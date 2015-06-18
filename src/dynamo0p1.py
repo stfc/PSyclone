@@ -66,12 +66,12 @@ class DynInvoke(Invoke):
         from f2pygen import SubroutineGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_var_names)
         self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.unique_args,
+                                  entity_decls = self.psy_unique_var_names,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
 

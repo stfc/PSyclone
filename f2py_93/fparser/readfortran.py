@@ -1108,6 +1108,10 @@ class FortranReaderBase(object):
                         have_comment = True
                         line = get_single_line()
                         continue
+                    elif line_lstrip == "":
+                        # skip blank lines within a line continuation
+                        line = get_single_line()
+                        continue
                 else:
                     # first line, check for a label
                     m = _label_re.match(line)

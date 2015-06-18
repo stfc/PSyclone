@@ -101,7 +101,7 @@ class GOInvoke(Invoke):
         from f2pygen import SubroutineGen, DeclGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_var_names)
         parent.add(invoke_sub)
         self.schedule.gen_code(invoke_sub)
         # add the subroutine argument declarations for arrays
