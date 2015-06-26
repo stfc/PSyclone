@@ -110,6 +110,13 @@ class OMPLoopTrans(Transformation):
         must be inside the scope of some other OMP Parallel REGION. This
         condition is tested at code-generation time. '''
 
+    def __str__(self):
+        return "Adds an 'OpenMP DO' directive to a loop"
+
+    @property
+    def name(self):
+        return "OMPLoopTrans"
+
     @property
     def omp_schedule(self):
         return self._omp_schedule
@@ -138,13 +145,6 @@ class OMPLoopTrans(Transformation):
     def __init__(self, omp_schedule="static"):
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
-
-    @property
-    def name(self):
-        return "OMPLoopTrans"
-
-    def __str__(self):
-        return "Adds an orphan OpenMP Do directive with no validity checks"
 
     def apply(self, node):
         from psyGen import Loop
@@ -209,7 +209,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         return "OMPParallelLoopTrans"
 
     def __str__(self):
-        return "Add an OpenMP PARALLEL DO directive with no validity checks"
+        return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
     def apply(self, node):
 
@@ -321,7 +321,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         return "GOceanOMPLoopTrans"
 
     def __str__(self):
-        return "Add an orphaned OpenMP directive to a GOcean loop"
+        return "Add an OpenMP DO directive to a GOcean loop"
 
     def apply(self, node):
 
