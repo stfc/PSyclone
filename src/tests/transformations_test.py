@@ -10,7 +10,9 @@ from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError,\
                             LoopFuseTrans, OMPParallelTrans,\
-                            GOceanLoopFuseTrans, GOceanOMPParallelLoopTrans
+                            GOceanLoopFuseTrans,\
+                            GOceanOMPParallelLoopTrans,\
+                            GOceanOMPLoopTrans
 from generator import GenerationError
 import os
 import pytest
@@ -67,7 +69,7 @@ class TestTransformationsDynamo0p1:
         schedule = invoke.schedule
         rtrans = OMPParallelTrans()
         new_schedule, memento = rtrans.apply(schedule.children[0])
-        invoke._schedule = new_schedule
+        invoke.schedule = new_schedule
         gen = str(psy.gen)
         print gen
 
@@ -222,7 +224,7 @@ class TestTransformationsGOcean0p1:
         omp1_schedule, memento = ompf.apply(lf4_schedule.children[0])
 
         # Replace the original loop schedule with the transformed one
-        psy.invokes.get('invoke_0')._schedule = omp1_schedule
+        psy.invokes.get('invoke_0').schedule = omp1_schedule
 
         # Store the results of applying this code transformation as
         # a string
@@ -261,21 +263,21 @@ class TestTransformationsGOcean0p1:
 
     def test_openmp_loop_trans(self):
         ''' test of the OpenMP transformation of an all-points loop '''
-        ast, info = parse(os.path.join(os.path.
-                                       dirname(os.path.abspath(__file__)),
-                                       "test_files", "gocean0p1",
-                                       "openmp_fuse_test.f90"),
-                          api="gocean0.1")
+        _, info = parse(os.path.join(os.path.
+                                     dirname(os.path.abspath(__file__)),
+                                     "test_files", "gocean0p1",
+                                     "openmp_fuse_test.f90"),
+                        api="gocean0.1")
         psy = PSyFactory("gocean0.1").create(info)
         invokes = psy.invokes
         invoke = invokes.get('invoke_0')
         schedule = invoke.schedule
         ompf = GOceanOMPParallelLoopTrans()
 
-        omp1_schedule, memento = ompf.apply(schedule.children[0])
+        omp1_schedule, _ = ompf.apply(schedule.children[0])
 
         # Replace the original loop schedule with the transformed one
-        psy.invokes.get('invoke_0')._schedule = omp1_schedule
+        psy.invokes.get('invoke_0').schedule = omp1_schedule
 
         # Store the results of applying this code transformation as
         # a string
@@ -299,16 +301,19 @@ class TestTransformationsGOcean0p1:
             inner_do_idx-outer_do_idx == 1
 
 
-class TestTransformationsGOcean1p0:
+class TestTransformationsGOcean1p0(object):
 
-    def get_invoke(self, file, idx):
+    ''' Class to contain the tests for transformations for the
+        GOcean 1.0 API '''
+
+    def get_invoke(self, algfile, idx):
         ''' Utility method to get the idx'th invoke from the algorithm
             specified in file '''
-        ast, info = parse(os.path.
-                          join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "gocean1p0",
-                               file),
-                          api="gocean1.0")
+        _, info = parse(os.path.
+                        join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "gocean1p0",
+                             algfile),
+                        api="gocean1.0")
         psy = PSyFactory("gocean1.0").create(info)
         invokes = psy.invokes
         # invokes does not have a method by which to request the i'th
@@ -320,29 +325,27 @@ class TestTransformationsGOcean1p0:
     def test_loop_fuse_different_iterates_over(self):
         ''' Test that an appropriate error is raised when we attempt to
             fuse two loops that have differing values of ITERATES_OVER '''
-        psy, invoke = self.get_invoke("test11_different_iterates_over_"
-                                      "one_invoke.f90", 0)
+        _, invoke = self.get_invoke("test11_different_iterates_over_"
+                                    "one_invoke.f90", 0)
         schedule = invoke.schedule
         lftrans = LoopFuseTrans()
 
         # Attempt to fuse two loops that are iterating over different
         # things
         with pytest.raises(TransformationError):
-            lf1_schedule, memento = lftrans.apply(schedule.children[0],
-                                                  schedule.children[1])
+            _, _ = lftrans.apply(schedule.children[0],
+                                 schedule.children[1])
 
     def test_openmp_region_with_wrong_arg_type(self):
         ''' Test that the OpenMP PARALLEL region transformation
             raises an appropriate error if passed something that is not
             a list of Nodes or a single Node. '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
 
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
 
         with pytest.raises(TransformationError):
-            omp_schedule, memento = ompr.apply(invoke)
+            _, _ = ompr.apply(invoke)
 
     def test_openmp_region_with_single_loop(self):
         ''' Test that we can pass the OpenMP PARALLEL region transformation
@@ -350,13 +353,12 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
 
-        omp_schedule, memento = ompr.apply(schedule.children[1])
+        omp_schedule, _ = ompr.apply(schedule.children[1])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
@@ -381,13 +383,12 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
 
-        omp_schedule, memento = ompr.apply(schedule.children[1:])
+        omp_schedule, _ = ompr.apply(schedule.children[1:])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
@@ -411,11 +412,10 @@ class TestTransformationsGOcean1p0:
             a list of nodes specified as node.children '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
-        omp_schedule, memento = ompr.apply(schedule.children)
+        omp_schedule, _ = ompr.apply(schedule.children)
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
@@ -440,13 +440,12 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
 
-        omp_schedule, memento = ompr.apply(schedule.children[1:])
+        omp_schedule, _ = ompr.apply(schedule.children[1:])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
@@ -467,20 +466,19 @@ class TestTransformationsGOcean1p0:
         # Kernels should be in order {compute_cu, compute_cv, time_smooth}
         assert cu_idx < cv_idx and cv_idx < ts_idx
 
-    def test_openmp_region_retains_kernel_order2(self):
+    def test_omp_region_retains_kernel_order2(self):
         ''' Test that applying the OpenMP PARALLEL region transformation
             to a sub-set of nodes (first 2 of 3) does not change their
             ordering '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
 
-        omp_schedule, memento = ompr.apply(schedule.children[0:2])
+        omp_schedule, _ = ompr.apply(schedule.children[0:2])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
@@ -508,18 +506,17 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompr = OMPParallelTrans()
         ompl = GOceanOMPLoopTrans()
 
         # Put an OMP Do around the 2nd loop of the schedule
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Put an OMP Parallel around that single OMP Do
-        schedule, memento = ompr.apply([omp_schedule.children[1]])
+        schedule, _ = ompr.apply([omp_schedule.children[1]])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
@@ -540,29 +537,27 @@ class TestTransformationsGOcean1p0:
         # Kernels should be in order {compute_cu, compute_cv, time_smooth}
         assert cu_idx < cv_idx and cv_idx < ts_idx
 
-    def test_openmp_region_before_loops_trans(self):
+    def test_omp_region_before_loops_trans(self):
         ''' Test of the OpenMP PARALLEL region transformation where
             we do the region transformation before the loop
             transformations. '''
         psy, invoke = self.get_invoke("single_invoke_two_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
-
         # Put all of the loops in the schedule within a single
         # OpenMP region
         ompr = OMPParallelTrans()
-        omp_schedule, memento = ompr.apply(schedule.children)
+        omp_schedule, _ = ompr.apply(schedule.children)
 
         # Put an OpenMP do directive around each loop contained
         # in the region
         ompl = GOceanOMPLoopTrans()
         for child in omp_schedule.children[0].children:
-            schedule, memento = ompl.apply(child)
+            schedule, _ = ompl.apply(child)
             omp_schedule = schedule
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
 
         # Store the results of applying this code transformation as
         # a string
@@ -583,27 +578,25 @@ class TestTransformationsGOcean1p0:
         assert omp_do_idx != -1
         assert omp_do_idx - omp_region_idx == 1
 
-    def test_openmp_region_after_loops_trans(self):
+    def test_omp_region_after_loops_trans(self):
         ''' Test of the OpenMP PARALLEL region transformation where we
             do the loop transformations before the region transformation '''
         psy, invoke = self.get_invoke("single_invoke_two_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
-
         # Put an OpenMP do directive around each loop contained
         # in the schedule
         ompl = GOceanOMPLoopTrans()
         for child in schedule.children:
-            omp_schedule, memento = ompl.apply(child)
+            omp_schedule, _ = ompl.apply(child)
 
         # Now put an OpenMP parallel region around that set of
         # loops
         ompr = OMPParallelTrans()
-        schedule, memento = ompr.apply(omp_schedule.children)
+        schedule, _ = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Store the results of applying this code transformation as
         # a string
@@ -634,21 +627,19 @@ class TestTransformationsGOcean1p0:
         import copy
         orig_schedule = copy.deepcopy(schedule)
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
-
         # Put an OpenMP do directive around each loop contained
         # in the schedule
         ompl = GOceanOMPLoopTrans()
         for child in schedule.children:
-            omp_schedule, memento = ompl.apply(child)
+            omp_schedule, _ = ompl.apply(child)
 
         # Now put an OpenMP parallel region around that set of
         # loops
         ompr = OMPParallelTrans()
-        schedule, memento = ompr.apply(omp_schedule.children)
+        schedule, _ = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Store the results of applying this code transformation as
         # a string
@@ -660,17 +651,17 @@ class TestTransformationsGOcean1p0:
         # OpenMP region
         schedule = orig_schedule
         ompr = OMPParallelTrans()
-        omp_schedule, memento = ompr.apply(schedule.children)
+        omp_schedule, _ = ompr.apply(schedule.children)
 
         # Put an OpenMP do directive around each loop contained
         # in the region
         ompl = GOceanOMPLoopTrans()
         for child in omp_schedule.children[0].children:
-            schedule, memento = ompl.apply(child)
+            schedule, _ = ompl.apply(child)
             omp_schedule = schedule
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = omp_schedule
+        invoke.schedule = omp_schedule
 
         # Store the results of applying this code transformation as
         # a string
@@ -678,56 +669,51 @@ class TestTransformationsGOcean1p0:
 
         assert region_before_loop_gen == loop_before_region_gen
 
-    def test_openmp_region_nodes_not_children_of_same_parent(self):
+    def test_omp_region_nodes_not_children_of_same_parent(self):
         ''' Test that we raise appropriate error if user attempts
             to put a region around nodes that are not children of
             the same parent '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans,\
-            GOceanOMPParallelLoopTrans
         ompl = GOceanOMPParallelLoopTrans()
         ompr = OMPParallelTrans()
 
         # Put an OpenMP parallel do around the first loop in the schedule
-        lschedule, memento = ompl.apply(schedule.children[0])
+        _, _ = ompl.apply(schedule.children[0])
 
         # Attempt to put an OpenMP parallel region around that same loop
         # (which is now a child of an OpenMP loop directive) and the
         # second loop in the schedule
         with pytest.raises(TransformationError):
-            rschedule, memento = ompr.apply([schedule.children[0].children[0],
+            _, _ = ompr.apply([schedule.children[0].children[0],
                                              schedule.children[1]])
 
-    def test_openmp_region_nodes_not_children_of_same_schedule(self):
+    def test_omp_region_nodes_not_children_of_same_schedule(self):
         ''' Test that we raise appropriate error if user attempts
             to put a region around nodes that are not children of
             the same schedule '''
-        psy1, invoke1 = self.get_invoke("test12_two_invokes_two_kernels.f90",
-                                        0)
+        _, invoke1 = self.get_invoke("test12_two_invokes_two_kernels.f90",
+                                     0)
         schedule1 = invoke1.schedule
-        psy2, invoke2 = self.get_invoke("test12_two_invokes_two_kernels.f90",
-                                        1)
+        _, invoke2 = self.get_invoke("test12_two_invokes_two_kernels.f90",
+                                     1)
         schedule2 = invoke2.schedule
 
-        from transformations import OMPParallelTrans
         ompr = OMPParallelTrans()
 
         # Attempt to put an OpenMP parallel region the loops from the
         # two different schedules
         with pytest.raises(TransformationError):
-            rschedule, memento = ompr.apply([schedule1.children[0],
-                                             schedule2.children[0]])
+            _, _ = ompr.apply([schedule1.children[0],
+                               schedule2.children[0]])
 
-    def test_openmp_orphan_loop_outside_region(self):
+    def test_omp_loop_outside_region(self):
         ''' Test that a generation error is raised if we try and
             have an orphaned OpenMP loop that is not enclosed
             within a parallel region '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
-
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
 
         # Put an OpenMP do directive around each loop contained
         # in the schedule
@@ -735,57 +721,56 @@ class TestTransformationsGOcean1p0:
         ompr = OMPParallelTrans()
 
         for child in schedule.children:
-            omp_schedule, memento = ompl.apply(child)
+            omp_schedule, _ = ompl.apply(child)
 
         # Now enclose all but the last loop in a parallel region
-        ompr_schedule, memento = ompr.apply(omp_schedule.children[0:-2])
+        ompr_schedule, _ = ompr.apply(omp_schedule.children[0:-2])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = ompr_schedule
+        invoke.schedule = ompr_schedule
 
         # Attempt to generate the transformed code
         with pytest.raises(GenerationError):
-            gen = psy.gen
+            _ = psy.gen
 
-    def test_omp_orphan_loop_applied_to_non_loop(self):
+    def test_omp_loop_applied_to_non_loop(self):
         ''' Test that we raise a TransformationError if we attempt
             to apply an OMP DO transformation to something that
             is not a loop '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
         from transformations import OMPLoopTrans
         ompl = OMPLoopTrans()
-        omp_schedule, memento = ompl.apply(schedule.children[0])
+        omp_schedule, _ = ompl.apply(schedule.children[0])
 
         # Attempt to (erroneously) apply the OMP Loop transformation
         # to the first node in the schedule (which is now itself an
         # OMP Loop transformation)
         with pytest.raises(TransformationError):
-            schedule, memento = ompl.apply(omp_schedule.children[0])
+            _, _ = ompl.apply(omp_schedule.children[0])
 
-    def test_gocean_omp_loop_applied_to_non_loop(self):
+    def test_go_omp_loop_applied_to_non_loop(self):
         ''' Test that we raise a TransformationError if we attempt
             to apply a GOcean OMP DO transformation to something that
             is not a loop '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans()
-        omp_schedule, memento = ompl.apply(schedule.children[0])
+        omp_schedule, _ = ompl.apply(schedule.children[0])
 
         # Attempt to (erroneously) apply the GO OMP Loop transformation
         # to the first node in the schedule (which is now itself an
         # OMP Loop transformation)
         with pytest.raises(TransformationError):
-            schedule, memento = ompl.apply(omp_schedule.children[0])
+            _, _ = ompl.apply(omp_schedule.children[0])
 
-    def test_gocean_omp_loop_applied_to_wrong_loop_type(self):
+    def test_go_omp_loop_applied_to_wrong_loop_type(self):
         ''' Test that we raise a TransformationError if we attempt to
             apply a GOcean OMP  DO transformation to a loop of
             the wrong type '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
         # Manually break the loop-type of the first loop in order to
@@ -794,35 +779,33 @@ class TestTransformationsGOcean1p0:
         # too!
         schedule.children[0]._loop_type = "wrong"
 
-        from transformations import GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans()
         # Attempt to apply the transformation to the loop that has been
         # given an incorrect type
         with pytest.raises(TransformationError):
-            omp_schedule, memento = ompl.apply(schedule.children[0])
+            _, _ = ompl.apply(schedule.children[0])
 
-    def test_gocean_omp_parallel_loop_applied_to_non_loop(self):
+    def test_go_omp_parallel_loop_applied_to_non_loop(self):
         ''' Test that we raise a TransformationError if we attempt to
             apply a GOcean OMP Parallel DO transformation to something that
             is not a loop '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import GOceanOMPParallelLoopTrans
         ompl = GOceanOMPParallelLoopTrans()
-        omp_schedule, memento = ompl.apply(schedule.children[0])
+        omp_schedule, _ = ompl.apply(schedule.children[0])
 
         # Attempt to (erroneously) apply the OMP Loop transformation
         # to the first node in the schedule (which is now itself an
         # OMP Loop transformation)
         with pytest.raises(TransformationError):
-            schedule, memento = ompl.apply(omp_schedule.children[0])
+            _, _ = ompl.apply(omp_schedule.children[0])
 
-    def test_gocean_omp_parallel_loop_applied_to_wrong_loop_type(self):
+    def test_go_omp_parallel_loop_applied_to_wrong_loop_type(self):
         ''' Test that we raise a TransformationError if we attempt to
             apply a GOcean OMP Parallel DO transformation to a loop of
             the wrong type '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
         # Manually break the loop-type of the first loop in order to
@@ -831,132 +814,123 @@ class TestTransformationsGOcean1p0:
         # too!
         schedule.children[0]._loop_type = "wrong"
 
-        from transformations import GOceanOMPParallelLoopTrans
         ompl = GOceanOMPParallelLoopTrans()
         # Attempt to apply the transformation to the loop that has been
         # given an incorrect type
         with pytest.raises(TransformationError):
-            omp_schedule, memento = ompl.apply(schedule.children[0])
+            _, _ = ompl.apply(schedule.children[0])
 
-    def test_openmp_parallel_do_inside_parallel_region(self):
+    def test_omp_parallel_do_inside_parallel_region(self):
         ''' Test that a generation error is raised if we attempt
             to have an OpenMP parallel do within an OpenMP
             parallel region '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans,\
-            GOceanOMPParallelLoopTrans
         ompl = GOceanOMPParallelLoopTrans()
         ompr = OMPParallelTrans()
 
         # Put an OpenMP parallel do directive around all of the loops
         for child in schedule.children:
-            omp_schedule, memento = ompl.apply(child)
+            omp_schedule, _ = ompl.apply(child)
 
         # Now enclose all of the children within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children)
+        schedule, _ = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         with pytest.raises(GenerationError):
-            gen = psy.gen
+            _ = psy.gen
 
-    def test_openmp_parallel_region_inside_parallel_do(self):
+    def test_omp_parallel_region_inside_parallel_do(self):
         ''' Test that a generation error is raised if we attempt
             to have an OpenMP parallel region within an OpenMP
             parallel do (with the latter applied first) '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        _, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans,\
-            GOceanOMPParallelLoopTrans
         ompl = GOceanOMPParallelLoopTrans()
         ompr = OMPParallelTrans()
 
         # Put an OpenMP parallel do directive around one of the loops
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        _, _ = ompl.apply(schedule.children[1])
 
         # Now attempt to put a parallel region inside that parallel do
         with pytest.raises(TransformationError):
-            schedule, memento = ompr.apply([schedule.children[1].children[0]])
+            _, _ = ompr.apply([schedule.children[1].children[0]])
 
-    def test_openmp_parallel_do_around_parallel_region(self):
+    def test_omp_parallel_do_around_parallel_region(self):
         ''' Test that a generation error is raised if we attempt
             to have an OpenMP parallel region around an OpenMP
             parallel do (with the latter applied second) '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans,\
-            GOceanOMPParallelLoopTrans
         ompl = GOceanOMPParallelLoopTrans()
         ompr = OMPParallelTrans()
 
         # Put a parallel region around two of the loops
-        omp_schedule, memento = ompr.apply(schedule.children[0:2])
+        omp_schedule, _ = ompr.apply(schedule.children[0:2])
 
         # Put an OpenMP parallel do directive around one of those loops
         # (which is now a child of the region directive)
-        schedule, memento = ompl.apply(omp_schedule.children[0].children[0])
+        schedule, _ = ompl.apply(omp_schedule.children[0].children[0])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         with pytest.raises(GenerationError):
-            gen = psy.gen
+            _ = psy.gen
 
     @pytest.mark.xfail(reason="OMP Region with children of different types "
                        "not yet implemented")
-    def test_openmp_region_with_children_of_different_types(self):
+    def test_omp_region_with_children_of_different_types(self):
         ''' Test that we can generate code if we have an
             OpenMP parallel region enclosing children of different types. '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans()
         ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Now enclose all of the children within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children)
+        schedule, _ = ompr.apply(omp_schedule.children)
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
-        gen = psy.gen
+        _ = psy.gen
 
-    def test_openmp_do_schedule_default_static(self):
+    def test_omp_schedule_default_static(self):
         ''' Test that if no OMP schedule is specified then we default
             to "static" '''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans()
         ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop without specifying
         # the OMP schedule to use
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Now enclose it within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children[1])
+        schedule, _ = ompr.apply(omp_schedule.children[1])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         gen = str(psy.gen)
 
-        assert  '!$omp do schedule(static)' in gen
+        assert '!$omp do schedule(static)' in gen
 
     def test_openmp_do_schedule_runtime(self):
         ''' Test that we can specify the schedule of an OMP do as
@@ -964,23 +938,22 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans(omp_schedule="runtime")
         ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Now enclose it within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children[1])
+        schedule, _ = ompr.apply(omp_schedule.children[1])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         gen = str(psy.gen)
 
-        assert  '!$omp do schedule(runtime)' in gen
+        assert '!$omp do schedule(runtime)' in gen
 
     def test_openmp_do_schedule_dynamic(self):
         ''' Test that we can specify the schedule of an OMP do as
@@ -988,23 +961,22 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans(omp_schedule="dynamic")
         ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Now enclose it within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children[1])
+        schedule, _ = ompr.apply(omp_schedule.children[1])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         gen = str(psy.gen)
 
-        assert  '!$omp do schedule(dynamic)' in gen
+        assert '!$omp do schedule(dynamic)' in gen
 
     def test_openmp_do_schedule_guided(self):
         ''' Test that we can specify the schedule of an OMP do as
@@ -1012,76 +984,60 @@ class TestTransformationsGOcean1p0:
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans(omp_schedule="guided")
         ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Now enclose it within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children[1])
+        schedule, _ = ompr.apply(omp_schedule.children[1])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         gen = str(psy.gen)
 
-        assert  '!$omp do schedule(guided)' in gen
+        assert '!$omp do schedule(guided)' in gen
 
-    def test_openmp_do_schedule_guided_with_empty_chunk(self):
+    def test_omp_schedule_guided_with_empty_chunk(self):
         ''' Test that we raise an appropriate error if we miss off
             the chunksize '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
-
-        from transformations import GOceanOMPLoopTrans
         with pytest.raises(TransformationError):
-            ompl = GOceanOMPLoopTrans(omp_schedule="guided, ")
+            _ = GOceanOMPLoopTrans(omp_schedule="guided, ")
 
-    def test_openmp_do_schedule_guided_with_chunk(self):
+    def test_omp_schedule_guided_with_chunk(self):
         ''' Test that we can specify the schedule of an OMP do as
             "guided,n" where n is some chunk size'''
         psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
         schedule = invoke.schedule
 
-        from transformations import OMPParallelTrans, GOceanOMPLoopTrans
         ompl = GOceanOMPLoopTrans(omp_schedule="guided,10")
         ompr = OMPParallelTrans()
 
         # Put an OpenMP do directive around one loop
-        omp_schedule, memento = ompl.apply(schedule.children[1])
+        omp_schedule, _ = ompl.apply(schedule.children[1])
 
         # Now enclose it within a parallel region
-        schedule, memento = ompr.apply(omp_schedule.children[1])
+        schedule, _ = ompr.apply(omp_schedule.children[1])
 
         # Replace the original loop schedule with the transformed one
-        invoke._schedule = schedule
+        invoke.schedule = schedule
 
         # Attempt to generate the transformed code
         gen = str(psy.gen)
 
-        assert  '!$omp do schedule(guided,10)' in gen
+        assert '!$omp do schedule(guided,10)' in gen
 
-    def test_openmp_do_invalid_schedule(self):
-        ''' Test that we raise an appropriate error if we specify
-            an invalid omp schedule '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
+def test_omp_invalid_schedule():
+    ''' Test that we raise an appropriate error if we specify
+    an invalid omp schedule '''
+    with pytest.raises(TransformationError):
+        _ = GOceanOMPLoopTrans(omp_schedule="rubbish")
 
-        from transformations import GOceanOMPLoopTrans
-        with pytest.raises(TransformationError):
-            ompl = GOceanOMPLoopTrans(omp_schedule="rubbish")
-
-    def test_openmp_do_schedule_auto_with_chunk(self):
-        ''' Test that we raise an appropriate error if we specify
-            the omp schedule as "auto" but try to provide a chunk size '''
-        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
-        schedule = invoke.schedule
-
-        from transformations import GOceanOMPLoopTrans
-        with pytest.raises(TransformationError):
-            ompl = GOceanOMPLoopTrans(omp_schedule="auto,4")
-
-
+def test_omp_schedule_auto_with_chunk():
+    ''' Test that we raise an appropriate error if we specify
+    the omp schedule as "auto" but try to provide a chunk size '''
+    with pytest.raises(TransformationError):
+        _ = GOceanOMPLoopTrans(omp_schedule="auto,4")
