@@ -69,7 +69,7 @@ def string_replace_map(line, lower=False,
     items = []
     expr_keys = []
     for item in splitparen(newline):
-        if isinstance(item, ParenString) and not _is_name(item[1:-1]):
+        if isinstance(item, ParenString) and not _is_name(item[1:-1].strip()):
             key = rev_string_map.get(item)
             if key is None:
                 _cache['pindex'] += 1

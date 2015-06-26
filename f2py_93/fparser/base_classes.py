@@ -838,7 +838,12 @@ class EndStatement(Statement):
         else:
             name = self.parent.name
         if line:
-            if line!=name:
+            # line variable is already cast to lower case so would fail if any
+            # upper case letters exist in the label. Also, fortran is case
+            # insensitive anyway so we should assume labels may have a
+            # different case and therefore cast both to the same case in our
+            # equivalence test.
+            if line.lower()!=name.lower():
                 self.warning(\
                     'expected the end of %r block but got the end of %r, skipping.'\
                     % (name, line))

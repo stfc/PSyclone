@@ -42,7 +42,7 @@ def split_comma(line, item = None, comma=',', keep_empty=False):
             if not s and not keep_empty: continue
             items.append(s)
         return items
-    if not line:
+    if not line.strip(): # we may have blank space so strip the line
         return []
     newitem = item.copy(line, True)
     apply_map = newitem.apply_map

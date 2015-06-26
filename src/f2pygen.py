@@ -174,7 +174,83 @@ class BaseGen(object):
             print "code for final location ",str(parent.content[index])
         return local_current, parent.content[index]
 
-class ModuleGen(BaseGen):
+class ProgUnitGen(BaseGen):
+    ''' functionality relevant to program units (currently modules, subroutines) '''
+    def __init__(self,parent, sub):
+        BaseGen.__init__(self,parent,sub)
+
+    def add(self,content,position=["auto"]):
+        '''specialise the add method to provide module and subroutine
+           specific intelligent adding of use statements and declarations
+           if the position argument is set to auto (which is the default) '''
+        # content may have been passed on so make me the parent
+        if content.root.parent!=self.root:
+            content.root.parent=self.root
+        from fparser.typedecl_statements import TypeDeclarationStatement
+        import fparser
+        if position[0]!="auto": # position[0] is not 'auto' so the baseclass can deal with it
+            BaseGen.add(self,content,position)
+        else: # position[0]=="auto" so insert in a context sensitive way
+
+            if isinstance(content,DeclGen) or isinstance(content,TypeDeclGen):
+                # have I already been declared?
+                for child in self._children:
+                    if isinstance(child,DeclGen) or isinstance(child,TypeDeclGen):
+                        for var_name in content.root.entity_decls[:]: # take a copy of the list as we are deleting elements of the original
+                            for child_name in child.root.entity_decls:
+                                if var_name.lower()==child_name.lower():
+                                    content.root.entity_decls.remove(var_name)
+                                    if len(content.root.entity_decls)==0:
+                                        return # return as all variables in this declaration already exists
+                # skip over any use statements
+                index=0
+                while isinstance(self.root.content[index],fparser.statements.Use):
+                    index+=1
+                # skip over any declarations which have an intent
+                try:
+                    intent=True
+                    while intent:
+                        intent=False
+                        for attr in self.root.content[index].attrspec:
+                            if attr.find("intent")==0:
+                                intent=True
+                                index+=1
+                                break
+                except AttributeError:
+                    pass
+                except Exception:
+                    raise
+            elif isinstance(content.root,fparser.statements.Use):
+                # have I already been declared?
+                for child in self._children:
+                    if isinstance(child,UseGen):
+                        if child.root.name == content.root.name:
+                            # found an existing use with the same name
+                            if not child.root.isonly and not content.root.isonly:
+                                # both are generic use statements so skip this declaration
+                                return
+                            if child.root.isonly and not content.root.isonly:
+                                # new use is generic and existing use is specific so we can safely add
+                                pass
+                            if not child.root.isonly and content.root.isonly:
+                                # existing use is generic and new use is specific so we can skip this declaration
+                                return
+                            if child.root.isonly and content.root.isonly:
+                                # see if the same names are specified.
+                                for new_name in content.root.items[:]: # take a copy of the list as we are deleting elements of the original
+                                    for existing_name in child.root.items:
+                                        if existing_name.lower()==new_name.lower():
+                                            content.root.items.remove(new_name)
+                                            if len(content.root.items)==0:
+                                                return
+                index=0
+            else:
+                index=len(self.root.content)-1 
+            self.root.content.insert(index,content.root)
+            self._children.append(content)
+
+class ModuleGen(ProgUnitGen):
+    ''' create a fortran module '''
     def __init__(self,name="",contains=True,implicitnone=True):
         from fparser import api
 
@@ -197,24 +273,15 @@ end module vanilla
         module.name=name
         endmod=module.content[len(module.content)-1]
         endmod.name=name
-        BaseGen.__init__(self,None,module)
+        ProgUnitGen.__init__(self,None,module)
 
-    def add(self,content):
+    def add(self,content,position=["auto"]):
+        ''' specialise the add method to include a module specific check '''
         if not content.parent==self:
-            #print "****",content.root, "***",self._module
             # this is an error as a module can not have a parent
             # in the current version of f2pygen
-            #print "**",type(content)
             raise Exception("The requested parent is "+str(type(content.parent))+" but it should be "+str(type(self.root)),str(type(self)))
-        if not content.root.parent==self.root:
-            content.root.parent=self.root
-        import fparser
-        if isinstance(content.root,fparser.statements.Use):
-            index=0
-        else:
-            index=len(self.root.content)-1 # append
-        self.root.content.insert(index,content.root)
-        self._children.append(content)
+        ProgUnitGen.add(self,content,position)
 
 def createmodule(name,contains=True,implicitnone=True):
     from fparser import api
@@ -297,7 +364,7 @@ class DirectiveGen(BaseGen):
 
         BaseGen.__init__(self,parent,my_comment)
 
-class SubroutineGen(BaseGen):
+class SubroutineGen(ProgUnitGen):
 
     def __init__(self,parent,name="",args=[],index=None):
         from fparser import api
@@ -313,74 +380,7 @@ class SubroutineGen(BaseGen):
         endsub=EndSubroutine(sub,endsubline)
         sub.content.append(endsub)
 
-        BaseGen.__init__(self,parent,sub)
-
-    def add(self,content,position=["auto"]):
-        # content may have been passed on so make me the parent
-        if content.root.parent!=self.root:
-            content.root.parent=self.root
-        from fparser.typedecl_statements import TypeDeclarationStatement
-        import fparser
-        if position[0]!="auto": # position[0] is not 'auto' so the baseclass can deal with it
-            BaseGen.add(self,content,position)
-        else: # position[0]=="auto" so insert in a context sensitive way
-
-            if isinstance(content,DeclGen) or isinstance(content,TypeDeclGen):
-                # have I already been declared?
-                for child in self._children:
-                    if isinstance(child,DeclGen) or isinstance(child,TypeDeclGen):
-                        for var_name in content.root.entity_decls[:]: # take a copy of the list as we are deleting elements of the original
-                            for child_name in child.root.entity_decls:
-                                if var_name.lower()==child_name.lower():
-                                    content.root.entity_decls.remove(var_name)
-                                    if len(content.root.entity_decls)==0:
-                                        return # return as all variables in this declaration already exists
-                # skip over any use statements
-                index=0
-                while isinstance(self.root.content[index],fparser.statements.Use):
-                    index+=1
-                # skip over any declarations which have an intent
-                try:
-                    intent=True
-                    while intent:
-                        intent=False
-                        for attr in self.root.content[index].attrspec:
-                            if attr.find("intent")==0:
-                                intent=True
-                                index+=1
-                                break
-                except AttributeError:
-                    pass
-                except Exception:
-                    raise
-            elif isinstance(content.root,fparser.statements.Use):
-                # have I already been declared?
-                for child in self._children:
-                    if isinstance(child,UseGen):
-                        if child.root.name == content.root.name:
-                            # found an existing use with the same name
-                            if not child.root.isonly and not content.root.isonly:
-                                # both are generic use statements so skip this declaration
-                                return
-                            if child.root.isonly and not content.root.isonly:
-                                # new use is generic and existing use is specific so we can safely add
-                                pass
-                            if not child.root.isonly and content.root.isonly:
-                                # existing use is generic and new use is specific so we can skip this declaration
-                                return
-                            if child.root.isonly and content.root.isonly:
-                                # see if the same names are specified.
-                                for new_name in content.root.items[:]: # take a copy of the list as we are deleting elements of the original
-                                    for existing_name in child.root.items:
-                                        if existing_name.lower()==new_name.lower():
-                                            content.root.items.remove(new_name)
-                                            if len(content.root.items)==0:
-                                                return
-                index=0
-            else:
-                index=len(self.root.content)-1 
-            self.root.content.insert(index,content.root)
-            self._children.append(content)
+        ProgUnitGen.__init__(self,parent,sub)
 
 def addsub(name,args,parent,index=None):
     from fparser import api
@@ -473,8 +473,38 @@ def adduse(name,parent,only=False,funcnames=[]):
     parent.content.insert(0,use)
     return use
 
+class AllocateGen(BaseGen):
+    def __init__(self,parent,content):
+        from fparser.statements import Allocate
+        reader=FortranStringReader("allocate(dummy)")
+        reader.set_mode(True, False) # free form, strict
+        myline=reader.next()
+        self._decl=Allocate(parent.root,myline)
+        if isinstance(content,str):
+            self._decl.items=[content]
+        elif isinstance(content,list):
+            self._decl.items=content
+        else:
+            raise RuntimeError("AllocateGen expected the content argument to be a str or a list, but found {0}".format(type(content)))
+        BaseGen.__init__(self,parent,self._decl)
+
+class DeallocateGen(BaseGen):
+    def __init__(self,parent,content):
+        from fparser.statements import Deallocate
+        reader=FortranStringReader("deallocate(dummy)")
+        reader.set_mode(True, False) # free form, strict
+        myline=reader.next()
+        self._decl=Deallocate(parent.root,myline)
+        if isinstance(content,str):
+            self._decl.items=[content]
+        elif isinstance(content,list):
+            self._decl.items=content
+        else:
+            raise RuntimeError("DeallocateGen expected the content argument to be a str or a list, but found {0}".format(type(content)))
+        BaseGen.__init__(self,parent,self._decl)
+
 class DeclGen(BaseGen):
-    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension=""):
+    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension="",allocatable=False):
 
         if datatype.lower()=="integer":
             from fparser.typedecl_statements import Integer
@@ -496,6 +526,8 @@ class DeclGen(BaseGen):
             my_attrspec.append("intent({0})".format(intent))
         if pointer is not False:
             my_attrspec.append("pointer")
+        if allocatable is not False:
+            my_attrspec.append("allocatable")
         self._decl.attrspec=my_attrspec
         if dimension != "":
              my_attrspec.append("dimension({0})".format(dimension))
@@ -697,6 +729,40 @@ def adddo(variable_name,start,end,parent,step=None):
     enddo=EndDo(do,enddoline)
     do.content.append(enddo)
     return do
+
+class IfThenGen(BaseGen):
+    ''' Generate a fortran if, then, end if statement. '''
+
+    def __init__(self, parent, clause):
+
+        reader = FortranStringReader("if (dummy) then\nend if")
+        reader.set_mode(True, True) # free form, strict
+        ifthenline = reader.next()
+        endifline = reader.next()
+
+        from fparser.block_statements import IfThen, EndIfThen
+        my_if = IfThen(parent.root,ifthenline)
+        my_if.expr = clause
+        my_endif=EndIfThen(my_if,endifline)
+        my_if.content.append(my_endif)
+
+        BaseGen.__init__(self,parent,my_if)
+
+    def add(self,content,position=["auto"]):
+
+        if position[0]=="auto" or position[0]=="append":
+            if position[0]=="auto" and ( isinstance(content,UseGen) \
+                                      or isinstance(content,DeclGen) \
+                                      or isinstance(content,TypeDeclGen) ):
+                # a use and declarations can not appear in an if statement so pass on to parent
+                self.parent.add(content)
+            else:
+                # append at the end of the loop. This is not a simple append as
+                # the last element in the if is the "end if" so we insert at the
+                # penultimate location
+                BaseGen.add(self,content,position=["insert",len(self.root.content)-1])
+        else:
+            BaseGen.add(self,content,position=position)
 
 class AssignGen(BaseGen):
 

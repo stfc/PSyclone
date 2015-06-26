@@ -2,11 +2,11 @@
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the x direction.
 module kernel_wrong_access_mod
-  use kind_params_mod
-  use kernel_mod
-  use argument_mod
-  use field_mod
-  use grid_mod
+  !use kind_params_mod
+  !use kernel_mod
+  !use argument_mod
+  !use field_mod
+  !use grid_mod
   implicit none
 
   private

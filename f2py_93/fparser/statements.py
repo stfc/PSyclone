@@ -908,11 +908,6 @@ class Use(Statement):
         modules = self.top.a.module
         if self.name not in modules:
             fn = self.reader.find_module_source_file(self.name)
-            # start: Rupert Ford: STFC
-            # skip analysis of other modules as the parser is not robust and
-            # this analysis is not required for our requirements
-            fn = None
-            # end
             if fn is not None:
                 from readfortran import FortranFileReader
                 from parsefortran import FortranParser
@@ -1369,7 +1364,7 @@ class Entry(Statement):
     <language-binding-spec> = BIND ( C [ , NAME = <scalar-char-initialization-expr> ] )
     <dummy-arg> = <dummy-arg-name> | *
     """
-    match = re.compile(r'entry\b', re.I).match
+    match = re.compile(r'entry\s+[a-zA-Z]\w', re.I).match
     def process_item(self):
         line = self.item.get_line()[5:].lstrip()
         m = re.match(r'\w+', line)

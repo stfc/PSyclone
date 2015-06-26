@@ -23,14 +23,14 @@ pyparsing. To run the test suite you will require py.test.
 f2py quick setup
 ^^^^^^^^^^^^^^^^
 
-The source code of f2py (revision 88) is provided with PSyclone in the
-sub-directory ``f2py_88``.
+The source code of f2py (revision 93) is provided with PSyclone in the
+sub-directory ``f2py_93``.
 
 To use f2py provided with PSyclone you can simply set up your
 PYTHONPATH variable to include this directory.
 ::
 
-    > export PYTHONPATH=<PSYCLONEHOME>/f2py_88:${PYTHONPATH}
+    > export PYTHONPATH=<PSYCLONEHOME>/f2py_93:${PYTHONPATH}
 
 If for some reason you need to install f2py yourself then 
 see :ref:`sec_f2py_install`.

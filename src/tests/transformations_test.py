@@ -63,7 +63,7 @@ class TestTransformationsDynamo0p1:
                           api=test_api)
         psy = PSyFactory(test_api).create(info)
         invokes = psy.invokes
-        invoke = invokes.get('invoke_testkern_type')
+        invoke = invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         rtrans = OMPParallelTrans()
         new_schedule, memento = rtrans.apply(schedule.children[0])

@@ -46,6 +46,9 @@ class PSyFactory(object):
         elif self._type == "dynamo0.1":
             from dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
+        elif self._type == "dynamo0.3":
+            from dynamo0p3 import DynamoPSy
+            return DynamoPSy(invoke_info)
         elif self._type == "gocean0.1":
             from gocean0p1 import GOPSy
             return GOPSy(invoke_info)
@@ -112,7 +115,13 @@ class Invokes(object):
         return self.invoke_map.keys()
     def get(self, invoke_name):
         # add a try here for keyerror
-        return self.invoke_map[invoke_name]
+        try:
+            return self.invoke_map[invoke_name]
+        except KeyError:
+            raise RuntimeError("Cannot find an invoke named '{0}' in {1}".
+                               format(invoke_name,
+                                      str(self.names)))
+
     def gen_code(self, parent):
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
@@ -157,35 +166,83 @@ class NameSpaceFactory(object):
         return NameSpaceFactory._instance
 
 class NameSpace(object):
-    ''' keeps a record of reserved names and currently used names to check
-        for clashes and provides a new name if there is a clash. Reserved
-        names are ones already allocated to the infrastructure. '''
-    def __init__(self):
+    ''' keeps a record of reserved names and used names for clashes and provides a
+        new name if there is a clash. '''
+
+    def __init__(self, case_sensitive=False):
         self._reserved_names = []
-        self._arg_names = {}
-    def add_reserved(self, names):
-        if len(self._arg_names) > 0:
-            raise Exception("Error: NameSpace class: not coded for adding "
-                            "reserved names after used names")
-        for name in names:
-            if not name in self._reserved_names:
-                # silently ignore if this is already a reserved name
-                # fortran is not case sensitive
-                self._reserved_names.append(name.lower())
-    def add_arg(self, name):
-        if name in self._arg_names.keys():
-            return self._arg_names[name]
-        elif name in self._reserved_names:
-            count = 1
-            proposed_name = name+"_"+str(count)
-            while proposed_name in self._arg_names.values() or \
-                  proposed_name in self._reserved_names:
-                count+=1
-                proposed_name = name+"_"+str(count)
-            self._arg_names[name] = proposed_name
+        self._added_names = []
+        self._context = {}
+        self._case_sensitive = case_sensitive
+
+    def create_name(self, root_name=None, context=None, label=None):
+        '''Returns a unique name. If root_name is supplied, the name returned
+            is based on this name, otherwise one is made up.  If
+            context and label are supplied and a previous create_name
+            has been called with the same context and label then the
+            name provided by the previous create_name is returned.
+        '''
+        # make up a base name if one has not been supplied
+        if root_name is None:
+            root_name = "anon"
+        # if not case sensitive then make the name lower case
+        if not self._case_sensitive:
+            lname = root_name.lower()
         else:
-            self._arg_names[name] = name
-        return self._arg_names[name]
+            lname = root_name
+        # check context and label validity
+        if context is None and label is not None or context is not None and label is None:
+            raise RuntimeError("NameSpace:create_name() requires both context and label to be set")
+
+        # if the same context and label have already been supplied then return the previous name
+        if context is not None and label is not None:
+            # labels may have spurious white space
+            label = label.strip()
+            if not self._case_sensitive:
+                label = label.lower()
+                context = context.lower()
+            if context in self._context:
+                if label in self._context[context]:
+                    # context and label have already been supplied
+                    return self._context[context][label]
+            else:
+                # initialise the context so we can add the label value later
+                self._context[context]={}
+
+        # create our name
+        if not lname in self._reserved_names and not lname in self._added_names:
+            proposed_name = lname
+        else:
+            count = 1
+            proposed_name = lname+"_"+str(count)
+            while proposed_name in self._reserved_names or \
+                  proposed_name in self._added_names:
+                count+=1
+                proposed_name = lname+"_"+str(count)
+
+        # store our name
+        self._added_names.append(proposed_name)
+        if context is not None and label is not None:
+            self._context[context][label] = proposed_name
+
+        return proposed_name
+        
+    def add_reserved_name(self, name):
+        ''' adds a reserved name. create_name() will not return this name '''
+        if not self._case_sensitive:
+            lname = name.lower()
+        else:
+            lname = name
+        # silently ignore if this is already a reserved name
+        if not lname in self._reserved_names:
+            if lname in self._added_names:
+                raise RuntimeError("attempted to add a reserved name to a namespace that has already used that name")
+            self._reserved_names.append(lname)
+
+    def add_reserved_names(self, names):
+        ''' adds a list of reserved names '''
+        for name in names:
+            self.add_reserved_name(name)
 
 class Invoke(object):
 
@@ -198,7 +255,7 @@ class Invoke(object):
         # create our namespace manager - must be done before creating the
         # schedule
         self._name_space_manager = NameSpaceFactory(reset = True).create()
-        self._name_space_manager.add_reserved(reserved_names)
+        self._name_space_manager.add_reserved_names(reserved_names)
 
         # create the schedule
         self._schedule = Schedule(alg_invocation.kcalls)
@@ -216,26 +273,31 @@ class Invoke(object):
             self._name = alg_invocation.name
         elif len(alg_invocation.kcalls) == 1 and \
                  alg_invocation.kcalls[0].type == "kernelCall":
-            # use the name of the kernel call
-            self._name = "invoke_"+alg_invocation.kcalls[0].ktype.name
+            # use the name of the kernel call with the position appended.
+            # Appended position is needed in case we have two separate invokes
+            # in the same algorithm code containing the same (single) kernel
+            self._name = "invoke_"+str(idx)+"_"+alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
 
-        # work out the argument list. It needs to be unique and should
-        # not contain any literals.
-        self._unique_args = []
-        self._orig_unique_args = []
-        self._unique_args_dict = {}
-        for call in alg_invocation.kcalls:
-            for arg in call.args:
-                if not arg.is_literal(): # skip literals
-                    if arg.value not in self._orig_unique_args:
-                        self._orig_unique_args.append(arg.value)
-                        value=self._name_space_manager.add_arg(arg.value)
-                        self._unique_args.append(value)
-                        self._unique_args_dict[arg] = value
-                            
+        # extract the argument list for the algorithm call and psy
+        # layer subroutine.
+        self._alg_unique_args = []
+        self._psy_unique_vars = []
+        tmp_arg_names = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    if not arg.text in self._alg_unique_args:
+                        self._alg_unique_args.append(arg.text)
+                    if not arg.name in tmp_arg_names:
+                        tmp_arg_names.append(arg.name)
+                        self._psy_unique_vars.append(arg)
+                else:
+                    # literals have no name
+                    pass
+
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.kern_calls():
@@ -250,15 +312,23 @@ class Invoke(object):
     def name(self):
         return self._name
     @property
-    def unique_args(self):
-        return self._unique_args
+    def alg_unique_args(self):
+        return self._alg_unique_args
     @property
-    def orig_unique_args(self):
-        return self._orig_unique_args
+    def psy_unique_vars(self):
+        return self._psy_unique_vars
+    @property
+    def psy_unique_var_names(self):
+        names=[]
+        for var in self._psy_unique_vars:
+            names.append(var.name)
+        return names
     @property
     def schedule(self):
         return self._schedule
-
+    @schedule.setter
+    def schedule(self, obj):
+        self._schedule = obj
     def gen(self):
         from f2pygen import ModuleGen
         module = ModuleGen("container")
@@ -270,10 +340,10 @@ class Invoke(object):
                             SelectionGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_vars)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.unique_args,
+                                  entity_decls = self.psy_unique_vars,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
         # declare field-type, column topology and function-space types
@@ -746,7 +816,7 @@ class Loop(Node):
 
         self._valid_loop_types = valid_loop_types
         self._loop_type = None       # inner, outer, colour, colours, ...
-        # TODO Perhaps store a field, so we can get field.name as well as field.space?????
+        self._field = None
         self._field_name = None      # name of the field
         self._field_space = None     # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None # cells, ...,      cu, cv, ...
@@ -765,7 +835,8 @@ class Loop(Node):
                 self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().function_space
-                self._field_name = my_call.arguments.iteration_space_arg().name
+                self._field = my_call.arguments.iteration_space_arg()
+                self._field_name = self._field.name
             else:
                 raise Exception
             children.append(my_call)
@@ -847,6 +918,10 @@ class Loop(Node):
     @property
     def field_name(self):
         return self._field_name
+
+    @property
+    def field(self):
+        return self._field
 
     @field_name.setter
     def field_name(self,my_field_name):
@@ -1002,15 +1077,24 @@ class SetInfCall(Call):
         return
 
 class Kern(Call):
-    def __init__(self, KernelArguments, call, parent = None):
+    def __init__(self, KernelArguments, call, parent = None, check = True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
+        if check and len(call.ktype.arg_descriptors) != len(call.args):
+            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
+        self._arg_descriptors = call.ktype.arg_descriptors
+
     def __str__(self):
         return "kern call: "+self._name
     @property
     def iterates_over(self):
         return self._iterates_over
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
+
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
@@ -1078,18 +1162,32 @@ class Argument(object):
     def __init__(self, call, arg_info, access):
         self._dependencies = Dependencies(self)
         self._call = call
-        self._orig_name = arg_info.value
+        self._text = arg_info.text
+        self._orig_name = arg_info.varName
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
-        self._name_space_manager = NameSpaceFactory().create()
-        self._name = self._name_space_manager.add_arg(self._orig_name)
+        if self._orig_name is None:
+            # this is an infrastructure call literal argument. Therefore
+            # we do not want an argument (_text=None) but we do want to
+            # keep the value (_name)
+            self._name = arg_info.text
+            self._text = None
+        else:
+            self._name_space_manager = NameSpaceFactory().create()
+            # use our namespace manager to create a unique name unless
+            # the context and label match and in this case return the
+            # previous name
+            self._name = self._name_space_manager.create_name(root_name=self._orig_name, context="AlgArgs",label=self._text)
 
     def __str__(self):
         return self._name
     @property
     def name(self):
         return self._name
+    @property
+    def text(self):
+        return self._text
     @property
     def form(self):
         return self._form

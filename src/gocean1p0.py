@@ -185,7 +185,7 @@ class GOInvoke(Invoke):
         from f2pygen import SubroutineGen, DeclGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.unique_args)
+                                   args=self.psy_unique_var_names)
         parent.add(invoke_sub)
         self.schedule.gen_code(invoke_sub)
         # add the subroutine argument declarations for arrays
@@ -322,7 +322,7 @@ class GOKern(Kern):
     def __init__(self, call, parent=None):
         if False:
             self._arguments = GOKernelArguments(None, None) # for pyreverse
-        Kern.__init__(self, GOKernelArguments, call, parent)
+        Kern.__init__(self, GOKernelArguments, call, parent, check=False)
 
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
@@ -499,6 +499,13 @@ class GOKernelGridArgument(object):
             "grid_property". '''
         return self._type
 
+    @property
+    def text(self):
+        ''' The raw text used to pass data from the algorithm layer
+            for this argument. Grid properties are not passed from the
+            algorithm layer so None is returned.'''
+        return None
+
 class GO1p0Descriptor(Descriptor):
     '''Description of a GOcean 1.0 kernel argument, as obtained by
         parsing the kernel meta-data
@@ -528,15 +535,15 @@ class GO1p0Descriptor(Descriptor):
             elif funcspace.lower() in VALID_SCALAR_TYPES:
                 self._type = "scalar"
             else:
-                raise ParseError("Meta-data error in kernel {}: argument "
-                                 "grid-point type is '{}' but must be one "
-                                 "of {} ".format(kernel_name, funcspace,
+                raise ParseError("Meta-data error in kernel {0}: argument "
+                                 "grid-point type is '{1}' but must be one "
+                                 "of {2} ".format(kernel_name, funcspace,
                                                  valid_func_spaces))
 
             if stencil.lower() not in VALID_STENCILS:
-                raise ParseError("Meta-data error in kernel {}: 3rd "
+                raise ParseError("Meta-data error in kernel {0}: 3rd "
                                  "descriptor (stencil) of field argument "
-                                 "is '{}' but must be one of {}".\
+                                 "is '{1}' but must be one of {2}".\
                                  format(kernel_name, stencil, VALID_STENCILS))
 
         elif nargs == 2:
@@ -550,23 +557,23 @@ class GO1p0Descriptor(Descriptor):
             self._type = "grid_property"
 
             if not GRID_PROPERTY_DICT.has_key(grid_var.lower()):
-                raise ParseError("Meta-data error in kernel {}: "
-                                 "un-recognised grid property '{}' "
+                raise ParseError("Meta-data error in kernel {0}: "
+                                 "un-recognised grid property '{1}' "
                                  "requested. Must be "
-                                 "one of {}".format(kernel_name, grid_var,
+                                 "one of {2}".format(kernel_name, grid_var,
                                                     str(GRID_PROPERTY_DICT.\
                                                         keys())))
         else:
-            raise ParseError("Meta-data error in kernel {}: 'arg' type "
+            raise ParseError("Meta-data error in kernel {0}: 'arg' type "
                              "expects 2 or 3 arguments but "
-                             "found '{}' in '{}'".\
+                             "found '{1}' in '{2}'".\
                              format(kernel_name, str(len(kernel_arg.args)),
                                     kernel_arg.args))
 
         if access.lower() not in VALID_ARG_ACCESSES:
-            raise ParseError("Meta-data error in kernel {}: argument "
-                             "access  is given as '{}' but must be "
-                             "one of {}".\
+            raise ParseError("Meta-data error in kernel {0}: argument "
+                             "access  is given as '{1}' but must be "
+                             "one of {2}".\
                              format(kernel_name, access, VALID_ARG_ACCESSES))
 
         # Finally we can call the __init__ method of our base class

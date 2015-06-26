@@ -1,8 +1,8 @@
 Developers guide
 ****************
 
-Generating api specific code.
-=============================
+Generating API-specific code
+============================
 
 This section explains how to create a new API in PSyclone. PSyclone
 currently supports the original prototype gungho api, the dynamo
@@ -16,32 +16,51 @@ config.py. When adding a new API you must add the name you would like
 to use to the SUPPORTEDAPIS list (and change the DEFAULTAPI if
 required).
 
-
-
-Parse.py
+parse.py
 --------
 
 The parser reads the algorithm code and associated kernel
 metadata.
 
-The parser currently assumes that all API's will use the algorithm
-invoke() API but that the content and structure of the metadata in the
-kernel code may differ. Assuming this is the case then a new subclass
-of the KernelType class needs to be created and added to the create
-method in the KernelTypeFactory class. If the metadata is the same as
-another existing version then that KernelType subclass can be used for
-the new API.
+The parser currently assumes that all API's will use the invoke() API
+for the algorithm-to-psy layer but that the content and structure of
+the metadata in the kernel code may differ. If the algorithm API
+differs, then the parser will need to be refactored. This is beyond
+the scope of this document and is currently not considered in the
+PSyclone software architecture.
 
-If the algorithm API differs, then the parser will need to be
-refactored. This is beyond the scope of this document and is not part
-of the PSyclone design.
+The kernel metadata however, will be different from one API to
+another. To parse this kernel-API-specific metadata a
+KernelTypeFactory is provided which should return the appropriate
+KernelType object. When adding a new API a new API-specific subclass
+of KernelType should be created and added to the create() method in
+the KernelTypeFactory class. If the kernel metadata happens to be the
+same as another existing API then the existing KernelType subclass can
+be used for the new API.
 
-The KernelType subclass needs to specialise the __init__ method,
-initialise the base class with the supplied arguments and populate the
-_arg_descriptors list with a list of an API specific class which
-subclasses the Descriptor class.
+The KernelType subclass needs to specialise the KernelType __init__ method and
+initialise the KernelType base class with the supplied arguments. The role of the
+KernelType subclass is to create a kernel-metadata-specific subclass of the
+Descriptor class and populate this with the relevant API-specific
+metadata. After doing this is appends the kernel-metadata-specific
+subclass instance to the _arg_descriptors list provided by the
+KernelType base class. This information
 
-* More details required here *
+KernelType base class assumes kernel metadata stored as a type. Searches for that type.
+Checks whether the metadata is public (it should be ?)
+Assumes iterates_over variable.
+Binding to a procedure - assumes one of two styles.
+Assumes a meta_args type
+*** What about our func_args type??? ***
+
+type x
+meta_args=
+**** meta_func=
+iterates_over=
+code => or code =
+end type x
+
+The descriptor class ...
 
 psyGen.py
 ---------
