@@ -1064,4 +1064,24 @@ class TestTransformationsGOcean1p0:
 
         assert  '!$omp do schedule(guided,10)' in gen
 
+    def test_openmp_do_invalid_schedule(self):
+        ''' Test that we raise an appropriate error if we specify
+            an invalid omp schedule '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import GOceanOMPLoopTrans
+        with pytest.raises(TransformationError):
+            ompl = GOceanOMPLoopTrans(omp_schedule="rubbish")
+
+    def test_openmp_do_schedule_auto_with_chunk(self):
+        ''' Test that we raise an appropriate error if we specify
+            the omp schedule as "auto" but try to provide a chunk size '''
+        psy, invoke = self.get_invoke("single_invoke_three_kernels.f90", 0)
+        schedule = invoke.schedule
+
+        from transformations import GOceanOMPLoopTrans
+        with pytest.raises(TransformationError):
+            ompl = GOceanOMPLoopTrans(omp_schedule="auto,4")
+
 
