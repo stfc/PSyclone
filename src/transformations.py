@@ -1,23 +1,28 @@
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+#        A. Porter STFC Daresbury Lab
 
 from psyGen import Transformation
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
+
 class TransformationError(Exception):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''
+
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Transformation Error: "+value
+
     def __str__(self):
         return repr(self.value)
+
 
 class LoopFuseTrans(Transformation):
 
@@ -28,11 +33,11 @@ class LoopFuseTrans(Transformation):
     def name(self):
         return "LoopFuse"
 
-    def apply(self,node1,node2):
+    def apply(self, node1, node2):
 
         # check nodes are loops
         from psyGen import Loop
-        if not isinstance(node1,Loop) or not isinstance(node2,Loop):
+        if not isinstance(node1, Loop) or not isinstance(node2, Loop):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "At least one of the nodes is not "
                                       "a loop")
@@ -41,7 +46,7 @@ class LoopFuseTrans(Transformation):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "loops do not have the same parent")
         # check node1 and node2 are next to each other
-        if abs(node1.position-node2.position)!=1:
+        if abs(node1.position-node2.position) != 1:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
                                       "next to eachother")
@@ -51,11 +56,11 @@ class LoopFuseTrans(Transformation):
                                       "Loops do not have the same "
                                       "iteration space")
 
-        schedule=node1.root
+        schedule = node1.root
 
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
-        keep=Memento(schedule,self,[node1,node2])
+        keep = Memento(schedule, self, [node1, node2])
 
         # add loop contents of node2 to node1
         node1.children.extend(node2.children)
@@ -67,19 +72,20 @@ class LoopFuseTrans(Transformation):
         # remove node2
         node2.parent.children.remove(node2)
 
-        return schedule,keep
+        return schedule, keep
+
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
 
     def __str__(self):
         return ("Fuse two adjacent loops together with GOcean-specific "
-               "validity checks")
+                "validity checks")
 
     @property
     def name(self):
         return "GOceanLoopFuse"
 
-    def apply(self,node1,node2):
+    def apply(self, node1, node2):
 
         try:
             if node1.field_space != node2.field_space:
@@ -87,7 +93,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                                           "transformation. "
                                           "Cannot fuse loops that are over "
                                           "different grid-point types: "
-                                          "{0} {1}".\
+                                          "{0} {1}".
                                           format(node1.field_space,
                                                  node2.field_space))
         except TransformationError as e:
@@ -95,7 +101,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         except Exception as e:
             raise TransformationError("Unexpected exception: {}".format(e))
 
-        return LoopFuseTrans.apply(self,node1,node2)
+        return LoopFuseTrans.apply(self, node1, node2)
+
 
 class OMPLoopTrans(Transformation):
 
@@ -113,7 +120,7 @@ class OMPLoopTrans(Transformation):
         value_parts = value.split(',')
         if value_parts[0].lower() not in VALID_OMP_SCHEDULES:
             raise TransformationError("Valid OpenMP schedules are {0} "
-                                      "but got {1}".\
+                                      "but got {1}".
                                       format(VALID_OMP_SCHEDULES,
                                              value_parts[0]))
         if len(value_parts) > 1:
@@ -176,9 +183,10 @@ class OMPLoopTrans(Transformation):
 
         return schedule, keep
 
+
 class OMPParallelLoopTrans(OMPLoopTrans):
 
-    ''' Adds an OpenMP PARALLEL DO directive to a loop. 
+    ''' Adds an OpenMP PARALLEL DO directive to a loop.
 
         For example:
 
@@ -205,10 +213,10 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
     def apply(self, node):
 
-        schedule=node.root
+        schedule = node.root
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
-        keep=Memento(schedule, self, [node])
+        keep = Memento(schedule, self, [node])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -231,7 +239,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # remove the original loop
         node_parent.children.remove(node)
 
-        return schedule,keep
+        return schedule, keep
+
 
 class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
@@ -251,7 +260,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
             class. '''
         # check node is a loop
         from psyGen import Loop
-        if not isinstance(node,Loop):
+        if not isinstance(node, Loop):
             raise Exception("Error in "+self.name+" transformation. The "
                             "node is not a loop.")
         # Check iteration space is supported - only cells at the moment
@@ -268,7 +277,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
             raise Exception("Error in "+self.name+" transformation. "
                             "The requested loop is over colours and must "
                             "be computed serially.")
-        return OMPParallelLoopTrans.apply(self,node)
+        return OMPParallelLoopTrans.apply(self, node)
+
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
@@ -288,17 +298,18 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
             class. '''
         # check node is a loop
         from psyGen import Loop
-        if not isinstance(node,Loop):
+        if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The node is not a loop.")
         # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner","outer"]:
+        if node.loop_type not in ["inner", "outer"]:
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
         return OMPParallelLoopTrans.apply(self,
                                           node)
+
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
@@ -318,16 +329,17 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
             class. '''
         # check node is a loop
         from psyGen import Loop
-        if not isinstance(node,Loop):
+        if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The node is not a loop.")
         # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner","outer"]:
+        if node.loop_type not in ["inner", "outer"]:
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
         return OMPLoopTrans.apply(self, node)
+
 
 class ColourTrans(Transformation):
 
@@ -338,11 +350,11 @@ class ColourTrans(Transformation):
     def name(self):
         return "LoopColour"
 
-    def apply(self,node):
+    def apply(self, node):
 
         # check node is a loop
         from psyGen import Loop
-        if not isinstance(node,Loop):
+        if not isinstance(node, Loop):
             raise Exception("Error in LoopColour transformation. The "
                             "node is not a loop")
         # Check iteration space is supported - only cells at the moment
@@ -359,13 +371,14 @@ class ColourTrans(Transformation):
             raise Exception("Error in "+self.name+" transformation. The "
                             "loop is not the correct type for colouring.")
 
-        schedule=node.root
+        schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
-        keep=Memento(schedule,self,[node])
+        keep = Memento(schedule, self, [node])
 
-        # TODO CAN WE CREATE A GENERIC LOOP OR DO WE NEED SPECIFIC GH or GO LOOPS?
+        # TODO CAN WE CREATE A GENERIC LOOP OR DO WE NEED SPECIFIC GH or
+        # GO LOOPS?
         node_parent = node.parent
         node_position = node.position
 
@@ -373,19 +386,19 @@ class ColourTrans(Transformation):
 
         # create a colours loop. This loops over colours and must be run
         # sequentially
-        colours_loop = DynLoop(parent = node_parent)
-        colours_loop.loop_type="colours"
-        colours_loop.field_space=node.field_space
-        colours_loop.iteration_space=node.iteration_space
+        colours_loop = DynLoop(parent=node_parent)
+        colours_loop.loop_type = "colours"
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
         node_parent.addchild(colours_loop,
-                             index = node_position)
+                             index=node_position)
 
         # create a colour loop. This loops over a particular colour and
         # can be run in parallel
-        colour_loop = DynLoop(parent = colours_loop)
-        colour_loop.loop_type="colour"
-        colour_loop.field_space=node.field_space
-        colour_loop.iteration_space=node.iteration_space
+        colour_loop = DynLoop(parent=colours_loop)
+        colour_loop.loop_type = "colour"
+        colour_loop.field_space = node.field_space
+        colour_loop.iteration_space = node.iteration_space
         colours_loop.addchild(colour_loop)
 
         # add contents of node to colour loop
@@ -398,7 +411,8 @@ class ColourTrans(Transformation):
         # remove original loop
         node_parent.children.remove(node)
 
-        return schedule,keep
+        return schedule, keep
+
 
 class OMPParallelTrans(Transformation):
 
@@ -410,13 +424,13 @@ class OMPParallelTrans(Transformation):
         return "OMPParallelTrans"
 
     def apply(self, nodes):
-        ''' Apply this transformation to a subset of the nodes 
+        ''' Apply this transformation to a subset of the nodes
             within a schedule - i.e. enclose the specified
             Loops in the schedule within a single OpenMP region '''
         from psyGen import OMPParallelDirective, Schedule, Loop
 
-        # Check whether we've been passed a list of nodes or just a 
-        # single node. If the latter then we create ourselves a 
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
         # list containing just that node.
         from psyGen import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
@@ -429,11 +443,11 @@ class OMPParallelTrans(Transformation):
                                       "Argument must be a single Node in a "
                                       "schedule or a list of Nodes in a "
                                       "schedule but have been passed an "
-                                      "object of type: {0}".\
+                                      "object of type: {0}".
                                       format(arg_type))
 
         # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a parallel region. Also keep the index of 
+        # enclosed within a parallel region. Also keep the index of
         # the first child to be enclosed as that will become the
         # position of the new !$omp parallel directive.
         node_parent = node_list[0].parent
@@ -446,7 +460,8 @@ class OMPParallelTrans(Transformation):
 
         for child in node_list:
             if child.parent is not node_parent:
-                raise TransformationError("Error in OMPParallel transformation: "
+                raise TransformationError("Error in OMPParallel "
+                                          "transformation: "
                                           "supplied nodes are not children of "
                                           "the same Schedule/parent.")
 
@@ -455,10 +470,10 @@ class OMPParallelTrans(Transformation):
         schedule = node_list[0].root
 
         from undoredo import Memento
-        keep=Memento(schedule,self)
+        keep = Memento(schedule, self)
 
         # Create the OpenMP parallel directive as a child of the
-        # parent of the nodes being enclosed and with those nodes 
+        # parent of the nodes being enclosed and with those nodes
         # as its children.
         # We slice the nodes list in order to get a new list object
         # (although the actual items in the list are still those in the
@@ -468,7 +483,7 @@ class OMPParallelTrans(Transformation):
                                          children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the OpenMP directive as their parent. Use a slice 
+        # the OpenMP directive as their parent. Use a slice
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
@@ -482,6 +497,5 @@ class OMPParallelTrans(Transformation):
         # of the first of these nodes
         node_parent.addchild(directive,
                              index=node_position)
-       
-        return schedule,keep
 
+        return schedule, keep
