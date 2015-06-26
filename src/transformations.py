@@ -7,6 +7,13 @@
 # Author R. Ford STFC Daresbury Lab
 #        A. Porter STFC Daresbury Lab
 
+''' This module provides the various transformations that can
+    be applied to the schedule associated with an invoke(). There
+    are both general and API-specific transformation classes in
+    this module where the latter typically apply API-specific
+    checks before calling the base class for the actual
+    transformation. '''
+
 from psyGen import Transformation
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -25,6 +32,22 @@ class TransformationError(Exception):
 
 
 class LoopFuseTrans(Transformation):
+    ''' Provides a loop-fuse transformation.
+        For example:
+
+        >>> from parse import parse
+        >>> from psyGen import PSyFactory
+        >>> ast,invokeInfo=parse("dynamo.F90")
+        >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
+        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+        >>> schedule.view()
+        >>>
+        >>> from transformations import LoopFuseTrans
+        >>> trans=LoopFuseTrans()
+        >>> new_schedule,memento=trans.apply(schedule.children[0],
+                                             schedule.children[1])
+        >>> new_schedule.view()
+    '''
 
     def __str__(self):
         return "Fuse two adjacent loops together"
@@ -51,7 +74,7 @@ class LoopFuseTrans(Transformation):
                                       "nodes are not siblings who are "
                                       "next to eachother")
         # Check iteration space is the same
-        if not(node1.iteration_space == node2.iteration_space):
+        if not node1.iteration_space == node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same "
                                       "iteration space")
@@ -76,6 +99,8 @@ class LoopFuseTrans(Transformation):
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
+    ''' Performs error checking before calling the apply() method of the
+        base class in order to loop fuse two GOcean loops. '''
 
     def __str__(self):
         return ("Fuse two adjacent loops together with GOcean-specific "
@@ -96,10 +121,10 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                                           "{0} {1}".
                                           format(node1.field_space,
                                                  node2.field_space))
-        except TransformationError as e:
-            raise e
-        except Exception as e:
-            raise TransformationError("Unexpected exception: {}".format(e))
+        except TransformationError as err:
+            raise err
+        except Exception as err:
+            raise TransformationError("Unexpected exception: {}".format(err))
 
         return LoopFuseTrans.apply(self, node1, node2)
 
@@ -119,10 +144,16 @@ class OMPLoopTrans(Transformation):
 
     @property
     def omp_schedule(self):
+        ''' Returns the OpenMP schedule that will be specified by
+            this transformation. The default schedule is 'static' '''
         return self._omp_schedule
 
     @omp_schedule.setter
     def omp_schedule(self, value):
+        ''' Sets the OpenMP schedule that will be specified by
+            this transformation. Checks that the supplied string
+            is a recognised OpenMP schedule. '''
+
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
         if value_parts[0].lower() not in VALID_OMP_SCHEDULES:
@@ -143,6 +174,11 @@ class OMPLoopTrans(Transformation):
         self._omp_schedule = value
 
     def __init__(self, omp_schedule="static"):
+        self._omp_schedule = ""
+        # Although we create the _omp_schedule attribute above (so that
+        # pylint doesn't complain), we actually set its value using
+        # the setter method in order to make use of the latter's error 
+        # checking.
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
 
@@ -152,7 +188,6 @@ class OMPLoopTrans(Transformation):
             raise TransformationError("Cannot apply an OpenMP Loop "
                                       "directive to something that is "
                                       "not a loop")
-
         schedule = node.root
 
         # create a memento of the schedule and the proposed
@@ -342,6 +377,10 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 
 class ColourTrans(Transformation):
+    
+    ''' Apply a colouring transformation to a loop (in order to permit a
+        subsequent OpenMP parallelisation over colours)
+    '''
 
     def __str__(self):
         return "Split a loop into colours"
@@ -416,6 +455,8 @@ class ColourTrans(Transformation):
 
 class OMPParallelTrans(Transformation):
 
+    ''' Create an OpenMP PARALLEL region by inserting directives '''
+
     def __str__(self):
         return "Insert an OpenMP Parallel region"
 
@@ -427,7 +468,7 @@ class OMPParallelTrans(Transformation):
         ''' Apply this transformation to a subset of the nodes
             within a schedule - i.e. enclose the specified
             Loops in the schedule within a single OpenMP region '''
-        from psyGen import OMPParallelDirective, Schedule, Loop
+        from psyGen import OMPParallelDirective, Schedule
 
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
