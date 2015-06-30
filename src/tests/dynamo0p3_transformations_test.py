@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 #-------------------------------------------------------------------------------
@@ -10,7 +10,7 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import ColourTrans
+from transformations import Dynamo0p3ColourTrans
 import os
 import pytest
 
@@ -27,7 +27,7 @@ def test_colour_trans():
     invokes = psy.invokes
     invoke = invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
-    ctrans = ColourTrans()
+    ctrans = Dynamo0p3ColourTrans()
 
     # Colour the loop
     cschedule, _ = ctrans.apply(schedule.children[0])
@@ -39,12 +39,7 @@ def test_colour_trans():
     # a string
     gen=str(psy.gen)
 
-    # Iterate over the lines of generated code
-    for idx,line in enumerate(gen.split('\n')):
-        if '!$omp parallel do' in line: omp_do_idx=idx
-        if 'DO j=' in line: outer_do_idx=idx
-        if 'DO i=' in line: inner_do_idx=idx
+    print gen
 
-    # The OpenMP 'parallel do' directive must occur immediately before
-    # the DO loop itself
-    assert outer_do_idx-omp_do_idx==1 and outer_do_idx-inner_do_idx==-1
+    # Check that we're calling the API to get the no. of colours
+    assert "%get_colours(" in gen

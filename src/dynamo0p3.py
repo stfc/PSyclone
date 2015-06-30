@@ -571,6 +571,14 @@ class DynInvoke(Invoke):
         # function space
         return False
 
+    def is_coloured(self):
+        ''' Returns true if at least one of the loops in the
+        schedule of this invoke has been coloured '''
+        for loop in self.schedule.loops():
+            if loop.loop_type == "colours":
+                return True
+        return False
+
     def ndf_name(self, func_space):
         ''' A convenience method that returns an ndf name for a
         particular function space. These names are specified in
@@ -789,6 +797,24 @@ class DynInvoke(Invoke):
                                    allocatable=True,
                                    kind="r_def",
                                    entity_decls=operator_declarations))
+
+        if self.is_coloured():
+            # Add declarations of the colour map and array holding the
+            # no. of cells of each colour
+            invoke_sub.add(DeclGen(parent, datatype = "integer",
+                                   pointer=True,
+                                   entity_decls = ["cmap(:,:)",
+                                                   "ncp_colour(:)"]))
+            # Add the look-up of the colouring map
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Look-up colour map"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            name = first_var.proxy_name_indexed+\
+                   "%"+first_var.ref_name+"%get_colours"
+            invoke_sub.add(CallGen(invoke_sub,
+                                   name=name,
+                                   args=["ncolour", "ncp_colour", "cmap"]))
+
         if self.qr_required:
             # add calls to compute the values of any basis arrays
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -883,6 +909,7 @@ class DynLoop(Loop):
         generate the code. '''
         self._start = "1"
         if self._loop_type == "colours":
+
             self._variable_name = "colour"
             self._stop = "ncolour"
         elif self._loop_type == "colour":

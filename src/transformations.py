@@ -215,30 +215,35 @@ class GOceanOpenMPLoop(OpenMPLoop):
 
         return OpenMPLoop.apply(self,node)
 
-class ColourTrans(Transformation):
+class Dynamo0p1ColourTrans(Transformation):
 
     def __str__(self):
-        return "Split a loop into colours"
+        return "Split a Dynamo 0.1 loop into colours"
 
     @property
     def name(self):
-        return "LoopColour"
+        return "Dynamo0p1LoopColourTrans"
 
     def apply(self,node):
 
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node,Loop):
-            raise Exception("Error in LoopColour transformation. The node is not a loop")
+            raise Exception("Error in LoopColour transformation."
+                            " The node is not a loop")
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
-            raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
+            raise Exception("Error in "+self.name+" transformation. "
+                            "The iteration space is not 'cells'.")
         # Check we need colouring
         if node.field_space == "v3":
-            raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is 'v3'. Colouring is not required.")
+            raise Exception("Error in "+self.name+" transformation. "
+                            "The field space written to by the kernel "
+                            "is 'v3'. Colouring is not required.")
         # Check this is a kernel loop
         if node.loop_type is not None:
-            raise Exception("Error in "+self.name+" transformation. The loop is not the correct type for colouring.")
+            raise Exception("Error in "+self.name+" transformation. "
+                            "The loop is not the correct type for colouring.")
 
         schedule=node.root
 
@@ -280,3 +285,63 @@ class ColourTrans(Transformation):
         node_parent.children.remove(node)
 
         return schedule,keep
+
+
+class Dynamo0p3ColourTrans(Transformation):
+
+    def __str__(self):
+        return "Split a Dynamo 0.3 loop into colours"
+
+    @property
+    def name(self):
+        return "Dynamo0p3LoopColourTrans"
+
+    def apply(self,node):
+
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node,Loop):
+            raise Exception("Error in DynamoColour transformation. "
+                            "The supplied node is not a loop")
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        node_parent = node.parent
+        node_position = node.position
+
+        from dynamo0p3 import DynLoop
+
+        # create a colours loop. This loops over colours and must be run
+        # sequentially
+        colours_loop = DynLoop(parent=node_parent)
+        colours_loop.loop_type = "colours"
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
+        # Add this loop as a child of the original node's parent
+        node_parent.addchild(colours_loop,
+                             index=node_position)
+
+        # create a colour loop. This loops over the cells of a
+        # particular colour and can be run in parallel
+        colour_loop = DynLoop(parent=colours_loop)
+        colour_loop.loop_type = "colour"
+        colour_loop.field_space = node.field_space
+        colour_loop.iteration_space = node.iteration_space
+        # Add this loop as a child of our loop over colours
+        colours_loop.addchild(colour_loop)
+
+        # add contents of node to colour loop
+        colour_loop.children.extend(node.children)
+
+        # change the parent of the node's contents to the colour loop
+        for child in node.children:
+            child.parent = colour_loop
+
+        # remove original loop
+        node_parent.children.remove(node)
+
+        return schedule,keep
+
