@@ -1036,7 +1036,19 @@ class DynKern(Kern):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
         when parallelised. '''
-        raise GenerationError("DynKern:local_vars is not yet implemented")
+        vars = []
+        # Dof maps for fields
+        for unique_fs in self.arguments.unique_fss:
+            if self.field_on_space(unique_fs):
+                # A map is required as there is a field on this space
+                vars.append(self._fs_descriptors.map_name(unique_fs))
+        # Orientation maps
+        for unique_fs in self.arguments.unique_fss:
+            if self._fs_descriptors.exists(unique_fs):
+                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                if fs_descriptor.orientation:
+                    vars.append(fs_descriptor.orientation_name)
+        return vars
 
     def field_on_space(self, func_space):
         ''' Returns True if a field exists on this space for this kernel. '''
@@ -1047,6 +1059,11 @@ class DynKern(Kern):
                     return True
         return False
 
+    def is_coloured(self):
+        ''' Returns true if this kernel is being called from within a
+        coloured loop '''
+        return self.parent.loop_type == "colour"
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
@@ -1054,6 +1071,14 @@ class DynKern(Kern):
             IfThenGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
+        # If this kernel is being called from within a coloured
+        # loop then we must pass the colour map to the dofmap/orientation
+        # lookup rather than just the cell
+        if self.is_coloured():
+            dofmap_args = "cmap(colour, cell)"
+        else:
+            dofmap_args = "cell"
+
         # create a maps_required logical which we can use to add in
         # spacer comments if necessary
         maps_required = False
@@ -1071,7 +1096,7 @@ class DynKern(Kern):
                 parent.add(AssignGen(parent, pointer=True, lhs=map_name,
                                      rhs=field.proxy_name_indexed +
                                      "%" + field.ref_name +
-                                     "%get_cell_dofmap(cell)"))
+                                     "%get_cell_dofmap("+dofmap_args+")"))
         if maps_required:
             parent.add(CommentGen(parent, ""))
         decl_map_names = []
@@ -1093,7 +1118,8 @@ class DynKern(Kern):
                                lhs=fs_descriptor.orientation_name,
                                rhs=field.proxy_name_indexed + "%" +
                                          field.ref_name +
-                                         "%get_cell_orientation(cell)"))
+                                         "%get_cell_orientation("+
+                                         dofmap_args+")"))
         if self._fs_descriptors.orientation:
             orientation_decl_names = []
             for orientation_name in self._fs_descriptors.orientation_names:
