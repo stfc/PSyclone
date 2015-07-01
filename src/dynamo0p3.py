@@ -522,6 +522,15 @@ class DynInvoke(Invoke):
                         return arg
         raise GenerationError("Functionspace name not found")
 
+    def arg_written_to(self):
+        ''' Returns the first argument object which is written to
+        (has access gh_write or gh_inc) '''
+        for kern_call in self.schedule.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.access == "gh_write" or arg.access == "gh_inc":
+                    return arg
+        raise GenerationError("Failed to find an argument that is written to")
+
     def unique_fss(self):
         ''' Returns the unique function space names over all kernel
         calls in this invoke. '''
@@ -805,12 +814,17 @@ class DynInvoke(Invoke):
                                    pointer=True,
                                    entity_decls = ["cmap(:,:)",
                                                    "ncp_colour(:)"]))
+
+            # Find which argument object is written to in order to look-up
+            # the colour map
+            arg = self.arg_written_to()
+
             # Add the look-up of the colouring map
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Look-up colour map"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            name = first_var.proxy_name_indexed+\
-                   "%"+first_var.ref_name+"%get_colours"
+            name = arg.proxy_name_indexed+\
+                   "%"+arg.ref_name+"%get_colours"
             invoke_sub.add(CallGen(invoke_sub,
                                    name=name,
                                    args=["ncolour", "ncp_colour", "cmap"]))
