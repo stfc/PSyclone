@@ -10,7 +10,7 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import Dynamo0p3ColourTrans
+from transformations import Dynamo0p3ColourTrans, DynamoOpenMPLoop
 import os
 import pytest
 
@@ -24,8 +24,7 @@ def test_colour_trans():
                               "1_single_invoke.f90"),
                  api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
-    invokes = psy.invokes
-    invoke = invokes.get('invoke_0_testkern_type')
+    invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
 
@@ -39,7 +38,55 @@ def test_colour_trans():
     # a string
     gen=str(psy.gen)
 
-    print gen
-
     # Check that we're calling the API to get the no. of colours
-    assert "%get_colours(" in gen
+    assert "f1_proxy%vspace%get_colours(" in gen
+
+    col_loop_idx = -1
+    cell_loop_idx = -1
+    for idx, line in enumerate(gen.split('\n')):
+        if "DO colour=1,ncolour" in line:
+            col_loop_idx = idx
+        if "DO cell=1,ncp_ncolour(colour)" in line:
+            cell_loop_idx = idx
+
+    assert cell_loop_idx - col_loop_idx == 1
+
+    # Check that we're using the colour map when getting the cell dof maps
+    assert "get_cell_dofmap(cmap(colour,cell))" in gen
+
+
+def test_omp_colour_trans():
+    ''' Test the OpenMP transformation applied to a coloured loop '''
+    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "1_single_invoke.f90"),
+                 api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOpenMPLoop()
+
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[0])
+
+    # Then apply OpenMP to the inner loop
+    schedule, _ = otrans.apply(cschedule.children[0].children[0])
+
+    invoke.schedule = schedule
+    code = psy.gen
+
+    col_loop_idx = -1
+    omp_idx = -1
+    cell_loop_idx = -1
+    for idx, line in enumerate(code.split('\n')):
+        if "DO colour=1,ncolour" in line:
+            col_loop_idx = idx
+        if "DO cell=1,ncp_ncolour(colour)" in line:
+            cell_loop_idx = idx
+        if "!$omp parallel do" in line:
+            omp_idx = idx
+
+    assert cell_loop_idx - omp_idx == 1
+    assert omp_idx - col_loop_idx == 1
