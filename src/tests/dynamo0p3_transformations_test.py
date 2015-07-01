@@ -12,17 +12,16 @@ from parse import parse
 from psyGen import PSyFactory
 from transformations import Dynamo0p3ColourTrans, DynamoOpenMPLoop
 import os
-import pytest
 
 TEST_API = "dynamo0.3"
 
 
 def test_colour_trans():
     ''' test of the colouring transformation of a single loop '''
-    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "1_single_invoke.f90"),
-                 api=TEST_API)
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
@@ -36,7 +35,7 @@ def test_colour_trans():
 
     # Store the results of applying this code transformation as
     # a string
-    gen=str(psy.gen)
+    gen = str(psy.gen)
 
     # Check that we're calling the API to get the no. of colours
     assert "f1_proxy%vspace%get_colours(" in gen
@@ -57,10 +56,10 @@ def test_colour_trans():
 
 def test_omp_colour_trans():
     ''' Test the OpenMP transformation applied to a coloured loop '''
-    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "1_single_invoke.f90"),
-                 api=TEST_API)
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
@@ -90,3 +89,35 @@ def test_omp_colour_trans():
 
     assert cell_loop_idx - omp_idx == 1
     assert omp_idx - col_loop_idx == 1
+
+    # Check that the list of private variables is correct
+    assert "private(cell, map)" in code
+
+def test_omp_colour_orient_trans():
+    ''' Test the OpenMP transformation applied to a coloured loop
+        when the kernel expects orientation information '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "9_orientation.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOpenMPLoop()
+
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[0])
+
+    # Then apply OpenMP to the inner loop
+    schedule, _ = otrans.apply(cschedule.children[0].children[0])
+
+    invoke.schedule = schedule
+    code = psy.gen
+
+    # Check that we're using the colour map when getting the orientation
+    assert "get_cell_orientation(cmap(colour,cell))" in code
+
+    # Check that the list of private variables is correct
+    assert "private(cell, orientation)" in code
