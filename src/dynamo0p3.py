@@ -522,14 +522,14 @@ class DynInvoke(Invoke):
                         return arg
         raise GenerationError("Functionspace name not found")
 
-    def arg_written_to(self):
-        ''' Returns the first argument object which is written to
-        (has access gh_write or gh_inc) '''
+    def inc_arg(self):
+        ''' Returns the first argument object which
+        has access gh_inc '''
         for kern_call in self.schedule.kern_calls():
             for arg in kern_call.arguments.args:
-                if arg.access == "gh_write" or arg.access == "gh_inc":
+                if arg.access == "gh_inc":
                     return arg
-        raise GenerationError("Failed to find an argument that is written to")
+        raise GenerationError("Failed to find an argument with GH_INC access")
 
     def unique_fss(self):
         ''' Returns the unique function space names over all kernel
@@ -815,20 +815,6 @@ class DynInvoke(Invoke):
                                    entity_decls = ["cmap(:,:)",
                                                    "ncp_colour(:)"]))
 
-            # Find which argument object is written to in order to look-up
-            # the colour map
-            arg = self.arg_written_to()
-
-            # Add the look-up of the colouring map
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Look-up colour map"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            name = arg.proxy_name_indexed+\
-                   "%"+arg.ref_name+"%get_colours"
-            invoke_sub.add(CallGen(invoke_sub,
-                                   name=name,
-                                   args=["ncolour", "ncp_colour", "cmap"]))
-
         if self.qr_required:
             # add calls to compute the values of any basis arrays
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -928,7 +914,7 @@ class DynLoop(Loop):
             self._stop = "ncolour"
         elif self._loop_type == "colour":
             self._variable_name = "cell"
-            self._stop = "ncp_ncolour(colour)"
+            self._stop = "ncp_colour(colour)"
         else:
             self._variable_name = "cell"
             self._stop = self.field.proxy_name_indexed + "%" + \
@@ -1059,6 +1045,24 @@ class DynKern(Kern):
                     return True
         return False
 
+    def incremented_field(self):
+        ''' Returns the argument corresponding to a field that has
+        INC access '''
+        for arg in self.arguments.args:
+            if arg.access == "gh_inc":
+                return arg
+        raise GenerationError("Kernel {0} does not have an argument with "
+                              "GH_INC access".format(self.name))
+
+    def written_field(self):
+        ''' Returns the argument corresponding to a field that has
+        WRITE access '''
+        for arg in self.arguments.args:
+            if arg.access == "gh_write":
+                return arg
+        raise GenerationError("Kernel {0} does not have an argument with "
+                              "GH_WRITE access".format(self.name))
+
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''
@@ -1071,10 +1075,40 @@ class DynKern(Kern):
             IfThenGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
+
         # If this kernel is being called from within a coloured
-        # loop then we must pass the colour map to the dofmap/orientation
-        # lookup rather than just the cell
+        # loop then we have to look-up the colour map 
         if self.is_coloured():
+
+            # Find which argument object has INC access in order to look-up
+            # the colour map
+            try:
+                arg = self.incremented_field()
+            except GenerationError:
+                # TODO Warn that we're colouring a kernel that has
+                # no field object with INC access
+                arg = self.written_field()
+
+            new_parent, position = parent.start_parent_loop()
+            # Add the look-up of the colouring map for this kernel
+            # call
+            new_parent.add(CommentGen(new_parent, ""),
+                       position=["before", position])
+            new_parent.add(CommentGen(new_parent, " Look-up colour map"),
+                       position=["before", position])
+            new_parent.add(CommentGen(new_parent, ""),
+                       position=["before", position])
+            name = arg.proxy_name_indexed+\
+                   "%"+arg.ref_name+"%get_colours"
+            new_parent.add(CallGen(new_parent,
+                                   name=name,
+                                   args=["ncolour", "ncp_colour", "cmap"]),
+                           position=["before", position])
+            new_parent.add(CommentGen(new_parent, ""),
+                           position=["before", position])
+
+            # We must pass the colour map to the dofmap/orientation
+            # lookup rather than just the cell
             dofmap_args = "cmap(colour, cell)"
         else:
             dofmap_args = "cell"
@@ -1085,6 +1119,7 @@ class DynKern(Kern):
         for unique_fs in self.arguments.unique_fss:
             if self.field_on_space(unique_fs):
                 maps_required = True
+
         # function-space maps initialisation and their declarations
         if maps_required:
             parent.add(CommentGen(parent, ""))

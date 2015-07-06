@@ -158,6 +158,7 @@ class OpenMPLoop(Transformation):
 
         return schedule,keep
 
+
 class DynamoOpenMPLoop(OpenMPLoop):
 
     ''' Dynamo specific OpenMP loop transformation. Adds Dynamo specific
@@ -182,12 +183,13 @@ class DynamoOpenMPLoop(OpenMPLoop):
         if not node.iteration_space == "cells":
             raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
         # Check we do not need colouring
-        if node.field_space != "v3" and node.loop_type is None:
-            raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is not 'v3'. Colouring is required.")
+        if node.field_space != "w3" and node.loop_type is None:
+            raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is not 'w3'. Colouring is required.")
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
             raise Exception("Error in "+self.name+" transformation. The requested loop is over colours and must be computed serially.")
         return OpenMPLoop.apply(self,node)
+
 
 class GOceanOpenMPLoop(OpenMPLoop):
 
@@ -300,9 +302,15 @@ class Dynamo0p3ColourTrans(Transformation):
 
         # check node is a loop
         from psyGen import Loop
-        if not isinstance(node,Loop):
+        if not isinstance(node, Loop):
             raise Exception("Error in DynamoColour transformation. "
                             "The supplied node is not a loop")
+        # Check we need colouring
+        if node.field_space == "w3":
+            pass
+            #TODO generate a warning here as we don't need to colour
+            # a loop that updates a field on W3.
+
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
