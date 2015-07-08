@@ -69,7 +69,7 @@ class BaseGen(object):
             raise Exception('Error: BaseGen:add: auto option must be implemented by the sub class!')
         options=["append","first","after","before","insert","after_index"]
         if position[0] not in options:
-            raise GenerationError("Error: BaseGen:add: supported positions are {0} but found {1}".format(str(options),position[0]))
+            raise Exception("Error: BaseGen:add: supported positions are {0} but found {1}".format(str(options),position[0]))
         if position[0]=="append":
             self.root.content.append(new_object.root)
         elif position[0]=="first":
@@ -108,6 +108,14 @@ class BaseGen(object):
         if not found:
             raise RuntimeError("Error, expecting to find a loop but none were found")
         return self.root.content[index]
+
+    def start_first_sibling_loop(self, debug = False):
+        ''' Returns the *first* Do loop that is a sibling '''
+        from fparser.block_statements import Do
+        for sibling in self.root.content:
+            if isinstance(sibling, Do):
+                return sibling
+        raise RuntimeError("Error, expecting to find a loop but none were found")
 
     def start_parent_loop(self, debug = False):
         from fparser.block_statements import Subroutine, EndSubroutine, Do
