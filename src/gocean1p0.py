@@ -63,6 +63,11 @@ GRID_PROPERTY_DICT = {"grid_area_t":"area_t",
 # loops.
 VALID_LOOP_TYPES = ["inner", "outer"]
 
+# Whether or not to generate constant loop bounds in the PSy layer.
+# If this is false then loop bounds are obtained by de-referencing
+# the field object being written to (e.g. a_field%internal%xstop)
+CONST_LOOP_BOUNDS = True
+
 class GOPSy(PSy):
     ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
         invokes object (which controls all the required invocation calls).
@@ -182,18 +187,55 @@ class GOInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, DeclGen, TypeDeclGen
+        from f2pygen import SubroutineGen, DeclGen, TypeDeclGen, CommentGen,\
+            AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
         parent.add(invoke_sub)
+
+        # add declarations for the variables holding the upper bounds
+        # of loops in i and j
+        if CONST_LOOP_BOUNDS:
+            self._iloop_bound = "istop"
+            self._jloop_bound = "jstop"
+            invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
+                                   entity_decls=[self._iloop_bound,
+                                                 self._jloop_bound]))
+        else:
+            self._iloop_bound = ""
+            self._jloop_bound = ""
+
+        # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
-        # add the subroutine argument declarations for arrays
+
+        # add the subroutine argument declarations for fields
         if len(self.unique_args_arrays) > 0:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
                                          intent="inout",
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
+
+            # Look-up the loop bounds using the first field object in the
+            # list
+            from f2pygen import DoGen
+            if CONST_LOOP_BOUNDS:
+                position = invoke_sub.start_first_sibling_loop()
+                sim_domain = self.unique_args_arrays[0]+"%grid%simulation_domain%"
+
+                invoke_sub.add(CommentGen(invoke_sub, ""),
+                               position=["before", position])
+                invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
+                               position=["before", position])
+                invoke_sub.add(AssignGen(invoke_sub, lhs=self._iloop_bound,
+                                         rhs=sim_domain+"xstop"),
+                               position=["before", position])
+                invoke_sub.add(AssignGen(invoke_sub, lhs=self._jloop_bound,
+                                         rhs=sim_domain+"ystop"),
+                               position=["before", position])
+                invoke_sub.add(CommentGen(invoke_sub, ""),
+                               position=["before", position])
+
         # add the subroutine argument declarations for real scalars
         if len(self.unique_args_rscalars) > 0:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
