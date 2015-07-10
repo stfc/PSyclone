@@ -31,6 +31,10 @@ VALID_SCALAR_TYPES = ["i_scalar", "r_scalar"]
 VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
                       "offset_ne", "offset_nw", "offset_any"]
 
+# The offset schemes for which we can currently generate constant
+# loop bounds in the PSy layer
+SUPPORTED_OFFSETS = ["offset_ne", "offset_sw", "offset_any"]
+
 # The sets of grid points that a kernel may operate on
 VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
 
@@ -197,14 +201,14 @@ class GOInvoke(Invoke):
         # add declarations for the variables holding the upper bounds
         # of loops in i and j
         if CONST_LOOP_BOUNDS:
-            self._iloop_bound = "istop"
-            self._jloop_bound = "jstop"
+            invoke_sub._iloop_bound = "istop"
+            invoke_sub._jloop_bound = "jstop"
             invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[self._iloop_bound,
-                                                 self._jloop_bound]))
+                                   entity_decls=[invoke_sub._iloop_bound,
+                                                 invoke_sub._jloop_bound]))
         else:
-            self._iloop_bound = ""
-            self._jloop_bound = ""
+            invoke_sub._iloop_bound = ""
+            invoke_sub._jloop_bound = ""
 
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
@@ -215,26 +219,6 @@ class GOInvoke(Invoke):
                                          intent="inout",
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
-
-            # Look-up the loop bounds using the first field object in the
-            # list
-            from f2pygen import DoGen
-            if CONST_LOOP_BOUNDS:
-                position = invoke_sub.start_first_sibling_loop()
-                sim_domain = self.unique_args_arrays[0]+"%grid%simulation_domain%"
-
-                invoke_sub.add(CommentGen(invoke_sub, ""),
-                               position=["before", position])
-                invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
-                               position=["before", position])
-                invoke_sub.add(AssignGen(invoke_sub, lhs=self._iloop_bound,
-                                         rhs=sim_domain+"xstop"),
-                               position=["before", position])
-                invoke_sub.add(AssignGen(invoke_sub, lhs=self._jloop_bound,
-                                         rhs=sim_domain+"ystop"),
-                               position=["before", position])
-                invoke_sub.add(CommentGen(invoke_sub, ""),
-                               position=["before", position])
 
         # add the subroutine argument declarations for real scalars
         if len(self.unique_args_rscalars) > 0:
@@ -248,6 +232,27 @@ class GOInvoke(Invoke):
                                        intent="inout",
                                        entity_decls=self.unique_args_iscalars)
             invoke_sub.add(my_decl_iscalars)
+
+        if CONST_LOOP_BOUNDS and len(self.unique_args_arrays) > 0:
+
+            # Look-up the loop bounds using the first field object in the
+            # list
+            sim_domain = self.unique_args_arrays[0]+\
+                         "%grid%simulation_domain%"
+            position = invoke_sub.last_declaration()
+
+            invoke_sub.add(CommentGen(invoke_sub, ""),
+                           position=["after", position])
+            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._jloop_bound,
+                                     rhs=sim_domain+"ystop"),
+                           position=["after", position])
+            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._iloop_bound,
+                                     rhs=sim_domain+"xstop"),
+                           position=["after", position])
+            invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
+                           position=["after", position])
+            invoke_sub.add(CommentGen(invoke_sub, ""),
+                           position=["after", position])
 
 class GOSchedule(Schedule):
 
@@ -302,6 +307,34 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
+        # If we're generating constant loop bounds then we need to
+        # look-up our parent SubroutineGen as that has the variable
+        # names to use.
+        if CONST_LOOP_BOUNDS:
+            from f2pygen import SubroutineGen
+            # Climb up the tree looking for our enclosing SubroutineGen
+            local_parent = parent
+            while local_parent is not None and\
+                  not isinstance(local_parent, SubroutineGen):
+                local_parent = local_parent.parent
+
+                if local_parent is None:
+                    raise GenerationError("Internal error: cannot find parent"
+                                          " Subroutine for this Do loop")
+            # Walk down the tree looking for a kernel so that we can
+            # look up what index-offset convention we are to use
+            go_kernels = self.walk(self.children, GOKern)
+            if len(go_kernels) == 0:
+                raise GenerationError("Internal error: cannot find the "
+                                      "GOcean Kernel enclosed by this loop")
+            index_offset = go_kernels[0].index_offset
+            if index_offset not in SUPPORTED_OFFSETS:
+                raise GenerationError("Constant bounds generation"
+                                      " not implemented for a grid offset "
+                                      "of {0}. Supported offsets are {1}".\
+                                      format(index_offset,
+                                             SUPPORTED_OFFSETS))
+
         if self.field_space == "every":
             from f2pygen import DeclGen, AssignGen
             dim_var = DeclGen(parent, datatype="INTEGER",
@@ -310,45 +343,193 @@ class GOLoop(Loop):
 
             # loop bounds
             self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = "idim1"
-                index = "1"
-            elif self._loop_type == "outer":
-                self._stop = "idim2"
-                index = "2"
-            new_parent, position = parent.start_parent_loop()
-            dim_size = AssignGen(new_parent, lhs=self._stop,
-                                 rhs="SIZE("+self.field_name+"%data, "
-                                 +index+")")
-            new_parent.add(dim_size, position=["before", position])
 
-            dims = DeclGen(parent, datatype="INTEGER",
-                           entity_decls=[self._stop])
-            parent.add(dims)
+            if local_parent._iloop_bound:
+
+                # Bounds are independent of the grid offset convention in use
+                if self._loop_type == "inner":
+                    self._stop = local_parent._iloop_bound + "+1"
+
+                elif self._loop_type == "outer":
+                    self._stop = local_parent._jloop_bound + "+1"
+            else:
+                # We look-up the bounds by enquiring about the SIZE of
+                # the array itself
+                if self._loop_type == "inner":
+                    self._stop = "idim1"
+                    index = "1"
+                elif self._loop_type == "outer":
+                    self._stop = "idim2"
+                    index = "2"
+                new_parent, position = parent.start_parent_loop()
+                dim_size = AssignGen(new_parent, lhs=self._stop,
+                                     rhs="SIZE("+self.field_name+"%data, "
+                                     +index+")")
+                new_parent.add(dim_size, position=["before", position])
+                dims = DeclGen(parent, datatype="INTEGER",
+                               entity_decls=[self._stop])
+                parent.add(dims)
 
         else: # one of our spaces so use values provided by the infrastructure
 
-            # loop bounds are pulled from the field object
-            self._start = self.field_name
-            self._stop = self.field_name
+            if local_parent._iloop_bound:
+                # We're expressing all loop bounds in terms of constant
+                # expressions
+                if index_offset == "offset_ne":
 
-            if self._iteration_space.lower() == "internal_pts":
-                self._start += "%internal"
-                self._stop += "%internal"
-            elif self._iteration_space.lower() == "all_pts":
-                self._start += "%whole"
-                self._stop += "%whole"
+                    if self.field_space == "ct":
+                        if self._iteration_space == "internal_pts":
+                            if self._loop_type == "inner":
+                                self._start = "2"
+                                self._stop = local_parent._iloop_bound
+                            elif self._loop_type == "outer":
+                                self._start = "2"
+                                self._stop = local_parent._jloop_bound
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                self._start = "1"
+                                self._stop = local_parent._iloop_bound + "+1"
+                            elif self._loop_type == "outer":
+                                self._start = "1"
+                                self._stop = local_parent._jloop_bound + "+1"
+
+                    elif self.field_space == "cu":
+                        if self._iteration_space == "internal_pts":
+                            if self._loop_type == "inner":
+                                self._start = "2"
+                                self._stop = local_parent._iloop_bound + "-1"
+                            elif self._loop_type == "outer":
+                                self._start = "2"
+                                self._stop = local_parent._jloop_bound
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                self._start = "1"
+                                self._stop = local_parent._iloop_bound
+                            elif self._loop_type == "outer":
+                                self._start = "1"
+                                self._stop = local_parent._jloop_bound + "+1"
+
+                    elif self.field_space == "cv":
+                        if self._iteration_space == "internal_pts":
+                            self._start = "2"
+                            if self._loop_type == "inner":
+                                self._stop = local_parent._iloop_bound
+                            elif self._loop_type == "outer":
+                                self._stop = local_parent._jloop_bound + "-1"
+                        elif self._iteration_space == "all_pts":
+                            self._start = "1"
+                            if self._loop_type == "inner":
+                                self._stop = local_parent._iloop_bound + "+1"
+                            elif self._loop_type == "outer":
+                                self._stop = local_parent._jloop_bound
+
+                    elif self.field_space == "cf":
+                        if self._iteration_space == "internal_pts":
+                            self._start = "1"
+                            if self._loop_type == "inner":
+                                self._stop = local_parent._iloop_bound
+                            elif self._loop_type == "outer":
+                                self._stop = local_parent._jloop_bound
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                pass
+                            elif self._loop_type == "outer":
+                                pass
+
+                elif index_offset == "offset_sw":
+
+                    if self.field_space == "ct":
+                        if self._iteration_space == "internal_pts":
+                            if self._loop_type == "inner":
+                                self._start = "1"
+                                self._stop = local_parent._iloop_bound
+                            if self._loop_type == "outer":
+                                self._start = "1"
+                                self._stop = local_parent._jloop_bound
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                pass
+                            elif self._loop_type == "outer":
+                                pass
+
+                    elif self.field_space == "cu":
+                        if self._iteration_space == "internal_pts":
+                            if self._loop_type == "inner":
+                                self._start = "2"
+                                self._stop = local_parent._iloop_bound + "+1"
+                            elif self._loop_type == "outer":
+                                self._start = "1"
+                                self._stop = local_parent._jloop_bound
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                # ARPDBG
+                                pass
+                            elif self._loop_type == "outer":
+                                # ARPDBG
+                                pass
+
+                    elif self.field_space == "cv":
+                        if self._iteration_space == "internal_pts":
+                            if self._loop_type == "inner":
+                                # ARPDBG
+                                pass
+                            elif self._loop_type == "outer":
+                                # ARPDBG
+                                pass
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                # ARPDBG
+                                pass
+                            elif self._loop_type == "outer":
+                                # ARPDBG
+                                pass
+
+                    elif self.field_space == "cf":
+                        if self._iteration_space == "internal_pts":
+                            if self._loop_type == "inner":
+                                # ARPDBG
+                                pass
+                            elif self._loop_type == "outer":
+                                # ARPDBG
+                                pass
+                        elif self._iteration_space == "all_pts":
+                            if self._loop_type == "inner":
+                                # ARPDBG
+                                pass
+                            elif self._loop_type == "outer":
+                                # ARPDBG
+                                pass
+
+                elif index_offset == "offset_any":
+
+                    self._start = "1"
+                    if self._loop_type == "inner":
+                        self._stop = local_parent._iloop_bound
+                    if self._loop_type == "outer":
+                        self._stop = local_parent._jloop_bound
+
             else:
-                raise GenerationError("Unrecognised iteration space, {0}. "
-                                      "Cannot generate loop bounds.".\
-                                      format(self._iteration_space))
+                # loop bounds are pulled from the field object
+                self._start = self.field_name
+                self._stop = self.field_name
 
-            if self._loop_type == "inner":
-                self._start += "%xstart"
-                self._stop += "%xstop"
-            elif self._loop_type == "outer":
-                self._start += "%ystart"
-                self._stop += "%ystop"
+                if self._iteration_space.lower() == "internal_pts":
+                    self._start += "%internal"
+                    self._stop += "%internal"
+                elif self._iteration_space.lower() == "all_pts":
+                    self._start += "%whole"
+                    self._stop += "%whole"
+                else:
+                    raise GenerationError("Unrecognised iteration space, {0}. "
+                                          "Cannot generate loop bounds.".\
+                                          format(self._iteration_space))
+
+                if self._loop_type == "inner":
+                    self._start += "%xstart"
+                    self._stop += "%xstop"
+                elif self._loop_type == "outer":
+                    self._start += "%ystart"
+                    self._stop += "%ystop"
 
         Loop.gen_code(self, parent)
 
