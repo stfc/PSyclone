@@ -66,10 +66,13 @@ class BaseGen(object):
         '''
 
         if position[0]=="auto":
-            raise Exception('Error: BaseGen:add: auto option must be implemented by the sub class!')
+            raise Exception("Error: BaseGen:add: auto option must be "
+                            "implemented by the sub class!")
         options=["append","first","after","before","insert","after_index"]
         if position[0] not in options:
-            raise Exception("Error: BaseGen:add: supported positions are {0} but found {1}".format(str(options),position[0]))
+            raise Exception("Error: BaseGen:add: supported positions are "
+                            "{0} but found {1}".\
+                            format(str(options), position[0]))
         if position[0]=="append":
             self.root.content.append(new_object.root)
         elif position[0]=="first":
@@ -78,12 +81,14 @@ class BaseGen(object):
             index=position[1]
             self.root.content.insert(index,new_object.root)
         elif position[0]=="after":
-            self.root.content.insert(self.root.content.index(position[1])+1,new_object.root)
+            idx = self._index_of_object(self.root.content, position[1])
+            self.root.content.insert(idx+1,new_object.root)
         elif position[0]=="after_index":
             self.root.content.insert(position[1]+1,new_object.root)
         elif position[0]=="before":
+            idx = self._index_of_object(self.root.content, position[1])
             try:
-                self.root.content.insert(self.root.content.index(position[1]),new_object.root)
+                self.root.content.insert(idx, new_object.root)
             except ValueError:
                 print "ValueError when inserting:"
                 print str(new_object),str(new_object.root)
@@ -93,8 +98,19 @@ class BaseGen(object):
                 print str(position[1])
                 exit(1)
         else:
-            raise Exception("Error: BaseGen:add: internal error, should not get to here")
+            raise Exception("Error: BaseGen:add: internal error, should "
+                            "not get to here")
         self.children.append(new_object)
+
+    def _index_of_object(self, alist, obj):
+        '''Effectively implements list.index(obj) but returns the index of
+            the first item in the list that *is* the supplied object
+
+        '''
+        for idx,body in enumerate(alist):
+            if body is obj:
+                return idx
+        raise Exception("Object {0} not found in list".format(str(obj)))
 
     def start_sibling_loop(self, debug = False):
         from fparser.block_statements import Do
@@ -106,16 +122,21 @@ class BaseGen(object):
             else:
                 index -= 1
         if not found:
-            raise RuntimeError("Error, expecting to find a loop but none were found")
+            raise RuntimeError("Error, expecting to find a loop but none "
+                               "were found")
         return self.root.content[index]
 
-    def start_first_sibling_loop(self, debug = False):
-        ''' Returns the *first* Do loop that is a sibling '''
-        from fparser.block_statements import Do
-        for sibling in self.root.content:
-            if isinstance(sibling, Do):
+    def last_declaration(self):
+        '''Returns the *last* occurrence of a Declaration in the list of
+            siblings of this node
+
+        '''
+        from fparser.typedecl_statements import TypeDeclarationStatement
+        for sibling in reversed(self.root.content):
+            if isinstance(sibling, TypeDeclarationStatement):
                 return sibling
-        raise RuntimeError("Error, expecting to find a loop but none were found")
+
+        raise RuntimeError("Error, no variable declarations found")
 
     def start_parent_loop(self, debug = False):
         from fparser.block_statements import Subroutine, EndSubroutine, Do
@@ -123,7 +144,8 @@ class BaseGen(object):
         if debug:
             print "Entered before_parent_loop"
             print "The type of the current node is "+str(type(self.root))
-            print "If the current node is a Do loop then move up to the top of the do loop nest"
+            print "If the current node is a Do loop then move up to the "
+            "top of the do loop nest"
         current = self.root
         local_current = self
 	while isinstance(current.parent,Do):
