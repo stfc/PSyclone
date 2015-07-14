@@ -385,6 +385,7 @@ class GOLoop(Loop):
                             elif self._loop_type == "outer":
                                 self._start = "2"
                                 self._stop = local_parent._jloop_bound
+
                         elif self._iteration_space == "all_pts":
                             if self._loop_type == "inner":
                                 self._start = "1"
@@ -401,6 +402,7 @@ class GOLoop(Loop):
                             elif self._loop_type == "outer":
                                 self._start = "2"
                                 self._stop = local_parent._jloop_bound
+
                         elif self._iteration_space == "all_pts":
                             if self._loop_type == "inner":
                                 self._start = "1"
@@ -416,6 +418,7 @@ class GOLoop(Loop):
                                 self._stop = local_parent._iloop_bound
                             elif self._loop_type == "outer":
                                 self._stop = local_parent._jloop_bound + "-1"
+
                         elif self._iteration_space == "all_pts":
                             self._start = "1"
                             if self._loop_type == "inner":
@@ -427,30 +430,33 @@ class GOLoop(Loop):
                         if self._iteration_space == "internal_pts":
                             self._start = "1"
                             if self._loop_type == "inner":
+                                self._stop = local_parent._iloop_bound + "-1"
+                            elif self._loop_type == "outer":
+                                self._stop = local_parent._jloop_bound + "-1"
+
+                        elif self._iteration_space == "all_pts":
+                            self._start = "1"
+                            if self._loop_type == "inner":
                                 self._stop = local_parent._iloop_bound
                             elif self._loop_type == "outer":
                                 self._stop = local_parent._jloop_bound
-                        elif self._iteration_space == "all_pts":
-                            if self._loop_type == "inner":
-                                pass
-                            elif self._loop_type == "outer":
-                                pass
 
                 elif index_offset == "offset_sw":
 
                     if self.field_space == "ct":
                         if self._iteration_space == "internal_pts":
+                            self._start = "1"
                             if self._loop_type == "inner":
-                                self._start = "1"
                                 self._stop = local_parent._iloop_bound
                             if self._loop_type == "outer":
-                                self._start = "1"
                                 self._stop = local_parent._jloop_bound
+
                         elif self._iteration_space == "all_pts":
+                            self._start = "1"
                             if self._loop_type == "inner":
-                                pass
+                                self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                pass
+                                self._stop = local_parent._jloop_bound + "+1"
 
                     elif self.field_space == "cu":
                         if self._iteration_space == "internal_pts":
@@ -460,45 +466,46 @@ class GOLoop(Loop):
                             elif self._loop_type == "outer":
                                 self._start = "1"
                                 self._stop = local_parent._jloop_bound
+
                         elif self._iteration_space == "all_pts":
                             if self._loop_type == "inner":
-                                # ARPDBG
-                                pass
+                                self._start = "1"
+                                self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                # ARPDBG
-                                pass
+                                self._start = "1"
+                                self._stop = local_parent._jloop_bound + "+1"
 
                     elif self.field_space == "cv":
                         if self._iteration_space == "internal_pts":
                             if self._loop_type == "inner":
-                                # ARPDBG
-                                pass
+                                self._start = "1"
+                                self._stop = local_parent._iloop_bound
                             elif self._loop_type == "outer":
-                                # ARPDBG
-                                pass
+                                self._start = "2"
+                                self._stop = local_parent._jloop_bound + "+1"
+
                         elif self._iteration_space == "all_pts":
                             if self._loop_type == "inner":
-                                # ARPDBG
-                                pass
+                                self._start = "1"
+                                self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                # ARPDBG
-                                pass
+                                self._start = "1"
+                                self._stop = local_parent._jloop_bound + "+1"
 
                     elif self.field_space == "cf":
                         if self._iteration_space == "internal_pts":
+                            self._start = "2"
                             if self._loop_type == "inner":
-                                # ARPDBG
-                                pass
+                                self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                # ARPDBG
-                                pass
+                                self._stop = local_parent._jloop_bound + "+1"
+
                         elif self._iteration_space == "all_pts":
+                            self._start = "1"
                             if self._loop_type == "inner":
-                                # ARPDBG
-                                pass
+                                self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                # ARPDBG
-                                pass
+                                self._stop = local_parent._jloop_bound + "+1"
 
                 elif index_offset == "offset_any":
 
