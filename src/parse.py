@@ -653,9 +653,15 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                           format(modulename, cdir))
                         else:
                             raise IOError("More than one match for kernel file "
-                                          "'{0}.[fF]90' found!".format(modulename))
+                                          "'{0}.[fF]90' found!".
+                                          format(modulename))
                     else:
-                        modast = fpapi.parse(matches[0])
+                        try:
+                            modast = fpapi.parse(matches[0])
+                        except:
+                            raise ParseError("Failed to parse kernel code "
+                                             "'{0}'. Is the Fortran correct?".
+                                             format(matches[0]))
 
                     statement_kcalls.append(KernelCall(modulename, 
                                                        KernelTypeFactory(api=api).\
