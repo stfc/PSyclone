@@ -899,9 +899,18 @@ class DynLoop(Loop):
     we require.  Creates Dynamo specific loop bounds when the code is
     being generated. '''
 
-    def __init__(self, call=None, parent=None):
+    def __init__(self, call=None, parent=None,
+                 loop_type=""):
         Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
-                      valid_loop_types=["colours", "colour"])
+                      valid_loop_types=["colours", "colour", ""])
+        self.loop_type = loop_type
+
+        if self._loop_type == "colours":
+            self._variable_name = "colour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+        else:
+            self._variable_name = "cell"
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
@@ -909,14 +918,10 @@ class DynLoop(Loop):
         generate the code. '''
         self._start = "1"
         if self._loop_type == "colours":
-
-            self._variable_name = "colour"
             self._stop = "ncolour"
         elif self._loop_type == "colour":
-            self._variable_name = "cell"
             self._stop = "ncp_colour(colour)"
         else:
-            self._variable_name = "cell"
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name + "%get_ncell()"
         Loop.gen_code(self, parent)

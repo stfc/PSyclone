@@ -489,8 +489,8 @@ class Dynamo0p3ColourTrans(Transformation):
 
         # create a colours loop. This loops over colours and must be run
         # sequentially
-        colours_loop = DynLoop(parent=node_parent)
-        colours_loop.loop_type = "colours"
+        colours_loop = DynLoop(parent=node_parent,
+                               loop_type="colours")
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space
         # Add this loop as a child of the original node's parent
@@ -499,8 +499,8 @@ class Dynamo0p3ColourTrans(Transformation):
 
         # create a colour loop. This loops over the cells of a
         # particular colour and can be run in parallel
-        colour_loop = DynLoop(parent=colours_loop)
-        colour_loop.loop_type = "colour"
+        colour_loop = DynLoop(parent=colours_loop,
+                              loop_type="colour")
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
         # Add this loop as a child of our loop over colours
