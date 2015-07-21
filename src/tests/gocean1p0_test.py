@@ -56,8 +56,6 @@ class TestPSyGOcean1p0API:
       USE time_smooth_mod, ONLY: time_smooth_code
       USE compute_cu_mod, ONLY: compute_cu_code
       TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, unew_fld, uold_fld
-      INTEGER idim1
-      INTEGER idim2
       INTEGER j
       INTEGER i
       DO j=cu_fld%internal%ystart,cu_fld%internal%ystop
@@ -65,10 +63,8 @@ class TestPSyGOcean1p0API:
           CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO 
-      idim2 = SIZE(uold_fld%data, 2)
-      idim1 = SIZE(uold_fld%data, 1)
-      DO j=1,idim2
-        DO i=1,idim1
+      DO j=1,SIZE(uold_fld%data, 2)
+        DO i=1,SIZE(uold_fld%data, 1)
           CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data)
         END DO 
       END DO 

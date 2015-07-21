@@ -10,7 +10,7 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import Dynamo0p3ColourTrans, DynamoOpenMPLoop
+from transformations import Dynamo0p3ColourTrans, DynamoOMPParallelLoopTrans
 import os
 
 TEST_API = "dynamo0.3"
@@ -65,7 +65,7 @@ def test_omp_colour_trans():
     schedule = invoke.schedule
 
     ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOpenMPLoop()
+    otrans = DynamoOMPParallelLoopTrans()
 
     # Colour the loop
     cschedule, _ = ctrans.apply(schedule.children[0])
@@ -105,7 +105,7 @@ def test_omp_colour_orient_trans():
     schedule = invoke.schedule
 
     ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOpenMPLoop()
+    otrans = DynamoOMPParallelLoopTrans()
 
     # Colour the loop
     cschedule, _ = ctrans.apply(schedule.children[0])

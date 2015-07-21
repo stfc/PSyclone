@@ -115,7 +115,13 @@ class Invokes(object):
         return self.invoke_map.keys()
     def get(self, invoke_name):
         # add a try here for keyerror
-        return self.invoke_map[invoke_name]
+        try:
+            return self.invoke_map[invoke_name]
+        except KeyError:
+            raise RuntimeError("Cannot find an invoke named '{0}' in {1}".
+                               format(invoke_name,
+                                      str(self.names)))
+
     def gen_code(self, parent):
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
@@ -610,45 +616,189 @@ class Schedule(Node):
         for entity in self._children:
             entity.gen_code(parent)
 
-class LoopDirective(Node):
+class Directive(Node):
 
     def view(self,indent = 0):
-        print self.indent(indent)+"LoopDirective"
+        print self.indent(indent)+"Directive"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
-class OMPLoopDirective(LoopDirective):
+class OMPDirective(Directive):
 
-    def gen_code(self,parent):
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+class OMPParallelDirective(OMPDirective):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP Parallel]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self, parent):
         from f2pygen import DirectiveGen
-        for child in self.children:
-            child.gen_code(parent)
-        # directive must be added after children are generated so get private list picks up the 
-        private_str = self.list_to_string(self._get_private_list())
-        position = parent.start_sibling_loop()
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do", "default(shared), private({0})".format(private_str)), position = ["before", position])
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
+        private_str = self.list_to_string(self._get_private_list())
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel region is not already within some parallel region
+        self._not_within_omp_parallel_region()
+
+        # Check that this OpenMP PARALLEL directive encloses other
+        # OpenMP directives. Although it is valid OpenMP if it doesn't,
+        # this almost certainly indicates a user error.
+        self._encloses_omp_directive()
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
+                                "default(shared), private({0})".\
+                                format(private_str)))
+
+        first_type = type(self.children[0])
+        for child in self.children:
+            if first_type != type(child):
+                raise NotImplementedError("Cannot correctly generate code"
+                                          " for an OpenMP parallel region"
+                                          " containing children of "
+                                          "different types")
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
+        
     def _get_private_list(self):
-        # returns the variable name used for any loops within a directive and
-        # any variables that have been declared private by a Call within the directive.
+        '''Returns the variable names used for any loops within a directive
+        and any variables that have been declared private by a Call
+        within the directive.
+
+        '''
         result=[]
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
+            if loop._variable_name == "":
+                raise GenerationError("Internal error: name of loop "
+                                      "variable not set.")
             if loop._variable_name.lower() not in result:
                 result.append(loop._variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
+                if variable_name == "":
+                    raise GenerationError("Internal error: call has a "
+                                          "local variable but its name "
+                                          "is not set.")
                 if variable_name.lower() not in result:
                     result.append(variable_name.lower())
         return result
+
+    def _not_within_omp_parallel_region(self):
+        ''' Check that this Directive is not within any other
+            parallel region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective):
+                raise GenerationError("Cannot nest OpenMP parallel regions.")
+            myparent = myparent.parent
+
+    def _encloses_omp_directive(self):
+        ''' Check that this Parallel region contains other OpenMP
+            directives. While it doesn't have to (in order to be valid
+            OpenMP), it is likely that an absence of directives
+            is an error on the part of the user. '''
+        # We need to recurse down through all our children and check
+        # whether any of them are an OMPDirective.
+        node_list = self.walk(self.children, OMPDirective)
+        if len(node_list) == 0:
+            # TODO raise a warning here so that the user can decide
+            # whether or not this is OK.
+            pass
+            #raise GenerationError("OpenMP parallel region does not enclose "
+            #                      "any OpenMP directives. This is probably "
+            #                      "not what you want.")
+
+class OMPDoDirective(OMPDirective):
+
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
+        self._omp_schedule = omp_schedule
+        # Call the init method of the base class once we've stored
+        # the OpenMP schedule
+        OMPDirective.__init__(self,
+                              children=children,
+                              parent=parent)
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # It is only at the point of code generation that
+        # we can check for correctness (given that we don't
+        # mandate the order that a user can apply transformations
+        # to the code). As an orphaned loop directive, we must
+        # have an OMPRegionDirective as a parent somewhere
+        # back up the tree.
+        self._within_omp_region()
+
+        # As we're an orphaned loop we don't specify the scope
+        # of any variables so we don't have to generate the
+        # list of private variables
+        parent.add(DirectiveGen(parent, 
+                                "omp", "begin", "do",
+                                "schedule({0})".\
+                                format(self._omp_schedule)))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "do", ""))
+
+    def _within_omp_region(self):
+        ''' Check that this orphaned OMP Loop Directive is actually
+            within an OpenMP Parallel Region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective) and\
+               not isinstance(myparent, OMPParallelDoDirective):
+                return
+            myparent = myparent.parent
+        raise GenerationError("OMPOrphanLoopDirective must have an "
+                              "OMPRegionDirective as ancestor")
+
+class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
+    ''' Class for the !$OMP PARALLEL DO directive. This inherits from
+        both OMPParallelDirective (because it creates a new OpenMP
+        thread-parallel region) and OMPDoDirective (because it
+        causes a loop to be parallelised). '''
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP parallel do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel do is not already within some parallel region
+        self._not_within_omp_parallel_region()
+
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
+                                "default(shared), private({0}), "
+                                "schedule({1})".\
+                                format(private_str, self._omp_schedule)))
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
 class Loop(Node):
 
     @property
     def loop_type(self):
-        #assert self._loop_type is not None, "Error, loop_type has not yet been set"
         return self._loop_type
 
     @loop_type.setter
@@ -657,7 +807,8 @@ class Loop(Node):
         self._loop_type=value
 
     def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "unset", topology_name = "topology", valid_loop_types=[]):
+                 variable_name = "", topology_name = "topology", 
+                 valid_loop_types=[]):
 
         children = []
         # we need to determine whether this is an infrastructure or kernel
