@@ -45,13 +45,13 @@ def test_colour_trans():
     for idx, line in enumerate(gen.split('\n')):
         if "DO colour=1,ncolour" in line:
             col_loop_idx = idx
-        if "DO cell=1,ncp_ncolour(colour)" in line:
+        if "DO cell=1,ncp_colour(colour)" in line:
             cell_loop_idx = idx
 
     assert cell_loop_idx - col_loop_idx == 1
 
     # Check that we're using the colour map when getting the cell dof maps
-    assert "get_cell_dofmap(cmap(colour,cell))" in gen
+    assert "get_cell_dofmap(cmap(colour, cell))" in gen
 
 
 def test_omp_colour_trans():
@@ -74,7 +74,7 @@ def test_omp_colour_trans():
     schedule, _ = otrans.apply(cschedule.children[0].children[0])
 
     invoke.schedule = schedule
-    code = psy.gen
+    code = str(psy.gen)
 
     col_loop_idx = -1
     omp_idx = -1
@@ -82,7 +82,7 @@ def test_omp_colour_trans():
     for idx, line in enumerate(code.split('\n')):
         if "DO colour=1,ncolour" in line:
             col_loop_idx = idx
-        if "DO cell=1,ncp_ncolour(colour)" in line:
+        if "DO cell=1,ncp_colour(colour)" in line:
             cell_loop_idx = idx
         if "!$omp parallel do" in line:
             omp_idx = idx
@@ -91,7 +91,7 @@ def test_omp_colour_trans():
     assert omp_idx - col_loop_idx == 1
 
     # Check that the list of private variables is correct
-    assert "private(cell, map)" in code
+    assert "private(cell,map_w1,map_w2,map_w3)" in code
 
 def test_omp_colour_orient_trans():
     ''' Test the OpenMP transformation applied to a coloured loop
@@ -114,10 +114,10 @@ def test_omp_colour_orient_trans():
     schedule, _ = otrans.apply(cschedule.children[0].children[0])
 
     invoke.schedule = schedule
-    code = psy.gen
+    code = str(psy.gen)
 
     # Check that we're using the colour map when getting the orientation
-    assert "get_cell_orientation(cmap(colour,cell))" in code
+    assert "get_cell_orientation(cmap(colour, cell))" in code
 
     # Check that the list of private variables is correct
-    assert "private(cell, orientation)" in code
+    assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
