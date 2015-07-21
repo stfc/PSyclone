@@ -124,7 +124,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         except TransformationError as err:
             raise err
         except Exception as err:
-            raise TransformationError("Unexpected exception: {}".format(err))
+            raise TransformationError("Unexpected exception: {0}".\
+                                      format(err))
 
         return LoopFuseTrans.apply(self, node1, node2)
 
