@@ -912,10 +912,32 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+    def _is_openmp_parallel(self):
+        '''Returns true if this loop is within an OpenMP parallel region
+
+        '''
+        from PsyGen import OMPParallelDirective
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective):
+                return True
+            myparent = myparent.parent
+        return False
+
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
         generate the code. '''
+
+        from psyGen import OMPParallelDirective
+
+        # Check that we're not within an OpenMP parallel region if
+        # we are a loop over colours.
+        if self._loop_type == "colours" and self._is_openmp_parallel():
+                    raise GenerationError("Cannot have a loop over "
+                                          "colours within an OpenMP "
+                                          "parallel region.")
+        # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
             self._stop = "ncolour"
@@ -925,6 +947,15 @@ class DynLoop(Loop):
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name + "%get_ncell()"
         Loop.gen_code(self, parent)
+
+    def has_inc_arg(self):
+        ''' Returns True if any of the Kernels called within this
+        loop have an argument with INC access. Returns False otherwise '''
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.access == "gh_inc":
+                    return True
+        return False
 
 
 class DynInf(Inf):
@@ -1073,6 +1104,16 @@ class DynKern(Kern):
         coloured loop '''
         return self.parent.loop_type == "colour"
 
+    def is_openmp_parallel(self):
+        ''' Returns true if this kernel is being called from within
+        an OpenMP parallel region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective):
+                return True
+            myparent = myparent.parent
+        return False
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
@@ -1116,6 +1157,22 @@ class DynKern(Kern):
             # lookup rather than just the cell
             dofmap_args = "cmap(colour, cell)"
         else:
+            # This kernel call has not been coloured
+            #  - is it OpenMP parallel, i.e. are we a child of
+            # an OpenMP directive?
+            if self.is_openmp_parallel():
+                try:
+                    # It is OpenMP parallel - does it have an argument
+                    # with INC access?
+                    arg = self.incremented_field()                    
+                except GenerationError:
+                    arg = None
+                if arg:
+                    raise GenerationError("Kernel {0} has an argument with "
+                                          "INC access and therefore must "
+                                          "be coloured in order to be "
+                                          "parallelised with OpenMP".\
+                                          format(self._name))
             dofmap_args = "cell"
 
         # create a maps_required logical which we can use to add in

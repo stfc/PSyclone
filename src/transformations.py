@@ -297,20 +297,23 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
-            raise Exception("Error in "+self.name+" transformation. The "
-                            "node is not a loop.")
+            raise TransformationError("Error in {0} transformation. The "
+                                      "node is not a loop.".format(self.name))
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
-            raise Exception("Error in "+self.name+" transformation. The "
-                            "iteration space is not 'cells'.")
-        # Check we do not need colouring
-        if node.field_space != "w3" and node.loop_type is None:
-            raise Exception("Error in "+self.name+" transformation. The "
-                            "field space written to by the kernel is "
-                            "not 'w3'. Colouring is required.")
+            raise TransformationError("Error in {0} transformation. The "
+                                      "iteration space is not 'cells'.".\
+                                      format(self.name))
+        # If the loop is not already coloured then check whether or not
+        # it should be
+        if node.loop_type is not 'colour' and node.has_inc_arg():
+            raise TransformationError("Error in {0} transformation. The "
+                                      "kernel has an argument with INC "
+                                      "access. Colouring is required.".\
+                                      format(self.name))
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
-            raise Exception("Error in "+self.name+" transformation. "
+            raise TransformationError("Error in "+self.name+" transformation. "
                             "The requested loop is over colours and must "
                             "be computed serially.")
         return OMPParallelLoopTrans.apply(self, node)
@@ -468,13 +471,31 @@ class Dynamo0p3ColourTrans(Transformation):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
-            raise Exception("Error in DynamoColour transformation. "
-                            "The supplied node is not a loop")
+            raise TransformationError("Error in DynamoColour transformation. "
+                                      "The supplied node is not a loop")
         # Check we need colouring
         if node.field_space == "w3":
             pass
             #TODO generate a warning here as we don't need to colour
             # a loop that updates a field on W3.
+
+        # Check whether we have a field that has INC access
+        if not node.has_inc_arg():
+            #TODO generate a warning here as we don't need to colour
+            # a loop that does not update a field with INC access
+            pass
+
+        # Check that we're not attempting to colour a loop that is
+        # already within an OpenMP region (because the loop over
+        # colours *must* be sequential)
+        from psyGen import OMPDirective
+        myparent = node.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPDirective):
+                raise TransformationError("Cannot have a loop over "
+                                          "colours within an OpenMP "
+                                          "parallel region.")
+            myparent = myparent.parent
 
         schedule = node.root
 

@@ -140,11 +140,8 @@ def test_omp_colouring_needed():
 
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP to the loop
-    schedule, _ = otrans.apply(schedule.children[0])
-
-    invoke.schedule = schedule
     with pytest.raises(TransformationError):
-        _ = psy.gen
+        schedule, _ = otrans.apply(schedule.children[0])
 
 
 def test_check_colours_loop_sequential():
@@ -174,12 +171,15 @@ def test_check_colours_loop_sequential():
 def test_colouring_after_openmp():
     ''' Test that we raise an error if the user attempts to
     colour a loop that is already within an OpenMP parallel region '''
+    # For this test we must use a kernel that doesn't actually require 
+    # colouring as otherwise PSyclone won't let us apply the OpenMP
+    # transformation first!
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "11_any_space.f90"),
+                                 "9_orientation.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
+    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
     schedule = invoke.schedule
 
     ctrans = Dynamo0p3ColourTrans()
