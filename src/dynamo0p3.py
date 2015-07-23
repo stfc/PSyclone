@@ -916,7 +916,7 @@ class DynLoop(Loop):
         '''Returns true if this loop is within an OpenMP parallel region
 
         '''
-        from PsyGen import OMPParallelDirective
+        from psyGen import OMPParallelDirective
         myparent = self.parent
         while myparent is not None:
             if isinstance(myparent, OMPParallelDirective):
@@ -1107,6 +1107,7 @@ class DynKern(Kern):
     def is_openmp_parallel(self):
         ''' Returns true if this kernel is being called from within
         an OpenMP parallel region '''
+        from psyGen import OMPParallelDirective
         myparent = self.parent
         while myparent is not None:
             if isinstance(myparent, OMPParallelDirective):
