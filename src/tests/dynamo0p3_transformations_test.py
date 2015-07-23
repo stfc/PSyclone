@@ -167,7 +167,6 @@ def test_check_colours_loop_sequential():
     with pytest.raises(TransformationError):
         schedule, _ = otrans.apply(cschedule.children[0])
 
-
 def test_colouring_after_openmp():
     ''' Test that we raise an error if the user attempts to
     colour a loop that is already within an OpenMP parallel region '''
@@ -191,3 +190,35 @@ def test_colouring_after_openmp():
     # Now attempt to colour the loop within this OpenMP region
     with pytest.raises(TransformationError):
         schedule, _ = ctrans.apply(schedule.children[0].children[0])
+
+def test_colouring_multi_kernel():
+    ''' Test that we correctly generate all the map-lookups etc.
+    when an invoke contains more than one kernel '''
+    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "4.6_multikernel_invokes.f90"),
+                 api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+
+    for child in schedule.children:
+        newsched, _ = ctrans.apply(child)
+
+    # Apply OpenMP to each of the colour loops
+    schedule = newsched
+    for child in schedule.children:
+        newsched, _ = otrans.apply(child.children[0])
+
+    invoke.schedule = newsched
+
+    gen = str(psy.gen)
+    print gen
+
+    # Check that we're calling the API to get the no. of colours
+    assert "a_proxy%vspace%get_colours(" in gen
+    assert "f_proxy%vspace%get_colours(" in gen
+    assert "private(cell,map_w2,map_w3,map_w0)" in gen
