@@ -10,8 +10,11 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import Dynamo0p3ColourTrans, DynamoOMPParallelLoopTrans
+from transformations import TransformationError,\
+    Dynamo0p3ColourTrans,\
+    DynamoOMPParallelLoopTrans
 import os
+import pytest
 
 TEST_API = "dynamo0.3"
 
@@ -121,3 +124,70 @@ def test_omp_colour_orient_trans():
 
     # Check that the list of private variables is correct
     assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
+
+
+def test_omp_colouring_needed():
+    ''' Test that we raise an error when applying an OpenMP transformation
+    to a loop that requires colouring (i.e. has a field with 'INC' access)
+    but is not coloured. '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "11_any_space.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
+    schedule = invoke.schedule
+
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+
+    invoke.schedule = schedule
+    with pytest.raises(TransformationError):
+        _ = psy.gen
+
+
+def test_check_colours_loop_sequential():
+    ''' Test that we raise an error if the user attempts to OpenMP-
+    parallelise a loop over colours (since any such loop must be
+    sequential) '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "9_orientation.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[0])
+
+    # Then erroneously attempt to apply OpenMP to the loop over
+    # colours
+    with pytest.raises(TransformationError):
+        schedule, _ = otrans.apply(cschedule.children[0])
+
+
+def test_colouring_after_openmp():
+    ''' Test that we raise an error if the user attempts to
+    colour a loop that is already within an OpenMP parallel region '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "11_any_space.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+
+    # Apply OpenMP to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+
+    # Now attempt to colour the loop within this OpenMP region
+    with pytest.raises(TransformationError):
+        schedule, _ = ctrans.apply(schedule.children[0].children[0])
