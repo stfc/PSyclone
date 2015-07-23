@@ -58,7 +58,7 @@ def test_colour_trans():
 
 
 def test_colouring_not_a_loop():
-    ''' Test that we raise an appropriate error if the we attempt to
+    ''' Test that we raise an appropriate error if we attempt to
     colour something that is not a loop '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -72,6 +72,24 @@ def test_colouring_not_a_loop():
     # Erroneously attempt to colour the schedule rather than the loop
     with pytest.raises(TransformationError):
         _, _ = ctrans.apply(schedule)
+
+
+def test_omp_not_a_loop():
+    ''' Test that we raise an appropriate error if we attempt to
+    apply an OpenMP transformation to something that is not a loop '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+
+    # Erroneously attempt to apply OpenMP to the schedule rather than
+    # the loop
+    with pytest.raises(TransformationError):
+        _, _ = otrans.apply(schedule)
 
 
 def test_omp_colour_trans():
