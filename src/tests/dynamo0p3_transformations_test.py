@@ -11,7 +11,9 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError,\
+    OMPParallelTrans,\
     Dynamo0p3ColourTrans,\
+    Dynamo0p3OMPLoopTrans,\
     DynamoOMPParallelLoopTrans
 import os
 import pytest
@@ -249,11 +251,102 @@ def test_colouring_multi_kernel():
         newsched, _ = otrans.apply(child.children[0])
 
     invoke.schedule = newsched
-
     gen = str(psy.gen)
-    print gen
 
     # Check that we're calling the API to get the no. of colours
     assert "a_proxy%vspace%get_colours(" in gen
     assert "f_proxy%vspace%get_colours(" in gen
     assert "private(cell,map_w2,map_w3,map_w0)" in gen
+
+
+def test_omp_region_omp_do():
+    ''' Test that we correctly generate code for the case of a single
+    OMP DO within an OMP PARALLEL region without colouring '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    olooptrans = Dynamo0p3OMPLoopTrans()
+    ptrans = OMPParallelTrans()
+
+    # Put an OMP PARALLEL around this loop
+    child = schedule.children[0]
+    oschedule, _ = ptrans.apply(child)
+
+    # Put an OMP DO around this loop
+    schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
+
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = schedule
+
+    # Store the results of applying this code transformation as
+    # a string
+    code = str(psy.gen)
+
+    omp_do_idx = -1
+    omp_para_idx = -1
+    cell_loop_idx = -1
+    for idx, line in enumerate(code.split('\n')):
+        if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
+            cell_loop_idx = idx
+        if "!$omp do" in line:
+            omp_do_idx = idx
+        if "!$omp parallel default" in line:
+            omp_para_idx = idx
+
+    assert (omp_do_idx - omp_para_idx) == 1
+    assert (cell_loop_idx - omp_do_idx) == 1
+
+
+def test_multi_kernel_single_omp_region():
+    ''' Test that we correctly generate all the map-lookups etc.
+    when an invoke contains more than one kernel that are all contained
+    within a single OMP region '''
+    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "4_multikernel_invokes.f90"),
+                 api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+
+    # Apply OpenMP to each of the loops
+    for child in schedule.children:
+        newsched, _ = otrans.apply(child)
+
+    # Enclose all of these OpenMP'd loops within a single region
+    newsched, _ = rtrans.apply(newsched.children)
+
+    invoke.schedule = newsched
+
+    code = str(psy.gen)
+    print code
+
+    omp_do_idx = -1
+    omp_end_do_idx = -1
+    omp_para_idx = -1
+    omp_end_para_idx = -1
+    cell_loop_idx = -1
+    for idx, line in enumerate(code.split('\n')):
+        if (cell_loop_idx == -1) and\
+           ("DO cell=1,f1_proxy%vspace%get_ncell()" in line):
+            cell_loop_idx = idx
+        if (omp_do_idx == -1) and ("!$omp do" in line):
+            omp_do_idx = idx
+        if "!$omp end do" in line:
+            omp_end_do_idx = idx
+        if "!$omp parallel default(shared), "+\
+           "private(cell,map_w1,map_w2,map_w3)" in line:
+            omp_para_idx = idx
+        if "!$omp end parallel" in line:
+            omp_end_para_idx = idx
+
+    assert (omp_do_idx - omp_para_idx) == 1
+    assert (cell_loop_idx - omp_do_idx) == 1
+    assert (omp_end_para_idx - omp_end_do_idx) == 1
