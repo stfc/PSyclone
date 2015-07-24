@@ -350,10 +350,51 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                                           node)
 
 
+class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
+
+    ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds
+    Dynamo-specific validity checks. Actual transformation is done by base
+    class. '''
+
+    @property
+    def name(self):
+        return "Dynamo0p3OMPLoopTrans"
+
+    def __str__(self):
+        return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
+
+    def apply(self, node):
+        ''' Perform Dynamo 0.3 specific loop validity checks then call the
+        base class. '''
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError("Error in "+self.name+" transformation."
+                                      " The node is not a loop.")
+        # Check iteration space is supported - only cells at the moment
+        if not node.iteration_space == "cells":
+            raise TransformationError("Error in {0} transformation. The "
+                                      "iteration space is not 'cells'.".\
+                                      format(self.name))
+        # If the loop is not already coloured then check whether or not
+        # it should be
+        if node.loop_type is not 'colour' and node.has_inc_arg():
+            raise TransformationError("Error in {0} transformation. The "
+                                      "kernel has an argument with INC "
+                                      "access. Colouring is required.".\
+                                      format(self.name))
+        # Check we are not a sequential loop
+        if node.loop_type == 'colours':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                            "The requested loop is over colours and must "
+                            "be computed serially.")
+        return OMPLoopTrans.apply(self, node)
+
+
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
     ''' GOcean specific orphan OpenMP loop transformation. Adds GOcean specific
-        validity checks. Actual transformation is done by parent class. '''
+        validity checks. Actual transformation is done by base class. '''
 
     @property
     def name(self):
