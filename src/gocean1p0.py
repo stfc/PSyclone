@@ -237,8 +237,7 @@ class GOInvoke(Invoke):
 
             # Look-up the loop bounds using the first field object in the
             # list
-            sim_domain = self.unique_args_arrays[0]+\
-                         "%grid%simulation_domain%"
+            sim_domain = self.unique_args_arrays[0] + "%internal%"
             position = invoke_sub.last_declaration()
 
             invoke_sub.add(CommentGen(invoke_sub, ""),
@@ -309,7 +308,9 @@ class GOLoop(Loop):
 
         # If we're generating constant loop bounds then we need to
         # look-up our parent SubroutineGen as that has the variable
-        # names to use.
+        # names to use. If we're not generating constant loop bounds
+        # then these variable names will be empty strings so that's
+        # what we test for once we've got our parent.
         if CONST_LOOP_BOUNDS:
             from f2pygen import SubroutineGen
             # Climb up the tree looking for our enclosing SubroutineGen
@@ -318,9 +319,9 @@ class GOLoop(Loop):
                   not isinstance(local_parent, SubroutineGen):
                 local_parent = local_parent.parent
 
-                if local_parent is None:
-                    raise GenerationError("Internal error: cannot find parent"
-                                          " Subroutine for this Do loop")
+            if local_parent is None:
+                raise GenerationError("Internal error: cannot find parent"
+                                      " Subroutine for this Do loop")
             # Walk down the tree looking for a kernel so that we can
             # look up what index-offset convention we are to use
             go_kernels = self.walk(self.children, GOKern)
@@ -445,7 +446,7 @@ class GOLoop(Loop):
 
                     if self.field_space == "ct":
                         if self._iteration_space == "internal_pts":
-                            self._start = "1"
+                            self._start = "2"
                             if self._loop_type == "inner":
                                 self._stop = local_parent._iloop_bound
                             if self._loop_type == "outer":
@@ -460,45 +461,41 @@ class GOLoop(Loop):
 
                     elif self.field_space == "cu":
                         if self._iteration_space == "internal_pts":
+                            self._start = "2"
                             if self._loop_type == "inner":
-                                self._start = "2"
-                                self._stop = local_parent._iloop_bound + "+1"
+                                self._stop = local_parent._iloop_bound
                             elif self._loop_type == "outer":
-                                self._start = "1"
                                 self._stop = local_parent._jloop_bound
 
                         elif self._iteration_space == "all_pts":
+                            self._start = "1"
                             if self._loop_type == "inner":
-                                self._start = "1"
                                 self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                self._start = "1"
                                 self._stop = local_parent._jloop_bound + "+1"
 
                     elif self.field_space == "cv":
                         if self._iteration_space == "internal_pts":
+                            self._start = "2"
                             if self._loop_type == "inner":
-                                self._start = "1"
                                 self._stop = local_parent._iloop_bound
                             elif self._loop_type == "outer":
-                                self._start = "2"
-                                self._stop = local_parent._jloop_bound + "+1"
+                                self._stop = local_parent._jloop_bound
 
                         elif self._iteration_space == "all_pts":
+                            self._start = "1"
                             if self._loop_type == "inner":
-                                self._start = "1"
                                 self._stop = local_parent._iloop_bound + "+1"
                             elif self._loop_type == "outer":
-                                self._start = "1"
                                 self._stop = local_parent._jloop_bound + "+1"
 
                     elif self.field_space == "cf":
                         if self._iteration_space == "internal_pts":
                             self._start = "2"
                             if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "+1"
+                                self._stop = local_parent._iloop_bound
                             elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "+1"
+                                self._stop = local_parent._jloop_bound
 
                         elif self._iteration_space == "all_pts":
                             self._start = "1"
@@ -511,9 +508,9 @@ class GOLoop(Loop):
 
                     self._start = "1"
                     if self._loop_type == "inner":
-                        self._stop = local_parent._iloop_bound
+                        self._stop = local_parent._iloop_bound + "+1"
                     if self._loop_type == "outer":
-                        self._stop = local_parent._jloop_bound
+                        self._stop = local_parent._jloop_bound + "+1"
 
             else:
                 # loop bounds are pulled from the field object
