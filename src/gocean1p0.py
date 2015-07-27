@@ -72,6 +72,7 @@ VALID_LOOP_TYPES = ["inner", "outer"]
 # the field object being written to (e.g. a_field%internal%xstop)
 CONST_LOOP_BOUNDS = True
 
+
 class GOPSy(PSy):
     ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
         invokes object (which controls all the required invocation calls).
@@ -99,6 +100,7 @@ class GOPSy(PSy):
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         return psy_module.root
+
 
 class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
@@ -136,6 +138,7 @@ class GOInvokes(Invokes):
                     # Append the index-offset of this kernel to the list of
                     # those seen so far
                     index_offsets.append(kern_call.index_offset)
+
 
 class GOInvoke(Invoke):
     ''' The GOcean specific invoke class. This passes the GOcean specific
@@ -201,14 +204,9 @@ class GOInvoke(Invoke):
         # add declarations for the variables holding the upper bounds
         # of loops in i and j
         if CONST_LOOP_BOUNDS:
-            invoke_sub._iloop_bound = "istop"
-            invoke_sub._jloop_bound = "jstop"
             invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[invoke_sub._iloop_bound,
-                                                 invoke_sub._jloop_bound]))
-        else:
-            invoke_sub._iloop_bound = ""
-            invoke_sub._jloop_bound = ""
+                                   entity_decls=[self.schedule.iloop_bound,
+                                                 self.schedule.jloop_bound]))
 
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
@@ -242,16 +240,17 @@ class GOInvoke(Invoke):
 
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._jloop_bound,
+            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_bound,
                                      rhs=sim_domain+"ystop"),
                            position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._iloop_bound,
+            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_bound,
                                      rhs=sim_domain+"xstop"),
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
+
 
 class GOSchedule(Schedule):
 
@@ -288,6 +287,16 @@ class GOSchedule(Schedule):
                 outer_loop.field_name = inner_loop.field_name
         Node.__init__(self, children=sequence)
 
+        # Variable names to use if we're generating loops with constant
+        # bounds (rather than looking them up for every field)
+        if CONST_LOOP_BOUNDS:
+            self.iloop_bound = "istop"
+            self.jloop_bound = "jstop"
+        else:
+            self.iloop_bound = ""
+            self.jloop_bound = ""
+
+
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
@@ -299,6 +308,164 @@ class GOLoop(Loop):
         Loop.__init__(self, GOInf, GOKern, call=call, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
 
+    def set_ne_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a mesh with North-East offset '''
+        if self.field_space == "ct":
+            self.set_ne_ct_loop_bounds(schedule)
+        elif self.field_space == "cu":
+            self.set_ne_cu_loop_bounds(schedule)
+        elif self.field_space == "cv":
+            self.set_ne_cv_loop_bounds(schedule)
+        elif self.field_space == "cf":
+            self.set_ne_cf_loop_bounds(schedule)
+
+    def set_ne_ct_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on T grid points for a mesh with North-East offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "+1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "+1"
+
+    def set_ne_cu_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on U grid points for a mesh with North-East offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "-1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "+1"
+
+    def set_ne_cv_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on V grid points for a mesh with North-East offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "-1"
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "+1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+    def set_ne_cf_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on F grid points for a mesh with North-East offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "-1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "-1"
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+    def set_sw_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a mesh with South-West offset '''
+        if self.field_space == "ct":
+            self.set_sw_ct_loop_bounds(schedule)
+        elif self.field_space == "cu":
+            self.set_sw_cu_loop_bounds(schedule)
+        elif self.field_space == "cv":
+            self.set_sw_cv_loop_bounds(schedule)
+        elif self.field_space == "cf":
+            self.set_sw_cf_loop_bounds(schedule)
+
+    def set_sw_ct_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on T grid points for a mesh with South-West offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            if self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "+1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "+1"
+
+    def set_sw_cu_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on U grid points for a mesh with South-West offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "+1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "+1"
+
+    def set_sw_cv_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on V grid points for a mesh with South-West offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "+1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "+1"
+
+    def set_sw_cf_loop_bounds(self, schedule):
+        ''' Set the loop bounds for a loop updating a quantity
+            on F grid points for a mesh with South-West offset '''
+        if self._iteration_space == "internal_pts":
+            self._start = "2"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound
+
+        elif self._iteration_space == "all_pts":
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_bound + "+1"
+            elif self._loop_type == "outer":
+                self._stop = schedule.jloop_bound + "+1"
+
     def gen_code(self, parent):
 
         if self._loop_type == "inner":
@@ -306,24 +473,21 @@ class GOLoop(Loop):
         elif self._loop_type == "outer":
             self._variable_name = "j"
 
-        # If we're generating constant loop bounds then we need to
-        # look-up our parent SubroutineGen as that has the variable
-        # names to use. If we're not generating constant loop bounds
-        # then these variable names will be empty strings so that's
-        # what we test for once we've got our parent.
         if CONST_LOOP_BOUNDS:
-            from f2pygen import SubroutineGen
-            # Climb up the tree looking for our enclosing SubroutineGen
-            local_parent = parent
-            while local_parent is not None and\
-                  not isinstance(local_parent, SubroutineGen):
-                local_parent = local_parent.parent
+            # Our schedule holds the names to use for the loop bounds.
+            # Climb up the tree looking for our enclosing Schedule
+            myparent = self.parent
+            while myparent is not None and\
+                  not isinstance(myparent, GOSchedule):
+                myparent = myparent.parent
 
-            if local_parent is None:
+            if not isinstance(myparent, GOSchedule):
                 raise GenerationError("Internal error: cannot find parent"
-                                      " Subroutine for this Do loop")
+                                      " GOSchedule for this Do loop")
+            schedule = myparent
+
             # Walk down the tree looking for a kernel so that we can
-            # look up what index-offset convention we are to use
+            # look-up what index-offset convention we are to use
             go_kernels = self.walk(self.children, GOKern)
             if len(go_kernels) == 0:
                 raise GenerationError("Internal error: cannot find the "
@@ -337,6 +501,7 @@ class GOLoop(Loop):
                                              SUPPORTED_OFFSETS))
 
         if self.field_space == "every":
+            # Bounds are independent of the grid-offset convention in use
             from f2pygen import DeclGen, AssignGen
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
@@ -345,14 +510,12 @@ class GOLoop(Loop):
             # loop bounds
             self._start = "1"
 
-            if local_parent._iloop_bound:
-
-                # Bounds are independent of the grid offset convention in use
+            if CONST_LOOP_BOUNDS:
                 if self._loop_type == "inner":
-                    self._stop = local_parent._iloop_bound + "+1"
+                    self._stop = schedule.iloop_bound + "+1"
 
                 elif self._loop_type == "outer":
-                    self._stop = local_parent._jloop_bound + "+1"
+                    self._stop = schedule.jloop_bound + "+1"
             else:
                 # We look-up the bounds by enquiring about the SIZE of
                 # the array itself
@@ -373,147 +536,27 @@ class GOLoop(Loop):
 
         else: # one of our spaces so use values provided by the infrastructure
 
-            if local_parent._iloop_bound:
+            if CONST_LOOP_BOUNDS:
                 # We're expressing all loop bounds in terms of constant
                 # expressions
                 if index_offset == "offset_ne":
-
-                    if self.field_space == "ct":
-                        if self._iteration_space == "internal_pts":
-                            if self._loop_type == "inner":
-                                self._start = "2"
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._start = "2"
-                                self._stop = local_parent._jloop_bound
-
-                        elif self._iteration_space == "all_pts":
-                            if self._loop_type == "inner":
-                                self._start = "1"
-                                self._stop = local_parent._iloop_bound + "+1"
-                            elif self._loop_type == "outer":
-                                self._start = "1"
-                                self._stop = local_parent._jloop_bound + "+1"
-
-                    elif self.field_space == "cu":
-                        if self._iteration_space == "internal_pts":
-                            if self._loop_type == "inner":
-                                self._start = "2"
-                                self._stop = local_parent._iloop_bound + "-1"
-                            elif self._loop_type == "outer":
-                                self._start = "2"
-                                self._stop = local_parent._jloop_bound
-
-                        elif self._iteration_space == "all_pts":
-                            if self._loop_type == "inner":
-                                self._start = "1"
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._start = "1"
-                                self._stop = local_parent._jloop_bound + "+1"
-
-                    elif self.field_space == "cv":
-                        if self._iteration_space == "internal_pts":
-                            self._start = "2"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "-1"
-
-                        elif self._iteration_space == "all_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "+1"
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound
-
-                    elif self.field_space == "cf":
-                        if self._iteration_space == "internal_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "-1"
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "-1"
-
-                        elif self._iteration_space == "all_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound
+                    self.set_ne_loop_bounds(schedule)
 
                 elif index_offset == "offset_sw":
-
-                    if self.field_space == "ct":
-                        if self._iteration_space == "internal_pts":
-                            self._start = "2"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound
-                            if self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound
-
-                        elif self._iteration_space == "all_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "+1"
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "+1"
-
-                    elif self.field_space == "cu":
-                        if self._iteration_space == "internal_pts":
-                            self._start = "2"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound
-
-                        elif self._iteration_space == "all_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "+1"
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "+1"
-
-                    elif self.field_space == "cv":
-                        if self._iteration_space == "internal_pts":
-                            self._start = "2"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound
-
-                        elif self._iteration_space == "all_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "+1"
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "+1"
-
-                    elif self.field_space == "cf":
-                        if self._iteration_space == "internal_pts":
-                            self._start = "2"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound
-
-                        elif self._iteration_space == "all_pts":
-                            self._start = "1"
-                            if self._loop_type == "inner":
-                                self._stop = local_parent._iloop_bound + "+1"
-                            elif self._loop_type == "outer":
-                                self._stop = local_parent._jloop_bound + "+1"
+                    self.set_sw_loop_bounds(schedule)
 
                 elif index_offset == "offset_any":
 
                     self._start = "1"
                     if self._loop_type == "inner":
-                        self._stop = local_parent._iloop_bound + "+1"
+                        self._stop = schedule.iloop_bound + "+1"
                     if self._loop_type == "outer":
-                        self._stop = local_parent._jloop_bound + "+1"
+                        self._stop = schedule.jloop_bound + "+1"
 
             else:
-                # loop bounds are pulled from the field object
+                # loop bounds are pulled from the field object which
+                # is more straightforward for us but provides the
+                # Fortran compiler with less information.
                 self._start = self.field_name
                 self._stop = self.field_name
 
@@ -537,6 +580,7 @@ class GOLoop(Loop):
 
         Loop.gen_code(self, parent)
 
+
 class GOInf(Inf):
     ''' A GOcean specific infrastructure call factory. No infrastructure
         calls are supported in GOcean at the moment so we just call the base
@@ -546,6 +590,7 @@ class GOInf(Inf):
         ''' Creates a specific infrastructure call. Currently just calls
             the base class method. '''
         return Inf.create(call, parent)
+
 
 class GOKern(Kern):
     ''' Stores information about GOcean Kernels as specified by the Kernel
@@ -629,6 +674,7 @@ class GOKern(Kern):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
+
 class GOKernelArguments(Arguments):
     '''Provides information about GOcean kernel-call arguments
         collectively, as specified by the kernel argument
@@ -681,6 +727,7 @@ class GOKernelArguments(Arguments):
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
+
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
         as specified by the kernel argument metadata. '''
@@ -700,6 +747,7 @@ class GOKernelArgument(KernelArgument):
         ''' Returns the expected finite difference space for this
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
+
 
 class GOKernelGridArgument(object):
     ''' Describes arguments that supply grid properties to a kernel.
@@ -739,6 +787,7 @@ class GOKernelGridArgument(object):
             algorithm layer so None is returned.'''
         return None
 
+
 class GO1p0Descriptor(Descriptor):
     '''Description of a GOcean 1.0 kernel argument, as obtained by
         parsing the kernel meta-data
@@ -771,7 +820,7 @@ class GO1p0Descriptor(Descriptor):
                 raise ParseError("Meta-data error in kernel {0}: argument "
                                  "grid-point type is '{1}' but must be one "
                                  "of {2} ".format(kernel_name, funcspace,
-                                                 valid_func_spaces))
+                                                  valid_func_spaces))
 
             if stencil.lower() not in VALID_STENCILS:
                 raise ParseError("Meta-data error in kernel {0}: 3rd "
@@ -794,8 +843,8 @@ class GO1p0Descriptor(Descriptor):
                                  "un-recognised grid property '{1}' "
                                  "requested. Must be "
                                  "one of {2}".format(kernel_name, grid_var,
-                                                    str(GRID_PROPERTY_DICT.\
-                                                        keys())))
+                                                     str(GRID_PROPERTY_DICT.\
+                                                         keys())))
         else:
             raise ParseError("Meta-data error in kernel {0}: 'arg' type "
                              "expects 2 or 3 arguments but "
@@ -825,6 +874,7 @@ class GO1p0Descriptor(Descriptor):
             a grid-property. The latter are special because they must be
             supplied by the PSy layer. '''
         return self._type
+
 
 class GOKernelType1p0(KernelType):
     ''' Description of a kernel including the grid index-offset it
