@@ -110,7 +110,7 @@ class TestTransInfoClass:
     def test_valid_return_object_from_name(self):
         ''' check get_trans_name method return the correct object type '''
         t=TransInfo()
-        transform=t.get_trans_name("SwapTrans")
+        transform=t.get_trans_name("LoopFuse")
         assert isinstance(transform,Transformation)
 
 class TestNameSpaceClass(object):

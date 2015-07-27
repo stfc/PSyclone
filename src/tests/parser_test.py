@@ -96,3 +96,13 @@ class TestParserGOcean1p0:
                                "test_files", "gocean1p0",
                                "test10_invoke_kernel_invalid_stencil.f90"),
                   api="gocean1.0")
+
+    def test13_kernel_invalid_fortran(self):
+        ''' Check that the parser raises an error if the specified kernel
+            code is not valid fortran '''
+        with pytest.raises(ParseError):
+             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "gocean1p0",
+                               "test13_invoke_kernel_invalid_fortran.f90"),
+                  api="gocean1.0")
+

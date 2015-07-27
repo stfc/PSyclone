@@ -265,11 +265,11 @@ class GOSchedule(Schedule):
             if isinstance(call, InfCall):
                 sequence.append(GOInf.create(call, parent=self))
             else:
-                outer_loop = GOLoop(call=None, parent=self)
+                outer_loop = GOLoop(call=None, parent=self, 
+                                    loop_type="outer")
                 sequence.append(outer_loop)
-                outer_loop.loop_type = "outer"
-                inner_loop = GOLoop(call=None, parent=outer_loop)
-                inner_loop.loop_type = "inner"
+                inner_loop = GOLoop(call=None, parent=outer_loop, 
+                                    loop_type="inner")
                 outer_loop.addchild(inner_loop)
                 call = GOKern(call, parent=inner_loop)
                 inner_loop.addchild(call)
@@ -303,10 +303,23 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, call=None, parent=None, variable_name="",
-                 topology_name=""):
+    def __init__(self, call=None, parent=None,
+                 topology_name="", loop_type=""):
         Loop.__init__(self, GOInf, GOKern, call=call, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
+        self.loop_type = loop_type
+
+        # We set the loop variable name in the constructor so that it is
+        # available when we're determining which vars should be OpenMP
+        # PRIVATE (which is done *before* code generation is performed)
+        if self.loop_type == "inner":
+            self._variable_name = "i"
+        elif self.loop_type == "outer":
+            self._variable_name = "j"
+        else:
+            raise GenerationError("Invalid loop type of '{0}'. Expected "
+                                  "one of {1}".\
+                                  format(self._loop_type, VALID_LOOP_TYPES))
 
     def set_ne_loop_bounds(self, schedule):
         ''' Set the loop bounds for a mesh with North-East offset '''
@@ -468,11 +481,6 @@ class GOLoop(Loop):
 
     def gen_code(self, parent):
 
-        if self._loop_type == "inner":
-            self._variable_name = "i"
-        elif self._loop_type == "outer":
-            self._variable_name = "j"
-
         if CONST_LOOP_BOUNDS:
             # Our schedule holds the names to use for the loop bounds.
             # Climb up the tree looking for our enclosing Schedule
@@ -520,19 +528,9 @@ class GOLoop(Loop):
                 # We look-up the bounds by enquiring about the SIZE of
                 # the array itself
                 if self._loop_type == "inner":
-                    self._stop = "idim1"
-                    index = "1"
+                    self._stop = "SIZE("+self.field_name+"%data, 1)"
                 elif self._loop_type == "outer":
-                    self._stop = "idim2"
-                    index = "2"
-                new_parent, position = parent.start_parent_loop()
-                dim_size = AssignGen(new_parent, lhs=self._stop,
-                                     rhs="SIZE("+self.field_name+"%data, "
-                                     +index+")")
-                new_parent.add(dim_size, position=["before", position])
-                dims = DeclGen(parent, datatype="INTEGER",
-                               entity_decls=[self._stop])
-                parent.add(dims)
+                    self._stop = "SIZE("+self.field_name+"%data, 2)"
 
         else: # one of our spaces so use values provided by the infrastructure
 
@@ -546,7 +544,6 @@ class GOLoop(Loop):
                     self.set_sw_loop_bounds(schedule)
 
                 elif index_offset == "offset_any":
-
                     self._start = "1"
                     if self._loop_type == "inner":
                         self._stop = schedule.iloop_bound + "+1"
