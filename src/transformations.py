@@ -627,7 +627,7 @@ class OMPParallelTrans(Transformation):
         ''' Apply this transformation to a subset of the nodes
             within a schedule - i.e. enclose the specified
             Loops in the schedule within a single OpenMP region '''
-        from psyGen import OMPParallelDirective, Schedule
+        from psyGen import OMPDirective, OMPParallelDirective, Schedule
 
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
@@ -653,11 +653,24 @@ class OMPParallelTrans(Transformation):
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
-        if not isinstance(node_parent, Schedule):
-            raise TransformationError("Error in OMPParallel transformation. "
-                                      "Supplied node is not a child of a "
-                                      "Schedule.")
+        foundSched = False
+        foundOMPDir = False
+        myparent = node_parent
+        while myparent is not None:
+            if isinstance(myparent, Schedule):
+                foundSched = True
+            if isinstance(myparent, OMPDirective):
+                foundOMPDir = True
+            myparent = myparent.parent
 
+        if not foundSched:
+            raise TransformationError("Error in OMPParallel transformation. "
+                                      "Supplied node does not have a "
+                                      "Schedule as an ancestor.")
+        if foundOMPDir:
+            raise TransformationError("Error in OMPParallel transformation:"+\
+                                      " cannot create an OpenMP PARALLEL "+\
+                                      "region within another OpenMP region.")
         for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError("Error in OMPParallel "
