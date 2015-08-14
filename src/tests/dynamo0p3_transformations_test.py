@@ -422,10 +422,10 @@ def test_multi_kernel_single_omp_region():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
     within a single OMP region '''
-    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "4_multikernel_invokes.f90"),
-                 api=TEST_API)
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
@@ -508,7 +508,6 @@ def test_loop_fuse():
                                     fschedule.children[idx])
         idx += 1
 
-    fschedule.view()
     invoke.schedule = fschedule
     gen = str(psy.gen)
 
@@ -531,3 +530,61 @@ def test_loop_fuse():
     assert cell_loop_idx < call_idx1
     assert call_idx1 < call_idx2
     assert call_idx2 < end_loop_idx
+
+
+def test_loop_fuse_omp():
+    '''Test that we can loop-fuse two loop nests and enclose them in an
+       OpenMP parallel region'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+
+    # Fuse the loops
+    nchildren = len(schedule.children)
+    idx = 1
+    fschedule = schedule
+    while idx < nchildren:
+        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                    fschedule.children[idx])
+        idx += 1
+
+    fschedule, _ = otrans.apply(fschedule.children[0])
+
+    invoke.schedule = fschedule
+    fschedule.view()
+    code = str(psy.gen)
+
+    # Check generated code
+    omp_para_idx = -1
+    omp_endpara_idx = -1
+    cell_do_idx = -1
+    cell_enddo_idx = -1
+    call1_idx = -1
+    call2_idx = -1
+    for idx, line in enumerate(code.split('\n')):
+        if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
+            cell_do_idx = idx
+        if "!$omp parallel do default(shared), private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
+            omp_para_idx = idx
+        if "CALL testkern_code" in line:
+            if call1_idx == -1:
+                call1_idx = idx
+            else:
+                call2_idx = idx
+        if "END DO" in line:
+            cell_enddo_idx = idx
+        if "!$omp end parallel do" in line:
+            omp_endpara_idx = idx
+
+    assert cell_do_idx - omp_para_idx == 1
+    assert call1_idx > cell_do_idx
+    assert call2_idx > call1_idx
+    assert cell_enddo_idx > call2_idx
+    assert omp_endpara_idx - cell_enddo_idx == 1
