@@ -571,7 +571,8 @@ def test_loop_fuse_omp():
     for idx, line in enumerate(code.split('\n')):
         if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
             cell_do_idx = idx
-        if "!$omp parallel do default(shared), private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
+        if "!$omp parallel do default(shared), "+\
+           "private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
             omp_para_idx = idx
         if "CALL testkern_code" in line:
             if call1_idx == -1:
@@ -588,3 +589,90 @@ def test_loop_fuse_omp():
     assert call2_idx > call1_idx
     assert cell_enddo_idx > call2_idx
     assert omp_endpara_idx - cell_enddo_idx == 1
+
+def test_fuse_colour_loops():
+    ''' Test that we fuse colour loops '''
+    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "4.6_multikernel_invokes.f90"),
+                 api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    ftrans = DynamoLoopFuseTrans()
+
+    # Colour each of the loops
+    for child in schedule.children:
+        newsched, _ = ctrans.apply(child)
+
+    # Fuse the (sequential) loop over colours
+    nchildren = len(newsched.children)
+    idx = 1
+    fschedule = newsched
+    while idx < nchildren:
+        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                    fschedule.children[idx])
+        idx += 1
+
+    # Enclose the colour loops within an OMP parallel region
+    newsched, _ = rtrans.apply(fschedule.children[0].children)
+
+    # Put an OMP DO around each of the colour loops
+    for child in newsched.children[0].children[0].children:
+        newsched, _ = otrans.apply(child)
+
+    # Replace the original schedule with the transformed one and
+    # generate the code
+    invoke.schedule = newsched
+    code = str(psy.gen)
+
+    # Test that the generated code is as expected
+    omp_para_idx = -1
+    omp_do_idx1 = -1
+    omp_do_idx2 = -1
+    col_loop = -1
+    cell_loop_idx1 = -1
+    cell_loop_idx2 = -1
+    end_loop_idx1 = -1
+    end_loop_idx2 = -1
+    end_loop_idx3 = -1
+    call_idx1 = -1
+    call_idx2 = -1
+    for idx, line in enumerate(code.split('\n')):
+        if "END DO" in line:
+            if end_loop_idx1 == -1:
+                end_loop_idx1 = idx
+            elif end_loop_idx2 == -1:
+                end_loop_idx2 = idx
+            else:
+                end_loop_idx3 = idx
+        if "DO cell=1,ncp_colour(colour)" in line:
+            if cell_loop_idx1 == -1:
+                cell_loop_idx1 = idx
+            else:
+                cell_loop_idx2 = idx
+        if "DO colour=1,ncolour" in line:
+            col_loop_idx = idx
+        if "CALL ru_code(nlayers," in line:
+            if call_idx1 == -1:
+                call_idx1 = idx
+            else:
+                call_idx2 = idx
+        if "!$omp parallel default(shared), "+\
+           "private(cell,map_w2,map_w3,map_w0)" in line:
+            omp_para_idx = idx
+        if "!$omp do schedule(static)" in line:
+            if omp_do_idx1 == -1:
+                omp_do_idx1 = idx
+            else:
+                omp_do_idx2 = idx
+
+    assert (omp_para_idx - col_loop_idx) == 1
+    assert (omp_do_idx1 - omp_para_idx) == 1
+    assert (cell_loop_idx1 - omp_do_idx1) == 1
+    assert (cell_loop_idx2 - omp_do_idx2) == 1
+    assert (end_loop_idx3 - end_loop_idx2) == 3
