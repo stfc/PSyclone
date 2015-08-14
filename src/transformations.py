@@ -130,6 +130,37 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return LoopFuseTrans.apply(self, node1, node2)
 
 
+class DynamoLoopFuseTrans(LoopFuseTrans):
+    ''' Performs error checking before calling the apply() method of the
+        base class in order to loop-fuse two Dynamo loops. '''
+
+    def __str__(self):
+        return ("Fuse two adjacent loops together with Dynamo-specific "
+                "validity checks")
+
+    @property
+    def name(self):
+        return "DynamoLoopFuse"
+
+    def apply(self, node1, node2):
+
+        try:
+            if node1.field_space != node2.field_space:
+                raise TransformationError("Error in DynamoLoopFuse "
+                                          "transformation. "
+                                          "Cannot fuse loops that are over "
+                                          "different spaces: "
+                                          "{0} {1}".
+                                          format(node1.field_space,
+                                                 node2.field_space))
+        except TransformationError as err:
+            raise err
+        except Exception as err:
+            raise TransformationError("Unexpected exception: {0}".\
+                                      format(err))
+        return LoopFuseTrans.apply(self, node1, node2)
+
+
 class OMPLoopTrans(Transformation):
 
     ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
