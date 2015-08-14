@@ -111,7 +111,7 @@ def test_omp_not_a_loop():
         _, _ = otrans.apply(schedule)
 
 
-def test_omp_not_over_cells():
+def test_omp_do_not_over_cells():
     ''' Test that we raise an appropriate error if we attempt to
     apply an OpenMP DO transformation to a loop that is not over cells '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -122,6 +122,22 @@ def test_omp_not_over_cells():
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
     otrans = Dynamo0p3OMPLoopTrans()
+
+    with pytest.raises(TransformationError):
+        _, _ = otrans.apply(schedule.children[0])
+
+
+def test_omp_parallel_do_not_over_cells():
+    ''' Test that we raise an appropriate error if we attempt to apply
+    an OpenMP PARALLEL DO transformation to a loop that is not over cells '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.4_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
 
     with pytest.raises(TransformationError):
         _, _ = otrans.apply(schedule.children[0])
