@@ -472,14 +472,27 @@ def test_multi_kernel_single_omp_region():
 def test_loop_fuse_different_spaces():
     ''' Test that we raise an appropriate error if the user attempts
     to fuse loops that are on different spaces '''
-    pass
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.7_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    with pytest.raises(TransformationError):
+        fschedule, _ = ftrans.apply(schedule.children[0],
+                                    schedule.children[1])
+
 
 def test_loop_fuse():
     ''' Test that we are able to fuse two loops together '''
-    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "4_multikernel_invokes.f90"),
-                 api=TEST_API)
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
