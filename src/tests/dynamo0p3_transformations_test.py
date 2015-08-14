@@ -14,7 +14,8 @@ from transformations import TransformationError,\
     OMPParallelTrans,\
     Dynamo0p3ColourTrans,\
     Dynamo0p3OMPLoopTrans,\
-    DynamoOMPParallelLoopTrans
+    DynamoOMPParallelLoopTrans,\
+    DynamoLoopFuseTrans
 import os
 import pytest
 
@@ -466,3 +467,54 @@ def test_multi_kernel_single_omp_region():
     assert (omp_do_idx - omp_para_idx) == 1
     assert (cell_loop_idx - omp_do_idx) == 1
     assert (omp_end_para_idx - omp_end_do_idx) == 1
+
+
+def test_loop_fuse_different_spaces():
+    ''' Test that we raise an appropriate error if the user attempts
+    to fuse loops that are on different spaces '''
+    pass
+
+def test_loop_fuse():
+    ''' Test that we are able to fuse two loops together '''
+    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "4_multikernel_invokes.f90"),
+                 api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    # Fuse the loops
+    nchildren = len(schedule.children)
+    idx = 1
+    fschedule = schedule
+    while idx < nchildren:
+        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                    fschedule.children[idx])
+        idx += 1
+
+    fschedule.view()
+    invoke.schedule = fschedule
+    gen = str(psy.gen)
+
+    cell_loop_idx = -1
+    end_loop_idx = -1
+    call_idx1 = -1
+    call_idx2 = -1
+    for idx, line in enumerate(gen.split('\n')):
+        if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
+            cell_loop_idx = idx
+        if "CALL testkern_code" in line:
+            if call_idx1 == -1:
+                call_idx1 = idx
+            else:
+                call_idx2 = idx
+        if "END DO" in line:
+            end_loop_idx = idx
+
+    assert cell_loop_idx != -1
+    assert cell_loop_idx < call_idx1
+    assert call_idx1 < call_idx2
+    assert call_idx2 < end_loop_idx
