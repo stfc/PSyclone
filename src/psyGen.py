@@ -515,6 +515,17 @@ class Node(object):
             local_list += self.walk(child.children, my_type)
         return local_list
 
+    def ancestor(self, my_type):
+        ''' Search back up tree and check whether we have an
+        ancestor of the supplied type. If we do then we return
+        it otherwise we return None '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, my_type):
+                return myparent
+            myparent = myparent.parent
+        return None
+
     def calls(self):
         ''' return all calls in this schedule '''
         return self.walk(self.root.children, Call)

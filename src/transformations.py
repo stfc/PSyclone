@@ -452,7 +452,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         return OMPLoopTrans.apply(self, node)
 
 
-class ColourTrans(Transformation):
+class Dynamo0p1ColourTrans(Transformation):
     
     ''' Apply a colouring transformation to a loop (in order to permit a
         subsequent OpenMP parallelisation over colours)
@@ -561,14 +561,10 @@ class Dynamo0p3ColourTrans(Transformation):
         # already within an OpenMP region (because the loop over
         # colours *must* be sequential)
         from psyGen import OMPDirective
-        myparent = node.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPDirective):
-                raise TransformationError("Cannot have a loop over "
-                                          "colours within an OpenMP "
-                                          "parallel region.")
-            myparent = myparent.parent
-
+        if node.ancestor(OMPDirective):
+            raise TransformationError("Cannot have a loop over "
+                                      "colours within an OpenMP "
+                                      "parallel region.")
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
@@ -653,20 +649,7 @@ class OMPParallelTrans(Transformation):
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
-        foundSched = False
-        foundOMPDir = False
-        myparent = node_parent
-        while myparent is not None:
-            if isinstance(myparent, Schedule):
-                foundSched = True
-            if isinstance(myparent, OMPDirective):
-                foundOMPDir = True
-            myparent = myparent.parent
-
-        if not foundSched:
-            raise TransformationError("Error in OMPParallel transformation. "
-                                      "Supplied node does not have a "
-                                      "Schedule as an ancestor.")
+        foundOMPDir = node_list[0].ancestor(OMPDirective)
         if foundOMPDir:
             raise TransformationError("Error in OMPParallel transformation:"+\
                                       " cannot create an OpenMP PARALLEL "+\
