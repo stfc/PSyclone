@@ -1,9 +1,9 @@
-#-------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
@@ -216,6 +216,7 @@ def test_omp_colour_trans():
     # Check that the list of private variables is correct
     assert "private(cell,map_w1,map_w2,map_w3)" in code
 
+
 def test_omp_colour_orient_trans():
     ''' Test the OpenMP transformation applied to a coloured loop
         when the kernel expects orientation information '''
@@ -337,6 +338,7 @@ def test_check_seq_colours_omp_do():
     with pytest.raises(TransformationError):
         schedule, _ = otrans.apply(cschedule.children[0])
 
+
 def test_colouring_after_openmp():
     ''' Test that we raise an error if the user attempts to
     colour a loop that is already within an OpenMP parallel region '''
@@ -360,6 +362,7 @@ def test_colouring_after_openmp():
     # Now attempt to colour the loop within this OpenMP region
     with pytest.raises(TransformationError):
         schedule, _ = ctrans.apply(schedule.children[0].children[0])
+
 
 def test_colouring_multi_kernel():
     ''' Test that we correctly generate all the map-lookups etc.
@@ -472,7 +475,7 @@ def test_multi_kernel_single_omp_region():
             omp_do_idx = idx
         if "!$omp end do" in line:
             omp_end_do_idx = idx
-        if "!$omp parallel default(shared), "+\
+        if "!$omp parallel default(shared), " +\
            "private(cell,map_w1,map_w2,map_w3)" in line:
             omp_para_idx = idx
         if "!$omp end parallel" in line:
@@ -584,7 +587,7 @@ def test_loop_fuse_omp():
     for idx, line in enumerate(code.split('\n')):
         if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
             cell_do_idx = idx
-        if "!$omp parallel do default(shared), "+\
+        if "!$omp parallel do default(shared), " +\
            "private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
             omp_para_idx = idx
         if "CALL testkern_code" in line:
@@ -602,6 +605,7 @@ def test_loop_fuse_omp():
     assert call2_idx > call1_idx
     assert cell_enddo_idx > call2_idx
     assert omp_endpara_idx - cell_enddo_idx == 1
+
 
 def test_fuse_colour_loops():
     ''' Test that we can fuse colour loops, enclose them in an OpenMP
@@ -675,7 +679,7 @@ def test_fuse_colour_loops():
                 call_idx1 = idx
             else:
                 call_idx2 = idx
-        if "!$omp parallel default(shared), "+\
+        if "!$omp parallel default(shared), " +\
            "private(cell,map_w2,map_w3,map_w0)" in line:
             omp_para_idx = idx
         if "!$omp do schedule(static)" in line:
