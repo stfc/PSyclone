@@ -340,7 +340,7 @@ def test_check_seq_colours_omp_do():
 def test_colouring_after_openmp():
     ''' Test that we raise an error if the user attempts to
     colour a loop that is already within an OpenMP parallel region '''
-    # For this test we must use a kernel that doesn't actually require 
+    # For this test we must use a kernel that doesn't actually require
     # colouring as otherwise PSyclone won't let us apply the OpenMP
     # transformation first!
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -364,10 +364,10 @@ def test_colouring_after_openmp():
 def test_colouring_multi_kernel():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel '''
-    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "4.6_multikernel_invokes.f90"),
-                 api=TEST_API)
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.6_multikernel_invokes.f90"),
+                    api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
@@ -457,9 +457,7 @@ def test_multi_kernel_single_omp_region():
     newsched, _ = rtrans.apply(newsched.children)
 
     invoke.schedule = newsched
-
     code = str(psy.gen)
-    print code
 
     omp_do_idx = -1
     omp_end_do_idx = -1
@@ -499,8 +497,8 @@ def test_loop_fuse_different_spaces():
     ftrans = DynamoLoopFuseTrans()
 
     with pytest.raises(TransformationError):
-        fschedule, _ = ftrans.apply(schedule.children[0],
-                                    schedule.children[1])
+        _, _ = ftrans.apply(schedule.children[0],
+                            schedule.children[1])
 
 
 def test_loop_fuse():
@@ -574,7 +572,6 @@ def test_loop_fuse_omp():
     fschedule, _ = otrans.apply(fschedule.children[0])
 
     invoke.schedule = fschedule
-    fschedule.view()
     code = str(psy.gen)
 
     # Check generated code
@@ -607,11 +604,12 @@ def test_loop_fuse_omp():
     assert omp_endpara_idx - cell_enddo_idx == 1
 
 def test_fuse_colour_loops():
-    ''' Test that we fuse colour loops '''
-    _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "4.6_multikernel_invokes.f90"),
-                 api=TEST_API)
+    ''' Test that we can fuse colour loops, enclose them in an OpenMP
+    parallel region and preceed each by an OpenMP PARALLEL DO '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.6_multikernel_invokes.f90"),
+                    api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
@@ -625,7 +623,7 @@ def test_fuse_colour_loops():
     for child in schedule.children:
         newsched, _ = ctrans.apply(child)
 
-    # Fuse the (sequential) loop over colours
+    # Fuse the (sequential) loops over colours
     nchildren = len(newsched.children)
     idx = 1
     fschedule = newsched
@@ -650,7 +648,6 @@ def test_fuse_colour_loops():
     omp_para_idx = -1
     omp_do_idx1 = -1
     omp_do_idx2 = -1
-    col_loop = -1
     cell_loop_idx1 = -1
     cell_loop_idx2 = -1
     end_loop_idx1 = -1
@@ -692,3 +689,6 @@ def test_fuse_colour_loops():
     assert (cell_loop_idx1 - omp_do_idx1) == 1
     assert (cell_loop_idx2 - omp_do_idx2) == 1
     assert (end_loop_idx3 - end_loop_idx2) == 3
+    assert call_idx2 > call_idx1
+    assert call_idx1 < end_loop_idx1
+    assert call_idx2 < end_loop_idx2

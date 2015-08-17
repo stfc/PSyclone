@@ -209,7 +209,7 @@ class OMPLoopTrans(Transformation):
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
         # pylint doesn't complain), we actually set its value using
-        # the setter method in order to make use of the latter's error 
+        # the setter method in order to make use of the latter's error
         # checking.
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
@@ -345,8 +345,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
             raise TransformationError("Error in "+self.name+" transformation. "
-                            "The requested loop is over colours and must "
-                            "be computed serially.")
+                                      "The requested loop is over colours and "
+                                      "must be computed serially.")
         return OMPParallelLoopTrans.apply(self, node)
 
 
@@ -417,8 +417,8 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
             raise TransformationError("Error in "+self.name+" transformation. "
-                            "The requested loop is over colours and must "
-                            "be computed serially.")
+                                      "The requested loop is over colours and "
+                                      "must be computed serially.")
         return OMPLoopTrans.apply(self, node)
 
 
@@ -453,7 +453,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 
 class Dynamo0p1ColourTrans(Transformation):
-    
+
     ''' Apply a colouring transformation to a loop (in order to permit a
         subsequent OpenMP parallelisation over colours)
     '''
@@ -531,6 +531,9 @@ class Dynamo0p1ColourTrans(Transformation):
 
 class Dynamo0p3ColourTrans(Transformation):
 
+    ''' Split a Dynamo 0.3 loop into colours so that it can be
+    parallelised '''
+
     def __str__(self):
         return "Split a Dynamo 0.3 loop into colours"
 
@@ -538,7 +541,7 @@ class Dynamo0p3ColourTrans(Transformation):
     def name(self):
         return "Dynamo0p3LoopColourTrans"
 
-    def apply(self,node):
+    def apply(self, node):
 
         # check node is a loop
         from psyGen import Loop
@@ -623,7 +626,7 @@ class OMPParallelTrans(Transformation):
         ''' Apply this transformation to a subset of the nodes
             within a schedule - i.e. enclose the specified
             Loops in the schedule within a single OpenMP region '''
-        from psyGen import OMPDirective, OMPParallelDirective, Schedule
+        from psyGen import OMPDirective, OMPParallelDirective
 
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
@@ -649,8 +652,7 @@ class OMPParallelTrans(Transformation):
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
-        foundOMPDir = node_list[0].ancestor(OMPDirective)
-        if foundOMPDir:
+        if node_list[0].ancestor(OMPDirective):
             raise TransformationError("Error in OMPParallel transformation:"+\
                                       " cannot create an OpenMP PARALLEL "+\
                                       "region within another OpenMP region.")
