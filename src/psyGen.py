@@ -705,11 +705,8 @@ class OMPParallelDirective(OMPDirective):
     def _not_within_omp_parallel_region(self):
         ''' Check that this Directive is not within any other
             parallel region '''
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective):
-                raise GenerationError("Cannot nest OpenMP parallel regions.")
-            myparent = myparent.parent
+        if self.ancestor(OMPParallelDirective) is not None:
+            raise GenerationError("Cannot nest OpenMP parallel regions.")
 
     def _encloses_omp_directive(self):
         ''' Check that this Parallel region contains other OpenMP
