@@ -11,7 +11,10 @@ generator.py
     .. cmdoption:: -opsy <filename>
     .. cmdoption:: <filename>
 
-    Command line version of the generator. If -oalg or -opsy or not provided then the generated code is printed to stdout. Uses the :func:`generator.generate` function to generate the code. Please see the run documentation for more details.
+    Command line version of the generator. If -oalg or -opsy are not
+    provided then the generated code is printed to stdout. Uses the
+    :func:`generator.generate` function to generate the code. Please
+    see the run documentation for more details.
 
     For example::
 
@@ -21,24 +24,29 @@ generator.py
 
 .. autofunction:: generate
 
+The parse module
+----------------
+
 .. automodule:: parse
  
 .. autofunction:: parse
 
+The transformations module
+--------------------------
+
 .. automodule:: transformations
+    :members:
 
-.. autoclass:: LoopFuseTrans
-
-.. autoclass:: SwapTrans
-
-.. autoclass:: OpenMPLoop
-
-.. autoclass :: ColourTrans
+The psyGen module
+-----------------
 
 .. automodule:: psyGen
 
 .. autoclass:: PSy
     :members:
+
+The algGen module
+-----------------
 
 .. automodule:: algGen
 
