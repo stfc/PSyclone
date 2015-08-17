@@ -781,6 +781,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         thread-parallel region) and OMPDoDirective (because it
         causes a loop to be parallelised). '''
 
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
+        OMPDoDirective.__init__(self,
+                                children=children,
+                                parent=parent,
+                                omp_schedule=omp_schedule)
+
     def view(self,indent = 0):
         print self.indent(indent)+"Directive[OMP parallel do]"
         for entity in self._children:
