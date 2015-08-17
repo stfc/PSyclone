@@ -204,9 +204,20 @@ class GOInvoke(Invoke):
         # add declarations for the variables holding the upper bounds
         # of loops in i and j
         if CONST_LOOP_BOUNDS:
+            invoke_sub._iloop_start = "istart"
+            invoke_sub._iloop_stop = "istop"
+            invoke_sub._jloop_start = "jstart"
+            invoke_sub._jloop_stop = "jstop"
             invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[self.schedule.iloop_bound,
-                                                 self.schedule.jloop_bound]))
+                                   entity_decls=[invoke_sub._iloop_start,
+                                                 invoke_sub._iloop_stop,
+                                                 invoke_sub._jloop_start,
+                                                 invoke_sub._jloop_stop]))
+        else:
+            invoke_sub._iloop_start = ""
+            invoke_sub._iloop_stop = ""
+            invoke_sub._jloop_start = ""
+            invoke_sub._jloop_stop = ""
 
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
@@ -235,15 +246,16 @@ class GOInvoke(Invoke):
 
             # Look-up the loop bounds using the first field object in the
             # list
-            sim_domain = self.unique_args_arrays[0] + "%internal%"
+            sim_domain = self.unique_args_arrays[0] +\
+                         "%grid%simulation_domain%"
             position = invoke_sub.last_declaration()
 
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_bound,
+            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._jloop_stop,
                                      rhs=sim_domain+"ystop"),
                            position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_bound,
+            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._iloop_stop,
                                      rhs=sim_domain+"xstop"),
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
@@ -290,11 +302,15 @@ class GOSchedule(Schedule):
         # Variable names to use if we're generating loops with constant
         # bounds (rather than looking them up for every field)
         if CONST_LOOP_BOUNDS:
-            self.iloop_bound = "istop"
-            self.jloop_bound = "jstop"
+            self.iloop_start = "istart"
+            self.jloop_start = "jstart"
+            self.iloop_stop = "istop"
+            self.jloop_stop = "jstop"
         else:
-            self.iloop_bound = ""
-            self.jloop_bound = ""
+            self.iloop_start = ""
+            self.jloop_start = ""
+            self.iloop_stop = ""
+            self.jloop_stop = ""
 
 
 class GOLoop(Loop):
@@ -338,16 +354,16 @@ class GOLoop(Loop):
         if self._iteration_space == "internal_pts":
             self._start = "2"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._stop = schedule.iloop_stop
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._stop = schedule.jloop_stop
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "+1"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "+1"
+                self._stop = schedule.jloop_stop + "+1"
 
     def set_ne_cu_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
@@ -355,16 +371,16 @@ class GOLoop(Loop):
         if self._iteration_space == "internal_pts":
             self._start = "2"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "-1"
+                self._stop = schedule.iloop_stop + "-1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._stop = schedule.jloop_stop
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._stop = schedule.iloop_stop
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "+1"
+                self._stop = schedule.jloop_stop + "+1"
 
     def set_ne_cv_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
@@ -372,16 +388,16 @@ class GOLoop(Loop):
         if self._iteration_space == "internal_pts":
             self._start = "2"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._stop = schedule.iloop_stop
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "-1"
+                self._stop = schedule.jloop_stop + "-1"
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "+1"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._stop = schedule.jloop_stop
 
     def set_ne_cf_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
@@ -389,16 +405,16 @@ class GOLoop(Loop):
         if self._iteration_space == "internal_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "-1"
+                self._stop = schedule.iloop_stop + "-1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "-1"
+                self._stop = schedule.jloop_stop + "-1"
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._stop = schedule.iloop_stop
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._stop = schedule.jloop_stop
 
     def set_sw_loop_bounds(self, schedule):
         ''' Set the loop bounds for a mesh with South-West offset '''
@@ -415,52 +431,55 @@ class GOLoop(Loop):
         ''' Set the loop bounds for a loop updating a quantity
             on T grid points for a mesh with South-West offset '''
         if self._iteration_space == "internal_pts":
-            self._start = "2"
+            #TODO ARPDBG should start really be "2" here?
+            self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._stop = schedule.iloop_stop
             if self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._stop = schedule.jloop_stop
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "+1"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "+1"
+                self._stop = schedule.jloop_stop + "+1"
 
     def set_sw_cu_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
             on U grid points for a mesh with South-West offset '''
         if self._iteration_space == "internal_pts":
-            self._start = "2"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._start = "2"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._start = "1"
+                self._stop = schedule.jloop_stop
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "+1"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "+1"
+                self._stop = schedule.jloop_stop + "+1"
 
     def set_sw_cv_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
             on V grid points for a mesh with South-West offset '''
         if self._iteration_space == "internal_pts":
-            self._start = "2"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._start = "1"
+                self._stop = schedule.iloop_stop
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._start = "2"
+                self._stop = schedule.jloop_stop + "+1"
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "+1"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "+1"
+                self._stop = schedule.jloop_stop + "+1"
 
     def set_sw_cf_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
@@ -468,45 +487,44 @@ class GOLoop(Loop):
         if self._iteration_space == "internal_pts":
             self._start = "2"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound
+                self._stop = schedule.jloop_stop + "+1"
 
         elif self._iteration_space == "all_pts":
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = schedule.iloop_bound + "+1"
+                self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._stop = schedule.jloop_bound + "+1"
+                self._stop = schedule.jloop_stop + "+1"
 
     def gen_code(self, parent):
 
-        if CONST_LOOP_BOUNDS:
-            # Our schedule holds the names to use for the loop bounds.
-            # Climb up the tree looking for our enclosing Schedule
-            myparent = self.parent
-            while myparent is not None and\
-                  not isinstance(myparent, GOSchedule):
-                myparent = myparent.parent
+        # Our schedule holds the names to use for the loop bounds.
+        # Climb up the tree looking for our enclosing Schedule
+        myparent = self.parent
+        while myparent is not None and\
+              not isinstance(myparent, GOSchedule):
+            myparent = myparent.parent
 
-            if not isinstance(myparent, GOSchedule):
-                raise GenerationError("Internal error: cannot find parent"
-                                      " GOSchedule for this Do loop")
-            schedule = myparent
+        if not isinstance(myparent, GOSchedule):
+            raise GenerationError("Internal error: cannot find parent"
+                                  " GOSchedule for this Do loop")
+        schedule = myparent
 
-            # Walk down the tree looking for a kernel so that we can
-            # look-up what index-offset convention we are to use
-            go_kernels = self.walk(self.children, GOKern)
-            if len(go_kernels) == 0:
-                raise GenerationError("Internal error: cannot find the "
-                                      "GOcean Kernel enclosed by this loop")
-            index_offset = go_kernels[0].index_offset
-            if index_offset not in SUPPORTED_OFFSETS:
-                raise GenerationError("Constant bounds generation"
-                                      " not implemented for a grid offset "
-                                      "of {0}. Supported offsets are {1}".\
-                                      format(index_offset,
-                                             SUPPORTED_OFFSETS))
+        # Walk down the tree looking for a kernel so that we can
+        # look-up what index-offset convention we are to use
+        go_kernels = self.walk(self.children, GOKern)
+        if len(go_kernels) == 0:
+            raise GenerationError("Internal error: cannot find the "
+                                  "GOcean Kernel enclosed by this loop")
+        index_offset = go_kernels[0].index_offset
+        if index_offset not in SUPPORTED_OFFSETS:
+            raise GenerationError("Constant bounds generation"
+                                  " not implemented for a grid offset "
+                                  "of {0}. Supported offsets are {1}".\
+                                  format(index_offset,
+                                         SUPPORTED_OFFSETS))
 
         if self.field_space == "every":
             # Bounds are independent of the grid-offset convention in use
@@ -518,12 +536,14 @@ class GOLoop(Loop):
             # loop bounds
             self._start = "1"
 
-            if CONST_LOOP_BOUNDS:
+            if schedule.iloop_stop:
+
+                # Bounds are independent of the grid offset convention in use
                 if self._loop_type == "inner":
-                    self._stop = schedule.iloop_bound + "+1"
+                    self._stop = schedule.iloop_stop + "+1"
 
                 elif self._loop_type == "outer":
-                    self._stop = schedule.jloop_bound + "+1"
+                    self._stop = schedule.jloop_stop + "+1"
             else:
                 # We look-up the bounds by enquiring about the SIZE of
                 # the array itself
@@ -534,7 +554,7 @@ class GOLoop(Loop):
 
         else: # one of our spaces so use values provided by the infrastructure
 
-            if CONST_LOOP_BOUNDS:
+            if schedule.iloop_stop:
                 # We're expressing all loop bounds in terms of constant
                 # expressions
                 if index_offset == "offset_ne":
@@ -546,9 +566,9 @@ class GOLoop(Loop):
                 elif index_offset == "offset_any":
                     self._start = "1"
                     if self._loop_type == "inner":
-                        self._stop = schedule.iloop_bound + "+1"
+                        self._stop = schedule.iloop_stop
                     if self._loop_type == "outer":
-                        self._stop = schedule.jloop_bound + "+1"
+                        self._stop = schedule.jloop_stop
 
             else:
                 # loop bounds are pulled from the field object which
