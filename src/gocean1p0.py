@@ -422,8 +422,7 @@ class GOLoop(Loop):
         ''' Set the loop bounds for a loop updating a quantity
             on T grid points for a mesh with South-West offset '''
         if self._iteration_space == "internal_pts":
-            #TODO ARPDBG should start really be "2" here?
-            self._start = "1"
+            self._start = "2"
             if self._loop_type == "inner":
                 self._stop = schedule.iloop_stop
             if self._loop_type == "outer":
@@ -439,12 +438,11 @@ class GOLoop(Loop):
     def set_sw_cu_loop_bounds(self, schedule):
         ''' Set the loop bounds for a loop updating a quantity
             on U grid points for a mesh with South-West offset '''
+        self._start = "2"
         if self._iteration_space == "internal_pts":
             if self._loop_type == "inner":
-                self._start = "2"
                 self._stop = schedule.iloop_stop + "+1"
             elif self._loop_type == "outer":
-                self._start = "1"
                 self._stop = schedule.jloop_stop
 
         elif self._iteration_space == "all_pts":
@@ -458,11 +456,10 @@ class GOLoop(Loop):
         ''' Set the loop bounds for a loop updating a quantity
             on V grid points for a mesh with South-West offset '''
         if self._iteration_space == "internal_pts":
+            self._start = "2"
             if self._loop_type == "inner":
-                self._start = "1"
                 self._stop = schedule.iloop_stop
             elif self._loop_type == "outer":
-                self._start = "2"
                 self._stop = schedule.jloop_stop + "+1"
 
         elif self._iteration_space == "all_pts":
