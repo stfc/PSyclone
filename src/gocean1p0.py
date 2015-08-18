@@ -204,20 +204,11 @@ class GOInvoke(Invoke):
         # add declarations for the variables holding the upper bounds
         # of loops in i and j
         if CONST_LOOP_BOUNDS:
-            invoke_sub._iloop_start = "istart"
-            invoke_sub._iloop_stop = "istop"
-            invoke_sub._jloop_start = "jstart"
-            invoke_sub._jloop_stop = "jstop"
             invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[invoke_sub._iloop_start,
-                                                 invoke_sub._iloop_stop,
-                                                 invoke_sub._jloop_start,
-                                                 invoke_sub._jloop_stop]))
-        else:
-            invoke_sub._iloop_start = ""
-            invoke_sub._iloop_stop = ""
-            invoke_sub._jloop_start = ""
-            invoke_sub._jloop_stop = ""
+                                   entity_decls=[self.schedule.iloop_start,
+                                                 self.schedule.iloop_stop,
+                                                 self.schedule.jloop_start,
+                                                 self.schedule.jloop_stop]))
 
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
@@ -252,10 +243,10 @@ class GOInvoke(Invoke):
 
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._jloop_stop,
+            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_stop,
                                      rhs=sim_domain+"ystop"),
                            position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=invoke_sub._iloop_stop,
+            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_stop,
                                      rhs=sim_domain+"xstop"),
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
@@ -277,10 +268,10 @@ class GOSchedule(Schedule):
             if isinstance(call, InfCall):
                 sequence.append(GOInf.create(call, parent=self))
             else:
-                outer_loop = GOLoop(call=None, parent=self, 
+                outer_loop = GOLoop(call=None, parent=self,
                                     loop_type="outer")
                 sequence.append(outer_loop)
-                inner_loop = GOLoop(call=None, parent=outer_loop, 
+                inner_loop = GOLoop(call=None, parent=outer_loop,
                                     loop_type="inner")
                 outer_loop.addchild(inner_loop)
                 call = GOKern(call, parent=inner_loop)
@@ -528,7 +519,7 @@ class GOLoop(Loop):
 
         if self.field_space == "every":
             # Bounds are independent of the grid-offset convention in use
-            from f2pygen import DeclGen, AssignGen
+            from f2pygen import DeclGen
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
