@@ -68,7 +68,7 @@ GRID_PROPERTY_DICT = {"grid_area_t":"area_t",
 VALID_LOOP_TYPES = ["inner", "outer"]
 
 # Whether or not to generate constant loop bounds in the PSy layer.
-# If this is false then loop bounds are obtained by de-referencing
+# If this is False then loop bounds are obtained by de-referencing
 # the field object being written to (e.g. a_field%internal%xstop)
 CONST_LOOP_BOUNDS = True
 
@@ -205,9 +205,7 @@ class GOInvoke(Invoke):
         # of loops in i and j
         if CONST_LOOP_BOUNDS:
             invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[self.schedule.iloop_start,
-                                                 self.schedule.iloop_stop,
-                                                 self.schedule.jloop_start,
+                                   entity_decls=[self.schedule.iloop_stop,
                                                  self.schedule.jloop_stop]))
 
         # Generate the code body of this subroutine
@@ -293,13 +291,9 @@ class GOSchedule(Schedule):
         # Variable names to use if we're generating loops with constant
         # bounds (rather than looking them up for every field)
         if CONST_LOOP_BOUNDS:
-            self.iloop_start = "istart"
-            self.jloop_start = "jstart"
             self.iloop_stop = "istop"
             self.jloop_stop = "jstop"
         else:
-            self.iloop_start = ""
-            self.jloop_start = ""
             self.iloop_stop = ""
             self.jloop_stop = ""
 
