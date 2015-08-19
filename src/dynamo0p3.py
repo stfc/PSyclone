@@ -1102,16 +1102,19 @@ class DynKern(Kern):
             if self._fs_descriptors.exists(unique_fs):
                 descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 arglist.extend(descriptor.operator_names)
-            # 3.3 Fix for boundary_dofs array in ru_kernel
-            if self.name == "ru_code" and unique_fs == "w2":
-                arglist.append("boundary_dofs_w2")
+            # 3.3 Fix for adding a boundary_dofs array to the boundary
+            # condition kernel (enforce_bc_kernel) arguments
+            if self.name.lower() == "enforce_bc_code" and \
+               unique_fs.lower() == "any_space_1":
+                arglist.append("boundary_dofs")
                 parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                    entity_decls=[
-                                       "boundary_dofs_w2(:,:) => null()"]))
-                proxy_name = self._arguments.get_field("w2").proxy_name
+                                       "boundary_dofs(:,:) => null()"]))
+                proxy_name = self._arguments.get_field("any_space_1").\
+                    proxy_name
                 new_parent, position = parent.start_parent_loop()
                 new_parent.add(AssignGen(new_parent, pointer=True,
-                                         lhs="boundary_dofs_w2",
+                                         lhs="boundary_dofs",
                                          rhs=proxy_name +
                                              "%vspace%get_boundary_dofs()"),
                                position=["before", position])
