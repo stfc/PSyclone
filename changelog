@@ -1,3 +1,5 @@
+release 1.0.2
+
 	1) #299 temporary boundary condition
 	support. matrix_vector_kernel_mm now uses enforce_bc_code rather
 	than enforce_boundary_w2 as the latter is no longer used.
