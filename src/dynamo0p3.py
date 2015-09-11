@@ -1166,12 +1166,13 @@ class DynKern(Kern):
             parent.add(if_then)
             nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
-            parent.add(UseGen(parent, name="enforce_bc_mod", only=True,
-                              funcnames=["enforce_bc_w2"]))
-            if_then.add(CallGen(if_then, "enforce_bc_w2",
-                                [nlayers_name, ndf_name, undf_name,
-                                 map_name, boundary_dofs_name,
-                                 enforce_bc_arg.proxy_name+"%data"]))
+            parent.add(UseGen(parent, name="enforce_bc_kernel_mod", only=True,
+                              funcnames=["enforce_bc_code"]))
+            if_then.add(CallGen(if_then, "enforce_bc_code",
+                                [nlayers_name,
+                                 enforce_bc_arg.proxy_name+"%data",
+                                 ndf_name, undf_name, map_name,
+                                 boundary_dofs_name]))
             parent.add(CommentGen(parent, ""))
 
 

@@ -622,7 +622,7 @@ def test_kernel_specific():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
-    output0 = "USE enforce_bc_mod, ONLY: enforce_bc_w2"
+    output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert str(generated_code).find(output0) != -1
     output1 = "USE function_space_mod, ONLY: w2"
     assert str(generated_code).find(output1) != -1
@@ -638,9 +638,9 @@ def test_kernel_specific():
     assert str(generated_code).find(output5) != -1
     output6 = (
         "IF (fs .eq. w2) THEN\n"
-        "          CALL enforce_bc_w2(nlayers, ndf_any_space_1, "
-        "undf_any_space_1, map_any_space_1, boundary_dofs_w2, "
-        "f1_proxy%data)")
+        "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
+        "ndf_any_space_1, undf_any_space_1, map_any_space_1, "
+        "boundary_dofs_w2)")
     assert str(generated_code).find(output6) != -1
 
 

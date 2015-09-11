@@ -1,0 +1,15 @@
+	1) #299 temporary boundary condition
+	support. matrix_vector_kernel_mm now uses enforce_bc_code rather
+	than enforce_boundary_w2 as the latter is no longer used.
+
+release 1.0.1
+
+	1) #299 temporary boundary condition support. removed the
+	hardwired code and associated test that added an additional
+	boundary condition array to ru_kernel as this kernel is no longer
+	required. Added support for generating a boundary condition array
+	in the PSy layer and passing it into the enforce_bc_kernel
+	kernel. enforce_bc_kernel should be placed by the algorithm
+	developer to enforce boundary conditions.
+
+release 1.0.0
