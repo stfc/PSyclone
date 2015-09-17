@@ -34,6 +34,11 @@ VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
+# The mapping from meta-data strings to field-access types
+# used in this API.
+FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
+                    "readwrite": "gh_rw", "inc": "gh_inc"}
+
 # classes
 
 
@@ -903,6 +908,15 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+    def has_inc_arg(self, mapping=None):
+        ''' Returns True if any of the Kernels called within this loop
+        have an argument with INC access. Returns False otherwise. '''
+        if mapping is not None:
+            my_mapping = mapping
+        else:
+            my_mapping = FIELD_ACCESS_MAP
+        return Loop.has_inc_arg(self, my_mapping)
+
     def _is_openmp_parallel(self):
         '''Returns true if this loop is within an OpenMP parallel region
 
@@ -1537,8 +1551,7 @@ class DynKernelArguments(Arguments):
         if mapping is not None:
             my_mapping = mapping
         else:
-            my_mapping = {"write": "gh_write", "read": "gh_read",
-                          "readwrite": "gh_rw", "inc": "gh_inc"}
+            my_mapping = FIELD_ACCESS_MAP
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 

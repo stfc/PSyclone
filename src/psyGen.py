@@ -957,12 +957,14 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
-    def has_inc_arg(self):
+    def has_inc_arg(self, mapping={}):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
+        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error a mapping "\
+                          "must be provided"
         for kern_call in self.kern_calls():
             for arg in kern_call.arguments.args:
-                if arg.access == "gh_inc":
+                if arg.access.lower() == mapping["inc"]:
                     return True
         return False
 
