@@ -960,7 +960,7 @@ class Loop(Node):
     def has_inc_arg(self, mapping={}):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
-        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error a mapping "\
+        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error - a mapping "\
                           "must be provided"
         for kern_call in self.kern_calls():
             for arg in kern_call.arguments.args:
@@ -1126,6 +1126,28 @@ class Kern(Call):
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name = self._module_name, only = True,
                           funcnames = [self._name]))
+
+    def incremented_field(self, mapping={}):
+        ''' Returns the argument corresponding to a field that has
+        INC access. Raises a GenerationError if none is found. '''
+        assert mapping != {}, "psyGen:Kern:incremented_field: Error - a "\
+                          "mapping must be provided"
+        for arg in self.arguments.args:
+            if arg.access.lower() == mapping["inc"]:
+                return arg
+        raise GenerationError("Kernel {0} does not have an argument with "
+                              "{1} access".format(self.name, mapping["inc"]))
+
+    def written_field(self, mapping={}):
+        ''' Returns the argument corresponding to a field that has
+        WRITE access '''
+        assert mapping != {}, "psyGen:Kern:written_field: Error - a "\
+                          "mapping must be provided"
+        for arg in self.arguments.args:
+            if arg.access.lower() == mapping["write"]:
+                return arg
+        raise GenerationError("Kernel {0} does not have an argument with "
+                              "{1} access".format(self.name, mapping["write"]))
 
 class Arguments(object):
     ''' arguments abstract base class '''

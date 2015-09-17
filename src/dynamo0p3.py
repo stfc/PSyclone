@@ -1077,23 +1077,23 @@ class DynKern(Kern):
                     return True
         return False
 
-    def incremented_field(self):
+    def incremented_field(self, mapping=None):
         ''' Returns the argument corresponding to a field that has
-        INC access '''
-        for arg in self.arguments.args:
-            if arg.access == "gh_inc":
-                return arg
-        raise GenerationError("Kernel {0} does not have an argument with "
-                              "GH_INC access".format(self.name))
+        INC access.  '''
+        if mapping is None:
+            my_mapping = FIELD_ACCESS_MAP
+        else:
+            my_mapping = mapping
+        return Kern.incremented_field(self, my_mapping)
 
-    def written_field(self):
+    def written_field(self, mapping=None):
         ''' Returns the argument corresponding to a field that has
         WRITE access '''
-        for arg in self.arguments.args:
-            if arg.access == "gh_write":
-                return arg
-        raise GenerationError("Kernel {0} does not have an argument with "
-                              "GH_WRITE access".format(self.name))
+        if mapping is None:
+            my_mapping = FIELD_ACCESS_MAP
+        else:
+            my_mapping = mapping
+        return Kern.written_field(self, my_mapping)
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
