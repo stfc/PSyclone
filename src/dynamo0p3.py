@@ -1077,6 +1077,7 @@ class DynKern(Kern):
                     return True
         return False
 
+    @property
     def incremented_field(self, mapping=None):
         ''' Returns the argument corresponding to a field that has
         INC access.  '''
@@ -1086,6 +1087,7 @@ class DynKern(Kern):
             my_mapping = mapping
         return Kern.incremented_field(self, my_mapping)
 
+    @property
     def written_field(self, mapping=None):
         ''' Returns the argument corresponding to a field that has
         WRITE access '''
@@ -1126,11 +1128,11 @@ class DynKern(Kern):
             # Find which argument object has INC access in order to look-up
             # the colour map
             try:
-                arg = self.incremented_field()
+                arg = self.incremented_field
             except GenerationError:
                 # TODO Warn that we're colouring a kernel that has
                 # no field object with INC access
-                arg = self.written_field()
+                arg = self.written_field
 
             new_parent, position = parent.start_parent_loop()
             # Add the look-up of the colouring map for this kernel
@@ -1161,7 +1163,7 @@ class DynKern(Kern):
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_field()                    
+                    arg = self.incremented_field
                 except GenerationError:
                     arg = None
                 if arg:
