@@ -557,6 +557,15 @@ class Node(object):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children, Loop)
 
+    def is_openmp_parallel(self):
+        '''Returns true if this Node is within an OpenMP parallel region
+
+        '''
+        omp_dir = self.ancestor(OMPParallelDirective)
+        if omp_dir:
+            return True
+        return False
+
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
@@ -1148,6 +1157,12 @@ class Kern(Call):
                 return arg
         raise GenerationError("Kernel {0} does not have an argument with "
                               "{1} access".format(self.name, mapping["write"]))
+
+    def is_coloured(self):
+        ''' Returns true if this kernel is being called from within a
+        coloured loop '''
+        return self.parent.loop_type == "colour"
+
 
 class Arguments(object):
     ''' arguments abstract base class '''

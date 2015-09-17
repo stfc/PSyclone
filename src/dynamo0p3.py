@@ -917,28 +917,14 @@ class DynLoop(Loop):
             my_mapping = FIELD_ACCESS_MAP
         return Loop.has_inc_arg(self, my_mapping)
 
-    def _is_openmp_parallel(self):
-        '''Returns true if this loop is within an OpenMP parallel region
-
-        '''
-        from psyGen import OMPParallelDirective
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective):
-                return True
-            myparent = myparent.parent
-        return False
-
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
         generate the code. '''
 
-        from psyGen import OMPParallelDirective
-
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
-        if self._loop_type == "colours" and self._is_openmp_parallel():
+        if self._loop_type == "colours" and self.is_openmp_parallel():
                     raise GenerationError("Cannot have a loop over "
                                           "colours within an OpenMP "
                                           "parallel region.")
@@ -1054,19 +1040,19 @@ class DynKern(Kern):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
         when parallelised. '''
-        vars = []
+        lvars = []
         # Dof maps for fields
         for unique_fs in self.arguments.unique_fss:
             if self.field_on_space(unique_fs):
                 # A map is required as there is a field on this space
-                vars.append(self._fs_descriptors.map_name(unique_fs))
+                lvars.append(self._fs_descriptors.map_name(unique_fs))
         # Orientation maps
         for unique_fs in self.arguments.unique_fss:
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
-                    vars.append(fs_descriptor.orientation_name)
-        return vars
+                    lvars.append(fs_descriptor.orientation_name)
+        return lvars
 
     def field_on_space(self, func_space):
         ''' Returns True if a field exists on this space for this kernel. '''
@@ -1096,22 +1082,6 @@ class DynKern(Kern):
         else:
             my_mapping = mapping
         return Kern.written_field(self, my_mapping)
-
-    def is_coloured(self):
-        ''' Returns true if this kernel is being called from within a
-        coloured loop '''
-        return self.parent.loop_type == "colour"
-
-    def is_openmp_parallel(self):
-        ''' Returns true if this kernel is being called from within
-        an OpenMP parallel region '''
-        from psyGen import OMPParallelDirective
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective):
-                return True
-            myparent = myparent.parent
-        return False
 
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
@@ -1526,7 +1496,7 @@ class DynKernelArguments(Arguments):
             if arg.function_space == func_space:
                 return arg
         raise GenerationError("DynKernelArguments:get_field: there is no"
-                              " field with function space {0)".
+                              " field with function space {0}".
                               format(func_space))
 
     @property
