@@ -99,8 +99,10 @@ class LoopFuseTrans(Transformation):
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
-    ''' Performs error checking before calling the apply() method of the
-        base class in order to loop fuse two GOcean loops. '''
+    ''' Performs error checking before calling the 
+        :py:meth:`LoopFuseTrans.apply` method of the
+        :py:class:`base class <LoopFuseTrans>` in order to fuse two 
+        GOcean loops. '''
 
     def __str__(self):
         return ("Fuse two adjacent loops together with GOcean-specific "
@@ -131,8 +133,12 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
 
 class DynamoLoopFuseTrans(LoopFuseTrans):
-    ''' Performs error checking before calling the apply() method of the
-        base class in order to loop-fuse two Dynamo loops. '''
+    '''Performs error checking before calling the
+        :py:meth:`~LoopFuseTrans.apply` method of the 
+        :py:class:`base class <LoopFuseTrans>` in order
+        to fuse two Dynamo loops.
+
+    '''
 
     def __str__(self):
         return ("Fuse two adjacent loops together with Dynamo-specific "
@@ -146,13 +152,11 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
         try:
             if node1.field_space != node2.field_space:
-                raise TransformationError("Error in DynamoLoopFuse "
-                                          "transformation. "
-                                          "Cannot fuse loops that are over "
-                                          "different spaces: "
-                                          "{0} {1}".
-                                          format(node1.field_space,
-                                                 node2.field_space))
+                raise TransformationError(
+                    "Error in DynamoLoopFuse transformation. "
+                    "Cannot fuse loops that are over different spaces: "
+                    "{0} {1}".format(node1.field_space,
+                                     node2.field_space))
         except TransformationError as err:
             raise err
         except Exception as err:
@@ -165,13 +169,44 @@ class OMPLoopTrans(Transformation):
 
     ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
         must be inside the scope of some other OMP Parallel REGION. This
-        condition is tested at code-generation time. '''
+        condition is tested at code-generation time. 
+        For example:
 
+        >>> from parse import parse,ParseError
+        >>> from psyGen import PSyFactory,GenerationError
+        >>> api="gocean1.0"
+        >>> filename="nemolite2d_alg.f90"
+        >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
+        >>> psy=PSyFactory(api).create(invokeInfo)
+        >>> print psy.invokes.names
+        >>>
+        >>> from psyGen import TransInfo
+        >>> t=TransInfo()
+        >>> ltrans = t.get_trans_name('OMPLoopTrans')
+        >>> rtrans = t.get_trans_name('OMPParallelTrans')
+        >>>
+        >>> schedule=psy.invokes.get('invoke_0').schedule
+        >>> schedule.view()
+        >>> new_schedule=schedule
+        >>>
+        # Apply the OpenMP Loop transformation to *every* loop 
+        # in the schedule
+        >>>for child in schedule.children:
+        >>>    newschedule,memento=ltrans.apply(child)
+        >>>    schedule = newschedule
+        >>>
+        # Enclose all of these loops within a single OpenMP
+        # PARALLEL region
+        >>> rtrans.omp_schedule("dynamic,1")
+        >>> newschedule,memento = rtrans.apply(schedule.children)
+        >>>
+        >>>    '''
     def __str__(self):
         return "Adds an 'OpenMP DO' directive to a loop"
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "OMPLoopTrans"
 
     @property
@@ -215,6 +250,14 @@ class OMPLoopTrans(Transformation):
         Transformation.__init__(self)
 
     def apply(self, node):
+        '''Apply the OMPLoopTrans transformation to the specified node in a
+        Schedule. This node must be a Loop since this transformation
+        corresponds to wrapping the generated code with !$OMP DO and
+        !$OMP END DO directives. At code-generation time (when
+        :func:`gen_code` is called), this node must be within an OpenMP
+        PARALLEL region.
+
+        '''
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Cannot apply an OpenMP Loop "
@@ -279,6 +322,10 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
     def apply(self, node):
+        ''' Apply an OMPParallelLoop Transformation to the supplied node
+        (which must be a Loop). In the generated code this corresponds to
+        wrapping the Loop with !$OMP PARALLEL DO ... !$OMP END PARALLEL DO
+        directives. '''
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
