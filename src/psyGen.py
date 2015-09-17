@@ -18,8 +18,21 @@ class GenerationError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Generation Error: "+value
+
     def __str__(self):
         return repr(self.value)
+
+
+class FieldNotFoundError(Exception):
+    ''' Provides a PSyclone-specific error class when a field with the
+    requested property/ies is not found '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Field not found error: "+value
+
+    def __str__(self):
+        return repr(self.value)
+
 
 class PSyFactory(object):
     ''' Creates a specific version of the PSy. If a particular api is not
@@ -1117,7 +1130,13 @@ class Kern(Call):
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
         if check and len(call.ktype.arg_descriptors) != len(call.args):
-            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
+            raise GenerationError(
+                "error: In kernel '{0}' the number of arguments specified "
+                "in the kernel metadata '{1}', must equal the number of "
+                "arguments in the algorithm layer. However, I found '{2}'".\
+                format(call.ktype.procedure.name,
+                       len(call.ktype.arg_descriptors),
+                       len(call.args)))
         self._arg_descriptors = call.ktype.arg_descriptors
 
     def __str__(self):
@@ -1144,8 +1163,9 @@ class Kern(Call):
         for arg in self.arguments.args:
             if arg.access.lower() == mapping["inc"]:
                 return arg
-        raise GenerationError("Kernel {0} does not have an argument with "
-                              "{1} access".format(self.name, mapping["inc"]))
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".\
+                                 format(self.name, mapping["inc"]))
 
     def written_field(self, mapping={}):
         ''' Returns the argument corresponding to a field that has
@@ -1155,8 +1175,9 @@ class Kern(Call):
         for arg in self.arguments.args:
             if arg.access.lower() == mapping["write"]:
                 return arg
-        raise GenerationError("Kernel {0} does not have an argument with "
-                              "{1} access".format(self.name, mapping["write"]))
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".\
+                                 format(self.name, mapping["write"]))
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a

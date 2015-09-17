@@ -379,7 +379,7 @@ class DynKernelType03(KernelType):
 
 # imports
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, GenerationError, Inf, NameSpaceFactory
+    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError
 
 # classes
 
@@ -1099,7 +1099,7 @@ class DynKern(Kern):
             # the colour map
             try:
                 arg = self.incremented_field
-            except GenerationError:
+            except FieldNotFoundError:
                 # TODO Warn that we're colouring a kernel that has
                 # no field object with INC access
                 arg = self.written_field
@@ -1134,7 +1134,7 @@ class DynKern(Kern):
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
                     arg = self.incremented_field
-                except GenerationError:
+                except FieldNotFoundError:
                     arg = None
                 if arg:
                     raise GenerationError("Kernel {0} has an argument with "
@@ -1495,9 +1495,9 @@ class DynKernelArguments(Arguments):
         for arg in self._args:
             if arg.function_space == func_space:
                 return arg
-        raise GenerationError("DynKernelArguments:get_field: there is no"
-                              " field with function space {0}".
-                              format(func_space))
+        raise FieldNotFoundError("DynKernelArguments:get_field: there is no"
+                                 " field with function space {0}".
+                                 format(func_space))
 
     @property
     def has_operator(self):
