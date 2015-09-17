@@ -522,15 +522,6 @@ class DynInvoke(Invoke):
                         return arg
         raise GenerationError("Functionspace name not found")
 
-    def inc_arg(self):
-        ''' Returns the first argument object which
-        has access gh_inc '''
-        for kern_call in self.schedule.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.access == "gh_inc":
-                    return arg
-        raise GenerationError("Failed to find an argument with GH_INC access")
-
     def unique_fss(self):
         ''' Returns the unique function space names over all kernel
         calls in this invoke. '''
@@ -947,15 +938,6 @@ class DynLoop(Loop):
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name + "%get_ncell()"
         Loop.gen_code(self, parent)
-
-    def has_inc_arg(self):
-        ''' Returns True if any of the Kernels called within this
-        loop have an argument with INC access. Returns False otherwise '''
-        for kern_call in self.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.access == "gh_inc":
-                    return True
-        return False
 
 
 class DynInf(Inf):

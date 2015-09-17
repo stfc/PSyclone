@@ -957,6 +957,15 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
+    def has_inc_arg(self):
+        ''' Returns True if any of the Kernels called within this
+        loop have an argument with INC access. Returns False otherwise '''
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.access == "gh_inc":
+                    return True
+        return False
+
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1": # no need for a loop
             for child in self.children:
@@ -972,6 +981,7 @@ class Loop(Node):
             my_decl = DeclGen(parent, datatype = "integer",
                             entity_decls = [self._variable_name])
             parent.add(my_decl)
+
 
 class Call(Node):
 
