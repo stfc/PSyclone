@@ -7,7 +7,8 @@
 # Author R. Ford STFC Daresbury Lab
 #        A. Porter STFC Daresbury Lab
 
-''' This module provides the various transformations that can
+''' .. py:module:: transformations
+    This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
     are both general and API-specific transformation classes in
     this module where the latter typically apply API-specific
@@ -57,7 +58,8 @@ class LoopFuseTrans(Transformation):
         return "LoopFuse"
 
     def apply(self, node1, node2):
-
+        ''' Fuse the loops represented by :py:obj:`node1` and
+        :py:obj:`node2` '''
         # check nodes are loops
         from psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
@@ -99,9 +101,9 @@ class LoopFuseTrans(Transformation):
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
-    ''' Performs error checking before calling the 
+    ''' Performs error checking before calling the
         :py:meth:`LoopFuseTrans.apply` method of the
-        :py:class:`base class <LoopFuseTrans>` in order to fuse two 
+        :py:class:`base class <LoopFuseTrans>` in order to fuse two
         GOcean loops. '''
 
     def __str__(self):
@@ -113,7 +115,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return "GOceanLoopFuse"
 
     def apply(self, node1, node2):
-
+        ''' Fuse the two GOcean loops represented by :py:obj:`node1` and
+        :py:obj:`node2` '''
         try:
             if node1.field_space != node2.field_space:
                 raise TransformationError("Error in GOceanLoopFuse "
@@ -134,7 +137,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
 class DynamoLoopFuseTrans(LoopFuseTrans):
     '''Performs error checking before calling the
-        :py:meth:`~LoopFuseTrans.apply` method of the 
+        :py:meth:`~LoopFuseTrans.apply` method of the
         :py:class:`base class <LoopFuseTrans>` in order
         to fuse two Dynamo loops.
 
@@ -149,7 +152,8 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         return "DynamoLoopFuse"
 
     def apply(self, node1, node2):
-
+        ''' Fuse the two Dynamo loops represented by :py:obj:`node1`
+        and :py:obj:`node2` '''
         try:
             if node1.field_space != node2.field_space:
                 raise TransformationError(
@@ -169,7 +173,7 @@ class OMPLoopTrans(Transformation):
 
     ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
         must be inside the scope of some other OMP Parallel REGION. This
-        condition is tested at code-generation time. 
+        condition is tested at code-generation time.
         For example:
 
         >>> from parse import parse,ParseError
@@ -189,18 +193,20 @@ class OMPLoopTrans(Transformation):
         >>> schedule.view()
         >>> new_schedule=schedule
         >>>
-        # Apply the OpenMP Loop transformation to *every* loop 
+        # Apply the OpenMP Loop transformation to *every* loop
         # in the schedule
-        >>>for child in schedule.children:
-        >>>    newschedule,memento=ltrans.apply(child)
-        >>>    schedule = newschedule
+        >>> for child in schedule.children:
+        >>>     newschedule,memento=ltrans.apply(child)
+        >>>     schedule = newschedule
         >>>
         # Enclose all of these loops within a single OpenMP
         # PARALLEL region
         >>> rtrans.omp_schedule("dynamic,1")
         >>> newschedule,memento = rtrans.apply(schedule.children)
         >>>
-        >>>    '''
+        >>>
+
+    '''
     def __str__(self):
         return "Adds an 'OpenMP DO' directive to a loop"
 
@@ -218,8 +224,8 @@ class OMPLoopTrans(Transformation):
     @omp_schedule.setter
     def omp_schedule(self, value):
         ''' Sets the OpenMP schedule that will be specified by
-            this transformation. Checks that the supplied string
-            is a recognised OpenMP schedule. '''
+            this transformation. Checks that the string supplied in
+            :py:obj:`value` is a recognised OpenMP schedule. '''
 
         # Some schedules have an optional chunk size following a ','
         value_parts = value.split(',')
@@ -252,10 +258,19 @@ class OMPLoopTrans(Transformation):
     def apply(self, node):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
-        corresponds to wrapping the generated code with !$OMP DO and
-        !$OMP END DO directives. At code-generation time (when
-        :func:`gen_code` is called), this node must be within an OpenMP
-        PARALLEL region.
+        corresponds to wrapping the generated code with directives like so:
+
+        .. code-block:: fortran
+
+          !$OMP DO
+          do ...
+             ...
+          end do
+          !$OMP END DO
+
+        At code-generation time (when
+        :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
+        within (i.e. a child of) an OpenMP PARALLEL region.
 
         '''
         from psyGen import Loop
@@ -324,8 +339,17 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def apply(self, node):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
-        wrapping the Loop with !$OMP PARALLEL DO ... !$OMP END PARALLEL DO
-        directives. '''
+        wrapping the Loop with directives:
+
+        .. code-block:: fortran
+
+          !$OMP PARALLEL DO ...
+          do ...
+            ...
+          end do
+          !$OMP END PARALLEL DO
+
+        '''
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -358,8 +382,11 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
 class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
-    ''' Dynamo specific OpenMP loop transformation. Adds Dynamo specific
-        validity checks. Actual transformation is done by parent class. '''
+    ''' Dynamo-specific OpenMP loop transformation. Adds Dynamo specific
+        validity checks. Actual transformation is done by the
+        :py:class:`base class <OMPParallelLoopTrans>`.
+
+    '''
 
     @property
     def name(self):
@@ -370,8 +397,9 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     def apply(self, node):
 
-        ''' Perform Dynamo specific loop validity checks then call the parent
-            class. '''
+        ''' Perform Dynamo specific loop validity checks then call the
+        :py:meth:`~OMPParallelLoopTrans.apply` method of the
+        :py:class:`base class <OMPParallelLoopTrans>`. '''
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -399,8 +427,11 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
-    ''' GOcean specific OpenMP Do loop transformation. Adds GOcean specific
-        validity checks. Actual transformation is done by parent class. '''
+    '''GOcean specific OpenMP Do loop transformation. Adds GOcean
+        specific validity checks. Actual transformation is done by
+        :py:class:`base class <OMPParallelLoopTrans>`.
+
+    '''
 
     @property
     def name(self):
@@ -411,8 +442,11 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     def apply(self, node):
 
-        ''' Perform GOcean specific loop validity checks then call the parent
-            class. '''
+        ''' Perform GOcean-specific loop validity checks then call
+        :py:meth:`OMPParallelLoopTrans.apply`.
+
+        '''
+
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -431,8 +465,10 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
     ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds
-    Dynamo-specific validity checks. Actual transformation is done by base
-    class. '''
+    Dynamo-specific validity checks. Actual transformation is done by
+    :py:class:`base class <OMPLoopTrans>`.
+
+    '''
 
     @property
     def name(self):
@@ -442,8 +478,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
     def apply(self, node):
-        ''' Perform Dynamo 0.3 specific loop validity checks then call the
-        base class. '''
+        '''Perform Dynamo 0.3 specific loop validity checks then call
+        :py:meth:`OMPLoopTrans.apply`.
+
+        '''
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -471,8 +509,11 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
-    ''' GOcean specific orphan OpenMP loop transformation. Adds GOcean specific
-        validity checks. Actual transformation is done by base class. '''
+    ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
+        specific validity checks. Actual transformation is done by
+        :py:class:`base class <OMPLoopTrans>`.
+
+    '''
 
     @property
     def name(self):
@@ -483,8 +524,10 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
     def apply(self, node):
 
-        ''' Perform GOcean specific loop validity checks then call the parent
-            class. '''
+        '''Perform GOcean specific loop validity checks then call
+            `:py:meth:`OMPLoopTrans.apply`.
+
+        '''
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -502,7 +545,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 class Dynamo0p1ColourTrans(Transformation):
 
     ''' Apply a colouring transformation to a loop (in order to permit a
-        subsequent OpenMP parallelisation over colours)
+        subsequent OpenMP parallelisation over colours).
     '''
 
     def __str__(self):
@@ -579,7 +622,38 @@ class Dynamo0p1ColourTrans(Transformation):
 class Dynamo0p3ColourTrans(Transformation):
 
     ''' Split a Dynamo 0.3 loop into colours so that it can be
-    parallelised '''
+    parallelised. For example:
+
+    >>> from parse import parse
+    >>> from psyGen import PSyFactory
+    >>> import transformations
+    >>> import os
+    >>> import pytest
+    >>>
+    >>> TEST_API = "dynamo0.3"
+    >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    >>>              "tests", "test_files", "dynamo0p3",
+    >>>              "4.6_multikernel_invokes.f90"),
+    >>>              api=TEST_API)
+    >>> psy = PSyFactory(TEST_API).create(info)
+    >>> invoke = psy.invokes.get('invoke_0')
+    >>> schedule = invoke.schedule
+    >>>
+    >>> ctrans = Dynamo0p3ColourTrans()
+    >>> otrans = DynamoOMPParallelLoopTrans()
+    >>>
+    >>> # Colour all of the loops
+    >>> for child in schedule.children:
+    >>>     cschedule, _ = ctrans.apply(child)
+    >>>
+    >>> # Then apply OpenMP to each of the colour loops
+    >>> schedule = cschedule
+    >>> for child in schedule.children:
+    >>>     newsched, _ = otrans.apply(child.children[0])
+    >>>
+    >>> newsched.view()
+
+    '''
 
     def __str__(self):
         return "Split a Dynamo 0.3 loop into colours"
@@ -589,7 +663,12 @@ class Dynamo0p3ColourTrans(Transformation):
         return "Dynamo0p3LoopColourTrans"
 
     def apply(self, node):
+        '''Performs Dynamo-specific error checking and then converts the Loop
+        represented by :py:obj:`node` into a nested loop where the
+        outer loop is over colours and the inner loop is over points
+        of that colour.
 
+        '''
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -660,7 +739,37 @@ class Dynamo0p3ColourTrans(Transformation):
 
 class OMPParallelTrans(Transformation):
 
-    ''' Create an OpenMP PARALLEL region by inserting directives '''
+    ''' Create an OpenMP PARALLEL region by inserting directives. For
+    example:
+
+    >>> from parse import parse, ParseError
+    >>> from psyGen import PSyFactory, GenerationError
+    >>> api="gocean1.0"
+    >>> filename="nemolite2d_alg.f90"
+    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyGen import TransInfo
+    >>> t=TransInfo()
+    >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
+    >>> rtrans = t.get_trans_name('OMPParallelTrans')
+    >>>
+    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> new_schedule=schedule
+    >>>
+    >>> # Apply the OpenMP Loop transformation to *every* loop
+    >>> # in the schedule
+    >>> for child in schedule.children:
+    >>>     newschedule,memento=ltrans.apply(child)
+    >>>     schedule = newschedule
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> newschedule, _ = rtrans.apply(schedule.children)
+    >>> newschedule.view()
+
+    '''
 
     def __str__(self):
         return "Insert an OpenMP Parallel region"
@@ -670,9 +779,12 @@ class OMPParallelTrans(Transformation):
         return "OMPParallelTrans"
 
     def apply(self, nodes):
-        ''' Apply this transformation to a subset of the nodes
-            within a schedule - i.e. enclose the specified
-            Loops in the schedule within a single OpenMP region '''
+        '''Apply this transformation to a subset of the nodes within a
+            schedule - i.e. enclose the specified Loops in the
+            schedule within a single OpenMP region. :py:obj:`nodes`
+            can be a single Node or a list of Nodes.
+
+        '''
         from psyGen import OMPDirective, OMPParallelDirective
 
         # Check whether we've been passed a list of nodes or just a
