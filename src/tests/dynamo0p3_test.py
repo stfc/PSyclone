@@ -16,6 +16,7 @@ import os
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernelType03
+from transformations import LoopFuseTrans
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -760,8 +761,6 @@ def test_multikern_invoke_any_space():
                            api="dynamo0.3")
     with pytest.raises(GenerationError):
         _ = PSyFactory("dynamo0.3").create(invoke_info)
-
-from transformations import LoopFuseTrans
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")

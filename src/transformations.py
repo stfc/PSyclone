@@ -119,13 +119,11 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :py:obj:`node2` '''
         try:
             if node1.field_space != node2.field_space:
-                raise TransformationError("Error in GOceanLoopFuse "
-                                          "transformation. "
-                                          "Cannot fuse loops that are over "
-                                          "different grid-point types: "
-                                          "{0} {1}".
-                                          format(node1.field_space,
-                                                 node2.field_space))
+                raise TransformationError(
+                    "Error in GOceanLoopFuse transformation. Cannot "
+                    "fuse loops that are over different grid-point types: "
+                    "{0} {1}".format(node1.field_space,
+                                     node2.field_space))
         except TransformationError as err:
             raise err
         except Exception as err:
@@ -476,9 +474,9 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                                       " The node is not a loop.")
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The requested loop is not of type "
-                                      "inner or outer.")
+            raise TransformationError(
+                "Error in "+self.name+" transformation.  The requested loop"
+                " is not of type inner or outer.")
 
         return OMPParallelLoopTrans.apply(self,
                                           node)
@@ -517,10 +515,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
-            raise TransformationError("Error in {0} transformation. The "
-                                      "kernel has an argument with INC "
-                                      "access. Colouring is required.".\
-                                      format(self.name))
+            raise TransformationError(
+                "Error in {0} transformation. The kernel has an argument"
+                " with INC access. Colouring is required.".\
+                format(self.name))
         return OMPLoopTrans.apply(self, node)
 
 
@@ -722,9 +720,8 @@ class Dynamo0p3ColourTrans(Transformation):
         # colours *must* be sequential)
         from psyGen import OMPDirective
         if node.ancestor(OMPDirective):
-            raise TransformationError("Cannot have a loop over "
-                                      "colours within an OpenMP "
-                                      "parallel region.")
+            raise TransformationError("Cannot have a loop over colours "
+                                      "within an OpenMP parallel region.")
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
@@ -848,10 +845,9 @@ class OMPParallelTrans(Transformation):
                                       "region within another OpenMP region.")
         for child in node_list:
             if child.parent is not node_parent:
-                raise TransformationError("Error in OMPParallel "
-                                          "transformation: "
-                                          "supplied nodes are not children of "
-                                          "the same Schedule/parent.")
+                raise TransformationError(
+                    "Error in OMPParallel transformation: supplied nodes "
+                    "are not children of the same Schedule/parent.")
 
         # create a memento of the schedule and the proposed
         # transformation
