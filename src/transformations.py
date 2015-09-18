@@ -411,12 +411,15 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                                       "iteration space is not 'cells'.".\
                                       format(self.name))
         # If the loop is not already coloured then check whether or not
-        # it should be
-        if node.loop_type is not 'colour' and node.has_inc_arg():
-            raise TransformationError("Error in {0} transformation. The "
-                                      "kernel has an argument with INC "
-                                      "access. Colouring is required.".\
-                                      format(self.name))
+        # it should be. If the field space is W3 then we don't need
+        # to worry about colouring.
+        if node.field_space != "w3":
+            if node.loop_type is not 'colour' and node.has_inc_arg():
+                raise TransformationError(
+                    "Error in {0} transformation. The kernel has an "
+                    "argument with INC access. Colouring is required.".\
+                    format(self.name))
+
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
             raise TransformationError("Error in "+self.name+" transformation. "
@@ -652,6 +655,18 @@ class Dynamo0p3ColourTrans(Transformation):
     >>>     newsched, _ = otrans.apply(child.children[0])
     >>>
     >>> newsched.view()
+
+    Colouring in the Dynamo 0.3 API is subject to the following rules:
+
+    * Any kernel which has a field with 'INC' access must be coloured UNLESS
+      that field is on w3
+    * A kernel may have at most one field with 'INC' access
+    * Attempting to colour a kernel that updates a field on w3 (with INC
+      access) should result in PSyclone issuing a warning
+    * Attempting to colour any kernel that doesn't have a field with INC
+      access should also result in PSyclone issuing a warning.
+    * A separate colour map will be required for each field that is coloured
+      (if an invoke contains >1 kernel call)
 
     '''
 
