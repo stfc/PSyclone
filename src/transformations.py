@@ -273,11 +273,18 @@ class OMPLoopTrans(Transformation):
         within (i.e. a child of) an OpenMP PARALLEL region.
 
         '''
+        # Check that the supplied node is a Loop
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Cannot apply an OpenMP Loop "
                                       "directive to something that is "
                                       "not a loop")
+        # Check we are not a sequential loop
+        if node.loop_type == 'colours':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                                      "The target loop is over colours and "
+                                      "must be computed serially.")
+
         schedule = node.root
 
         # create a memento of the schedule and the proposed
@@ -350,6 +357,17 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         '''
+        # Check that the supplied Node is a Loop
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError("Error in {0} transformation. The "
+                                      "node is not a loop.".format(self.name))
+
+        # Check we are not a sequential loop
+        if node.loop_type == 'colours':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                                      "The requested loop is over colours and "
+                                      "must be computed serially.")
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -400,7 +418,10 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         ''' Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
         :py:class:`base class <OMPParallelLoopTrans>`. '''
-        # check node is a loop
+        # Check that the supplied node is a loop - although this check
+        # is not Dynamo specific it is necessary for the subsequent
+        # checks to function correctly (only a loop object has an
+        # iteration_space for instance).
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in {0} transformation. The "
@@ -420,11 +441,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                     "argument with INC access. Colouring is required.".\
                     format(self.name))
 
-        # Check we are not a sequential loop
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The requested loop is over colours and "
-                                      "must be computed serially.")
         return OMPParallelLoopTrans.apply(self, node)
 
 
@@ -450,7 +466,10 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
         '''
 
-        # check node is a loop
+        # check node is a loop - although this check
+        # is not GOcean specific, it is necessary for the subsequent
+        # checks to function correctly (only a loop object has a
+        # loop_type for instance).
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
@@ -502,11 +521,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                                       "kernel has an argument with INC "
                                       "access. Colouring is required.".\
                                       format(self.name))
-        # Check we are not a sequential loop
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The requested loop is over colours and "
-                                      "must be computed serially.")
         return OMPLoopTrans.apply(self, node)
 
 
@@ -531,7 +545,9 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
             `:py:meth:`OMPLoopTrans.apply`.
 
         '''
-        # check node is a loop
+        # check node is a loop. Although this is not GOcean specific
+        # it is required for the subsequent checks to function
+        # correctly.
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
