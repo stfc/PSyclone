@@ -1,3 +1,7 @@
+        1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo
+	API. Parser fails gracefully if Kernel-code parsing is
+	unsuccessful.
+
 release 1.0.2
 
 	1) #299 temporary boundary condition

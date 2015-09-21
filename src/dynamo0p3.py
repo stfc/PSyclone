@@ -34,6 +34,11 @@ VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
+# The mapping from meta-data strings to field-access types
+# used in this API.
+FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
+                    "readwrite": "gh_rw", "inc": "gh_inc"}
+
 # classes
 
 
@@ -374,7 +379,7 @@ class DynKernelType03(KernelType):
 
 # imports
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, GenerationError, Inf, NameSpaceFactory
+    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError
 
 # classes
 
@@ -569,6 +574,14 @@ class DynInvoke(Invoke):
                     return True
         # none of my kernels require a diff basis function for this
         # function space
+        return False
+
+    def is_coloured(self):
+        ''' Returns true if at least one of the loops in the
+        schedule of this invoke has been coloured '''
+        for loop in self.schedule.loops():
+            if loop.loop_type == "colours":
+                return True
         return False
 
     def ndf_name(self, func_space):
@@ -789,6 +802,15 @@ class DynInvoke(Invoke):
                                    allocatable=True,
                                    kind="r_def",
                                    entity_decls=operator_declarations))
+
+        if self.is_coloured():
+            # Add declarations of the colour map and array holding the
+            # no. of cells of each colour
+            invoke_sub.add(DeclGen(parent, datatype = "integer",
+                                   pointer=True,
+                                   entity_decls = ["cmap(:,:)",
+                                                   "ncp_colour(:)"]))
+
         if self.qr_required:
             # add calls to compute the values of any basis arrays
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -873,23 +895,46 @@ class DynLoop(Loop):
     we require.  Creates Dynamo specific loop bounds when the code is
     being generated. '''
 
-    def __init__(self, call=None, parent=None):
+    def __init__(self, call=None, parent=None,
+                 loop_type=""):
         Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
-                      valid_loop_types=["colours", "colour"])
+                      valid_loop_types=["colours", "colour", ""])
+        self.loop_type = loop_type
+
+        if self._loop_type == "colours":
+            self._variable_name = "colour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+        else:
+            self._variable_name = "cell"
+
+    def has_inc_arg(self, mapping=None):
+        ''' Returns True if any of the Kernels called within this loop
+        have an argument with INC access. Returns False otherwise. '''
+        if mapping is not None:
+            my_mapping = mapping
+        else:
+            my_mapping = FIELD_ACCESS_MAP
+        return Loop.has_inc_arg(self, my_mapping)
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
         generate the code. '''
+
+        # Check that we're not within an OpenMP parallel region if
+        # we are a loop over colours.
+        if self._loop_type == "colours" and self.is_openmp_parallel():
+                    raise GenerationError("Cannot have a loop over "
+                                          "colours within an OpenMP "
+                                          "parallel region.")
+        # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
-            self._variable_name = "colour"
             self._stop = "ncolour"
         elif self._loop_type == "colour":
-            self._variable_name = "cell"
-            self._stop = "ncp_ncolour(colour)"
+            self._stop = "ncp_colour(colour)"
         else:
-            self._variable_name = "cell"
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name + "%get_ncell()"
         Loop.gen_code(self, parent)
@@ -995,7 +1040,19 @@ class DynKern(Kern):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
         when parallelised. '''
-        raise GenerationError("DynKern:local_vars is not yet implemented")
+        lvars = []
+        # Dof maps for fields
+        for unique_fs in self.arguments.unique_fss:
+            if self.field_on_space(unique_fs):
+                # A map is required as there is a field on this space
+                lvars.append(self._fs_descriptors.map_name(unique_fs))
+        # Orientation maps
+        for unique_fs in self.arguments.unique_fss:
+            if self._fs_descriptors.exists(unique_fs):
+                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                if fs_descriptor.orientation:
+                    lvars.append(fs_descriptor.orientation_name)
+        return lvars
 
     def field_on_space(self, func_space):
         ''' Returns True if a field exists on this space for this kernel. '''
@@ -1006,6 +1063,26 @@ class DynKern(Kern):
                     return True
         return False
 
+    @property
+    def incremented_field(self, mapping=None):
+        ''' Returns the argument corresponding to a field that has
+        INC access.  '''
+        if mapping is None:
+            my_mapping = FIELD_ACCESS_MAP
+        else:
+            my_mapping = mapping
+        return Kern.incremented_field(self, my_mapping)
+
+    @property
+    def written_field(self, mapping=None):
+        ''' Returns the argument corresponding to a field that has
+        WRITE access '''
+        if mapping is None:
+            my_mapping = FIELD_ACCESS_MAP
+        else:
+            my_mapping = mapping
+        return Kern.written_field(self, my_mapping)
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
@@ -1013,12 +1090,67 @@ class DynKern(Kern):
             IfThenGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
+
+        # If this kernel is being called from within a coloured
+        # loop then we have to look-up the colour map 
+        if self.is_coloured():
+
+            # Find which argument object has INC access in order to look-up
+            # the colour map
+            try:
+                arg = self.incremented_field
+            except FieldNotFoundError:
+                # TODO Warn that we're colouring a kernel that has
+                # no field object with INC access
+                arg = self.written_field
+
+            new_parent, position = parent.start_parent_loop()
+            # Add the look-up of the colouring map for this kernel
+            # call
+            new_parent.add(CommentGen(new_parent, ""),
+                       position=["before", position])
+            new_parent.add(CommentGen(new_parent, " Look-up colour map"),
+                       position=["before", position])
+            new_parent.add(CommentGen(new_parent, ""),
+                       position=["before", position])
+            name = arg.proxy_name_indexed+\
+                   "%"+arg.ref_name+"%get_colours"
+            new_parent.add(CallGen(new_parent,
+                                   name=name,
+                                   args=["ncolour", "ncp_colour", "cmap"]),
+                           position=["before", position])
+            new_parent.add(CommentGen(new_parent, ""),
+                           position=["before", position])
+
+            # We must pass the colour map to the dofmap/orientation
+            # lookup rather than just the cell
+            dofmap_args = "cmap(colour, cell)"
+        else:
+            # This kernel call has not been coloured
+            #  - is it OpenMP parallel, i.e. are we a child of
+            # an OpenMP directive?
+            if self.is_openmp_parallel():
+                try:
+                    # It is OpenMP parallel - does it have an argument
+                    # with INC access?
+                    arg = self.incremented_field
+                except FieldNotFoundError:
+                    arg = None
+                if arg:
+                    raise GenerationError("Kernel {0} has an argument with "
+                                          "INC access and therefore must "
+                                          "be coloured in order to be "
+                                          "parallelised with OpenMP".\
+                                          format(self._name))
+            dofmap_args = "cell"
+
         # create a maps_required logical which we can use to add in
         # spacer comments if necessary
         maps_required = False
         for unique_fs in self.arguments.unique_fss:
             if self.field_on_space(unique_fs):
                 maps_required = True
+
         # function-space maps initialisation and their declarations
         if maps_required:
             parent.add(CommentGen(parent, ""))
@@ -1030,7 +1162,7 @@ class DynKern(Kern):
                 parent.add(AssignGen(parent, pointer=True, lhs=map_name,
                                      rhs=field.proxy_name_indexed +
                                      "%" + field.ref_name +
-                                     "%get_cell_dofmap(cell)"))
+                                     "%get_cell_dofmap("+dofmap_args+")"))
         if maps_required:
             parent.add(CommentGen(parent, ""))
         decl_map_names = []
@@ -1052,7 +1184,8 @@ class DynKern(Kern):
                                lhs=fs_descriptor.orientation_name,
                                rhs=field.proxy_name_indexed + "%" +
                                          field.ref_name +
-                                         "%get_cell_orientation(cell)"))
+                                         "%get_cell_orientation("+
+                                         dofmap_args+")"))
         if self._fs_descriptors.orientation:
             orientation_decl_names = []
             for orientation_name in self._fs_descriptors.orientation_names:
@@ -1366,9 +1499,9 @@ class DynKernelArguments(Arguments):
         for arg in self._args:
             if arg.function_space == func_space:
                 return arg
-        raise GenerationError("DynKernelArguments:get_field: there is no"
-                              " field with function space {0)".
-                              format(func_space))
+        raise FieldNotFoundError("DynKernelArguments:get_field: there is no"
+                                 " field with function space {0}".
+                                 format(func_space))
 
     @property
     def has_operator(self):
@@ -1394,8 +1527,7 @@ class DynKernelArguments(Arguments):
         if mapping is not None:
             my_mapping = mapping
         else:
-            my_mapping = {"write": "gh_write", "read": "gh_read",
-                          "readwrite": "gh_rw", "inc": "gh_inc"}
+            my_mapping = FIELD_ACCESS_MAP
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
