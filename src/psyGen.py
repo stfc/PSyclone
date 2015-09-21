@@ -549,6 +549,26 @@ class Node(object):
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
+
+class ScheduleConfig(object):
+    ''' Stores configuration options for a Schedule '''
+
+    def __init__(self):
+        self.const_loop_bounds = False
+
+    def __str__(self):
+        mystr = "Constant loop bounds="+str(self._const_loop_bounds)
+        return mystr
+
+    @property
+    def const_loop_bounds(self):
+        return self._const_loop_bounds
+
+    @const_loop_bounds.setter
+    def const_loop_bounds(self, obj):
+        self._const_loop_bounds = obj
+
+
 class Schedule(Node):
 
     ''' Stores schedule information for an invocation call. Schedules can be
@@ -599,23 +619,31 @@ class Schedule(Node):
         #    sequence.append(Loop(call, parent = self))
         Node.__init__(self, children = sequence)
         self._invoke = None
+        self.config = ScheduleConfig()
 
     def view(self, indent = 0):
-        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+"']"
+        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+\
+            "',"+str(self.config)+"]"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
     def __str__(self):
         result = "Schedule:\n"
+        print str(self.config)
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
 
+    @property
+    def const_loop_bounds(self):
+        return self.config.const_loop_bounds
+
     def gen_code(self, parent):
         for entity in self._children:
             entity.gen_code(parent)
 
+        
 class Directive(Node):
 
     def view(self,indent = 0):
