@@ -541,3 +541,50 @@ class OMPParallelTrans(Transformation):
                              index=node_position)
 
         return schedule, keep
+
+
+class ConstLoopBoundsTrans(Transformation):
+    ''' Switch on (or off) the use of constant loop bounds within
+    a Schedule, e.g.:
+
+    >>> TEST_API = "gocean1.0"
+    >>> _,info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    >>>                             "tests", "test_files", "gocean1p0",
+    >>>                             "single_invoke.f90"),
+    >>>                api=TEST_API)
+    >>> psy = PSyFactory(TEST_API).create(info)
+    >>> invoke = psy.invokes.get('invoke_0_compute_cu')
+    >>> schedule = invoke.schedule
+    >>>
+    >>> from transformations import ConstLoopBoundsTrans
+    >>> clbtrans = ConstLoopBoundsTrans()
+    >>>
+    >>> newsched, _ = clbtrans.apply(schedule)
+    >>> # or, to turn off const. looop bounds:
+    >>> # newsched, _ = clbtrans.apply(schedule, const_bounds=False)
+    >>>
+    >>> newsched.view()
+
+    '''
+
+    def __str__(self):
+        return "Use constant loop bounds for all loops in a Schedule"
+
+    @property
+    def name(self):
+        return "ConstLoopBoundsTrans"
+
+    def apply(self, node, const_bounds=True):
+
+        # Check node is a Schedule
+        from psyGen import Schedule
+        if not isinstance(node, Schedule):
+            raise TransformationError("Error in ConstLoopBoundsTrans: "
+                                      "node is not a Schedule")
+
+        from undoredo import Memento
+        keep = Memento(node, self)
+
+        node.config.const_loop_bounds = const_bounds
+
+        return node, keep
