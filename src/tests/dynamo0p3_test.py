@@ -611,7 +611,7 @@ def test_any_space_2():
         ", undf_any_space_1, map_any_space_1)") != -1
 
 
-def test_kernel_specific1():
+def test_kernel_specific():
     '''tests that kernel-specific code is added to the
     matrix_vector_kernel_mm kernel. This code is required as the
     dynamo0.3 api does not know about boundary conditions but this
@@ -623,7 +623,7 @@ def test_kernel_specific1():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
-    output0 = "USE enforce_bc_mod, ONLY: enforce_bc_w2"
+    output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert str(generated_code).find(output0) != -1
     output1 = "USE function_space_mod, ONLY: w2"
     assert str(generated_code).find(output1) != -1
@@ -639,34 +639,31 @@ def test_kernel_specific1():
     assert str(generated_code).find(output5) != -1
     output6 = (
         "IF (fs .eq. w2) THEN\n"
-        "          CALL enforce_bc_w2(nlayers, ndf_any_space_1, "
-        "undf_any_space_1, map_any_space_1, boundary_dofs_w2, "
-        "f1_proxy%data)")
+        "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
+        "ndf_any_space_1, undf_any_space_1, map_any_space_1, "
+        "boundary_dofs_w2)")
     assert str(generated_code).find(output6) != -1
 
 
-def test_kernel_specific2():
-    '''tests that kernel-specific code is added to the ru_kernel
-    kernel. This code is required as the dynamo0.3 api does not
-    know about boundary conditions but this kernel requires
-    them. This "hack" is only supported to get PSyclone to
-    generate correct code for the current implementation of
-    dynamo. Future API's will not support any hacks. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "12.1_kernel_specific.f90"),
-                           api="dynamo0.3")
+def test_bc_kernel():
+    '''tests that a kernel with a particular name is recognised as a
+    boundary condition kernel and that appopriate code is added to
+    support this. This code is required as the dynamo0.3 api does not
+    know about boundary conditions but this kernel requires them. This
+    "hack" is only supported to get PSyclone to generate correct code
+    for the current implementation of dynamo. Future API's will not
+    support any hacks. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                           "12.2_enforce_bc_kernel.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
-    output1 = "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
+    output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
     assert str(generated_code).find(output1) != -1
-    output2 = "boundary_dofs_w2 => a_proxy%vspace%get_boundary_dofs()"
+    output2 = "boundary_dofs => a_proxy%vspace%get_boundary_dofs()"
     assert str(generated_code).find(output2) != -1
     output3 = (
-        "CALL ru_code(nlayers, a_proxy%data, b_proxy%data, c_proxy%"
-        "data, d_proxy(1)%data, d_proxy(2)%data, d_proxy(3)%data, "
-        "ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, "
-        "boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, "
-        "undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, "
-        "wv)")
+        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1, "
+        "undf_any_space_1, map_any_space_1, boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
 
