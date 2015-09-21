@@ -18,8 +18,8 @@
 '''
 
 from parse import Descriptor, KernelType, ParseError
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   KernelArgument, GenerationError, Inf, Node
+from psyGen import PSy, Invokes, Invoke, Schedule, ScheduleConfig, \
+    Loop, Kern, Arguments, KernelArgument, GenerationError, Inf, Node
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -66,11 +66,6 @@ GRID_PROPERTY_DICT = {"grid_area_t":"area_t",
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
 VALID_LOOP_TYPES = ["inner", "outer"]
-
-# Whether or not to generate constant loop bounds in the PSy layer.
-# If this is False then loop bounds are obtained by de-referencing
-# the field object being written to (e.g. a_field%internal%xstop)
-CONST_LOOP_BOUNDS = True
 
 
 class GOPSy(PSy):
@@ -203,7 +198,7 @@ class GOInvoke(Invoke):
 
         # add declarations for the variables holding the upper bounds
         # of loops in i and j
-        if CONST_LOOP_BOUNDS:
+        if self.schedule.const_loop_bounds:
             invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
                                    entity_decls=[self.schedule.iloop_stop,
                                                  self.schedule.jloop_stop]))
@@ -231,7 +226,8 @@ class GOInvoke(Invoke):
                                        entity_decls=self.unique_args_iscalars)
             invoke_sub.add(my_decl_iscalars)
 
-        if CONST_LOOP_BOUNDS and len(self.unique_args_arrays) > 0:
+        if self._schedule.const_loop_bounds and \
+           len(self.unique_args_arrays) > 0:
 
             # Look-up the loop bounds using the first field object in the
             # list
@@ -286,16 +282,28 @@ class GOSchedule(Schedule):
                 inner_loop.field_name = call.arguments.iteration_space_arg().\
                                         name
                 outer_loop.field_name = inner_loop.field_name
+        # Create the configuration object for this Schedule
+        self.config = ScheduleConfig()
+
         Node.__init__(self, children=sequence)
 
-        # Variable names to use if we're generating loops with constant
+    @property
+    def iloop_stop(self):
+        # The variable name to use if we're generating loops with constant
         # bounds (rather than looking them up for every field)
-        if CONST_LOOP_BOUNDS:
-            self.iloop_stop = "istop"
-            self.jloop_stop = "jstop"
+        if self.const_loop_bounds:
+            return "istop"
         else:
-            self.iloop_stop = ""
-            self.jloop_stop = ""
+            return  ""
+
+    @property
+    def jloop_stop(self):
+        # The variable name to use if we're generating loops with constant
+        # bounds (rather than looking them up for every field)
+        if self.const_loop_bounds:
+            return "jstop"
+        else:
+            return ""
 
 
 class GOLoop(Loop):
