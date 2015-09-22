@@ -123,6 +123,42 @@ def test_loop_fuse_different_iterates_over():
                              newsched.children[1])
 
 
+def test_omp_parallel_loop():
+    '''Test that we can generate an OMP PARALLEL DO correctly, 
+    independent of whether or not we are generating constant loop bounds '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+
+    omp = GOceanOMPParallelLoopTrans()
+    cbtrans = ConstLoopBoundsTrans()
+    omp_sched, _ = omp.apply(schedule.children[0])
+
+    invoke.schedule = omp_sched
+    gen = str(psy.gen)
+    gen = gen.lower()
+    expected = """!$omp parallel do default(shared), private(j,i), schedule(static)
+      do j=2,jstop
+        do i=2,istop+1
+          call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        end do 
+      end do 
+      !$omp end parallel do"""
+    assert expected in gen
+
+    newsched, _ = cbtrans.apply(omp_sched, const_bounds=False)
+    invoke.schedule = omp_sched
+    gen = str(psy.gen)
+    gen = gen.lower()
+    expected = """!$omp parallel do default(shared), private(j,i), schedule(static)
+      do j=cu_fld%internal%ystart,cu_fld%internal%ystop
+        do i=cu_fld%internal%xstart,cu_fld%internal%xstop
+          call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        end do 
+      end do 
+      !$omp end parallel do"""
+    assert expected in gen
+
+
 def test_omp_region_with_wrong_arg_type():
     ''' Test that the OpenMP PARALLEL region transformation
         raises an appropriate error if passed something that is not
@@ -241,6 +277,37 @@ def test_omp_region_no_slice():
     assert call_count == 3
 
 
+def test_omp_region_no_slice_no_const_bounds():
+    ''' Test that we generate the correct code when we apply an OpenMP
+    PARALLEL region transformation to a list of nodes when the Schedule
+    has been transformed to use loop-bound look-ups '''
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+    ompr = OMPParallelTrans()
+    cbtrans = ConstLoopBoundsTrans()
+
+    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    omp_schedule, _ = ompr.apply(newsched.children)
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = omp_schedule
+    # Store the results of applying this code transformation as
+    # a string
+    gen = str(psy.gen)
+    gen = gen.lower()
+    # Iterate over the lines of generated code
+    within_omp_region = False
+    call_count = 0
+    for line in gen.split('\n'):
+        if '!$omp parallel default' in line:
+            within_omp_region = True
+        if '!$omp end parallel' in line:
+            within_omp_region = False
+        if ' call ' in line and within_omp_region:
+            call_count += 1
+    assert call_count == 3
+
+
 def test_omp_region_retains_kernel_order1():
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (last 2 of three) does not change their
@@ -249,6 +316,7 @@ def test_omp_region_retains_kernel_order1():
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
+    cbtrans = ConstLoopBoundsTrans()
 
     omp_schedule, _ = ompr.apply(schedule.children[1:])
 
@@ -258,7 +326,26 @@ def test_omp_region_retains_kernel_order1():
     # a string
     gen = str(psy.gen)
     gen = gen.lower()
+    # Iterate over the lines of generated code
+    cu_idx = -1
+    cv_idx = -1
+    ts_idx = -1
+    for idx, line in enumerate(gen.split('\n')):
+        if 'call compute_cu' in line:
+            cu_idx = idx
+        if 'call compute_cv' in line:
+            cv_idx = idx
+        if 'call time_smooth' in line:
+            ts_idx = idx
 
+    # Kernels should be in order {compute_cu, compute_cv, time_smooth}
+    assert cu_idx < cv_idx and cv_idx < ts_idx
+
+    # Repeat after turning off constant loop bounds
+    newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
+    invoke.schedule = newsched
+    gen = str(psy.gen)
+    gen = gen.lower()
     # Iterate over the lines of generated code
     cu_idx = -1
     cv_idx = -1
@@ -444,6 +531,63 @@ def test_omp_region_commutes_with_loop_trans():
     # in the schedule
     ompl = GOceanOMPLoopTrans()
     for child in schedule.children:
+        omp_schedule, _ = ompl.apply(child)
+
+    # Now put an OpenMP parallel region around that set of
+    # loops
+    ompr = OMPParallelTrans()
+    schedule, _ = ompr.apply(omp_schedule.children)
+
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = schedule
+
+    # Store the results of applying this code transformation as
+    # a string
+    loop_before_region_gen = str(psy.gen)
+
+    # Now we do it again but in the opposite order...
+
+    # Put all of the loops in the schedule within a single
+    # OpenMP region
+    schedule = orig_schedule
+    ompr = OMPParallelTrans()
+    omp_schedule, _ = ompr.apply(schedule.children)
+
+    # Put an OpenMP do directive around each loop contained
+    # in the region
+    ompl = GOceanOMPLoopTrans()
+    for child in omp_schedule.children[0].children:
+        schedule, _ = ompl.apply(child)
+        omp_schedule = schedule
+
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = omp_schedule
+
+    # Store the results of applying this code transformation as
+    # a string
+    region_before_loop_gen = str(psy.gen)
+
+    assert region_before_loop_gen == loop_before_region_gen
+
+
+def test_omp_region_commutes_with_loop_trans_bounds_lookup():
+    ''' Test that the OpenMP PARALLEL region and (orphan) loop
+    transformations commute after constant bounds have been
+    switched off - i.e. we get the same result
+    independent of the order in which they are applied. '''
+    psy, invoke = get_invoke("single_invoke_two_kernels.f90", 0)
+    schedule = invoke.schedule
+    # Turn-off constant loop bounds
+    cbtrans = ConstLoopBoundsTrans()
+    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    # Keep a copy of the original schedule
+    import copy
+    orig_schedule = copy.deepcopy(newsched)
+
+    # Put an OpenMP do directive around each loop contained
+    # in the schedule
+    ompl = GOceanOMPLoopTrans()
+    for child in newsched.children:
         omp_schedule, _ = ompl.apply(child)
 
     # Now put an OpenMP parallel region around that set of
