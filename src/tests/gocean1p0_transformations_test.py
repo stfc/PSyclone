@@ -43,12 +43,39 @@ def get_invoke(algfile, idx):
     return psy, invoke
 
 
-def test_const_loop_bounds_toggle():
+def test_const_loop_bounds_not_schedule():
+    ''' Check that we raise an error if we attempt to apply the
+    constant loop-bounds transformation to something that is
+    not a Schedule '''
     psy, invoke = get_invoke("test11_different_iterates_over_"
                            "one_invoke.f90", 0)
     schedule = invoke.schedule
     cbtrans = ConstLoopBoundsTrans()
 
+    with pytest.raises(TransformationError):
+        _, _ = cbtrans.apply(schedule.children[0])
+
+
+def test_const_loop_bounds_toggle():
+    ''' Check that we can toggle constant loop bounds on and off and
+    that the default behaviour is "on" '''
+    psy, invoke = get_invoke("test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+    schedule = invoke.schedule
+    cbtrans = ConstLoopBoundsTrans()
+
+    # First check that the generated code uses constant loop
+    # bounds by default
+    gen = str(psy.gen)
+
+    assert "INTEGER istop, jstop" in gen
+    assert "istop = cv_fld%grid%simulation_domain%xstop" in gen
+    assert "jstop = cv_fld%grid%simulation_domain%ystop" in gen
+    assert "DO j=2,jstop-1" in gen
+    assert "DO i=2,istop" in gen
+
+    # Next, check that applying the constant loop-bounds
+    # transformation has no effect (in this case)
     newsched, _ = cbtrans.apply(schedule)
     invoke.schedule = newsched
     # Store the generated code as a string
@@ -60,6 +87,7 @@ def test_const_loop_bounds_toggle():
     assert "DO j=2,jstop-1" in gen
     assert "DO i=2,istop" in gen
 
+    # Finally, test that we can turn-off constant loop bounds
     newsched, _ = cbtrans.apply(schedule, const_bounds=False)
     invoke.schedule = newsched
     # Store the generated code as a string
@@ -87,6 +115,12 @@ def test_loop_fuse_different_iterates_over():
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
 
+    # Turn off constant loop bounds (which should have no effect)
+    # and repeat
+    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    with pytest.raises(TransformationError):
+        _, _ = lftrans.apply(newsched.children[0],
+                             newsched.children[1])
 
 
 def test_omp_region_with_wrong_arg_type():
@@ -108,6 +142,7 @@ def test_omp_region_with_single_loop():
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
+    cbtrans = ConstLoopBoundsTrans()
 
     omp_schedule, _ = ompr.apply(schedule.children[1])
 
@@ -131,6 +166,23 @@ def test_omp_region_with_single_loop():
 
     assert call_count == 1
 
+    # Repeat the test after turning off constant loop bounds
+    newsched, _ = cbtrans.apply(omp_schedule, const_bounds=False)
+    invoke.schedule = newsched
+    gen = str(psy.gen)
+    gen = gen.lower()
+    within_omp_region = False
+    call_count = 0
+    for line in gen.split('\n'):
+        if '!$omp parallel default' in line:
+            within_omp_region = True
+        if '!$omp end parallel' in line:
+            within_omp_region = False
+        if ' call ' in line and within_omp_region:
+            call_count += 1
+
+    assert call_count == 1
+
 
 def test_omp_region_with_slice():
     ''' Test that we can pass the OpenMP PARALLEL region transformation
@@ -139,7 +191,6 @@ def test_omp_region_with_slice():
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
-
     omp_schedule, _ = ompr.apply(schedule.children[1:])
 
     # Replace the original loop schedule with the transformed one
@@ -169,6 +220,7 @@ def test_omp_region_no_slice():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
     schedule = invoke.schedule
     ompr = OMPParallelTrans()
+
     omp_schedule, _ = ompr.apply(schedule.children)
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
@@ -186,7 +238,6 @@ def test_omp_region_no_slice():
             within_omp_region = False
         if ' call ' in line and within_omp_region:
             call_count += 1
-
     assert call_count == 3
 
 
