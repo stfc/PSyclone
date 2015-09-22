@@ -12,6 +12,7 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError,\
+                            ConstLoopBoundsTrans,\
                             LoopFuseTrans, OMPParallelTrans,\
                             GOceanLoopFuseTrans,\
                             GOceanOMPParallelLoopTrans,\
@@ -20,6 +21,8 @@ from generator import GenerationError
 import os
 import pytest
 
+# The version of the PSyclone API that the tests in this file 
+# exercise
 API = "gocean1.0"
 
 
@@ -40,6 +43,35 @@ def get_invoke(algfile, idx):
     return psy, invoke
 
 
+def test_const_loop_bounds_toggle():
+    psy, invoke = get_invoke("test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+    schedule = invoke.schedule
+    cbtrans = ConstLoopBoundsTrans()
+
+    newsched, _ = cbtrans.apply(schedule)
+    invoke.schedule = newsched
+    # Store the generated code as a string
+    gen = str(psy.gen)
+
+    assert "INTEGER istop, jstop" in gen
+    assert "istop = cv_fld%grid%simulation_domain%xstop" in gen
+    assert "jstop = cv_fld%grid%simulation_domain%ystop" in gen
+    assert "DO j=2,jstop-1" in gen
+    assert "DO i=2,istop" in gen
+
+    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    invoke.schedule = newsched
+    # Store the generated code as a string
+    gen = str(psy.gen)
+    print gen
+
+    assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
+    assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
+    assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
+    assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+
+
 def test_loop_fuse_different_iterates_over():
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that have differing values of ITERATES_OVER '''
@@ -47,12 +79,14 @@ def test_loop_fuse_different_iterates_over():
                            "one_invoke.f90", 0)
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
+    cbtrans = ConstLoopBoundsTrans()
 
     # Attempt to fuse two loops that are iterating over different
     # things
     with pytest.raises(TransformationError):
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
+
 
 
 def test_omp_region_with_wrong_arg_type():
