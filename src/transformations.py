@@ -178,7 +178,7 @@ class OMPLoopTrans(Transformation):
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
         # pylint doesn't complain), we actually set its value using
-        # the setter method in order to make use of the latter's error 
+        # the setter method in order to make use of the latter's error
         # checking.
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
@@ -378,7 +378,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 
 class ColourTrans(Transformation):
-    
+
     ''' Apply a colouring transformation to a loop (in order to permit a
         subsequent OpenMP parallelisation over colours)
     '''

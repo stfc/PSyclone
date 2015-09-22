@@ -289,8 +289,11 @@ class GOSchedule(Schedule):
 
     @property
     def iloop_stop(self):
-        # The variable name to use if we're generating loops with constant
-        # bounds (rather than looking them up for every field)
+        '''Returns the variable name to use for the upper bound of inner
+        loops if we're generating loops with constant bounds. Returns
+        an empty string if constant bounds are not being used.
+
+        '''
         if self.const_loop_bounds:
             return "istop"
         else:
@@ -298,8 +301,11 @@ class GOSchedule(Schedule):
 
     @property
     def jloop_stop(self):
-        # The variable name to use if we're generating loops with constant
-        # bounds (rather than looking them up for every field)
+        '''Returns the variable name to use for the upper bound of outer
+        loops if we're generating loops with constant bounds. Returns
+        an empty string if constant bounds are not being used.
+
+        '''
         if self.const_loop_bounds:
             return "jstop"
         else:
