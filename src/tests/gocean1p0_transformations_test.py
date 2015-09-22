@@ -21,7 +21,7 @@ from generator import GenerationError
 import os
 import pytest
 
-# The version of the PSyclone API that the tests in this file 
+# The version of the PSyclone API that the tests in this file
 # exercise
 API = "gocean1.0"
 
@@ -48,7 +48,7 @@ def test_const_loop_bounds_not_schedule():
     constant loop-bounds transformation to something that is
     not a Schedule '''
     psy, invoke = get_invoke("test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
+                             "one_invoke.f90", 0)
     schedule = invoke.schedule
     cbtrans = ConstLoopBoundsTrans()
 
@@ -60,7 +60,7 @@ def test_const_loop_bounds_toggle():
     ''' Check that we can toggle constant loop bounds on and off and
     that the default behaviour is "on" '''
     psy, invoke = get_invoke("test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
+                             "one_invoke.f90", 0)
     schedule = invoke.schedule
     cbtrans = ConstLoopBoundsTrans()
 
@@ -124,7 +124,7 @@ def test_loop_fuse_different_iterates_over():
 
 
 def test_omp_parallel_loop():
-    '''Test that we can generate an OMP PARALLEL DO correctly, 
+    '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
     schedule = invoke.schedule
