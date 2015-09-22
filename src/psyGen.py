@@ -554,7 +554,9 @@ class ScheduleConfig(object):
     ''' Stores configuration options for a Schedule '''
 
     def __init__(self):
-        self.const_loop_bounds = False
+        # By default we generate code with constant loop bounds
+        # since that's most likely to be compiler friendly
+        self.const_loop_bounds = True
 
     def __str__(self):
         mystr = "Constant loop bounds="+str(self._const_loop_bounds)
