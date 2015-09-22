@@ -25,6 +25,8 @@ class TestPSyGOcean1p0API:
         psy = PSyFactory("gocean1.0").create(invokeInfo)
         generated_code = str(psy.gen)
 
+        print generated_code
+
         expected_output = """  MODULE psy_single_invoke_test
     USE field_mod
     USE kind_params_mod
@@ -81,7 +83,7 @@ class TestPSyGOcean1p0API:
       jstop = cu_fld%grid%simulation_domain%ystop
       !
       DO j=2,jstop
-        DO i=2,istop
+        DO i=2,istop+1
           CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO 
@@ -124,14 +126,13 @@ class TestPSyGOcean1p0API:
       jstop = cu_fld%grid%simulation_domain%ystop
       !
       DO j=2,jstop
-        DO i=2,istop
+        DO i=2,istop-1
           CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_next_sshu
   END MODULE psy_single_invoke_with_grid_props_test"""
 
-        print generated_code
         assert generated_code.find(expected_output) != -1
 
 
@@ -164,12 +165,12 @@ class TestPSyGOcean1p0API:
       istop = ssh_fld%grid%simulation_domain%xstop
       jstop = ssh_fld%grid%simulation_domain%ystop
       !
-      DO j=ssh_fld%whole%ystart,ssh_fld%whole%ystop
-        DO i=ssh_fld%whole%xstart,ssh_fld%whole%xstop
+      DO j=1,jstop+1
+        DO i=1,istop+1
           CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, ssh_fld%grid%tmask)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_bc_ssh
   END MODULE psy_single_invoke_scalar_int_test"""
-        print generated_code
+
         assert generated_code.find(expected_output) != -1
