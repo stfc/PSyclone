@@ -18,7 +18,7 @@
 '''
 
 from parse import Descriptor, KernelType, ParseError
-from psyGen import PSy, Invokes, Invoke, Schedule, ScheduleConfig, \
+from psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, KernelArgument, GenerationError, Inf, Node
 
 # The different grid-point types that a field can live on
@@ -282,10 +282,14 @@ class GOSchedule(Schedule):
                 inner_loop.field_name = call.arguments.iteration_space_arg().\
                                         name
                 outer_loop.field_name = inner_loop.field_name
-        # Create the configuration object for this Schedule
-        self.config = ScheduleConfig()
 
         Node.__init__(self, children=sequence)
+
+        # Configuration of this Schedule - we default to having
+        # constant loop bounds. If we end up having a long list
+        # of configuration member variables here we may want
+        # to create a a new ScheduleConfig object to manage them.
+        self._const_loop_bounds = True
 
     @property
     def iloop_stop(self):

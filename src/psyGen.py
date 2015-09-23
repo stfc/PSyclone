@@ -21,6 +21,7 @@ class GenerationError(Exception):
     def __str__(self):
         return repr(self.value)
 
+
 class PSyFactory(object):
     ''' Creates a specific version of the PSy. If a particular api is not
         provided then the default api, as specified in the configs.py file,
@@ -59,6 +60,7 @@ class PSyFactory(object):
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
                                   "possible.".format(self._type))
+
 
 class PSy(object):
     '''
@@ -550,27 +552,6 @@ class Node(object):
         raise NotImplementedError("Please implement me")
 
 
-class ScheduleConfig(object):
-    ''' Stores configuration options for a Schedule '''
-
-    def __init__(self):
-        # By default we generate code with constant loop bounds
-        # since that's most likely to be compiler friendly
-        self.const_loop_bounds = True
-
-    def __str__(self):
-        mystr = "Constant loop bounds="+str(self._const_loop_bounds)
-        return mystr
-
-    @property
-    def const_loop_bounds(self):
-        return self._const_loop_bounds
-
-    @const_loop_bounds.setter
-    def const_loop_bounds(self, obj):
-        self._const_loop_bounds = obj
-
-
 class Schedule(Node):
 
     ''' Stores schedule information for an invocation call. Schedules can be
@@ -584,7 +565,7 @@ class Schedule(Node):
         >>> invokes.names
         >>> invoke = invokes.get("name")
         >>> schedule = invoke.schedule
-        >>> print schedule
+        >>> schedule.view()
 
     '''
 
@@ -617,35 +598,42 @@ class Schedule(Node):
                 sequence.append(Inf.create(call, parent = self))
             else:
                 sequence.append(Loop(call, parent = self))
-        #for call in alg_calls:
-        #    sequence.append(Loop(call, parent = self))
         Node.__init__(self, children = sequence)
         self._invoke = None
-        self.config = ScheduleConfig()
+
+        # Configuration of this Schedule - we default to having
+        # constant loop bounds. If we end up having a long list
+        # of configuration member variables here we may want
+        # to create a a new ScheduleConfig object to manage them.
+        self._const_loop_bounds = True
 
     def view(self, indent = 0):
         print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+\
-            "',"+str(self.config)+"]"
+            "',Constant loop bounds="+str(self._const_loop_bounds)+"]"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
     def __str__(self):
-        result = "Schedule:\n"
-        print str(self.config)
+        result = "Schedule(Constant loop bounds="+\
+                 str(self._const_loop_bounds)+"):\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
 
-    @property
-    def const_loop_bounds(self):
-        return self.config.const_loop_bounds
-
     def gen_code(self, parent):
         for entity in self._children:
             entity.gen_code(parent)
 
-        
+    @property
+    def const_loop_bounds(self):
+        return self._const_loop_bounds
+
+    @const_loop_bounds.setter
+    def const_loop_bounds(self, obj):
+        self._const_loop_bounds = obj
+
+
 class Directive(Node):
 
     def view(self,indent = 0):

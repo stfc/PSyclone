@@ -547,9 +547,11 @@ class ConstLoopBoundsTrans(Transformation):
     ''' Switch on (or off) the use of constant loop bounds within
     a Schedule, e.g.:
 
+    >>> from parse import parse
+    >>> from psyGen import PSyFactory
+    >>> import os
     >>> TEST_API = "gocean1.0"
-    >>> _,info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    >>>                             "tests", "test_files", "gocean1p0",
+    >>> _,info = parse(os.path.join("tests", "test_files", "gocean1p0",
     >>>                             "single_invoke.f90"),
     >>>                api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
@@ -585,6 +587,6 @@ class ConstLoopBoundsTrans(Transformation):
         from undoredo import Memento
         keep = Memento(node, self)
 
-        node.config.const_loop_bounds = const_bounds
+        node.const_loop_bounds = const_bounds
 
         return node, keep
