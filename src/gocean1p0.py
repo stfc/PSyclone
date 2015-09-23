@@ -294,26 +294,30 @@ class GOSchedule(Schedule):
     @property
     def iloop_stop(self):
         '''Returns the variable name to use for the upper bound of inner
-        loops if we're generating loops with constant bounds. Returns
-        an empty string if constant bounds are not being used.
+        loops if we're generating loops with constant bounds. Raises
+        an error if constant bounds are not being used.
 
         '''
         if self.const_loop_bounds:
             return "istop"
         else:
-            return  ""
+            raise GenerationError(
+                "Refusing to supply name of inner loop upper bound "
+                "because constant loop bounds are not being used.")
 
     @property
     def jloop_stop(self):
         '''Returns the variable name to use for the upper bound of outer
-        loops if we're generating loops with constant bounds. Returns
-        an empty string if constant bounds are not being used.
+        loops if we're generating loops with constant bounds. Raises
+        an error if constant bounds are not being used.
 
         '''
         if self.const_loop_bounds:
             return "jstop"
         else:
-            return ""
+            raise GenerationError(
+                "Refusing to supply name of outer loop upper bound "
+                "because constant loop bounds are not being used.")
 
 
 class GOLoop(Loop):
@@ -536,7 +540,7 @@ class GOLoop(Loop):
             # loop bounds
             self._start = "1"
 
-            if schedule.iloop_stop:
+            if schedule.const_loop_bounds:
 
                 # Bounds are independent of the grid offset convention in use
                 if self._loop_type == "inner":
@@ -554,7 +558,7 @@ class GOLoop(Loop):
 
         else: # one of our spaces so use values provided by the infrastructure
 
-            if schedule.iloop_stop:
+            if schedule.const_loop_bounds:
                 # We're expressing all loop bounds in terms of constant
                 # expressions
                 if index_offset == "offset_ne":
