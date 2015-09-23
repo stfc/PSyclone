@@ -174,3 +174,44 @@ class TestPSyGOcean1p0API:
   END MODULE psy_single_invoke_scalar_int_test"""
 
         assert generated_code.find(expected_output) != -1
+
+
+    def test_scalar_float_arg(self):
+        ''' Tests that an invoke containing a kernel call requiring
+            a real, scalar argument produces correct code '''
+        ast, invokeInfo = parse(os.path.join(os.path.\
+                                             dirname(os.path.\
+                                                     abspath(__file__)),
+                                             "test_files", "gocean1p0",
+                                             "single_invoke_scalar_float_arg.f90"), 
+                                api="gocean1.0")
+        psy = PSyFactory("gocean1.0").create(invokeInfo)
+        generated_code = str(psy.gen)
+
+        expected_output = """  MODULE psy_single_invoke_scalar_float_test
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)
+      USE kernel_scalar_float, ONLY: bc_ssh_code
+      TYPE(r2d_field), intent(inout) :: ssh_fld
+      REAL(KIND=wp), intent(inout) :: a_scalar
+      INTEGER j
+      INTEGER i
+      INTEGER istop, jstop
+      !
+      ! Look-up loop bounds
+      istop = ssh_fld%grid%simulation_domain%xstop
+      jstop = ssh_fld%grid%simulation_domain%ystop
+      !
+      DO j=1,jstop+1
+        DO i=1,istop+1
+          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, ssh_fld%grid%tmask)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_0_bc_ssh
+  END MODULE psy_single_invoke_scalar_float_test"""
+
+        print generated_code
+        assert generated_code.find(expected_output) != -1
