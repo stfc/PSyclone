@@ -3,8 +3,9 @@ module boundary_conditions_ne_offset_mod
 
   private
 
-  public bc_ssh, bc_solid_u, bc_solid_v
-  public bc_ssh_code, bc_solid_u_code, bc_solid_v_code
+  public bc_ssh, bc_solid_u, bc_solid_v, bc_solid_f
+  public bc_ssh_code, bc_solid_u_code
+  public bc_solid_v_code, bc_solid_f_code
   public bc_flather_u, bc_flather_v
   public bc_flather_u_code, bc_flather_v_code
 
@@ -85,6 +86,32 @@ module boundary_conditions_ne_offset_mod
   contains
     procedure, nopass :: code => bc_solid_v_code
   end type bc_solid_v
+
+  !=======================================
+
+  type, extends(kernel_type) :: bc_solid_f
+     type(arg), dimension(2) :: meta_args =  &
+          (/ arg(WRITE, CF, POINTWISE),      &
+             arg(READ,      GRID_MASK_T)     &
+           /)
+
+     !> This is a boundary-conditions kernel and therefore
+     !! acts on all points of the domain rather than just
+     !! those that are internal
+     integer :: ITERATES_OVER = ALL_PTS
+
+     !> Although the staggering of variables used in an Arakawa
+     !! C grid is well defined, the way in which they are indexed is
+     !! an implementation choice. This can be thought of as choosing
+     !! which grid-point types have the same (i,j) index as a T
+     !! point. This kernel assumes that the U,V and F points that
+     !! share the same index as a given T point are those immediately
+     !! to the North and East of it.
+     integer :: index_offset = OFFSET_NE
+
+  contains
+    procedure, nopass :: code => bc_solid_f_code
+  end type bc_solid_f
 
   !=======================================
 
@@ -190,24 +217,6 @@ contains
   
   !================================================
 
-  !> Manual version of code to invoke the kernel
-  !! that applies the solid-bc to a field on V pts.
-  subroutine invoke_bc_solid_v(va)
-    implicit none
-    type(r2d_field), intent(inout) :: va
-    ! Locals
-    integer  :: ji, jj
-
-    do jj = va%whole%ystart, va%whole%ystop, 1
-       do ji = va%whole%xstart, va%whole%xstop, 1
-          call bc_solid_v_code(ji,jj,va%data,va%grid%tmask)
-      end do
-    end do
-
-  end subroutine invoke_bc_solid_v
-  
-  !================================================
-
   !> Kernel to apply solid boundary conditions for v-velocity
   subroutine bc_solid_v_code(ji, jj, va, tmask)
     implicit none
@@ -220,6 +229,21 @@ contains
     end if
 
   end subroutine bc_solid_v_code
+  
+  !================================================
+
+  !> Fake kernel to apply solid boundary conditions on f points
+  subroutine bc_solid_f_code(ji, jj, fa, tmask)
+    implicit none
+    integer,                 intent(in)    :: ji, jj
+    integer, dimension(:,:), intent(in)    :: tmask
+    real(wp),dimension(:,:), intent(inout) :: fa
+
+    if(tmask(ji,jj) * tmask(ji,jj+1) == 0)then
+       fa(ji,jj) = 0._wp
+    end if
+
+  end subroutine bc_solid_f_code
   
   !================================================
 

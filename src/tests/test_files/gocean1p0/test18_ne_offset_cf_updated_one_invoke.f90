@@ -15,7 +15,7 @@ PROGRAM single_invoke_test
   use kind_params_mod
   use grid_mod
   use field_mod
-  use boundary_conditions_ne_offset_mod, only: bc_solid_u
+  use boundary_conditions_ne_offset_mod, only: bc_solid_f
   implicit none
 
   type(grid_type), target :: model_grid
@@ -34,8 +34,7 @@ PROGRAM single_invoke_test
                          (/BC_PERIODIC,BC_PERIODIC,BC_NONE/) )
 
   ! Create fields on this grid
-  vort_fld = r2d_field(model_grid, F_POINTS)
-  p_fld    = r2d_field(model_grid, T_POINTS)
+  f_fld    = r2d_field(model_grid, F_POINTS)
 
   u_fld    = r2d_field(model_grid, U_POINTS)
   v_fld    = r2d_field(model_grid, v_POINTS)
@@ -43,7 +42,7 @@ PROGRAM single_invoke_test
   !  ** Start of time loop ** 
   DO ncycle=1,100
     
-    call invoke( bc_solid_u(u_fld) )
+    call invoke( bc_solid_f(f_fld) )
 
   END DO
 
