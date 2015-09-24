@@ -535,3 +535,44 @@ def test_sw_offset_all_ct_points():
   END MODULE psy_single_invoke_test"""
 
     assert generated_code.find(expected_output) != -1
+
+
+def test_sw_offset_all_cu_points():
+    ''' Test that we can generate code for a kernel that expects a SW
+    offset and writes to a field on all CU points '''
+    ast, invokeInfo = parse(os.path.\
+                            join(os.path.\
+                                 dirname(os.path.\
+                                         abspath(__file__)),
+                                 "test_files", "gocean1p0",
+                                 "test22_sw_offset_all_cu_updated_one_invoke.f90"), 
+                            api="gocean1.0")
+    psy = PSyFactory("gocean1.0").create(invokeInfo)
+    generated_code = str(psy.gen)
+    print generated_code
+
+    expected_output = """  MODULE psy_single_invoke_test
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_0_apply_bcs_u(ufld, vfld)
+      USE kernel_sw_offset_cu_mod, ONLY: apply_bcs_u_code
+      TYPE(r2d_field), intent(inout) :: ufld, vfld
+      INTEGER j
+      INTEGER i
+      INTEGER istop, jstop
+      !
+      ! Look-up loop bounds
+      istop = ufld%grid%simulation_domain%xstop
+      jstop = ufld%grid%simulation_domain%ystop
+      !
+      DO j=1,jstop+1
+        DO i=1,istop+1
+          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_0_apply_bcs_u
+  END MODULE psy_single_invoke_test"""
+
+    assert generated_code.find(expected_output) != -1
