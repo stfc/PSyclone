@@ -1,12 +1,12 @@
-module kernel_sw_offset_cu_mod
+module kernel_sw_offset_cv_mod
   implicit none
 
   private
 
-  public compute_u, compute_u_code
-  public apply_bcs_u, apply_bcs_u_code
+  public compute_v, compute_v_code
+  public apply_bcs_v, apply_bcs_v_code
 
-  type, extends(kernel_type) :: compute_u
+  type, extends(kernel_type) :: compute_v
      type(arg), dimension(3) :: meta_args =    &
           (/ arg(WRITE, CU, POINTWISE),        &
              arg(READ,  CV, POINTWISE),        &
@@ -26,13 +26,13 @@ module kernel_sw_offset_cu_mod
      integer :: index_offset = OFFSET_SW
 
   contains
-    procedure, nopass :: code => compute_u_code
-  end type compute_u
+    procedure, nopass :: code => compute_v_code
+  end type compute_v
 
-  type, extends(kernel_type) :: apply_bcs_u
+  type, extends(kernel_type) :: apply_bcs_v
      type(arg), dimension(2) :: meta_args =    &
-          (/ arg(WRITE, CU, POINTWISE),        & ! u
-             arg(READ,  CV, POINTWISE)         & ! h
+          (/ arg(WRITE, CV, POINTWISE),        &
+             arg(READ,  CU, POINTWISE)         &
            /)
      !> This kernel writes to all points of the
      !! simulation domain.
@@ -48,35 +48,35 @@ module kernel_sw_offset_cu_mod
      integer :: index_offset = OFFSET_SW
 
   contains
-    procedure, nopass :: code => apply_bcs_u_code
-  end type apply_bcs_u
+    procedure, nopass :: code => apply_bcs_v_code
+  end type apply_bcs_v
 
 contains
 
   !===================================================
 
-  SUBROUTINE compute_u_code(i, j, u, v, h)
+  SUBROUTINE compute_v_code(i, j, v, u, h)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: u
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: h, v
+    REAL(wp), INTENT(inout), DIMENSION(:,:) :: v
+    REAL(wp), INTENT(in),    DIMENSION(:,:) :: u, h
 
-    u(I,J) = h(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
+    v(I,J) = h(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
                            V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))
 
-  END SUBROUTINE compute_u_code
+  END SUBROUTINE compute_v_code
 
   !===================================================
 
-  SUBROUTINE apply_bcs_u_code(i, j, u, v)
+  SUBROUTINE apply_bcs_v_code(i, j, v, u)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: u
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: v
+    REAL(wp), INTENT(inout), DIMENSION(:,:) :: v
+    REAL(wp), INTENT(in),    DIMENSION(:,:) :: u
 
-    U(I,J) = .25d0*(U(I,J)*U(I,J)+U(I,J)*U(I,J) + & 
+    v(I,J) = .25d0*(U(I,J)*U(I,J)+U(I,J)*U(I,J) + & 
               V(I,J)*V(I,J)+V(I,J)*V(I,J))
 
-  END SUBROUTINE apply_bcs_u_code
+  END SUBROUTINE apply_bcs_v_code
 
-END MODULE kernel_sw_offset_cu_mod
+END MODULE kernel_sw_offset_cv_mod
