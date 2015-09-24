@@ -1,3 +1,11 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2015.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+! Author A. Porter STFC Daresbury Lab
+! Funded by the NERC GOcean project
 module kernel_sw_offset_cu_mod
   implicit none
 
