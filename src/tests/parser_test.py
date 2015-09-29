@@ -41,13 +41,22 @@ class TestParserGOcean1p0:
                                "test04_invoke_kernel_invalid_offset.f90"),
                   api="gocean1.0")
 
-    def test05_kernel_invalid_index_offset(self):
+    def test05_kernel_missing_iterates_over(self):
         ''' Check that we raise an error if a kernel's meta-data is
             missing the ITERATES_OVER field. '''
         with pytest.raises(ParseError):
             parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "test05_invoke_kernel_missing_iterates_over.f90"),
+                  api="gocean1.0")
+
+    def test05p1_kernel_invalid_iterates_over(self):
+        ''' Check that we raise an error if a kernel's meta-data has
+            an invalid ITERATES_OVER field. '''
+        with pytest.raises(ParseError):
+            parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "gocean1p0",
+                               "test05.1_invoke_kernel_invalid_iterates_over.f90"),
                   api="gocean1.0")
 
     def test06_kernel_invalid_access(self):
