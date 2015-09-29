@@ -92,12 +92,24 @@ def test_const_loop_bounds_toggle():
     invoke.schedule = newsched
     # Store the generated code as a string
     gen = str(psy.gen)
-    print gen
 
     assert "DO j=cv_fld%internal%ystart,cv_fld%internal%ystop" in gen
     assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
     assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
     assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+
+
+def test_const_loop_bounds_invalid_offset():
+    ''' Test that we raise an appropriate error if we attempt to generate
+    code with constant loop bounds for a kernel that expects an
+    unsupported grid-offset '''
+    psy, invoke = get_invoke("test26_const_bounds_invalid_offset.f90", 0)
+    cbtrans = ConstLoopBoundsTrans()
+    schedule = invoke.schedule
+    newsched, _ = cbtrans.apply(schedule, const_bounds=True)
+    invoke.schedule = newsched
+    with pytest.raises(GenerationError):
+        _ = psy.gen
 
 
 def test_loop_fuse_different_iterates_over():
