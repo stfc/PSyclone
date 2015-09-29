@@ -97,6 +97,15 @@ class TestParserGOcean1p0:
                                "test08_invoke_kernel_invalid_grid_property.f90"),
                   api="gocean1.0")
 
+    def test08p1_kernel_without_fld_args(self):
+        ''' Check that the parser raises an error if a kernel does not
+            have a field object as an argument but requests a grid property '''
+        with pytest.raises(ParseError):
+            parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "gocean1p0",
+                               "test08.1_invoke_kernel_no_fld_args.f90"),
+                  api="gocean1.0")
+
     def test09_kernel_missing_stencil_property(self):
         ''' Check that the parser raises an error if there is no stencil specified
             in the meta-data of a kernel '''

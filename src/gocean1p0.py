@@ -940,6 +940,7 @@ class GOKernelType1p0(KernelType):
 
         # The list of kernel arguments
         self._arg_descriptors = []
+        have_grid_prop = False
         for init in self._inits:
             if init.name != 'arg':
                 raise ParseError("Each meta_arg value must be of type "+
@@ -947,7 +948,26 @@ class GOKernelType1p0(KernelType):
                                  "found '{0}'".format(init.name))
             # Pass in the name of this kernel for the purposes
             # of error reporting
-            self._arg_descriptors.append(GO1p0Descriptor(name, init))
+            new_arg = GO1p0Descriptor(name, init)
+            # Keep track of whether this kernel requires any 
+            # grid properties
+            have_grid_prop = have_grid_prop or\
+                             (new_arg.type == "grid_property")
+            self._arg_descriptors.append(new_arg)
+
+        # If this kernel expects a grid property then check that it
+        # has at least one field object as an argument (which we
+        # can use to access the grid)
+        if have_grid_prop:
+            have_fld = False
+            for arg in self.arg_descriptors:
+                if arg.type == "field":
+                    have_fld = True
+                    break
+            if not have_fld:
+                raise ParseError(
+                    "Kernel {0} requires a property of the grid but does "
+                    "not have any field objects as arguments.".format(name))
 
     # Override nargs from the base class so that it returns the no.
     # of args specified in the algorithm layer (and thus excludes those
