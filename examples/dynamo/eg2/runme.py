@@ -18,8 +18,8 @@ print psy.invokes.names
 schedule=psy.invokes.get('invoke_0').schedule
 schedule.view()
 
-schedule=psy.invokes.get('invoke_v2_kernel_type').schedule
+schedule=psy.invokes.get('invoke_1_v2_kernel_type').schedule
 schedule.view()
 
-schedule=psy.invokes.get('invoke_v1_kernel_type').schedule
+schedule=psy.invokes.get('invoke_2_v1_kernel_type').schedule
 schedule.view()

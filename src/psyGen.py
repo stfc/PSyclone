@@ -75,23 +75,24 @@ class PSyFactory(object):
 
 class PSy(object):
     '''
-    Manage and generate PSy code for a single algorithm file. Takes the
-    invocation information output from the function :func:`parse.parse` as
-    it's input and stores this is a way suitable for optimisation and code
-    generation.
+        Base class to help manage and generate PSy code for a single
+        algorithm file. Takes the invocation information output from the
+        function :func:`parse.parse` as its input and stores this in a
+        way suitable for optimisation and code generation.
 
-    :param FileInfo invoke_info: An object containing the required invocation
-                                 information for code optimisation and
-                                 generation. Produced by the function
-                                 :func:`parse.parse`.
+        :param FileInfo invoke_info: An object containing the required invocation
+                                     information for code optimisation and
+                                     generation. Produced by the function
+                                     :func:`parse.parse`.
 
-    For example:
+        For example:
 
-    >>> from parse import parse
-    >>> ast, info = parse("argspec.F90")
-    >>> from psyGen import PSy
-    >>> psy = PSy(info)
-    >>> print(psy.gen)
+        >>> from parse import parse
+        >>> ast, info = parse("argspec.F90")
+        >>> from psyGen import PSyFactory
+        >>> api = "..."
+        >>> psy = PSyFactory(api).create(info)
+        >>> print(psy.gen)
 
     '''
     def __init__(self, invoke_info):
@@ -258,6 +259,7 @@ class NameSpace(object):
             self.add_reserved_name(name)
 
 class Invoke(object):
+    ''' Manage an individual invoke call '''
 
     def __str__(self):
         return self._name+"("+str(self.unique_args)+")"
@@ -589,13 +591,14 @@ class Schedule(Node):
         
         >>> from parse import parse
         >>> ast, info = parse("algorithm.f90")
-        >>> from psyGen import PSy
-        >>> psy = PSy(info)
+        >>> from psyGen import PSyFactory
+        >>> api = "..."
+        >>> psy = PSyFactory(api).create(info)
         >>> invokes = psy.invokes
         >>> invokes.names
         >>> invoke = invokes.get("name")
         >>> schedule = invoke.schedule
-        >>> print schedule
+        >>> print schedule.view()
 
     '''
 
@@ -1342,8 +1345,10 @@ class TransInfo(object):
     >>> print t.list
     There is 1 transformation available:
       1: SwapTrans, A test transformation
-    >>> t.get_trans_num(1)
-    >>> t.get_trans_name("SwapTrans")
+    >>> # accessing a transformation by index
+    >>> trans = t.get_trans_num(1)
+    >>> # accessing a transformation by name
+    >>> trans = t.get_trans_name("SwapTrans")
 
     '''
 

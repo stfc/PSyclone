@@ -12,10 +12,12 @@ doc directory.
 Structure
 =========
 
-doc/         : documentation
-example/     : simple examples
+changelog    : information on changes between releases
+doc/         : documentation source using sphinx
+examples/    : simple examples
 psyclone.pdf : generated documentation
 README       : this file
-src/         : the python src code
-tests/       : unit and functional tests
-
+README.gource: information on how to generate a gource video from the repository
+README.uml   : information on how to create UML class diagrams from the source using pyreverse
+src/         : the python source code
+src/tests/   : unit and functional tests using pytest

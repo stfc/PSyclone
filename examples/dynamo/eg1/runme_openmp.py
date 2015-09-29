@@ -24,7 +24,7 @@ print psy.invokes.names
 
 # Get the loop schedule associated with one of these
 # invokes
-schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+schedule=psy.invokes.get('invoke_0_v3_kernel_type').schedule
 schedule.view()
 
 # Get the list of possible loop transformations
@@ -33,7 +33,7 @@ t=TransInfo()
 print t.list
 
 # Create an OpenMPLoop-transformation object
-ol=t.get_trans_name('OpenMPLoop')
+ol=t.get_trans_name('OMPParallelLoopTrans')
 
 # Apply it to the loop schedule of the selected invoke
 new_schedule,memento=ol.apply(schedule.children[0])
@@ -41,15 +41,15 @@ new_schedule.view()
 
 # Replace the original loop schedule of the selected invoke
 # with the new, transformed schedule 
-psy.invokes.get('invoke_v3_kernel_type')._schedule=new_schedule
+psy.invokes.get('invoke_0_v3_kernel_type').schedule=new_schedule
 # Generate the Fortran code for the new PSy layer
 print psy.gen
 
-schedule=psy.invokes.get('invoke_v3_solver_kernel_type').schedule
+schedule=psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
 schedule.view()
 
 new_schedule,memento=ol.apply(schedule.children[0])
 new_schedule.view()
 
-psy.invokes.get('invoke_v3_solver_kernel_type')._schedule=new_schedule
+psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule=new_schedule
 print psy.gen

@@ -28,5 +28,5 @@ schedule.view()
 new_schedule,memento=lf.apply(schedule.children[0],schedule.children[1])
 new_schedule.view()
 
-psy.invokes.get('invoke_0')._schedule=new_schedule
+psy.invokes.get('invoke_0').schedule=new_schedule
 print psy.gen
