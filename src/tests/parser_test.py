@@ -32,6 +32,15 @@ class TestParserGOcean1p0:
                                "test00.1_invoke_kernel_wrong_meta_arg_count.f90"),
                   api="gocean1.0")
 
+    def test00p2_kernel_invalid_meta_args(self):
+        ''' Check that we raise an error if one of the meta-args in
+        a kernel's meta-data is not 'arg' '''
+        with pytest.raises(ParseError):
+            parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "gocean1p0",
+                               "test00.2_invoke_kernel_invalid_meta_args.f90"),
+                  api="gocean1.0")
+
     def test03_kernel_missing_index_offset(self):
         ''' Check that we raise an error if a kernel's meta-data is
             missing the INDEX_OFFSET field. '''
