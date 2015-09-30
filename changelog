@@ -1,0 +1,31 @@
+        1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo
+	API. Parser fails gracefully if Kernel-code parsing is
+	unsuccessful.
+
+	2) #292 Add support for user-supplied transformations/optimisations
+	via a script passed to the generate function/command-line. This
+	enables the use of transformations within a build system.
+
+	3) #292 Documentation for Algorithm, PSy and Kernel layers as well
+	as for transformations has been added. Documentation on using
+	transformation scripts then added on top.
+
+	4) #292 Dynamo example scripts fixed.
+	
+release 1.0.2
+
+	1) #299 temporary boundary condition
+	support. matrix_vector_kernel_mm now uses enforce_bc_code rather
+	than enforce_boundary_w2 as the latter is no longer used.
+
+release 1.0.1
+
+	1) #299 temporary boundary condition support. removed the
+	hardwired code and associated test that added an additional
+	boundary condition array to ru_kernel as this kernel is no longer
+	required. Added support for generating a boundary condition array
+	in the PSy layer and passing it into the enforce_bc_kernel
+	kernel. enforce_bc_kernel should be placed by the algorithm
+	developer to enforce boundary conditions.
+
+release 1.0.0

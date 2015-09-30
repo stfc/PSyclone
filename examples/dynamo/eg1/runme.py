@@ -26,9 +26,9 @@ print psy.invokes.names
 
 # Examine the 'schedule' (e.g. loop structure) that each
 # invoke has
-schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+schedule=psy.invokes.get('invoke_0_v3_kernel_type').schedule
 schedule.view()
 
-schedule=psy.invokes.get('invoke_v3_solver_kernel_type').schedule
+schedule=psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
 schedule.view()
 

@@ -18,6 +18,18 @@ class GenerationError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Generation Error: "+value
+
+    def __str__(self):
+        return repr(self.value)
+
+
+class FieldNotFoundError(Exception):
+    ''' Provides a PSyclone-specific error class when a field with the
+    requested property/ies is not found '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Field not found error: "+value
+
     def __str__(self):
         return repr(self.value)
 
@@ -64,23 +76,24 @@ class PSyFactory(object):
 
 class PSy(object):
     '''
-    Manage and generate PSy code for a single algorithm file. Takes the
-    invocation information output from the function :func:`parse.parse` as
-    it's input and stores this is a way suitable for optimisation and code
-    generation.
+        Base class to help manage and generate PSy code for a single
+        algorithm file. Takes the invocation information output from the
+        function :func:`parse.parse` as its input and stores this in a
+        way suitable for optimisation and code generation.
 
-    :param FileInfo invoke_info: An object containing the required invocation
-                                 information for code optimisation and
-                                 generation. Produced by the function
-                                 :func:`parse.parse`.
+        :param FileInfo invoke_info: An object containing the required invocation
+                                     information for code optimisation and
+                                     generation. Produced by the function
+                                     :func:`parse.parse`.
 
-    For example:
+        For example:
 
-    >>> from parse import parse
-    >>> ast, info = parse("argspec.F90")
-    >>> from psyGen import PSy
-    >>> psy = PSy(info)
-    >>> print(psy.gen)
+        >>> from parse import parse
+        >>> ast, info = parse("argspec.F90")
+        >>> from psyGen import PSyFactory
+        >>> api = "..."
+        >>> psy = PSyFactory(api).create(info)
+        >>> print(psy.gen)
 
     '''
     def __init__(self, invoke_info):
@@ -247,6 +260,7 @@ class NameSpace(object):
             self.add_reserved_name(name)
 
 class Invoke(object):
+    ''' Manage an individual invoke call '''
 
     def __str__(self):
         return self._name+"("+str(self.unique_args)+")"
@@ -517,6 +531,17 @@ class Node(object):
             local_list += self.walk(child.children, my_type)
         return local_list
 
+    def ancestor(self, my_type):
+        ''' Search back up tree and check whether we have an
+        ancestor of the supplied type. If we do then we return
+        it otherwise we return None '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, my_type):
+                return myparent
+            myparent = myparent.parent
+        return None
+
     def calls(self):
         ''' return all calls in this schedule '''
         return self.walk(self.root.children, Call)
@@ -548,6 +573,15 @@ class Node(object):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children, Loop)
 
+    def is_openmp_parallel(self):
+        '''Returns true if this Node is within an OpenMP parallel region
+
+        '''
+        omp_dir = self.ancestor(OMPParallelDirective)
+        if omp_dir:
+            return True
+        return False
+
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
@@ -559,8 +593,9 @@ class Schedule(Node):
         
         >>> from parse import parse
         >>> ast, info = parse("algorithm.f90")
-        >>> from psyGen import PSy
-        >>> psy = PSy(info)
+        >>> from psyGen import PSyFactory
+        >>> api = "..."
+        >>> psy = PSyFactory(api).create(info)
         >>> invokes = psy.invokes
         >>> invokes.names
         >>> invoke = invokes.get("name")
@@ -694,17 +729,17 @@ class OMPParallelDirective(OMPDirective):
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
             if loop._variable_name == "":
-                raise GenerationException("Internal error: name of loop "
-                                          "variable not set.")
+                raise GenerationError("Internal error: name of loop "
+                                      "variable not set.")
             if loop._variable_name.lower() not in result:
                 result.append(loop._variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
                 if variable_name == "":
-                    raise GenerationException("Internal error: call has a "
-                                              "local variable but its name "
-                                              "is not set.")
+                    raise GenerationError("Internal error: call has a "
+                                          "local variable but its name "
+                                          "is not set.")
                 if variable_name.lower() not in result:
                     result.append(variable_name.lower())
         return result
@@ -712,11 +747,8 @@ class OMPParallelDirective(OMPDirective):
     def _not_within_omp_parallel_region(self):
         ''' Check that this Directive is not within any other
             parallel region '''
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective):
-                raise GenerationError("Cannot nest OpenMP parallel regions.")
-            myparent = myparent.parent
+        if self.ancestor(OMPParallelDirective) is not None:
+            raise GenerationError("Cannot nest OpenMP parallel regions.")
 
     def _encloses_omp_directive(self):
         ''' Check that this Parallel region contains other OpenMP
@@ -790,6 +822,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         both OMPParallelDirective (because it creates a new OpenMP
         thread-parallel region) and OMPDoDirective (because it
         causes a loop to be parallelised). '''
+
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
+        OMPDoDirective.__init__(self,
+                                children=children,
+                                parent=parent,
+                                omp_schedule=omp_schedule)
 
     def view(self,indent = 0):
         print self.indent(indent)+"Directive[OMP parallel do]"
@@ -961,6 +999,17 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
+    def has_inc_arg(self, mapping={}):
+        ''' Returns True if any of the Kernels called within this
+        loop have an argument with INC access. Returns False otherwise '''
+        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error - a mapping "\
+                          "must be provided"
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.access.lower() == mapping["inc"]:
+                    return True
+        return False
+
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1": # no need for a loop
             for child in self.children:
@@ -976,6 +1025,7 @@ class Loop(Node):
             my_decl = DeclGen(parent, datatype = "integer",
                             entity_decls = [self._variable_name])
             parent.add(my_decl)
+
 
 class Call(Node):
 
@@ -1100,7 +1150,13 @@ class Kern(Call):
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
         if check and len(call.ktype.arg_descriptors) != len(call.args):
-            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
+            raise GenerationError(
+                "error: In kernel '{0}' the number of arguments specified "
+                "in the kernel metadata '{1}', must equal the number of "
+                "arguments in the algorithm layer. However, I found '{2}'".\
+                format(call.ktype.procedure.name,
+                       len(call.ktype.arg_descriptors),
+                       len(call.args)))
         self._arg_descriptors = call.ktype.arg_descriptors
 
     def __str__(self):
@@ -1118,6 +1174,36 @@ class Kern(Call):
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name = self._module_name, only = True,
                           funcnames = [self._name]))
+
+    def incremented_field(self, mapping={}):
+        ''' Returns the argument corresponding to a field that has
+        INC access. Raises a GenerationError if none is found. '''
+        assert mapping != {}, "psyGen:Kern:incremented_field: Error - a "\
+                          "mapping must be provided"
+        for arg in self.arguments.args:
+            if arg.access.lower() == mapping["inc"]:
+                return arg
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".\
+                                 format(self.name, mapping["inc"]))
+
+    def written_field(self, mapping={}):
+        ''' Returns the argument corresponding to a field that has
+        WRITE access '''
+        assert mapping != {}, "psyGen:Kern:written_field: Error - a "\
+                          "mapping must be provided"
+        for arg in self.arguments.args:
+            if arg.access.lower() == mapping["write"]:
+                return arg
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".\
+                                 format(self.name, mapping["write"]))
+
+    def is_coloured(self):
+        ''' Returns true if this kernel is being called from within a
+        coloured loop '''
+        return self.parent.loop_type == "colour"
+
 
 class Arguments(object):
     ''' arguments abstract base class '''
@@ -1276,8 +1362,10 @@ class TransInfo(object):
     >>> print t.list
     There is 1 transformation available:
       1: SwapTrans, A test transformation
-    >>> t.get_trans_num(1)
-    >>> t.get_trans_name("SwapTrans")
+    >>> # accessing a transformation by index
+    >>> trans = t.get_trans_num(1)
+    >>> # accessing a transformation by name
+    >>> trans = t.get_trans_name("SwapTrans")
 
     '''
 
