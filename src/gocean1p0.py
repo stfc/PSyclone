@@ -949,7 +949,7 @@ class GOKernelType1p0(KernelType):
             # Pass in the name of this kernel for the purposes
             # of error reporting
             new_arg = GO1p0Descriptor(name, init)
-            # Keep track of whether this kernel requires any 
+            # Keep track of whether this kernel requires any
             # grid properties
             have_grid_prop = have_grid_prop or\
                              (new_arg.type == "grid_property")

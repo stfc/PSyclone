@@ -1,9 +1,9 @@
-#-------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
 from parse import parse
@@ -13,10 +13,11 @@ import os
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
+
 def test_field():
     ''' Tests that a kernel call with only fields produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.\
-                                         dirname(os.path.\
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
                                          "single_invoke.f90"),
@@ -52,13 +53,13 @@ def test_field():
 
 
 def test_two_kernels():
-    ''' Tests that an invoke containing two kernel calls with only 
+    ''' Tests that an invoke containing two kernel calls with only
     fields as arguments produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.\
-                                         dirname(os.path.\
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
-                                         "single_invoke_two_kernels.f90"), 
+                                         "single_invoke_two_kernels.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = psy.gen
@@ -71,7 +72,8 @@ def test_two_kernels():
     SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
       USE time_smooth_mod, ONLY: time_smooth_code
       USE compute_cu_mod, ONLY: compute_cu_code
-      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, unew_fld, uold_fld
+      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, \
+unew_fld, uold_fld
       INTEGER j
       INTEGER i
       INTEGER istop, jstop
@@ -87,7 +89,8 @@ def test_two_kernels():
       END DO 
       DO j=1,jstop+1
         DO i=1,istop+1
-          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data)
+          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, \
+uold_fld%data)
         END DO 
       END DO 
     END SUBROUTINE invoke_0
@@ -99,11 +102,11 @@ def test_two_kernels():
 def test_grid_property():
     ''' Tests that an invoke containing a kernel call requiring
     a property of the grid produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.\
-                                         dirname(os.path.\
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
-                                         "single_invoke_grid_props.f90"), 
+                                         "single_invoke_grid_props.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -126,7 +129,8 @@ def test_grid_property():
       !
       DO j=2,jstop
         DO i=2,istop-1
-          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
+          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, \
+u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_next_sshu
@@ -138,11 +142,11 @@ def test_grid_property():
 def test_scalar_int_arg():
     ''' Tests that an invoke containing a kernel call requiring
     an integer, scalar argument produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.\
-                                         dirname(os.path.\
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
-                                         "single_invoke_scalar_int_arg.f90"), 
+                                         "single_invoke_scalar_int_arg.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -178,11 +182,11 @@ def test_scalar_int_arg():
 def test_scalar_float_arg():
     ''' Tests that an invoke containing a kernel call requiring
     a real, scalar argument produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.\
-                                         dirname(os.path.\
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
-                                         "single_invoke_scalar_float_arg.f90"), 
+                                         "single_invoke_scalar_float_arg.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -218,12 +222,12 @@ def test_scalar_float_arg():
 def test_ne_offset_cf_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CF points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test14_ne_offset_cf_updated_one_invoke.f90"), 
+                                 "test14_ne_offset_cf_updated_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -246,7 +250,8 @@ def test_ne_offset_cf_points():
       !
       DO j=1,jstop-1
         DO i=1,istop-1
-          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, u_fld%data, v_fld%data)
+          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, \
+u_fld%data, v_fld%data)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_compute_vort
@@ -258,12 +263,12 @@ def test_ne_offset_cf_points():
 def test_ne_offset_ct_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CT points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test15_ne_offset_ct_updated_one_invoke.f90"), 
+                                 "test15_ne_offset_ct_updated_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -298,12 +303,12 @@ def test_ne_offset_ct_points():
 def test_ne_offset_all_cu_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CU points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test16_ne_offset_cu_updated_one_invoke.f90"), 
+                                 "test16_ne_offset_cu_updated_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -338,12 +343,12 @@ def test_ne_offset_all_cu_points():
 def test_ne_offset_all_cv_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CV points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test17_ne_offset_cv_updated_one_invoke.f90"), 
+                                 "test17_ne_offset_cv_updated_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -378,12 +383,12 @@ def test_ne_offset_all_cv_points():
 def test_ne_offset_all_cf_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CF points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test18_ne_offset_cf_updated_one_invoke.f90"), 
+                                 "test18_ne_offset_cf_updated_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -418,12 +423,13 @@ def test_ne_offset_all_cf_points():
 def test_sw_offset_cf_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CF points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test19.1_sw_offset_cf_updated_one_invoke.f90"), 
+                                 "test19.1_sw_offset_cf_updated" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -446,7 +452,8 @@ def test_sw_offset_cf_points():
       !
       DO j=2,jstop+1
         DO i=2,istop+1
-          CALL compute_z_code(i, j, zfld%data, pfld%data, ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)
+          CALL compute_z_code(i, j, zfld%data, pfld%data, \
+ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_compute_z
@@ -457,12 +464,13 @@ def test_sw_offset_cf_points():
 def test_sw_offset_all_cf_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CF points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test19.2_sw_offset_all_cf_updated_one_invoke.f90"), 
+                                 "test19.2_sw_offset_all_cf_updated" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -485,7 +493,8 @@ def test_sw_offset_all_cf_points():
       !
       DO j=1,jstop+1
         DO i=1,istop+1
-          CALL apply_bcs_f_code(i, j, zfld%data, pfld%data, ufld%data, vfld%data)
+          CALL apply_bcs_f_code(i, j, zfld%data, pfld%data, \
+ufld%data, vfld%data)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_apply_bcs_f
@@ -497,12 +506,12 @@ def test_sw_offset_all_cf_points():
 def test_sw_offset_ct_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CT points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test20_sw_offset_ct_updated_one_invoke.f90"), 
+                                 "test20_sw_offset_ct_updated_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -537,12 +546,13 @@ def test_sw_offset_ct_points():
 def test_sw_offset_all_ct_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CT points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test21_sw_offset_all_ct_updated_one_invoke.f90"), 
+                                 "test21_sw_offset_all_ct_updated" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -565,7 +575,8 @@ def test_sw_offset_all_ct_points():
       !
       DO j=1,jstop+1
         DO i=1,istop+1
-          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, ufld%data, vfld%data)
+          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, \
+ufld%data, vfld%data)
         END DO 
       END DO 
     END SUBROUTINE invoke_0_apply_bcs_h
@@ -577,12 +588,13 @@ def test_sw_offset_all_ct_points():
 def test_sw_offset_all_cu_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CU points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test22_sw_offset_all_cu_updated_one_invoke.f90"), 
+                                 "test22_sw_offset_all_cu_updated" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -617,12 +629,13 @@ def test_sw_offset_all_cu_points():
 def test_sw_offset_all_cv_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CV points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test23_sw_offset_all_cv_updated_one_invoke.f90"), 
+                                 "test23_sw_offset_all_cv_updated" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -657,12 +670,13 @@ def test_sw_offset_all_cv_points():
 def test_offset_any_all_cu_points():
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all cu points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test25_any_offset_all_cu_update_one_invoke.f90"), 
+                                 "test25_any_offset_all_cu_update" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
@@ -697,12 +711,13 @@ def test_offset_any_all_cu_points():
 def test_offset_any_all_points():
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all points '''
-    ast, invokeInfo = parse(os.path.\
-                            join(os.path.\
-                                 dirname(os.path.\
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
-                                 "test24_any_offset_all_update_one_invoke.f90"), 
+                                 "test24_any_offset_all_update" +
+                                 "_one_invoke.f90"),
                             api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(invokeInfo)
     generated_code = str(psy.gen)
