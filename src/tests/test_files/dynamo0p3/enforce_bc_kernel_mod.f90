@@ -64,7 +64,7 @@ end function enforce_bc_kernel_constructor
 !! @param[inout] field Real array the data
 
 subroutine enforce_bc_code(nlayers,                        &
-                           field                           &
+                           field,                          &
                            ndf, undf, map, boundary_value  &
                           )
  

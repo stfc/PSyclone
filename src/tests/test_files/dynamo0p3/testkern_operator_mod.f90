@@ -20,6 +20,6 @@ module testkern_operator_mod
      procedure() :: code => testkern_operator_code
   end type testkern_operator_type
 contains
-  subroutine testkern_operator_code(mm,chi,qr)
+  subroutine testkern_operator_code()
   end subroutine testkern_operator_code
 end module testkern_operator_mod

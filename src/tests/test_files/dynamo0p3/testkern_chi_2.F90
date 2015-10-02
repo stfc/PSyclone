@@ -6,7 +6,7 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_chi_2
+module testkern_chi_mod
   type, extends(kernel_type) :: testkern_chi_type
      type(arg_type), dimension(2) :: meta_args =    &
           (/ arg_type(gh_field*3,gh_write,w0),        &
@@ -18,6 +18,6 @@ module testkern_chi_2
   end type testkern_chi_type
 contains
 
-  subroutine testkern_code(chi1,chi2,chi3)
+  subroutine testkern_code()
   end subroutine testkern_code
-end module testkern_chi_2
+end module testkern_chi_mod

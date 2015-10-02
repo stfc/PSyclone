@@ -12,8 +12,8 @@ generator.py
     .. cmdoption:: -opsy <filename>
     .. cmdoption:: -api <api>
     .. cmdoption:: -s <script>
-    .. smdoption:: -d <directory>
-    .. cmdoption:: <filename>
+    .. cmdoption:: -d <directory>
+    .. cmdoption:: -r <filename>
 
     Command line version of the generator. -h prints out the command
     line options. If -oalg or -opsy are not provided then the

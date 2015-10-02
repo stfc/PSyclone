@@ -13,6 +13,7 @@
    psy_layer
    transformations
    api
+   stub_gen
    f2py_install
 ..   developers
 ..   infrastructure_calls

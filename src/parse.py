@@ -241,19 +241,19 @@ class KernelTypeFactory(object):
                                  "specified. Supported types are {1}.".\
                                  format(self._type, supportedTypes))
 
-    def create(self,name,ast):
+    def create(self, ast, name=None):
         if self._type=="gunghoproto":
-            return GHProtoKernelType(name,ast)
+            return GHProtoKernelType(ast, name=name)
         elif self._type=="dynamo0.1":
-            return DynKernelType(name,ast)
+            return DynKernelType(ast, name=name)
         elif self._type=="dynamo0.3":
-            from dynamo0p3 import DynKernelType03
-            return DynKernelType03(name,ast)
+            from dynamo0p3 import DynKernMetadata
+            return DynKernMetadata(ast, name=name)
         elif self._type=="gocean0.1":
-            return GOKernelType(name,ast)
+            return GOKernelType(ast, name=name)
         elif self._type=="gocean1.0":
             from gocean1p0 import GOKernelType1p0
-            return GOKernelType1p0(name,ast)
+            return GOKernelType1p0(ast, name=name)
         else:
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported "
                              "kernel type '{0}' found. Should not be possible.".\
@@ -265,7 +265,31 @@ class KernelType(object):
     This contains the elemental procedure and metadata associated with
     how that procedure is mapped over mesh entities."""
 
-    def __init__(self,name,ast):
+    def __init__(self, ast, name=None):
+
+        if name is None:
+            # if no name is supplied then use the module name to
+            # determine the type name. The assumed convention is that
+            # the module is called <name/>_mod and the type is called
+            # <name/>_type
+            found = False
+            for statement, depth  in fpapi.walk(ast, -1):
+                if isinstance(statement, fparser.block_statements.Module):
+                    module_name = statement.name
+                    found = True
+                    break
+            if not found:
+                raise ParseError("Error KernelType, the file does not contain a module. Is it a Kernel file?")
+
+            mn_len = len(module_name)
+            if mn_len<5:
+                raise ParseError("Error, module name '{0}' is too short to have '_mod' as an extension. This convention is assumed.".format(module_name))
+            base_name = module_name.lower()[:mn_len-4]
+            extension_name = module_name.lower()[mn_len-4:mn_len]
+            if extension_name != "_mod":
+                raise ParseError("Error, module name '{0}' does not have '_mod' as an extension. This convention is assumed.".format(module_name))
+            name = base_name + "_type"
+
         self._name = name
         self._ast = ast
         self.checkMetadataPublic(name,ast)
@@ -349,8 +373,8 @@ class KernelType(object):
         return ktype
 
 class DynKernelType(KernelType):
-    def __init__(self,name,ast):
-        KernelType.__init__(self,name,ast)
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self,ast, name=name)
         self._arg_descriptors=[]
         for init in self._inits:
             if init.name != 'arg_type':
@@ -364,8 +388,8 @@ class DynKernelType(KernelType):
             self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,x1,x2,x3))
 
 class GOKernelType(KernelType):
-    def __init__(self,name,ast):
-        KernelType.__init__(self,name,ast)
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
         self._arg_descriptors=[]
         for init in self._inits:
             if init.name != 'arg':
@@ -380,8 +404,8 @@ class GOKernelType(KernelType):
 
 class GHProtoKernelType(KernelType):
 
-    def __init__(self, name, ast):
-        KernelType.__init__(self,name,ast)
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
         self._arg_descriptors = []
         for init in self._inits:
             if init.name != 'arg':
@@ -665,7 +689,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
                     statement_kcalls.append(KernelCall(modulename, 
                                                        KernelTypeFactory(api=api).\
-                                                       create(argname, modast),
+                                                       create(modast, name=argname),
                                                        argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)

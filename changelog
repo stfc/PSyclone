@@ -11,6 +11,11 @@
 	transformation scripts then added on top.
 
 	4) #292 Dynamo example scripts fixed.
+
+        5) #258 First version of kernel-stub generator added. Given kernel
+        metadata as input, PSyclone has enough information to be able to
+        generate stub kernel code with the appropriate arguments and 
+        argument ordering.
 	
 release 1.0.2
 

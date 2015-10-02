@@ -870,7 +870,8 @@ class Loop(Node):
                 self._iterates_over = "unknown" # needs to inherit this?
                 self._field_space = "any"
             elif isinstance(call, KernelCall):
-                my_call = Kern(call, parent = self)
+                my_call = Kern()
+                my_call.load(call, parent = self)
                 self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().function_space

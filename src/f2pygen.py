@@ -374,13 +374,22 @@ class SubroutineGen(ProgUnitGen):
         endsubline=reader.next()
 
         from fparser.block_statements import Subroutine,EndSubroutine
-        sub=Subroutine(parent.root,subline)
-        sub.name=name
-        sub.args=args
-        endsub=EndSubroutine(sub,endsubline)
-        sub.content.append(endsub)
+        self._sub=Subroutine(parent.root,subline)
+        self._sub.name=name
+        self._sub.args=args
+        endsub=EndSubroutine(self._sub,endsubline)
+        self._sub.content.append(endsub)
 
-        ProgUnitGen.__init__(self,parent,sub)
+        ProgUnitGen.__init__(self,parent,self._sub)
+
+    @property
+    def args(self):
+        return self._sub.args
+
+    @args.setter
+    def args(self, namelist):
+        ''' sets the subroutine arguments to the values in the list provide.'''
+        self._sub.args = namelist
 
 def addsub(name,args,parent,index=None):
     from fparser import api

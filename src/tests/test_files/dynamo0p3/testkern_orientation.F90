@@ -6,7 +6,7 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_orientation
+module testkern_orientation_mod
   type, public, extends(kernel_type) :: testkern_orientation_type
     private
     type(arg_type) :: meta_args(3) = (/                                  &
@@ -24,6 +24,6 @@ module testkern_orientation
     procedure() :: code => testkern_orientation_code
   end type testkern_orientation_type
 contains
-  subroutine testkern_orientation_code(a,b,c)
+  subroutine testkern_orientation_code()
   end subroutine testkern_orientation_code
-end module testkern_orientation
+end module testkern_orientation_mod
