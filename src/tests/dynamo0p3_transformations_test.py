@@ -51,6 +51,7 @@ def test_colour_trans_declarations():
     print gen
 
     # Check that we've declared the loop-related variables
+    # and colour-map pointers
     assert "integer ncolour" in gen
     assert "integer colour" in gen
     assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen

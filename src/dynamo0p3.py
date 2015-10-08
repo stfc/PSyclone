@@ -809,6 +809,9 @@ class DynInvoke(Invoke):
                                    pointer=True,
                                    entity_decls=["cmap(:,:)",
                                                  "ncp_colour(:)"]))
+            # Declaration of variable to hold the number of colours
+            invoke_sub.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=["ncolour"]))
 
         if self.qr_required:
             # add calls to compute the values of any basis arrays
