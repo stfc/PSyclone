@@ -292,6 +292,23 @@ class GOSchedule(Schedule):
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
 
+    def view(self, indent=0):
+        ''' Print a representation of this GOSchedule '''
+        print self.indent(indent) + "GOSchedule[invoke='" + \
+            self.invoke.name + "',Constant loop bounds=" + \
+            str(self._const_loop_bounds) + "]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def __str__(self):
+        ''' Returns the string representation of this GOSchedule '''
+        result = "GOSchedule(Constant loop bounds=" + \
+                 str(self._const_loop_bounds) + "):\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
     @property
     def iloop_stop(self):
         '''Returns the variable name to use for the upper bound of inner
@@ -319,6 +336,14 @@ class GOSchedule(Schedule):
             raise GenerationError(
                 "Refusing to supply name of outer loop upper bound "
                 "because constant loop bounds are not being used.")
+
+    @property
+    def const_loop_bounds(self):
+        return self._const_loop_bounds
+
+    @const_loop_bounds.setter
+    def const_loop_bounds(self, obj):
+        self._const_loop_bounds = obj
 
 
 class GOLoop(Loop):

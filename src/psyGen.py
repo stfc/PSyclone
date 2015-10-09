@@ -636,21 +636,14 @@ class Schedule(Node):
         Node.__init__(self, children = sequence)
         self._invoke = None
 
-        # Configuration of this Schedule - we default to having
-        # constant loop bounds. If we end up having a long list
-        # of configuration member variables here we may want
-        # to create a a new ScheduleConfig object to manage them.
-        self._const_loop_bounds = True
-
     def view(self, indent = 0):
-        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+\
-            "',Constant loop bounds="+str(self._const_loop_bounds)+"]"
+        print self.indent(indent) + "Schedule[invoke='" + self.invoke.name \
+            + "']"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
     def __str__(self):
-        result = "Schedule(Constant loop bounds="+\
-                 str(self._const_loop_bounds)+"):\n"
+        result = "Schedule:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -659,14 +652,6 @@ class Schedule(Node):
     def gen_code(self, parent):
         for entity in self._children:
             entity.gen_code(parent)
-
-    @property
-    def const_loop_bounds(self):
-        return self._const_loop_bounds
-
-    @const_loop_bounds.setter
-    def const_loop_bounds(self, obj):
-        self._const_loop_bounds = obj
 
 
 class Directive(Node):
