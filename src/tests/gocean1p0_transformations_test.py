@@ -12,7 +12,7 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError,\
-                            ConstLoopBoundsTrans,\
+                            GOConstLoopBoundsTrans,\
                             LoopFuseTrans, OMPParallelTrans,\
                             GOceanLoopFuseTrans,\
                             GOceanOMPParallelLoopTrans,\
@@ -50,7 +50,7 @@ def test_const_loop_bounds_not_schedule():
     psy, invoke = get_invoke("test11_different_iterates_over_"
                              "one_invoke.f90", 0)
     schedule = invoke.schedule
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     with pytest.raises(TransformationError):
         _, _ = cbtrans.apply(schedule.children[0])
@@ -62,7 +62,7 @@ def test_const_loop_bounds_toggle():
     psy, invoke = get_invoke("test11_different_iterates_over_"
                              "one_invoke.f90", 0)
     schedule = invoke.schedule
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     # First check that the generated code uses constant loop
     # bounds by default
@@ -104,7 +104,7 @@ def test_const_loop_bounds_invalid_offset():
     code with constant loop bounds for a kernel that expects an
     unsupported grid-offset '''
     psy, invoke = get_invoke("test26_const_bounds_invalid_offset.f90", 0)
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
     schedule = invoke.schedule
     newsched, _ = cbtrans.apply(schedule, const_bounds=True)
     invoke.schedule = newsched
@@ -119,7 +119,7 @@ def test_loop_fuse_different_iterates_over():
                            "one_invoke.f90", 0)
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     # Attempt to fuse two loops that are iterating over different
     # things
@@ -142,7 +142,7 @@ def test_omp_parallel_loop():
     schedule = invoke.schedule
 
     omp = GOceanOMPParallelLoopTrans()
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
     omp_sched, _ = omp.apply(schedule.children[0])
 
     invoke.schedule = omp_sched
@@ -190,7 +190,7 @@ def test_omp_region_with_single_loop():
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     omp_schedule, _ = ompr.apply(schedule.children[1])
 
@@ -297,7 +297,7 @@ def test_omp_region_no_slice_no_const_bounds():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
     schedule = invoke.schedule
     ompr = OMPParallelTrans()
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     newsched, _ = cbtrans.apply(schedule, const_bounds=False)
     omp_schedule, _ = ompr.apply(newsched.children)
@@ -328,7 +328,7 @@ def test_omp_region_retains_kernel_order1():
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
 
     omp_schedule, _ = ompr.apply(schedule.children[1:])
 
@@ -590,7 +590,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup():
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", 0)
     schedule = invoke.schedule
     # Turn-off constant loop bounds
-    cbtrans = ConstLoopBoundsTrans()
+    cbtrans = GOConstLoopBoundsTrans()
     newsched, _ = cbtrans.apply(schedule, const_bounds=False)
     # Keep a copy of the original schedule
     import copy
