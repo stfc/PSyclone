@@ -423,7 +423,7 @@ class GOLoop(Loop):
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing Schedule
         schedule = self.ancestor(GOSchedule)
-        if not isinstance(schedule, GOSchedule):
+        if schedule is None or not isinstance(schedule, GOSchedule):
             raise GenerationError("Internal error: cannot find parent"
                                   " GOSchedule for this Do loop")
 
@@ -440,6 +440,17 @@ class GOLoop(Loop):
                                   "of {0}. Supported offsets are {1}".\
                                   format(index_offset,
                                          SUPPORTED_OFFSETS))
+        # Check that all kernels enclosed by this loop expect the same
+        # grid offset
+        for kernel in go_kernels:
+            if kernel.index_offset != index_offset:
+                raise GenerationError("All Kernels must expect the same "
+                                      "grid offset but kernel {0} has offset "
+                                      "{1} which does not match {2}".\
+                                      format(kernel.name,
+                                             kernel.index_offset,
+                                             index_offset))
+
         if schedule.const_loop_bounds:
             # We're expressing all loop bounds in terms of constant
             # expressions
