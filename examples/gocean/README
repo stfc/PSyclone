@@ -6,11 +6,13 @@
 #-------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-These scripts and this version of PSyclone work with version 0.1 of GOcean.
+These scripts and this version of PSyclone work with version 1.0 of GOcean.
 
-In order to use PSyclone you must first add it to your PYTHONPATH:
+In order to use PSyclone you must first add it to your PYTHONPATH. The
+easiest way to do this is to change to the top-level directory of your
+PSyclone installation and do:
 ::
-    export PYTHONPATH=/path/to/PSyclone/src:${PYTHONPATH}
+    export PYTHONPATH=`pwd`/src:`pwd`/f2py_93:${PYTHONPATH}
 
 PSyclone can be run in the directory containing this file by 
 executing, e.g.

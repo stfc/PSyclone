@@ -10,8 +10,8 @@
 from parse import parse
 from psyGen import PSyFactory
 
-api="gocean"
-ast,invokeInfo=parse("shallow_gocean.f90",api=api)
+api="gocean1.0"
+ast,invokeInfo=parse("shallow_alg.f90",api=api)
 psy=PSyFactory(api).create(invokeInfo)
 print psy.gen
 
@@ -23,7 +23,7 @@ from psyGen import TransInfo
 t=TransInfo()
 print t.list
 lf=t.get_trans_name('LoopFuse')
-ol=t.get_trans_name('GOceanOpenMPLoop')
+ol=t.get_trans_name('GOceanOMPParallelLoopTrans')
 
 # invoke0
 # fuse all outer loops

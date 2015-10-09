@@ -10,8 +10,8 @@
 from parse import parse
 from psyGen import PSyFactory
 
-api="gocean"
-ast,invokeInfo=parse("shallow_gocean.f90",api=api)
+api="gocean1.0"
+ast,invokeInfo=parse("shallow_alg.f90",api=api)
 psy=PSyFactory(api).create(invokeInfo)
 print psy.gen
 
@@ -41,5 +41,5 @@ lf6_schedule,memento = lf.apply(lf5_schedule.children[0].children[0],
                                 lf5_schedule.children[0].children[1])
 lf6_schedule.view()
 
-psy.invokes.get('invoke_0')._schedule=lf6_schedule
+psy.invokes.get('invoke_0')._schedule = lf6_schedule
 print psy.gen
