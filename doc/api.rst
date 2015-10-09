@@ -36,24 +36,29 @@ generator.py
 
 .. autofunction:: generate
 
+The parse module
+----------------
+
 .. automodule:: parse
  
 .. autofunction:: parse
 
+The transformations module
+--------------------------
+
 .. automodule:: transformations
+    :members:
 
-.. autoclass:: LoopFuseTrans
-
-.. autoclass:: SwapTrans
-
-.. autoclass:: OpenMPLoop
-
-.. autoclass :: ColourTrans
+The psyGen module
+-----------------
 
 .. automodule:: psyGen
 
 .. autoclass:: PSy
     :members:
+
+The algGen module
+-----------------
 
 .. automodule:: algGen
 
