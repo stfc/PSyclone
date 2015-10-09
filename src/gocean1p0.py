@@ -299,7 +299,7 @@ class GOSchedule(Schedule):
         an error if constant bounds are not being used.
 
         '''
-        if self.const_loop_bounds:
+        if self._const_loop_bounds:
             return "istop"
         else:
             raise GenerationError(
@@ -313,7 +313,7 @@ class GOSchedule(Schedule):
         an error if constant bounds are not being used.
 
         '''
-        if self.const_loop_bounds:
+        if self._const_loop_bounds:
             return "jstop"
         else:
             raise GenerationError(
@@ -345,177 +345,87 @@ class GOLoop(Loop):
                                   "one of {1}".\
                                   format(self._loop_type, VALID_LOOP_TYPES))
 
-    def set_ne_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a mesh with North-East offset '''
-        if self.field_space == "ct":
-            self.set_ne_ct_loop_bounds(schedule)
-        elif self.field_space == "cu":
-            self.set_ne_cu_loop_bounds(schedule)
-        elif self.field_space == "cv":
-            self.set_ne_cv_loop_bounds(schedule)
-        elif self.field_space == "cf":
-            self.set_ne_cf_loop_bounds(schedule)
+        # Create a dictionary to simplify the business of looking-up
+        # loop bounds
+        self._bounds_lookup = {}
+        for grid_offset in SUPPORTED_OFFSETS:
+            self._bounds_lookup[grid_offset] = {}
+            for gridpt_type in VALID_FIELD_GRID_TYPES:
+                self._bounds_lookup[grid_offset][gridpt_type] = {}
+                for itspace in VALID_ITERATES_OVER:
+                    self._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
 
-    def set_ne_ct_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on T grid points for a mesh with North-East offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "2"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-    def set_ne_cu_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on U grid points for a mesh with North-East offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "2"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "-1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-    def set_ne_cv_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on V grid points for a mesh with North-East offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "2"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "-1"
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop
-
-    def set_ne_cf_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on F grid points for a mesh with North-East offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "-1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "-1"
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop
-
-    def set_sw_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a mesh with South-West offset '''
-        if self.field_space == "ct":
-            self.set_sw_ct_loop_bounds(schedule)
-        elif self.field_space == "cu":
-            self.set_sw_cu_loop_bounds(schedule)
-        elif self.field_space == "cv":
-            self.set_sw_cv_loop_bounds(schedule)
-        elif self.field_space == "cf":
-            self.set_sw_cf_loop_bounds(schedule)
-
-    def set_sw_ct_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on T grid points for a mesh with South-West offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "2"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            if self._loop_type == "outer":
-                self._stop = schedule.jloop_stop
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-    def set_sw_cu_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on U grid points for a mesh with South-West offset '''
-        self._start = "2"
-        if self._iteration_space == "internal_pts":
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-    def set_sw_cv_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on V grid points for a mesh with South-West offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "2"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-    def set_sw_cf_loop_bounds(self, schedule):
-        ''' Set the loop bounds for a loop updating a quantity
-            on F grid points for a mesh with South-West offset '''
-        if self._iteration_space == "internal_pts":
-            self._start = "2"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
-
-        elif self._iteration_space == "all_pts":
-            self._start = "1"
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop + "+1"
-            elif self._loop_type == "outer":
-                self._stop = schedule.jloop_stop + "+1"
+        # Loop bounds for a mesh with NE offset
+        self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':"+1"} }
+        self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':""},
+                                          'outer':{'start':"2", 'stop':""} }
+        self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':""},
+                                          'outer':{'start':"1", 'stop':"+1"} }
+        self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':"-1"},
+                                          'outer':{'start':"2", 'stop':""} }
+        self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':""} }
+        self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':""},
+                                          'outer':{'start':"2", 'stop':"-1"} }
+        self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':""},
+                                          'outer':{'start':"1", 'stop':""} }
+        self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"-1"},
+                                          'outer':{'start':"1", 'stop':"-1"} }
+        # Loop bounds for a mesh with SE offset
+        self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':"+1"} }
+        self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':""},
+                                          'outer':{'start':"2", 'stop':""} }
+        self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':"+1"} }
+        self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':"+1"},
+                                          'outer':{'start':"2", 'stop':""} }
+        self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':"+1"} }
+        self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':""},
+                                          'outer':{'start':"2", 'stop':"+1"} }
+        self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':"+1"} }
+        self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
+                                        { 'inner':{'start':"2", 'stop':"+1"},
+                                          'outer':{'start':"2", 'stop':"+1"} }
+        # For offset 'any'
+        for gridpt_type in VALID_FIELD_GRID_TYPES:
+            for itspace in VALID_ITERATES_OVER:
+                self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
+                                        { 'inner':{'start':"1", 'stop':""},
+                                          'outer':{'start':"1", 'stop':""} }
+        # For 'every' grid-point type
+        for offset in SUPPORTED_OFFSETS:
+            for itspace in VALID_ITERATES_OVER:
+                self._bounds_lookup[offset]['every'][itspace] = \
+                                        { 'inner':{'start':"1", 'stop':"+1"},
+                                          'outer':{'start':"1", 'stop':"+1"} }
 
     def gen_code(self, parent):
 
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing Schedule
-        myparent = self.parent
-        while myparent is not None and\
-              not isinstance(myparent, GOSchedule):
-            myparent = myparent.parent
-
-        if not isinstance(myparent, GOSchedule):
+        schedule = self.ancestor(GOSchedule)
+        if not isinstance(schedule, GOSchedule):
             raise GenerationError("Internal error: cannot find parent"
                                   " GOSchedule for this Do loop")
-        schedule = myparent
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
@@ -530,50 +440,30 @@ class GOLoop(Loop):
                                   "of {0}. Supported offsets are {1}".\
                                   format(index_offset,
                                          SUPPORTED_OFFSETS))
+        if schedule.const_loop_bounds:
+            # We're expressing all loop bounds in terms of constant
+            # expressions
+            self._start = self._bounds_lookup[index_offset][self.field_space]\
+                          [self._iteration_space][self._loop_type]["start"]
 
-        if self.field_space == "every":
-            # Bounds are independent of the grid-offset convention in use
-            from f2pygen import DeclGen
-            dim_var = DeclGen(parent, datatype="INTEGER",
-                              entity_decls=[self._variable_name])
-            parent.add(dim_var)
-
-            # loop bounds
-            self._start = "1"
-
-            if schedule.const_loop_bounds:
-
-                # Bounds are independent of the grid offset convention in use
-                if self._loop_type == "inner":
-                    self._stop = schedule.iloop_stop + "+1"
-
-                elif self._loop_type == "outer":
-                    self._stop = schedule.jloop_stop + "+1"
+            if self._loop_type == "inner":
+                self._stop = schedule.iloop_stop
             else:
-                # We look-up the bounds by enquiring about the SIZE of
+                self._stop = schedule.jloop_stop
+
+            self._stop += self._bounds_lookup[index_offset][self.field_space]\
+                          [self._iteration_space][self._loop_type]["stop"]
+        else:
+            if self.field_space == "every":
+                # Bounds are independent of the grid-offset convention in use
+
+                self._start = "1"
+                # We look-up the upper bounds by enquiring about the SIZE of
                 # the array itself
                 if self._loop_type == "inner":
                     self._stop = "SIZE("+self.field_name+"%data, 1)"
                 elif self._loop_type == "outer":
                     self._stop = "SIZE("+self.field_name+"%data, 2)"
-
-        else: # one of our spaces so use values provided by the infrastructure
-
-            if schedule.const_loop_bounds:
-                # We're expressing all loop bounds in terms of constant
-                # expressions
-                if index_offset == "offset_ne":
-                    self.set_ne_loop_bounds(schedule)
-
-                elif index_offset == "offset_sw":
-                    self.set_sw_loop_bounds(schedule)
-
-                elif index_offset == "offset_any":
-                    self._start = "1"
-                    if self._loop_type == "inner":
-                        self._stop = schedule.iloop_stop
-                    if self._loop_type == "outer":
-                        self._stop = schedule.jloop_stop
 
             else:
                 # loop bounds are pulled from the field object which
@@ -592,7 +482,6 @@ class GOLoop(Loop):
                     raise GenerationError("Unrecognised iteration space, {0}. "
                                           "Cannot generate loop bounds.".\
                                           format(self._iteration_space))
-
                 if self._loop_type == "inner":
                     self._start += "%xstart"
                     self._stop += "%xstop"

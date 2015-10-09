@@ -730,8 +730,8 @@ def test_offset_any_all_points():
     SUBROUTINE invoke_0_copy(voldfld, vfld)
       USE kernel_field_copy_mod, ONLY: field_copy_code
       TYPE(r2d_field), intent(inout) :: voldfld, vfld
-      INTEGER i
       INTEGER j
+      INTEGER i
       INTEGER istop, jstop
       !
       ! Look-up loop bounds
