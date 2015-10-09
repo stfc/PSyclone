@@ -51,11 +51,11 @@ Checks whether the metadata is public (it should be ?)
 Assumes iterates_over variable.
 Binding to a procedure - assumes one of two styles.
 Assumes a meta_args type
-*** What about our func_args type??? ***
+*What about our func_args type???*
 
 type x
 meta_args=
-**** meta_func=
+*meta_func=*
 iterates_over=
 code => or code =
 end type x
@@ -166,8 +166,8 @@ or declarations must be specified correctly to ensure that they are
 placed at the correct location in the hierarchy. To avoid accidentally
 splitting the loop directive from its loop the start_parent_loop()
 method can be used. This is available as a method in all fortran
-generation calls. ** We could have placed it in psyGen instead of
-f2pygen **.  This method returns the location at the top of any loop
+generation calls. *We could have placed it in psyGen instead of
+f2pygen*.  This method returns the location at the top of any loop
 hierarchy and before any comments immediately before the top level
 loop.
 

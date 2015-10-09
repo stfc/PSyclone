@@ -20,6 +20,6 @@ module testkern
   end type testkern_type
 contains
 
-  subroutine testkern_code(a,b,c,d)
+  subroutine testkern_code()
   end subroutine testkern_code
 end module testkern

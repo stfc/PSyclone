@@ -87,6 +87,7 @@ API
 
 .. autoclass:: psyGen.PSy
     :members:
+    :noindex:
 
 .. autoclass:: psyGen.Invokes
     :members:

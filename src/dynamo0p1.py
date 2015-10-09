@@ -126,9 +126,11 @@ class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. '''
-    def __init__(self, call, parent = None):
+    def __init__(self):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
+
+    def load(self, call, parent=None):
         Kern.__init__(self, DynKernelArguments, call, parent)
 
     def local_vars(self):

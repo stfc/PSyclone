@@ -33,18 +33,23 @@ API-specific sections).
 
 .. autoclass:: transformations.LoopFuseTrans
     :members:
+    :noindex:
 
 .. autoclass:: transformations.ColourTrans
     :members:
+    :noindex:
 
 .. autoclass:: transformations.OMPLoopTrans
     :members:
+    :noindex:
 
 .. autoclass:: transformations.OMPParallelTrans
     :members:
+    :noindex:
 
 .. autoclass:: transformations.OMPParallelLoopTrans
     :members:
+    :noindex:
 
 Applying
 --------
@@ -157,6 +162,7 @@ PSyclone also provides the same functionality via a function (which is
 what the **generator.py** script calls internally)
 
 .. autofunction:: generator.generate
+		  :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:

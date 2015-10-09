@@ -21,6 +21,6 @@ module testkern_operator_orient_mod
      procedure() :: code => testkern_operator_orient_code
   end type testkern_operator_orient_type
 contains
-  subroutine testkern_operator_orient_code(mm,chi,qr)
+  subroutine testkern_operator_orient_code()
   end subroutine testkern_operator_orient_code
 end module testkern_operator_orient_mod

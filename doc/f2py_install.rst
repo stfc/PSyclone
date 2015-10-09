@@ -20,6 +20,7 @@ interactive setup. In this case to install f2py using gfortran and gcc
 (for example) you can perform the following (where "cgcc", "fgfortran", "1"
 and "2" are interactive commands to setup.py)
 ::
+
     > cd f2py_93
     > sudo ./setup.py
     cgcc
@@ -34,6 +35,7 @@ For later versions of distutils (1.8.0 has been tested) where the
 interactive setup has been disabled you can perform the following
 (using g95 and gcc in this case):
 ::
+
     > cd f2py_93
     > sudo ./setup.py build -fcompiler=g95 -ccompiler=gcc
     > sudo ./setup.py install
@@ -41,6 +43,7 @@ interactive setup has been disabled you can perform the following
 For more information about possible build options you can use the
 available help:
 ::
+
     > ./setup.py --help
     > ./setup.py build --help
     > ./setup.py build --help-fcompiler
@@ -49,6 +52,7 @@ In particular, if you do not have root access then the python
 modules can be installed in your user account by specifying 
 --user to the install command:
 ::
+
     > ./setup.py install --user
 
 This causes the software to be installed under ${HOME}/.local/
