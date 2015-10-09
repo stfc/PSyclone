@@ -6,17 +6,26 @@
 #-------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-The dynamo examples in the directories below the one containing this
-README use the Dynamo 0.1 API. They are primarily provided to
-illustrate the use of the PSyclone code-generation system. 
+The dynamo examples in the eg1 and eg2 directories below the one
+containing this README use the Dynamo 0.1 API. That in eg3 uses
+version 0.3 of the Dynamo API. They are primarily provided to
+illustrate the use of the PSyclone code-generation system.
 
-In order to use PSyclone you must first add it to your PYTHONPATH:
+In order to use PSyclone you must first add it to your PYTHONPATH. The
+simplest way to do this is to change to the top-level directory of your
+PSyclone installation and do:
 ::
-    export PYTHONPATH=/path/to/PSyclone/src:${PYTHONPATH}
+    export PYTHONPATH=`pwd`/src:`pwd`/f2py_93
 
-PSyclone can be run for each of the examples by entering the directory and 
+PSyclone can be run for the first two examples by entering the directory and 
 executing, e.g.
 ::
     python ./runme.py
 
 Examine the runme*.py scripts themselves for further details.
+
+The third example demonstrates the use of a transformation script to
+do loop colouring and OpenMP parallelisation with PSyclone, e.g.
+::
+    cd eg3/
+    python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
