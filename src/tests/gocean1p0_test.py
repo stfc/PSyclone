@@ -13,6 +13,7 @@ import os
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
+API = "gocean1.0"
 
 def test_field():
     ''' Tests that a kernel call with only fields produces correct code '''
@@ -21,8 +22,8 @@ def test_field():
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
                                          "single_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -60,8 +61,8 @@ def test_two_kernels():
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
                                          "single_invoke_two_kernels.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = psy.gen
 
     expected_output = """  MODULE psy_single_invoke_two_kernels
@@ -107,8 +108,8 @@ def test_grid_property():
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
                                          "single_invoke_grid_props.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_with_grid_props_test
@@ -147,8 +148,8 @@ def test_scalar_int_arg():
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
                                          "single_invoke_scalar_int_arg.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_scalar_int_test
@@ -187,8 +188,8 @@ def test_scalar_float_arg():
                                                  abspath(__file__)),
                                          "test_files", "gocean1p0",
                                          "single_invoke_scalar_float_arg.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_scalar_float_test
@@ -228,8 +229,8 @@ def test_ne_offset_cf_points():
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
                                  "test14_ne_offset_cf_updated_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -269,8 +270,8 @@ def test_ne_offset_ct_points():
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
                                  "test15_ne_offset_ct_updated_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -309,8 +310,8 @@ def test_ne_offset_all_cu_points():
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
                                  "test16_ne_offset_cu_updated_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -349,8 +350,8 @@ def test_ne_offset_all_cv_points():
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
                                  "test17_ne_offset_cv_updated_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -389,8 +390,8 @@ def test_ne_offset_all_cf_points():
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
                                  "test18_ne_offset_cf_updated_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -430,8 +431,8 @@ def test_sw_offset_cf_points():
                                  "test_files", "gocean1p0",
                                  "test19.1_sw_offset_cf_updated" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -471,8 +472,8 @@ def test_sw_offset_all_cf_points():
                                  "test_files", "gocean1p0",
                                  "test19.2_sw_offset_all_cf_updated" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -512,8 +513,8 @@ def test_sw_offset_ct_points():
                                          abspath(__file__)),
                                  "test_files", "gocean1p0",
                                  "test20_sw_offset_ct_updated_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -553,8 +554,8 @@ def test_sw_offset_all_ct_points():
                                  "test_files", "gocean1p0",
                                  "test21_sw_offset_all_ct_updated" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -595,8 +596,8 @@ def test_sw_offset_all_cu_points():
                                  "test_files", "gocean1p0",
                                  "test22_sw_offset_all_cu_updated" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -636,8 +637,8 @@ def test_sw_offset_all_cv_points():
                                  "test_files", "gocean1p0",
                                  "test23_sw_offset_all_cv_updated" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -677,8 +678,8 @@ def test_offset_any_all_cu_points():
                                  "test_files", "gocean1p0",
                                  "test25_any_offset_all_cu_update" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -718,8 +719,8 @@ def test_offset_any_all_points():
                                  "test_files", "gocean1p0",
                                  "test24_any_offset_all_update" +
                                  "_one_invoke.f90"),
-                            api="gocean1.0")
-    psy = PSyFactory("gocean1.0").create(invokeInfo)
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -747,3 +748,30 @@ def test_offset_any_all_points():
   END MODULE psy_single_invoke_test"""
     print generated_code
     assert generated_code.find(expected_output) != -1
+
+
+def test_goschedule_view(capsys):
+    ''' Test that the GOSchedule::view() method works as expected '''
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
+                                                 abspath(__file__)),
+                                         "test_files", "gocean1p0",
+                                         "single_invoke_two_kernels.f90"),
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
+    invoke = psy.invokes.invoke_list[0]
+    invoke.schedule.view()
+
+    # The view method writes to stdout and this is captured by py.test
+    # by default. We have to query this captured output.
+    out, err = capsys.readouterr()
+
+    expected_output = """GOSchedule[invoke='invoke_0',Constant loop bounds=True]
+    Loop[type='outer',field_space='cu',it_space='internal_pts']
+        Loop[type='inner',field_space='cu',it_space='internal_pts']
+            Call compute_cu_code(cu_fld,p_fld,u_fld)
+    Loop[type='outer',field_space='every',it_space='internal_pts']
+        Loop[type='inner',field_space='every',it_space='internal_pts']
+            Call time_smooth_code(u_fld,unew_fld,uold_fld)"""
+
+    assert expected_output in out
