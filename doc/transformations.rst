@@ -189,3 +189,8 @@ below does the same thing as the example in the
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
 schedules (i.e. invokes) contained within the PSy layer.
+
+An example of the use of transformations scripts can be found in the
+examples/dynamo/eg3 directory. Please read the examples/dynamo/README
+file first as it explains how to run the example.
+

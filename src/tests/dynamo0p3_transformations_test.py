@@ -24,6 +24,39 @@ import pytest
 TEST_API = "dynamo0.3"
 
 
+def test_colour_trans_declarations():
+    ''' Check that we generate the correct variable declarations
+    when doing a colouring transformation '''
+    ''' test of the colouring transformation of a single loop '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[0])
+
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = cschedule
+
+    # Store the results of applying this code transformation as
+    # a string
+    gen = str(psy.gen)
+    # Fortran is not case sensitive
+    gen = gen.lower()
+    print gen
+
+    # Check that we've declared the loop-related variables
+    # and colour-map pointers
+    assert "integer ncolour" in gen
+    assert "integer colour" in gen
+    assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
+
+
 def test_colour_trans():
     ''' test of the colouring transformation of a single loop '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -44,6 +77,9 @@ def test_colour_trans():
     # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
+    # Fortran is not case sensitive
+    gen = gen.lower()
+    print gen
 
     # Check that we're calling the API to get the no. of colours
     assert "f1_proxy%vspace%get_colours(" in gen
@@ -51,9 +87,9 @@ def test_colour_trans():
     col_loop_idx = -1
     cell_loop_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if "DO colour=1,ncolour" in line:
+        if "do colour=1,ncolour" in line:
             col_loop_idx = idx
-        if "DO cell=1,ncp_colour(colour)" in line:
+        if "do cell=1,ncp_colour(colour)" in line:
             cell_loop_idx = idx
 
     assert cell_loop_idx - col_loop_idx == 1

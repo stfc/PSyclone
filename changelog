@@ -17,6 +17,10 @@
         generate stub kernel code with the appropriate arguments and 
         argument ordering.
 	
+        6) #364 OpenMP fix for update 1) (ticket #263). 'ncolour' variable
+        now declared. New dynamo/eg3 example added to demonstrate the use
+        of transformation scripts introduced in update 2) (ticket #292).
+
 release 1.0.2
 
 	1) #299 temporary boundary condition
