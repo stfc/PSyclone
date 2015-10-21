@@ -41,5 +41,5 @@ lf6_schedule,memento = lf.apply(lf5_schedule.children[0].children[0],
                                 lf5_schedule.children[0].children[1])
 lf6_schedule.view()
 
-psy.invokes.get('invoke_0')._schedule = lf6_schedule
+psy.invokes.get('invoke_0').schedule = lf6_schedule
 print psy.gen

@@ -46,5 +46,5 @@ lf6_schedule.view()
 ol_schedule,memento = ol.apply(lf6_schedule.children[0])
 ol_schedule.view()
 
-psy.invokes.get('invoke_0')._schedule=ol_schedule
+psy.invokes.get('invoke_0').schedule=ol_schedule
 print psy.gen
