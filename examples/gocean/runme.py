@@ -1,28 +1,56 @@
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Funded by the GOcean project
+
+'''A simple test script showing basic usage of the PSyclone API.
+In order to use it you must first configure your PYTHONPATH like so:
+
+ >>> cd <blah>/PSyclone
+ >>> export PYTHONPATH=`pwd`/src:`pwd`/f2py_93
+
+Once your PYTHONPATH has been set-up, this script may be run by doing:
+
+ >>> python runme.py
+
+This should generate a lot of output, ending with a view of the
+Schedules:
+
+ >>> ...
+ >>> Schedule[invoke='invoke_0']
+ >>>    Loop[type='outer',field_space='cu',it_space='internal_pts']
+ >>>        Loop[type='inner',field_space='cu',it_space='internal_pts']
+ >>>            Call compute_cu_code(cu_fld,p_fld,u_fld)
+ >>>    Loop[type='outer',field_space='cv',it_space='internal_pts']
+ >>>        Loop[type='inner',field_space='cv',it_space='internal_pts']
+ >>>            Call compute_cv_code(cv_fld,p_fld,v_fld)
+ >>>...
+
+'''
 
 from parse import parse
 from psyGen import PSyFactory
 
-api="gocean1.0"
-ast,invokeInfo=parse("shallow_alg.f90",api=api)
-psy=PSyFactory(api).create(invokeInfo)
+API = "gocean1.0"
+ast, invokeInfo = parse("shallow_alg.f90", api=API)
+psy = PSyFactory(API).create(invokeInfo)
+
+# Print the 'vanilla' generated Fortran
 print psy.gen
 
+# Print a list of all of the invokes found
 print psy.invokes.names
 
-schedule=psy.invokes.get('invoke_0').schedule
+# Print the Schedule of each of these Invokes
+schedule = psy.invokes.get('invoke_0').schedule
 schedule.view()
 
-schedule=psy.invokes.get('invoke_1').schedule
+schedule = psy.invokes.get('invoke_1').schedule
 schedule.view()
 
-schedule=psy.invokes.get('invoke_2').schedule
+schedule = psy.invokes.get('invoke_2').schedule
 schedule.view()
-
