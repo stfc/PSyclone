@@ -104,9 +104,21 @@ def generate(filename, api="", kernel_path="", script_name=None):
                         "generator: attempted to import '{0}' but script file "
                         "'{1}' is not valid python".
                         format(filename, script_name))
-                try:
-                    psy = transmod.trans(psy)
-                except AttributeError:
+                if callable(getattr(transmod, 'trans', None)):
+                    try:
+                        psy = transmod.trans(psy)
+                    except Exception:
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        lines = traceback.format_exception(exc_type, exc_value,
+                                                           exc_traceback)
+                        e_str = '{\n' +\
+                            ''.join('    ' + line for line in lines[2:]) + '}'
+                        raise GenerationError(
+                            "Generator: script file '{0}'\nraised the "
+                            "following exception during execution "
+                            "...\n{1}\nPlease check your script".format(
+                                script_name, e_str))
+                else:
                     raise GenerationError(
                         "generator: attempted to import '{0}' but script file "
                         "'{1}' does not contain a 'trans()' function".
@@ -152,7 +164,7 @@ if __name__ == "__main__":
         exit(0)
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
-        print "Error:", error
+        print "Error:", error.message
         exit(1)
     except Exception as error:
         print "Error, unexpected exception:\n"

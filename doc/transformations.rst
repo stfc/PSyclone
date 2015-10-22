@@ -138,7 +138,7 @@ layer code appropriately. By default this script will generate
     > python generator.py algspec.f90
     > python generator.py -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
 
-The generator.py script has an optional **-s** option which allows the
+The generator.py script has an optional **-s** flag which allows the
 user to specify a script file to modify the PSy layer as
 required. Script files may be specified without a path. For
 example:
