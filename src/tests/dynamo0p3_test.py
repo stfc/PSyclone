@@ -655,7 +655,8 @@ def test_bc_kernel():
     for the current implementation of dynamo. Future API's will not
     support any hacks. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                           "12.2_enforce_bc_kernel.f90"), api="dynamo0.3")
+                                        "12.2_enforce_bc_kernel.f90"),
+                           api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
@@ -852,6 +853,40 @@ def test_kernel_datatype_not_found():
         generate("test_files/dynamo0p3/testkern_no_datatype.F90",
                  api="dynamo0.3")
 
+SIMPLE = (
+    "  MODULE simple_mod\n"
+    "    IMPLICIT NONE\n"
+    "    CONTAINS\n"
+    "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
+    " map_w1)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER, intent(in) :: undf_w1\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    " field_1_w1\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+    "    END SUBROUTINE simple_code\n"
+    "  END MODULE simple_mod")
+
+
+def test_stub_generate_working():
+    ''' check that the stub generate produces the expected output '''
+    result = generate("test_files/dynamo0p3/simple.f90",
+                      api="dynamo0.3")
+    print result
+    assert str(result).find(SIMPLE) != -1
+
+
+def test_stub_generate_working_noapi():
+    ''' check that the stub generate produces the expected output when
+    we use the default api (which should be dynamo0.3)'''
+    result = generate("test_files/dynamo0p3/simple.f90")
+    print result
+    assert str(result).find(SIMPLE) != -1
+
+
 # fields : intent
 INTENT = '''
 module dummy_mod
@@ -880,12 +915,13 @@ def test_intent():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(nlayers, field_1_w1, field_2_w1, "
+        "    SUBROUTINE dummy_code(nlayers, field_1_w1, field_2_w1, "
         "field_3_w1, ndf_w1, undf_w1, map_w1)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w1\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
@@ -896,8 +932,8 @@ def test_intent():
         "field_3_w1\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -931,13 +967,14 @@ def test_spaces():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(nlayers, field_1_w0, field_2_w1, "
+        "    SUBROUTINE dummy_code(nlayers, field_1_w0, field_2_w1, "
         "field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, "
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w0\n"
         "      INTEGER, intent(in) :: undf_w1\n"
@@ -959,8 +996,8 @@ def test_spaces():
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -991,12 +1028,13 @@ def test_vectors():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(nlayers, field_1_w0_v1, "
+        "    SUBROUTINE dummy_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w0\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
@@ -1007,8 +1045,8 @@ def test_vectors():
         "field_1_w0_v3\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1043,14 +1081,15 @@ def test_operators():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, "
+        "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
         "op_5_ncell_3d, op_5, ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
         "ndf_any_space_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
@@ -1073,8 +1112,8 @@ def test_operators():
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in) :: ndf_any_space_1\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1105,7 +1144,7 @@ def test_operator_different_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
+        _ = kernel.gen_stub
 
 # basis function : spaces
 BASIS = '''
@@ -1142,14 +1181,15 @@ def test_basis():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
         "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
         "undf_w0, map_w0, basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, "
         "map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w0\n"
@@ -1181,8 +1221,8 @@ def test_basis():
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1215,7 +1255,7 @@ def test_basis_unsupported_space():
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
+        _ = kernel.gen_stub
 
 # diff basis function : spaces
 DIFF_BASIS = '''
@@ -1253,15 +1293,16 @@ def test_diff_basis():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
         "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
         "undf_w0, map_w0, diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, "
         "undf_w2, map_w2, diff_basis_w2, ndf_w3, diff_basis_w3, nqp_h, "
         "nqp_v, wh, wv)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w0\n"
@@ -1293,8 +1334,8 @@ def test_diff_basis():
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1319,7 +1360,7 @@ end module dummy_mod
 '''
 
 
-def test_diff_basis_unsupported_space():
+def test_diff_basis_unsupp_space():
     ''' test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*)'''
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
@@ -1327,82 +1368,66 @@ def test_diff_basis_unsupported_space():
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
+        _ = kernel.gen_stub
 
 # orientation : spaces
-ORIENTATION = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(4) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3)  &
-           /)
-     type(func_type), meta_funcs(4) =    &
-          (/ func_type(w0, gh_orientation), &
-             func_type(w1, gh_orientation), &
-             func_type(w2, gh_orientation), &
-             func_type(w3, gh_orientation) &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
+
+ORIENTATION_OUTPUT = (
+    "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
+    "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
+    "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
+    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
+    "nqp_v, wh, wv)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: cell\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER, intent(in) :: undf_w0\n"
+    "      INTEGER, intent(in) :: undf_w2\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+    "field_1_w0\n"
+    "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+    "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+    "op_2_ncell_3d) :: op_2\n"
+    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+    "field_3_w2\n"
+    "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+    "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+    "op_4_ncell_3d) :: op_4\n"
+    "      INTEGER, intent(in) :: ndf_w0\n"
+    "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+    "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
+    "      INTEGER, intent(in) :: ndf_w2\n"
+    "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+    "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
+    "      INTEGER, intent(in) :: ndf_w3\n"
+    "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
+    "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+    "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+    "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+    "    END SUBROUTINE dummy_orientation_code\n"
+    "  END MODULE dummy_orientation_mod")
 
 
-def test_orientation():
+def test_orientation_stubs():
     ''' Test that orientation is handled correctly for kernel
     stubs '''
-    ast = fpapi.parse(ORIENTATION, ignore_comments=False)
+    # Read-in the meta-data from file (it's in a file because it's also
+    # used when testing the genkernelstub script from the command
+    # line).
+    with open(os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
+              "r") as myfile:
+        orientation = myfile.read()
+
+    ast = fpapi.parse(orientation, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = (
-        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
-        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-        "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-        "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
-        "nqp_v, wh, wv)\n"
-        "      USE constants_mod, ONLY: r_def\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-        "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
-    print output
     print str(generated_code)
-    assert str(generated_code).find(output) != -1
+    assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
 
 
 def test_enforce_bc_kernel_stub_gen():
@@ -1415,12 +1440,13 @@ def test_enforce_bc_kernel_stub_gen():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE enforce_bc_code_mod\n"
+        "  MODULE enforce_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code_code(nlayers, field_1_any_space_1, "
+        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1, "
         "ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs)\n"
         "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_any_space_1\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_any_space_1)"
@@ -1430,11 +1456,93 @@ def test_enforce_bc_kernel_stub_gen():
         "map_any_space_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: "
         "boundary_dofs\n"
-        "    END SUBROUTINE enforce_bc_code_code\n"
-        "  END MODULE enforce_bc_code_mod")
+        "    END SUBROUTINE enforce_bc_code\n"
+        "  END MODULE enforce_bc_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
+# fields : intent
+
+SUB_NAME = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write,w1) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy
+  end type dummy_type
+contains
+  subroutine dummy()
+  end subroutine dummy
+end module dummy_mod
+'''
+
+
+def test_sub_name():
+    ''' test for expected behaviour when the kernel subroutine does
+    not conform to the convention of having "_code" at the end of its
+    name. In this case we append "_code to the name and _mod to the
+    kernel name.'''
+    ast = fpapi.parse(SUB_NAME, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = (
+        "  MODULE dummy_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code(nlayers, field_1_w1, "
+        "ndf_w1, undf_w1, map_w1)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w1\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
+        "field_1_w1\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+
+def test_kernel_stub_usage():
+    ''' Check that the kernel-stub generator prints a usage message
+    if no arguments are supplied '''
+    from subprocess import check_output, CalledProcessError, STDOUT
+
+    usage_msg = (
+        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename\n"
+        "genkernelstub.py: error: too few arguments")
+
+    try:
+        out = check_output(["python", "../genkernelstub.py"],
+                           stderr=STDOUT)
+    except CalledProcessError as err:
+        # Calling the script without arguments causes it to return
+        # an error as well as printing the usage info. Therefore
+        # we catch the error here and get at the message by
+        # querying the Error object
+        out = err.output
+
+    assert usage_msg in out
+
+
+def test_kernel_stub_gen_cmd_line():
+    ''' Check that we can call the kernel-stub generator from the
+    command line '''
+    from subprocess import check_output
+
+    out = check_output(["python", "../genkernelstub.py",
+                        os.path.join(BASE_PATH, "dummy_orientation_mod.f90")])
+
+    print "Output was: ", out
+    assert ORIENTATION_OUTPUT in out

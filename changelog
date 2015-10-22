@@ -21,6 +21,10 @@
         now declared. New dynamo/eg3 example added to demonstrate the use
         of transformation scripts introduced in update 2) (ticket #292).
 
+        7) #361 Minor updates to the kernel-stub generator. Remove spurious
+	dir() command, remove additional '_code' from kernel subroutine name
+	and add 'implicit none' to the generated subroutine.
+	
 release 1.0.2
 
 	1) #299 temporary boundary condition

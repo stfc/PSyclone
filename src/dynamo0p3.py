@@ -1346,11 +1346,23 @@ class DynKern(Kern):
     def gen_stub(self):
         ''' output a kernel stub '''
         from f2pygen import ModuleGen, SubroutineGen
+
+        # remove "_code" from the name if it exists to determine the
+        # base name which (if dynamo0.3 naming conventions are
+        # followed) is used as the root for the module and subroutine
+        # names.
+        if self.name.lower().endswith("_code"):
+            base_name = self.name[:-5]
+        else:
+            # TODO: add a warning here when logging is added
+            base_name = self.name
+
         # create an empty PSy layer module
-        psy_module = ModuleGen(self.name+"_mod")
+        psy_module = ModuleGen(base_name+"_mod")
 
         # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=self.name+"_code")
+        sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
+                                 implicitnone=True)
         # create the arglist and declarations
         arglist = self._create_arg_list(sub_stub, my_type="subroutine")
         # add the arglist

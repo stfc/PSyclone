@@ -3,6 +3,19 @@
 Stub Generation
 ===============
 
+Quick Start
+-----------
+
+1) Use an existing Kernel file or create a Kernel file containing a
+   Kernel module with the required metadata and an empty Kernel
+   subroutine with no arguments.
+2) Run the following command from the PSyclone src directory ::
+
+    > python ./genkernelstub.py my_file.f90
+
+Introduction
+------------
+
 PSyclone provides a kernel stub generator for the dynamo0.3 API. The
 kernel stub generator takes a kernel file as input and outputs the
 kernel subroutine arguments and declarations. The word "stub" is used
@@ -161,6 +174,7 @@ we get the following kernel stub output:
     CONTAINS
     SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1, map_w1)
       USE constants_mod, ONLY: r_def
+      IMPLICIT NONE
       INTEGER, intent(in) :: nlayers
       INTEGER, intent(in) :: undf_w1
       REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_1_w1
@@ -228,6 +242,7 @@ we obtain the following output:
     CONTAINS
     SUBROUTINE ru_code_code(nlayers, field_1_w2, field_2_w3, field_3_w0, field_4_w0_v1, field_4_w0_v2, field_4_w0_v3, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)
       USE constants_mod, ONLY: r_def
+      IMPLICIT NONE
       INTEGER, intent(in) :: nlayers
       INTEGER, intent(in) :: undf_w2
       INTEGER, intent(in) :: undf_w3

@@ -6,13 +6,18 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+'''A python script and python function to generate an empty kernel
+    subroutine with the required arguments and datatypes (which we
+    call a stub) when presented with Kernel Metadata.
+'''
+
 import argparse
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKern, DynKernMetadata
 from psyGen import GenerationError
 from parse import ParseError
-from config import SUPPORTEDSTUBAPIS
+from config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
 import os
 import sys
 import traceback
@@ -20,8 +25,14 @@ import traceback
 
 def generate(filename, api=""):
 
+    '''Generates an empty kernel subroutine with the required arguments
+       and datatypes (which we call a stub) when presented with Kernel
+       Metadata. This is useful for Kernel developers to make sure
+       they are using the correct arguments in the correct order.  The
+       Kernel Metadata must be presented in the standard Kernel
+       format.
+    '''
     if api == "":
-        from config import DEFAULTSTUBAPI
         api = DEFAULTSTUBAPI
     if api not in SUPPORTEDSTUBAPIS:
         print "Unsupported API '{0}' specified. Supported API's are {1}.".\
@@ -48,34 +59,31 @@ def generate(filename, api=""):
 
 if __name__ == "__main__":
 
-    from config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
-    parser = argparse.ArgumentParser(description="Create Kernel stub code from"
+    PARSER = argparse.ArgumentParser(description="Create Kernel stub code from"
                                                  " Kernel metadata")
-    parser.add_argument("-o", "--outfile", help="filename of output")
-    parser.add_argument("-api", default=DEFAULTSTUBAPI,
+    PARSER.add_argument("-o", "--outfile", help="filename of output")
+    PARSER.add_argument("-api", default=DEFAULTSTUBAPI,
                         help="choose a particular api from {0}, default {1}".
                              format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
-    parser.add_argument('filename', help='Kernel metadata')
-    args = parser.parse_args()
+    PARSER.add_argument('filename', help='Kernel metadata')
+    ARGS = PARSER.parse_args()
 
     try:
-        stub = generate(args.filename, api=args.api)
-    except (IOError, ParseError, GenerationError, RuntimeError) as e:
-        print "Error:", e
+        STUB = generate(ARGS.filename, api=ARGS.api)
+    except (IOError, ParseError, GenerationError, RuntimeError) as error:
+        print "Error:", error
         exit(1)
-    except Exception as e:
+    except Exception as error:
         print "Error, unexpected exception:\n"
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print exc_type
-        print exc_value
-        traceback.print_tb(exc_traceback)
+        EXC_TYPE, EXC_VALUE, EXC_TRACEBACK = sys.exc_info()
+        print EXC_TYPE
+        print EXC_VALUE
+        traceback.print_tb(EXC_TRACEBACK)
         exit(1)
 
-    print dir(args)
-
-    if args.outfile is not None:
-        file = open(args.outfile, "w")
-        file.write(str(stub))
-        file.close()
+    if ARGS.outfile is not None:
+        MY_FILE = open(ARGS.outfile, "w")
+        MY_FILE.write(str(STUB))
+        MY_FILE.close()
     else:
-        print "Kernel stub code:\n", stub
+        print "Kernel stub code:\n", STUB
