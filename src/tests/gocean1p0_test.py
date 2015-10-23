@@ -8,7 +8,9 @@
 
 from parse import parse
 from psyGen import PSyFactory
+import pytest
 import os
+from generator import GenerationError, ParseError
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -775,3 +777,97 @@ def test_goschedule_view(capsys):
             Call time_smooth_code(u_fld,unew_fld,uold_fld)"""
 
     assert expected_output in out
+
+
+def test_goschedule_str(capsys):
+    ''' Test that the GOSchedule::__str__ method works as expected '''
+    from transformations import GOConstLoopBoundsTrans
+    ast, invokeInfo = parse(os.path.join(os.path.
+                                         dirname(os.path.
+                                                 abspath(__file__)),
+                                         "test_files", "gocean1p0",
+                                         "single_invoke_two_kernels.f90"),
+                            api=API)
+    psy = PSyFactory(API).create(invokeInfo)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    expected_sched = '''GOSchedule(Constant loop bounds=True):
+Loop[]: j= lower=2,jstop,1
+Loop[]: i= lower=2,istop+1,1
+kern call: compute_cu_code
+EndLoop
+EndLoop
+Loop[]: j= lower=1,jstop+1,1
+Loop[]: i= lower=1,istop+1,1
+kern call: time_smooth_code
+EndLoop
+EndLoop
+End Schedule
+'''
+    sched_str = str(schedule)
+    print sched_str
+    assert sched_str in expected_sched
+
+    cbtrans = GOConstLoopBoundsTrans()
+    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
+    sched_str = str(newsched)
+
+    expected_sched = '''GOSchedule(Constant loop bounds=False):
+Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1
+Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1
+kern call: compute_cu_code
+EndLoop
+EndLoop
+Loop[]: j= lower=1,SIZE(uold_fld%data, 2),1
+Loop[]: i= lower=1,SIZE(uold_fld%data, 1),1
+kern call: time_smooth_code
+EndLoop
+EndLoop
+End Schedule
+'''
+    print sched_str
+    assert sched_str in expected_sched
+
+
+def test00p3_kenel_invalid_meta_arg_type():
+    ''' Check that the parser catches the case where the type of
+    one of the meta-args in the kernel meta-data is incorrect '''
+    test_file = "test00.3_invoke_kernel_invalid_meta_arg_type.f90"
+    with pytest.raises(ParseError):
+        ast, invokeInfo = parse(os.path.
+                                join(os.path.
+                                     dirname(os.path.
+                                             abspath(__file__)),
+                                     "test_files", "gocean1p0",
+                                     test_file),
+                                api=API)
+
+
+def test01_kernels_different_grid_offsets_one_invoke():
+    ''' Check that the parser raises an error if two kernels in a
+        single invoke specify different index offsets '''
+    test_file = "test01_different_grid_offsets_one_invoke.f90"
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
+                                         abspath(__file__)),
+                                 "test_files", "gocean1p0",
+                                 test_file),
+                            api=API)
+    with pytest.raises(GenerationError):
+        psy = PSyFactory(API).create(invokeInfo)
+
+
+def test02_kernels_different_grid_offsets_two_invokes():
+    ''' Check that the parser raises an error if the two kernels
+        in different invokes specify different index offsets. '''
+    test_file = "test02_different_grid_offsets_two_invokes.f90"
+    ast, invokeInfo = parse(os.path.
+                            join(os.path.
+                                 dirname(os.path.
+                                         abspath(__file__)),
+                                 "test_files", "gocean1p0",
+                                 test_file),
+                            api=API)
+    with pytest.raises(GenerationError):
+        psy = PSyFactory(API).create(invokeInfo)

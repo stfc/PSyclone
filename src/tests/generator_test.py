@@ -281,25 +281,3 @@ def test_script_trans():
     delete_module("loop_fuse_trans")
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
-
-# gocean1.0 API-specific tests
-
-
-def test01_kernels_different_grid_offsets_one_invoke():
-    ''' Check that the parser raises an error if two kernels in a
-        single invoke specify different index offsets '''
-    with pytest.raises(GenerationError):
-        generate(os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "test_files", "gocean1p0",
-            "test01_different_grid_offsets_one_invoke.f90"),
-            api="gocean1.0")
-
-
-def test02_kernels_different_grid_offsets_two_invokes():
-    ''' Check that the parser raises an error if the two kernels
-        in different invokes specify different index offsets. '''
-    with pytest.raises(GenerationError):
-        generate(os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "test_files", "gocean1p0",
-            "test02_different_grid_offsets_two_invokes.f90"),
-            api="gocean1.0")
