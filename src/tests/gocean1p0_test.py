@@ -893,3 +893,25 @@ def test02_diff_kern_grid_offsets_two_invokes():
                            api=API)
     with pytest.raises(GenerationError):
         _ = PSyFactory(API).create(invoke_info)
+
+
+def test_goloop_no_parent():
+    from gocean1p0 import GOLoop
+    goloop = GOLoop(loop_type="inner")
+    # Try and generate the code for this loop even though it
+    # has no parent schedule and no children
+    with pytest.raises(GenerationError):
+        goloop.gen_code(None)
+
+
+def test_goloop_no_children():
+    from gocean1p0 import GOLoop, GOSchedule
+    gosched = GOSchedule([])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    goiloop = GOLoop(parent=gosched, loop_type="inner")
+    gosched.addchild(gojloop)
+    gojloop.addchild(goiloop)
+    # Try and generate the code for this loop even though it
+    # has no parent schedule and no children
+    with pytest.raises(GenerationError):
+        goiloop.gen_code(None)
