@@ -443,8 +443,115 @@ class GOLoop(Loop):
                                         { 'inner':{'start':"1", 'stop':"+1"},
                                           'outer':{'start':"1", 'stop':"+1"} }
 
-    def gen_code(self, parent):
+    def _upper_bound(self):
+        ''' Returns the upper bound of this loop as a string '''
+        schedule = self.ancestor(GOSchedule)
+        if schedule.const_loop_bounds:
+            index_offset = ""
+            # Look for a child kernel in order to get the index offset.
+            # Since this is the __str__ method we have no guarantee
+            # what state we expect our object to be in so we allow
+            # for the case where we don't have any child kernels.
+            go_kernels = self.walk(self.children, GOKern)
+            if go_kernels:
+                index_offset = go_kernels[0].index_offset
 
+            if self._loop_type == "inner":
+                stop = schedule.iloop_stop
+            else:
+                stop = schedule.jloop_stop
+
+            if index_offset:
+                stop += self._bounds_lookup[index_offset][self.field_space]\
+                        [self._iteration_space][self._loop_type]["stop"]
+            else:
+                stop = "not yet set"
+        else:
+            if self.field_space == "every":
+                # Bounds are independent of the grid-offset convention in use
+
+                # We look-up the upper bounds by enquiring about the SIZE of
+                # the array itself
+                if self._loop_type == "inner":
+                    stop = "SIZE("+self.field_name+"%data, 1)"
+                elif self._loop_type == "outer":
+                    stop = "SIZE("+self.field_name+"%data, 2)"
+
+            else:
+                # loop bounds are pulled from the field object which
+                # is more straightforward for us but provides the
+                # Fortran compiler with less information.
+                stop = self.field_name
+
+                if self._iteration_space.lower() == "internal_pts":
+                    stop += "%internal"
+                elif self._iteration_space.lower() == "all_pts":
+                    stop += "%whole"
+                else:
+                    raise GenerationError("Unrecognised iteration space, {0}. "
+                                          "Cannot generate loop bounds.".\
+                                          format(self._iteration_space))
+                if self._loop_type == "inner":
+                    stop += "%xstop"
+                elif self._loop_type == "outer":
+                    stop += "%ystop"
+        return stop
+
+    def _lower_bound(self):
+        schedule = self.ancestor(GOSchedule)
+        if schedule.const_loop_bounds:
+            index_offset = ""
+            # Look for a child kernel in order to get the index offset.
+            # Since this is the __str__ method we have no guarantee
+            # what state we expect our object to be in so we allow
+            # for the case where we don't have any child kernels.
+            go_kernels = self.walk(self.children, GOKern)
+            if go_kernels:
+                index_offset = go_kernels[0].index_offset
+
+            if index_offset:
+                start = self._bounds_lookup[index_offset][self.field_space]\
+                        [self._iteration_space][self._loop_type]["start"]
+            else:
+                start = "not yet set"
+        else:
+            if self.field_space == "every":
+                # Bounds are independent of the grid-offset convention in use
+                start = "1"
+            else:
+                # loop bounds are pulled from the field object which
+                # is more straightforward for us but provides the
+                # Fortran compiler with less information.
+                start = self.field_name
+                if self._iteration_space.lower() == "internal_pts":
+                    start += "%internal"
+                elif self._iteration_space.lower() == "all_pts":
+                    start += "%whole"
+                else:
+                    raise GenerationError("Unrecognised iteration space, {0}. "
+                                          "Cannot generate loop bounds.".\
+                                          format(self._iteration_space))
+                if self._loop_type == "inner":
+                    start += "%xstart"
+                elif self._loop_type == "outer":
+                    start += "%ystart"
+        return start
+
+    def __str__(self):
+        step = self._step
+        if not step:
+            step = "1"
+
+        result = "Loop["+self._id+"]: "+self._variable_name+"="+self._id+ \
+                 " lower="+self._lower_bound()+","+self._upper_bound()+\
+                          ","+step+"\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "EndLoop"
+        return result
+
+    def gen_code(self, parent):
+        ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing Schedule
         schedule = self.ancestor(GOSchedule)
@@ -459,10 +566,11 @@ class GOLoop(Loop):
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
-        if index_offset not in SUPPORTED_OFFSETS:
+        if schedule.const_loop_bounds and \
+           index_offset not in SUPPORTED_OFFSETS:
             raise GenerationError("Constant bounds generation"
                                   " not implemented for a grid offset "
-                                  "of {0}. Supported offsets are {1}".\
+                                  "of {0}. Supported offsets are {1}".
                                   format(index_offset,
                                          SUPPORTED_OFFSETS))
         # Check that all kernels enclosed by this loop expect the same
@@ -471,60 +579,13 @@ class GOLoop(Loop):
             if kernel.index_offset != index_offset:
                 raise GenerationError("All Kernels must expect the same "
                                       "grid offset but kernel {0} has offset "
-                                      "{1} which does not match {2}".\
+                                      "{1} which does not match {2}".
                                       format(kernel.name,
                                              kernel.index_offset,
                                              index_offset))
-
-        if schedule.const_loop_bounds:
-            # We're expressing all loop bounds in terms of constant
-            # expressions
-            self._start = self._bounds_lookup[index_offset][self.field_space]\
-                          [self._iteration_space][self._loop_type]["start"]
-
-            if self._loop_type == "inner":
-                self._stop = schedule.iloop_stop
-            else:
-                self._stop = schedule.jloop_stop
-
-            self._stop += self._bounds_lookup[index_offset][self.field_space]\
-                          [self._iteration_space][self._loop_type]["stop"]
-        else:
-            if self.field_space == "every":
-                # Bounds are independent of the grid-offset convention in use
-
-                self._start = "1"
-                # We look-up the upper bounds by enquiring about the SIZE of
-                # the array itself
-                if self._loop_type == "inner":
-                    self._stop = "SIZE("+self.field_name+"%data, 1)"
-                elif self._loop_type == "outer":
-                    self._stop = "SIZE("+self.field_name+"%data, 2)"
-
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                self._start = self.field_name
-                self._stop = self.field_name
-
-                if self._iteration_space.lower() == "internal_pts":
-                    self._start += "%internal"
-                    self._stop += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
-                    self._start += "%whole"
-                    self._stop += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".\
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    self._start += "%xstart"
-                    self._stop += "%xstop"
-                elif self._loop_type == "outer":
-                    self._start += "%ystart"
-                    self._stop += "%ystop"
-
+        # Generate the upper and lower loop bounds
+        self._start = self._lower_bound()
+        self._stop = self._upper_bound()
         Loop.gen_code(self, parent)
 
 
@@ -547,6 +608,9 @@ class GOKern(Kern):
     def __init__(self):
         if False:
             self._arguments = GOKernelArguments(None, None) # for pyreverse
+        # Create those member variables required for testing
+        self._children = []
+        self._name = ""
 
     def load(self, call, parent=None):
         Kern.__init__(self, GOKernelArguments, call, parent, check=False)

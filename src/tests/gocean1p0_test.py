@@ -896,6 +896,8 @@ def test02_diff_kern_grid_offsets_two_invokes():
 
 
 def test_goloop_no_parent():
+    ''' Attempt to generate code for a loop that has no GOSchedule
+    as a parent '''
     from gocean1p0 import GOLoop
     goloop = GOLoop(loop_type="inner")
     # Try and generate the code for this loop even though it
@@ -905,6 +907,8 @@ def test_goloop_no_parent():
 
 
 def test_goloop_no_children():
+    ''' Attempt to generate code for a loop that has no child
+    kernel calls '''
     from gocean1p0 import GOLoop, GOSchedule
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
@@ -912,6 +916,45 @@ def test_goloop_no_children():
     gosched.addchild(gojloop)
     gojloop.addchild(goiloop)
     # Try and generate the code for this loop even though it
-    # has no parent schedule and no children
+    # has no children
+    with pytest.raises(GenerationError):
+        goiloop.gen_code(None)
+
+
+def test_goloop_unsupp_offset():
+    ''' Attempt to generate code for a loop with constant bounds with
+    an unsupported index offset '''
+    from gocean1p0 import GOLoop, GOSchedule, GOKern
+    gosched = GOSchedule([])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    goiloop = GOLoop(parent=gosched, loop_type="inner")
+    gosched.addchild(gojloop)
+    gojloop.addchild(goiloop)
+    gokern = GOKern()
+    # Set the index-offset of this kernel to a value that is not
+    # supported when using constant loop bounds
+    gokern._index_offset = "offset_se"
+    goiloop.addchild(gokern)
+    with pytest.raises(GenerationError):
+        goiloop.gen_code(None)
+
+
+def test_goloop_unmatched_offsets():
+    ''' Attempt to generate code for a loop with constant bounds with
+    two different index offsets '''
+    from gocean1p0 import GOLoop, GOSchedule, GOKern
+    gosched = GOSchedule([])
+    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    goiloop = GOLoop(parent=gosched, loop_type="inner")
+    gosched.addchild(gojloop)
+    gojloop.addchild(goiloop)
+    gokern1 = GOKern()
+    gokern2 = GOKern()
+    # Set the index-offset of this kernel to a value that is not
+    # supported when using constant loop bounds
+    gokern1._index_offset = "offset_ne"
+    gokern2._index_offset = "offset_sw"
+    goiloop.addchild(gokern1)
+    goiloop.addchild(gokern2)
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
