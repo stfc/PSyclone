@@ -6,26 +6,27 @@
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
+'''Tests for PSy-layer code generation that are specific to the
+GOcean 1.0 API.'''
+
 from parse import parse
 from psyGen import PSyFactory
 import pytest
 import os
 from generator import GenerationError, ParseError
 
-'''Tests for PSy-layer code generation that are specific to the
-GOcean 1.0 API.'''
-
 API = "gocean1.0"
+
 
 def test_field():
     ''' Tests that a kernel call with only fields produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -58,13 +59,13 @@ def test_field():
 def test_two_kernels():
     ''' Tests that an invoke containing two kernel calls with only
     fields as arguments produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke_two_kernels.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_two_kernels.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = psy.gen
 
     expected_output = """  MODULE psy_single_invoke_two_kernels
@@ -105,13 +106,13 @@ uold_fld%data)
 def test_grid_property():
     ''' Tests that an invoke containing a kernel call requiring
     a property of the grid produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke_grid_props.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_grid_props.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_with_grid_props_test
@@ -145,13 +146,13 @@ u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
 def test_scalar_int_arg():
     ''' Tests that an invoke containing a kernel call requiring
     an integer, scalar argument produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke_scalar_int_arg.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_int_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_scalar_int_test
@@ -185,13 +186,13 @@ def test_scalar_int_arg():
 def test_scalar_float_arg():
     ''' Tests that an invoke containing a kernel call requiring
     a real, scalar argument produces correct code '''
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke_scalar_float_arg.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_scalar_float_arg.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_scalar_float_test
@@ -225,14 +226,14 @@ def test_scalar_float_arg():
 def test_ne_offset_cf_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CF points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test14_ne_offset_cf_updated_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test14_ne_offset_cf_updated_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -266,14 +267,14 @@ u_fld%data, v_fld%data)
 def test_ne_offset_ct_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CT points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test15_ne_offset_ct_updated_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test15_ne_offset_ct_updated_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -306,14 +307,14 @@ def test_ne_offset_ct_points():
 def test_ne_offset_all_cu_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CU points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test16_ne_offset_cu_updated_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test16_ne_offset_cu_updated_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -346,14 +347,14 @@ def test_ne_offset_all_cu_points():
 def test_ne_offset_all_cv_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CV points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test17_ne_offset_cv_updated_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test17_ne_offset_cv_updated_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -386,14 +387,14 @@ def test_ne_offset_all_cv_points():
 def test_ne_offset_all_cf_points():
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CF points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test18_ne_offset_cf_updated_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test18_ne_offset_cf_updated_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -426,15 +427,15 @@ def test_ne_offset_all_cf_points():
 def test_sw_offset_cf_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CF points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test19.1_sw_offset_cf_updated" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test19.1_sw_offset_cf_updated" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -467,15 +468,15 @@ ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)
 def test_sw_offset_all_cf_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CF points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test19.2_sw_offset_all_cf_updated" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test19.2_sw_offset_all_cf_updated" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -509,14 +510,14 @@ ufld%data, vfld%data)
 def test_sw_offset_ct_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CT points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test20_sw_offset_ct_updated_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test20_sw_offset_ct_updated_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -549,15 +550,15 @@ def test_sw_offset_ct_points():
 def test_sw_offset_all_ct_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CT points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test21_sw_offset_all_ct_updated" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test21_sw_offset_all_ct_updated" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -591,15 +592,15 @@ ufld%data, vfld%data)
 def test_sw_offset_all_cu_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CU points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test22_sw_offset_all_cu_updated" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test22_sw_offset_all_cu_updated" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -632,15 +633,15 @@ def test_sw_offset_all_cu_points():
 def test_sw_offset_all_cv_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CV points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test23_sw_offset_all_cv_updated" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test23_sw_offset_all_cv_updated" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -673,15 +674,15 @@ def test_sw_offset_all_cv_points():
 def test_offset_any_all_cu_points():
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all cu points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test25_any_offset_all_cu_update" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test25_any_offset_all_cu_update" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -714,15 +715,15 @@ def test_offset_any_all_cu_points():
 def test_offset_any_all_points():
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all points '''
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 "test24_any_offset_all_update" +
-                                 "_one_invoke.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "test24_any_offset_all_update" +
+                                "_one_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
     expected_output = """  MODULE psy_single_invoke_test
@@ -754,19 +755,19 @@ def test_offset_any_all_points():
 
 def test_goschedule_view(capsys):
     ''' Test that the GOSchedule::view() method works as expected '''
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke_two_kernels.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_two_kernels.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     invoke.schedule.view()
 
     # The view method writes to stdout and this is captured by py.test
     # by default. We have to query this captured output.
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
 
     expected_output = """GOSchedule[invoke='invoke_0',Constant loop bounds=True]
     Loop[type='outer',field_space='cu',it_space='internal_pts']
@@ -779,16 +780,15 @@ def test_goschedule_view(capsys):
     assert expected_output in out
 
 
-def test_goschedule_str(capsys):
+def test_goschedule_str():
     ''' Test that the GOSchedule::__str__ method works as expected '''
-    from transformations import GOConstLoopBoundsTrans
-    ast, invokeInfo = parse(os.path.join(os.path.
-                                         dirname(os.path.
-                                                 abspath(__file__)),
-                                         "test_files", "gocean1p0",
-                                         "single_invoke_two_kernels.f90"),
-                            api=API)
-    psy = PSyFactory(API).create(invokeInfo)
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_two_kernels.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     expected_sched = '''GOSchedule(Constant loop bounds=True):
@@ -808,9 +808,9 @@ End Schedule
     print sched_str
     assert sched_str in expected_sched
 
-    cbtrans = GOConstLoopBoundsTrans()
-    newsched, _ = cbtrans.apply(schedule, const_bounds=False)
-    sched_str = str(newsched)
+    # Switch-off constant loop bounds
+    schedule.const_loop_bounds = False
+    sched_str = str(schedule)
 
     expected_sched = '''GOSchedule(Constant loop bounds=False):
 Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1
@@ -829,45 +829,67 @@ End Schedule
     assert sched_str in expected_sched
 
 
-def test00p3_kenel_invalid_meta_arg_type():
+def test_gosched_ijstop():
+    ''' Test that the GOSchedule.{i,j}loop_stop rais an error if
+    constant loop bounds are not being used '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_two_kernels.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # Turn off constant loop bounds
+    schedule.const_loop_bounds = False
+    # Attempt to query the upper bound of the i loop
+    with pytest.raises(GenerationError):
+        _ = schedule.iloop_stop
+    # Attempt to query the upper bound of the j loop
+    with pytest.raises(GenerationError):
+        _ = schedule.jloop_stop
+
+
+def test00p3_kern_invalid_meta_arg_type():
     ''' Check that the parser catches the case where the type of
     one of the meta-args in the kernel meta-data is incorrect '''
     test_file = "test00.3_invoke_kernel_invalid_meta_arg_type.f90"
     with pytest.raises(ParseError):
-        ast, invokeInfo = parse(os.path.
-                                join(os.path.
-                                     dirname(os.path.
-                                             abspath(__file__)),
-                                     "test_files", "gocean1p0",
-                                     test_file),
-                                api=API)
+        _, _ = parse(os.path.
+                     join(os.path.
+                          dirname(os.path.
+                                  abspath(__file__)),
+                          "test_files", "gocean1p0",
+                          test_file),
+                     api=API)
 
 
-def test01_kernels_different_grid_offsets_one_invoke():
+def test01_diff_kern_grid_offsets_one_invoke():
     ''' Check that the parser raises an error if two kernels in a
         single invoke specify different index offsets '''
     test_file = "test01_different_grid_offsets_one_invoke.f90"
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 test_file),
-                            api=API)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                test_file),
+                           api=API)
     with pytest.raises(GenerationError):
-        psy = PSyFactory(API).create(invokeInfo)
+        _ = PSyFactory(API).create(invoke_info)
 
 
-def test02_kernels_different_grid_offsets_two_invokes():
+def test02_diff_kern_grid_offsets_two_invokes():
     ''' Check that the parser raises an error if the two kernels
         in different invokes specify different index offsets. '''
     test_file = "test02_different_grid_offsets_two_invokes.f90"
-    ast, invokeInfo = parse(os.path.
-                            join(os.path.
-                                 dirname(os.path.
-                                         abspath(__file__)),
-                                 "test_files", "gocean1p0",
-                                 test_file),
-                            api=API)
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                test_file),
+                           api=API)
     with pytest.raises(GenerationError):
-        psy = PSyFactory(API).create(invokeInfo)
+        _ = PSyFactory(API).create(invoke_info)
