@@ -14,7 +14,6 @@ from psyGen import PSyFactory
 from transformations import TransformationError,\
                             GOConstLoopBoundsTrans,\
                             LoopFuseTrans, OMPParallelTrans,\
-                            GOceanLoopFuseTrans,\
                             GOceanOMPParallelLoopTrans,\
                             GOceanOMPLoopTrans
 from generator import GenerationError
@@ -47,8 +46,8 @@ def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
     not a Schedule '''
-    psy, invoke = get_invoke("test11_different_iterates_over_"
-                             "one_invoke.f90", 0)
+    _, invoke = get_invoke("test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
     schedule = invoke.schedule
     cbtrans = GOConstLoopBoundsTrans()
 
@@ -148,26 +147,31 @@ def test_omp_parallel_loop():
     invoke.schedule = omp_sched
     gen = str(psy.gen)
     gen = gen.lower()
-    expected = """!$omp parallel do default(shared), private(j,i), schedule(static)
-      do j=2,jstop
-        do i=2,istop+1
-          call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        end do 
-      end do 
-      !$omp end parallel do"""
+    expected = ("!$omp parallel do default(shared), private(j,i), "
+                "schedule(static)\n"
+                "      do j=2,jstop\n"
+                "        do i=2,istop+1\n"
+                "          call compute_cu_code(i, j, cu_fld%data, "
+                "p_fld%data, u_fld%data)\n"
+                "        end do \n"
+                "      end do \n"
+                "      !$omp end parallel do")
     assert expected in gen
 
     newsched, _ = cbtrans.apply(omp_sched, const_bounds=False)
-    invoke.schedule = omp_sched
+    invoke.schedule = newsched
     gen = str(psy.gen)
     gen = gen.lower()
-    expected = """!$omp parallel do default(shared), private(j,i), schedule(static)
-      do j=cu_fld%internal%ystart,cu_fld%internal%ystop
-        do i=cu_fld%internal%xstart,cu_fld%internal%xstop
-          call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        end do 
-      end do 
-      !$omp end parallel do"""
+    expected = (
+        "      !$omp parallel do default(shared), private(j,i), "
+        "schedule(static)\n"
+        "      do j=cu_fld%internal%ystart,cu_fld%internal%ystop\n"
+        "        do i=cu_fld%internal%xstart,cu_fld%internal%xstop\n"
+        "          call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        end do \n"
+        "      end do \n"
+        "      !$omp end parallel do")
     assert expected in gen
 
 
