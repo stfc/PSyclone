@@ -36,21 +36,21 @@ from parse import parse
 from psyGen import PSyFactory
 
 API = "gocean1.0"
-ast, invokeInfo = parse("shallow_alg.f90", api=API)
-psy = PSyFactory(API).create(invokeInfo)
+_, INVOKEINFO = parse("shallow_alg.f90", api=API)
+PSY = PSyFactory(API).create(INVOKEINFO)
 
 # Print the 'vanilla' generated Fortran
-print psy.gen
+print PSY.gen
 
 # Print a list of all of the invokes found
-print psy.invokes.names
+print PSY.invokes.names
 
 # Print the Schedule of each of these Invokes
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+SCHEDULE = PSY.invokes.get('invoke_0').schedule
+SCHEDULE.view()
 
-schedule = psy.invokes.get('invoke_1').schedule
-schedule.view()
+SCHEDULE = PSY.invokes.get('invoke_1').schedule
+SCHEDULE.view()
 
-schedule = psy.invokes.get('invoke_2').schedule
-schedule.view()
+SCHEDULE = PSY.invokes.get('invoke_2').schedule
+SCHEDULE.view()

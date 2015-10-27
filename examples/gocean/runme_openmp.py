@@ -44,40 +44,40 @@ from parse import parse
 from psyGen import PSyFactory, TransInfo
 
 API = "gocean1.0"
-ast, invokeInfo = parse("shallow_alg.f90", api=API)
-psy = PSyFactory(API).create(invokeInfo)
-print psy.gen
+_, INVOKEINFO = parse("shallow_alg.f90", api=API)
+PSY = PSyFactory(API).create(INVOKEINFO)
+print PSY.gen
 
-print psy.invokes.names
-schedule = psy.invokes.get('invoke_0').schedule
-schedule.view()
+print PSY.invokes.names
+SCHEDULE = PSY.invokes.get('invoke_0').schedule
+SCHEDULE.view()
 
-t = TransInfo()
-print t.list
-lf = t.get_trans_name('LoopFuse')
-ol = t.get_trans_name('GOceanOMPParallelLoopTrans')
+TRANS_INFO = TransInfo()
+print TRANS_INFO.list
+FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
+OMP_TRANS = TRANS_INFO.get_trans_name('GOceanOMPParallelLoopTrans')
 
 # invoke0
 # fuse all outer loops
-lf1_schedule, _ = lf.apply(schedule.children[0],
-                           schedule.children[1])
-lf2_schedule, _ = lf.apply(lf1_schedule.children[0],
-                           lf1_schedule.children[1])
-lf3_schedule, _ = lf.apply(lf2_schedule.children[0],
-                           lf2_schedule.children[1])
-lf3_schedule.view()
+LF1_SCHEDULE, _ = FUSE_TRANS.apply(SCHEDULE.children[0],
+                                   SCHEDULE.children[1])
+LF2_SCHEDULE, _ = FUSE_TRANS.apply(LF1_SCHEDULE.children[0],
+                                   LF1_SCHEDULE.children[1])
+LF3_SCHEDULE, _ = FUSE_TRANS.apply(LF2_SCHEDULE.children[0],
+                                   LF2_SCHEDULE.children[1])
+LF3_SCHEDULE.view()
 
 # fuse all inner loops
-lf4_schedule, _ = lf.apply(lf3_schedule.children[0].children[0],
-                           lf3_schedule.children[0].children[1])
-lf5_schedule, _ = lf.apply(lf4_schedule.children[0].children[0],
-                           lf4_schedule.children[0].children[1])
-lf6_schedule, _ = lf.apply(lf5_schedule.children[0].children[0],
-                           lf5_schedule.children[0].children[1])
-lf6_schedule.view()
+LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].children[0],
+                                   LF3_SCHEDULE.children[0].children[1])
+LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].children[0],
+                                   LF4_SCHEDULE.children[0].children[1])
+LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].children[0],
+                                   LF5_SCHEDULE.children[0].children[1])
+LF6_SCHEDULE.view()
 
-ol_schedule, _ = ol.apply(lf6_schedule.children[0])
-ol_schedule.view()
+OL_SCHEDULE, _ = OMP_TRANS.apply(LF6_SCHEDULE.children[0])
+OL_SCHEDULE.view()
 
-psy.invokes.get('invoke_0').schedule = ol_schedule
-print psy.gen
+PSY.invokes.get('invoke_0').schedule = OL_SCHEDULE
+print PSY.gen
