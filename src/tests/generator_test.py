@@ -188,16 +188,46 @@ def test_script_invalid_content():
                             "test_files", "dynamo0p3", "error.py"))
 
 
-def test_script_no_trans():
+def test_script_invalid_content_runtime():
     ''' checks that generator.py raises an appropriate error when a
-        script file does not contain a trans() function '''
+        script file contains valid python syntactically but produces a
+        runtime exception. '''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
                                      "1_single_invoke.f90"),
                         api="dynamo0.3",
+                        script_name=os.path.join(
+                            "test_files", "dynamo0p3", "runtime_error.py"))
+
+
+def test_script_no_trans():
+    ''' checks that generator.py raises an appropriate error when a
+        script file does not contain a trans() function '''
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
                         script_name=os.path.join("test_files", "dynamo0p3",
                                                  "no_trans.py"))
+    assert 'attempted to import' in str(excinfo.value)
+
+
+def test_script_attr_error():
+    ''' checks that generator.py raises an appropriate error when a
+        script file contains a trans() function which raises an
+        attribute error. This is what we previously used to check for
+        a script file not containing a trans() function.'''
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join(root_path, "test_files",
+                                                 "dynamo0p3",
+                                                 "error_trans.py"))
+    assert 'object has no attribute' in str(excinfo.value)
 
 
 def test_script_null_trans():
