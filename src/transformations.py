@@ -565,6 +565,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
         return OMPLoopTrans.apply(self, node)
 
+
 class ColourTrans(Transformation):
 
     ''' Apply a colouring transformation to a loop (in order to permit a
@@ -894,3 +895,53 @@ class OMPParallelTrans(Transformation):
                              index=node_position)
 
         return schedule, keep
+
+
+class GOConstLoopBoundsTrans(Transformation):
+    ''' Switch on (or off) the use of constant loop bounds within
+    a GOSchedule, e.g.:
+
+    >>> from parse import parse
+    >>> from psyGen import PSyFactory
+    >>> import os
+    >>> TEST_API = "gocean1.0"
+    >>> _,info = parse(os.path.join("tests", "test_files", "gocean1p0",
+    >>>                             "single_invoke.f90"),
+    >>>                api=TEST_API)
+    >>> psy = PSyFactory(TEST_API).create(info)
+    >>> invoke = psy.invokes.get('invoke_0_compute_cu')
+    >>> schedule = invoke.schedule
+    >>>
+    >>> from transformations import GOConstLoopBoundsTrans
+    >>> clbtrans = GOConstLoopBoundsTrans()
+    >>>
+    >>> newsched, _ = clbtrans.apply(schedule)
+    >>> # or, to turn off const. looop bounds:
+    >>> # newsched, _ = clbtrans.apply(schedule, const_bounds=False)
+    >>>
+    >>> newsched.view()
+
+    '''
+
+    def __str__(self):
+        return "Use constant loop bounds for all loops in a GOSchedule"
+
+    @property
+    def name(self):
+        ''' Return the name of the Transformation as a string '''
+        return "GOConstLoopBoundsTrans"
+
+    def apply(self, node, const_bounds=True):
+
+        # Check node is a Schedule
+        from gocean1p0 import GOSchedule
+        if not isinstance(node, GOSchedule):
+            raise TransformationError("Error in GOConstLoopBoundsTrans: "
+                                      "node is not a GOSchedule")
+
+        from undoredo import Memento
+        keep = Memento(node, self)
+
+        node.const_loop_bounds = const_bounds
+
+        return node, keep

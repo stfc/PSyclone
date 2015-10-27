@@ -73,6 +73,7 @@ class PSyFactory(object):
                                   "api type '{0}' found. Should not be "
                                   "possible.".format(self._type))
 
+
 class PSy(object):
     '''
         Base class to help manage and generate PSy code for a single
@@ -584,6 +585,7 @@ class Node(object):
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
+
 class Schedule(Node):
 
     ''' Stores schedule information for an invocation call. Schedules can be
@@ -598,7 +600,7 @@ class Schedule(Node):
         >>> invokes.names
         >>> invoke = invokes.get("name")
         >>> schedule = invoke.schedule
-        >>> print schedule.view()
+        >>> schedule.view()
 
     '''
 
@@ -631,13 +633,12 @@ class Schedule(Node):
                 sequence.append(Inf.create(call, parent = self))
             else:
                 sequence.append(Loop(call, parent = self))
-        #for call in alg_calls:
-        #    sequence.append(Loop(call, parent = self))
         Node.__init__(self, children = sequence)
         self._invoke = None
 
     def view(self, indent = 0):
-        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+"']"
+        print self.indent(indent) + "Schedule[invoke='" + self.invoke.name \
+            + "']"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
@@ -651,6 +652,7 @@ class Schedule(Node):
     def gen_code(self, parent):
         for entity in self._children:
             entity.gen_code(parent)
+
 
 class Directive(Node):
 
@@ -1413,7 +1415,9 @@ class TransInfo(object):
         try:
             return self._obj_map[name]
         except KeyError:
-            raise GenerationError("Invalid transformation name supplied")
+            raise GenerationError("Invalid transformation name: got {0} "
+                                  "but expected one of {1}".\
+                                  format(name, self._obj_map.keys()))
 
     def _find_subclasses(self, module, base_class):
         ''' return a list of classes defined within the specified module that
