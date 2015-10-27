@@ -29,29 +29,31 @@ def test_field():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)
-      USE compute_cu_mod, ONLY: compute_cu_code
-      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = cu_fld%grid%simulation_domain%xstop
-      jstop = cu_fld%grid%simulation_domain%ystop
-      !
-      DO j=2,jstop
-        DO i=2,istop+1
-          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_compute_cu
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
+        "      USE compute_cu_mod, ONLY: compute_cu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = cu_fld%grid%simulation_domain%xstop\n"
+        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop+1\n"
+        "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_compute_cu\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -68,37 +70,39 @@ def test_two_kernels():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = psy.gen
 
-    expected_output = """  MODULE psy_single_invoke_two_kernels
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
-      USE time_smooth_mod, ONLY: time_smooth_code
-      USE compute_cu_mod, ONLY: compute_cu_code
-      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, \
-unew_fld, uold_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = cu_fld%grid%simulation_domain%xstop
-      jstop = cu_fld%grid%simulation_domain%ystop
-      !
-      DO j=2,jstop
-        DO i=2,istop+1
-          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO 
-      END DO 
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, \
-uold_fld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0
-  END MODULE psy_single_invoke_two_kernels"""
+    expected_output = (
+        "  MODULE psy_single_invoke_two_kernels\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)\n"
+        "      USE time_smooth_mod, ONLY: time_smooth_code\n"
+        "      USE compute_cu_mod, ONLY: compute_cu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, "
+        "unew_fld, uold_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = cu_fld%grid%simulation_domain%xstop\n"
+        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop+1\n"
+        "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+        "u_fld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, "
+        "uold_fld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0\n"
+        "  END MODULE psy_single_invoke_two_kernels")
 
     assert str(generated_code).find(expected_output) != -1
 
@@ -115,30 +119,31 @@ def test_grid_property():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_with_grid_props_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_next_sshu(cu_fld, u_fld)
-      USE kernel_requires_grid_props, ONLY: next_sshu_code
-      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = cu_fld%grid%simulation_domain%xstop
-      jstop = cu_fld%grid%simulation_domain%ystop
-      !
-      DO j=2,jstop
-        DO i=2,istop-1
-          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, \
-u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_next_sshu
-  END MODULE psy_single_invoke_with_grid_props_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_with_grid_props_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_next_sshu(cu_fld, u_fld)\n"
+        "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = cu_fld%grid%simulation_domain%xstop\n"
+        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop-1\n"
+        "          CALL next_sshu_code(i, j, cu_fld%data, u_fld%data, "
+        "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_next_sshu\n"
+        "  END MODULE psy_single_invoke_with_grid_props_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -155,30 +160,32 @@ def test_scalar_int_arg():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_scalar_int_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)
-      USE kernel_scalar_int, ONLY: bc_ssh_code
-      TYPE(r2d_field), intent(inout) :: ssh_fld
-      INTEGER, intent(inout) :: ncycle
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = ssh_fld%grid%simulation_domain%xstop
-      jstop = ssh_fld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, ssh_fld%grid%tmask)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_bc_ssh
-  END MODULE psy_single_invoke_scalar_int_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_scalar_int_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(ncycle, ssh_fld)\n"
+        "      USE kernel_scalar_int, ONLY: bc_ssh_code\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
+        "      INTEGER, intent(inout) :: ncycle\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = ssh_fld%grid%simulation_domain%xstop\n"
+        "      jstop = ssh_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL bc_ssh_code(i, j, ncycle, ssh_fld%data, "
+        "ssh_fld%grid%tmask)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_int_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -195,30 +202,32 @@ def test_scalar_float_arg():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_scalar_float_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)
-      USE kernel_scalar_float, ONLY: bc_ssh_code
-      TYPE(r2d_field), intent(inout) :: ssh_fld
-      REAL(KIND=wp), intent(inout) :: a_scalar
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = ssh_fld%grid%simulation_domain%xstop
-      jstop = ssh_fld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, ssh_fld%grid%tmask)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_bc_ssh
-  END MODULE psy_single_invoke_scalar_float_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_scalar_float_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
+        "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+        "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
+        "      REAL(KIND=wp), intent(inout) :: a_scalar\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = ssh_fld%grid%simulation_domain%xstop\n"
+        "      jstop = ssh_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL bc_ssh_code(i, j, a_scalar, ssh_fld%data, "
+        "ssh_fld%grid%tmask)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_bc_ssh\n"
+        "  END MODULE psy_single_invoke_scalar_float_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -236,30 +245,32 @@ def test_ne_offset_cf_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_compute_vort(vort_fld, p_fld, u_fld, v_fld)
-      USE kernel_ne_offset_cf_mod, ONLY: compute_vort_code
-      TYPE(r2d_field), intent(inout) :: vort_fld, p_fld, u_fld, v_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = vort_fld%grid%simulation_domain%xstop
-      jstop = vort_fld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop-1
-        DO i=1,istop-1
-          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, \
-u_fld%data, v_fld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_compute_vort
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_vort(vort_fld, p_fld, u_fld, v_fld)\n"
+        "      USE kernel_ne_offset_cf_mod, ONLY: compute_vort_code\n"
+        "      TYPE(r2d_field), intent(inout) :: vort_fld, p_fld, u_fld, "
+        "v_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = vort_fld%grid%simulation_domain%xstop\n"
+        "      jstop = vort_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop-1\n"
+        "        DO i=1,istop-1\n"
+        "          CALL compute_vort_code(i, j, vort_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_compute_vort\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -277,29 +288,31 @@ def test_ne_offset_ct_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_compute_vort(p_fld, u_fld, v_fld)
-      USE kernel_ne_offset_ct_mod, ONLY: compute_vort_code
-      TYPE(r2d_field), intent(inout) :: p_fld, u_fld, v_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = p_fld%grid%simulation_domain%xstop
-      jstop = p_fld%grid%simulation_domain%ystop
-      !
-      DO j=2,jstop
-        DO i=2,istop
-          CALL compute_vort_code(i, j, p_fld%data, u_fld%data, v_fld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_compute_vort
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_vort(p_fld, u_fld, v_fld)\n"
+        "      USE kernel_ne_offset_ct_mod, ONLY: compute_vort_code\n"
+        "      TYPE(r2d_field), intent(inout) :: p_fld, u_fld, v_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = p_fld%grid%simulation_domain%xstop\n"
+        "      jstop = p_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop\n"
+        "          CALL compute_vort_code(i, j, p_fld%data, u_fld%data, "
+        "v_fld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_compute_vort\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -317,29 +330,30 @@ def test_ne_offset_all_cu_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_bc_solid_u(u_fld)
-      USE boundary_conditions_ne_offset_mod, ONLY: bc_solid_u_code
-      TYPE(r2d_field), intent(inout) :: u_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = u_fld%grid%simulation_domain%xstop
-      jstop = u_fld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop
-          CALL bc_solid_u_code(i, j, u_fld%data, u_fld%grid%tmask)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_bc_solid_u
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_solid_u(u_fld)\n"
+        "      USE boundary_conditions_ne_offset_mod, ONLY: bc_solid_u_code\n"
+        "      TYPE(r2d_field), intent(inout) :: u_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = u_fld%grid%simulation_domain%xstop\n"
+        "      jstop = u_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop\n"
+        "          CALL bc_solid_u_code(i, j, u_fld%data, u_fld%grid%tmask)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_bc_solid_u\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -357,29 +371,30 @@ def test_ne_offset_all_cv_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_bc_solid_v(v_fld)
-      USE boundary_conditions_ne_offset_mod, ONLY: bc_solid_v_code
-      TYPE(r2d_field), intent(inout) :: v_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = v_fld%grid%simulation_domain%xstop
-      jstop = v_fld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop
-        DO i=1,istop+1
-          CALL bc_solid_v_code(i, j, v_fld%data, v_fld%grid%tmask)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_bc_solid_v
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_solid_v(v_fld)\n"
+        "      USE boundary_conditions_ne_offset_mod, ONLY: bc_solid_v_code\n"
+        "      TYPE(r2d_field), intent(inout) :: v_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = v_fld%grid%simulation_domain%xstop\n"
+        "      jstop = v_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop\n"
+        "        DO i=1,istop+1\n"
+        "          CALL bc_solid_v_code(i, j, v_fld%data, v_fld%grid%tmask)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_bc_solid_v\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -397,29 +412,30 @@ def test_ne_offset_all_cf_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_bc_solid_f(f_fld)
-      USE boundary_conditions_ne_offset_mod, ONLY: bc_solid_f_code
-      TYPE(r2d_field), intent(inout) :: f_fld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = f_fld%grid%simulation_domain%xstop
-      jstop = f_fld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop
-        DO i=1,istop
-          CALL bc_solid_f_code(i, j, f_fld%data, f_fld%grid%tmask)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_bc_solid_f
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_bc_solid_f(f_fld)\n"
+        "      USE boundary_conditions_ne_offset_mod, ONLY: bc_solid_f_code\n"
+        "      TYPE(r2d_field), intent(inout) :: f_fld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = f_fld%grid%simulation_domain%xstop\n"
+        "      jstop = f_fld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop\n"
+        "        DO i=1,istop\n"
+        "          CALL bc_solid_f_code(i, j, f_fld%data, f_fld%grid%tmask)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_bc_solid_f\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -438,30 +454,31 @@ def test_sw_offset_cf_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_compute_z(zfld, pfld, ufld, vfld)
-      USE kernel_sw_offset_cf_mod, ONLY: compute_z_code
-      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = zfld%grid%simulation_domain%xstop
-      jstop = zfld%grid%simulation_domain%ystop
-      !
-      DO j=2,jstop+1
-        DO i=2,istop+1
-          CALL compute_z_code(i, j, zfld%data, pfld%data, \
-ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_compute_z
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_z(zfld, pfld, ufld, vfld)\n"
+        "      USE kernel_sw_offset_cf_mod, ONLY: compute_z_code\n"
+        "      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = zfld%grid%simulation_domain%xstop\n"
+        "      jstop = zfld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=2,jstop+1\n"
+        "        DO i=2,istop+1\n"
+        "          CALL compute_z_code(i, j, zfld%data, pfld%data, "
+        "ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_compute_z\n"
+        "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
 
 
@@ -479,30 +496,31 @@ def test_sw_offset_all_cf_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_apply_bcs_f(zfld, pfld, ufld, vfld)
-      USE kernel_sw_offset_cf_mod, ONLY: apply_bcs_f_code
-      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = zfld%grid%simulation_domain%xstop
-      jstop = zfld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL apply_bcs_f_code(i, j, zfld%data, pfld%data, \
-ufld%data, vfld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_apply_bcs_f
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_apply_bcs_f(zfld, pfld, ufld, vfld)\n"
+        "      USE kernel_sw_offset_cf_mod, ONLY: apply_bcs_f_code\n"
+        "      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = zfld%grid%simulation_domain%xstop\n"
+        "      jstop = zfld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL apply_bcs_f_code(i, j, zfld%data, pfld%data, "
+        "ufld%data, vfld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_apply_bcs_f\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -520,29 +538,31 @@ def test_sw_offset_ct_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_compute_h(hfld, pfld, ufld, vfld)
-      USE kernel_sw_offset_ct_mod, ONLY: compute_h_code
-      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = hfld%grid%simulation_domain%xstop
-      jstop = hfld%grid%simulation_domain%ystop
-      !
-      DO j=2,jstop
-        DO i=2,istop
-          CALL compute_h_code(i, j, hfld%data, pfld%data, ufld%data, vfld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_compute_h
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_h(hfld, pfld, ufld, vfld)\n"
+        "      USE kernel_sw_offset_ct_mod, ONLY: compute_h_code\n"
+        "      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = hfld%grid%simulation_domain%xstop\n"
+        "      jstop = hfld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop\n"
+        "          CALL compute_h_code(i, j, hfld%data, pfld%data, ufld%data, "
+        "vfld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_compute_h\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -561,30 +581,31 @@ def test_sw_offset_all_ct_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_apply_bcs_h(hfld, pfld, ufld, vfld)
-      USE kernel_sw_offset_ct_mod, ONLY: apply_bcs_h_code
-      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = hfld%grid%simulation_domain%xstop
-      jstop = hfld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, \
-ufld%data, vfld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_apply_bcs_h
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_apply_bcs_h(hfld, pfld, ufld, vfld)\n"
+        "      USE kernel_sw_offset_ct_mod, ONLY: apply_bcs_h_code\n"
+        "      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = hfld%grid%simulation_domain%xstop\n"
+        "      jstop = hfld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL apply_bcs_h_code(i, j, hfld%data, pfld%data, "
+        "ufld%data, vfld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_apply_bcs_h\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -603,29 +624,30 @@ def test_sw_offset_all_cu_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_apply_bcs_u(ufld, vfld)
-      USE kernel_sw_offset_cu_mod, ONLY: apply_bcs_u_code
-      TYPE(r2d_field), intent(inout) :: ufld, vfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = ufld%grid%simulation_domain%xstop
-      jstop = ufld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_apply_bcs_u
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_apply_bcs_u(ufld, vfld)\n"
+        "      USE kernel_sw_offset_cu_mod, ONLY: apply_bcs_u_code\n"
+        "      TYPE(r2d_field), intent(inout) :: ufld, vfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = ufld%grid%simulation_domain%xstop\n"
+        "      jstop = ufld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL apply_bcs_u_code(i, j, ufld%data, vfld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_apply_bcs_u\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -644,29 +666,30 @@ def test_sw_offset_all_cv_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_apply_bcs_v(vfld, ufld)
-      USE kernel_sw_offset_cv_mod, ONLY: apply_bcs_v_code
-      TYPE(r2d_field), intent(inout) :: vfld, ufld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = vfld%grid%simulation_domain%xstop
-      jstop = vfld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL apply_bcs_v_code(i, j, vfld%data, ufld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_apply_bcs_v
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_apply_bcs_v(vfld, ufld)\n"
+        "      USE kernel_sw_offset_cv_mod, ONLY: apply_bcs_v_code\n"
+        "      TYPE(r2d_field), intent(inout) :: vfld, ufld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = vfld%grid%simulation_domain%xstop\n"
+        "      jstop = vfld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL apply_bcs_v_code(i, j, vfld%data, ufld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_apply_bcs_v\n"
+        "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
 
@@ -685,29 +708,31 @@ def test_offset_any_all_cu_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_compute_u(ufld, vfld, hfld)
-      USE kernel_any_offset_cu_mod, ONLY: compute_u_code
-      TYPE(r2d_field), intent(inout) :: ufld, vfld, hfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = ufld%grid%simulation_domain%xstop
-      jstop = ufld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop
-        DO i=1,istop
-          CALL compute_u_code(i, j, ufld%data, vfld%data, hfld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_compute_u
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_compute_u(ufld, vfld, hfld)\n"
+        "      USE kernel_any_offset_cu_mod, ONLY: compute_u_code\n"
+        "      TYPE(r2d_field), intent(inout) :: ufld, vfld, hfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = ufld%grid%simulation_domain%xstop\n"
+        "      jstop = ufld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop\n"
+        "        DO i=1,istop\n"
+        "          CALL compute_u_code(i, j, ufld%data, vfld%data, "
+        "hfld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_compute_u\n"
+        "  END MODULE psy_single_invoke_test")
     print generated_code
     assert generated_code.find(expected_output) != -1
 
@@ -726,29 +751,30 @@ def test_offset_any_all_points():
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
-    expected_output = """  MODULE psy_single_invoke_test
-    USE field_mod
-    USE kind_params_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE invoke_0_copy(voldfld, vfld)
-      USE kernel_field_copy_mod, ONLY: field_copy_code
-      TYPE(r2d_field), intent(inout) :: voldfld, vfld
-      INTEGER j
-      INTEGER i
-      INTEGER istop, jstop
-      !
-      ! Look-up loop bounds
-      istop = voldfld%grid%simulation_domain%xstop
-      jstop = voldfld%grid%simulation_domain%ystop
-      !
-      DO j=1,jstop+1
-        DO i=1,istop+1
-          CALL field_copy_code(i, j, voldfld%data, vfld%data)
-        END DO 
-      END DO 
-    END SUBROUTINE invoke_0_copy
-  END MODULE psy_single_invoke_test"""
+    expected_output = (
+        "  MODULE psy_single_invoke_test\n"
+        "    USE field_mod\n"
+        "    USE kind_params_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_copy(voldfld, vfld)\n"
+        "      USE kernel_field_copy_mod, ONLY: field_copy_code\n"
+        "      TYPE(r2d_field), intent(inout) :: voldfld, vfld\n"
+        "      INTEGER j\n"
+        "      INTEGER i\n"
+        "      INTEGER istop, jstop\n"
+        "      !\n"
+        "      ! Look-up loop bounds\n"
+        "      istop = voldfld%grid%simulation_domain%xstop\n"
+        "      jstop = voldfld%grid%simulation_domain%ystop\n"
+        "      !\n"
+        "      DO j=1,jstop+1\n"
+        "        DO i=1,istop+1\n"
+        "          CALL field_copy_code(i, j, voldfld%data, vfld%data)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0_copy\n"
+        "  END MODULE psy_single_invoke_test")
     print generated_code
     assert generated_code.find(expected_output) != -1
 
@@ -769,13 +795,14 @@ def test_goschedule_view(capsys):
     # by default. We have to query this captured output.
     out, _ = capsys.readouterr()
 
-    expected_output = """GOSchedule[invoke='invoke_0',Constant loop bounds=True]
+    expected_output = (
+        """GOSchedule[invoke='invoke_0',Constant loop bounds=True]
     Loop[type='outer',field_space='cu',it_space='internal_pts']
         Loop[type='inner',field_space='cu',it_space='internal_pts']
             Call compute_cu_code(cu_fld,p_fld,u_fld)
     Loop[type='outer',field_space='every',it_space='internal_pts']
         Loop[type='inner',field_space='every',it_space='internal_pts']
-            Call time_smooth_code(u_fld,unew_fld,uold_fld)"""
+            Call time_smooth_code(u_fld,unew_fld,uold_fld)""")
 
     assert expected_output in out
 
@@ -791,19 +818,20 @@ def test_goschedule_str():
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    expected_sched = '''GOSchedule(Constant loop bounds=True):
-Loop[]: j= lower=2,jstop,1
-Loop[]: i= lower=2,istop+1,1
-kern call: compute_cu_code
-EndLoop
-EndLoop
-Loop[]: j= lower=1,jstop+1,1
-Loop[]: i= lower=1,istop+1,1
-kern call: time_smooth_code
-EndLoop
-EndLoop
-End Schedule
-'''
+    expected_sched = (
+        "GOSchedule(Constant loop bounds=True):\n"
+        "Loop[]: j= lower=2,jstop,1\n"
+        "Loop[]: i= lower=2,istop+1,1\n"
+        "kern call: compute_cu_code\n"
+        "EndLoop\n"
+        "EndLoop\n"
+        "Loop[]: j= lower=1,jstop+1,1\n"
+        "Loop[]: i= lower=1,istop+1,1\n"
+        "kern call: time_smooth_code\n"
+        "EndLoop\n"
+        "EndLoop\n"
+        "End Schedule\n")
+
     sched_str = str(schedule)
     print sched_str
     assert sched_str in expected_sched
@@ -812,19 +840,20 @@ End Schedule
     schedule.const_loop_bounds = False
     sched_str = str(schedule)
 
-    expected_sched = '''GOSchedule(Constant loop bounds=False):
-Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1
-Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1
-kern call: compute_cu_code
-EndLoop
-EndLoop
-Loop[]: j= lower=1,SIZE(uold_fld%data, 2),1
-Loop[]: i= lower=1,SIZE(uold_fld%data, 1),1
-kern call: time_smooth_code
-EndLoop
-EndLoop
-End Schedule
-'''
+    expected_sched = (
+        "GOSchedule(Constant loop bounds=False):\n"
+        "Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1\n"
+        "Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1\n"
+        "kern call: compute_cu_code\n"
+        "EndLoop\n"
+        "EndLoop\n"
+        "Loop[]: j= lower=1,SIZE(uold_fld%data, 2),1\n"
+        "Loop[]: i= lower=1,SIZE(uold_fld%data, 1),1\n"
+        "kern call: time_smooth_code\n"
+        "EndLoop\n"
+        "EndLoop\n"
+        "End Schedule\n")
+
     print sched_str
     assert sched_str in expected_sched
 
@@ -849,6 +878,7 @@ def test_gosched_ijstop():
     # Attempt to query the upper bound of the j loop
     with pytest.raises(GenerationError):
         _ = schedule.jloop_stop
+
 
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOSchedule
@@ -914,9 +944,12 @@ def test_goloop_unmatched_offsets():
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
 
+# -----------------------------------
 # Parser Tests for the GOcean 1.0 API
+# -----------------------------------
 
-def test00p1_kernel_wrong_meta_arg_count():
+
+def t00p1_kernel_wrong_meta_arg_count():
     ''' Check that we raise an error if one of the meta-args in
     a kernel's meta-data has the wrong number of arguments '''
     with pytest.raises(ParseError):
@@ -926,7 +959,8 @@ def test00p1_kernel_wrong_meta_arg_count():
                    "test00.1_invoke_kernel_wrong_meta_arg_count.f90"),
               api="gocean1.0")
 
-def test00p2_kernel_invalid_meta_args():
+
+def t00p2_kernel_invalid_meta_args():
     ''' Check that we raise an error if one of the meta-args in
     a kernel's meta-data is not 'arg' '''
     with pytest.raises(ParseError):
@@ -936,7 +970,8 @@ def test00p2_kernel_invalid_meta_args():
                    "test00.2_invoke_kernel_invalid_meta_args.f90"),
               api="gocean1.0")
 
-def test00p3_kern_invalid_meta_arg_type():
+
+def t00p3_kern_invalid_meta_arg_type():
     ''' Check that the parser catches the case where the type of
     one of the meta-args in the kernel meta-data is incorrect '''
     test_file = "test00.3_invoke_kernel_invalid_meta_arg_type.f90"
@@ -950,7 +985,7 @@ def test00p3_kern_invalid_meta_arg_type():
                      api=API)
 
 
-def test01_diff_kern_grid_offsets_one_invoke():
+def t01_diff_kern_grid_offsets_one_invoke():
     ''' Check that the parser raises an error if two kernels in a
         single invoke specify different index offsets '''
     test_file = "test01_different_grid_offsets_one_invoke.f90"
@@ -965,7 +1000,7 @@ def test01_diff_kern_grid_offsets_one_invoke():
         _ = PSyFactory(API).create(invoke_info)
 
 
-def test02_diff_kern_grid_offsets_two_invokes():
+def t02_diff_kern_grid_offsets_two_invokes():
     ''' Check that the parser raises an error if the two kernels
         in different invokes specify different index offsets. '''
     test_file = "test02_different_grid_offsets_two_invokes.f90"
@@ -979,7 +1014,8 @@ def test02_diff_kern_grid_offsets_two_invokes():
     with pytest.raises(GenerationError):
         _ = PSyFactory(API).create(invoke_info)
 
-def test03_kernel_missing_index_offset():
+
+def t03_kernel_missing_index_offset():
     ''' Check that we raise an error if a kernel's meta-data is
     missing the INDEX_OFFSET field. '''
     with pytest.raises(ParseError):
@@ -988,7 +1024,8 @@ def test03_kernel_missing_index_offset():
                            "test03_invoke_kernel_missing_offset.f90"),
               api="gocean1.0")
 
-def test04_kernel_invalid_index_offset():
+
+def t04_kernel_invalid_index_offset():
     ''' Check that we raise an error if a kernel's meta-data is
     contains an invalid value for the INDEX_OFFSET field. '''
     with pytest.raises(ParseError):
@@ -997,7 +1034,8 @@ def test04_kernel_invalid_index_offset():
                            "test04_invoke_kernel_invalid_offset.f90"),
               api="gocean1.0")
 
-def test05_kernel_missing_iterates_over():
+
+def t05_kernel_missing_iterates_over():
     ''' Check that we raise an error if a kernel's meta-data is
     missing the ITERATES_OVER field. '''
     with pytest.raises(ParseError):
@@ -1007,7 +1045,8 @@ def test05_kernel_missing_iterates_over():
                    "test05_invoke_kernel_missing_iterates_over.f90"),
               api="gocean1.0")
 
-def test05p1_kernel_invalid_iterates_over():
+
+def t05p1_kernel_invalid_iterates_over():
     ''' Check that we raise an error if a kernel's meta-data has
     an invalid ITERATES_OVER field. '''
     with pytest.raises(ParseError):
@@ -1017,7 +1056,8 @@ def test05p1_kernel_invalid_iterates_over():
                    "test05.1_invoke_kernel_invalid_iterates_over.f90"),
               api="gocean1.0")
 
-def test06_kernel_invalid_access():
+
+def t06_kernel_invalid_access():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised access type for a kernel argument (i.e. something
     other than READ,WRITE,READWRITE) '''
@@ -1027,7 +1067,8 @@ def test06_kernel_invalid_access():
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
 
-def test07_kernel_wrong_gridpt_type():
+
+def t07_kernel_wrong_gridpt_type():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised grid-point type for a field argument (i.e.
     something other than C{U,V,F,T}, I_SCALAR or R_SCALAR) '''
@@ -1037,7 +1078,8 @@ def test07_kernel_wrong_gridpt_type():
                            "test07_invoke_kernel_wrong_gridpt_type.f90"),
               api="gocean1.0")
 
-def test08_kernel_invalid_grid_property():
+
+def t08_kernel_invalid_grid_property():
     ''' Check that the parser raises an error if a kernel's meta-data
     specifies an unrecognised grid property '''
     with pytest.raises(ParseError):
@@ -1047,7 +1089,8 @@ def test08_kernel_invalid_grid_property():
                    "test08_invoke_kernel_invalid_grid_property.f90"),
               api="gocean1.0")
 
-def test08p1_kernel_without_fld_args():
+
+def t08p1_kernel_without_fld_args():
     ''' Check that the parser raises an error if a kernel does not
     have a field object as an argument but requests a grid property '''
     with pytest.raises(ParseError):
@@ -1056,7 +1099,8 @@ def test08p1_kernel_without_fld_args():
                            "test08.1_invoke_kernel_no_fld_args.f90"),
               api="gocean1.0")
 
-def test09_kernel_missing_stencil_property():
+
+def t09_kernel_missing_stencil_prop():
     '''Check that the parser raises an error if there is no stencil
     specified in the meta-data of a kernel
 
@@ -1067,7 +1111,8 @@ def test09_kernel_missing_stencil_property():
                            "test09_invoke_kernel_missing_stencil.f90"),
               api="gocean1.0")
 
-def test10_kernel_invalid_stencil_property():
+
+def t10_kernel_invalid_stencil_prop():
     '''Check that the parser raises an error if there is no stencil
     specified in the meta-data of a kernel
 
@@ -1078,6 +1123,7 @@ def test10_kernel_invalid_stencil_property():
                            "test10_invoke_kernel_invalid_stencil.f90"),
               api="gocean1.0")
 
+
 def test13_kernel_invalid_fortran():
     ''' Check that the parser raises an error if the specified kernel
     code is not valid fortran '''
@@ -1086,4 +1132,3 @@ def test13_kernel_invalid_fortran():
                            "test_files", "gocean1p0",
                            "test13_invoke_kernel_invalid_fortran.f90"),
               api="gocean1.0")
-
