@@ -850,51 +850,6 @@ def test_gosched_ijstop():
     with pytest.raises(GenerationError):
         _ = schedule.jloop_stop
 
-
-def test00p3_kern_invalid_meta_arg_type():
-    ''' Check that the parser catches the case where the type of
-    one of the meta-args in the kernel meta-data is incorrect '''
-    test_file = "test00.3_invoke_kernel_invalid_meta_arg_type.f90"
-    with pytest.raises(ParseError):
-        _, _ = parse(os.path.
-                     join(os.path.
-                          dirname(os.path.
-                                  abspath(__file__)),
-                          "test_files", "gocean1p0",
-                          test_file),
-                     api=API)
-
-
-def test01_diff_kern_grid_offsets_one_invoke():
-    ''' Check that the parser raises an error if two kernels in a
-        single invoke specify different index offsets '''
-    test_file = "test01_different_grid_offsets_one_invoke.f90"
-    _, invoke_info = parse(os.path.
-                           join(os.path.
-                                dirname(os.path.
-                                        abspath(__file__)),
-                                "test_files", "gocean1p0",
-                                test_file),
-                           api=API)
-    with pytest.raises(GenerationError):
-        _ = PSyFactory(API).create(invoke_info)
-
-
-def test02_diff_kern_grid_offsets_two_invokes():
-    ''' Check that the parser raises an error if the two kernels
-        in different invokes specify different index offsets. '''
-    test_file = "test02_different_grid_offsets_two_invokes.f90"
-    _, invoke_info = parse(os.path.
-                           join(os.path.
-                                dirname(os.path.
-                                        abspath(__file__)),
-                                "test_files", "gocean1p0",
-                                test_file),
-                           api=API)
-    with pytest.raises(GenerationError):
-        _ = PSyFactory(API).create(invoke_info)
-
-
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOSchedule
     as a parent '''
@@ -958,3 +913,177 @@ def test_goloop_unmatched_offsets():
     goiloop.addchild(gokern2)
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
+
+# Parser Tests for the GOcean 1.0 API
+
+def test00p1_kernel_wrong_meta_arg_count():
+    ''' Check that we raise an error if one of the meta-args in
+    a kernel's meta-data has the wrong number of arguments '''
+    with pytest.raises(ParseError):
+        parse(os.path.
+              join(os.path.dirname(os.path.abspath(__file__)),
+                   "test_files", "gocean1p0",
+                   "test00.1_invoke_kernel_wrong_meta_arg_count.f90"),
+              api="gocean1.0")
+
+def test00p2_kernel_invalid_meta_args():
+    ''' Check that we raise an error if one of the meta-args in
+    a kernel's meta-data is not 'arg' '''
+    with pytest.raises(ParseError):
+        parse(os.path.
+              join(os.path.dirname(os.path.abspath(__file__)),
+                   "test_files", "gocean1p0",
+                   "test00.2_invoke_kernel_invalid_meta_args.f90"),
+              api="gocean1.0")
+
+def test00p3_kern_invalid_meta_arg_type():
+    ''' Check that the parser catches the case where the type of
+    one of the meta-args in the kernel meta-data is incorrect '''
+    test_file = "test00.3_invoke_kernel_invalid_meta_arg_type.f90"
+    with pytest.raises(ParseError):
+        _, _ = parse(os.path.
+                     join(os.path.
+                          dirname(os.path.
+                                  abspath(__file__)),
+                          "test_files", "gocean1p0",
+                          test_file),
+                     api=API)
+
+
+def test01_diff_kern_grid_offsets_one_invoke():
+    ''' Check that the parser raises an error if two kernels in a
+        single invoke specify different index offsets '''
+    test_file = "test01_different_grid_offsets_one_invoke.f90"
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                test_file),
+                           api=API)
+    with pytest.raises(GenerationError):
+        _ = PSyFactory(API).create(invoke_info)
+
+
+def test02_diff_kern_grid_offsets_two_invokes():
+    ''' Check that the parser raises an error if the two kernels
+        in different invokes specify different index offsets. '''
+    test_file = "test02_different_grid_offsets_two_invokes.f90"
+    _, invoke_info = parse(os.path.
+                           join(os.path.
+                                dirname(os.path.
+                                        abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                test_file),
+                           api=API)
+    with pytest.raises(GenerationError):
+        _ = PSyFactory(API).create(invoke_info)
+
+def test03_kernel_missing_index_offset():
+    ''' Check that we raise an error if a kernel's meta-data is
+    missing the INDEX_OFFSET field. '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test03_invoke_kernel_missing_offset.f90"),
+              api="gocean1.0")
+
+def test04_kernel_invalid_index_offset():
+    ''' Check that we raise an error if a kernel's meta-data is
+    contains an invalid value for the INDEX_OFFSET field. '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test04_invoke_kernel_invalid_offset.f90"),
+              api="gocean1.0")
+
+def test05_kernel_missing_iterates_over():
+    ''' Check that we raise an error if a kernel's meta-data is
+    missing the ITERATES_OVER field. '''
+    with pytest.raises(ParseError):
+        parse(os.path.
+              join(os.path.dirname(os.path.abspath(__file__)),
+                   "test_files", "gocean1p0",
+                   "test05_invoke_kernel_missing_iterates_over.f90"),
+              api="gocean1.0")
+
+def test05p1_kernel_invalid_iterates_over():
+    ''' Check that we raise an error if a kernel's meta-data has
+    an invalid ITERATES_OVER field. '''
+    with pytest.raises(ParseError):
+        parse(os.path.
+              join(os.path.dirname(os.path.abspath(__file__)),
+                   "test_files", "gocean1p0",
+                   "test05.1_invoke_kernel_invalid_iterates_over.f90"),
+              api="gocean1.0")
+
+def test06_kernel_invalid_access():
+    ''' Check that we raise an error if a kernel's meta-data specifies
+    an unrecognised access type for a kernel argument (i.e. something
+    other than READ,WRITE,READWRITE) '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test06_invoke_kernel_wrong_access.f90"),
+              api="gocean1.0")
+
+def test07_kernel_wrong_gridpt_type():
+    ''' Check that we raise an error if a kernel's meta-data specifies
+    an unrecognised grid-point type for a field argument (i.e.
+    something other than C{U,V,F,T}, I_SCALAR or R_SCALAR) '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test07_invoke_kernel_wrong_gridpt_type.f90"),
+              api="gocean1.0")
+
+def test08_kernel_invalid_grid_property():
+    ''' Check that the parser raises an error if a kernel's meta-data
+    specifies an unrecognised grid property '''
+    with pytest.raises(ParseError):
+        parse(os.path.
+              join(os.path.dirname(os.path.abspath(__file__)),
+                   "test_files", "gocean1p0",
+                   "test08_invoke_kernel_invalid_grid_property.f90"),
+              api="gocean1.0")
+
+def test08p1_kernel_without_fld_args():
+    ''' Check that the parser raises an error if a kernel does not
+    have a field object as an argument but requests a grid property '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test08.1_invoke_kernel_no_fld_args.f90"),
+              api="gocean1.0")
+
+def test09_kernel_missing_stencil_property():
+    '''Check that the parser raises an error if there is no stencil
+    specified in the meta-data of a kernel
+
+    '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test09_invoke_kernel_missing_stencil.f90"),
+              api="gocean1.0")
+
+def test10_kernel_invalid_stencil_property():
+    '''Check that the parser raises an error if there is no stencil
+    specified in the meta-data of a kernel
+
+    '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test10_invoke_kernel_invalid_stencil.f90"),
+              api="gocean1.0")
+
+def test13_kernel_invalid_fortran():
+    ''' Check that the parser raises an error if the specified kernel
+    code is not valid fortran '''
+    with pytest.raises(ParseError):
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test13_invoke_kernel_invalid_fortran.f90"),
+              api="gocean1.0")
+
