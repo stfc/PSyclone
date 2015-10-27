@@ -12,10 +12,8 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError,\
-                            GOConstLoopBoundsTrans,\
-                            LoopFuseTrans, OMPParallelTrans,\
-                            GOceanOMPParallelLoopTrans,\
-                            GOceanOMPLoopTrans
+    GOConstLoopBoundsTrans, LoopFuseTrans, OMPParallelTrans,\
+    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans
 from generator import GenerationError
 import os
 import pytest
