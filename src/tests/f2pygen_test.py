@@ -9,6 +9,7 @@
 from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen,\
     AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     ImplicitNoneGen, UseGen, DirectiveGen
+from utils import line_number, count_lines
 import pytest
 
 class TestDeclare:
@@ -146,9 +147,17 @@ class TestModuleGen:
     def test_no_contains(self):
         module=ModuleGen(name="test",contains=False)
         assert "CONTAINS" not in str(module.root)
-    def test_no_implicit_none(implicitnone=False):
-        module=ModuleGen(name="test",implicitnone=False)
+    def test_no_implicit_none(self):
+        module=ModuleGen(name="test", implicitnone=False)
         assert "IMPLICIT NONE" not in str(module.root)
+
+    def test_failed_module_inline(self):
+        ''' test that an error is thrown if the wrong type of object
+        is passed to the add_raw_subroutine method '''
+        module = ModuleGen(name="test")
+        invalid_type = "string"
+        with pytest.raises(Exception):
+            module.add_raw_subroutine(invalid_type)
 
 class TestAllocate:
     ''' pytest tests for an allocate statement. '''
@@ -209,25 +218,6 @@ class TestDeallocate:
         content=3
         with pytest.raises(RuntimeError):
             allocate=DeallocateGen(module,content)
-
-def line_number(root, string_name):
-    ''' f2pygen helper routine which returns the first index of the
-    supplied string or -1 if it is not found '''
-    lines = str(root).splitlines()
-    for idx, line in enumerate(lines):
-        if string_name in line:
-            return idx
-    return -1
-
-def count_lines(root, string_name):
-    '''f2pygen helper routine which returns the number of lines that
-    contain the supplied string '''
-    count = 0
-    lines = str(root).splitlines()
-    for curr_idx, line in enumerate(lines):
-        if string_name in line:
-            count += 1
-    return count
 
 
 class TestImplicitNone():

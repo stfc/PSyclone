@@ -11,11 +11,12 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import TransformationError,\
-    GOConstLoopBoundsTrans, LoopFuseTrans, OMPParallelTrans,\
-    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans
+from transformations import TransformationError, GOConstLoopBoundsTrans,\
+    LoopFuseTrans, OMPParallelTrans, GOceanOMPParallelLoopTrans,\
+    GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from generator import GenerationError
 import os
+from utils import count_lines
 import pytest
 
 # The version of the PSyclone API that the tests in this file
@@ -130,6 +131,24 @@ def test_loop_fuse_different_iterates_over():
     with pytest.raises(TransformationError):
         _, _ = lftrans.apply(newsched.children[0],
                              newsched.children[1])
+
+
+def test_loop_fuse_unexpected_error():
+    ''' Test that we catch an unexpected error when loop fusing '''
+    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", 0)
+    schedule = invoke.schedule
+
+    lftrans = GOceanLoopFuseTrans()
+
+    # cause an unexpected error
+    schedule.children[0].children = None
+
+    # Attempt to fuse two loops that are iterating over different
+    # things
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = lftrans.apply(schedule.children[0],
+                             schedule.children[1])
+    assert 'Unexpected exception' in str(excinfo.value)
 
 
 def test_omp_parallel_loop():
@@ -537,9 +556,6 @@ def test_omp_region_commutes_with_loop_trans():
     independent of the order in which they are applied. '''
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", 0)
     schedule = invoke.schedule
-    # Keep a copy of the original schedule
-    import copy
-    orig_schedule = copy.deepcopy(schedule)
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -563,7 +579,9 @@ def test_omp_region_commutes_with_loop_trans():
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
-    schedule = orig_schedule
+    psy, invoke = get_invoke("single_invoke_two_kernels.f90", 0)
+    schedule = invoke.schedule
+
     ompr = OMPParallelTrans()
     omp_schedule, _ = ompr.apply(schedule.children)
 
@@ -1030,3 +1048,134 @@ def test_omp_schedule_auto_with_chunk():
     the omp schedule as "auto" but try to provide a chunk size '''
     with pytest.raises(TransformationError):
         _ = GOceanOMPLoopTrans(omp_schedule="auto,4")
+
+
+def test_module_noinline_default():
+    ''' Test that by default there is no module inlining '''
+    psy, _ = get_invoke("single_invoke_three_kernels.f90", 0)
+    gen = str(psy.gen)
+    # check that the subroutine has not been inlined
+    assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
+    # check that the associated use exists (as this is removed when
+    # inlining)
+    assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
+
+
+def test_module_inline():
+    ''' Test that we can succesfully inline a basic kernel subroutine
+    routine into the PSy layer module by directly setting inline to
+    true for the specified kernel. '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    kern_call.module_inline = True
+    gen = str(psy.gen)
+    # check that the subroutine has been inlined correctly
+    expected = (
+        "    END SUBROUTINE invoke_0\n"
+        "    SUBROUTINE compute_cu_code(i, j, cu, p, u)\n")
+    assert expected in gen
+    # check that the associated use no longer exists
+    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
+
+
+def test_module_inline_with_transformation():
+    ''' Test that we can succesfully inline a basic kernel subroutine
+    routine into the PSy layer module using a transformation '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[1].children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    # check that the subroutine has been inlined
+    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
+    # check that the associated use no longer exists
+    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
+
+
+def test_module_no_inline_with_transformation():
+    ''' Test that we can switch off the inlining of a kernel routine
+    into the PSy layer module using a transformation. Relies on the
+    test_module_inline() test being successful to be a valid test. '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    # directly switch on inlining
+    kern_call.module_inline = True
+    inline_trans = KernelModuleInlineTrans()
+    # use a transformation to switch inlining off again
+    schedule, _ = inline_trans.apply(kern_call, inline=False)
+    gen = str(psy.gen)
+    # check that the subroutine has not been inlined
+    assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
+    # check that the associated use exists (as this is removed when
+    # inlining)
+    assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
+
+
+# we can not test if someone accidentally sets module_inline to True
+# to an object that is not a Kernel as Python allows one to
+# dynamically add new variables to an object. Therefore an error is
+# never thrown. This would be testable if "inline" were a function.
+# def test_inline_error_if_not_kernel():
+
+
+def test_transformation_inline_error_if_not_kernel():
+    ''' Test that the inline transformation fails if the object being
+    passed is not a kernel'''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError):
+        _, _ = inline_trans.apply(kern_call)
+
+
+def test_module_inline_with_sub_use():
+    ''' Test that we can module inline a kernel subroutine which
+    contains a use statement'''
+    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    # check that the subroutine has been inlined
+    assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
+    # check that the use within the subroutine exists
+    assert 'USE model_mod, ONLY: rdt' in gen
+    # check that the associated psy use does not exist
+    assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
+
+
+def test_module_inline_same_kernel():
+    '''Tests that correct results are obtained when an invoke that uses
+    the same kernel subroutine more than once has that kernel
+    inlined'''
+    psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    _, _ = inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    # check that the subroutine has been inlined
+    assert 'SUBROUTINE time_smooth_code(' in gen
+    # check that the associated psy "use" does not exist
+    assert 'USE time_smooth_mod, ONLY: time_smooth_code' not in gen
+    # check that the subroutine has only been inlined once
+    count = count_lines(psy.gen, "SUBROUTINE time_smooth_code(")
+    assert count == 1, "Expecting subroutine to be inlined once"
+
+
+def test_module_inline_warning_no_change():
+    ''' test of the warning clause in the Kernel transformation when
+    no change is made to the inlining of a Kernel i.e. the inlining
+    request is already what is happening. No warning is currently made
+    as we have not added logging to the code but this test covers the
+    clause '''
+    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    _, _ = inline_trans.apply(kern_call, inline=False)

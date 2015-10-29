@@ -64,9 +64,9 @@ def test_wrong_kernel_path():
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(IOError):
         generate(os.path.join(root_path,
-                              "test_files", "dynamo0p1", "algorithm",
-                              "1_single_function.f90"),
-                 api="dynamo0.1",
+                              "test_files", "dynamo0p3",
+                              "1.1_single_invoke_qr.f90"),
+                 api="dynamo0.3",
                  kernel_path=os.path.join(root_path,
                                           "test_files", "gocean0p1"))
 

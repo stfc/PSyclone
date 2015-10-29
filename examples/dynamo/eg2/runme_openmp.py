@@ -1,57 +1,54 @@
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2014.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+
+'''Example script showing how to apply OpenMP transformations to
+dynamo code'''
 
 from parse import parse
 from psyGen import PSyFactory
-api="dynamo0.1"
-ast,invokeInfo=parse("dynamo_algorithm_mod.F90",api=api)
-psy=PSyFactory(api).create(invokeInfo)
-print psy.gen
+API = "dynamo0.1"
+_, INVOKEINFO = parse("dynamo_algorithm_mod.F90", api=API)
+PSY = PSyFactory(API).create(INVOKEINFO)
+print PSY.gen
 
-print psy.invokes.names
-
-schedule=psy.invokes.get('invoke_0').schedule
-schedule.view()
+print PSY.invokes.names
 
 from psyGen import TransInfo
-t=TransInfo()
-print t.list
+TRANS = TransInfo()
+print TRANS.list
 
-lf=t.get_trans_name('LoopFuse')
-ol=t.get_trans_name('OMPParallelLoopTrans')
-lc=t.get_trans_name('LoopColour')
+LOOP_FUSE = TRANS.get_trans_name('LoopFuse')
+OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
 
-schedule.view()
-fuse_schedule,memento=lf.apply(schedule.children[0],schedule.children[1])
-fuse_schedule.view()
-omp_schedule,memento=ol.apply(fuse_schedule.children[0])
-omp_schedule.view()
+SCHEDULE = PSY.invokes.get('invoke_0').schedule
+SCHEDULE.view()
 
-psy.invokes.get('invoke_0').schedule=omp_schedule
+FUSE_SCHEDULE, _ = LOOP_FUSE.apply(SCHEDULE.children[0], SCHEDULE.children[1])
+FUSE_SCHEDULE.view()
+OMP_SCHEDULE, _ = OMP_PAR.apply(FUSE_SCHEDULE.children[0])
+OMP_SCHEDULE.view()
 
-schedule=psy.invokes.get('invoke_1_v2_kernel_type').schedule
-schedule.view()
-lc_schedule,memento=lc.apply(schedule.children[0])
-lc_schedule.view()
+PSY.invokes.get('invoke_0').schedule = OMP_SCHEDULE
 
-lc_omp_schedule,memento=ol.apply(lc_schedule.children[0].children[0])
-lc_omp_schedule.view()
+SCHEDULE = PSY.invokes.get('invoke_1_v2_kernel_type').schedule
+SCHEDULE.view()
 
-psy.invokes.get('invoke_1_v2_kernel_type').schedule=lc_omp_schedule
+OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
+OMP_SCHEDULE.view()
 
-schedule=psy.invokes.get('invoke_2_v1_kernel_type').schedule
-schedule.view()
-lc_schedule,memento=lc.apply(schedule.children[0])
-lc_schedule.view()
+PSY.invokes.get('invoke_1_v2_kernel_type').schedule = OMP_SCHEDULE
 
-lc_omp_schedule,memento=ol.apply(lc_schedule.children[0].children[0])
-lc_omp_schedule.view()
+SCHEDULE = PSY.invokes.get('invoke_2_v1_kernel_type').schedule
+SCHEDULE.view()
 
-psy.invokes.get('invoke_2_v1_kernel_type').schedule=lc_omp_schedule
+OMP_SCHEDULE, _ = OMP_PAR.apply(SCHEDULE.children[0])
+OMP_SCHEDULE.view()
 
-print psy.gen
+PSY.invokes.get('invoke_2_v1_kernel_type').schedule = OMP_SCHEDULE
+
+print PSY.gen

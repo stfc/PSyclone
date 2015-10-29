@@ -38,6 +38,8 @@ class DynamoPSy(PSy):
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
+        # inline kernel subroutines if requested
+        self.inline(psy_module)
         return psy_module.root
 
 class DynamoInvokes(Invokes):
@@ -193,8 +195,9 @@ class DynKern(Kern):
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
-        parent.parent.add(UseGen(parent.parent, name = self._module_name,
-                                 only = True, funcnames = [self._name]))
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name,
+                              only=True, funcnames=[self._name]))
 
         # declare and initialise the number of layers and the number
         # of degrees of freedom. Needs to be generalised.

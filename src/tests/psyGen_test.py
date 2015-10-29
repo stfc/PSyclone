@@ -12,6 +12,8 @@
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, NameSpaceFactory, GenerationError
+from dynamo0p3 import DynKern, DynKernMetadata
+from fparser import api as fpapi
 
 class TestPSyFactoryClass:
     ''' PSyFactory class unit tests '''
@@ -301,3 +303,32 @@ class TestNameSpaceFactoryClass(object):
         nsf = NameSpaceFactory(reset=True)
         ns2 = nsf.create()
         assert ns1 != ns2
+
+# Kern class test
+def test_kern_class_view(capsys):
+    ''' tests the view method in the Kern class. The simplest way to
+    do this is via the dynamo0.3 subclass '''
+    meta = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write,w1) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+    ast = fpapi.parse(meta, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    my_kern.view()
+    out, err = capsys.readouterr()
+    expected_output = \
+        "KernCall dummy_code(field_1) [module_inline=False]"
+    assert expected_output in out

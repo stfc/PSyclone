@@ -57,10 +57,9 @@ class LoopFuseTrans(Transformation):
         ''' Returns the name of this transformation as a string '''
         return "LoopFuse"
 
-    def apply(self, node1, node2):
-        ''' Fuse the loops represented by :py:obj:`node1` and
-        :py:obj:`node2` '''
-        # check nodes are loops
+    def _validate(self, node1, node2):
+        ''' validity checks for input arguments '''
+        # Check that the supplied Node is a Loop
         from psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
             raise TransformationError("Error in LoopFuse transformation. "
@@ -74,12 +73,18 @@ class LoopFuseTrans(Transformation):
         if abs(node1.position-node2.position) != 1:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
-                                      "next to eachother")
+                                      "next to each other")
         # Check iteration space is the same
         if not node1.iteration_space == node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same "
                                       "iteration space")
+
+    def apply(self, node1, node2):
+        ''' Fuse the loops represented by :py:obj:`node1` and
+        :py:obj:`node2` '''
+
+        self._validate(node1, node2)
 
         schedule = node1.root
 
@@ -118,6 +123,9 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     def apply(self, node1, node2):
         ''' Fuse the two GOcean loops represented by :py:obj:`node1` and
         :py:obj:`node2` '''
+
+        LoopFuseTrans._validate(self, node1, node2)
+
         try:
             if node1.field_space != node2.field_space:
                 raise TransformationError(
@@ -125,13 +133,12 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                     "fuse loops that are over different grid-point types: "
                     "{0} {1}".format(node1.field_space,
                                      node2.field_space))
+            return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
         except Exception as err:
             raise TransformationError("Unexpected exception: {0}".
                                       format(err))
-
-        return LoopFuseTrans.apply(self, node1, node2)
 
 
 class DynamoLoopFuseTrans(LoopFuseTrans):
@@ -154,6 +161,9 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
     def apply(self, node1, node2):
         ''' Fuse the two Dynamo loops represented by :py:obj:`node1`
         and :py:obj:`node2` '''
+
+        LoopFuseTrans._validate(self, node1, node2)
+
         try:
             if node1.field_space != node2.field_space:
                 raise TransformationError(
@@ -161,12 +171,12 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     "Cannot fuse loops that are over different spaces: "
                     "{0} {1}".format(node1.field_space,
                                      node2.field_space))
+            return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
         except Exception as err:
-            raise TransformationError("Unexpected exception: {0}".\
+            raise TransformationError("Unexpected exception: {0}".
                                       format(err))
-        return LoopFuseTrans.apply(self, node1, node2)
 
 
 class OMPLoopTrans(Transformation):
@@ -344,6 +354,20 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
+    def _validate(self, node):
+        ''' validity checks for input arguments '''
+        # Check that the supplied Node is a Loop
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError("Error in {0} transformation. The "
+                                      "node is not a loop.".format(self.name))
+
+        # Check we are not a sequential loop
+        if node.loop_type == 'colours':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                                      "The requested loop is over colours and "
+                                      "must be computed serially.")
+
     def apply(self, node):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
@@ -358,17 +382,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         '''
-        # Check that the supplied Node is a Loop
-        from psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in {0} transformation. The "
-                                      "node is not a loop.".format(self.name))
 
-        # Check we are not a sequential loop
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The requested loop is over colours and "
-                                      "must be computed serially.")
+        self._validate(node)
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
@@ -420,18 +435,12 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         ''' Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
         :py:class:`base class <OMPParallelLoopTrans>`. '''
-        # Check that the supplied node is a loop - although this check
-        # is not Dynamo specific it is necessary for the subsequent
-        # checks to function correctly (only a loop object has an
-        # iteration_space for instance).
-        from psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in {0} transformation. The "
-                                      "node is not a loop.".format(self.name))
+        OMPParallelLoopTrans._validate(self, node)
+
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
             raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".\
+                                      "iteration space is not 'cells'.".
                                       format(self.name))
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is W3 then we don't need
@@ -440,7 +449,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
-                    "argument with INC access. Colouring is required.".\
+                    "argument with INC access. Colouring is required.".
                     format(self.name))
 
         return OMPParallelLoopTrans.apply(self, node)
@@ -468,23 +477,15 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:meth:`OMPParallelLoopTrans.apply`.
 
         '''
+        OMPParallelLoopTrans._validate(self, node)
 
-        # check node is a loop - although this check
-        # is not GOcean specific, it is necessary for the subsequent
-        # checks to function correctly (only a loop object has a
-        # loop_type for instance).
-        from psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The node is not a loop.")
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
             raise TransformationError(
                 "Error in "+self.name+" transformation.  The requested loop"
                 " is not of type inner or outer.")
 
-        return OMPParallelLoopTrans.apply(self,
-                                          node)
+        return OMPParallelLoopTrans.apply(self, node)
 
 
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
@@ -516,14 +517,14 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
             raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".\
+                                      "iteration space is not 'cells'.".
                                       format(self.name))
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
             raise TransformationError(
                 "Error in {0} transformation. The kernel has an argument"
-                " with INC access. Colouring is required.".\
+                " with INC access. Colouring is required.".
                 format(self.name))
         return OMPLoopTrans.apply(self, node)
 
@@ -635,50 +636,67 @@ class ColourTrans(Transformation):
         return schedule, keep
 
 
-class Dynamo0p1ColourTrans(Transformation):
+class KernelModuleInlineTrans(Transformation):
+    '''Switches on, or switches off, the inlining of a Kernel subroutine
+    into the PSy layer module. For example:
 
-    ''' Apply a colouring transformation to a loop (in order to permit a
-        subsequent OpenMP parallelisation over colours).
+    >>> invoke = ...
+    >>> schedule = invoke.schedule
+    >>>
+    >>> inline_trans = KernelModuleInlineTrans()
+    >>>
+    >>> ischedule, _ = inline_trans.apply(schedule.children[0].children[0])
+    >>> ischedule.view()
+
+    .. warning ::
+        For this transformation to work correctly, the Kernel subroutine
+        must only use data that is passed in by argument, declared locally
+        or included via use association within the subroutine. Two
+        examples where in-lining will not work correctly are:
+
+        #. A variable is declared within the module that ``contains`` the
+           Kernel subroutine and is then accessed within that Kernel;
+        #. A variable is included via use association at the module level
+           and accessed within the Kernel subroutine.
+
+        *There are currently no checks that these rules are being followed
+        when in-lining so the onus is on the user to ensure correctness.*
     '''
 
     def __str__(self):
-        return "Split a Dynamo 0.1 loop into colours"
+        return ("Inline (or cancel inline of) a kernel subroutine into the "
+                "PSy module")
 
     @property
     def name(self):
         ''' Returns the name of this transformation as a string '''
-        return "Dynamo0p1LoopColourTrans"
+        return "KernelModuleInline"
 
-    def apply(self, node):
-        '''Performs Dynamo0.1-specific error checking and then uses the parent
-        class to convert the Loop represented by :py:obj:`node` into a
-        nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour.
+    def apply(self, node, inline=True):
+        '''Checks that the node is of the correct type (a Kernel) then marks
+        the Kernel to be inlined, or not, depending on the value of
+        the inline argument. If the inline argument is not passed the
+        Kernel is marked to be inlined.'''
+        # check node is a kernel
+        from psyGen import Kern
+        if not isinstance(node, Kern):
+            raise TransformationError(
+                "Error in KernelModuleInline transformation. The node is not a \
+                Kernel")
 
-        '''
+        schedule = node.root
 
-        # check node is a loop
-        from psyGen import Loop
-        if not isinstance(node, Loop):
-            raise Exception("Error in LoopColour transformation. The "
-                            "node is not a loop")
-        # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
-            raise Exception("Error in "+self.name+" transformation. The "
-                            "iteration space is not 'cells'.")
-        # Check we need colouring
-        if node.field_space == "w3":
-            raise Exception("Error in "+self.name+" transformation. The "
-                            "field space written to by the kernel is 'w3'. "
-                            "Colouring is not required.")
-        # Check this is a kernel loop
-        if node.loop_type not in [None, ""]:
-            raise Exception("Error in {0} transformation. The "
-                            "loop is not the correct type for colouring."
-                            " Expecting 'None' but found '{1}'".
-                            format(self.name, node.loop_type))
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
 
-        schedule, keep = ColourTrans.apply(self, node)
+        # set kernel's inline status
+        if node.module_inline == inline:
+            # issue a warning here when we implement logging
+            # print "Warning, Kernel inline is already set to "+str(inline)
+            pass
+        else:
+            node.module_inline = inline
 
         return schedule, keep
 
@@ -754,12 +772,12 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Check we need colouring
         if node.field_space == "w3":
             pass
-            #TODO generate a warning here as we don't need to colour
+            # TODO generate a warning here as we don't need to colour
             # a loop that updates a field on W3.
 
         # Check whether we have a field that has INC access
         if not node.has_inc_arg():
-            #TODO generate a warning here as we don't need to colour
+            # TODO generate a warning here as we don't need to colour
             # a loop that does not update a field with INC access
             pass
 
@@ -852,8 +870,8 @@ class OMPParallelTrans(Transformation):
         node_position = node_list[0].position
 
         if node_list[0].ancestor(OMPDirective):
-            raise TransformationError("Error in OMPParallel transformation:"+\
-                                      " cannot create an OpenMP PARALLEL "+\
+            raise TransformationError("Error in OMPParallel transformation:" +
+                                      " cannot create an OpenMP PARALLEL " +
                                       "region within another OpenMP region.")
         for child in node_list:
             if child.parent is not node_parent:

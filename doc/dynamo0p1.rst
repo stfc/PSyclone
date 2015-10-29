@@ -44,7 +44,7 @@ iterate over. For example:
     end type integrate_one_kernel
 
 The meaning and valid values of ``iterates_over`` are discussed in Section
-:ref:`iterates-over-label`.
+:ref:`iterates-over-label-dyn0p1`.
 
 Meta_args
 +++++++++
@@ -211,7 +211,7 @@ Access can currently be FE or POINTWISE
 If iterates_over (see subsequent section) is set to DOFS then the
 access to all data in the subroutine must be set to POINTWISE.
 
-.. _iterates-over-label:
+.. _iterates-over-label-dyn0p1:
 
 Iterates_over
 +++++++++++++

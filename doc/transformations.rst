@@ -31,6 +31,10 @@ The generic transformations currently available are given below (a
 number of these have specialisations which can be found in the
 API-specific sections).
 
+.. autoclass:: transformations.KernelModuleInlineTrans
+    :members:
+    :noindex:
+
 .. autoclass:: transformations.LoopFuseTrans
     :members:
     :noindex:

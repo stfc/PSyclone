@@ -799,10 +799,10 @@ def test_goschedule_view(capsys):
         """GOSchedule[invoke='invoke_0',Constant loop bounds=True]
     Loop[type='outer',field_space='cu',it_space='internal_pts']
         Loop[type='inner',field_space='cu',it_space='internal_pts']
-            Call compute_cu_code(cu_fld,p_fld,u_fld)
+            KernCall compute_cu_code(cu_fld,p_fld,u_fld) [module_inline=False]
     Loop[type='outer',field_space='every',it_space='internal_pts']
         Loop[type='inner',field_space='every',it_space='internal_pts']
-            Call time_smooth_code(u_fld,unew_fld,uold_fld)""")
+            KernCall time_smooth_code(u_fld,unew_fld,uold_fld) [module_inline=False]""")
 
     assert expected_output in out
 

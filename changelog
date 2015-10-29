@@ -35,6 +35,12 @@
 	information to generate more efficient code. This option can be
 	switched on or off using a transformation.
 
+        10) Support the module in-lining of kernel subroutines. i.e.
+        kernel subroutines can be moved into the same module that contains
+        the invoke from which they are called. This functionality is
+        implemented as a new transformation, 'KernelModuleInlineTrans'.
+        psyGen.py has also been made fully pep8 compliant.
+
 release 1.0.2
 
 	1) #299 temporary boundary condition

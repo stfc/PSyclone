@@ -43,6 +43,8 @@ class GOPSy(PSy):
                         only=["scalar_field_type"]))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
+        # inline kernels where requested
+        self.inline(psy_module)
         return psy_module.root
 
 class GOInvokes(Invokes):
@@ -248,8 +250,9 @@ class GOKern(Kern):
             else:
                 arguments.append(arg.name)
         parent.add(CallGen(parent, self._name, arguments))
-        parent.add(UseGen(parent, name = self._module_name, only = True,
-                          funcnames = [self._name]))
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name, only=True,
+                              funcnames=[self._name]))
 
 class GOKernelArguments(Arguments):
     ''' Provides information about GOcean kernel call arguments collectively,

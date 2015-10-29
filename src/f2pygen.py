@@ -123,14 +123,14 @@ class BaseGen(object):
         from fparser.block_statements import Do
         index = len(self.root.content)-1
         found = False
-        while not found and index>0:
+        while not found and index>=0:
             if isinstance(self.root.content[index],Do):
                 found = True
             else:
                 index -= 1
         if not found:
-            raise RuntimeError("Error, expecting to find a loop but none "
-                               "were found")
+            raise RuntimeError(
+                "Error, expecting to find a loop but none were found")
         return self.root.content[index]
 
     def last_declaration(self):
@@ -347,6 +347,20 @@ end module vanilla
         ProgUnitGen.__init__(self,None,module)
         if implicitnone:
             self.add(ImplicitNoneGen(self))
+
+    def add_raw_subroutine(self, content):
+        ''' adds a subroutine to the module that is a raw f2py parse object.
+            This is used for inlining kernel subroutines into a module.
+        '''
+        from parse import KernelProcedure
+        if not isinstance(content, KernelProcedure):
+            raise Exception(
+                "Expecting a KernelProcedure type but received " +
+                str(type(content)))
+        content.ast.parent = self.root
+        # add content after any existing subroutines
+        index = len(self.root.content) - 1
+        self.root.content.insert(index, content.ast)
 
     def add(self,content,position=["auto"]):
         ''' specialise the add method to include a module specific check '''

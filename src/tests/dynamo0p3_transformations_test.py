@@ -10,12 +10,13 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import TransformationError,\
-    OMPParallelTrans,\
-    Dynamo0p3ColourTrans,\
-    Dynamo0p3OMPLoopTrans,\
-    DynamoOMPParallelLoopTrans,\
-    DynamoLoopFuseTrans
+from transformations import TransformationError, \
+    OMPParallelTrans, \
+    Dynamo0p3ColourTrans, \
+    Dynamo0p3OMPLoopTrans, \
+    DynamoOMPParallelLoopTrans, \
+    DynamoLoopFuseTrans, \
+    KernelModuleInlineTrans
 import os
 import pytest
 
@@ -27,7 +28,7 @@ TEST_API = "dynamo0.3"
 def test_colour_trans_declarations():
     ''' Check that we generate the correct variable declarations
     when doing a colouring transformation '''
-    ''' test of the colouring transformation of a single loop '''
+    # test of the colouring transformation of a single loop
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -540,6 +541,27 @@ def test_loop_fuse_different_spaces():
                             schedule.children[1])
 
 
+def test_loop_fuse_unexpected_error():
+    ''' Test that we catch an unexpected error when loop fusing '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    # cause an unexpected error
+    schedule.children[0].children = None
+
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = ftrans.apply(schedule.children[0],
+                            schedule.children[1])
+    assert 'Unexpected exception' in str(excinfo.value)
+
+
 def test_loop_fuse():
     ''' Test that we are able to fuse two loops together '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -732,3 +754,24 @@ def test_fuse_colour_loops():
     assert call_idx2 > call_idx1
     assert call_idx1 < end_loop_idx1
     assert call_idx2 < end_loop_idx2
+
+
+def test_module_inline():
+    '''Tests that correct results are obtained when a kernel is inlined
+    into the psy-layer in the dynamo0.3 API. More in-depth tests can be
+    found in the gocean1p0_transformations.py file'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.6_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    # check that the subroutine has been inlined
+    assert 'SUBROUTINE ru_code()' in gen
+    # check that the associated psy "use" does not exist
+    assert 'USE ru_kernel_mod, only : ru_code' not in gen

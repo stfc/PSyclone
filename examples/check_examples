@@ -1,0 +1,22 @@
+#!/bin/bash
+
+cd dynamo/eg1
+python runme.py
+python runme_openmp.py
+
+cd ../eg2
+python runme.py
+python runme_openmp.py
+python runme_loop_fuse.py
+
+cd ../eg3
+python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
+
+cd ../../gocean
+python runme.py
+python runme_openmp.py
+python runme_loop_fuse.py
+
+cd ../transformations/inline
+python module_inline_example.py
+

@@ -94,6 +94,8 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name="field_mod"))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
+        # inline kernels where requested
+        self.inline(psy_module)
         return psy_module.root
 
 
@@ -679,8 +681,9 @@ class GOKern(Kern):
                                       format(self._name, arg.name, arg.type))
 
         parent.add(CallGen(parent, self._name, arguments))
-        parent.add(UseGen(parent, name=self._module_name, only=True,
-                          funcnames=[self._name]))
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name, only=True,
+                              funcnames=[self._name]))
 
     @property
     def index_offset(self):
