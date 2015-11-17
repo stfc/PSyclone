@@ -1520,7 +1520,7 @@ def test_kernel_stub_usage():
     from subprocess import check_output, CalledProcessError, STDOUT
 
     usage_msg = (
-        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename\n"
+        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] [-l] filename\n"
         "genkernelstub.py: error: too few arguments")
 
     try:

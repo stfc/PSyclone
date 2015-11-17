@@ -3,20 +3,29 @@
 cd dynamo/eg1
 python runme.py
 python runme_openmp.py
+cd -
 
-cd ../eg2
+cd dynamo/eg2
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
+cd -
 
-cd ../eg3
+cd dynamo/eg3
 python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
+cd -
 
-cd ../../gocean
+cd gocean
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
+cd -
 
-cd ../transformations/inline
+cd transformations/inline
 python module_inline_example.py
+cd -
+
+cd line_length
+python runme.py
+cd -
 

@@ -41,6 +41,13 @@
         implemented as a new transformation, 'KernelModuleInlineTrans'.
         psyGen.py has also been made fully pep8 compliant.
 
+        11) #347 Add an option to limit the length of lines of fortran
+        code that PSyclone generates to 132 chars. This is the length
+        mandated by the Fortran free-format standard and is rigorously
+        enforced by some compilers (e.g. PGI). As a part of this change
+        PSyclone now checks the length of all lines of source code in
+	the Algorithm and Kernel files that it parses.
+
 release 1.0.2
 
 	1) #299 temporary boundary condition

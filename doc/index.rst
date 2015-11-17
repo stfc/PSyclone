@@ -8,12 +8,14 @@
 
    introduction
    getting_going
+   generator_script
    kernel_layer
    algorithm_layer
    psy_layer
    transformations
-   api
    stub_gen
+   line_length
+   api
    f2py_install
 ..   developers
 ..   infrastructure_calls

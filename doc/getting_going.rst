@@ -138,7 +138,7 @@ doing this is to use the generator.py script:
     > cd <PSYCLONEHOME>/src
     > python ./generator.py 
     usage: generator.py [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
-                        [-d DIRECTORY]
+                        [-d DIRECTORY] [-l]
                         filename
     generator.py: error: too few arguments
 

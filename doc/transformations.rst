@@ -130,6 +130,8 @@ can be found in the runme*.py files within the examples/dynamo/eg1 and
 examples/dynamo/eg2 directories. Some simple examples of the use of
 transformations are also given in the previous section.
 
+.. _sec_transformations_script:
+
 Script
 ++++++
 

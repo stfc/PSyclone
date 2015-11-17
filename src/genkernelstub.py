@@ -21,6 +21,7 @@ from config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
 import os
 import sys
 import traceback
+from line_length import FortLineLength
 
 
 def generate(filename, api=""):
@@ -64,8 +65,12 @@ if __name__ == "__main__":
     PARSER.add_argument("-o", "--outfile", help="filename of output")
     PARSER.add_argument("-api", default=DEFAULTSTUBAPI,
                         help="choose a particular api from {0}, default {1}".
-                             format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
+                        format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
     PARSER.add_argument('filename', help='Kernel metadata')
+    PARSER.add_argument(
+        '-l', '--limit', dest='limit', action='store_true', default=False,
+        help='limit the fortran line length to 132 characters')
+
     ARGS = PARSER.parse_args()
 
     try:
@@ -81,9 +86,14 @@ if __name__ == "__main__":
         traceback.print_tb(EXC_TRACEBACK)
         exit(1)
 
+    if ARGS.limit:
+        FLL = FortLineLength()
+        STUB_STR = FLL.process(str(STUB))
+    else:
+        STUB_STR = str(STUB)
     if ARGS.outfile is not None:
         MY_FILE = open(ARGS.outfile, "w")
-        MY_FILE.write(str(STUB))
+        MY_FILE.write(STUB_STR)
         MY_FILE.close()
     else:
-        print "Kernel stub code:\n", STUB
+        print "Kernel stub code:\n", STUB_STR

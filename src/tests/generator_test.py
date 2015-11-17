@@ -12,6 +12,7 @@
 '''
 
 from generator import generate, GenerationError
+from parse import ParseError
 import pytest
 import os
 
@@ -311,3 +312,57 @@ def test_script_trans():
     delete_module("loop_fuse_trans")
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
+
+DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "dynamo0p3")
+
+
+def test_alg_lines_too_long_tested():
+    ''' Test that the generate function causes an exception if the
+    line_length argument is set to True and the algorithm file has
+    lines longer than 132 characters. We use the dynamo0.3 API in this
+    case but could have chosen any. '''
+    alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
+    assert 'algorithm file does not conform' in str(excinfo.value)
+
+
+def test_alg_lines_too_long_not_tested():
+    ''' Test that the generate function returns successfully if the
+    line_length argument is not set (as it should default to False)
+    when the algorithm file has lines longer than 132 characters. We
+    use the dynamo0.3 API in this case but could have chosen any.'''
+    alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
+    _, _ = generate(alg_filename, api="dynamo0.3")
+
+
+def test_kern_lines_too_long_tested():
+    ''' Test that the generate function raises an exception if the
+    line_length argument is set to True and a Kernel file has
+    lines longer than 132 characters. We use the dynamo0.3 API in this
+    case but could have chosen any. '''
+    alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
+    assert 'kernel file' in str(excinfo.value)
+    assert 'does not conform' in str(excinfo.value)
+
+
+def test_kern_lines_too_long_not_tested():
+    ''' Test that the generate function returns successfully if the
+    line_length argument is not set (as it should default to False)
+    when a kernel file has lines longer than 132 characters. We
+    use the dynamo0.3 API in this case but could have chosen any.'''
+    alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
+    _, _ = generate(alg_filename, api="dynamo0.3")
+
+
+def test_continuators():
+    '''Tests that input files with long lines that already have
+       continuators to make the code conform to the line length limit
+       do not cause an error '''
+    _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1_single_invoke_qr.f90"),
+                    api="dynamo0.3", line_length=True)

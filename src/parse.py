@@ -14,6 +14,7 @@ from fparser import api as fpapi
 import expression as expr
 import logging
 import os
+from line_length import FortLineLength
 
 class ParseError(Exception):
     def __init__(self, value):
@@ -530,14 +531,20 @@ class FileInfo(object):
         return self._calls
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf", 
-          kernel_path=""):
-    '''
-    Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
+          kernel_path="", line_length=False):
+    '''Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
     :param str alg_filename: The file containing the algorithm specification.
     :param str invoke_name: The expected name of the invocation calls in the algorithm specification
     :param str inf_name: The expected module name of any required infrastructure routines.
     :param str kernel_path: The path to search for kernel source files (if different from the location of the algorithm source).
+    :param bool line_length: A logical flag specifying whether we
+                             care about line lengths being longer
+                             than 132 characters. If so, the input
+                             (algorithm and kernel) code is checked
+                             to make sure that it conforms and an
+                             error raised if not. The default is
+                             False.
     :rtype: ast,invoke_info
     :raises IOError: if the filename or search path does not exist
     :raises ParseError: if there is an error in the parsing
@@ -566,10 +573,23 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         raise IOError("File %s not found" % alg_filename)
     try:
         ast = fpapi.parse(alg_filename, ignore_comments = False, analyze = False)
+        # ast includes an extra comment line which contains file
+        # details. This line can be long which can cause line length
+        # issues. Therefore set the information (name) to be empty.
+        ast.name = ""
     except:
         import traceback
         traceback.print_exc()
 	raise ParseError("Fatal error in external fparser tool")
+    if line_length:
+        fll = FortLineLength()
+        with open (alg_filename, "r") as myfile:
+            code_str=myfile.read()
+        if fll.long_lines(code_str):
+            raise ParseError(
+                "parse: the algorithm file does not conform to the specified"
+                " {0} line length limit".format(str(fll.length)))
+        
     name_to_module = {}
     try:
         from collections import OrderedDict
@@ -682,10 +702,25 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     else:
                         try:
                             modast = fpapi.parse(matches[0])
+                            # ast includes an extra comment line which
+                            # contains file details. This line can be
+                            # long which can cause line length
+                            # issues. Therefore set the information
+                            # (name) to be empty.
+                            modast.name = ""
                         except:
                             raise ParseError("Failed to parse kernel code "
                                              "'{0}'. Is the Fortran correct?".
                                              format(matches[0]))
+                        if line_length:
+                            fll = FortLineLength()
+                            with open (matches[0], "r") as myfile:
+                                code_str=myfile.read()
+                            if fll.long_lines(code_str):
+                                raise ParseError(
+                                    "parse: the kernel file '{0}' does not"
+                                    " conform to the specified {1} line length"
+                                    " limit".format(modulename, str(fll.length)))
 
                     statement_kcalls.append(KernelCall(modulename, 
                                                        KernelTypeFactory(api=api).\

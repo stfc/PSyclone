@@ -22,9 +22,11 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 from algGen import AlgorithmError
 from config import SUPPORTEDAPIS, DEFAULTAPI
+from line_length import FortLineLength
 
 
-def generate(filename, api="", kernel_path="", script_name=None):
+def generate(filename, api="", kernel_path="", script_name=None,
+             line_length=False):
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
@@ -42,6 +44,11 @@ def generate(filename, api="", kernel_path="", script_name=None):
                             to the PSy layer (can be a path to a file or
                             a filename that relies on the PYTHONPATH to
                             find the module).
+    :param bool line_length: A logical flag specifying whether we care
+                             about line lengths being longer than 132
+                             characters. If so, the input (algorithm
+                             and kernel) code is checked to make sure
+                             that it conforms. The default is False.
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -52,6 +59,7 @@ def generate(filename, api="", kernel_path="", script_name=None):
     >>> psy, alg = generate("algspec.f90")
     >>> psy, alg = generate("algspec.f90", kernel_path="src/kernels")
     >>> psy, alg = generate("algspec.f90", script_name="optimise.py")
+    >>> psy, alg = generate("algspec.f90", line_length=True)
 
     '''
 
@@ -70,7 +78,8 @@ def generate(filename, api="", kernel_path="", script_name=None):
     try:
         from algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                                 kernel_path=kernel_path)
+                                 kernel_path=kernel_path,
+                                 line_length=line_length)
         psy = PSyFactory(api).create(invoke_info)
         if script_name is not None:
             sys_path_appended = False
@@ -150,21 +159,27 @@ if __name__ == "__main__":
     PARSER.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
+    PARSER.add_argument(
+        '-l', '--limit', dest='limit', action='store_true', default=False,
+        help='limit the fortran line length to 132 characters')
+
     ARGS = PARSER.parse_args()
     if ARGS.api not in SUPPORTEDAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are "
-        "{1}.".format(ARGS.api, SUPPORTEDAPIS)
+        print "Unsupported API '{0}' specified. Supported API's are "\
+            "{1}.".format(ARGS.api, SUPPORTEDAPIS)
         exit(1)
     try:
         ALG, PSY = generate(ARGS.filename, api=ARGS.api,
                             kernel_path=ARGS.directory,
-                            script_name=ARGS.script)
+                            script_name=ARGS.script,
+                            line_length=ARGS.limit)
     except AlgorithmError as error:
         print "Warning:", error
         exit(0)
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
-        print "Error:", error.message
+        _, EXC_VALUE, _ = sys.exc_info()
+        print EXC_VALUE
         exit(1)
     except Exception as error:
         print "Error, unexpected exception:\n"
@@ -173,15 +188,22 @@ if __name__ == "__main__":
         print EXC_VALUE
         traceback.print_tb(EXC_TRACEBACK)
         exit(1)
+    if ARGS.limit:
+        FLL = FortLineLength()
+        PSY_STR = FLL.process(str(PSY))
+        ALG_STR = FLL.process(str(ALG))
+    else:
+        PSY_STR = str(PSY)
+        ALG_STR = str(ALG)
     if ARGS.oalg is not None:
         MY_FILE = open(ARGS.oalg, "w")
-        MY_FILE.write(str(ALG))
+        MY_FILE.write(ALG_STR)
         MY_FILE.close()
     else:
-        print "Transformed algorithm code:\n", ALG
+        print "Transformed algorithm code:\n", ALG_STR
     if ARGS.opsy is not None:
         MY_FILE = open(ARGS.opsy, "w")
-        MY_FILE.write(str(PSY))
+        MY_FILE.write(PSY_STR)
         MY_FILE.close()
     else:
-        print "Generated psy layer code:\n", PSY
+        print "Generated psy layer code:\n", PSY_STR
