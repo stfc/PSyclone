@@ -1517,32 +1517,29 @@ def test_sub_name():
 def test_kernel_stub_usage():
     ''' Check that the kernel-stub generator prints a usage message
     if no arguments are supplied '''
-    from subprocess import check_output, CalledProcessError, STDOUT
+    from subprocess import Popen, STDOUT, PIPE
 
     usage_msg = (
         "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] [-l] filename\n"
         "genkernelstub.py: error: too few arguments")
 
-    try:
-        out = check_output(["python", "../genkernelstub.py"],
-                           stderr=STDOUT)
-    except CalledProcessError as err:
-        # Calling the script without arguments causes it to return
-        # an error as well as printing the usage info. Therefore
-        # we catch the error here and get at the message by
-        # querying the Error object
-        out = err.output
-
+    # We use the Popen constructor here rather than check_output because
+    # the latter is only available in Python 2.7 onwards.
+    out = Popen(['python', '../genkernelstub.py'],
+                stdout=PIPE,
+                stderr=STDOUT).communicate()[0]
     assert usage_msg in out
 
 
 def test_kernel_stub_gen_cmd_line():
     ''' Check that we can call the kernel-stub generator from the
     command line '''
-    from subprocess import check_output
-
-    out = check_output(["python", "../genkernelstub.py",
-                        os.path.join(BASE_PATH, "dummy_orientation_mod.f90")])
+    from subprocess import Popen, PIPE
+    # We use the Popen constructor here rather than check_output because
+    # the latter is only available in Python 2.7 onwards.
+    out = Popen(["python", "../genkernelstub.py",
+                 os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
+                stdout=PIPE).communicate()[0]
 
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
