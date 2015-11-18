@@ -50,6 +50,10 @@
 
         12) #395 Add support for new function spaces: Wtheta, W2H and W2V.
 
+	13) #396 and #397 Make all tests work with Python 2.6. Previously
+	two of the tests only worked in Python 2.7 and a third caused
+	resource issues when using deepcopy.
+
 release 1.0.2
 
 	1) #299 temporary boundary condition
