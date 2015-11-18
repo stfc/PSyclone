@@ -25,11 +25,13 @@ from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
 # first section : Parser specialisations and classes
 
 # constants
+VALID_FUNCTION_SPACES = ["w0", "w1", "w2", "w3", "wtheta", "w2h", "w2v"]
+
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
                          "any_space_7", "any_space_8", "any_space_9"]
 
-VALID_FUNCTION_SPACE_NAMES = ["w0", "w1", "w2", "w3"] + VALID_ANY_SPACE_NAMES
+VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
@@ -1157,7 +1159,7 @@ class DynKern(Kern):
                                 first_arg_decl = decl
                         else:
                             text = arg.proxy_name + "(" + str(idx) + ")" + \
-                                   dataref
+                                dataref
                         arglist.append(text)
                 else:
                     if my_type == "subroutine":
@@ -1256,17 +1258,18 @@ class DynKern(Kern):
                         # the size of the first dimension for a
                         # basis array depends on the
                         # function space. The values are
-                        # w0=1, w1=3, w2=3, w3=1
+                        # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
                         first_dim = None
-                        if unique_fs.lower() in ["w0", "w3"]:
+                        if unique_fs.lower() in ["w0", "w3", "wtheta"]:
                             first_dim = "1"
-                        elif unique_fs.lower() in ["w1", "w2"]:
+                        elif unique_fs.lower() in ["w1", "w2", "w2h", "w2v"]:
                             first_dim = "3"
                         else:
                             raise GenerationError(
                                 "Unsupported space for basis function, "
-                                "expecting one of 'W0,W1,W2,W3' but found "
-                                "'{0}'".format(unique_fs))
+                                "expecting one of {0} but found "
+                                "'{1}'".format(VALID_FUNCTION_SPACES,
+                                               unique_fs))
                         parent.add(DeclGen(parent, datatype="real",
                                            kind="r_def", intent="in",
                                            dimension=first_dim + "," +
@@ -1281,17 +1284,18 @@ class DynKern(Kern):
                         # the size of the first dimension for a
                         # differential basis array depends on the
                         # function space. The values are
-                        # w0=3,w1=3,w2=1,w3=1
+                        # w0=3, w1=3, w2=1, w3=1, wtheta=3, w2h=1, w2v=1
                         first_dim = None
-                        if unique_fs.lower() in ["w2", "w3"]:
+                        if unique_fs.lower() in ["w2", "w3", "w2h", "w2v"]:
                             first_dim = "1"
-                        elif unique_fs.lower() in ["w0", "w1"]:
+                        elif unique_fs.lower() in ["w0", "w1", "wtheta"]:
                             first_dim = "3"
                         else:
                             raise GenerationError(
                                 "Unsupported space for differential basis "
-                                "function, expecting one of 'W0,W1,W2,W3'"
-                                " but found '{0}'".format(unique_fs))
+                                "function, expecting one of {0} but found "
+                                "'{1}'".format(VALID_FUNCTION_SPACES,
+                                               unique_fs))
                         parent.add(DeclGen(parent, datatype="real",
                                            kind="r_def", intent="in",
                                            dimension=first_dim + "," +

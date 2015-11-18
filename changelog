@@ -48,6 +48,8 @@
         PSyclone now checks the length of all lines of source code in
 	the Algorithm and Kernel files that it parses.
 
+        12) #395 Add support for new function spaces: Wtheta, W2H and W2V.
+
 release 1.0.2
 
 	1) #299 temporary boundary condition
