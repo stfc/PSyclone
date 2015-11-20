@@ -342,10 +342,14 @@ class GOSchedule(Schedule):
 
     @property
     def const_loop_bounds(self):
+        ''' Returns True if constant loop bounds are enabled for this
+        schedule. Returns False otherwise. '''
         return self._const_loop_bounds
 
     @const_loop_bounds.setter
     def const_loop_bounds(self, obj):
+        ''' Set whether the Schedule will use constant loop bounds or
+        will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
 
@@ -501,6 +505,8 @@ class GOLoop(Loop):
         return stop
 
     def _lower_bound(self):
+        ''' Returns a string containing the expression for the lower
+        bound of the loop '''
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -541,6 +547,7 @@ class GOLoop(Loop):
         return start
 
     def __str__(self):
+        ''' Returns a string describing this Loop object '''
         step = self._step
         if not step:
             step = "1"
@@ -609,13 +616,18 @@ class GOKern(Kern):
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
     def __init__(self):
+        ''' Create an empty GOKern object. The object is given state via
+        the load method '''
         if False:
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
-        # Create those member variables required for testing
+        # Create those member variables required for testing and to keep
+        # pylint happy
         self._children = []
         self._name = ""
+        self._index_offset = ""
 
     def load(self, call, parent=None):
+        ''' Populate the state of this GOKern object '''
         Kern.__init__(self, GOKernelArguments, call, parent, check=False)
 
         # Pull out the grid index-offset that this kernel expects and
@@ -624,6 +636,10 @@ class GOKern(Kern):
         self._index_offset = call.ktype.index_offset
 
     def local_vars(self):
+        '''Return a list of the variable (names) that are local to this loop
+        (and must therefore be e.g. threadprivate if doing OpenMP)
+
+        '''
         return []
 
     def _find_grid_access(self):
@@ -731,8 +747,8 @@ class GOKernelArguments(Arguments):
             dofs into the gunghoproto api '''
         return self._dofs
 
-    def iteration_space_arg(self, mapping={}):
-        if mapping != {}:
+    def iteration_space_arg(self, mapping=None):
+        if mapping:
             my_mapping = mapping
         else:
             # We provide an empty mapping for inc as it is not supported
