@@ -7,9 +7,9 @@ Download
 --------
 
 PSyclone is available for download from the GungHo repository. The
-latest release is 1.0.2.
+latest release is 1.1.0.
 
-``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/tags/vn1.0.2 PSyclone``
+``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/tags/vn1.1.0 PSyclone``
 
 The latest stable version is maintained on the trunk.
 
