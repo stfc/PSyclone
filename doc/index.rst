@@ -13,6 +13,7 @@
    algorithm_layer
    psy_layer
    transformations
+   dynamo0p3
    stub_gen
    line_length
    api

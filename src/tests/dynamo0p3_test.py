@@ -79,15 +79,15 @@ def test_ad_field_type_too_few_args():
 
 def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
-    metadata has more than 3 args. '''
+    metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_type(gh_field,gh_write,w1,w1)", 1)
+                        "arg_type(gh_field,gh_write,w1,w1,w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'each meta_arg entry must have 3 arguments' \
+    assert "each meta_arg entry must have at most 4 arguments if its first" \
         in str(excinfo.value)
 
 
@@ -1988,6 +1988,150 @@ def test_kernel_stub_gen_cmd_line():
 
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
+
+STENCIL_CODE = '''
+module stencil_mod
+  type, extends(kernel_type) :: stencil_type
+     type(arg_type), meta_args(2) =    &
+          (/ arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2, stencil(cross,1)) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => stencil_code
+  end type stencil_type
+contains
+  subroutine stencil_code()
+  end subroutine stencil_code
+end module stencil_mod
+'''
+
+
+def test_stencil_metadata():
+    ''' Check that we can parse Kernels with stencil metadata '''
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    stencil_descriptor_0 = metadata.arg_descriptors[0]
+    assert  stencil_descriptor_0.stencil == None
+    stencil_descriptor_1 = metadata.arg_descriptors[1]
+    assert stencil_descriptor_1.stencil['type'] == 'cross'
+    assert stencil_descriptor_1.stencil['extent'] == 1
+
+
+def test_field_metadata_too_many_arguments():
+    '''Check that we raise an exception if more than 4 arguments are
+    provided in the metadata for a gh_field arg_type.'''
+    result = STENCIL_CODE.replace(
+        "gh_field,gh_read, w2, stencil(cross,1)",
+        "gh_field,gh_read, w2, stencil(cross,1), w1", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "each meta_arg entry must have at most 4 arguments" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_1():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by being a literal integer'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "1", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+    assert "but found the literal" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_2():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by having an invalid name'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stenci(cross,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_3():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by not having brackets'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_4():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by not containing two values in the
+    brackets '''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cross)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+    assert "there are not two arguments inside the brackets" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_first_arg_1():
+    '''Check that we raise an exception if the value of the stencil type in
+    stencil(<type>,<extent) is not valid and is an integer'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(1,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "not one of the valid types" in str(excinfo.value)
+    assert "is a literal" in str(excinfo.value)
+
+
+def test_invalid_stencil_first_arg_2():
+    '''Check that we raise an exception if the value of the stencil type in
+    stencil(<type>,<extent) is not valid and is a name'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cros,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "not one of the valid types" in str(excinfo.value)
+
+
+def test_invalid_stencil_first_arg_3():
+    '''Check that we raise an exception if the value of the stencil type in
+    stencil(<type>,<extent) is not valid and has brackets'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d(xx),1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "the specified <type>" in str(excinfo.value)
+    assert "includes brackets" in str(excinfo.value)
+
+
+def test_invalid_stencil_second_arg_1():
+    '''Check that we raise an exception if the value of the stencil extent in
+    stencil(<type>,<extent) is not an integer'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,x1d)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "the specified <extent>" in str(excinfo.value)
+    assert "is not an integer" in str(excinfo.value)
+
+
+def test_invalid_stencil_second_arg_2():
+    '''Check that we raise an exception if the value of the stencil extent in
+    stencil(<type>,<extent) is less than 1'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,0)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "the specified <extent>" in str(excinfo.value)
+    assert "is less than 1" in str(excinfo.value)
 
 
 def test_arg_descriptor_functions_method_error():

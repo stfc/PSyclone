@@ -39,6 +39,8 @@ VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
+VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
+
 # The mapping from meta-data strings to field-access types
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
@@ -187,22 +189,35 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
+        stencil = None
         if self._type == "gh_field":
-            # we expect 3 arguments in total with the 3rd being a
-            # function space
-            if len(arg_type.args) != 3:
+            # There must be at most 4 arguments.
+            if len(arg_type.args) > 4:
                 raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have 3 "
-                    "arguments if its first argument is gh_field, but found "
-                    "{0} in '{1}'".format(len(arg_type.args), arg_type))
+                    "In the dynamo0.3 API each meta_arg entry must have at "
+                    "most 4 arguments if its first argument is gh_field, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # The 3rd argument must be a function space name
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
-                    "entry must be a valid function space name (one of {0}), "
-                    "but found '{1}' in '{2}".
-                    format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
-                           arg_type))
+                    "entry must be a valid function space name if its first "
+                    "argument is gh_field (one of {0}), but found '{1}' in "
+                    "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
+                                  arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
+
+            # The optional 4th argument is a stencil specification
+            if len(arg_type.args) == 4:
+                try:
+                    stencil = self._get_stencil(arg_type.args[3],
+                                                VALID_STENCIL_TYPES)
+                except ParseError as err:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification but "
+                        "entry '{0}' raised the following error:".
+                        format(arg_type) + str(err))
         elif self._type == "gh_operator":
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
@@ -232,7 +247,7 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
         Descriptor.__init__(self, self._access_descriptor.name,
-                            self._function_space1, None)
+                            self._function_space1, stencil=stencil)
 
     @property
     def function_space_to(self):
@@ -1819,7 +1834,8 @@ class DynKernelArgument(Argument):
 
     @property
     def descriptor(self):
-        ''' Returns the raw parse object used to initialise this class. '''
+        ''' return a descriptor object which contains Kernel
+        metadata about this argument '''
         return self._arg
 
     def ref_name(self, function_space=None):
