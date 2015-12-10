@@ -1372,6 +1372,32 @@ def test_stub_generate_working_noapi():
     print result
     assert str(result).find(SIMPLE) != -1
 
+SIMPLE_WITH_SCALARS = (
+    "  MODULE simple_mod\n"
+    "    IMPLICIT NONE\n"
+    "    CONTAINS\n"
+    "    SUBROUTINE simple_code(nlayers, rscalar_1, field_2_w1, iscalar_3, "
+    "ndf_w1, undf_w1, map_w1)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+    "      INTEGER, intent(in) :: undf_w1\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    " field_2_w1\n"
+    "      INTEGER, intent(in) :: iscalar_3\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+    "    END SUBROUTINE simple_code\n"
+    "  END MODULE simple_mod")
+
+def test_stub_generate_with_scalars():
+    ''' check that the stub generate produces the expected output when
+    the kernel has scalar arguments '''
+    result = generate("test_files/dynamo0p3/simple_with_scalars.f90",
+                      api="dynamo0.3")
+    print result
+    assert str(result).find(SIMPLE_WITH_SCALARS) != -1
 
 # fields : intent
 INTENT = '''

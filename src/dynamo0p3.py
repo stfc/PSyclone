@@ -1085,9 +1085,9 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
-            elif descript.type.lower() == "gh_rscalar":
+            elif descriptor.type.lower() == "gh_rscalar":
                 pre = "rscalar_"
-            elif descript.type.lower() == "gh_iscalar":
+            elif descriptor.type.lower() == "gh_iscalar":
                 pre = "iscalar_"
             else:
                 raise GenerationError(
@@ -1308,10 +1308,10 @@ class DynKern(Kern):
                     text = arg.name
                     if arg.type == "gh_rscalar":
                         decl = DeclGen(parent, datatype="real", kind="r_def",
-                                       intent=intent, entity_decls=[text])
+                                       intent=arg.intent, entity_decls=[text])
                     elif arg.type == "gh_iscalar":
                         decl = DeclGen(parent, datatype="integer",
-                                       intent=intent, entity_decls=[text])
+                                       intent=arg.intent, entity_decls=[text])
                     else:
                         raise GenerationError(
                             "Internal error: expected arg of type gh_rscalar"
