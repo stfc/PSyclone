@@ -20,7 +20,7 @@ class TestAlgGenClassDynamo0p3:
         ''' single function specified in an invoke call'''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1_single_invoke.f90"), api = "dynamo0.3")
         assert (str(alg).find("USE psy_single_invoke, ONLY: invoke_0_testkern_type")!=-1 and \
-                  str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1, m2)")!=-1)
+                  str(alg).find("CALL invoke_0_testkern_type(a, f1, f2, m1, m2)")!=-1)
 
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a quadrature rule'''
@@ -30,33 +30,45 @@ class TestAlgGenClassDynamo0p3:
 
     def test_multi_function_invoke(self):
         ''' two functions specified in an invoke call'''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.2_multi_invoke.f90"), api = "dynamo0.3")
+        alg, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.2_multi_invoke.f90"), api = "dynamo0.3")
         assert (str(alg).find("USE psy_multi_invoke, ONLY: invoke_0")!=-1 and \
-                  str(alg).find("CALL invoke_0(f1, f2, m1, m2, f3)")!=-1)
+                  str(alg).find("CALL invoke_0(a, f1, f2, m1, m2, f3)")!=-1)
 
     def test_single_function_multi_invokes(self):
         ''' three invokes, each containing a single function '''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","3_multi_invokes.f90"), api = "dynamo0.3")
         assert (str(alg).find("USE testkern, ONLY: testkern_type")!=-1 and \
                 str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
-                str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1, m2)")!=-1 and \
-                str(alg).find("CALL invoke_2_testkern_type(f1, f2, m1, m2)")!=-1 and \
+                str(alg).find("CALL invoke_0_testkern_type(a, f1, f2, m1, m2)")!=-1 and \
+                str(alg).find("CALL invoke_2_testkern_type(a, f1, f2, m1, m2)")!=-1 and \
                 str(alg).find("CALL invoke_1_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
 
     def test_multi_function_multi_invokes(self):
         ''' two invokes, each containing multiple functions '''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","3.1_multi_functions_multi_invokes.f90"), api = "dynamo0.3")
-        assert (str(alg).find("USE psy_multi_functions_multi_invokes, ONLY: invoke_1")!=-1 and \
-                str(alg).find("USE psy_multi_functions_multi_invokes, ONLY: invoke_0")!=-1 and \
-                str(alg).find("CALL invoke_0(f1, f2, m1, m2, qr)")!=-1 and \
-                str(alg).find("CALL invoke_1(f1, f2, m1, m2, qr)")!=-1)
+        alg, _ = generate(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "test_files",
+            "dynamo0p3",
+            "3.1_multi_functions_multi_invokes.f90"), api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert (gen.find("USE psy_multi_functions_multi_invokes, ONLY: invoke_1")!=-1 and \
+                gen.find("USE psy_multi_functions_multi_invokes, ONLY: invoke_0")!=-1 and \
+                gen.find("CALL invoke_0(a, f1, f2, m1, m2, qr)")!=-1 and \
+                gen.find("CALL invoke_1(f1, f2, m1, m2, qr)")!=-1)
 
     def test_multi_function_invoke_qr(self):
-        ''' three functions specified in an invoke call, two of which which requires a quadrature rule'''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.3_multi_invoke_qr.f90"), api = "dynamo0.3")
+        '''three functions specified in an invoke call, two of which which
+        requires a quadrature rule'''
+        alg, _ = generate(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "test_files",
+            "dynamo0p3",
+            "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
+        print str(alg)
         assert (str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
-                  str(alg).find("USE testkern, ONLY: testkern_type")!=-1 and \
-                  str(alg).find("CALL invoke_0(f1, f2, m1, m2, m3, f3, qr)")!=-1)
+                  str(alg).find("USE testkern, ONLY: testkern_type") != -1 and \
+                  str(alg).find("CALL invoke_0(f1, f2, m1, m2, a, m3, f3, qr)") != -1)
 
     def test_invoke_argnames(self):
         ''' invoke call arguments which are arrays '''

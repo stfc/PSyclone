@@ -1302,7 +1302,7 @@ class DynKern(Kern):
                 else:
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
                     arglist.append(arg.proxy_name_indexed+"%local_stencil")
-                    
+
             elif arg.type == "gh_rscalar" or arg.type == "gh_iscalar":
                 if my_type == "subroutine":
                     text = arg.name
@@ -1320,7 +1320,7 @@ class DynKern(Kern):
                 else:
                     text = arg.name
                 arglist.append(text)
-                
+
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "

@@ -431,7 +431,6 @@ def test_colouring_multi_kernel():
     assert "a_proxy%vspace%get_colours(" in gen
     assert "f_proxy%vspace%get_colours(" in gen
     assert "private(cell,map_w2,map_w3,map_w0)" in gen
-    assert False
 
 
 def test_omp_region_omp_do():

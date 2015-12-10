@@ -64,7 +64,7 @@ def test_arg_descriptor_wrong_type():
     assert "each meta_arg entry must be of type 'arg_type'" \
         in str(excinfo.value)
 
-    
+
 def test_arg_descriptor_vector_str():
     ''' Test the str method of an argument descriptor containing a vector '''
     fparser.logging.disable('CRITICAL')
@@ -81,7 +81,7 @@ def test_arg_descriptor_vector_str():
         "  function_space[2]='w1'")
     assert expected in dkm_str
 
-    
+
 def test_arg_descriptor_op_str():
     '''Test the str method of an argument descriptor containing an
     operator
@@ -784,7 +784,7 @@ def test_two_scalars():
         "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
 
-    
+
 def test_two_scalars():
     ''' tests that we raise an error when a kernel erroneously
     only has scalar arguments '''
@@ -797,7 +797,7 @@ def test_two_scalars():
     assert 'Cannot create an Invoke with no field/operator arg' in \
         str(excinfo.value)
 
-    
+
 def test_vector_field():
     ''' tests that a vector field is declared correctly in the PSy
     layer '''
@@ -1204,7 +1204,7 @@ def test_dyninvoke_arg_for_fs():
     assert 'No argument found on wtheta space' \
         in str(excinfo.value)
 
-    
+
 def test_kernel_specific():
     '''tests that kernel-specific code is added to the
     matrix_vector_kernel_mm kernel. This code is required as the
@@ -1509,6 +1509,7 @@ SIMPLE_WITH_SCALARS = (
     "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
+
 
 def test_stub_generate_with_scalars():
     ''' check that the stub generate produces the expected output when
@@ -2282,7 +2283,7 @@ def test_stencil_metadata():
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     stencil_descriptor_0 = metadata.arg_descriptors[0]
-    assert  stencil_descriptor_0.stencil == None
+    assert stencil_descriptor_0.stencil is None
     stencil_descriptor_1 = metadata.arg_descriptors[1]
     assert stencil_descriptor_1.stencil['type'] == 'cross'
     assert stencil_descriptor_1.stencil['extent'] == 1
