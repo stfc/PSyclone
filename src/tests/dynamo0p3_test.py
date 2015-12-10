@@ -64,10 +64,75 @@ def test_arg_descriptor_wrong_type():
     assert "each meta_arg entry must be of type 'arg_type'" \
         in str(excinfo.value)
 
+    
+def test_arg_descriptor_vector_str():
+    ''' Test the str method of an argument descriptor containing a vector '''
+    fparser.logging.disable('CRITICAL')
+    # Change the meta-data so that the second argument is a vector
+    code = CODE.replace("gh_field,gh_write,w1", "gh_field*3,gh_write,w1", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[1])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_field'*3\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space[2]='w1'")
+    assert expected in dkm_str
+
+    
+def test_arg_descriptor_op_str():
+    '''Test the str method of an argument descriptor containing an
+    operator
+
+    '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[3])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='w2'\n"
+        "  function_space_from[3]='w2'")
+    print dkm_str
+    assert expected in dkm_str
+
+
+def test_ad_scalar_type_too_few_args():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar has fewer than 2 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'each meta_arg entry must have at least 2 args' \
+        in str(excinfo.value)
+
+
+def test_ad_scalar_type_too_many_args():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar has more than 2 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar, gh_read, w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'each meta_arg entry must have 2 arguments if' \
+        in str(excinfo.value)
+
 
 def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
-    metadata has fewer than 3 args. '''
+    metadata for a field has fewer than 3 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
                         "arg_type(gh_field,gh_write)", 1)
@@ -131,6 +196,20 @@ def test_ad_op_type_too_many_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+
+
+def test_ad_op_type_1st_arg_not_space():
+    ''' Tests that an error is raised when the operator descriptor
+    metadata contains something that is not a valid space. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_read, wbroke, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'meta_arg entry must be a valid function space' in \
+        str(excinfo.value)
 
 
 def test_ad_invalid_type():
@@ -1086,6 +1165,32 @@ def test_operator_any_space_different_space_2():
         "map_any_space_4 => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
 
 
+def test_dyninvoke_uniq_declns():
+    ''' tests that we raise an error when DynInvoke.unique_declarations() is
+    called for an invalid type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations("not_a_type")
+    assert 'unique_declarations called with an invalid datatype' \
+        in str(excinfo.value)
+
+
+def test_dyninvoke_arg_for_fs():
+    ''' tests that we raise an error when DynInvoke.arg_for_funcspace() is
+    called for an un-used space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].arg_for_funcspace("wtheta")
+    assert 'No argument found on wtheta space' \
+        in str(excinfo.value)
+
+    
 def test_kernel_specific():
     '''tests that kernel-specific code is added to the
     matrix_vector_kernel_mm kernel. This code is required as the

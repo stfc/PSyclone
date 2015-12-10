@@ -252,7 +252,7 @@ class DynArgDescriptor03(Descriptor):
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
-                    "arguments if its first argument is gh_\{r,i\}scalar, but "
+                    "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
@@ -578,7 +578,7 @@ class DynInvoke(Invoke):
                 for arg in kern_call.arguments.args:
                     if fs_name in arg.function_spaces:
                         return arg
-        raise GenerationError("Functionspace name not found")
+        raise GenerationError("No argument found on {0} space".format(fs_name))
 
     def unique_fss(self):
         ''' Returns the unique function space names over all kernel
@@ -1092,7 +1092,7 @@ class DynKern(Kern):
             else:
                 raise GenerationError(
                     "load_meta expected one of 'gh_field, gh_operator or "
-                    "gh_\{r,i\}scalar' but "
+                    "gh_{{r,i}}scalar' but "
                     "found '{0}'".format(descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
         # initialise qr so we can test whether it is required
