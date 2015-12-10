@@ -25,16 +25,18 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(4) =    &
-          (/ arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2), &
+     type(arg_type), meta_args(6) =                 &
+          (/ arg_type(gh_rscalar, gh_read),         &
+             arg_type(gh_field,gh_write,w1),        &
+             arg_type(gh_field,gh_read, w2),        &
              arg_type(gh_operator,gh_read, w2, w2), &
-             arg_type(gh_field,gh_read, w3)  &
+             arg_type(gh_field,gh_read, w3),        &
+             arg_type(gh_iscalar, gh_write)         &
            /)
-     type(func_type), dimension(3) :: meta_funcs =    &
-          (/ func_type(w1, gh_basis), &
-             func_type(w2, gh_diff_basis), &
-             func_type(w3, gh_basis, gh_diff_basis)  &
+     type(func_type), dimension(3) :: meta_funcs =  &
+          (/ func_type(w1, gh_basis),               &
+             func_type(w2, gh_diff_basis),          &
+             func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -2199,19 +2201,36 @@ def test_arg_descriptor_function_method_error():
         'not get to here' in str(excinfo.value)
 
 
-def test_arg_descriptor_str():
+def test_arg_descriptor_fld_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
-    expected '''
+    expected for a field argument'''
     fparser.logging.disable('CRITICAL')
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor = metadata.arg_descriptors[1]
     result = str(field_descriptor)
+    print result
     expected_output = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space[2]='w1'")
+    assert expected_output in result
+
+
+def test_arg_descriptor_scalar_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected for a scalar argument'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    print result
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_rscalar'\n"
+        "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
 
@@ -2239,7 +2258,8 @@ def test_arg_descriptor_repr():
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     result = repr(field_descriptor)
-    assert 'DynArgDescriptor03(arg_type(gh_field, gh_write, w1))' \
+    print result
+    assert 'DynArgDescriptor03(arg_type(gh_rscalar, gh_read))' \
         in result
 
 

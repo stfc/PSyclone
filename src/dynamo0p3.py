@@ -35,7 +35,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator", "gh_rscalar"]
+VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator", "gh_rscalar", "gh_iscalar"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
@@ -248,11 +248,11 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
-        elif self._type == "gh_rscalar":
+        elif self._type == "gh_rscalar" or self._type == "gh_iscalar":
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
-                    "arguments if its first argument is gh_rscalar, but "
+                    "arguments if its first argument is gh_\{r,i\}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
@@ -313,7 +313,7 @@ class DynArgDescriptor03(Descriptor):
         elif self._type == "gh_operator":
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        elif self._type == "gh_rscalar":
+        elif self._type == "gh_rscalar" or self._type == "gh_iscalar":
             return []
         else:
             raise RuntimeError(
@@ -359,6 +359,8 @@ class DynArgDescriptor03(Descriptor):
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[3]='{0}'".\
                    format(self._function_space2) + os.linesep
+        elif self._type == "gh_rscalar":
+            pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
         return res
