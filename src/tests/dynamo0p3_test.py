@@ -594,6 +594,7 @@ def test_scalar():
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern_scalar_1st, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
@@ -601,7 +602,6 @@ def test_scalar():
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      REAL(KIND=r_def) a\n"
         "      !\n"
         "      ! Initialise field proxies\n"
         "      !\n"
@@ -640,6 +640,68 @@ def test_scalar():
         "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
         " m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+
+
+def test_two_scalars():
+    ''' tests that we generate correct code when a kernel has two scalar
+    arguments '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
+        "      USE testkern_two_scalars, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
+        "      INTEGER, intent(inout) :: istep\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
+        " m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, map_w1, "
+        "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
 
     

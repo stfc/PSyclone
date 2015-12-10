@@ -296,7 +296,7 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space1
         elif self._type == "gh_operator":
             return self._function_space2
-        elif self._type == "gh_rscalar":
+        elif self._type == "gh_rscalar" or self._type == "gh_iscalar":
             return None
         else:
             raise RuntimeError(
@@ -703,13 +703,15 @@ class DynInvoke(Invoke):
         r_declarations = self.unique_declarations("gh_rscalar")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
-                                   kind="r_def", entity_decls=r_declarations))
+                                   kind="r_def", entity_decls=r_declarations,
+                                   intent="inout"))
 
         # add the subroutine argument declarations for integer scalars
         i_declarations = self.unique_declarations("gh_iscalar")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=i_declarations))
+                                   entity_decls=i_declarations,
+                                   intent="inout"))
 
         # add the subroutine argument declarations for fields
         field_declarations = self.unique_declarations("gh_field")
