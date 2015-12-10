@@ -55,17 +55,19 @@ meta_args
 
 The ``meta_args`` array specifies information about data that the
 kernel code expects to be passed to it via its argument list. There is
-one entry in the ``meta_args`` array for each **field**, or
-**operator** passed into the Kernel and the order that these occur in
-the ``meta_args`` array must be the same as they are expected in the
-kernel code argument list. The entry must be of ``arg_type`` which
-itself contains metadata about the associated argument. The size of the
-meta_args array must correspond to the number of **fields** and
-**operators** passed into the Kernel.
+one entry in the ``meta_args`` array for each **scalar**, **field**,
+or **operator** passed into the Kernel and the order that these occur
+in the ``meta_args`` array must be the same as they are expected in
+the kernel code argument list. The entry must be of ``arg_type`` which
+itself contains metadata about the associated argument. The size of
+the meta_args array must correspond to the number of **scalars**,
+**fields** and **operators** passed into the Kernel.
 
-For example, if there are a total of 2 **field** and/or **operator**
-entities being passed to the Kernel then the meta_args array will be
-of size 2 and there will be two ``arg_type`` entries.
+.. note:: it makes no sense for a Kernel to have only **scalar** arguments (because the PSy layer will call a Kernel for each point in the spatial domain) and PSyclone will reject such Kernels.
+
+For example, if there are a total of 2 **scalar** / **field** /
+**operator** entities being passed to the Kernel then the meta_args
+array will be of size 2 and there will be two ``arg_type`` entries:
 
 ::
 
@@ -75,10 +77,12 @@ of size 2 and there will be two ``arg_type`` entries.
        /)
 
 Argument-metadata (metadata contained within the brackets of an
-``arg_type`` entry), describes either a **field** or an **operator**.
+``arg_type`` entry), describes either a **scalar**, a **field** or an
+**operator**.
 
-The first argument-metadata entry describes whether the data that
-is being passed is for a field (``GH_FIELD``) or an operator
+The first argument-metadata entry describes whether the data that is
+being passed is for a real scalar (``GH_RSCALAR``), an integer scalar
+(``GH_ISCALAR``), a field (``GH_FIELD``) or an operator
 (``GH_OPERATOR``). This information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
@@ -86,13 +90,14 @@ fields (see the :ref:`dynamo0.3-api-algorithm` section for more
 details). If so, the size of the vector is specified using the
 notation ``GH_FIELD*N``, where ``N`` is the size of the vector.
 
-As an example, the following ``meta_args`` metadata describes 3
-entries, the first two are fields and the third is an operator. The
-second entry is a field vector of size 3.
+As an example, the following ``meta_args`` metadata describes 4
+entries, the first is a real scalar, the next two are fields and the
+fourth is an operator. The third entry is a field vector of size 3.
 
 ::
 
-  type(arg_type) :: meta_args(3) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
+       arg_type(GH_RSCALAR, ...),                                      &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
@@ -110,15 +115,18 @@ For example:
 
 ::
 
-  type(arg_type) :: meta_args(3) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
+       arg_type(GH_RSCALAR, GH_READ),                                  &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
        /)
 
-After the 2nd argument-metadata entry, the meaning of the metadata
-differs depending on whether a field or an operator is being
-described.
+For a scalar the argument metadata contains only these two entries.
+However, fields and operators require further entries specifying
+function-space information.
+The meaning of these further entries differs depending on whether a
+field or an operator is being described.
 
 In the case of an operator, the 3rd and 4th arguments describe the
 ``to`` and ``from`` function spaces respectively. In the case of a
@@ -145,9 +153,9 @@ function space but for a particular call the function spaces may have
 to be the same as each other.
 
 In the example below, the first field entry supports any function space but
-it must be the same as the operators ``to`` function space. Similarly,
+it must be the same as the operator's ``to`` function space. Similarly,
 the second field entry supports any function space but it must be the same
-as the operators ``from`` function space. Note, the metadata does not
+as the operator's ``from`` function space. Note, the metadata does not
 forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
 
 ::
