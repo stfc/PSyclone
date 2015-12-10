@@ -699,13 +699,25 @@ class DynInvoke(Invoke):
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # add the subroutine argument declarations fields
+        # add the subroutine argument declarations for real scalars
+        r_declarations = self.unique_declarations("gh_rscalar")
+        if r_declarations:
+            invoke_sub.add(DeclGen(invoke_sub, datatype="real",
+                                   kind="r_def", entity_decls=r_declarations))
+
+        # add the subroutine argument declarations for integer scalars
+        i_declarations = self.unique_declarations("gh_iscalar")
+        if i_declarations:
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=i_declarations))
+
+        # add the subroutine argument declarations for fields
         field_declarations = self.unique_declarations("gh_field")
         if len(field_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                        entity_decls=field_declarations,
                                        intent="inout"))
-        # operators
+        # ditto for operators
         operator_declarations = self.unique_declarations("gh_operator")
         if len(operator_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
@@ -716,11 +728,15 @@ class DynInvoke(Invoke):
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
-        # declare and initialise proxies for each of the arguments
+        # declare and initialise proxies for each of the (non-scalar)
+        # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise field proxies"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
+            # We don't have proxies for scalars
+            if arg.type == "gh_iscalar" or arg.type == "gh_rscalar":
+                continue
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
                     invoke_sub.add(
@@ -1067,9 +1083,14 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
+            elif descript.type.lower() == "gh_rscalar":
+                pre = "rscalar_"
+            elif descript.type.lower() == "gh_iscalar":
+                pre = "iscalar_"
             else:
                 raise GenerationError(
-                    "load_meta expected one of 'gh_field, gh_operator' but "
+                    "load_meta expected one of 'gh_field, gh_operator or "
+                    "gh_\{r,i\}scalar' but "
                     "found '{0}'".format(descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
         # initialise qr so we can test whether it is required
@@ -1218,8 +1239,9 @@ class DynKern(Kern):
         first_arg = True
         first_arg_decl = None
         for arg in self._arguments.args:
-            undf_name = self._fs_descriptors.undf_name(arg.function_space)
+
             if arg.type == "gh_field":
+                undf_name = self._fs_descriptors.undf_name(arg.function_space)
                 dataref = "%data"
                 if arg.vector_size > 1:
                     for idx in range(1, arg.vector_size+1):
@@ -1253,6 +1275,7 @@ class DynKern(Kern):
                         text = arg.proxy_name+dataref
                     arglist.append(text)
             elif arg.type == "gh_operator":
+                undf_name = self._fs_descriptors.undf_name(arg.function_space)
                 if my_type == "subroutine":
                     size = arg.name+"_ncell_3d"
                     arglist.append(size)
@@ -1277,6 +1300,25 @@ class DynKern(Kern):
                 else:
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
                     arglist.append(arg.proxy_name_indexed+"%local_stencil")
+                    
+            elif arg.type == "gh_rscalar" or arg.type == "gh_iscalar":
+                if my_type == "subroutine":
+                    text = arg.name
+                    if arg.type == "gh_rscalar":
+                        decl = DeclGen(parent, datatype="real", kind="r_def",
+                                       intent=intent, entity_decls=[text])
+                    elif arg.type == "gh_iscalar":
+                        decl = DeclGen(parent, datatype="integer",
+                                       intent=intent, entity_decls=[text])
+                    else:
+                        raise GenerationError(
+                            "Internal error: expected arg of type gh_rscalar"
+                            " or gh_iscalar but got {0}".format(arg.type))
+                    parent.add(decl)
+                else:
+                    text = arg.name
+                arglist.append(text)
+                
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "
