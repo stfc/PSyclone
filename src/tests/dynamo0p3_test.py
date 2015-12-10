@@ -73,7 +73,7 @@ def test_ad_field_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'each meta_arg entry must have at least 3 args' \
+    assert 'each meta_arg entry must have at least 3 arguments' \
         in str(excinfo.value)
 
 

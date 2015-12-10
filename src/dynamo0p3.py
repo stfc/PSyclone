@@ -35,7 +35,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
+VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator", "gh_rscalar"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
@@ -128,11 +128,11 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
-        # we require at least 3 args
-        if len(arg_type.args) < 3:
+        # we require at least 2 args
+        if len(arg_type.args) < 2:
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
-                "3 args, but found '{0}'".format(len(arg_type.args)))
+                "2 args, but found '{0}'".format(len(arg_type.args)))
         # the first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
@@ -191,6 +191,12 @@ class DynArgDescriptor03(Descriptor):
         self._access_descriptor = arg_type.args[1]
         stencil = None
         if self._type == "gh_field":
+            if len(arg_type.args) < 3:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have at "
+                    "least 3 arguments if its first argument is gh_field, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type)
+                    )
             # There must be at most 4 arguments.
             if len(arg_type.args) > 4:
                 raise ParseError(
@@ -242,6 +248,14 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
+        elif self._type == "gh_rscalar":
+            if len(arg_type.args) != 2:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have 2 "
+                    "arguments if its first argument is gh_rscalar, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # Scalars don't have a function space
+            self._function_space1 = None
         else:  # we should never get to here
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
@@ -282,6 +296,8 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space1
         elif self._type == "gh_operator":
             return self._function_space2
+        elif self._type == "gh_rscalar":
+            return None
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_space(), should "
@@ -297,6 +313,8 @@ class DynArgDescriptor03(Descriptor):
         elif self._type == "gh_operator":
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
+        elif self._type == "gh_rscalar":
+            return []
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_spaces(), should "
@@ -727,8 +745,17 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        # use the first argument
-        first_var = self.psy_unique_vars[0]
+
+        # Use the first argument that is not a scalar
+        first_var = None
+        for var in self.psy_unique_vars:
+            if var.type == "gh_field" or var.type == "gh_operator":
+                first_var = var
+                break
+        if not first_var:
+            raise GenerationError(
+                "Cannot create an Invoke with no field/operator arguments")
+
         # use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
         # previous name
