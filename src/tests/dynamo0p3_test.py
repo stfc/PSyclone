@@ -784,6 +784,19 @@ def test_two_scalars():
     assert expected in generated_code
 
     
+def test_two_scalars():
+    ''' tests that we raise an error when a kernel erroneously
+    only has scalar arguments '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.8_single_invoke_no_fields.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert 'Cannot create an Invoke with no field/operator arg' in \
+        str(excinfo.value)
+
+    
 def test_vector_field():
     ''' tests that a vector field is declared correctly in the PSy
     layer '''

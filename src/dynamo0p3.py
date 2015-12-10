@@ -1325,7 +1325,8 @@ class DynKern(Kern):
                 raise GenerationError(
                     "Unexpected arg type found in "
                     "dynamo0p3.py:DynKern:gen_code(). Expected one of"
-                    " [gh_field, gh_operator] but found " + arg.type)
+                    " [gh_field, gh_operator, gh_rscalar, gh_iscalar] but "
+                    "found " + arg.type)
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
