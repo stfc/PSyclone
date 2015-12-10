@@ -425,11 +425,13 @@ def test_colouring_multi_kernel():
 
     invoke.schedule = newsched
     gen = str(psy.gen)
+    print gen
 
     # Check that we're calling the API to get the no. of colours
     assert "a_proxy%vspace%get_colours(" in gen
     assert "f_proxy%vspace%get_colours(" in gen
     assert "private(cell,map_w2,map_w3,map_w0)" in gen
+    assert False
 
 
 def test_omp_region_omp_do():

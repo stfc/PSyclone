@@ -17,8 +17,9 @@ program multikernel_invokes_7
   use inf, only : field_type
   implicit none
   type(field_type)      :: a, b, c, d, e, f
+  real(r_def)           :: ascalar
 
   call invoke( ru_kernel_type(a, b, c, d, e), &
-               testkern_type(f, b, c, d) )
+               testkern_type(ascalar, f, b, c, d) )
 
 end program multikernel_invokes_7

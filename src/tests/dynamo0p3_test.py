@@ -406,8 +406,9 @@ def test_field():
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_testkern_type(f1, f2, m1, m2)\n"
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
@@ -450,7 +451,7 @@ def test_field():
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
         "      END DO \n"
@@ -1271,7 +1272,7 @@ def test_multikernel_invoke_1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # check that argument names are not replicated
-    output1 = "SUBROUTINE invoke_0(f1, f2, m1, m2)"
+    output1 = "SUBROUTINE invoke_0(a, f1, f2, m1, m2)"
     assert str(generated_code).find(output1) != -1
     # check that only one proxy initialisation is produced
     output2 = "f1_proxy = f1%get_proxy()"
@@ -2445,7 +2446,7 @@ def test_arg_ref_name_method_error2():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
-    first_argument = first_kernel.arguments.args[0]
+    first_argument = first_kernel.arguments.args[1]
     first_argument._type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
