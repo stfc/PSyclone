@@ -785,7 +785,7 @@ def test_two_scalars():
     assert expected in generated_code
 
 
-def test_two_scalars():
+def test_scalar_only():
     ''' tests that we raise an error when a kernel erroneously
     only has scalar arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
