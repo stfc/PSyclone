@@ -1096,6 +1096,39 @@ def test_multikern_invoke_oper():
     assert str(generated_code).find(output2) == -1
 
 
+def test_2kern_invoke_any_space():
+    ''' Test that an error is thrown when there are just two
+    kernels within an invoke with kernel fields declared as
+    any_space. This is not yet supported as any_space with
+    different kernels in an invoke must either inherit the space
+    from the variable (which needs analysis) or have a unique name
+    for the space used by each kernel and at the moment neither of
+    these is the case. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.1_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert ("      INTEGER, pointer :: map_any_space_1_f2(:) => null()\n"
+            "      INTEGER, pointer :: map_any_space_1_f1(:) => null()\n"
+            in gen)
+    assert (
+        "        map_any_space_1_f1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
+        " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, "
+        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)\n"
+        in gen)
+    assert (
+        "        map_any_space_1_f2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_any_space_2_code(cell, nlayers, f2_proxy%data,"
+        " f1_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, "
+        "ndf_any_space_1_f2, undf_any_space_1_f2, map_any_space_1_f2)\n"
+        in gen)
+
+
 def test_multikern_invoke_any_space():
     ''' Test that an error is thrown when there are multiple
     kernels within an invoke with kernel fields declared as
@@ -1103,14 +1136,22 @@ def test_multikern_invoke_any_space():
     different kernels in an invoke must either inherit the space
     from the variable (which needs analysis) or have a unique name
     for the space used by each kernel and at the moment neither of
-    these is the case.c'''
+    these is the case. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3").create(invoke_info)
-    assert 'multiple kernels within this invoke with kernel arguments ' + \
-        'declared as any_space' in str(excinfo.value)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
+    assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
+            "f3_proxy(3)%data, ndf_any_space_1_f1, ndf_any_space_2_f2, "
+            "ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, "
+            "wh, wv" in gen)
+    assert False
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
