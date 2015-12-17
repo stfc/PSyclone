@@ -854,32 +854,33 @@ def test_any_space_1():
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find(
-        "INTEGER, pointer :: map_any_space_1(:) => null(), map_any_space_2"
+    generated_code = str(psy.gen)
+    print generated_code
+    assert generated_code.find(
+        "INTEGER, pointer :: map_any_space_1_a(:) => null(), map_any_space_2_b"
         "(:) => null()") != -1
-    assert str(generated_code).find(
-        "REAL(KIND=r_def), allocatable :: basis_any_space_1(:,:,:,:), "
-        "basis_any_space_2(:,:,:,:)") != -1
-    assert str(generated_code).find(
-        "ALLOCATE (basis_any_space_1(dim_any_space_1, ndf_any_space_1, "
+    assert generated_code.find(
+        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a(:,:,:,:), "
+        "basis_any_space_2_b(:,:,:,:)") != -1
+    assert generated_code.find(
+        "ALLOCATE (basis_any_space_1_a(dim_any_space_1_a, ndf_any_space_1_a, "
         "nqp_h, nqp_v))") != -1
-    assert str(generated_code).find(
-        "ALLOCATE (basis_any_space_2(dim_any_space_2, ndf_any_space_2, "
+    assert generated_code.find(
+        "ALLOCATE (basis_any_space_2_b(dim_any_space_2_b, ndf_any_space_2_b, "
         "nqp_h, nqp_v))") != -1
-    assert str(generated_code).find(
-        "map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
-    assert str(generated_code).find(
-        "map_any_space_2 => b_proxy%vspace%get_cell_dofmap(cell)") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
+        "map_any_space_1_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert generated_code.find(
+        "map_any_space_2_b => b_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert generated_code.find(
         "CALL testkern_any_space_1_code(nlayers, a_proxy%data, b_proxy%"
         "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
-        "ny_space_1, undf_any_space_1, map_any_space_1, basis_any_space"
-        "_1, ndf_any_space_2, undf_any_space_2, map_any_space_2, basis_"
-        "any_space_2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nq"
-        "p_v, wh, wv)") != -1
-    assert str(generated_code).find(
-        "DEALLOCATE (basis_any_space_1, basis_any_space_2, diff_basis_w"
+        "ny_space_1_a, undf_any_space_1_a, map_any_space_1_a, "
+        "basis_any_space_1_a, ndf_any_space_2_b, undf_any_space_2_b, "
+        "map_any_space_2_b, basis_any_space_2_b, ndf_w0, undf_w0, map_w0, "
+        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert generated_code.find(
+        "DEALLOCATE (basis_any_space_1_a, basis_any_space_2_b, diff_basis_w"
         "0)") != -1
 
 
@@ -891,21 +892,22 @@ def test_any_space_2():
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.1_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find(
-        "INTEGER, pointer :: map_any_space_1(:) => null()") != -1
-    assert str(generated_code).find(
-        "INTEGER ndf_any_space_1, undf_any_space_1") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_1 = a_proxy%vspace%get_ndf()") != -1
-    assert str(generated_code).find(
-        "undf_any_space_1 = a_proxy%vspace%get_undf()") != -1
-    assert str(generated_code).find(
-        "map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
-    assert str(generated_code).find(
+    generated_code = str(psy.gen)
+    print generated_code
+    assert generated_code.find(
+        "INTEGER, pointer :: map_any_space_1_a(:) => null()") != -1
+    assert generated_code.find(
+        "INTEGER ndf_any_space_1_a, undf_any_space_1_a") != -1
+    assert generated_code.find(
+        "ndf_any_space_1_a = a_proxy%vspace%get_ndf()") != -1
+    assert generated_code.find(
+        "undf_any_space_1_a = a_proxy%vspace%get_undf()") != -1
+    assert generated_code.find(
+        "map_any_space_1_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert generated_code.find(
         "CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
-        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1"
-        ", undf_any_space_1, map_any_space_1)") != -1
+        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1_a"
+        ", undf_any_space_1_a, map_any_space_1_a)") != -1
 
 
 def test_operator_any_space_different_space_1():
@@ -915,12 +917,12 @@ def test_operator_any_space_different_space_1():
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     print generated_code
-    assert str(generated_code).find(
-        "ndf_any_space_2 = a_proxy%fs_from%get_ndf()") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_1 = a_proxy%fs_to%get_ndf()") != -1
+    assert generated_code.find(
+        "ndf_any_space_2_a = a_proxy%fs_from%get_ndf()") != -1
+    assert generated_code.find(
+        "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
 def test_operator_any_space_different_space_2():
@@ -932,23 +934,23 @@ def test_operator_any_space_different_space_2():
     generated_code = psy.gen
     print generated_code
     assert str(generated_code).find(
-        "ndf_any_space_1 = b_proxy%fs_to%get_ndf()") != -1
+        "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()") != -1
     assert str(generated_code).find(
-        "dim_any_space_1 = b_proxy%fs_to%get_dim_space()") != -1
+        "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_2 = b_proxy%fs_from%get_ndf()") != -1
+        "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_3 = c_proxy%fs_to%get_ndf()") != -1
+        "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_4 = d_proxy%fs_from%get_ndf()") != -1
+        "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()") != -1
     assert str(generated_code).find(
-        "undf_any_space_4 = d_proxy%fs_from%get_undf()") != -1
+        "undf_any_space_4_d = d_proxy%fs_from%get_undf()") != -1
     assert str(generated_code).find(
-        "dim_any_space_4 = d_proxy%fs_from%get_dim_space()") != -1
+        "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_5 = a_proxy%vspace%get_ndf()") != -1
+        "ndf_any_space_5_a = a_proxy%vspace%get_ndf()") != -1
     assert str(generated_code).find(
-        "undf_any_space_5 = a_proxy%vspace%get_undf()") != -1
+        "undf_any_space_5_a = a_proxy%vspace%get_undf()") != -1
     assert str(generated_code).find(
         "CALL b_proxy%fs_to%compute_basis_function") != -1
     assert str(generated_code).find(
@@ -956,9 +958,9 @@ def test_operator_any_space_different_space_2():
     assert str(generated_code).find(
         "CALL d_proxy%fs_from%compute_diff_basis_function") != -1
     assert str(generated_code).find(
-        "map_any_space_5 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+        "map_any_space_5_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert str(generated_code).find(
-        "map_any_space_4 => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
+        "map_any_space_4_d => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
 
 
 def test_kernel_specific():
@@ -1013,8 +1015,8 @@ def test_bc_kernel():
     output2 = "boundary_dofs => a_proxy%vspace%get_boundary_dofs()"
     assert str(generated_code).find(output2) != -1
     output3 = (
-        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1, "
-        "undf_any_space_1, map_any_space_1, boundary_dofs)")
+        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
+        "undf_any_space_1_a, map_any_space_1_a, boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
 
@@ -1097,13 +1099,9 @@ def test_multikern_invoke_oper():
 
 
 def test_2kern_invoke_any_space():
-    ''' Test that an error is thrown when there are just two
+    ''' Test correct code is generated when there are just two
     kernels within an invoke with kernel fields declared as
-    any_space. This is not yet supported as any_space with
-    different kernels in an invoke must either inherit the space
-    from the variable (which needs analysis) or have a unique name
-    for the space used by each kernel and at the moment neither of
-    these is the case. '''
+    any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.1_multikernel_invokes.f90"),
                            api="dynamo0.3")
@@ -1130,28 +1128,37 @@ def test_2kern_invoke_any_space():
 
 
 def test_multikern_invoke_any_space():
-    ''' Test that an error is thrown when there are multiple
+    ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
-    any_space. This is not yet supported as any_space with
-    different kernels in an invoke must either inherit the space
-    from the variable (which needs analysis) or have a unique name
-    for the space used by each kernel and at the moment neither of
-    these is the case. '''
+    any_space.  '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert ("INTEGER, pointer :: map_any_space_1_f1(:) => null(), "
+            "map_any_space_2_f2(:) => null(), map_w0(:) => null()" in gen)
+    assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_f1(:,:,:,:), "
+            "basis_any_space_2_f2(:,:,:,:), diff_basis_w0(:,:,:,:), "
+            "basis_any_space_1_f2(:,:,:,:), basis_any_space_2_f1(:,:,:,:)"
+            in gen)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
+    assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_1_f2,"
+            " ndf_any_space_1_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("map_any_space_2_f2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        map_w0 => f3_proxy(1)%vspace%get_cell_dofmap(cell)"
+            in gen)
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
-            "f3_proxy(3)%data, ndf_any_space_1_f1, ndf_any_space_2_f2, "
-            "ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, "
+            "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
+            "map_any_space_1_f1, basis_any_space_1_f1, ndf_any_space_2_f2, "
+            "undf_any_space_2_f2, map_any_space_2_f2, basis_any_space_2_f2,"
+            " ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, "
             "wh, wv" in gen)
-    assert False
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -1510,7 +1517,7 @@ def test_operators():
         "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
         "op_5_ncell_3d, op_5, ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
-        "ndf_any_space_1)\n"
+        "ndf_any_space_1_op_5)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
@@ -1528,13 +1535,13 @@ def test_operators():
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER, intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1,"
-        "ndf_any_space_1,op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
+        "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_5\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print output
@@ -1929,22 +1936,23 @@ def test_enforce_bc_kernel_stub_gen():
         "  MODULE enforce_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1, "
-        "ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs)\n"
+        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1_field_1, "
+        "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
+        "map_any_space_1_field_1, boundary_dofs)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: undf_any_space_1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_any_space_1)"
-        " :: field_1_any_space_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1) :: "
-        "map_any_space_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: "
+        "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
+        "      REAL(KIND=r_def), intent(inout), "
+        "dimension(undf_any_space_1_field_1)"
+        " :: field_1_any_space_1_field_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
+        "map_any_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,2) :: "
         "boundary_dofs\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
-    print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
