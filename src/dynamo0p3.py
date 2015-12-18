@@ -1272,7 +1272,7 @@ class DynKern(Kern):
                     arglist.append(text)
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
-                    size = arg.name+"_ncell_3d"
+                    size = arg.name + "_ncell_3d"
                     arglist.append(size)
                     decl = DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=[size])
@@ -1310,8 +1310,6 @@ class DynKern(Kern):
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
             mangled_fs = self.arguments.mangled_function_space(unique_fs)
-            print "unique_fs = ", unique_fs
-            print "mangled_fs = ", mangled_fs
             # 3.1 Provide compulsory arguments common to operators and
             # fields on a space. There is one: "ndf".
             ndf_name = get_ndf_name(mangled_fs)
@@ -1323,7 +1321,6 @@ class DynKern(Kern):
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if self.field_on_space(unique_fs):
-                print "We have a field on space ", unique_fs
                 undf_name = get_undf_name(mangled_fs)
                 arglist.append(undf_name)
                 map_name = get_map_name(mangled_fs)
