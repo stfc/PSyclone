@@ -94,7 +94,8 @@ def get_operator_name(operator_name, function_space):
         return get_diff_basis_name(function_space)
     else:
         raise GenerationError(
-            "Unsupported name '{0}' found".format(operator_name))
+            "Unsupported name '{0}' found. Expected one of {1}".
+            format(operator_name, VALID_OPERATOR_NAMES))
 
 # classes
 
@@ -1804,7 +1805,6 @@ class DynKernelArguments(Arguments):
         '''Returns the first argument (field or operator) found that
         is on the specified function space. If no field or operator is
         found an exception is raised.'''
-        #ufspace = self.unmangled_function_space(func_space)
         for arg in self._args:
             if func_space in arg.function_spaces:
                 return arg
@@ -1823,13 +1823,15 @@ class DynKernelArguments(Arguments):
     @property
     def unique_fss(self):
         ''' Returns a unique list of (un-mangled) function spaces used by the
-        arguments of this kernel. '''
+        arguments of this kernel - i.e. the names of the function spaces as
+        they appear in kernel meta-data. '''
         return self._unique_fss
 
     @property
     def unique_mangled_fss(self):
         ''' Returns a unique list of mangled function spaces used by the
-        arguments. '''
+        arguments. These spaces are name-mangled such that those that are
+        any-space are valid within the scope of an Invoke. '''
         return self._unique_mangled_fss
 
     def iteration_space_arg(self, mapping=None):
@@ -1852,22 +1854,21 @@ class DynKernelArguments(Arguments):
     def mangled_function_space(self, function_space):
         ''' Mangles the name of any-space function-spaces such that they are
         unique to a kernel. We do this by simply appending the name of the
-        first field we find on this space. '''
+        *first* kernel argument that is on this space. If the supplied space
+        is not any-space then its name is left unchanged. '''
         if function_space in VALID_ANY_SPACE_NAMES:
             # This argument is on any space. We append the
-            # name of the first argument that is on this space
+            # name of the *first* argument that is on this space
             # to the name of the space in order to generate
             # a unique name.
-            space_name = (
-                function_space + "_" +
-                self.get_arg_on_space(function_space).name)
+            return (function_space + "_" +
+                    self.get_arg_on_space(function_space).name)
         else:
-            space_name = function_space
-        return space_name
+            return function_space
 
     def unmangled_function_space(self, function_space):
-        '''Un-mangles the name of any-space function-spaces such that they are
-        as specified in kernel meta-data'''
+        ''' Un-mangles the name of any-space function-spaces such that they are
+        as specified in kernel meta-data '''
         if function_space not in self.unique_mangled_fss:
             raise GenerationError(
                 "Cannot un-mangle the name of function space '{0}' because "

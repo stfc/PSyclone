@@ -22,6 +22,16 @@ from genkernelstub import generate
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+def test_get_op_name():
+    ''' Tests that the get_operator_name() utility raises an error
+    if passed the name of something that is not a valid operator '''
+    from dynamo0p3 import get_operator_name
+    with pytest.raises(GenerationError) as err:
+        get_operator_name("not_an_op", "w3")
+    assert "Unsupported name 'not_an_op' found" in str(err)
+
+
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
