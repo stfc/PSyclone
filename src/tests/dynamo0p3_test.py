@@ -23,6 +23,7 @@ from genkernelstub import generate
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
+
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
@@ -2129,7 +2130,7 @@ def test_stencil_metadata():
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     stencil_descriptor_0 = metadata.arg_descriptors[0]
-    assert  stencil_descriptor_0.stencil == None
+    assert stencil_descriptor_0.stencil is None
     stencil_descriptor_1 = metadata.arg_descriptors[1]
     assert stencil_descriptor_1.stencil['type'] == 'cross'
     assert stencil_descriptor_1.stencil['extent'] == 1
