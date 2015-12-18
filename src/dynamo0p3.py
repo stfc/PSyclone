@@ -574,7 +574,7 @@ class DynInvoke(Invoke):
         used. Throws an exception if no argument exists. '''
         for kern_call in self.schedule.kern_calls():
             if fs_name in kern_call.arguments.unique_mangled_fss:
-                ufs_name = kern_call.arguments.unmangled_function_space(fs_name)
+                ufs_name = kern_call.arguments.unmangled_fs(fs_name)
                 return kern_call.arguments.get_arg_on_space(ufs_name)
         raise GenerationError("Functionspace name '{0}' not found".
                               format(fs_name))
@@ -599,8 +599,7 @@ class DynInvoke(Invoke):
             # will have been name-mangled
             try:
                 unmangled_space = kern_call.arguments.\
-                                  unmangled_function_space(func_space)
-
+                                  unmangled_fs(func_space)
                 # is there a descriptor for this function space?
                 if kern_call.fs_descriptors.exists(unmangled_space):
                     descriptor = kern_call.fs_descriptors.get_descriptor(
@@ -615,7 +614,7 @@ class DynInvoke(Invoke):
             except GenerationError:
                 # This kernel call doesn't have any arg on this space
                 pass
-            
+
         # none of my kernels require a basis function for this function space
         return False
 
@@ -629,7 +628,7 @@ class DynInvoke(Invoke):
             # will have been name-mangled
             try:
                 unmangled_space = kern_call.arguments.\
-                                  unmangled_function_space(func_space)
+                                  unmangled_fs(func_space)
                 # is there a descriptor for this function space?
                 if kern_call.fs_descriptors.exists(unmangled_space):
                     descriptor = kern_call.fs_descriptors.get_descriptor(
@@ -668,7 +667,7 @@ class DynInvoke(Invoke):
             # will have been name-mangled
             try:
                 unmangled_space = kern_call.arguments.\
-                                  unmangled_function_space(function_space)
+                                  unmangled_fs(function_space)
                 if kern_call.fs_descriptors.exists(unmangled_space):
                     descriptor = kern_call.fs_descriptors.get_descriptor(
                         unmangled_space)
@@ -687,8 +686,7 @@ class DynInvoke(Invoke):
             # At the level of an Invoke, any any-space function-spaces
             # will have been name-mangled
             try:
-                unmangled_space = kern_call.arguments.\
-                                  unmangled_function_space(func_space)
+                unmangled_space = kern_call.arguments.unmangled_fs(func_space)
                 if kern_call.field_on_space(unmangled_space):
                     return True
             except GenerationError:
@@ -1223,15 +1221,14 @@ class DynKern(Kern):
         for arg in self._arguments.args:
             # Generate the name-mangled function space that this
             # argument is on
-            mangled_fs = self.arguments.\
-                         mangled_function_space(arg.function_space)
+            mangled_fs = self.arguments.mangled_fs(arg.function_space)
             undf_name = get_undf_name(mangled_fs)
             if arg.type == "gh_field":
                 dataref = "%data"
                 if arg.vector_size > 1:
                     for idx in range(1, arg.vector_size+1):
                         if my_type == "subroutine":
-                            text = (arg.name + "_" + mangled_fs + 
+                            text = (arg.name + "_" + mangled_fs +
                                     "_v" + str(idx))
                             intent = arg.intent
                             decl = DeclGen(parent, datatype="real",
@@ -1273,12 +1270,12 @@ class DynKern(Kern):
                     arglist.append(text)
                     # Look-up the name of the to and from function spaces as
                     # they are known within the invoke
-                    mangled_fs_to = self.arguments.\
-                                    mangled_function_space(arg.descriptor.
-                                                           function_space_to)
-                    mangled_fs_from = self.arguments.\
-                                    mangled_function_space(arg.descriptor.
-                                                           function_space_from)
+                    mangled_fs_to = (self.arguments.
+                                     mangled_fs(arg.descriptor.
+                                                function_space_to))
+                    mangled_fs_from = (self.arguments.
+                                       mangled_fs(arg.descriptor.
+                                                  function_space_from))
                     intent = arg.intent
                     ndf_name_to = get_ndf_name(mangled_fs_to)
                     ndf_name_from = get_ndf_name(mangled_fs_from)
@@ -1298,7 +1295,7 @@ class DynKern(Kern):
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = self.arguments.mangled_function_space(unique_fs)
+            mangled_fs = self.arguments.mangled_fs(unique_fs)
             # 3.1 Provide compulsory arguments common to operators and
             # fields on a space. There is one: "ndf".
             ndf_name = get_ndf_name(mangled_fs)
@@ -1553,7 +1550,7 @@ class DynKern(Kern):
         if maps_required:
             parent.add(CommentGen(parent, ""))
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = self.arguments.mangled_function_space(unique_fs)
+            mangled_fs = self.arguments.mangled_fs(unique_fs)
             if self.field_on_space(unique_fs):
                 # A map is required as there is a field on this space
                 map_name = get_map_name(mangled_fs)
@@ -1566,7 +1563,7 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
         decl_map_names = []
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = self.arguments.mangled_function_space(unique_fs)
+            mangled_fs = self.arguments.mangled_fs(unique_fs)
             if self.field_on_space(unique_fs):
                 # A map is required as there is a field on this space
                 map_name = get_map_name(mangled_fs)
@@ -1577,7 +1574,7 @@ class DynKern(Kern):
         # orientation arrays initialisation and their declarations
         orientation_decl_names = []
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = self.arguments.mangled_function_space(unique_fs)
+            mangled_fs = self.arguments.mangled_fs(unique_fs)
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
@@ -1701,7 +1698,8 @@ class FSDescriptor(object):
         metadata value. '''
         for operator_name in self._descriptor.operator_names:
             if operator_name == "gh_orientation":
-                return get_orientation_name(self._descriptor.function_space_name)
+                return get_orientation_name(self._descriptor.
+                                            function_space_name)
         raise GenerationError(
             "Internal logic error: FS-Descriptor:orientation_name: This "
             "descriptor has no orientation so can not have a name")
@@ -1785,7 +1783,7 @@ class DynKernelArguments(Arguments):
             for function_space in arg.function_spaces:
                 if function_space not in self._unique_fss:
                     self._unique_fss.append(function_space)
-                mangled_space = self.mangled_function_space(function_space)
+                mangled_space = self.mangled_fs(function_space)
                 if mangled_space not in self._unique_mangled_fss:
                     self._unique_mangled_fss.append(mangled_space)
 
@@ -1839,7 +1837,7 @@ class DynKernelArguments(Arguments):
         and pull out dofs into the gunghoproto api. '''
         return self._dofs
 
-    def mangled_function_space(self, function_space):
+    def mangled_fs(self, function_space):
         ''' Mangles the name of any-space function-spaces such that they are
         unique to a kernel. We do this by simply appending the name of the
         *first* kernel argument that is on this space. If the supplied space
@@ -1854,7 +1852,7 @@ class DynKernelArguments(Arguments):
         else:
             return function_space
 
-    def unmangled_function_space(self, function_space):
+    def unmangled_fs(self, function_space):
         ''' Un-mangles the name of any-space function-spaces such that they are
         as specified in kernel meta-data '''
         if function_space not in self.unique_mangled_fss:
@@ -1895,8 +1893,7 @@ class DynKernelArgument(Argument):
         if not function_space:
             function_space = self.function_space
         else:
-            function_space = self._kernel_args.\
-                             unmangled_function_space(function_space)
+            function_space = self._kernel_args.unmangled_fs(function_space)
         if function_space not in self.function_spaces:
             raise GenerationError(
                 "DynKernelArgument:ref_name(fs). The supplied function space "
