@@ -23,13 +23,20 @@ from genkernelstub import generate
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-def test_get_op_name():
+def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
     from dynamo0p3 import get_operator_name
     with pytest.raises(GenerationError) as err:
         get_operator_name("not_an_op", "w3")
     assert "Unsupported name 'not_an_op' found" in str(err)
+
+
+def test_get_op_orientation_name():
+    ''' Test that get_operator_name() works for the orientation operator '''
+    from dynamo0p3 import get_operator_name
+    name = get_operator_name("gh_orientation", "w3")
+    assert name == "orientation_w3"
 
 
 CODE = '''
@@ -139,6 +146,20 @@ def test_ad_op_type_too_many_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+
+
+def test_ad_op_type_wrong_3rd_arg():
+    ''' Tests that an error is raised when the operator descriptor
+    metadata has more than 4 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_read, woops, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
+            "a valid function space name" in str(excinfo.value))
 
 
 def test_ad_invalid_type():
@@ -1491,6 +1512,24 @@ def test_vectors():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
+def test_arg_descriptor_vec_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected when we have a vector quantity '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(VECTORS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_field'*3\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space[2]='w0'")
+    print result
+    assert expected_output in result
+
+
 # operators : spaces and intent
 OPERATORS = '''
 module dummy_mod
@@ -1557,6 +1596,25 @@ def test_operators():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+
+def test_arg_descriptor_op_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected when we have an operator '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(OPERATORS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space_to[2]='w0'\n"
+        "  function_space_from[3]='w0'\n")
+    print result
+    assert expected_output in result
+
 
 OPERATOR_DIFFERENT_SPACES = '''
 module dummy_mod
@@ -2051,7 +2109,7 @@ def test_kernel_stub_gen_cmd_line():
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
-     type(arg_type), meta_args(2) =    &
+     type(arg_type), meta_args(2) =          &
           (/ arg_type(gh_field,gh_write,w1), &
              arg_type(gh_field,gh_read, w2, stencil(cross,1)) &
            /)
@@ -2370,3 +2428,27 @@ def test_func_descriptor_str():
         "  function_space_name[0] = 'w1'\n"
         "  operator_name[1] = 'gh_basis'")
     assert output in func_str
+
+
+def test_dynkern_arg_for_fs():
+    ''' Test that DynInvoke.arg_for_funcspace() raises an error if
+    passed an invalid function space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    with pytest.raises(GenerationError) as err:
+        _ = first_invoke.arg_for_funcspace("waah")
+    assert "Functionspace name 'waah' not found" in str(err)
+
+
+def test_dynkern_op_name():
+    ''' Test that DynInvoke.get_operator_name() raises an error if
+    passed an invalid function space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    with pytest.raises(GenerationError) as err:
+        _ = first_invoke.get_operator_name("gh_orientation", "w3")
+    assert "no kern call with function space 'w3' and" in str(err)

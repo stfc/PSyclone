@@ -354,18 +354,6 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here.")
 
     @property
-    def is_any_space(self):
-        ''' Returns True if this descriptor is of type any_space. This
-        could be any on the any_space spaces, i.e. any of any_space_1,
-        any_space_2, ... any_space_9, otherwise returns False. For
-        operators, returns True if the source descriptor is of type
-        any_space, else returns False. '''
-        if self.function_space in VALID_ANY_SPACE_NAMES:
-            return True
-        else:
-            return False
-
-    @property
     def vector_size(self):
         ''' Returns the vector size of the argument. This will be 1 if *n
         has not been specified. '''
