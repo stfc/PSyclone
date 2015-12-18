@@ -669,8 +669,6 @@ class DynInvoke(Invoke):
                 unmangled_space = kern_call.arguments.\
                                   unmangled_fs(function_space)
                 if kern_call.fs_descriptors.exists(unmangled_space):
-                    descriptor = kern_call.fs_descriptors.get_descriptor(
-                        unmangled_space)
                     return get_operator_name(operator_name, function_space)
             except GenerationError:
                 # This kernel call doesn't have any arg on this space
