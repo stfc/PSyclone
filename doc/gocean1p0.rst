@@ -8,8 +8,8 @@ This section describes the GOcean 1.0 application programming interface
 use of the GOcean 1.0 API in PSyclone.
 
 As with all PSyclone API's, the GOcean 1.0 API specifies how a user
-must write the algorithm layer and the kernel layer to allow
-PSyclone to generate the PSy layer. These algorithm and kernel API's
+must write the Algorithm Layer and the Kernel Layer to allow
+PSyclone to generate the PSy Layer. These Algorithm and Kernel API's
 are discussed separately in the following sections.
 
 .. _gocean1.0-api-algorithm:
@@ -17,16 +17,74 @@ are discussed separately in the following sections.
 Algorithm
 ---------
 
-.. note:: To be written.
+The Algorithm is the top-level specification of the natural science
+implemented in the software. Essentially it consists of mesh setup,
+field declarations, initialisation of fields and (a series of) Kernel
+calls. Infrastructure to support some of these tasks is provided in
+the GOcean 1.0 library (GOLib v.1.0).
 
 Grid
 ++++
 
+The GOLib defines a ``grid_type`` and associated constructor:
+
+::
+
+  !> The grid on which our fields are defined
+  type(grid_type), target :: model_grid
+  ...
+  ! Create the model grid
+  model_grid = grid_type(ARAKAWA_C,                           &
+                         (/BC_EXTERNAL,BC_EXTERNAL,BC_NONE/), &
+                         OFFSET_NE)
+
+The ``grid_type`` constructor takes three arguments:
+ 1. The type of grid (only ARAKAWA_C is currently supported)
+ 2. The boundary conditions on the domain
+ 3. The convention used for indexing into offset fields.
+
 Fields
 ++++++
 
+Once a model has a grid defined it will require one or more
+fields. The GOLib defines an ``r2d_field`` type (real, 2-dimensional
+field) and associated constructor:
+
+::
+
+  ...
+  !> Current ('now') sea-surface height at different grid points
+  type(r2d_field) :: sshn_u_fld, sshn_v_fld, sshn_t_fld
+  ...
+
+  ! Sea-surface height now (current time step)
+  sshn_u_fld = r2d_field(model_grid, U_POINTS)
+  sshn_v_fld = r2d_field(model_grid, V_POINTS)
+  sshn_t_fld = r2d_field(model_grid, T_POINTS)
+
+The constructor takes two arguments:
+ 1. The grid on which the field exists
+ 2. The type of grid point at which the field is defined
+    (``U_POINTS``, ``V_POINTS``, ``T_POINTS`` or ``F_POINTS``)
+
+
 Invokes
 +++++++
+
+The Kernels to call are specified through the use of Invokes, e.g.:
+
+::
+
+  call invoke(                                               &
+              bc_flather_u(ua, hu, sshn_u),                  &
+              bc_flather_v(va, hv, sshn_v),                  &
+              copy(un, ua),                                  &
+              copy(vn, va),                                  &
+              copy(sshn_t, ssha_t),                          &
+              next_sshu(sshn_u, sshn_t),                     &
+              next_sshv(sshn_v, sshn_t)                      &
+             )
+
 
 
 Kernel
