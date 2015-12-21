@@ -1,0 +1,282 @@
+.. _gocean1.0-api:
+
+GOcean1.0 API
+=============
+
+This section describes the GOcean 1.0 application programming interface
+(API). This section explains what a user needs to write in order to make
+use of the GOcean 1.0 API in PSyclone.
+
+As with all PSyclone API's, the GOcean 1.0 API specifies how a user
+must write the algorithm layer and the kernel layer to allow
+PSyclone to generate the PSy layer. These algorithm and kernel API's
+are discussed separately in the following sections.
+
+.. _gocean1.0-api-algorithm:
+
+Algorithm
+---------
+
+.. note:: To be written.
+
+Grid
+++++
+
+Fields
+++++++
+
+Invokes
++++++++
+
+
+Kernel
+-------
+
+The general requirements for the structure of a Kernel are explained
+in the :ref:`kernel-layer` section. This section explains the metadata
+and subroutine arguments that are specific to the GOcean 1.0 API.
+
+Metadata
+++++++++
+
+The meta-data for a GOcean 1.0 API kernel has four components:
+
+ 1) 'meta_args',
+ 2) 'iterates_over',
+ 3) 'index_offset' and
+ 4) 'procedure':
+
+These are illustrated in the code below:
+
+::
+
+  type, extends(kernel_type) :: my_kernel_type
+     type(arg), dimension(...) :: meta_args = (/ ... /)
+     integer :: iterates_over = ...
+     integer :: index_offset = ...
+  contains
+    procedure, nopass :: code => my_kernel_code
+  end type my_kernel_type
+
+These four meta-data elements are discussed in order in the following
+sections.
+
+meta_args
+#########
+
+The ``meta_args`` array specifies information about data that the
+kernel code expects to be passed to it via its argument list. There is
+one entry in the ``meta_args`` array for each **scalar**, **field**,
+or **grid-property** passed into the Kernel. Their ordering in the
+``meta_args`` array must be the same as that in the kernel code
+argument list. The entry must be of type ``arg`` which itself contains
+metadata about the associated argument. The size of the meta_args
+array must correspond to the total number of **scalars**, **fields**
+and **grid properties** passed into the Kernel.
+
+For example, if there are a total of 2 **field** entities being passed
+to the Kernel then the meta_args array will be of size 2 and there
+will be two entries of type ``arg``:
+
+::
+
+  type(arg) :: meta_args(2) = (/                                  &
+       arg( ... ),                                                &
+       arg( ... )                                                 &
+       /)
+
+Argument-metadata (metadata contained within the brackets of an
+``arg`` entry), describes either a **scalar**, a **field** or a **grid
+property**.
+
+The first argument-metadata entry describes how the kernel will access
+the corresponding argument. As an example, the following ``meta_args``
+metadata describes four entries, the first one is written to by the
+kernel while the remaining three are only read.
+
+::
+
+  type(arg) :: meta_args(4) = (/                            &
+       arg(WRITE, ... ),                                    &
+       arg(READ, ... ),                                     &
+       arg(READ, ... ),                                     &
+       arg(READ, ...)                                       &
+       /)
+
+whether the data that is
+being passed is for a real scalar (``R_SCALAR``), integer scalar
+(``I_SCALAR``), field (``GH_FIELD``) or an operator
+(``GH_OPERATOR``). This information is mandatory.
+
+The second entry to argument-metadata (information contained within
+the brackets of an ``arg`` type) describes the type of data
+represented by the argument. This type falls into three categories;
+field data, scalar data and grid properties. For field data the
+meta-data entry consists of the type of grid-point that field values
+are defined on. Since the GOcean API supports fields on an Arakawa C
+grid, the possible grid-point types are ``CU``, ``CV``, ``CF`` and
+``CT``. GOcean Kernels can also take scalar quantities as
+arguments. Since these do not live on grid-points they are specified
+as either ``R_SCALAR`` or ``I_SCALAR`` depending on whether the
+corresponding Fortran variable is a real or integer quantity.
+Finally, grid-property entries are used to specify any properties of
+the grid required by the kernel (e.g. the area of cells at U points or
+whether T points are wet or dry).
+
+For example:
+
+::
+
+  type(arg) :: meta_args(4) = (/                            &
+       arg(WRITE, CT, ... ),                                &
+       arg(READ,  CU, ... ),                                &
+       arg(READ,  R_SCALAR, ... ),                          &
+       arg(READ,  GRID_AREA_U)                              &
+       /)
+
+Here, the first argument is a field on T points, the second is a field
+on U points, the fourth is a real scalar and the fifth is a quantity
+of the grid (cell area at U points).
+
+The full list of supported grid-properties in the GOcean 1.0 API is:
+
+=============   =============================  ==================
+Name            Description                    Type
+=============   =============================  ==================
+grid_area_t     Cell area at T point           Real array, rank=2
+grid_area_u     Cell area at U point           Real array, rank=2
+grid_area_v     Cell area at V point           Real array, rank=2
+grid_mask_t     T-point mask (1=wet, 0=dry)    Integer array, rank=2
+grid_dx_t       Grid spacing in x at T points  Real array, rank=2
+grid_dx_u       Grid spacing in x at U points  Real array, rank=2
+grid_dx_v       Grid spacing in x at V points  Real array, rank=2
+grid_dy_t       Grid spacing in y at T points  Real array, rank=2
+grid_dy_u       Grid spacing in y at U points  Real array, rank=2
+grid_dy_v       Grid spacing in y at V points  Real array, rank=2
+grid_lat_u      Latitude of U points (gphiu)   Real array, rank=2
+grid_lat_v      Latitude of V points (gphiv)   Real array, rank=2
+grid_dx_const   Grid spacing in x if constant  Real, scalar
+grid_dy_const   Grid spacing in y if constant  Real, scalar
+=============   =============================  ====================
+
+These are stored in a dictionary named ``GRID_PROPERTY_DICT`` at the
+top of the ``gocean1p0.py`` file.
+
+For scalar and field arguments the argument meta-data contains a third
+argument which must be 'POINTWISE'. This is not currently used in this
+version of the GOcean API. For grid-property arguments there is no
+third meta-data argument. Therefore, the full argument meta-data for
+our previous example will be:
+
+::
+
+  type(arg) :: meta_args(4) = (/                            &
+       arg(WRITE, CT,       POINTWISE),                     &
+       arg(READ,  CU,       POINTWISE),                     &
+       arg(READ,  R_SCALAR, POINTWISE),                     &
+       arg(READ,  GRID_AREA_U)                              &
+       /)
+
+Iterates Over
+#############
+
+The second element of kernel meta-data is ``ITERATES_OVER``. This
+specifies that the Kernel has been written with the assumption that it
+is iterating over grid points of the specified type. The supported
+values are: ``INTERNAL_PTS``, ``EXTERNAL_PTS`` and ``ALL_PTS``. These
+may be understood by considering the following diagram of an example
+model configuration:
+
+.. image:: grids_SW_stagger.pdf
+
+``INTERNAL_PTS`` are then those points that are within the Model
+domain (fuscia box), ``EXTERNAL_PTS`` are those outside the domain and
+``ALL_PTS`` encompasses all grid points in the model. The chosen value
+is specified in the kernel-meta data like so:
+
+::
+
+  integer :: iterates_over = INTERNAL_PTS
+
+Index Offset
+############
+
+The third element of kernel meta-data, ``INDEX_OFFSET``, specifies the
+index-offset that the kernel uses. This is required because a kernel
+developer has choice in how they actually implement C-grid
+staggering. This comes down to a choice of which grid points in the
+vicinity of a given T point have the same array (i,j) indices. In the
+diagram below, the image on the left corresponds to choosing those
+points to the South and West of a T point to have the same (i,j)
+index. That on the right corresponds to choosing those points to the
+North and East of the T point (this is the offset scheme used in the
+NEMO ocean model):
+
+.. image:: grid_offset_choices.pdf
+
+The GOcean 1.0 API supports these two different offset schemes;
+``OFFSET_NE``, ``OFFSET_SW``. This is specified in the meta-data as
+follows:
+
+::
+
+  integer :: index_offset = OFFSET_NE
+
+
+Procedure
+#########
+
+The fourth and final type of meta-data is ``procedure`` meta-data. This
+specifies the name of the Kernel Fortran subroutine that this meta-data
+describes.
+
+For example:
+
+::
+
+  procedure :: my_kernel_code
+
+Subroutine
+++++++++++
+
+.. _stub-generation-rules:
+
+Rules
+#####
+
+Kernel arguments follow a set of rules which have been specified for
+the GPcean 1.0 API. These rules are encoded in the ``gen_code()``
+method of the ``GOKern`` class in the ``gocean1p0.py`` file. The
+rules, along with PSyclone's naming conventions, are:
+
+1) Every kernel has the indices of the current grid point as the first two arguments ``i`` and ``j``. These are integers and have intent ``in``.
+
+2) For each field/scalar/grid property in the order specified by the meta_args metadata:
+
+    1) For a field; the field array itself. A field array is a real array of kind ``wp`` and rank two.
+    2) For a scalar; the variable itself. A real scalar is of kind ``wp``.
+    3) For a grid property; the array or variable (see the earlier table) containing the specified property.
+
+
+Conventions
+-----------
+
+There is a convention in the GOcean 1.0 API kernel code that if the
+name of the operation being performed is ``<name>`` then a kernel file
+is ``<name>_mod.[fF90]``, the name of the module inside the kernel
+file is ``<name>_mod``, the name of the kernel metadata in the module
+is ``<name>_type`` and the name of the kernel subroutine in the module
+is ``<name>_code``. PSyclone does not require this convention to be
+followed in the GOcean 1.0 API.
+
+The contents of the metadata is also usually declared private but this
+does not affect PSyclone.
+
+Finally, the ``procedure`` metadata (located within the kernel
+metadata) usually has ``nopass`` specified but again this is ignored
+by PSyclone.
+
+Transformations
+---------------
+
+.. note:: To be written.

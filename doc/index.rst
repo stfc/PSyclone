@@ -14,6 +14,7 @@
    psy_layer
    transformations
    dynamo0p3
+   gocean1p0
    stub_gen
    line_length
    api
