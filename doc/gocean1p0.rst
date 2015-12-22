@@ -23,13 +23,18 @@ field declarations, initialisation of fields and (a series of) Kernel
 calls. Infrastructure to support some of these tasks is provided in
 the GOcean 1.0 library (GOLib v.1.0).
 
+.. _gocean1.0-grid:
+
 Grid
 ++++
 
-The GOLib defines a ``grid_type`` and associated constructor:
+The GOLib contains a ``grid_mod`` module which defines a ``grid_type``
+and associated constructor:
 
 ::
 
+  use grid_mod
+  ...
   !> The grid on which our fields are defined
   type(grid_type), target :: model_grid
   ...
@@ -39,34 +44,87 @@ The GOLib defines a ``grid_type`` and associated constructor:
                          OFFSET_NE)
 
 The ``grid_type`` constructor takes three arguments:
+
  1. The type of grid (only ARAKAWA_C is currently supported)
  2. The boundary conditions on the domain
- 3. The convention used for indexing into offset fields.
+ 3. The 'index offset' - the convention used for indexing into offset fields.
+
+The index offset is required because a model (kernel) developer has
+choice in how they actually implement the staggering of variables on a
+grid. This comes down to a choice of which grid points in the vicinity
+of a given T point have the same array (*i*, *j*) array indices. In
+the diagram below, the image on the left corresponds to choosing those
+points to the South and West of a T point to have the same (*i*, *j*)
+index. That on the right corresponds to choosing those points to the
+North and East of the T point (this is the offset scheme used in the
+NEMO ocean model):
+
+.. _gocean1.0-offset-image:
+
+.. image:: grid_offset_choices.pdf
+
+The GOcean 1.0 API supports these two different offset schemes, which
+we term ``OFFSET_SW`` and ``OFFSET_NE``.
+
+The constructor does not specify the extent of the model grid. This is
+because this information is normally obtained by reading a file (a
+namelist file, a netcdf file etc.) which is specific to an
+application.  Once this information has been obtained a second
+routine, ``grid_init``, is provided with which to 'load' a grid object
+with state:
+
+::
+
+  subroutine grid_init(grid, m, n, dxarg, dyarg, tmask)
+    !> The grid object to configure
+    type(grid_type), intent(inout) :: grid
+    !> Dimensions of the model grid
+    integer,         intent(in)    :: m, n
+    !> The (constant) grid spacing in x and y
+    real(wp),        intent(in)    :: dxarg, dyarg
+    !> Optional T-point mask specifying wet (1) and dry (0) points
+    integer, dimension(m,n), intent(in), optional :: tmask
+
+If no T-mask is supplied then this routine configures the grid
+appropriately for an all-wet domain with periodic boundary conditions
+in both the *x*- and *y*-dimensions. It should also be noted that
+currently only grids with constant resolution in *x* and *y* are
+supported by this routine.
+
+.. _gocean1.0-fields:
 
 Fields
 ++++++
 
 Once a model has a grid defined it will require one or more
-fields. The GOLib defines an ``r2d_field`` type (real, 2-dimensional
-field) and associated constructor:
+fields. The GOLib contains a ``field_mod`` module which defines an
+``r2d_field`` type (real, 2-dimensional field) and associated
+constructor:
 
 ::
 
+  use field_mod
   ...
   !> Current ('now') sea-surface height at different grid points
   type(r2d_field) :: sshn_u_fld, sshn_v_fld, sshn_t_fld
   ...
 
   ! Sea-surface height now (current time step)
-  sshn_u_fld = r2d_field(model_grid, U_POINTS)
-  sshn_v_fld = r2d_field(model_grid, V_POINTS)
-  sshn_t_fld = r2d_field(model_grid, T_POINTS)
+  sshn_u = r2d_field(model_grid, U_POINTS)
+  sshn_v = r2d_field(model_grid, V_POINTS)
+  sshn_t = r2d_field(model_grid, T_POINTS)
 
 The constructor takes two arguments:
+
  1. The grid on which the field exists
  2. The type of grid point at which the field is defined
     (``U_POINTS``, ``V_POINTS``, ``T_POINTS`` or ``F_POINTS``)
 
+Note that the grid object need not have been fully configured (by a
+call to ``grid_init`` for instance) before it is passed into this
+constructor.
+
+.. _gocean1.0-invokes:
 
 Invokes
 +++++++
@@ -85,13 +143,24 @@ The Kernels to call are specified through the use of Invokes, e.g.:
               next_sshv(sshn_v, sshn_t)                      &
              )
 
+The location and number of these ``call invoke(...)`` statements
+within the source code is entirely up to the user. The only
+requirement is that PSyclone must be run on every source file that
+contains one or more Invokes. Note that the kernel names specified in
+an Invoke are the names of the corresponding kernel types defined in
+the kernel meta-data (see :ref:`gocean1.0-kernels`). These are not the same as the names
+of the Fortran subroutines which contain the actual kernel code.
 
+The kernel arguments are typically field objects, as described in
+:ref:`gocean1.0-fields`, but they may also be scalar quantities.
+
+.. _gocean1.0-kernels:
 
 Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. This section explains the metadata
+in the :ref:`kernel-layer` section. This section explains the meta-data
 and subroutine arguments that are specific to the GOcean 1.0 API.
 
 Metadata
@@ -260,25 +329,20 @@ Index Offset
 ############
 
 The third element of kernel meta-data, ``INDEX_OFFSET``, specifies the
-index-offset that the kernel uses. This is required because a kernel
-developer has choice in how they actually implement C-grid
-staggering. This comes down to a choice of which grid points in the
-vicinity of a given T point have the same array (i,j) indices. In the
-diagram below, the image on the left corresponds to choosing those
-points to the South and West of a T point to have the same (i,j)
-index. That on the right corresponds to choosing those points to the
-North and East of the T point (this is the offset scheme used in the
-NEMO ocean model):
+index-offset that the kernel uses. This is the same quantity as
+supplied to the grid constructor (see :ref:`gocean1.0-grid` for a
+description).
 
-.. image:: grid_offset_choices.pdf
-
-The GOcean 1.0 API supports these two different offset schemes;
-``OFFSET_NE``, ``OFFSET_SW``. This is specified in the meta-data as
-follows:
+The GOcean 1.0 API supports two different offset schemes;
+``OFFSET_NE``, ``OFFSET_SW``. The scheme used by a kernel is specified
+in the meta-data as, e.g.:
 
 ::
 
   integer :: index_offset = OFFSET_NE
+
+Currently all kernels used in an application must use the same offset
+scheme which must also be the same as passed to the grid constructor.
 
 
 Procedure
@@ -296,8 +360,6 @@ For example:
 
 Subroutine
 ++++++++++
-
-.. _stub-generation-rules:
 
 Rules
 #####
