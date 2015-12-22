@@ -399,4 +399,23 @@ by PSyclone.
 Transformations
 ---------------
 
-.. note:: To be written.
+In this section we describe the transformations that are specific to
+the GOcean 1.0 API. For an overview of transformations in general see
+:ref:`transformations`.
+
+.. autoclass:: transformations.GOceanLoopFuseTrans
+   :members:
+   :noindex:
+
+.. autoclass:: transformations.GOceanOMPParallelLoopTrans
+   :members:
+   :noindex:
+
+.. autoclass:: transformations.GOceanOMPLoopTrans
+   :members:
+   :noindex:
+
+.. autoclass:: transformations.GOConstLoopBoundsTrans
+   :members:
+   :noindex:
+
