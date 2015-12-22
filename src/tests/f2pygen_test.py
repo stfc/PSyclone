@@ -428,3 +428,38 @@ class TestSubroutineGen():
         module.add(sub)
         count = count_lines(sub.root, "IMPLICIT NONE")
         assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST BY DEFAULT"
+
+
+def test_ompdirective_wrong():
+    ''' Check that we raise an error if we request an OMP Directive of
+    unrecognised type '''
+    from psyGen import Node
+    parent = Node()
+    with pytest.raises(RuntimeError) as err:
+        _ = DirectiveGen(parent,
+                         "omp", "begin", "dosomething",
+                         "schedule(static)")
+    assert "unrecognised directive type" in str(err)
+
+
+def test_ompdirective_wrong_posn():
+    ''' Check that we raise an error if we request an OMP Directive with
+    an invalid position '''
+    from psyGen import Node
+    parent = Node()
+    with pytest.raises(RuntimeError) as err:
+        _ = DirectiveGen(parent,
+                         "omp", "start", "do",
+                         "schedule(static)")
+    assert "unrecognised position 'start'" in str(err)
+
+
+def test_ompdirective_type():
+    ''' Check that we can query the type of an OMP Directive '''
+    from psyGen import Node
+    parent = Node()
+    dirgen = DirectiveGen(parent,
+                          "omp", "begin", "do",
+                          "schedule(static)")
+    ompdir = dirgen.root
+    assert ompdir.type == "do"
