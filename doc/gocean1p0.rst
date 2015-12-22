@@ -61,7 +61,7 @@ NEMO ocean model):
 
 .. _gocean1.0-offset-image:
 
-.. image:: grid_offset_choices.pdf
+.. image:: grid_offset_choices.png
 
 The GOcean 1.0 API supports these two different offset schemes, which
 we term ``OFFSET_SW`` and ``OFFSET_NE``.
@@ -314,7 +314,7 @@ values are: ``INTERNAL_PTS``, ``EXTERNAL_PTS`` and ``ALL_PTS``. These
 may be understood by considering the following diagram of an example
 model configuration:
 
-.. image:: grids_SW_stagger.pdf
+.. image:: grids_SW_stagger.png
 
 ``INTERNAL_PTS`` are then those points that are within the Model
 domain (fuscia box), ``EXTERNAL_PTS`` are those outside the domain and
