@@ -259,8 +259,6 @@ class ProgUnitGen(BaseGen):
                                 break
                 except AttributeError:
                     pass
-                except Exception:
-                    raise
             elif isinstance(content.root, fparser.statements.Use):
                 # have I already been declared?
                 for child in self._children:
