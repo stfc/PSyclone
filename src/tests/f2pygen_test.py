@@ -463,3 +463,89 @@ def test_ompdirective_type():
                           "schedule(static)")
     ompdir = dirgen.root
     assert ompdir.type == "do"
+
+
+def test_basegen_add_auto():
+    ''' Check that attempting to call add on BaseGen raises an error if
+    position is "auto"'''
+    from psyGen import Node
+    from f2pygen import BaseGen
+    parent = Node()
+    bgen = BaseGen(parent, parent)
+    obj = Node()
+    with pytest.raises(Exception) as err:
+        bgen.add(obj, position=['auto'])
+    assert "auto option must be implemented by the sub" in str(err)
+
+
+def test_basegen_add_invalid_posn():
+    '''Check that attempting to call add on BaseGen with an invalid
+    position argument raises an error'''
+    from psyGen import Node
+    from f2pygen import BaseGen
+    parent = Node()
+    bgen = BaseGen(parent, parent)
+    obj = Node()
+    with pytest.raises(Exception) as err:
+        bgen.add(obj, position=['wrong'])
+    assert "supported positions are ['append', 'first'" in str(err)
+
+
+def test_basegen_append():
+    '''Check that we can append an object to the tree'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(CommentGen(sub, " hello"), position=["append"])
+    cindex = line_number(sub.root, "hello")
+    assert cindex == 3
+
+
+def test_basegen_first():
+    '''Check that we can insert an object as the first child'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(CommentGen(sub, " hello"), position=["first"])
+    cindex = line_number(sub.root, "hello")
+    assert cindex == 1
+
+
+def test_basegen_after_index():
+    '''Check that we can insert an object using "after_index"'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var2"]))
+    sub.add(CommentGen(sub, " hello"), position=["after_index", 1])
+    # The code checked by line_number() *includes* the SUBROUTINE
+    # statement (which is obviously not a child of the SubroutineGen
+    # object) and therefore the index it returns is 1 greater than we
+    # might expect.
+    assert line_number(sub.root, "hello") == 3
+
+
+def test_basegen_before_error():
+    '''Check that we raise an error when attempting to insert an object
+    before another object that is not present in the tree'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var2"]))
+    # Create an object but do not add it as a child of sub
+    dgen = DeclGen(sub, datatype="real",
+                   entity_decls=["rvar1"])
+    # Try to add an object before the orphan dgen
+    with pytest.raises(RuntimeError) as err:
+        sub.add(CommentGen(sub, " hello"), position=["before", dgen])
+    assert "is it a child of the parent" in str(err)

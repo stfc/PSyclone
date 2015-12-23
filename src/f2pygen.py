@@ -103,17 +103,12 @@ class BaseGen(object):
         elif position[0] == "before_index":
             self.root.content.insert(position[1], new_object.root)
         elif position[0] == "before":
-            idx = self._index_of_object(self.root.content, position[1])
             try:
+                idx = self._index_of_object(self.root.content, position[1])
                 self.root.content.insert(idx, new_object.root)
-            except ValueError:
-                print "ValueError when inserting:"
-                print str(new_object), str(new_object.root)
-                print "parent is: "
-                print str(self.root)
-                print "looking for this as one of the children: "
-                print str(position[1])
-                exit(1)
+            except:
+                raise RuntimeError("Failed to insert before supplied object: "
+                                   "is it a child of the parent?")
         else:
             raise Exception("Error: BaseGen:add: internal error, should "
                             "not get to here")
