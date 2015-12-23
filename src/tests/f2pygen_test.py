@@ -695,5 +695,40 @@ def test_basegen_start_parent_loop_no_loop_dbg(capsys):
         "The type of the current node is not a do loop\n"
         "Assume the do loop will be appended as a child and find the last "
         "child's index\n")
-
     assert expected in out
+
+
+def test_progunitgen_multiple_generic_use():
+    '''Check that we correctly handle the case where duplicate use statements
+    are added'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(UseGen(sub, name="fred"))
+    sub.add(UseGen(sub, name="fred"))
+    assert count_lines(sub.root, "USE fred") == 1
+
+
+def test_progunitgen_multiple_use1():
+    '''Check that we correctly handle the case where duplicate use statements
+    are added but one is specific'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(UseGen(sub, name="fred"))
+    sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
+    assert count_lines(sub.root, "USE fred") == 1
+
+
+def test_progunitgen_multiple_use2():
+    '''Check that we correctly handle the case where the same module
+    appears in two use statements but, because the first use is
+    specific, the second, generic use is included.
+
+    '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
+    sub.add(UseGen(sub, name="fred"))
+    assert count_lines(sub.root, "USE fred") == 2
