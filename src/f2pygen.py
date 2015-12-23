@@ -386,51 +386,6 @@ end module vanilla
         ProgUnitGen.add(self, content, position)
 
 
-def createmodule(name, contains=True, implicitnone=True):
-    from fparser import api
-
-    code = '''\
-module vanilla
-'''
-    if implicitnone:
-        code += '''\
-implicit none
-'''
-    if contains:
-        code += '''\
-contains
-'''
-    code += '''\
-end module vanilla
-'''
-    tree = api.parse(code, ignore_comments=False)
-    module = tree.content[0]
-    module.name = name
-    endmod = module.content[len(module.content)-1]
-    endmod.name = name
-    return module
-
-
-def getLine(myString):
-    reader = FortranStringReader(myString)
-    reader.set_mode(True, False)  # free form, strict
-    myline = reader.next()
-    return myline
-
-
-def addexternal(names, parent):
-    if names == []:
-        return None
-    from fparser import api
-    myline = getLine("external :: vanilla")
-    from fparser.statements import External
-    external = External(parent, myline)
-    external.items = names
-    idx = 0
-    parent.content.insert(idx, external)
-    return external
-
-
 class CommentGen(BaseGen):
 
     def __init__(self, parent, content):
