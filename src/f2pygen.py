@@ -124,20 +124,6 @@ class BaseGen(object):
                 return idx
         raise Exception("Object {0} not found in list".format(str(obj)))
 
-    def start_sibling_loop(self, debug=False):
-        from fparser.block_statements import Do
-        index = len(self.root.content) - 1
-        found = False
-        while not found and index >= 0:
-            if isinstance(self.root.content[index], Do):
-                found = True
-            else:
-                index -= 1
-        if not found:
-            raise RuntimeError(
-                "Error, expecting to find a loop but none were found")
-        return self.root.content[index]
-
     def last_declaration(self):
         '''Returns the *last* occurrence of a Declaration in the list of
             siblings of this node
