@@ -429,6 +429,26 @@ class TestSubroutineGen():
         count = count_lines(sub.root, "IMPLICIT NONE")
         assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST BY DEFAULT"
 
+    def test_args(self):
+        ''' Test that the args property works as expected '''
+        module = ModuleGen(name="testmodule")
+        sub = SubroutineGen(module, name="testsubroutine",
+                            args=["arg1", "arg2"])
+        my_args = sub.args
+        assert len(my_args) == 2
+
+
+def test_directive_wrong_type():
+    ''' Check that we raise an error if we request a Directive of
+    unrecognised type '''
+    from psyGen import Node
+    parent = Node()
+    with pytest.raises(RuntimeError) as err:
+        _ = DirectiveGen(parent,
+                         "some_dir_type", "begin", "do",
+                         "schedule(static)")
+    assert "unsupported directive language" in str(err)
+
 
 def test_ompdirective_wrong():
     ''' Check that we raise an error if we request an OMP Directive of
@@ -640,7 +660,6 @@ def test_basegen_start_parent_loop_omp_begin_dbg(capsys):
                 "'fparser.block_statements.Do'>\n"
                 "If preceding node is a directive then move back one\n"
                 "preceding node is a directive so find out what type ...\n")
-
     assert expected in out
 
 
