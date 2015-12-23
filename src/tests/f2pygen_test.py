@@ -549,3 +549,16 @@ def test_basegen_before_error():
     with pytest.raises(RuntimeError) as err:
         sub.add(CommentGen(sub, " hello"), position=["before", dgen])
     assert "is it a child of the parent" in str(err)
+
+
+def test_basegen_last_declaration_no_vars():
+    '''Check that we raise an error when requesting the position of the
+    last variable declaration if we don't have any variables'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # Request the position of the last variable declaration
+    # even though we haven't got any
+    with pytest.raises(RuntimeError) as err:
+        sub.last_declaration()
+    assert "no variable declarations found" in str(err)
