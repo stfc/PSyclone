@@ -482,29 +482,6 @@ class SubroutineGen(ProgUnitGen):
         self._sub.args = namelist
 
 
-def addsub(name, args, parent, index=None):
-    from fparser import api
-
-    reader = FortranStringReader(
-        "subroutine vanilla(vanilla_arg)\nend subroutine")
-    reader.set_mode(True, True)  # free form, strict
-    subline = reader.next()
-    endsubline = reader.next()
-
-    from fparser.block_statements import Subroutine, EndSubroutine
-    sub = Subroutine(parent, subline)
-    sub.name = name
-    sub.args = args
-    if index is None:
-        index = len(parent.content)-1  # append
-    parent.content.insert(index, sub)
-
-    endsub = EndSubroutine(sub, endsubline)
-    sub.content.append(endsub)
-
-    return sub
-
-
 class CallGen(BaseGen):
     def __init__(self, parent, name="", args=[]):
         from fparser import api
@@ -519,27 +496,6 @@ class CallGen(BaseGen):
         self._call.items = args
 
         BaseGen.__init__(self, parent, self._call)
-
-
-def addcall(name, args, parent, index=None):
-    from fparser import api
-
-    # TODO check parent is a valid class
-    # <class 'fparser.block_statements.Subroutine'>
-
-    reader = FortranStringReader("call vanilla(vanilla_arg)")
-    reader.set_mode(True, True)  # free form, strict
-    myline = reader.next()
-
-    from fparser.block_statements import Call
-    call = Call(parent, myline)
-    call.designator = name
-    call.items = args
-
-    if index is None:
-        index = len(parent.content)-1  # append
-    parent.content.insert(index, call)
-    return call
 
 
 class UseGen(BaseGen):
