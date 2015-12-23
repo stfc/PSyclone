@@ -141,9 +141,10 @@ class BaseGen(object):
         from fparser.statements import Comment
         if debug:
             print "Entered before_parent_loop"
-            print "The type of the current node is " + str(type(self.root))
-            print "If the current node is a Do loop then move up to the "
-            "top of the do loop nest"
+            print "The type of the current node is {0}".format(
+                str(type(self.root)))
+            print ("If the current node is a Do loop then move up to the "
+                   "top of the do loop nest")
         current = self.root
         local_current = self
         while isinstance(current.parent, Do):
@@ -181,9 +182,11 @@ class BaseGen(object):
                 print "current index is 0 so finish"
         elif isinstance(parent.content[index-1], OMPDirective):
             if debug:
-                print "preceding node is a directive so find out what type ..."
-                print "type is " + parent.content[index-1].position
-                print "directive is " + str(parent.content[index-1])
+                print (
+                    "preceding node is a directive so find out what type ...\n"
+                    "type is {0}\ndirective is {1}".
+                    format(parent.content[index-1].position,
+                           str(parent.content[index-1])))
             if parent.content[index-1].position == "begin":
                 if debug:
                     print "type of directive is begin so move back one"

@@ -562,3 +562,138 @@ def test_basegen_last_declaration_no_vars():
     with pytest.raises(RuntimeError) as err:
         sub.last_declaration()
     assert "no variable declarations found" in str(err)
+
+    
+def test_basegen_start_parent_loop_dbg(capsys):
+    '''Check the debug option to the start_parent_loop method'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    loop = DoGen(sub, "it", "1", "10")
+    sub.add(loop)
+    call = CallGen(loop, "testcall")
+    loop.add(call)
+    call.start_parent_loop(debug=True)
+    out, err = capsys.readouterr()
+    print out
+    expected = ("Parent is a do loop so moving to the parent\n"
+                "The type of the current node is now <class "
+                "'fparser.block_statements.Do'>\n"
+                "The current node is a do loop\n"
+                "The type of parent is <class "
+                "'fparser.block_statements.Subroutine'>\n"
+                "Finding the loops position in its parent ...\n"
+                "The loop's index is  0\n")
+    assert expected in out
+
+    
+def test_basegen_start_parent_loop_not_first_child_dbg(capsys):
+    '''Check the debug option to the start_parent_loop method when the loop
+    is not the first child of the subroutine'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    call0 = CallGen(sub, "testcall")
+    sub.add(call0)
+    loop = DoGen(sub, "it", "1", "10")
+    sub.add(loop)
+    call = CallGen(loop, "testcall")
+    loop.add(call)
+    call.start_parent_loop(debug=True)
+    out, err = capsys.readouterr()
+    print out
+    expected = ("Parent is a do loop so moving to the parent\n"
+                "The type of the current node is now <class "
+                "'fparser.block_statements.Do'>\n"
+                "The current node is a do loop\n"
+                "The type of parent is <class "
+                "'fparser.block_statements.Subroutine'>\n"
+                "Finding the loops position in its parent ...\n"
+                "The loop's index is  1\n")
+    assert expected in out
+
+
+def test_basegen_start_parent_loop_omp_begin_dbg(capsys):
+    '''Check the debug option to the start_parent_loop method when we have
+    an OpenMP begin directive'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    dgen = DirectiveGen(sub, "omp", "begin", "do", "schedule(static)")
+    sub.add(dgen)
+    loop = DoGen(sub, "it", "1", "10")
+    sub.add(loop)
+    call = CallGen(loop, "testcall")
+    loop.add(call)
+    call.start_parent_loop(debug=True)
+    out, err = capsys.readouterr()
+    print out
+    expected = ("Parent is a do loop so moving to the parent\n"
+                "The type of the current node is now <class "
+                "'fparser.block_statements.Do'>\n"
+                "The current node is a do loop\n"
+                "The type of parent is <class "
+                "'fparser.block_statements.Subroutine'>\n"
+                "Finding the loops position in its parent ...\n"
+                "The loop's index is  1\n"
+                "The type of the object at the index is <class "
+                "'fparser.block_statements.Do'>\n"
+                "If preceding node is a directive then move back one\n"
+                "preceding node is a directive so find out what type ...\n")
+
+    assert expected in out
+
+
+def test_basegen_start_parent_loop_omp_end_dbg(capsys):
+    '''Check the debug option to the start_parent_loop method when we have
+    an OpenMP end directive'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    dgen = DirectiveGen(sub, "omp", "end", "do", "")
+    sub.add(dgen)
+    loop = DoGen(sub, "it", "1", "10")
+    sub.add(loop)
+    call = CallGen(loop, "testcall")
+    loop.add(call)
+    call.start_parent_loop(debug=True)
+    out, err = capsys.readouterr()
+    print out
+    expected = ("Parent is a do loop so moving to the parent\n"
+                "The type of the current node is now <class "
+                "'fparser.block_statements.Do'>\n"
+                "The current node is a do loop\n"
+                "The type of parent is <class "
+                "'fparser.block_statements.Subroutine'>\n"
+                "Finding the loops position in its parent ...\n"
+                "The loop's index is  1\n"
+                "The type of the object at the index is <class "
+                "'fparser.block_statements.Do'>\n"
+                "If preceding node is a directive then move back one\n"
+                "preceding node is a directive so find out what type ...\n")
+
+    assert expected in out
+
+
+@pytest.mark.xfail(reason="fparser Call object has no member named content")
+def test_basegen_start_parent_loop_no_loop_dbg(capsys):
+    '''Check the debug option to the start_parent_loop method when we have
+    no loop'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    dgen = DirectiveGen(sub, "omp", "end", "do", "")
+    sub.add(dgen)
+    call = CallGen(sub, name="testcall", args=["a", "b"])
+    sub.add(call)
+    call.start_parent_loop(debug=True)
+    out, err = capsys.readouterr()
+    print out
+    expected = (
+        "The type of the current node is now <class 'fparser.statements."
+        "Call'>\n"
+        "The type of the current node is not a do loop\n"
+        "Assume the do loop will be appended as a child and find the last "
+        "child's index\n")
+
+    assert expected in out
