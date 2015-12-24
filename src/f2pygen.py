@@ -613,30 +613,6 @@ class DeclGen(BaseGen):
         BaseGen.__init__(self, parent, self._decl)
 
 
-def adddecl(datatype, entity_decls, parent, intent="", pointer=False):
-
-    reader = FortranStringReader("integer :: vanilla")
-    reader.set_mode(True, False)  # free form, strict
-    myline = reader.next()
-
-    if datatype == "integer":
-        from fparser.typedecl_statements import Integer
-        decl = Integer(parent, myline)
-    else:
-        raise ParseError(
-            "Only integer is currently supported and you specified {0}".
-            format(datatype))
-    decl.entity_decls = entity_decls
-    my_attrspec = []
-    if intent != "":
-        my_attrspec.append("intent({0})".format(intent))
-    if pointer is not False:
-        my_attrspec.append("pointer")
-    decl.attrspec = my_attrspec
-    parent.content.insert(0, decl)
-    return decl
-
-
 class TypeDeclGen(BaseGen):
     def __init__(self, parent, datatype="", entity_decls=[], intent="",
                  pointer=False, attrspec=[]):
@@ -665,34 +641,6 @@ class TypeDeclGen(BaseGen):
     @property
     def root(self):
         return self._typedecl
-
-
-def addtypedecl(name, entity_decls, parent, index=None, attrspec=[],
-                intent="", pointer=False):
-    from fparser import api
-
-    # TODO check parent is a valid class
-    my_attrspec = [spec for spec in attrspec]
-    if intent != "":
-        my_attrspec.append("intent({0})".format(intent))
-    if pointer is not False:
-        my_attrspec.append("pointer")
-
-    reader = FortranStringReader("type(vanillatype) :: vanilla")
-    reader.set_mode(True, False)  # free form, strict
-    myline = reader.next()
-
-    from fparser.typedecl_statements import Type
-    typedecl = Type(parent, myline)
-    typedecl.selector = ('', name)
-    typedecl.attrspec = my_attrspec
-    typedecl.entity_decls = entity_decls
-
-    idx = 0
-    while isinstance(parent.content[idx], Type):
-        idx += 1
-    parent.content.insert(idx, typedecl)
-    return typedecl
 
 
 class TypeSelect(Select):
