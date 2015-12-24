@@ -807,3 +807,45 @@ def test_typedeclgen_names():
     assert len(names) == 1
     assert names[0] == "type1"
 
+
+@pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
+def test_selectiongen():
+    ''' Check that SelectionGen works as expected '''
+    from f2pygen import SelectionGen, AssignGen
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sgen = SelectionGen(sub, expr="my_var")
+    sub.add(sgen)
+    agen = AssignGen(sgen, lhs="happy", rhs=".TRUE.")
+    sgen.addcase("1", [agen])
+    # TODO how do we specify what happens in the default case?
+    sgen.adddefault()
+    gen = str(sub.root)
+    print gen
+    expected = ("SELECT CASE ( my_var )\n"
+                "CASE ( 1 )\n"
+                "        happy = .TRUE.\n"
+                "CASE DEFAULT\n"
+                "      END SELECT")
+    assert expected in gen
+    assert False
+
+
+@pytest.mark.xfail(reason="Adding a CASE to a SELECT TYPE does not work")
+def test_typeselectiongen():
+    ''' Check that SelectionGen works as expected for a type '''
+    from f2pygen import SelectionGen, AssignGen
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sgen = SelectionGen(sub, expr="my_var=>another_var", typeselect=True)
+    sub.add(sgen)
+    agen = AssignGen(sgen, lhs="happy", rhs=".TRUE.")
+    sgen.addcase("fspace", [agen])
+    sgen.adddefault()
+    gen = str(sub.root)
+    print gen
+    assert "SELECT TYPE ( my_var=>another_var )" in gen
+    assert "TYPE IS ( fspace )" in gen
+
