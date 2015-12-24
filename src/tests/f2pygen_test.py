@@ -768,18 +768,28 @@ def test_adduse_empty_only():
 
 
 def test_adduse():
-    ''' Test that the adduse module method works correctly when we specify
-    that we want it to be specific but then don't provide a list of
-    entities for the only qualifier '''
+    ''' Test that the adduse module method works correctly when we use a
+    call object as our starting point '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
     from f2pygen import adduse
-    # Add a use statement with only=True but an empty list of entities
     adduse("fred", call.root, only=True, funcnames=["astaire"])
     gen = str(sub.root)
     expected = ("    SUBROUTINE testsubroutine()\n"
                 "      USE fred, ONLY: astaire\n")
     assert expected in gen
+
+
+def test_declgen_wrong_type():
+    ''' Check that we raise an appropriate error if we attempt to create
+    a DeclGen for an unsupported type '''
+    # Create an object but do not add it as a child of sub
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    with pytest.raises(RuntimeError) as err:
+        dgen = DeclGen(sub, datatype="complex",
+                       entity_decls=["rvar1"])
+    assert "Only integer and real are currently supported" in str(err)
