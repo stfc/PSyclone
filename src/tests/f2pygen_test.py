@@ -751,3 +751,35 @@ def test_progunitgen_multiple_use2():
     sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
     sub.add(UseGen(sub, name="fred"))
     assert count_lines(sub.root, "USE fred") == 2
+
+
+def test_adduse_empty_only():
+    ''' Test that the adduse module method works correctly when we specify
+    that we want it to be specific but then don't provide a list of
+    entities for the only qualifier '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    from f2pygen import adduse
+    # Add a use statement with only=True but an empty list of entities
+    adduse("fred", sub.root, only=True, funcnames=[])
+    assert count_lines(sub.root, "USE fred") == 1
+    assert count_lines(sub.root, "USE fred, only") == 0
+
+
+def test_adduse():
+    ''' Test that the adduse module method works correctly when we specify
+    that we want it to be specific but then don't provide a list of
+    entities for the only qualifier '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    call = CallGen(sub, name="testcall", args=["a", "b"])
+    sub.add(call)
+    from f2pygen import adduse
+    # Add a use statement with only=True but an empty list of entities
+    adduse("fred", call.root, only=True, funcnames=["astaire"])
+    gen = str(sub.root)
+    expected = ("    SUBROUTINE testsubroutine()\n"
+                "      USE fred, ONLY: astaire\n")
+    assert expected in gen
