@@ -786,10 +786,24 @@ def test_adduse():
 def test_declgen_wrong_type():
     ''' Check that we raise an appropriate error if we attempt to create
     a DeclGen for an unsupported type '''
-    # Create an object but do not add it as a child of sub
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
     with pytest.raises(RuntimeError) as err:
         dgen = DeclGen(sub, datatype="complex",
                        entity_decls=["rvar1"])
     assert "Only integer and real are currently supported" in str(err)
+
+
+def test_typedeclgen_names():
+    ''' Check that the names method of TypeDeclGen works as expected '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    dgen = TypeDeclGen(sub, datatype="my_type",
+                       entity_decls=["type1"])
+    sub.add(dgen)
+    names = dgen.names
+    assert len(names) == 1
+    assert names[0] == "type1"
+
