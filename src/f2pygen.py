@@ -644,11 +644,13 @@ class TypeDeclGen(BaseGen):
 
 
 class TypeSelect(Select):
+    # TODO can this whole class be deleted?
     def tostr(self):
         return 'SELECT TYPE ( %s )' % (self.expr)
 
 
 class TypeCase(Case):
+    # TODO can this whole class be deleted?
     def tofortran(self, isfix=None):
         tab = self.get_indent_tab(isfix=isfix)
         s = 'TYPE IS'
@@ -666,6 +668,7 @@ class TypeCase(Case):
 
 class SelectionGen(BaseGen):
     ''' STUFF '''
+    # TODO can this whole class be deleted?
 
     def __init__(self, parent, expr="UNSET", typeselect=False):
         ''' construct a ... '''
