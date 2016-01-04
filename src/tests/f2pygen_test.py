@@ -8,7 +8,7 @@
 
 from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen,\
     AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    ImplicitNoneGen, UseGen, DirectiveGen
+    ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
 from utils import line_number, count_lines
 import pytest
 
@@ -811,7 +811,7 @@ def test_typedeclgen_names():
 @pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
 def test_selectiongen():
     ''' Check that SelectionGen works as expected '''
-    from f2pygen import SelectionGen, AssignGen
+    from f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -835,7 +835,7 @@ def test_selectiongen():
 @pytest.mark.xfail(reason="Adding a CASE to a SELECT TYPE does not work")
 def test_typeselectiongen():
     ''' Check that SelectionGen works as expected for a type '''
-    from f2pygen import SelectionGen, AssignGen
+    from f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -871,3 +871,20 @@ def test_do_loop_with_increment():
     sub.add(do)
     count = count_lines(sub.root, "DO it=1,10,2")
     assert count == 1
+
+
+def test_do_loop_add_after():
+    ''' Test that we correctly generate code for a do loop when adding a
+    child to it with position *after* '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsub")
+    module.add(sub)
+    do = DoGen(sub, "it", "1", "10", step="2")
+    sub.add(do)
+    assign1 = AssignGen(do, lhs="happy", rhs=".TRUE.")
+    do.add(assign1)
+    assign2 = AssignGen(do, lhs="sad", rhs=".FALSE.")
+    do.add(assign2, position=["before", assign1.root])
+    a1_line = line_number(sub.root, "happy = ")
+    a2_line = line_number(sub.root, "sad = ")
+    assert a1_line > a2_line
