@@ -849,3 +849,13 @@ def test_typeselectiongen():
     assert "SELECT TYPE ( my_var=>another_var )" in gen
     assert "TYPE IS ( fspace )" in gen
 
+
+def test_modulegen_add_wrong_parent():
+    ''' Check that attempting to add an object to a ModuleGen fails
+    if the object's parent is not that ModuleGen '''
+    module = ModuleGen(name="testmodule")
+    module_wrong = ModuleGen(name="another_module")
+    sub = SubroutineGen(module_wrong, name="testsubroutine")
+    with pytest.raises(Exception) as err:
+        module.add(sub)
+    assert "The requested parent is" in str(err)
