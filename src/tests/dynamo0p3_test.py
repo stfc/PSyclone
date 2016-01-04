@@ -57,8 +57,10 @@ def test_arg_descriptor_wrong_type():
                         "arg_typ(gh_field,gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert "each meta_arg entry must be of type 'arg_type'" \
+        in str(excinfo.value)
 
 
 def test_ad_field_type_too_few_args():
@@ -66,23 +68,41 @@ def test_ad_field_type_too_few_args():
     metadata has fewer than 3 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_typ(gh_field,gh_write)", 1)
+                        "arg_type(gh_field,gh_write)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'each meta_arg entry must have at least 3 args' \
+        in str(excinfo.value)
 
 
 def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
-    metadata has more than 3 args. '''
+    metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_typ(gh_field,gh_write,w1,w1)", 1)
+                        "arg_type(gh_field,gh_write,w1,w1,w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert "each meta_arg entry must have at most 4 arguments if its first" \
+        in str(excinfo.value)
+
+
+def test_ad_fld_type_1st_arg():
+    ''' Tests that an error is raised when the 1st argument is
+    invalid'''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
+                        "arg_type(gh_hedge,gh_write,w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'the 1st argument of a meta_arg entry should be a valid ' \
+        'argument type' in str(excinfo.value)
 
 
 def test_ad_op_type_too_few_args():
@@ -90,23 +110,25 @@ def test_ad_op_type_too_few_args():
     metadata has fewer than 4 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator, w2, w2)", 1)
+                        "arg_type(gh_operator,gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
 def test_ad_op_type_too_many_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_typ(gh_field,gh_write,w1,w1,gh_field)", 1)
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_read, w2, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
 def test_ad_invalid_type():
@@ -116,8 +138,10 @@ def test_ad_invalid_type():
     code = CODE.replace("gh_operator", "gh_operato", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '1st argument of a meta_arg entry should be a valid argument type' \
+        in str(excinfo.value)
 
 
 def test_ad_invalid_access_type():
@@ -127,8 +151,9 @@ def test_ad_invalid_access_type():
     code = CODE.replace("gh_read", "gh_ead", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '2nd argument of a meta_arg entry' in str(excinfo.value)
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -138,8 +163,9 @@ def test_arg_descriptor_invalid_fs1():
     code = CODE.replace("gh_field,gh_read, w3", "gh_field,gh_read, w4", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '3rd argument of a meta_arg entry' in str(excinfo.value)
 
 
 def test_arg_descriptor_invalid_fs2():
@@ -149,8 +175,9 @@ def test_arg_descriptor_invalid_fs2():
     code = CODE.replace("w2, w2", "w2, w4", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '4th argument of a meta_arg entry' in str(excinfo.value)
 
 
 def test_invalid_vector_operator():
@@ -160,8 +187,9 @@ def test_invalid_vector_operator():
     code = CODE.replace("gh_field,gh_write,w1", "gh_field+3,gh_write,w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert "must use '*' as the separator" in str(excinfo.value)
 
 
 def test_invalid_vector_value_type():
@@ -171,8 +199,9 @@ def test_invalid_vector_value_type():
     code = CODE.replace("gh_field,gh_write,w1", "gh_field*n,gh_write,w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'vector notation expects the format (field*n)' in str(excinfo.value)
 
 
 def test_invalid_vector_value_range():
@@ -182,8 +211,9 @@ def test_invalid_vector_value_range():
     code = CODE.replace("gh_field,gh_write,w1", "gh_field*1,gh_write,w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'must contain a valid integer vector size' in str(excinfo.value)
 
 # Testing that an error is raised when a vector value is not provided is
 # not required here as it causes a parse error in the generic code.
@@ -196,8 +226,10 @@ def test_fs_descriptor_wrong_type():
     code = CODE.replace("func_type(w2", "funced_up_type(w2", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert "each meta_func entry must be of type 'func_type'" in \
+        str(excinfo.value)
 
 
 def test_fs_descriptor_too_few_args():
@@ -207,8 +239,9 @@ def test_fs_descriptor_too_few_args():
     code = CODE.replace("w1, gh_basis", "w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
 
 
 def test_fs_desc_invalid_fs_type():
@@ -218,8 +251,10 @@ def test_fs_desc_invalid_fs_type():
     code = CODE.replace("w3, gh_basis", "w4, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '1st argument of a meta_func entry should be a valid function ' + \
+        'space name' in str(excinfo.value)
 
 
 def test_fs_desc_replicated_fs_type():
@@ -229,8 +264,10 @@ def test_fs_desc_replicated_fs_type():
     code = CODE.replace("w3, gh_basis", "w1, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'function spaces specified in meta_funcs must be unique' \
+        in str(excinfo.value)
 
 
 def test_fs_desc_invalid_op_type():
@@ -240,8 +277,10 @@ def test_fs_desc_invalid_op_type():
     code = CODE.replace("w2, gh_diff_basis", "w2, gh_dif_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '2nd argument and all subsequent arguments of a meta_func ' + \
+        'entry should be a valid operator name' in str(excinfo.value)
 
 
 def test_fs_desc_replicated_op_type():
@@ -252,8 +291,10 @@ def test_fs_desc_replicated_op_type():
                         "w3, gh_basis, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'error to specify an operator name more than once' \
+        in str(excinfo.value)
 
 
 def test_fsdesc_fs_not_in_argdesc():
@@ -263,8 +304,10 @@ def test_fsdesc_fs_not_in_argdesc():
     code = CODE.replace("w3, gh_basis", "w0, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'function spaces specified in meta_funcs must exist in ' + \
+        'meta_args' in str(excinfo)
 
 
 def test_field():
@@ -599,6 +642,112 @@ def test_operator():
         ", nqp_v, wh, wv)") != -1
 
 
+def test_operator_different_spaces():
+    '''tests that an operator with different to and from spaces is
+    implemented correctly in the PSy layer'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.3_operator_different_spaces.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    output = (
+        "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
+        "(mapping, chi, qr)\n"
+        "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
+        "assemble_weak_derivative_w3_w2_kernel_code\n"
+        "      TYPE(field_type), intent(inout) :: chi(3)\n"
+        "      TYPE(operator_type), intent(inout) :: mapping\n"
+        "      TYPE(quadrature_type), intent(in) :: qr\n"
+        "      INTEGER, pointer :: orientation_w2(:) => null()\n"
+        "      INTEGER, pointer :: map_w0(:) => null()\n"
+        "      INTEGER cell\n"
+        "      REAL(KIND=r_def), allocatable :: basis_w3(:,:,:,:), "
+        "diff_basis_w2(:,:,:,:), diff_basis_w0(:,:,:,:)\n"
+        "      INTEGER dim_w3, diff_dim_w2, diff_dim_w0\n"
+        "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
+        "      REAL(KIND=r_def), pointer :: zp(:) => null(), wh(:) => null(), "
+        "wv(:) => null()\n"
+        "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
+        "      INTEGER nqp_h, nqp_v\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(operator_proxy_type) mapping_proxy\n"
+        "      TYPE(field_proxy_type) chi_proxy(3)\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      mapping_proxy = mapping%get_proxy()\n"
+        "      chi_proxy(1) = chi(1)%get_proxy()\n"
+        "      chi_proxy(2) = chi(2)%get_proxy()\n"
+        "      chi_proxy(3) = chi(3)%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise qr values\n"
+        "      !\n"
+        "      wv => qr%get_wqp_v()\n"
+        "      xp => qr%get_xqp_h()\n"
+        "      zp => qr%get_xqp_v()\n"
+        "      wh => qr%get_wqp_h()\n"
+        "      nqp_h = qr%get_nqp_h()\n"
+        "      nqp_v = qr%get_nqp_v()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = mapping_proxy%fs_to%get_ndf()\n"
+        "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
+        "      ALLOCATE (basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
+        "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w2(diff_dim_w2, ndf_w2, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w0\n"
+        "      !\n"
+        "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
+        "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
+        "      diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w0(diff_dim_w0, ndf_w0, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Compute basis arrays\n"
+        "      !\n"
+        "      CALL mapping_proxy%fs_to%compute_basis_function(basis_w3, "
+        "ndf_w3, nqp_h, nqp_v, xp, zp)\n"
+        "      CALL mapping_proxy%fs_from%compute_diff_basis_function("
+        "diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)\n"
+        "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
+        "diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,mapping_proxy%fs_from%get_ncell()\n"
+        "        !\n"
+        "        map_w0 => chi_proxy(1)%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        orientation_w2 => mapping_proxy%fs_from%get_cell_orientation("
+        "cell)\n"
+        "        !\n"
+        "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
+        "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
+        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w3, "
+        "basis_w3, ndf_w2, diff_basis_w2, orientation_w2, ndf_w0, undf_w0, "
+        "map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)\n"
+        "      END DO \n"
+        "      !\n"
+        "      ! Deallocate basis arrays\n"
+        "      !\n"
+        "      DEALLOCATE (basis_w3, diff_basis_w2, diff_basis_w0)\n"
+        "      !\n"
+        "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_"
+        "type")
+    print generated_code
+    print output
+    assert output in generated_code
+
+
 def test_operator_nofield():
     ''' tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
@@ -622,6 +771,26 @@ def test_operator_nofield():
         "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
+def test_operator_nofield_different_space():
+    ''' tests that an operator with no field on different spaces is
+    implemented correctly in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.5_operator_no_field_different_"
+                                        "space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_code_str = str(psy.gen)
+    print gen_code_str
+    assert gen_code_str.find(
+        "nlayers = my_mapping_proxy%fs_from%get_nlayers()")
+    assert gen_code_str.find("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()")
+    assert gen_code_str.find("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()")
+    assert gen_code_str.find("DO cell=1,my_mapping_proxy%fs_from%get_ncell()")
+    assert gen_code_str.find(
+        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+        "local_stencil, ndf_w3, ndf_w2)")
+
+
 def test_operator_orientation():
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
@@ -641,7 +810,6 @@ def test_operator_orientation():
     assert gen_str.find(
         "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
         "(cell)") != -1
-
     assert gen_str.find(
         "CALL testkern_operator_orient_code(cell, nlayers, mm_w1_proxy%ncell_"
         "3d, mm_w1_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data,"
@@ -649,9 +817,39 @@ def test_operator_orientation():
         "0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
+def test_operator_orientation_different_space():
+    '''tests that an operator on different spaces requiring orientation
+    information is implemented correctly in the PSy layer. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.4_operator_orient_different_"
+                                        "space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_str = str(psy.gen)
+    assert gen_str.find(
+        "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
+        "=> null()")
+    assert gen_str.find("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()")
+    assert gen_str.find("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()")
+    assert gen_str.find("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()")
+    assert gen_str.find(
+        "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
+        "nqp_h, nqp_v, xp, zp)")
+    assert gen_str.find(
+        "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
+        "cell)")
+    assert gen_str.find(
+        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)")
+    assert gen_str.find(
+        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
+        "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
+        "ndf_w2, orientation_w2, ndf_w1, basis_w1, orientation_w1, ndf_w0, "
+        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")
+
+
 def test_any_space_1():
     ''' tests that any_space is implemented correctly in the PSy
-    layer. Includes more than one type of any_space delcaration
+    layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api="dynamo0.3")
@@ -708,6 +906,59 @@ def test_any_space_2():
         "CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
         "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1"
         ", undf_any_space_1, map_any_space_1)") != -1
+
+
+def test_operator_any_space_different_space_1():
+    ''' tests that any_space is implemented correctly in the PSy
+    layer. Includes different spaces for an operator and no other
+    fields.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    print generated_code
+    assert str(generated_code).find(
+        "ndf_any_space_2 = a_proxy%fs_from%get_ndf()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_1 = a_proxy%fs_to%get_ndf()") != -1
+
+
+def test_operator_any_space_different_space_2():
+    ''' tests that any_space is implemented correctly in the PSy
+    layer in a more complicated example. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    print generated_code
+    assert str(generated_code).find(
+        "ndf_any_space_1 = b_proxy%fs_to%get_ndf()") != -1
+    assert str(generated_code).find(
+        "dim_any_space_1 = b_proxy%fs_to%get_dim_space()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_2 = b_proxy%fs_from%get_ndf()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_3 = c_proxy%fs_to%get_ndf()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_4 = d_proxy%fs_from%get_ndf()") != -1
+    assert str(generated_code).find(
+        "undf_any_space_4 = d_proxy%fs_from%get_undf()") != -1
+    assert str(generated_code).find(
+        "dim_any_space_4 = d_proxy%fs_from%get_dim_space()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_5 = a_proxy%vspace%get_ndf()") != -1
+    assert str(generated_code).find(
+        "undf_any_space_5 = a_proxy%vspace%get_undf()") != -1
+    assert str(generated_code).find(
+        "CALL b_proxy%fs_to%compute_basis_function") != -1
+    assert str(generated_code).find(
+        "CALL d_proxy%fs_from%compute_basis_function") != -1
+    assert str(generated_code).find(
+        "CALL d_proxy%fs_from%compute_diff_basis_function") != -1
+    assert str(generated_code).find(
+        "map_any_space_5 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert str(generated_code).find(
+        "map_any_space_4 => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
 
 
 def test_kernel_specific():
@@ -856,8 +1107,10 @@ def test_multikern_invoke_any_space():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = PSyFactory("dynamo0.3").create(invoke_info)
+    assert 'multiple kernels within this invoke with kernel arguments ' + \
+        'declared as any_space' in str(excinfo.value)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -901,55 +1154,65 @@ def test_loopfuse():
 # tests for dynamo0.3 stub generator
 
 
-def test_non_existant_filename():
+def test_stub_non_existant_filename():
     ''' fail if the file does not exist '''
-    with pytest.raises(IOError):
+    with pytest.raises(IOError) as excinfo:
         generate("non_existant_file.f90", api="dynamo0.3")
+    assert "file 'non_existant_file.f90' not found" in str(excinfo.value)
 
 
-def test_invalid_api():
+def test_stub_invalid_api():
     ''' fail if the specified api is not supported '''
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         generate("test_files/dynamo0p3/ru_kernel_mod.f90", api="dynamo0.1")
+    assert "Unsupported API 'dynamo0.1' specified" in str(excinfo.value)
 
 
-def test_file_content_not_fortran():
+def test_stub_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("dynamo0p3_test.py", api="dynamo0.3")
+    assert 'the file does not contain a module. Is it a Kernel file?' \
+        in str(excinfo.value)
 
 
-def test_file_fortran_invalid():
+def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/testkern_invalid_fortran.F90",
                  api="dynamo0.3")
+    assert 'invalid Fortran' in str(excinfo.value)
 
 
 def test_file_fortran_not_kernel():
     ''' fail if file is valid fortran but is not a kernel file '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/1_single_invoke.f90", api="dynamo0.3")
+    assert 'file does not contain a module. Is it a Kernel file?' \
+        in str(excinfo.value)
 
 
 def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/testkern_short_name.F90",
                  api="dynamo0.3")
+    assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
 
 def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/testkern.F90", api="dynamo0.3")
+    assert "does not have '_mod' as an extension" in str(excinfo.value)
 
 
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError) as excinfo:
         generate("test_files/dynamo0p3/testkern_no_datatype.F90",
                  api="dynamo0.3")
+    assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
 SIMPLE = (
     "  MODULE simple_mod\n"
@@ -1254,16 +1517,18 @@ end module dummy_mod
 '''
 
 
-def test_operator_different_spaces():
-    ''' test that an error is raised when an operator has two
-    different spaces as this is not yet supported in the stub
-    generator. '''
+def test_stub_operator_different_spaces():
+    ''' test that the correct function spaces are provided in the
+    correct order when generating a kernel stub with an operator on
+    different spaces '''
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
-        _ = kernel.gen_stub
+    result = str(kernel.gen_stub)
+    assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
+    assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
+
 
 # basis function : spaces
 BASIS = '''
@@ -1403,8 +1668,9 @@ def test_basis_unsupported_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    assert 'Unsupported space for basis function' in str(excinfo.value)
 
 # diff basis function : spaces
 DIFF_BASIS = '''
@@ -1544,8 +1810,10 @@ def test_diff_basis_unsupp_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    assert 'Unsupported space for differential basis function' \
+        in str(excinfo.value)
 
 # orientation : spaces
 
@@ -1720,3 +1988,326 @@ def test_kernel_stub_gen_cmd_line():
 
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
+
+STENCIL_CODE = '''
+module stencil_mod
+  type, extends(kernel_type) :: stencil_type
+     type(arg_type), meta_args(2) =    &
+          (/ arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2, stencil(cross,1)) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => stencil_code
+  end type stencil_type
+contains
+  subroutine stencil_code()
+  end subroutine stencil_code
+end module stencil_mod
+'''
+
+
+def test_stencil_metadata():
+    ''' Check that we can parse Kernels with stencil metadata '''
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    stencil_descriptor_0 = metadata.arg_descriptors[0]
+    assert  stencil_descriptor_0.stencil == None
+    stencil_descriptor_1 = metadata.arg_descriptors[1]
+    assert stencil_descriptor_1.stencil['type'] == 'cross'
+    assert stencil_descriptor_1.stencil['extent'] == 1
+
+
+def test_field_metadata_too_many_arguments():
+    '''Check that we raise an exception if more than 4 arguments are
+    provided in the metadata for a gh_field arg_type.'''
+    result = STENCIL_CODE.replace(
+        "gh_field,gh_read, w2, stencil(cross,1)",
+        "gh_field,gh_read, w2, stencil(cross,1), w1", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "each meta_arg entry must have at most 4 arguments" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_1():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by being a literal integer'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "1", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+    assert "but found the literal" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_2():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by having an invalid name'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stenci(cross,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_3():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by not having brackets'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_4():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>,<extent) format by not containing two values in the
+    brackets '''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cross)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be a valid stencil specification" \
+        in str(excinfo.value)
+    assert "there are not two arguments inside the brackets" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_first_arg_1():
+    '''Check that we raise an exception if the value of the stencil type in
+    stencil(<type>,<extent) is not valid and is an integer'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(1,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "not one of the valid types" in str(excinfo.value)
+    assert "is a literal" in str(excinfo.value)
+
+
+def test_invalid_stencil_first_arg_2():
+    '''Check that we raise an exception if the value of the stencil type in
+    stencil(<type>,<extent) is not valid and is a name'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cros,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "not one of the valid types" in str(excinfo.value)
+
+
+def test_invalid_stencil_first_arg_3():
+    '''Check that we raise an exception if the value of the stencil type in
+    stencil(<type>,<extent) is not valid and has brackets'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d(xx),1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "the specified <type>" in str(excinfo.value)
+    assert "includes brackets" in str(excinfo.value)
+
+
+def test_invalid_stencil_second_arg_1():
+    '''Check that we raise an exception if the value of the stencil extent in
+    stencil(<type>,<extent) is not an integer'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,x1d)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "the specified <extent>" in str(excinfo.value)
+    assert "is not an integer" in str(excinfo.value)
+
+
+def test_invalid_stencil_second_arg_2():
+    '''Check that we raise an exception if the value of the stencil extent in
+    stencil(<type>,<extent) is less than 1'''
+    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,0)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "the specified <extent>" in str(excinfo.value)
+    assert "is less than 1" in str(excinfo.value)
+
+
+def test_arg_descriptor_functions_method_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when function_spaces is called and the internal type is an
+    unexpected value. It should not be possible to get to here so we
+    need to mess about with internal values to trip this.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor._type = "gh_fire_starter"
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_spaces
+    assert 'Internal error, DynArgDescriptor03:function_spaces(), should ' \
+        'not get to here' in str(excinfo.value)
+
+
+def test_arg_ref_name_method_error1():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when ref_name() is called with a function space that is not
+    associated with this field'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    # the argument is a field and is on "w1"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name("w3")
+    assert 'not one of the function spaces associated with this argument' \
+        in str(excinfo.value)
+
+
+def test_arg_ref_name_method_error2():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when ref_name() is called when the argument type is not one of
+    gh_field or gh_operator'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    first_argument._type = "gh_funky_instigator"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name()
+    assert 'ref_name: Error, unsupported arg type' in str(excinfo)
+
+
+def test_arg_descriptor_function_method_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when function_space is called and the internal type is an
+    unexpected value. It should not be possible to get to here so we
+    need to mess about with internal values to trip this.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor._type = "gh_fire_starter"
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_space
+    assert 'Internal error, DynArgDescriptor03:function_space(), should ' \
+        'not get to here' in str(excinfo.value)
+
+
+def test_arg_descriptor_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_field'\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space[2]='w1'")
+    assert expected_output in result
+
+
+def test_arg_descriptor_str_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when __str__ is called and the internal type is an
+    unexpected value. It should not be possible to get to here so we
+    need to mess about with internal values to trip this.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor._type = "gh_fire_starter"
+    with pytest.raises(ParseError) as excinfo:
+        _ = str(field_descriptor)
+    assert 'Internal error in DynArgDescriptor03.__str__' \
+        in str(excinfo.value)
+
+
+def test_arg_descriptor_repr():
+    ''' Tests that the repr method for DynArgDescriptor03 works as
+    expected '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    result = repr(field_descriptor)
+    assert 'DynArgDescriptor03(arg_type(gh_field, gh_write, w1))' \
+        in result
+
+
+def test_arg_descriptor_function_space_tofrom_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when function_space_to or function_space_from is called and the
+    internal type is not gh_operator.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_space_to
+    assert 'function_space_to only makes sense for a gh_operator' \
+        in str(excinfo.value)
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_space_from
+    assert 'function_space_from only makes sense for a gh_operator' \
+        in str(excinfo.value)
+
+
+def test_arg_descriptor_init_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when an invalid type is provided. However this error never gets
+    tripped due to an earlier test so we need to force the error by
+    changing the internal state.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    # extract an arg_type object that we can use to create a
+    # DynArgDescriptor03 object
+    arg_type = field_descriptor._arg_type
+    # Now try to trip the error by making the initial test think
+    # that GH_INVALID is actually valid
+    from dynamo0p3 import VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    keep = []
+    keep.extend(VALID_ARG_TYPE_NAMES)
+    VALID_ARG_TYPE_NAMES.append("GH_INVALID")
+    arg_type.args[0].name = "GH_INVALID"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynArgDescriptor03(arg_type)
+    assert 'Internal error in DynArgDescriptor03.__init__' \
+        in str(excinfo.value)
+    VALID_ARG_TYPE_NAMES = keep
+
+
+def test_func_descriptor_repr():
+    ''' Tests the __repr__ output of a func_descriptor '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    func_descriptor = metadata.func_descriptors[0]
+    func_str = repr(func_descriptor)
+    assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
+
+
+def test_func_descriptor_str():
+    ''' Tests the __str__ output of a func_descriptor '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    func_descriptor = metadata.func_descriptors[0]
+    func_str = str(func_descriptor)
+    output = (
+        "DynFuncDescriptor03 object\n"
+        "  name='func_type'\n"
+        "  nargs=2\n"
+        "  function_space_name[0] = 'w1'\n"
+        "  operator_name[1] = 'gh_basis'")
+    assert output in func_str

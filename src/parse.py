@@ -24,7 +24,7 @@ class ParseError(Exception):
 
 class Descriptor(object):
     """A description of how a kernel argument is accessed"""
-    def __init__(self,access,space,stencil):
+    def __init__(self,access,space,stencil=None):
         self._access=access
         self._space=space
         self._stencil=stencil
@@ -40,6 +40,60 @@ class Descriptor(object):
     @property
     def stencil(self):
         return self._stencil
+
+    def _get_stencil(self, metadata, valid_types):
+
+        ''' Returns stencil_type and stencil_extent as a dictionary
+        object from stencil metadata if the metadata conforms to the
+        stencil(type, extent) format '''
+
+        if not isinstance(metadata, expr.FunctionVar):
+            raise ParseError(
+                "Expecting format stencil(<type>,<extent>) but found the "
+                "literal {0}".format(metadata))
+        if metadata.name.lower() != "stencil" or not metadata.args:
+            raise ParseError(
+                "Expecting format stencil(<type>,<extent>) but found {0}".
+                format(metadata))
+        if len(metadata.args) != 2:
+            raise ParseError(
+                "Expecting format stencil(<type>,<extent>) but there are not "
+                "two arguments inside the brackets {0}".format(metadata))
+        if not isinstance(metadata.args[0], expr.FunctionVar):
+            if isinstance(metadata.args[0], str):
+                raise ParseError(
+                    "Expecting format stencil(<type>,<extent>). However, the "
+                    "specified <type> '{0}' is a literal and therefore is "
+                    "not one of the valid types '{1}'".
+                    format(metadata.args[0], valid_types))
+            else:
+                raise ParseError(
+                    "Internal error, expecting either FunctionVar or "
+                    "str from the expression analyser but found {0}".
+                    format(type(metadata.args[0])))
+        if metadata.args[0].args:
+            raise ParseError(
+                "Expected format stencil(<type>,<extent>). However, the "
+                "specified <type> '{0}' includes brackets")
+        stencil_type = metadata.args[0].name
+        if stencil_type not in valid_types:
+            raise ParseError(
+                "Expected format stencil(<type>,<extent>). However, the "
+                "specified <type> '{0}' is not one of the valid types '{1}'".
+                format(stencil_type, valid_types))
+
+        if not isinstance(metadata.args[1], str):
+            raise ParseError(
+                "Expected format stencil(<type>,<extent>). However, the "
+                "specified <extent> '{0}' is not an integer".
+                format(metadata.args[1]))
+        stencil_extent = int(metadata.args[1])
+        if stencil_extent < 1:
+            raise ParseError(
+                "Expected format stencil(<type>,<extent>). However, the "
+                "specified <extent> '{0}' is less than 1".
+                format(str(stencil_extent)))
+        return {"type": stencil_type, "extent": stencil_extent}
 
     def __repr__(self):
         return 'Descriptor(%s, %s)' % (self.stencil, self.access)

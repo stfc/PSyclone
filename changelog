@@ -1,3 +1,8 @@
+        1) #415 Support for parsing stencil information supplied in
+	Dynamo 0.3 kernel meta-data.
+
+release 1.1.0
+
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo
 	API. Parser fails gracefully if Kernel-code parsing is
 	unsuccessful.
@@ -53,6 +58,9 @@
 	13) #396 and #397 Make all tests work with Python 2.6. Previously
 	two of the tests only worked in Python 2.7 and a third caused
 	resource issues when using deepcopy.
+
+        14) #355 Support operators where the "to" and "from" function
+        spaces are different.
 
 release 1.0.2
 
