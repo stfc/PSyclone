@@ -747,29 +747,6 @@ class DoGen(BaseGen):
             BaseGen.add(self, content, position=position)
 
 
-def adddo(variable_name, start, end, parent, step=None):
-
-    reader = FortranStringReader("do i=1,n\nend do")
-    reader.set_mode(True, True)  # free form, strict
-    doline = reader.next()
-    enddoline = reader.next()
-
-    from fparser.block_statements import Do, EndDo
-    do = Do(parent, doline)
-    do.loopcontrol = variable_name + "=" + start + "," + end
-    if step is not None:
-        do.loopcontrol = do.loopcontrol + "," + step
-
-    from fparser.block_statements import EndSubroutine
-    idx = len(parent.content)
-    if isinstance(parent.content[idx-1], EndSubroutine):
-        idx -= 1
-    parent.content.insert(idx, do)
-    enddo = EndDo(do, enddoline)
-    do.content.append(enddo)
-    return do
-
-
 class IfThenGen(BaseGen):
     ''' Generate a fortran if, then, end if statement. '''
 
