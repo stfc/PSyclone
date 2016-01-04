@@ -859,3 +859,15 @@ def test_modulegen_add_wrong_parent():
     with pytest.raises(Exception) as err:
         module.add(sub)
     assert "The requested parent is" in str(err)
+
+
+def test_do_loop_with_increment():
+    ''' Test that we correctly generate code for a do loop with
+    non-unit increment '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsub")
+    module.add(sub)
+    do = DoGen(sub, "it", "1", "10", step="2")
+    sub.add(do)
+    count = count_lines(sub.root, "DO it=1,10,2")
+    assert count == 1
