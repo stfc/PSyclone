@@ -105,10 +105,15 @@ class BaseGen(object):
         elif position[0] == "before":
             try:
                 idx = self._index_of_object(self.root.content, position[1])
+            except Exception as err:
+                print str(err)
+                raise RuntimeError(
+                    "Failed to find supplied object in existing content - "
+                    "is it a child of the parent?")
+            try:
                 self.root.content.insert(idx, new_object.root)
             except:
-                raise RuntimeError("Failed to insert before supplied object: "
-                                   "is it a child of the parent?")
+                raise RuntimeError("Failed to insert before supplied object")
         else:
             raise Exception("Error: BaseGen:add: internal error, should "
                             "not get to here")
@@ -116,9 +121,7 @@ class BaseGen(object):
 
     def _index_of_object(self, alist, obj):
         '''Effectively implements list.index(obj) but returns the index of
-            the first item in the list that *is* the supplied object
-
-        '''
+           the first item in the list that *is* the supplied object '''
         for idx, body in enumerate(alist):
             if body is obj:
                 return idx

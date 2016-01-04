@@ -127,7 +127,6 @@ class TestComment:
 
 class TestAdd:
     ''' pytest tests for adding code. '''
-    @pytest.mark.xfail(reason="unknown")
     def test_add_before(self):
         ''' add the new code before a particular object '''
         module = ModuleGen(name="testmodule")
@@ -136,9 +135,10 @@ class TestAdd:
         loop = DoGen(subroutine, "it", "1", "10")
         subroutine.add(loop)
         call = CallGen(subroutine, "testcall")
-        subroutine.add(call, position=["before", loop])
+        subroutine.add(call, position=["before", loop.root])
         lines = str(module.root).splitlines()
         # the call should be inserted before the loop
+        print lines
         assert "SUBROUTINE testsubroutine" in lines[3]
         assert "CALL testcall" in lines[4]
         assert "DO it=1,10" in lines[5]
@@ -568,7 +568,7 @@ def test_basegen_before_error():
     # Try to add an object before the orphan dgen
     with pytest.raises(RuntimeError) as err:
         sub.add(CommentGen(sub, " hello"), position=["before", dgen])
-    assert "is it a child of the parent" in str(err)
+    assert "Failed to find supplied object" in str(err)
 
 
 def test_basegen_last_declaration_no_vars():
