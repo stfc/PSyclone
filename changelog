@@ -1,6 +1,8 @@
         1) #415 Support for parsing stencil information supplied in
 	Dynamo 0.3 kernel meta-data.
 
+        2) #367 Make gocean python conform to pep8
+
 release 1.1.0
 
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo
