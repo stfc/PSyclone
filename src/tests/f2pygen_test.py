@@ -100,7 +100,7 @@ class TestIf:
         assert "IF (" + clause + ") THEN" in lines[3]
         assert "END IF" in lines[4]
 
-    def test_if(self):
+    def test_if_content(self):
         ''' Check that the content of an if gets created successfully. '''
         module = ModuleGen(name="testmodule")
         clause = "a < b"
@@ -111,6 +111,59 @@ class TestIf:
         assert "IF (" + clause + ") THEN" in lines[3]
         assert "!HELLO" in lines[4]
         assert "END IF" in lines[5]
+
+    def test_if_with_position_before(self):
+        ''' Check that IfThenGen.add() correctly uses the position
+        argument if supplied. '''
+        module = ModuleGen(name="testmodule")
+        clause = "a < b"
+        if_statement = IfThenGen(module, clause)
+        com1 = CommentGen(if_statement, "HELLO")
+        if_statement.add(com1)
+        if_statement.add(CommentGen(if_statement, "GOODBYE"),
+                         position=["before", com1.root])
+        module.add(if_statement)
+        lines = str(module.root).splitlines()
+        assert "IF (" + clause + ") THEN" in lines[3]
+        assert "!GOODBYE" in lines[4]
+        assert "!HELLO" in lines[5]
+        assert "END IF" in lines[6]
+
+    def test_if_with_position_append(self):
+        ''' Check that IfThenGen.add() correctly uses the position
+        argument when *append* is specified. '''
+        module = ModuleGen(name="testmodule")
+        clause = "a < b"
+        if_statement = IfThenGen(module, clause)
+        com1 = CommentGen(if_statement, "HELLO")
+        if_statement.add(com1)
+        if_statement.add(CommentGen(if_statement, "GOODBYE"),
+                         position=["append"])
+        module.add(if_statement)
+        print str(module.root)
+        lines = str(module.root).splitlines()
+        assert "IF (" + clause + ") THEN" in lines[3]
+        assert "!HELLO" in lines[4]
+        assert "!GOODBYE" in lines[5]
+        assert "END IF" in lines[6]
+
+    @pytest.mark.xfail(reason="Get wrong parent error because UseGen has"
+                       " IfThenGen rather than ModuleGen as its parent")
+    def test_if_add_use(self):
+        ''' Check that IfThenGen.add() correctly handles the case
+        when it is passed a UseGen object '''
+        module = ModuleGen(name="testmodule")
+        clause = "a < b"
+        if_statement = IfThenGen(module, clause)
+        if_statement.add(CommentGen(if_statement, "GOODBYE"))
+        if_statement.add(UseGen(if_statement, name="dibna"))
+        module.add(if_statement)
+        print str(module.root)
+        lines = str(module.root).splitlines()
+        use_line = line_number(module.root, "USE dibna")
+        if_line = line_number(module.root, "IF (" + clause + ") THEN")
+        # The use statement must come before the if..then block
+        assert use_line < if_line
 
 
 class TestComment:
