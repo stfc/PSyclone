@@ -6,17 +6,17 @@
 # ----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+''' Fortran code-generation library. This wraps the f2py fortran parser to
+    provide routines which can be used to generate fortran code. This library
+    includes pytest tests. '''
+
 from fparser.statements import Comment
 from fparser.readfortran import FortranStringReader
 from fparser.block_statements import Select
 from fparser.statements import Case
 
-''' Fortran code-generation library. This wraps the f2py fortran parser to
-    provide routines which can be used to generate fortran code. This library
-    includes pytest tests. '''
-
-'''This section subclasses the f2py comment class so that we can
-reason about directives'''
+# This section subclasses the f2py comment class so that we can
+# reason about directives
 
 
 class OMPDirective(Comment):
@@ -39,17 +39,22 @@ class OMPDirective(Comment):
 
     @property
     def type(self):
+        ''' Returns the type of this OMP Directive (one of 'parallel do',
+        'parallel' or 'do') '''
         return self._my_type
 
     @property
     def position(self):
+        ''' Returns the position of this OMP Directive ('begin' or 'end') '''
         return self._position
 
-'''This section provides new classes which provide a relatively high
-level interface to creating code and adding code to an existing ast'''
+# This section provides new classes which provide a relatively high
+# level interface to creating code and adding code to an existing ast
 
 
 class BaseGen(object):
+    ''' The base class for all classes that are responsible for generating
+    distinct code elements (modules, subroutines, do loops etc.) '''
     def __init__(self, parent, root):
         self._parent = parent
         self._root = root
@@ -57,17 +62,20 @@ class BaseGen(object):
 
     @property
     def parent(self):
+        ''' Returns the parent of this object '''
         return self._parent
 
     @property
     def children(self):
+        ''' Returns the list of children of this object '''
         return self._children
 
     @property
     def root(self):
+        ''' Returns the root of the tree containing this object '''
         return self._root
 
-    def add(self, new_object, position=["append"]):
+    def add(self, new_object, position=None):
         '''Adds a new object to the tree. The actual position is determined by
         the position argument. Note, there are two trees, the first is
         the f2pygen object tree, the other is the f2py generated code
@@ -78,6 +86,14 @@ class BaseGen(object):
         at some point.
 
         '''
+
+        # By default the position is 'append'. We set it up this way for
+        # safety because in python, default arguments are instantiated
+        # as objects at the time of definition. If this object is
+        # subsequently modified then the value of the default argument
+        # is modified for subsequent calls of this routine.
+        if position is None:
+            position = ["append"]
 
         if position[0] == "auto":
             raise Exception("Error: BaseGen:add: auto option must be "
@@ -140,8 +156,9 @@ class BaseGen(object):
         raise RuntimeError("Error, no variable declarations found")
 
     def start_parent_loop(self, debug=False):
-        from fparser.block_statements import Subroutine, EndSubroutine, Do
-        from fparser.statements import Comment
+        ''' Searches for the outer-most loop containing this object. Returns
+        the index of that line in the content of the parent. '''
+        from fparser.block_statements import Do
         if debug:
             print "Entered before_parent_loop"
             print "The type of the current node is {0}".format(
@@ -158,12 +175,12 @@ class BaseGen(object):
         if debug:
             print "The type of the current node is now " + str(type(current))
         if isinstance(current, Do):
-            if (debug):
+            if debug:
                 print "The current node is a do loop"
                 print "The type of parent is " + str(type(current.parent))
                 print "Finding the loops position in its parent ..."
             index = current.parent.content.index(current)
-            if (debug):
+            if debug:
                 print "The loop's index is ", index
             parent = current.parent
             local_current = local_current.parent
@@ -212,15 +229,24 @@ class ProgUnitGen(BaseGen):
     def __init__(self, parent, sub):
         BaseGen.__init__(self, parent, sub)
 
-    def add(self, content, position=["auto"]):
+    def add(self, content, position=None):
         '''specialise the add method to provide module and subroutine
            specific intelligent adding of use statements, implicit
            none statements and declarations if the position argument
            is set to auto (which is the default)'''
+
+        # By default the position is 'auto'. We set it up this way for
+        # safety because in python, default arguments are instantiated
+        # as objects at the time of definition. If this object is
+        # subsequently modified then the value of the default argument
+        # is modified for subsequent calls of this routine.
+        if position is None:
+            position = ["auto"]
+
         # content may have been passed on so make me the parent
         if content.root.parent != self.root:
             content.root.parent = self.root
-        from fparser.typedecl_statements import TypeDeclarationStatement
+
         import fparser
         if position[0] != "auto":
             # position[0] is not 'auto' so the baseclass can deal with it
@@ -378,8 +404,10 @@ end module vanilla
         index = len(self.root.content) - 1
         self.root.content.insert(index, content.ast)
 
-    def add(self, content, position=["auto"]):
+    def add(self, content, position=None):
         ''' specialise the add method to include a module specific check '''
+        if position is None:
+            position = ["auto"]
         if not content.parent == self:
             # this is an error as a module can not have a parent
             # in the current version of f2pygen
@@ -390,14 +418,12 @@ end module vanilla
 
 
 class CommentGen(BaseGen):
-
+    ''' Create a Fortran Comment '''
     def __init__(self, parent, content):
-        from fparser import api
         reader = FortranStringReader("! content\n")
         reader.set_mode(True, True)  # free form, strict
         subline = reader.next()
 
-        from fparser.block_statements import Comment
         my_comment = Comment(parent.root, subline)
         my_comment.content = content
 
@@ -405,14 +431,14 @@ class CommentGen(BaseGen):
 
 
 class DirectiveGen(BaseGen):
-
+    ''' Base class for creating a Fortran directive. This is then sub-classed
+    to support different types of directive, e.g. OpenMP or OpenACC. '''
     def __init__(self, parent, language, position, directive_type, content):
 
         self._supported_languages = ["omp"]
         self._language = language
         self._directive_type = directive_type
 
-        from fparser import api
         reader = FortranStringReader("! content\n")
         reader.set_mode(True, True)  # free form, strict
         subline = reader.next()
@@ -436,14 +462,14 @@ class DirectiveGen(BaseGen):
 
 
 class ImplicitNoneGen(BaseGen):
-
+    ''' Generate a Fortran 'implicit none' statement '''
     def __init__(self, parent):
 
-        if type(parent) is not ModuleGen and type(parent) is not SubroutineGen:
+        if not isinstance(parent, ModuleGen) and not isinstance(parent,
+                                                                SubroutineGen):
             raise Exception(
                 "The parent of ImplicitNoneGen must be a module or a "
                 "subroutine, but found {0}".format(type(parent)))
-        from fparser import api
         reader = FortranStringReader("IMPLICIT NONE\n")
         reader.set_mode(True, True)  # free form, strict
         subline = reader.next()
@@ -455,10 +481,8 @@ class ImplicitNoneGen(BaseGen):
 
 
 class SubroutineGen(ProgUnitGen):
-
-    def __init__(self, parent, name="", args=[], index=None,
-                 implicitnone=False):
-        from fparser import api
+    ''' Generate a Fortran subroutine '''
+    def __init__(self, parent, name="", args=None, implicitnone=False):
         reader = FortranStringReader(
             "subroutine vanilla(vanilla_arg)\nend subroutine")
         reader.set_mode(True, True)  # free form, strict
@@ -468,6 +492,8 @@ class SubroutineGen(ProgUnitGen):
         from fparser.block_statements import Subroutine, EndSubroutine
         self._sub = Subroutine(parent.root, subline)
         self._sub.name = name
+        if args is None:
+            args = []
         self._sub.args = args
         endsub = EndSubroutine(self._sub, endsubline)
         self._sub.content.append(endsub)
@@ -477,6 +503,7 @@ class SubroutineGen(ProgUnitGen):
 
     @property
     def args(self):
+        ''' Returns the list of arguments of this subroutine '''
         return self._sub.args
 
     @args.setter
@@ -486,8 +513,8 @@ class SubroutineGen(ProgUnitGen):
 
 
 class CallGen(BaseGen):
-    def __init__(self, parent, name="", args=[]):
-        from fparser import api
+    ''' Generates a Fortran call of a subroutine '''
+    def __init__(self, parent, name="", args=None):
 
         reader = FortranStringReader("call vanilla(vanilla_arg)")
         reader.set_mode(True, True)  # free form, strict
@@ -496,32 +523,33 @@ class CallGen(BaseGen):
         from fparser.block_statements import Call
         self._call = Call(parent.root, myline)
         self._call.designator = name
+        if args is None:
+            args = []
         self._call.items = args
 
         BaseGen.__init__(self, parent, self._call)
 
 
 class UseGen(BaseGen):
-    def __init__(self, parent, name="", only=False, funcnames=[]):
-        from fparser import api
+    ''' Generate a Fortran use statement '''
+    def __init__(self, parent, name="", only=False, funcnames=None):
         reader = FortranStringReader("use kern,only : func1_kern=>func1")
         reader.set_mode(True, True)  # free form, strict
         myline = reader.next()
-        import fparser
         root = parent.root
         from fparser.block_statements import Use
         use = Use(root, myline)
         use.name = name
         use.isonly = only
-        if funcnames == []:
+        if funcnames is None:
+            funcnames = []
             use.isonly = False
         use.items = funcnames
         BaseGen.__init__(self, parent, use)
 
 
-def adduse(name, parent, only=False, funcnames=[]):
-
-    from fparser import api
+def adduse(name, parent, only=False, funcnames=None):
+    ''' Adds a use statement with the specified name to the supplied object '''
     reader = FortranStringReader("use kern,only : func1_kern=>func1")
     reader.set_mode(True, True)  # free form, strict
     myline = reader.next()
@@ -536,7 +564,8 @@ def adduse(name, parent, only=False, funcnames=[]):
     use = Use(parent, myline)
     use.name = name
     use.isonly = only
-    if funcnames == []:
+    if funcnames is None:
+        funcnames = []
         use.isonly = False
     use.items = funcnames
 
@@ -545,6 +574,7 @@ def adduse(name, parent, only=False, funcnames=[]):
 
 
 class AllocateGen(BaseGen):
+    ''' Generates a Fortran allocate statement '''
     def __init__(self, parent, content):
         from fparser.statements import Allocate
         reader = FortranStringReader("allocate(dummy)")
@@ -563,6 +593,7 @@ class AllocateGen(BaseGen):
 
 
 class DeallocateGen(BaseGen):
+    ''' Generates a Fortran deallocate statement '''
     def __init__(self, parent, content):
         from fparser.statements import Deallocate
         reader = FortranStringReader("deallocate(dummy)")
@@ -581,8 +612,11 @@ class DeallocateGen(BaseGen):
 
 
 class DeclGen(BaseGen):
-    def __init__(self, parent, datatype="", entity_decls=[], intent="",
+    ''' Generates a Fortran declaration for variables of intrinsic type '''
+    def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False):
+        if entity_decls is None:
+            entity_decls = []
 
         if datatype.lower() == "integer":
             from fparser.typedecl_statements import Integer
@@ -617,8 +651,13 @@ class DeclGen(BaseGen):
 
 
 class TypeDeclGen(BaseGen):
-    def __init__(self, parent, datatype="", entity_decls=[], intent="",
-                 pointer=False, attrspec=[]):
+    ''' Generates a Fortran declaration for variables of a derived type '''
+    def __init__(self, parent, datatype="", entity_decls=None, intent="",
+                 pointer=False, attrspec=None):
+        if entity_decls is None:
+            entity_decls = []
+        if attrspec is None:
+            attrspec = []
         my_attrspec = [spec for spec in attrspec]
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
@@ -639,65 +678,72 @@ class TypeDeclGen(BaseGen):
 
     @property
     def names(self):
+        ''' Returns the names of the variables being declared '''
         return self._names
 
     @property
     def root(self):
+        ''' Returns the associated Type object '''
         return self._typedecl
 
 
 class TypeSelect(Select):
+    ''' Generate a Fortran SELECT TYPE statement '''
     # TODO can this whole class be deleted?
     def tostr(self):
         return 'SELECT TYPE ( %s )' % (self.expr)
 
 
 class TypeCase(Case):
+    ''' Generate a Fortran SELECT CASE statement '''
     # TODO can this whole class be deleted?
     def tofortran(self, isfix=None):
         tab = self.get_indent_tab(isfix=isfix)
-        s = 'TYPE IS'
+        type_str = 'TYPE IS'
         if self.items:
-            l = []
+            item_list = []
             for item in self.items:
-                l.append((' : '.join(item)).strip())
-            s += ' ( %s )' % (', '.join(l))
+                item_list.append((' : '.join(item)).strip())
+            type_str += ' ( %s )' % (', '.join(item_list))
         else:
-            s = 'CLASS DEFAULT'
+            type_str = 'CLASS DEFAULT'
         if self.name:
-            s += ' ' + self.name
-        return tab + s
+            type_str += ' ' + self.name
+        return tab + type_str
 
 
 class SelectionGen(BaseGen):
-    ''' STUFF '''
+    ''' Generate a Fortran SELECT block '''
     # TODO can this whole class be deleted?
 
     def __init__(self, parent, expr="UNSET", typeselect=False):
         ''' construct a ... '''
-        from fparser.block_statements import Select, Case, EndSelect
+        from fparser.block_statements import EndSelect
         self._typeselect = typeselect
         reader = FortranStringReader(
             "SELECT CASE (x)\nCASE (1)\nCASE DEFAULT\nEND SELECT")
         reader.set_mode(True, True)  # free form, strict
-        selectLine = reader.next()
-        self._caseLine = reader.next()
-        self._caseDefaultLine = reader.next()
-        endSelectLine = reader.next()
+        select_line = reader.next()
+        self._case_line = reader.next()
+        self._case_default_line = reader.next()
+        end_select_line = reader.next()
         if self._typeselect:
-            select = TypeSelect(parent.root, selectLine)
+            select = TypeSelect(parent.root, select_line)
         else:
-            select = Select(parent.root, selectLine)
-        endselect = EndSelect(select, endSelectLine)
+            select = Select(parent.root, select_line)
+        endselect = EndSelect(select, end_select_line)
         select.expr = expr
         select.content.append(endselect)
         BaseGen.__init__(self, parent, select)
 
-    def addcase(self, casenames, content=[]):
+    def addcase(self, casenames, content=None):
+        ''' Add a case to this select block '''
+        if content is None:
+            content = []
         if self._typeselect:
-            case = TypeCase(self.root, self._caseLine)
+            case = TypeCase(self.root, self._case_line)
         else:
-            case = Case(self.root, self._caseLine)
+            case = Case(self.root, self._case_line)
         case.items = [casenames]
         self.root.content.insert(0, case)
         idx = 0
@@ -706,30 +752,34 @@ class SelectionGen(BaseGen):
             self.root.content.insert(idx, stmt.root)
 
     def adddefault(self):
+        ''' Add the default case to this select block '''
         if self._typeselect:
-            caseDefault = TypeCase(self.root, self._caseDefaultLine)
+            case_default = TypeCase(self.root, self._case_default_line)
         else:
-            caseDefault = Case(self.root, self._caseDefaultLine)
-        self.root.content.insert(len(self.root.content)-1, caseDefault)
+            case_default = Case(self.root, self._case_default_line)
+        self.root.content.insert(len(self.root.content)-1, case_default)
 
 
 class DoGen(BaseGen):
+    ''' Create a Fortran Do loop '''
     def __init__(self, parent, variable_name, start, end, step=None):
         reader = FortranStringReader("do i=1,n\nend do")
         reader.set_mode(True, True)  # free form, strict
         doline = reader.next()
         enddoline = reader.next()
         from fparser.block_statements import Do, EndDo
-        do = Do(parent.root, doline)
-        do.loopcontrol = variable_name + "=" + start + "," + end
+        dogen = Do(parent.root, doline)
+        dogen.loopcontrol = variable_name + "=" + start + "," + end
         if step is not None:
-            do.loopcontrol = do.loopcontrol + "," + step
-        enddo = EndDo(do, enddoline)
-        do.content.append(enddo)
+            dogen.loopcontrol = dogen.loopcontrol + "," + step
+        enddo = EndDo(dogen, enddoline)
+        dogen.content.append(enddo)
 
-        BaseGen.__init__(self, parent, do)
+        BaseGen.__init__(self, parent, dogen)
 
-    def add(self, content, position=["auto"]):
+    def add(self, content, position=None):
+        if position is None:
+            position = ["auto"]
         if position[0] == "auto" or position[0] == "append":
             if position[0] == "auto" and (isinstance(content, UseGen) or
                                           isinstance(content, DeclGen) or
@@ -765,8 +815,9 @@ class IfThenGen(BaseGen):
 
         BaseGen.__init__(self, parent, my_if)
 
-    def add(self, content, position=["auto"]):
-
+    def add(self, content, position=None):
+        if position is None:
+            position = ["auto"]
         if position[0] == "auto" or position[0] == "append":
             if position[0] == "auto" and (isinstance(content, UseGen) or
                                           isinstance(content, DeclGen) or
