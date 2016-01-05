@@ -1,10 +1,12 @@
 # ----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # ----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+
+''' Tests for the f2pygen module of PSyclone '''
 
 from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen,\
     AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
@@ -13,292 +15,289 @@ from utils import line_number, count_lines
 import pytest
 
 
-class TestDeclare:
-    ''' pytest test for a declaration '''
-    def test_no_replication_scalars(self):
-        '''Check that the same scalar variable will only get declared once in
-           a module and a subroutine'''
-        variable_name = "arg_name"
-        datatype = "integer"
-        module = ModuleGen(name="testmodule")
-        module.add(DeclGen(module, datatype=datatype,
+def test_decl_no_replication_scalars():
+    '''Check that the same scalar variable will only get declared once in
+    a module and a subroutine'''
+    variable_name = "arg_name"
+    datatype = "integer"
+    module = ModuleGen(name="testmodule")
+    module.add(DeclGen(module, datatype=datatype,
+                       entity_decls=[variable_name]))
+    module.add(DeclGen(module, datatype=datatype,
+                       entity_decls=[variable_name]))
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    subroutine.add(DeclGen(subroutine, datatype=datatype,
                            entity_decls=[variable_name]))
-        module.add(DeclGen(module, datatype=datatype,
+    subroutine.add(DeclGen(subroutine, datatype=datatype,
                            entity_decls=[variable_name]))
-        subroutine = SubroutineGen(module, name="testsubroutine")
-        module.add(subroutine)
-        subroutine.add(DeclGen(subroutine, datatype=datatype,
+    generated_code = str(module.root)
+    assert generated_code.count(variable_name) == 2
+
+
+def test_decl_no_replication_types():
+    '''Check that the same array variable will only get declared once in
+    a module and a subroutine'''
+    variable_name = "arg_name"
+    datatype = "field_type"
+    module = ModuleGen(name="testmodule")
+    module.add(TypeDeclGen(module, datatype=datatype,
+                           entity_decls=[variable_name]))
+    module.add(TypeDeclGen(module, datatype=datatype,
+                           entity_decls=[variable_name]))
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    subroutine.add(TypeDeclGen(subroutine, datatype=datatype,
                                entity_decls=[variable_name]))
-        subroutine.add(DeclGen(subroutine, datatype=datatype,
+    subroutine.add(TypeDeclGen(subroutine, datatype=datatype,
                                entity_decls=[variable_name]))
-        generated_code = str(module.root)
-        assert generated_code.count(variable_name) == 2
-
-    def test_no_replication_types(self):
-        '''Check that the same array variable will only get declared once in
-           a module and a subroutine'''
-        variable_name = "arg_name"
-        datatype = "field_type"
-        module = ModuleGen(name="testmodule")
-        module.add(TypeDeclGen(module, datatype=datatype,
-                               entity_decls=[variable_name]))
-        module.add(TypeDeclGen(module, datatype=datatype,
-                               entity_decls=[variable_name]))
-        subroutine = SubroutineGen(module, name="testsubroutine")
-        module.add(subroutine)
-        subroutine.add(TypeDeclGen(subroutine, datatype=datatype,
-                                   entity_decls=[variable_name]))
-        subroutine.add(TypeDeclGen(subroutine, datatype=datatype,
-                                   entity_decls=[variable_name]))
-        generated_code = str(module.root)
-        assert generated_code.count(variable_name) == 2
-
-    def test_subroutine_var_with_implicit_none(self):
-        ''' test that a variable is added after an implicit none
-        statement in a subroutine'''
-        module = ModuleGen(name="testmodule")
-        subroutine = SubroutineGen(module, name="testsubroutine",
-                                   implicitnone=True)
-        module.add(subroutine)
-        subroutine.add(DeclGen(subroutine, datatype="integer",
-                               entity_decls=["var1"]))
-        idx_var = line_number(subroutine.root, "INTEGER var1")
-        idx_imp_none = line_number(subroutine.root, "IMPLICIT NONE")
-        print str(module.root)
-        assert idx_var - idx_imp_none == 1, \
-            "variable declation must be after implicit none"
-
-    def test_subroutine_var_intent_in_with_directive(self):
-        ''' test that a variable declared as intent in is added before
-        a directive in a subroutine'''
-        module = ModuleGen(name="testmodule")
-        subroutine = SubroutineGen(module, name="testsubroutine",
-                                   implicitnone=False)
-        module.add(subroutine)
-        subroutine.add(DirectiveGen(subroutine, "omp", "begin",
-                                    "parallel", ""))
-        subroutine.add(DeclGen(subroutine, datatype="integer",
-                               intent="in", entity_decls=["var1"]))
-        idx_par = line_number(subroutine.root, "!$omp parallel")
-        idx_var = line_number(subroutine.root,
-                              "INTEGER, intent(in) :: var1")
-        print str(module.root)
-        assert idx_par - idx_var == 1, \
-            "variable declaration must be before directive"
+    generated_code = str(module.root)
+    assert generated_code.count(variable_name) == 2
 
 
-class TestIf:
-    ''' pytest test for if statements. '''
-
-    def test_if(self):
-        ''' Check that an if gets created succesfully. '''
-        module = ModuleGen(name="testmodule")
-        clause = "a < b"
-        fortran_if = IfThenGen(module, clause)
-        module.add(fortran_if)
-        lines = str(module.root).splitlines()
-        assert "IF (" + clause + ") THEN" in lines[3]
-        assert "END IF" in lines[4]
-
-    def test_if_content(self):
-        ''' Check that the content of an if gets created successfully. '''
-        module = ModuleGen(name="testmodule")
-        clause = "a < b"
-        if_statement = IfThenGen(module, clause)
-        if_statement.add(CommentGen(if_statement, "HELLO"))
-        module.add(if_statement)
-        lines = str(module.root).splitlines()
-        assert "IF (" + clause + ") THEN" in lines[3]
-        assert "!HELLO" in lines[4]
-        assert "END IF" in lines[5]
-
-    def test_if_with_position_before(self):
-        ''' Check that IfThenGen.add() correctly uses the position
-        argument if supplied. '''
-        module = ModuleGen(name="testmodule")
-        clause = "a < b"
-        if_statement = IfThenGen(module, clause)
-        com1 = CommentGen(if_statement, "HELLO")
-        if_statement.add(com1)
-        if_statement.add(CommentGen(if_statement, "GOODBYE"),
-                         position=["before", com1.root])
-        module.add(if_statement)
-        lines = str(module.root).splitlines()
-        assert "IF (" + clause + ") THEN" in lines[3]
-        assert "!GOODBYE" in lines[4]
-        assert "!HELLO" in lines[5]
-        assert "END IF" in lines[6]
-
-    def test_if_with_position_append(self):
-        ''' Check that IfThenGen.add() correctly uses the position
-        argument when *append* is specified. '''
-        module = ModuleGen(name="testmodule")
-        clause = "a < b"
-        if_statement = IfThenGen(module, clause)
-        com1 = CommentGen(if_statement, "HELLO")
-        if_statement.add(com1)
-        if_statement.add(CommentGen(if_statement, "GOODBYE"),
-                         position=["append"])
-        module.add(if_statement)
-        print str(module.root)
-        lines = str(module.root).splitlines()
-        assert "IF (" + clause + ") THEN" in lines[3]
-        assert "!HELLO" in lines[4]
-        assert "!GOODBYE" in lines[5]
-        assert "END IF" in lines[6]
-
-    @pytest.mark.xfail(reason="Get wrong parent error because UseGen has"
-                       " IfThenGen rather than ModuleGen as its parent")
-    def test_if_add_use(self):
-        ''' Check that IfThenGen.add() correctly handles the case
-        when it is passed a UseGen object '''
-        module = ModuleGen(name="testmodule")
-        clause = "a < b"
-        if_statement = IfThenGen(module, clause)
-        if_statement.add(CommentGen(if_statement, "GOODBYE"))
-        if_statement.add(UseGen(if_statement, name="dibna"))
-        module.add(if_statement)
-        print str(module.root)
-        lines = str(module.root).splitlines()
-        use_line = line_number(module.root, "USE dibna")
-        if_line = line_number(module.root, "IF (" + clause + ") THEN")
-        # The use statement must come before the if..then block
-        assert use_line < if_line
+def test_subroutine_var_with_implicit_none():
+    ''' test that a variable is added after an implicit none
+    statement in a subroutine'''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine",
+                               implicitnone=True)
+    module.add(subroutine)
+    subroutine.add(DeclGen(subroutine, datatype="integer",
+                           entity_decls=["var1"]))
+    idx_var = line_number(subroutine.root, "INTEGER var1")
+    idx_imp_none = line_number(subroutine.root, "IMPLICIT NONE")
+    print str(module.root)
+    assert idx_var - idx_imp_none == 1, \
+        "variable declation must be after implicit none"
 
 
-class TestComment:
-    ''' pytest tests for comments. '''
-    def test_comment(self):
-        ''' check that a comment gets created succesfully. '''
-        module = ModuleGen(name="testmodule")
-        content = "HELLO"
-        comment = CommentGen(module, content)
-        module.add(comment)
-        lines = str(module.root).splitlines()
-        assert "!" + content in lines[3]
+def test_subroutine_var_intent_in_with_directive():
+    ''' test that a variable declared as intent in is added before
+    a directive in a subroutine'''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine",
+                               implicitnone=False)
+    module.add(subroutine)
+    subroutine.add(DirectiveGen(subroutine, "omp", "begin",
+                                "parallel", ""))
+    subroutine.add(DeclGen(subroutine, datatype="integer",
+                           intent="in", entity_decls=["var1"]))
+    idx_par = line_number(subroutine.root, "!$omp parallel")
+    idx_var = line_number(subroutine.root,
+                          "INTEGER, intent(in) :: var1")
+    print str(module.root)
+    assert idx_par - idx_var == 1, \
+        "variable declaration must be before directive"
 
 
-class TestAdd:
-    ''' pytest tests for adding code. '''
-    def test_add_before(self):
-        ''' add the new code before a particular object '''
-        module = ModuleGen(name="testmodule")
-        subroutine = SubroutineGen(module, name="testsubroutine")
-        module.add(subroutine)
-        loop = DoGen(subroutine, "it", "1", "10")
-        subroutine.add(loop)
-        call = CallGen(subroutine, "testcall")
-        subroutine.add(call, position=["before", loop.root])
-        lines = str(module.root).splitlines()
-        # the call should be inserted before the loop
-        print lines
-        assert "SUBROUTINE testsubroutine" in lines[3]
-        assert "CALL testcall" in lines[4]
-        assert "DO it=1,10" in lines[5]
+def test_if():
+    ''' Check that an if gets created succesfully. '''
+    module = ModuleGen(name="testmodule")
+    clause = "a < b"
+    fortran_if = IfThenGen(module, clause)
+    module.add(fortran_if)
+    lines = str(module.root).splitlines()
+    assert "IF (" + clause + ") THEN" in lines[3]
+    assert "END IF" in lines[4]
 
 
-class TestModuleGen:
-    ''' pytest tests for the ModuleGen class '''
-    def test_vanilla(self):
-        module = ModuleGen()
-        lines = str(module.root).splitlines()
-        assert "MODULE" in lines[0]
-        assert "IMPLICIT NONE" in lines[1]
-        assert "CONTAINS" in lines[2]
-        assert "END MODULE" in lines[3]
-
-    def test_module_name(self):
-        name = "test"
-        module = ModuleGen(name=name)
-        assert "MODULE " + name in str(module.root)
-
-    def test_no_contains(self):
-        module = ModuleGen(name="test", contains=False)
-        assert "CONTAINS" not in str(module.root)
-
-    def test_no_implicit_none(self):
-        module = ModuleGen(name="test", implicitnone=False)
-        assert "IMPLICIT NONE" not in str(module.root)
-
-    def test_failed_module_inline(self):
-        ''' test that an error is thrown if the wrong type of object
-        is passed to the add_raw_subroutine method '''
-        module = ModuleGen(name="test")
-        invalid_type = "string"
-        with pytest.raises(Exception):
-            module.add_raw_subroutine(invalid_type)
+def test_if_content():
+    ''' Check that the content of an if gets created successfully. '''
+    module = ModuleGen(name="testmodule")
+    clause = "a < b"
+    if_statement = IfThenGen(module, clause)
+    if_statement.add(CommentGen(if_statement, "HELLO"))
+    module.add(if_statement)
+    lines = str(module.root).splitlines()
+    assert "IF (" + clause + ") THEN" in lines[3]
+    assert "!HELLO" in lines[4]
+    assert "END IF" in lines[5]
 
 
-class TestAllocate:
-    ''' pytest tests for an allocate statement. '''
-    def test_allocate_arg_str(self):
-        '''check that an allocate gets created succesfully with content being
-        a string.'''
-        module = ModuleGen(name="testmodule")
-        content = "hello"
-        allocate = AllocateGen(module, content)
-        module.add(allocate)
-        lines = str(module.root).splitlines()
-        assert "ALLOCATE (" + content + ")" in lines[3]
+def test_if_with_position_before():
+    ''' Check that IfThenGen.add() correctly uses the position
+    argument if supplied. '''
+    module = ModuleGen(name="testmodule")
+    clause = "a < b"
+    if_statement = IfThenGen(module, clause)
+    com1 = CommentGen(if_statement, "HELLO")
+    if_statement.add(com1)
+    if_statement.add(CommentGen(if_statement, "GOODBYE"),
+                     position=["before", com1.root])
+    module.add(if_statement)
+    lines = str(module.root).splitlines()
+    assert "IF (" + clause + ") THEN" in lines[3]
+    assert "!GOODBYE" in lines[4]
+    assert "!HELLO" in lines[5]
+    assert "END IF" in lines[6]
 
-    def test_allocate_arg_list(self):
-        '''check that an allocate gets created succesfully with content being
-        a list.'''
-        module = ModuleGen(name="testmodule")
-        content = ["hello", "how", "are", "you"]
-        content_str = ""
-        for idx, name in enumerate(content):
-            content_str += name
-            if idx+1 < len(content):
-                content_str += ", "
-        allocate = AllocateGen(module, content)
-        module.add(allocate)
-        lines = str(module.root).splitlines()
-        assert "ALLOCATE (" + content_str + ")" in lines[3]
+def test_if_with_position_append():
+    ''' Check that IfThenGen.add() correctly uses the position
+    argument when *append* is specified. '''
+    module = ModuleGen(name="testmodule")
+    clause = "a < b"
+    if_statement = IfThenGen(module, clause)
+    com1 = CommentGen(if_statement, "HELLO")
+    if_statement.add(com1)
+    if_statement.add(CommentGen(if_statement, "GOODBYE"),
+                     position=["append"])
+    module.add(if_statement)
+    print str(module.root)
+    lines = str(module.root).splitlines()
+    assert "IF (" + clause + ") THEN" in lines[3]
+    assert "!HELLO" in lines[4]
+    assert "!GOODBYE" in lines[5]
+    assert "END IF" in lines[6]
 
-    def test_allocate_incorrect_arg_type(self):
-        '''check that an allocate raises an error if an unknown type is
-        passed.'''
-        module = ModuleGen(name="testmodule")
-        content = 3
-        with pytest.raises(RuntimeError):
-            _ = AllocateGen(module, content)
+@pytest.mark.xfail(reason="Get wrong parent error because UseGen has"
+                   " IfThenGen rather than ModuleGen as its parent")
+def test_if_add_use():
+    ''' Check that IfThenGen.add() correctly handles the case
+    when it is passed a UseGen object '''
+    module = ModuleGen(name="testmodule")
+    clause = "a < b"
+    if_statement = IfThenGen(module, clause)
+    if_statement.add(CommentGen(if_statement, "GOODBYE"))
+    if_statement.add(UseGen(if_statement, name="dibna"))
+    module.add(if_statement)
+    print str(module.root)
+    use_line = line_number(module.root, "USE dibna")
+    if_line = line_number(module.root, "IF (" + clause + ") THEN")
+    # The use statement must come before the if..then block
+    assert use_line < if_line
 
 
-class TestDeallocate:
-    ''' pytest tests for a deallocate statement. '''
-    def test_deallocate_arg_str(self):
-        '''check that a deallocate gets created succesfully with content
-        being a str.'''
-        module = ModuleGen(name="testmodule")
-        content = "goodbye"
-        deallocate = DeallocateGen(module, content)
-        module.add(deallocate)
-        lines = str(module.root).splitlines()
-        assert "DEALLOCATE (" + content + ")" in lines[3]
+def test_comment():
+    ''' check that a comment gets created succesfully. '''
+    module = ModuleGen(name="testmodule")
+    content = "HELLO"
+    comment = CommentGen(module, content)
+    module.add(comment)
+    lines = str(module.root).splitlines()
+    assert "!" + content in lines[3]
 
-    def test_deallocate_arg_list(self):
-        '''check that a deallocate gets created succesfully with content
-        being a list.'''
-        module = ModuleGen(name="testmodule")
-        content = ["and", "now", "the", "end", "is", "near"]
-        content_str = ""
-        for idx, name in enumerate(content):
-            content_str += name
-            if idx+1 < len(content):
-                content_str += ", "
-        deallocate = DeallocateGen(module, content)
-        module.add(deallocate)
-        lines = str(module.root).splitlines()
-        assert "DEALLOCATE (" + content_str + ")" in lines[3]
 
-    def test_deallocate_incorrect_arg_type(self):
-        '''check that a deallocate raises an error if an unknown type is
-        passed.'''
-        module = ModuleGen(name="testmodule")
-        content = 3
-        with pytest.raises(RuntimeError):
-            _ = DeallocateGen(module, content)
+def test_add_before():
+    ''' add the new code before a particular object '''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    loop = DoGen(subroutine, "it", "1", "10")
+    subroutine.add(loop)
+    call = CallGen(subroutine, "testcall")
+    subroutine.add(call, position=["before", loop.root])
+    lines = str(module.root).splitlines()
+    # the call should be inserted before the loop
+    print lines
+    assert "SUBROUTINE testsubroutine" in lines[3]
+    assert "CALL testcall" in lines[4]
+    assert "DO it=1,10" in lines[5]
+
+
+def test_mod_vanilla():
+    module = ModuleGen()
+    lines = str(module.root).splitlines()
+    assert "MODULE" in lines[0]
+    assert "IMPLICIT NONE" in lines[1]
+    assert "CONTAINS" in lines[2]
+    assert "END MODULE" in lines[3]
+
+
+def test_mod_name():
+    name = "test"
+    module = ModuleGen(name=name)
+    assert "MODULE " + name in str(module.root)
+
+
+def test_mod_no_contains():
+    module = ModuleGen(name="test", contains=False)
+    assert "CONTAINS" not in str(module.root)
+
+
+def test_mod_no_implicit_none():
+    module = ModuleGen(name="test", implicitnone=False)
+    assert "IMPLICIT NONE" not in str(module.root)
+
+
+def test_failed_module_inline():
+    ''' test that an error is thrown if the wrong type of object
+    is passed to the add_raw_subroutine method '''
+    module = ModuleGen(name="test")
+    invalid_type = "string"
+    with pytest.raises(Exception):
+        module.add_raw_subroutine(invalid_type)
+
+
+def test_allocate_arg_str():
+    '''check that an allocate gets created succesfully with content being
+    a string.'''
+    module = ModuleGen(name="testmodule")
+    content = "hello"
+    allocate = AllocateGen(module, content)
+    module.add(allocate)
+    lines = str(module.root).splitlines()
+    assert "ALLOCATE (" + content + ")" in lines[3]
+
+
+def test_allocate_arg_list():
+    '''check that an allocate gets created succesfully with content being
+    a list.'''
+    module = ModuleGen(name="testmodule")
+    content = ["hello", "how", "are", "you"]
+    content_str = ""
+    for idx, name in enumerate(content):
+        content_str += name
+        if idx+1 < len(content):
+            content_str += ", "
+    allocate = AllocateGen(module, content)
+    module.add(allocate)
+    lines = str(module.root).splitlines()
+    assert "ALLOCATE (" + content_str + ")" in lines[3]
+
+
+def test_allocate_incorrect_arg_type():
+    '''check that an allocate raises an error if an unknown type is
+    passed.'''
+    module = ModuleGen(name="testmodule")
+    content = 3
+    with pytest.raises(RuntimeError):
+        _ = AllocateGen(module, content)
+
+
+def test_deallocate_arg_str():
+    '''check that a deallocate gets created succesfully with content
+    being a str.'''
+    module = ModuleGen(name="testmodule")
+    content = "goodbye"
+    deallocate = DeallocateGen(module, content)
+    module.add(deallocate)
+    lines = str(module.root).splitlines()
+    assert "DEALLOCATE (" + content + ")" in lines[3]
+
+
+def test_deallocate_arg_list():
+    '''check that a deallocate gets created succesfully with content
+    being a list.'''
+    module = ModuleGen(name="testmodule")
+    content = ["and", "now", "the", "end", "is", "near"]
+    content_str = ""
+    for idx, name in enumerate(content):
+        content_str += name
+        if idx+1 < len(content):
+            content_str += ", "
+    deallocate = DeallocateGen(module, content)
+    module.add(deallocate)
+    lines = str(module.root).splitlines()
+    assert "DEALLOCATE (" + content_str + ")" in lines[3]
+
+
+def test_deallocate_incorrect_arg_type():
+    '''check that a deallocate raises an error if an unknown type is
+    passed.'''
+    module = ModuleGen(name="testmodule")
+    content = 3
+    with pytest.raises(RuntimeError):
+        _ = DeallocateGen(module, content)
 
 
 class TestImplicitNone():
@@ -636,7 +635,7 @@ def test_basegen_last_declaration_no_vars():
         sub.last_declaration()
     assert "no variable declarations found" in str(err)
 
-    
+
 def test_basegen_start_parent_loop_dbg(capsys):
     '''Check the debug option to the start_parent_loop method'''
     module = ModuleGen(name="testmodule")
@@ -659,7 +658,7 @@ def test_basegen_start_parent_loop_dbg(capsys):
                 "The loop's index is  0\n")
     assert expected in out
 
-    
+
 def test_basegen_start_parent_loop_not_first_child_dbg(capsys):
     '''Check the debug option to the start_parent_loop method when the loop
     is not the first child of the subroutine'''
@@ -747,7 +746,8 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     assert expected in out
 
 
-@pytest.mark.xfail(reason="fparser Call object has no member named content")
+@pytest.mark.xfail(reason="get_parent_loop does not work if there are"
+                   " no loops")
 def test_basegen_start_parent_loop_no_loop_dbg(capsys):
     '''Check the debug option to the start_parent_loop method when we have
     no loop'''
