@@ -131,6 +131,7 @@ def test_if_with_position_before():
     assert "!HELLO" in lines[5]
     assert "END IF" in lines[6]
 
+
 def test_if_with_position_append():
     ''' Check that IfThenGen.add() correctly uses the position
     argument when *append* is specified. '''
@@ -148,6 +149,7 @@ def test_if_with_position_append():
     assert "!HELLO" in lines[4]
     assert "!GOODBYE" in lines[5]
     assert "END IF" in lines[6]
+
 
 @pytest.mark.xfail(reason="Get wrong parent error because UseGen has"
                    " IfThenGen rather than ModuleGen as its parent")
@@ -195,6 +197,7 @@ def test_add_before():
 
 
 def test_mod_vanilla():
+    ''' Check that we can create a basic, vanilla module '''
     module = ModuleGen()
     lines = str(module.root).splitlines()
     assert "MODULE" in lines[0]
@@ -204,17 +207,22 @@ def test_mod_vanilla():
 
 
 def test_mod_name():
+    ''' Check that we can create a module with a specified name '''
     name = "test"
     module = ModuleGen(name=name)
     assert "MODULE " + name in str(module.root)
 
 
 def test_mod_no_contains():
+    ''' Check that we can switch-off the generation of a CONTAINS
+    statement within a module '''
     module = ModuleGen(name="test", contains=False)
     assert "CONTAINS" not in str(module.root)
 
 
 def test_mod_no_implicit_none():
+    ''' Check that we can switch off the generation of IMPLICIT NONE
+    within a module '''
     module = ModuleGen(name="test", implicitnone=False)
     assert "IMPLICIT NONE" not in str(module.root)
 
@@ -300,194 +308,200 @@ def test_deallocate_incorrect_arg_type():
         _ = DeallocateGen(module, content)
 
 
-class TestImplicitNone():
-    ''' f2pygen:ImplicitNoneGen() tests '''
-
-    # module tests
-    def test_in_a_module(self):
-        ''' test that implicit none can be added to a module in the
-        correct location'''
-        module = ModuleGen(name="testmodule", implicitnone=False)
-        module.add(ImplicitNoneGen(module))
-        in_idx = line_number(module.root, "IMPLICIT NONE")
-        cont_idx = line_number(module.root, "CONTAINS")
-        assert in_idx > -1, "IMPLICIT NONE not found"
-        assert cont_idx > -1, "CONTAINS not found"
-        assert cont_idx - in_idx == 1, "CONTAINS is not on the line after" +\
-            " IMPLICIT NONE"
-
-    def test_in_a_module_with_decs(self):
-        ''' test that implicit none is added before any declaration
-        statements in a module when auto (the default) is used for
-        insertion '''
-        module = ModuleGen(name="testmodule", implicitnone=False)
-        module.add(DeclGen(module, datatype="integer",
-                           entity_decls=["var1"]))
-        module.add(TypeDeclGen(module, datatype="my_type",
-                               entity_decls=["type1"]))
-        module.add(ImplicitNoneGen(module))
-        in_idx = line_number(module.root, "IMPLICIT NONE")
-        assert in_idx == 1
-
-    def test_in_a_module_with_use_and_decs(self):
-        ''' test that implicit none is added after any use statements
-        and before any declarations in a module when auto (the
-        default) is used for insertion'''
-        module = ModuleGen(name="testmodule", implicitnone=False)
-        module.add(DeclGen(module, datatype="integer",
-                           entity_decls=["var1"]))
-        module.add(TypeDeclGen(module, datatype="my_type",
-                               entity_decls=["type1"]))
-        module.add(UseGen(module, "fred"))
-        module.add(ImplicitNoneGen(module))
-        in_idx = line_number(module.root, "IMPLICIT NONE")
-        assert in_idx == 2
-
-    def test_in_a_module_with_use_and_decs_and_comments(self):
-        ''' test that implicit none is added after any use statements
-        and before any declarations in a module in the presence of
-        comments when auto (the default) is used for insertion'''
-        module = ModuleGen(name="testmodule", implicitnone=False)
-        module.add(DeclGen(module, datatype="integer",
-                           entity_decls=["var1"]))
-        module.add(TypeDeclGen(module, datatype="my_type",
-                               entity_decls=["type1"]))
-        module.add(UseGen(module, "fred"))
-        for idx in [0, 1, 2, 3]:
-            module.add(CommentGen(module, " hello "+str(idx)),
-                       position=["before_index", 2*idx])
-        module.add(ImplicitNoneGen(module))
-        in_idx = line_number(module.root, "IMPLICIT NONE")
-        assert in_idx == 3
-
-    def test_in_a_module_already_exists(self):
-        ''' test that implicit none is not added to a module when one
-        already exists'''
-        module = ModuleGen(name="testmodule", implicitnone=True)
-        module.add(ImplicitNoneGen(module))
-        count = count_lines(module.root, "IMPLICIT NONE")
-        print str(module.root)
-        assert count == 1, \
-            "There should only be one instance of IMPLICIT NONE"
-
-    def test_in_a_subroutine(self):
-        ''' test that implicit none can be added to a subroutine '''
-        module = ModuleGen(name="testmodule")
-        subroutine = SubroutineGen(module, name="testsubroutine")
-        module.add(subroutine)
-        subroutine.add(ImplicitNoneGen(subroutine))
-        assert 'IMPLICIT NONE' in str(subroutine.root)
-
-    def test_in_a_subroutine_with_decs(self):
-        ''' test that implicit none is added before any declaration
-        statements in a subroutine when auto (the default) is used for
-        insertion '''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine")
-        module.add(sub)
-        sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=["var1"]))
-        sub.add(TypeDeclGen(sub, datatype="my_type",
-                            entity_decls=["type1"]))
-        sub.add(ImplicitNoneGen(module))
-        in_idx = line_number(sub.root, "IMPLICIT NONE")
-        assert in_idx == 1
-
-    def test_in_a_subroutine_with_use_and_decs(self):
-        ''' test that implicit none is added after any use statements
-        and before any declarations in a subroutine when auto (the
-        default) is used for insertion'''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine")
-        module.add(sub)
-        sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=["var1"]))
-        sub.add(TypeDeclGen(sub, datatype="my_type",
-                            entity_decls=["type1"]))
-        sub.add(UseGen(sub, "fred"))
-        sub.add(ImplicitNoneGen(sub))
-        in_idx = line_number(sub.root, "IMPLICIT NONE")
-        assert in_idx == 2
-
-    def test_in_a_subroutine_with_use_and_decs_and_comments(self):
-        ''' test that implicit none is added after any use statements
-        and before any declarations in a subroutine in the presence of
-        comments when auto (the default) is used for insertion'''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine")
-        module.add(sub)
-        sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=["var1"]))
-        sub.add(TypeDeclGen(sub, datatype="my_type",
-                            entity_decls=["type1"]))
-        sub.add(UseGen(sub, "fred"))
-        for idx in [0, 1, 2, 3]:
-            sub.add(CommentGen(sub, " hello "+str(idx)),
-                    position=["before_index", 2*idx])
-        sub.add(ImplicitNoneGen(sub))
-        in_idx = line_number(sub.root, "IMPLICIT NONE")
-        assert in_idx == 3
-
-    def test_in_a_subroutine_already_exists(self):
-        ''' test that implicit none is not added to a subroutine when
-        one already exists'''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
-        module.add(sub)
-        sub.add(ImplicitNoneGen(sub))
-        count = count_lines(sub.root, "IMPLICIT NONE")
-        assert count == 1, \
-            "There should only be one instance of IMPLICIT NONE"
-
-    def test_exception_if_wrong_parent(self):
-        ''' test that an exception is thrown if implicit none is added
-        and the parent is not a module or a subroutine '''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine")
-        module.add(sub)
-        do = DoGen(sub, "i", "1", "10")
-        sub.add(do)
-        with pytest.raises(Exception):
-            do.add(ImplicitNoneGen(do))
+def test_imp_none_in_module():
+    ''' test that implicit none can be added to a module in the
+    correct location'''
+    module = ModuleGen(name="testmodule", implicitnone=False)
+    module.add(ImplicitNoneGen(module))
+    in_idx = line_number(module.root, "IMPLICIT NONE")
+    cont_idx = line_number(module.root, "CONTAINS")
+    assert in_idx > -1, "IMPLICIT NONE not found"
+    assert cont_idx > -1, "CONTAINS not found"
+    assert cont_idx - in_idx == 1, "CONTAINS is not on the line after" +\
+        " IMPLICIT NONE"
 
 
-class TestSubroutineGen():
-    ''' f2pygen:SubroutineGen() tests '''
+def test_imp_none_in_module_with_decs():
+    ''' test that implicit none is added before any declaration
+    statements in a module when auto (the default) is used for
+    insertion '''
+    module = ModuleGen(name="testmodule", implicitnone=False)
+    module.add(DeclGen(module, datatype="integer",
+                       entity_decls=["var1"]))
+    module.add(TypeDeclGen(module, datatype="my_type",
+                           entity_decls=["type1"]))
+    module.add(ImplicitNoneGen(module))
+    in_idx = line_number(module.root, "IMPLICIT NONE")
+    assert in_idx == 1
 
-    def test_implicit_none_false(self):
-        ''' test that implicit none is not added to the subroutine if
-        not requested '''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine", implicitnone=False)
-        module.add(sub)
-        count = count_lines(sub.root, "IMPLICIT NONE")
-        assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST"
 
-    def test_implicit_none_true(self):
-        ''' test that implicit none is added to the subroutine if
-        requested '''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
-        module.add(sub)
-        count = count_lines(sub.root, "IMPLICIT NONE")
-        assert count == 1, "IMPLICIT NONE SHOULD EXIST"
+def test_imp_none_in_module_with_use_and_decs():
+    ''' test that implicit none is added after any use statements
+    and before any declarations in a module when auto (the
+    default) is used for insertion'''
+    module = ModuleGen(name="testmodule", implicitnone=False)
+    module.add(DeclGen(module, datatype="integer",
+                       entity_decls=["var1"]))
+    module.add(TypeDeclGen(module, datatype="my_type",
+                           entity_decls=["type1"]))
+    module.add(UseGen(module, "fred"))
+    module.add(ImplicitNoneGen(module))
+    in_idx = line_number(module.root, "IMPLICIT NONE")
+    assert in_idx == 2
 
-    def test_implicit_none_default(self):
-        ''' test that implicit none is not added to the subroutine by
-        default '''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine")
-        module.add(sub)
-        count = count_lines(sub.root, "IMPLICIT NONE")
-        assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST BY DEFAULT"
 
-    def test_args(self):
-        ''' Test that the args property works as expected '''
-        module = ModuleGen(name="testmodule")
-        sub = SubroutineGen(module, name="testsubroutine",
-                            args=["arg1", "arg2"])
-        my_args = sub.args
-        assert len(my_args) == 2
+def test_imp_none_in_module_with_use_and_decs_and_comments():
+    ''' test that implicit none is added after any use statements
+    and before any declarations in a module in the presence of
+    comments when auto (the default) is used for insertion'''
+    module = ModuleGen(name="testmodule", implicitnone=False)
+    module.add(DeclGen(module, datatype="integer",
+                       entity_decls=["var1"]))
+    module.add(TypeDeclGen(module, datatype="my_type",
+                           entity_decls=["type1"]))
+    module.add(UseGen(module, "fred"))
+    for idx in [0, 1, 2, 3]:
+        module.add(CommentGen(module, " hello "+str(idx)),
+                   position=["before_index", 2*idx])
+    module.add(ImplicitNoneGen(module))
+    in_idx = line_number(module.root, "IMPLICIT NONE")
+    assert in_idx == 3
+
+
+def test_imp_none_in_module_already_exists():
+    ''' test that implicit none is not added to a module when one
+    already exists'''
+    module = ModuleGen(name="testmodule", implicitnone=True)
+    module.add(ImplicitNoneGen(module))
+    count = count_lines(module.root, "IMPLICIT NONE")
+    print str(module.root)
+    assert count == 1, \
+        "There should only be one instance of IMPLICIT NONE"
+
+
+def test_imp_none_in_subroutine():
+    ''' test that implicit none can be added to a subroutine '''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    subroutine.add(ImplicitNoneGen(subroutine))
+    assert 'IMPLICIT NONE' in str(subroutine.root)
+
+
+def test_imp_none_in_subroutine_with_decs():
+    ''' test that implicit none is added before any declaration
+    statements in a subroutine when auto (the default) is used for
+    insertion '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(TypeDeclGen(sub, datatype="my_type",
+                        entity_decls=["type1"]))
+    sub.add(ImplicitNoneGen(module))
+    in_idx = line_number(sub.root, "IMPLICIT NONE")
+    assert in_idx == 1
+
+
+def test_imp_none_in_subroutine_with_use_and_decs():
+    ''' test that implicit none is added after any use statements
+    and before any declarations in a subroutine when auto (the
+    default) is used for insertion'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(TypeDeclGen(sub, datatype="my_type",
+                        entity_decls=["type1"]))
+    sub.add(UseGen(sub, "fred"))
+    sub.add(ImplicitNoneGen(sub))
+    in_idx = line_number(sub.root, "IMPLICIT NONE")
+    assert in_idx == 2
+
+
+def test_imp_none_in_subroutine_with_use_and_decs_and_comments():
+    ''' test that implicit none is added after any use statements
+    and before any declarations in a subroutine in the presence of
+    comments when auto (the default) is used for insertion'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=["var1"]))
+    sub.add(TypeDeclGen(sub, datatype="my_type",
+                        entity_decls=["type1"]))
+    sub.add(UseGen(sub, "fred"))
+    for idx in [0, 1, 2, 3]:
+        sub.add(CommentGen(sub, " hello "+str(idx)),
+                position=["before_index", 2*idx])
+    sub.add(ImplicitNoneGen(sub))
+    in_idx = line_number(sub.root, "IMPLICIT NONE")
+    assert in_idx == 3
+
+
+def test_imp_none_in_subroutine_already_exists():
+    ''' test that implicit none is not added to a subroutine when
+    one already exists'''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
+    module.add(sub)
+    sub.add(ImplicitNoneGen(sub))
+    count = count_lines(sub.root, "IMPLICIT NONE")
+    assert count == 1, \
+        "There should only be one instance of IMPLICIT NONE"
+
+
+def test_imp_none_exception_if_wrong_parent():
+    ''' test that an exception is thrown if implicit none is added
+    and the parent is not a module or a subroutine '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    dogen = DoGen(sub, "i", "1", "10")
+    sub.add(dogen)
+    with pytest.raises(Exception):
+        dogen.add(ImplicitNoneGen(dogen))
+
+
+def test_subgen_implicit_none_false():
+    ''' test that implicit none is not added to the subroutine if
+    not requested '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine", implicitnone=False)
+    module.add(sub)
+    count = count_lines(sub.root, "IMPLICIT NONE")
+    assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST"
+
+
+def test_subgen_implicit_none_true():
+    ''' test that implicit none is added to the subroutine if
+    requested '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
+    module.add(sub)
+    count = count_lines(sub.root, "IMPLICIT NONE")
+    assert count == 1, "IMPLICIT NONE SHOULD EXIST"
+
+
+def test_subgen_implicit_none_default():
+    ''' test that implicit none is not added to the subroutine by
+    default '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    count = count_lines(sub.root, "IMPLICIT NONE")
+    assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST BY DEFAULT"
+
+
+def test_subgen_args():
+    ''' Test that the args property works as expected '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine",
+                        args=["arg1", "arg2"])
+    my_args = sub.args
+    assert len(my_args) == 2
 
 
 def test_directive_wrong_type():
@@ -646,7 +660,7 @@ def test_basegen_start_parent_loop_dbg(capsys):
     call = CallGen(loop, "testcall")
     loop.add(call)
     call.start_parent_loop(debug=True)
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
@@ -672,7 +686,7 @@ def test_basegen_start_parent_loop_not_first_child_dbg(capsys):
     call = CallGen(loop, "testcall")
     loop.add(call)
     call.start_parent_loop(debug=True)
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
@@ -698,7 +712,7 @@ def test_basegen_start_parent_loop_omp_begin_dbg(capsys):
     call = CallGen(loop, "testcall")
     loop.add(call)
     call.start_parent_loop(debug=True)
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
@@ -728,7 +742,7 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     call = CallGen(loop, "testcall")
     loop.add(call)
     call.start_parent_loop(debug=True)
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
@@ -759,7 +773,7 @@ def test_basegen_start_parent_loop_no_loop_dbg(capsys):
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
     call.start_parent_loop(debug=True)
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
     print out
     expected = (
         "The type of the current node is now <class 'fparser.statements."
@@ -843,8 +857,8 @@ def test_declgen_wrong_type():
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
     with pytest.raises(RuntimeError) as err:
-        dgen = DeclGen(sub, datatype="complex",
-                       entity_decls=["rvar1"])
+        _ = DeclGen(sub, datatype="complex",
+                    entity_decls=["rvar1"])
     assert "Only integer and real are currently supported" in str(err)
 
 
@@ -920,8 +934,8 @@ def test_do_loop_with_increment():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsub")
     module.add(sub)
-    do = DoGen(sub, "it", "1", "10", step="2")
-    sub.add(do)
+    dogen = DoGen(sub, "it", "1", "10", step="2")
+    sub.add(dogen)
     count = count_lines(sub.root, "DO it=1,10,2")
     assert count == 1
 
@@ -932,12 +946,12 @@ def test_do_loop_add_after():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsub")
     module.add(sub)
-    do = DoGen(sub, "it", "1", "10", step="2")
-    sub.add(do)
-    assign1 = AssignGen(do, lhs="happy", rhs=".TRUE.")
-    do.add(assign1)
-    assign2 = AssignGen(do, lhs="sad", rhs=".FALSE.")
-    do.add(assign2, position=["before", assign1.root])
+    dogen = DoGen(sub, "it", "1", "10", step="2")
+    sub.add(dogen)
+    assign1 = AssignGen(dogen, lhs="happy", rhs=".TRUE.")
+    dogen.add(assign1)
+    assign2 = AssignGen(dogen, lhs="sad", rhs=".FALSE.")
+    dogen.add(assign2, position=["before", assign1.root])
     a1_line = line_number(sub.root, "happy = ")
     a2_line = line_number(sub.root, "sad = ")
     assert a1_line > a2_line
