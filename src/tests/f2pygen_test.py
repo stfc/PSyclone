@@ -589,6 +589,20 @@ def test_basegen_append():
     assert cindex == 3
 
 
+def test_basegen_append_default():
+    ''' Check if no position argument is supplied to BaseGen.add() then it
+    defaults to appending '''
+    from f2pygen import BaseGen
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    BaseGen.add(sub, DeclGen(sub, datatype="integer",
+                             entity_decls=["var1"]))
+    BaseGen.add(sub, CommentGen(sub, " hello"))
+    cindex = line_number(sub.root, "hello")
+    assert cindex == 3
+
+
 def test_basegen_first():
     '''Check that we can insert an object as the first child'''
     module = ModuleGen(name="testmodule")
@@ -850,6 +864,22 @@ def test_adduse():
     assert expected in gen
 
 
+def test_adduse_default_funcnames():
+    ''' Test that the adduse module method works correctly when we do
+    not specify a list of funcnames '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    call = CallGen(sub, name="testcall", args=["a", "b"])
+    sub.add(call)
+    from f2pygen import adduse
+    adduse("fred", call.root)
+    gen = str(sub.root)
+    expected = ("    SUBROUTINE testsubroutine()\n"
+                "      USE fred\n")
+    assert expected in gen
+
+
 def test_declgen_wrong_type():
     ''' Check that we raise an appropriate error if we attempt to create
     a DeclGen for an unsupported type '''
@@ -860,6 +890,18 @@ def test_declgen_wrong_type():
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
     assert "Only integer and real are currently supported" in str(err)
+
+
+def test_declgen_missing_names():
+    ''' Check that we raise an error if we attempt to create a DeclGen
+    without naming the variable(s) '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="integer")
+    assert ("Cannot create a variable declaration without specifying "
+            "the name" in str(err))
 
 
 def test_typedeclgen_names():
@@ -873,6 +915,18 @@ def test_typedeclgen_names():
     names = dgen.names
     assert len(names) == 1
     assert names[0] == "type1"
+
+
+def test_typedeclgen_missing_names():
+    ''' Check that we raise an error if we attempt to create TypeDeclGen
+    without naming the variables '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    with pytest.raises(RuntimeError) as err:
+        _ = TypeDeclGen(sub, datatype="my_type")
+    assert ("Cannot create a declaration of a derived-type variable "
+            "without specifying" in str(err))
 
 
 @pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
@@ -897,6 +951,24 @@ def test_selectiongen():
                 "      END SELECT")
     assert expected in gen
     assert False
+
+
+def test_selectiongen_addcase():
+    ''' Check that SelectionGen.addcase() works as expected when no
+    content is supplied'''
+    from f2pygen import SelectionGen
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sgen = SelectionGen(sub, expr="my_var")
+    sub.add(sgen)
+    sgen.addcase("1")
+    gen = str(sub.root)
+    print gen
+    expected = ("SELECT CASE ( my_var )\n"
+                "CASE ( 1 )\n"
+                "      END SELECT")
+    assert expected in gen
 
 
 @pytest.mark.xfail(reason="Adding a CASE to a SELECT TYPE does not work")
