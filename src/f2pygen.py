@@ -616,7 +616,9 @@ class DeclGen(BaseGen):
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False):
         if entity_decls is None:
-            entity_decls = []
+            raise RuntimeError(
+                "Cannot create a variable declaration without specifying the "
+                "name(s) of the variable(s)")
 
         if datatype.lower() == "integer":
             from fparser.typedecl_statements import Integer
@@ -655,7 +657,9 @@ class TypeDeclGen(BaseGen):
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, attrspec=None):
         if entity_decls is None:
-            entity_decls = []
+            raise RuntimeError(
+                "Cannot create a declaration of a derived-type variable "
+                "without specifying the name(s) of the variable(s)")
         if attrspec is None:
             attrspec = []
         my_attrspec = [spec for spec in attrspec]
