@@ -267,9 +267,9 @@ of the grid (cell area at U points).
 
 The full list of supported grid-properties in the GOcean 1.0 API is:
 
-=============   =============================  ==================
+=============   =============================  ====================
 Name            Description                    Type
-=============   =============================  ==================
+=============   =============================  ====================
 grid_area_t     Cell area at T point           Real array, rank=2
 grid_area_u     Cell area at U point           Real array, rank=2
 grid_area_v     Cell area at V point           Real array, rank=2
