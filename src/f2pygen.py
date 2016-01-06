@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # ----------------------------------------------------------------------------
@@ -229,8 +229,8 @@ class ProgUnitGen(BaseGen):
     def __init__(self, parent, sub):
         BaseGen.__init__(self, parent, sub)
 
-    def add(self, content, position=None):
-        '''specialise the add method to provide module and subroutine
+    def add(self, content, position=None, bubble_up=False):
+        '''Specialise the add method to provide module and subroutine
            specific intelligent adding of use statements, implicit
            none statements and declarations if the position argument
            is set to auto (which is the default)'''
@@ -243,8 +243,42 @@ class ProgUnitGen(BaseGen):
         if position is None:
             position = ["auto"]
 
-        # content may have been passed on so make me the parent
-        if content.root.parent != self.root:
+        # For an object to be added to another we require that they
+        # share a common ancestor. This means that the added object must
+        # have the current object or one of its ancestors as an ancestor.
+        is_ancestor = False
+        # Loop over the ancestors of this object (starting with itself)
+        self_ancestor = self.root
+        while self_ancestor:
+            # Loop over the ancestors of the object being added
+            obj_parent = content.root.parent
+            while obj_parent:
+                if obj_parent == self_ancestor:
+                    is_ancestor = True
+                    break
+                if getattr(obj_parent, 'parent', None):
+                    obj_parent = obj_parent.parent
+                else:
+                    break
+            if is_ancestor:
+                break
+            # Object being added is not an ancestor of the current
+            # self_ancestor so move one level back up the tree and
+            # try again
+            if getattr(self_ancestor, 'parent', None):
+                self_ancestor = self_ancestor.parent
+            else:
+                break
+
+        if not is_ancestor:
+            raise RuntimeError(
+                "Cannot add '{0}' to '{1}' because it is not a descendant "
+                "of it or of any of its ancestors.".
+                format(str(content), str(self)))
+
+        if bubble_up:
+            # If content has been passed on (is being bubbled up) then change
+            # its parent to be this object
             content.root.parent = self.root
 
         import fparser
@@ -403,18 +437,6 @@ end module vanilla
         # add content after any existing subroutines
         index = len(self.root.content) - 1
         self.root.content.insert(index, content.ast)
-
-    def add(self, content, position=None):
-        ''' specialise the add method to include a module specific check '''
-        if position is None:
-            position = ["auto"]
-        if not content.parent == self:
-            # this is an error as a module can not have a parent
-            # in the current version of f2pygen
-            raise Exception(
-                "The requested parent is {0} but it should be {1}".
-                format(str(type(content.parent)), str(type(self.root))))
-        ProgUnitGen.add(self, content, position)
 
 
 class CommentGen(BaseGen):
@@ -784,7 +806,7 @@ class DoGen(BaseGen):
 
         BaseGen.__init__(self, parent, dogen)
 
-    def add(self, content, position=None):
+    def add(self, content, position=None, bubble_up=False):
         if position is None:
             position = ["auto"]
         if position[0] == "auto" or position[0] == "append":
@@ -793,7 +815,7 @@ class DoGen(BaseGen):
                                           isinstance(content, TypeDeclGen)):
                 # a use and declarations can not appear in a do loop
                 # so pass on to parent
-                self.parent.add(content)
+                self.parent.add(content, bubble_up=True)
             else:
                 # append at the end of the loop. This is not a simple
                 # append as the last element in the loop is the "end
@@ -830,8 +852,8 @@ class IfThenGen(BaseGen):
                                           isinstance(content, DeclGen) or
                                           isinstance(content, TypeDeclGen)):
                 # a use and declarations can not appear in an if
-                # statement so pass on to parent
-                self.parent.add(content)
+                # statement so pass on (bubble-up) to parent
+                self.parent.add(content, bubble_up=True)
             else:
                 # append at the end of the loop. This is not a simple
                 # append as the last element in the if is the "end if"

@@ -151,8 +151,6 @@ def test_if_with_position_append():
     assert "END IF" in lines[6]
 
 
-@pytest.mark.xfail(reason="Get wrong parent error because UseGen has"
-                   " IfThenGen rather than ModuleGen as its parent")
 def test_if_add_use():
     ''' Check that IfThenGen.add() correctly handles the case
     when it is passed a UseGen object '''
@@ -995,9 +993,10 @@ def test_modulegen_add_wrong_parent():
     module = ModuleGen(name="testmodule")
     module_wrong = ModuleGen(name="another_module")
     sub = SubroutineGen(module_wrong, name="testsubroutine")
-    with pytest.raises(Exception) as err:
+    with pytest.raises(RuntimeError) as err:
         module.add(sub)
-    assert "The requested parent is" in str(err)
+    print str(err)
+    assert "because it is not a descendant of it or of any of" in str(err)
 
 
 def test_do_loop_with_increment():
