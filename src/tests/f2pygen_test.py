@@ -768,7 +768,7 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     assert expected in out
 
 
-def test_basegen_start_parent_loop_no_loop_dbg(capsys):
+def test_basegen_start_parent_loop_no_loop_dbg():
     '''Check the debug option to the start_parent_loop method when we have
     no loop'''
     module = ModuleGen(name="testmodule")

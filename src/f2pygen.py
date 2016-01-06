@@ -185,7 +185,7 @@ class BaseGen(object):
             current = current.parent
         if not isinstance(current, Do):
             raise RuntimeError("This node has no enclosing Do loop")
-    
+
         current = self.root
         local_current = self
         while isinstance(current.parent, Do):
