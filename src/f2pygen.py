@@ -549,7 +549,10 @@ class UseGen(BaseGen):
 
 
 def adduse(name, parent, only=False, funcnames=None):
-    ''' Adds a use statement with the specified name to the supplied object '''
+    ''' Adds a use statement with the specified name to the supplied object.
+    This routine is required when modifying an existing AST (e.g. when
+    modifying a kernel). The classes are used when creating an AST from
+    scratch (for the PSy layer). '''
     reader = FortranStringReader("use kern,only : func1_kern=>func1")
     reader.set_mode(True, True)  # free form, strict
     myline = reader.next()
