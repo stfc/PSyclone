@@ -178,6 +178,14 @@ class BaseGen(object):
                 str(type(self.root)))
             print ("If the current node is a Do loop then move up to the "
                    "top of the do loop nest")
+
+        # First off, check that we do actually have an enclosing Do loop
+        current = self.root
+        while not isinstance(current, Do) and getattr(current, 'parent', None):
+            current = current.parent
+        if not isinstance(current, Do):
+            raise RuntimeError("This node has no enclosing Do loop")
+    
         current = self.root
         local_current = self
         while isinstance(current.parent, Do):
@@ -187,25 +195,13 @@ class BaseGen(object):
             local_current = local_current.parent
         if debug:
             print "The type of the current node is now " + str(type(current))
-        if isinstance(current, Do):
-            if debug:
-                print "The current node is a do loop"
-                print "The type of parent is " + str(type(current.parent))
-                print "Finding the loops position in its parent ..."
-            index = current.parent.content.index(current)
-            if debug:
-                print "The loop's index is ", index
-            parent = current.parent
-            local_current = local_current.parent
-        else:
-            if debug:
-                print "The type of the current node is not a do loop"
-                print ("Assume the do loop will be appended as a child "
-                       "and find the last child's index")
-            index = len(current.content) - 1
-            if debug:
-                print "The last childs index is ", index
-            parent = current
+            print "The type of parent is " + str(type(current.parent))
+            print "Finding the loops position in its parent ..."
+        index = current.parent.content.index(current)
+        if debug:
+            print "The loop's index is ", index
+        parent = current.parent
+        local_current = local_current.parent
         if debug:
             print "The type of the object at the index is " + \
                 str(type(parent.content[index]))
@@ -259,21 +255,15 @@ class ProgUnitGen(BaseGen):
         # For an object to be added to another we require that they
         # share a common ancestor. This means that the added object must
         # have the current object or one of its ancestors as an ancestor.
-        is_ancestor = False
         # Loop over the ancestors of this object (starting with itself)
         self_ancestor = self.root
         while self_ancestor:
             # Loop over the ancestors of the object being added
             obj_parent = content.root.parent
-            while obj_parent:
-                if obj_parent == self_ancestor:
-                    is_ancestor = True
-                    break
-                if getattr(obj_parent, 'parent', None):
-                    obj_parent = obj_parent.parent
-                else:
-                    break
-            if is_ancestor:
+            while (obj_parent != self_ancestor and
+                   getattr(obj_parent, 'parent', None)):
+                obj_parent = obj_parent.parent
+            if obj_parent == self_ancestor:
                 break
             # Object being added is not an ancestor of the current
             # self_ancestor so move one level back up the tree and
@@ -283,7 +273,7 @@ class ProgUnitGen(BaseGen):
             else:
                 break
 
-        if not is_ancestor:
+        if obj_parent != self_ancestor:
             raise RuntimeError(
                 "Cannot add '{0}' to '{1}' because it is not a descendant "
                 "of it or of any of its ancestors.".

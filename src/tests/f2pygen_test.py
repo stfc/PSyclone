@@ -677,7 +677,6 @@ def test_basegen_start_parent_loop_dbg(capsys):
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.block_statements.Do'>\n"
-                "The current node is a do loop\n"
                 "The type of parent is <class "
                 "'fparser.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
@@ -703,7 +702,6 @@ def test_basegen_start_parent_loop_not_first_child_dbg(capsys):
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.block_statements.Do'>\n"
-                "The current node is a do loop\n"
                 "The type of parent is <class "
                 "'fparser.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
@@ -729,7 +727,6 @@ def test_basegen_start_parent_loop_omp_begin_dbg(capsys):
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.block_statements.Do'>\n"
-                "The current node is a do loop\n"
                 "The type of parent is <class "
                 "'fparser.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
@@ -759,7 +756,6 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.block_statements.Do'>\n"
-                "The current node is a do loop\n"
                 "The type of parent is <class "
                 "'fparser.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
@@ -772,8 +768,6 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     assert expected in out
 
 
-@pytest.mark.xfail(reason="get_parent_loop does not work if there are"
-                   " no loops")
 def test_basegen_start_parent_loop_no_loop_dbg(capsys):
     '''Check the debug option to the start_parent_loop method when we have
     no loop'''
@@ -784,16 +778,9 @@ def test_basegen_start_parent_loop_no_loop_dbg(capsys):
     sub.add(dgen)
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
-    call.start_parent_loop(debug=True)
-    out, _ = capsys.readouterr()
-    print out
-    expected = (
-        "The type of the current node is now <class 'fparser.statements."
-        "Call'>\n"
-        "The type of the current node is not a do loop\n"
-        "Assume the do loop will be appended as a child and find the last "
-        "child's index\n")
-    assert expected in out
+    with pytest.raises(RuntimeError) as err:
+        call.start_parent_loop(debug=True)
+    assert "This node has no enclosing Do loop" in str(err)
 
 
 def test_progunitgen_multiple_generic_use():
