@@ -15,6 +15,27 @@ from fparser.readfortran import FortranStringReader
 from fparser.block_statements import Select
 from fparser.statements import Case
 
+# Module-wide utility methods
+
+
+def bubble_up_type(obj):
+    ''' Returns True if the supplied object is of a type which must be
+    bubbled-up (from within e.g. DO loops) '''
+    return (isinstance(obj, UseGen) or
+            isinstance(obj, DeclGen) or
+            isinstance(obj, TypeDeclGen))
+
+
+def index_of_object(alist, obj):
+    '''Effectively implements list.index(obj) but returns the index of
+    the first item in the list that *is* the supplied object (rather than
+    comparing values) '''
+    for idx, body in enumerate(alist):
+        if body is obj:
+            return idx
+    raise Exception("Object {0} not found in list".format(str(obj)))
+
+
 # This section subclasses the f2py comment class so that we can
 # reason about directives
 
@@ -112,7 +133,7 @@ class BaseGen(object):
             index = position[1]
             self.root.content.insert(index, new_object.root)
         elif position[0] == "after":
-            idx = self._index_of_object(self.root.content, position[1])
+            idx = index_of_object(self.root.content, position[1])
             self.root.content.insert(idx+1, new_object.root)
         elif position[0] == "after_index":
             self.root.content.insert(position[1]+1, new_object.root)
@@ -120,7 +141,7 @@ class BaseGen(object):
             self.root.content.insert(position[1], new_object.root)
         elif position[0] == "before":
             try:
-                idx = self._index_of_object(self.root.content, position[1])
+                idx = index_of_object(self.root.content, position[1])
             except Exception as err:
                 print str(err)
                 raise RuntimeError(
@@ -134,14 +155,6 @@ class BaseGen(object):
             raise Exception("Error: BaseGen:add: internal error, should "
                             "not get to here")
         self.children.append(new_object)
-
-    def _index_of_object(self, alist, obj):
-        '''Effectively implements list.index(obj) but returns the index of
-           the first item in the list that *is* the supplied object '''
-        for idx, body in enumerate(alist):
-            if body is obj:
-                return idx
-        raise Exception("Object {0} not found in list".format(str(obj)))
 
     def last_declaration(self):
         '''Returns the *last* occurrence of a Declaration in the list of
@@ -810,10 +823,8 @@ class DoGen(BaseGen):
         if position is None:
             position = ["auto"]
         if position[0] == "auto" or position[0] == "append":
-            if position[0] == "auto" and (isinstance(content, UseGen) or
-                                          isinstance(content, DeclGen) or
-                                          isinstance(content, TypeDeclGen)):
-                # a use and declarations can not appear in a do loop
+            if position[0] == "auto" and bubble_up_type(content):
+                # use and declaration statements cannot appear in a do loop
                 # so pass on to parent
                 self.parent.add(content, bubble_up=True)
             else:
@@ -848,11 +859,9 @@ class IfThenGen(BaseGen):
         if position is None:
             position = ["auto"]
         if position[0] == "auto" or position[0] == "append":
-            if position[0] == "auto" and (isinstance(content, UseGen) or
-                                          isinstance(content, DeclGen) or
-                                          isinstance(content, TypeDeclGen)):
-                # a use and declarations can not appear in an if
-                # statement so pass on (bubble-up) to parent
+            if position[0] == "auto" and bubble_up_type(content):
+                # use and declaration statements cannot appear in an if
+                # block so pass on (bubble-up) to parent
                 self.parent.add(content, bubble_up=True)
             else:
                 # append at the end of the loop. This is not a simple
