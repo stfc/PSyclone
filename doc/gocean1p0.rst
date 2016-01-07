@@ -3,9 +3,16 @@
 GOcean1.0 API
 =============
 
-This section describes the GOcean 1.0 application programming interface
-(API). This section explains what a user needs to write in order to make
-use of the GOcean 1.0 API in PSyclone.
+.. _gocean1.0-intro:
+
+Introduction
+------------
+
+The GOcean 1.0 application programming interface (API) was originally
+designed to support ocean models that use the finite-difference scheme
+for two-dimensional domains.  However, the approach is not specific to
+ocean models and can potentially be applied to any finite-difference
+code.
 
 As with all PSyclone API's, the GOcean 1.0 API specifies how a user
 must write the Algorithm Layer and the Kernel Layer to allow PSyclone
@@ -47,20 +54,33 @@ and associated constructor:
 The ``grid_type`` constructor takes three arguments:
 
  1. The type of grid (only ARAKAWA_C is currently supported)
- 2. The boundary conditions on the domain
+ 2. The boundary conditions on the domain for the *x*, *y* and *z* dimensions (see below)
  3. The 'index offset' - the convention used for indexing into offset fields.
+
+Three types of boundary condition are currently supported:
+
+.. tabularcolumns:: |l|L|
+
+============  =========================================
+Name          Description
+============  =========================================
+BC_NONE       No boundary conditions are applied.
+BC_EXTERNAL   Some external forcing is applied. This must be implemented by a kernel. The domain must be defined with a T-point mask (see :ref:`gocean1.0-grid-init`).
+BC_PERIODIC   Periodic boundary conditions are applied.
+============  =========================================
+
+The infrastructure requires this information in order to determine the
+extent of the model grid.
 
 The index offset is required because a model (kernel) developer has
 choice in how they actually implement the staggering of variables on a
 grid. This comes down to a choice of which grid points in the vicinity
-of a given T point have the same array (*i*, *j*) array indices. In
+of a given T point have the same array (*i*, *j*) indices. In
 the diagram below, the image on the left corresponds to choosing those
 points to the South and West of a T point to have the same (*i*, *j*)
 index. That on the right corresponds to choosing those points to the
 North and East of the T point (this is the offset scheme used in the
 NEMO ocean model):
-
-.. _gocean1.0-offset-image:
 
 .. image:: grid_offset_choices.png
 
@@ -70,9 +90,18 @@ we term ``OFFSET_SW`` and ``OFFSET_NE``.
 The constructor does not specify the extent of the model grid. This is
 because this information is normally obtained by reading a file (a
 namelist file, a netcdf file etc.) which is specific to an
-application.  Once this information has been obtained a second
+application.  Once this information has been obtained, a second
 routine, ``grid_init``, is provided with which to 'load' a grid object
-with state:
+with state. This is discussed below.
+
+.. _gocean1.0-grid-init:
+
+The ``grid_init`` Routine
+#########################
+
+Once an application has determined the details of the model
+configuration, it must use this information to populate the grid
+object. This is done via a call to the ``grid_init`` subroutine:
 
 ::
 
@@ -81,9 +110,10 @@ with state:
     type(grid_type), intent(inout) :: grid
     !> Dimensions of the model grid
     integer,         intent(in)    :: m, n
-    !> The (constant) grid spacing in x and y
+    !> The (constant) grid spacing in x and y (m)
     real(wp),        intent(in)    :: dxarg, dyarg
-    !> Optional T-point mask specifying wet (1) and dry (0) points
+    !> Optional T-point mask specifying whether each grid point is
+    !! wet (1), dry (0) or external (-1).
     integer, dimension(m,n), intent(in), optional :: tmask
 
 If no T-mask is supplied then this routine configures the grid
@@ -278,6 +308,8 @@ on U points, the fourth is a real scalar and the fifth is a quantity
 of the grid (cell area at U points).
 
 The full list of supported grid-properties in the GOcean 1.0 API is:
+
+.. _gocean1.0-grid-props:
 
 =============   =============================  ====================
 Name            Description                    Type
