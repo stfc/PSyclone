@@ -8,20 +8,21 @@ This section describes the GOcean 1.0 application programming interface
 use of the GOcean 1.0 API in PSyclone.
 
 As with all PSyclone API's, the GOcean 1.0 API specifies how a user
-must write the Algorithm Layer and the Kernel Layer to allow
-PSyclone to generate the PSy Layer. These Algorithm and Kernel API's
-are discussed separately in the following sections.
+must write the Algorithm Layer and the Kernel Layer to allow PSyclone
+to generate the PSy Layer. These Algorithm and Kernel API's are
+discussed separately in the sections below. Before these we
+describe the functionality provided by the GOcean Library.
 
-.. _gocean1.0-api-algorithm:
+.. _gocean1.0-library:
 
-Algorithm
----------
+The GOcean Library
+------------------
 
-The Algorithm is the top-level specification of the natural science
-implemented in the software. Essentially it consists of mesh setup,
-field declarations, initialisation of fields and (a series of) Kernel
-calls. Infrastructure to support some of these tasks is provided in
-the GOcean 1.0 library (GOLib v.1.0).
+The use of PSyclone and the GOcean 1.0 API implies the use of a
+standard set of data types and associated infrastructure. This is
+provided by version 1.0 of the GOcean Library (GOLib v.1.0).
+Currently this library is distributed separately from PSyclone and is
+available from http://puma.nerc.ac.uk/trac/GOcean.
 
 .. _gocean1.0-grid:
 
@@ -123,6 +124,17 @@ The constructor takes two arguments:
 Note that the grid object need not have been fully configured (by a
 call to ``grid_init`` for instance) before it is passed into this
 constructor.
+
+.. _gocean1.0-api-algorithm:
+
+Algorithm
+---------
+
+The Algorithm is the top-level specification of the natural science
+implemented in the software. Essentially it consists of mesh setup,
+field declarations, initialisation of fields and (a series of) Kernel
+calls. Infrastructure to support some of these tasks is provided in
+version 1.0 of the GOcean library (see :ref:`_gocean1.0-library`).
 
 .. _gocean1.0-invokes:
 
