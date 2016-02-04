@@ -212,7 +212,8 @@ class GOLoop(Loop):
                 # To ensure we don't put the assignment statement
                 # within any directive regions (e.g. OpenMP) we put
                 # it immediately after the last variable declaration
-                position_list = ["after", parent.last_declaration()]
+                #position_list = ["after", parent.root.content[-2]]
+                position_list = ["auto"]
             dim_size = AssignGen(new_parent, lhs=self._stop,
                                  rhs=("SIZE(" + self.field_name + ", " +
                                       index + ")"))
