@@ -198,30 +198,11 @@ class GOLoop(Loop):
             # loop bounds
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = "idim1"
                 index = "1"
             elif self._loop_type == "outer":
-                self._stop = "idim2"
                 index = "2"
-            try:
-                new_parent, position = parent.start_parent_loop()
-                position_list = ["before", position]
-            except RuntimeError:
-                # We are not within an enclosing DO loop
-                new_parent = parent
-                # To ensure we don't put the assignment statement
-                # within any directive regions (e.g. OpenMP) we put
-                # it immediately after the last variable declaration
-                #position_list = ["after", parent.root.content[-2]]
-                position_list = ["auto"]
-            dim_size = AssignGen(new_parent, lhs=self._stop,
-                                 rhs=("SIZE(" + self.field_name + ", " +
-                                      index + ")"))
-            new_parent.add(dim_size, position=position_list)
-
-            dims = DeclGen(parent, datatype="INTEGER",
-                           entity_decls=[self._stop])
-            parent.add(dims)
+            self._stop = ("SIZE(" + self.field_name + ", " +
+                          index + ")")
 
         else:  # one of our spaces so use values provided by the infrastructure
 
