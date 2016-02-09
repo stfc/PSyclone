@@ -147,10 +147,7 @@ class BaseGen(object):
                 raise RuntimeError(
                     "Failed to find supplied object in existing content - "
                     "is it a child of the parent?")
-            try:
-                self.root.content.insert(idx, new_object.root)
-            except:
-                raise RuntimeError("Failed to insert before supplied object")
+            self.root.content.insert(idx, new_object.root)
         else:
             raise Exception("Error: BaseGen:add: internal error, should "
                             "not get to here")
