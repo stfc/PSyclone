@@ -809,11 +809,19 @@ class DoGen(BaseGen):
     def add(self, content, position=None, bubble_up=False):
         if position is None:
             position = ["auto"]
+
+        if position[0] == "auto" and bubble_up:
+            # There's currently no case where a bubbled-up statement
+            # will live within a do loop so bubble it up again.
+            self.parent.add(content, bubble_up=True)
+            return
+
         if position[0] == "auto" or position[0] == "append":
             if position[0] == "auto" and bubble_up_type(content):
                 # use and declaration statements cannot appear in a do loop
                 # so pass on to parent
                 self.parent.add(content, bubble_up=True)
+                return
             else:
                 # append at the end of the loop. This is not a simple
                 # append as the last element in the loop is the "end
