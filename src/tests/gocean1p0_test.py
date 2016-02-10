@@ -796,13 +796,16 @@ def test_goschedule_view(capsys):
     out, _ = capsys.readouterr()
 
     expected_output = (
-        """GOSchedule[invoke='invoke_0',Constant loop bounds=True]
-    Loop[type='outer',field_space='cu',it_space='internal_pts']
-        Loop[type='inner',field_space='cu',it_space='internal_pts']
-            KernCall compute_cu_code(cu_fld,p_fld,u_fld) [module_inline=False]
-    Loop[type='outer',field_space='every',it_space='internal_pts']
-        Loop[type='inner',field_space='every',it_space='internal_pts']
-            KernCall time_smooth_code(u_fld,unew_fld,uold_fld) [module_inline=False]""")
+        "GOSchedule[invoke='invoke_0',Constant loop bounds=True]\n"
+        "    Loop[type='outer',field_space='cu',it_space='internal_pts']\n"
+        "        Loop[type='inner',field_space='cu',it_space='internal_pts']\n"
+        "            KernCall compute_cu_code(cu_fld,p_fld,u_fld) "
+        "[module_inline=False]\n"
+        "    Loop[type='outer',field_space='every',it_space='internal_pts']\n"
+        "        Loop[type='inner',field_space='every',"
+        "it_space='internal_pts']\n"
+        "            KernCall time_smooth_code(u_fld,unew_fld,uold_fld) "
+        "[module_inline=False]")
 
     assert expected_output in out
 
@@ -949,7 +952,7 @@ def test_goloop_unmatched_offsets():
 # -----------------------------------
 
 
-def t00p1_kernel_wrong_meta_arg_count():
+def test00p1_kernel_wrong_meta_arg_count():
     ''' Check that we raise an error if one of the meta-args in
     a kernel's meta-data has the wrong number of arguments '''
     with pytest.raises(ParseError):
@@ -960,7 +963,7 @@ def t00p1_kernel_wrong_meta_arg_count():
               api="gocean1.0")
 
 
-def t00p2_kernel_invalid_meta_args():
+def test00p2_kernel_invalid_meta_args():
     ''' Check that we raise an error if one of the meta-args in
     a kernel's meta-data is not 'arg' '''
     with pytest.raises(ParseError):
@@ -971,7 +974,7 @@ def t00p2_kernel_invalid_meta_args():
               api="gocean1.0")
 
 
-def t00p3_kern_invalid_meta_arg_type():
+def test00p3_kern_invalid_meta_arg_type():
     ''' Check that the parser catches the case where the type of
     one of the meta-args in the kernel meta-data is incorrect '''
     test_file = "test00.3_invoke_kernel_invalid_meta_arg_type.f90"
@@ -985,7 +988,7 @@ def t00p3_kern_invalid_meta_arg_type():
                      api=API)
 
 
-def t01_diff_kern_grid_offsets_one_invoke():
+def test01_diff_kern_grid_offsets_one_invoke():
     ''' Check that the parser raises an error if two kernels in a
         single invoke specify different index offsets '''
     test_file = "test01_different_grid_offsets_one_invoke.f90"
@@ -1000,7 +1003,7 @@ def t01_diff_kern_grid_offsets_one_invoke():
         _ = PSyFactory(API).create(invoke_info)
 
 
-def t02_diff_kern_grid_offsets_two_invokes():
+def test02_diff_kern_grid_offsets_two_invokes():
     ''' Check that the parser raises an error if the two kernels
         in different invokes specify different index offsets. '''
     test_file = "test02_different_grid_offsets_two_invokes.f90"
@@ -1015,7 +1018,7 @@ def t02_diff_kern_grid_offsets_two_invokes():
         _ = PSyFactory(API).create(invoke_info)
 
 
-def t03_kernel_missing_index_offset():
+def test03_kernel_missing_index_offset():
     ''' Check that we raise an error if a kernel's meta-data is
     missing the INDEX_OFFSET field. '''
     with pytest.raises(ParseError):
@@ -1025,7 +1028,7 @@ def t03_kernel_missing_index_offset():
               api="gocean1.0")
 
 
-def t04_kernel_invalid_index_offset():
+def test04_kernel_invalid_index_offset():
     ''' Check that we raise an error if a kernel's meta-data is
     contains an invalid value for the INDEX_OFFSET field. '''
     with pytest.raises(ParseError):
@@ -1035,7 +1038,7 @@ def t04_kernel_invalid_index_offset():
               api="gocean1.0")
 
 
-def t05_kernel_missing_iterates_over():
+def test05_kernel_missing_iterates_over():
     ''' Check that we raise an error if a kernel's meta-data is
     missing the ITERATES_OVER field. '''
     with pytest.raises(ParseError):
@@ -1046,7 +1049,7 @@ def t05_kernel_missing_iterates_over():
               api="gocean1.0")
 
 
-def t05p1_kernel_invalid_iterates_over():
+def test05p1_kernel_invalid_iterates_over():
     ''' Check that we raise an error if a kernel's meta-data has
     an invalid ITERATES_OVER field. '''
     with pytest.raises(ParseError):
@@ -1057,7 +1060,7 @@ def t05p1_kernel_invalid_iterates_over():
               api="gocean1.0")
 
 
-def t06_kernel_invalid_access():
+def test06_kernel_invalid_access():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised access type for a kernel argument (i.e. something
     other than READ,WRITE,READWRITE) '''
@@ -1068,7 +1071,7 @@ def t06_kernel_invalid_access():
               api="gocean1.0")
 
 
-def t07_kernel_wrong_gridpt_type():
+def test07_kernel_wrong_gridpt_type():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised grid-point type for a field argument (i.e.
     something other than C{U,V,F,T}, I_SCALAR or R_SCALAR) '''
@@ -1079,7 +1082,7 @@ def t07_kernel_wrong_gridpt_type():
               api="gocean1.0")
 
 
-def t08_kernel_invalid_grid_property():
+def test08_kernel_invalid_grid_property():
     ''' Check that the parser raises an error if a kernel's meta-data
     specifies an unrecognised grid property '''
     with pytest.raises(ParseError):
@@ -1090,7 +1093,7 @@ def t08_kernel_invalid_grid_property():
               api="gocean1.0")
 
 
-def t08p1_kernel_without_fld_args():
+def test08p1_kernel_without_fld_args():
     ''' Check that the parser raises an error if a kernel does not
     have a field object as an argument but requests a grid property '''
     with pytest.raises(ParseError):
@@ -1100,7 +1103,7 @@ def t08p1_kernel_without_fld_args():
               api="gocean1.0")
 
 
-def t09_kernel_missing_stencil_prop():
+def test09_kernel_missing_stencil_prop():
     '''Check that the parser raises an error if there is no stencil
     specified in the meta-data of a kernel
 
@@ -1112,7 +1115,7 @@ def t09_kernel_missing_stencil_prop():
               api="gocean1.0")
 
 
-def t10_kernel_invalid_stencil_prop():
+def test10_kernel_invalid_stencil_prop():
     '''Check that the parser raises an error if there is no stencil
     specified in the meta-data of a kernel
 
