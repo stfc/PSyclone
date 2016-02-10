@@ -1168,7 +1168,7 @@ class DynKern(Kern):
         from f2pygen import DeclGen, AssignGen, UseGen
         if my_type == "subroutine":
             # add in any required USE associations
-            parent.add(UseGen(parent, name="constants_mod", only="True",
+            parent.add(UseGen(parent, name="constants_mod", only=True,
                               funcnames=["r_def"]))
         # create the argument list
         arglist = []

@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # ----------------------------------------------------------------------------
@@ -198,20 +198,11 @@ class GOLoop(Loop):
             # loop bounds
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = "idim1"
                 index = "1"
             elif self._loop_type == "outer":
-                self._stop = "idim2"
                 index = "2"
-            new_parent, position = parent.start_parent_loop()
-            dim_size = AssignGen(new_parent, lhs=self._stop,
-                                 rhs=("SIZE(" + self.field_name + ", " +
-                                      index + ")"))
-            new_parent.add(dim_size, position=["before", position])
-
-            dims = DeclGen(parent, datatype="INTEGER",
-                           entity_decls=[self._stop])
-            parent.add(dims)
+            self._stop = ("SIZE(" + self.field_name + ", " +
+                          index + ")")
 
         else:  # one of our spaces so use values provided by the infrastructure
 
