@@ -694,39 +694,42 @@ class DynInvoke(Invoke):
         declaration of its arguments. '''
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
             AllocateGen, DeallocateGen, CallGen, CommentGen
-        # create a namespace manager so we can avoid name clashes
+        # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
-        # create the subroutine
+        # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # add the subroutine argument declarations for real scalars
+        # Add the subroutine argument declarations for real scalars
         r_declarations = self.unique_declarations("gh_rscalar")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    kind="r_def", entity_decls=r_declarations,
                                    intent="inout"))
 
-        # add the subroutine argument declarations for integer scalars
+        # Add the subroutine argument declarations for integer scalars
         i_declarations = self.unique_declarations("gh_iscalar")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=i_declarations,
                                    intent="inout"))
 
-        # add the subroutine argument declarations for fields
+        # Add the subroutine argument declarations for fields
         field_declarations = self.unique_declarations("gh_field")
         if len(field_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                        entity_decls=field_declarations,
                                        intent="inout"))
-        # ditto for operators
+
+        # Add the subroutine argument declarations for operators
         operator_declarations = self.unique_declarations("gh_operator")
         if len(operator_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
                                        entity_decls=operator_declarations,
                                        intent="inout"))
-        # qr
+
+        # Add the subroutine argument declarations for qr (quadrature
+        # rules)
         if len(self._psy_unique_qr_vars) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
                                        entity_decls=self._psy_unique_qr_vars,
@@ -770,14 +773,14 @@ class DynInvoke(Invoke):
         # Use the first argument that is not a scalar
         first_var = None
         for var in self.psy_unique_vars:
-            if var.type == "gh_field" or var.type == "gh_operator":
+            if var.type in ["gh_field", "gh_operator"]:
                 first_var = var
                 break
         if not first_var:
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments")
 
-        # use our namespace manager to create a unique name unless
+        # Use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
         # previous name
         nlayers_name = self._name_space_manager.create_name(
@@ -1092,9 +1095,9 @@ class DynKern(Kern):
                 pre = "iscalar_"
             else:
                 raise GenerationError(
-                    "load_meta expected one of 'gh_field, gh_operator or "
-                    "gh_{{r,i}}scalar' but "
-                    "found '{0}'".format(descriptor.type))
+                    "load_meta expected one of '{0}' but "
+                    "found '{1}'".format(VALID_ARG_TYPE_NAMES,
+                                         descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
@@ -1277,8 +1280,8 @@ class DynKern(Kern):
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
+
             elif arg.type == "gh_operator":
-                undf_name = self._fs_descriptors.undf_name(arg.function_space)
                 if my_type == "subroutine":
                     size = arg.name+"_ncell_3d"
                     arglist.append(size)
@@ -1306,28 +1309,27 @@ class DynKern(Kern):
 
             elif arg.type in VALID_SCALAR_NAMES:
                 if my_type == "subroutine":
-                    text = arg.name
                     if arg.type == "gh_rscalar":
                         decl = DeclGen(parent, datatype="real", kind="r_def",
-                                       intent=arg.intent, entity_decls=[text])
+                                       intent=arg.intent,
+                                       entity_decls=[arg.name])
                     elif arg.type == "gh_iscalar":
                         decl = DeclGen(parent, datatype="integer",
-                                       intent=arg.intent, entity_decls=[text])
+                                       intent=arg.intent,
+                                       entity_decls=[arg.name])
                     else:
                         raise GenerationError(
-                            "Internal error: expected arg of type gh_rscalar"
-                            " or gh_iscalar but got {0}".format(arg.type))
+                            "Internal error: expected arg type to be one "
+                            "of '{0}' but got '{1}'".format(VALID_SCALAR_NAMES,
+                                                            arg.type))
                     parent.add(decl)
-                else:
-                    text = arg.name
-                arglist.append(text)
+                arglist.append(arg.name)
 
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "
-                    "dynamo0p3.py:DynKern:gen_code(). Expected one of"
-                    " [gh_field, gh_operator, gh_rscalar, gh_iscalar] but "
-                    "found " + arg.type)
+                    "dynamo0p3.py:DynKern:gen_code(). Expected one of '{0}' "
+                    "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
