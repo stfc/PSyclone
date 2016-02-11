@@ -6,17 +6,20 @@
 !-----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 
-module simple_mod
-type, extends(kernel_type) :: simple_type
+module simple_with_scalars_mod
+type, extends(kernel_type) :: simple_with_scalars_type
     type(arg_type), dimension(3) :: meta_args =  &
          (/ arg_type(gh_rscalar, gh_read),       &
             arg_type(gh_field,   gh_write,w1),   &
             arg_type(gh_iscalar, gh_read) /)
     integer, parameter :: iterates_over = cells
   contains
-    procedure() :: code => simple_code
-end type simple_type
+    procedure() :: code => simple_with_scalars_code
+end type simple_with_scalars_type
+
 contains
-subroutine simple_code()
-end subroutine
-end module simple_mod
+
+subroutine simple_with_scalars_code()
+end subroutine simple_with_scalars_code
+
+end module simple_with_scalars_mod

@@ -666,14 +666,14 @@ def test_scalar():
     ''' tests that we generate correct code when a kernel takes a scalar
     argument '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.6_single_invoke_scalar.f90"),
+                                        "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
-        "      USE testkern_scalar_1st, ONLY: testkern_code\n"
+        "      USE testkern, ONLY: testkern_code\n"
         "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
@@ -1492,11 +1492,11 @@ def test_stub_generate_working_noapi():
     assert str(result).find(SIMPLE) != -1
 
 SIMPLE_WITH_SCALARS = (
-    "  MODULE simple_mod\n"
+    "  MODULE simple_with_scalars_mod\n"
     "    IMPLICIT NONE\n"
     "    CONTAINS\n"
-    "    SUBROUTINE simple_code(nlayers, rscalar_1, field_2_w1, iscalar_3, "
-    "ndf_w1, undf_w1, map_w1)\n"
+    "    SUBROUTINE simple_with_scalars_code(nlayers, rscalar_1, field_2_w1, "
+    "iscalar_3, ndf_w1, undf_w1, map_w1)\n"
     "      USE constants_mod, ONLY: r_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: nlayers\n"
@@ -1507,8 +1507,8 @@ SIMPLE_WITH_SCALARS = (
     "      INTEGER, intent(in) :: iscalar_3\n"
     "      INTEGER, intent(in) :: ndf_w1\n"
     "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-    "    END SUBROUTINE simple_code\n"
-    "  END MODULE simple_mod")
+    "    END SUBROUTINE simple_with_scalars_code\n"
+    "  END MODULE simple_with_scalars_mod")
 
 
 def test_stub_generate_with_scalars():
