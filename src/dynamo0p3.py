@@ -35,7 +35,8 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator", "gh_rscalar", "gh_iscalar"]
+VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
+VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
@@ -248,7 +249,7 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
-        elif self._type == "gh_rscalar" or self._type == "gh_iscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
@@ -296,7 +297,7 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space1
         elif self._type == "gh_operator":
             return self._function_space2
-        elif self._type == "gh_rscalar" or self._type == "gh_iscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             return None
         else:
             raise RuntimeError(
@@ -313,7 +314,7 @@ class DynArgDescriptor03(Descriptor):
         elif self._type == "gh_operator":
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        elif self._type == "gh_rscalar" or self._type == "gh_iscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             return []
         else:
             raise RuntimeError(
@@ -359,7 +360,7 @@ class DynArgDescriptor03(Descriptor):
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[3]='{0}'".\
                    format(self._function_space2) + os.linesep
-        elif self._type == "gh_rscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
@@ -737,7 +738,7 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
             # We don't have proxies for scalars
-            if arg.type == "gh_iscalar" or arg.type == "gh_rscalar":
+            if arg.type in VALID_SCALAR_NAMES:
                 continue
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
@@ -1303,7 +1304,7 @@ class DynKern(Kern):
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
                     arglist.append(arg.proxy_name_indexed+"%local_stencil")
 
-            elif arg.type == "gh_rscalar" or arg.type == "gh_iscalar":
+            elif arg.type in VALID_SCALAR_NAMES:
                 if my_type == "subroutine":
                     text = arg.name
                     if arg.type == "gh_rscalar":
