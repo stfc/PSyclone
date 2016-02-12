@@ -14,11 +14,13 @@ program single_function
   implicit none
   type(field_type) :: f0(2),f1(2,2)
   type(quadrature_rule_type) :: qr
-  real(r_def) :: a
+  real(r_def) :: b(2), a(8)
 
-  call invoke(                   &
-       testkern_qr_type(f0(1),f1(1,1),f1(2,index),a,f1(index,index2(index3)),qr),  &
-       testkern_qr_type(f1(index,index2(index3)),f1(2,index),f1(1,1),a,f0(1),qr)   &
+  call invoke(                                                  &
+       testkern_qr_type(f0(1),f1(1,1),f1(2,index),b(1),         &
+                        f1(index,index2(index3)),qr),           &
+       testkern_qr_type(f1(index,index2(index3)),               &
+                        f1(2,index),f1(1,1),a(index1),f0(1),qr) &
           )
 
 end program single_function

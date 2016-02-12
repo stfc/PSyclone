@@ -87,9 +87,10 @@ class TestAlgGenClassDynamo0p3:
                                "test_files", "dynamo0p3",
                                "5_alg_field_array.f90"), api="dynamo0.3")
         gen = str(alg)
+        print gen
         assert "USE psy_single_function, ONLY: invoke_0" in gen
-        assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), a, "
-                "f1(index, index2(index3)), qr)" in gen)
+        assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
+                "f1(index, index2(index3)), a(index1), qr)" in gen)
 
     @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
     def test_multiple_qr_per_invoke(self):
