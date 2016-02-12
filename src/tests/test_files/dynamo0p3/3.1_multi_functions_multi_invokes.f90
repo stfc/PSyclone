@@ -20,13 +20,13 @@ program multi_functions_multi_invokes
   call invoke(                            &
        testkern_type(a,f1,f2,m1,m2),      &
        testkern_type(a,f1,f2,m1,m2),      &
-       testkern_qr_type(f1,f2,m1,m2,qr)   &
+       testkern_qr_type(f1,f2,m1,a,m2,qr) &
        )
 
-  call invoke(                            &
-       testkern_qr_type(f1,f2,m1,m2,qr),  &
-       testkern_qr_type(f1,f2,m1,m2,qr),  &
-       testkern_qr_type(f1,f2,m1,m2,qr)   &
+  call invoke(                             &
+       testkern_qr_type(f1,f2,m1,a,m2,qr), &
+       testkern_qr_type(f1,f2,m1,a,m2,qr), &
+       testkern_qr_type(f1,f2,m1,a,m2,qr)  &
        )
 
 end program multi_functions_multi_invokes

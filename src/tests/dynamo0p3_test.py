@@ -1046,7 +1046,7 @@ def test_operator():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     assert str(generated_code).find("SUBROUTINE invoke_0_testkern_operator"
-                                    "_type(mm_w0, chi, qr)") != -1
+                                    "_type(mm_w0, chi, a, qr)") != -1
     assert str(generated_code).find("TYPE(operator_type), intent(inout) ::"
                                     " mm_w0") != -1
     assert str(generated_code).find("TYPE(operator_proxy_type) mm_w0_"
@@ -1055,7 +1055,7 @@ def test_operator():
     assert str(generated_code).find(
         "CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_"
         "w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_pr"
-        "oxy(3)%data, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h"
+        "oxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h"
         ", nqp_v, wh, wv)") != -1
 
 

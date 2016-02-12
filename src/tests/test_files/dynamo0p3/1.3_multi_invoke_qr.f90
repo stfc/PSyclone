@@ -18,9 +18,9 @@ program multi_invoke_qr
   real(r_def) :: a
 
   call invoke(                             &
-       testkern_qr_type(f1,f2,m1,m2,qr),   &
+       testkern_qr_type(f1,f2,m1,a,m2,qr),   &
        testkern_type(a,f1,f2,m1,m3),       &
-       testkern_qr_type(f1,f3,m1,m2,qr)    &
+       testkern_qr_type(f1,f3,m1,a,m2,qr)    &
        )
 
 end program multi_invoke_qr
