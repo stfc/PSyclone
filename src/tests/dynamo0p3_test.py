@@ -1196,16 +1196,32 @@ def test_operator_nofield_different_space():
                                         "space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    gen_code_str = str(psy.gen)
-    print gen_code_str
-    assert gen_code_str.find(
-        "nlayers = my_mapping_proxy%fs_from%get_nlayers()")
-    assert gen_code_str.find("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()")
-    assert gen_code_str.find("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()")
-    assert gen_code_str.find("DO cell=1,my_mapping_proxy%fs_from%get_ncell()")
-    assert gen_code_str.find(
+    gen = str(psy.gen)
+    print gen
+    assert ("nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen)
+    assert ("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen)
+    assert ("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen)
+    assert ("DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen)
+    assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-        "local_stencil, ndf_w3, ndf_w2)")
+        "local_stencil, ndf_w2, ndf_w3)" in gen)
+
+
+def test_operator_nofield_scalar():
+    ''' tests that an operator with no field and a
+    scalar argument is implemented correctly in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.6_operator_no_field_scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert ("nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen)
+    assert ("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen)
+    assert ("DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen)
+    assert (
+        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+        "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
 
 
 def test_operator_orientation():
@@ -1243,25 +1259,27 @@ def test_operator_orientation_different_space():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
-    assert gen_str.find(
+    print gen_str
+    assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
-        "=> null()")
-    assert gen_str.find("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()")
-    assert gen_str.find("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()")
-    assert gen_str.find("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()")
-    assert gen_str.find(
+        " => null()" in gen_str)
+    assert ("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str)
+    assert ("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str)
+    assert ("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str)
+    assert (
         "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
-        "nqp_h, nqp_v, xp, zp)")
-    assert gen_str.find(
+        " nqp_h, nqp_v, xp, zp)" in gen_str)
+    assert (
         "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
-        "cell)")
-    assert gen_str.find(
-        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)")
-    assert gen_str.find(
+        "cell)" in gen_str)
+    assert (
+        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)"
+        in gen_str)
+    assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
         "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
-        "ndf_w2, orientation_w2, ndf_w1, basis_w1, orientation_w1, ndf_w0, "
-        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")
+        "ndf_w1, basis_w1, orientation_w1, ndf_w2, orientation_w2, ndf_w0, "
+        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)" in gen_str)
 
 
 def test_any_space_1():
