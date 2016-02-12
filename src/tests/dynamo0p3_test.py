@@ -983,6 +983,20 @@ def test_scalar_only():
         str(excinfo.value)
 
 
+def test_no_vector_scalar():
+    ''' Tests that we raise an error when kernel meta-data erroneously
+    specifies a vector scalar '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar*3, gh_read)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'vector notation is not supported for scalar arguments' in \
+        str(excinfo.value)
+
+
 def test_vector_field():
     ''' tests that a vector field is declared correctly in the PSy
     layer '''

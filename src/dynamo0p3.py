@@ -154,6 +154,11 @@ class DynArgDescriptor03(Descriptor):
                     "entry should be a valid argument type (one of {0}), but "
                     "found '{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES,
                                                   self._type, arg_type))
+            if self._type in VALID_SCALAR_NAMES and self._vector_size > 1:
+                raise ParseError(
+                    "In the dynamo0.3 API vector notation is not supported "
+                    "for scalar arguments (found '{0}')".
+                    format(arg_type.args[0]))
             if not operator == "*":
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a meta_arg "
