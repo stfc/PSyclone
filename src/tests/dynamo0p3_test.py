@@ -567,9 +567,11 @@ def test_field_qr():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    print generated_code
     output = (
-        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)\n"
+        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
@@ -649,7 +651,7 @@ def test_field_qr():
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, basis_w1, "
+        "m1_proxy%data, a, m2_proxy%data, ndf_w1, undf_w1, map_w1, basis_w1, "
         "ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, undf_w3, map_w3, "
         "basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
