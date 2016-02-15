@@ -50,6 +50,8 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3)
 These 4 metadata elements are discussed in order in the following
 sections.
 
+.. _dynamo0.3-api-meta-args:
+
 meta_args
 #########
 
@@ -276,11 +278,12 @@ rules, along with PSyclone's naming conventions, are:
 
 1) If an operator is passed then include the ``cells`` argument. ``cells`` is an integer and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers`` is an integer and has intent ``in``.
-3) For each field/vector_field/operator in the order specified by the meta_args metadata.
+3) For each scalar/field/vector_field/operator in the order specified by the meta_args metadata:
 
-    1) if the current entry is a field then include the field array. The field array name is currently specified as being ``"field_"<argument_position>"_"<field_function_space>``. A field array is a real array of type ``r_def`` and dimensioned as the unique degrees of freedom for the space that the field operates on. This value is passed in separately. The intent is determined from the metadata (see later for an explanation).
-    2) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
-    3) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata and is explained later.
+    1) if the current entry is a scalar quantity then include the Fortran variable in the argument list. The intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
+    2) if the current entry is a field then include the field array. The field array name is currently specified as being ``"field_"<argument_position>"_"<field_function_space>``. A field array is a real array of type ``r_def`` and dimensioned as the unique degrees of freedom for the space that the field operates on. This value is passed in separately. Again, the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+    3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
+    4) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments (the ``to`` function space of an operator is considered to be before the ``from`` function space of the same operator as it appears first in lexicographic order)
 
