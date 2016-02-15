@@ -1759,6 +1759,20 @@ end module dummy_mod
 '''
 
 
+def test_load_meta_wrong_type():
+    ''' Test that the load_meta function raises an appropriate error
+    if the meta-data contains an un-recognised type '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(INTENT, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    # Break the meta-data
+    metadata.arg_descriptors[0]._type = "gh_hedge"
+    with pytest.raises(GenerationError) as excinfo:
+        kernel.load_meta(metadata)
+    assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
+
+
 def test_intent():
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
