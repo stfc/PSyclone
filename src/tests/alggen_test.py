@@ -168,14 +168,21 @@ class TestAlgGenClassGungHoProto:
     def test_mixed_kernel_and_set(self):
         ''' single set infrastructure routine and single kernel
         routine specified in an invoke call '''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","2_mixed_kernel_and_set.f90"), api = "gunghoproto")
-        assert (str(alg).find("CALL invoke_0(one, f2, f3)")!=-1 and \
-                str(psy).find("one%data = 1.0")!=-1)
+        alg, psy = generate(os.path.
+                            join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "gunghoproto",
+                                 "2_mixed_kernel_and_set.f90"),
+                            api="gunghoproto")
+        assert (str(alg).find("CALL invoke_0(one, f2, f3)") != -1 and
+                str(psy).find("one%data = 1.0") != -1)
 
     @pytest.mark.xfail(reason="unknown")
     def test_multiple_set(self):
         ''' two set infrastructure routines specified in an invoke call '''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","3_multiple_set.f90"), api = "gunghoproto")
+        alg, psy = generate(os.path.
+                            join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "gunghoproto",
+                                 "3_multiple_set.f90"), api="gunghoproto")
         assert (str(alg).find("CALL invoke_0(one, two)")!=-1 and \
                 str(psy).find("one%data = 1.0")!=-1 and \
                 str(psy).find("two%data = 2.0")!=-1)
@@ -187,10 +194,13 @@ class TestAlgGenClassDynamo0p1:
 
     @pytest.mark.xfail(reason="unknown")
     def test_single_invoke_dynamo0p1(self):
-        ''' test for correct code transformation for a single function specified in an invoke call for the
-        gunghoproto api '''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","algorithm","1_single_function.f90"),api="dynamo0.1")
-        assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
+        ''' test for correct code transformation for a single function
+        specified in an invoke call for the gunghoproto api '''
+        alg, psy = generate(os.path.
+                            join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p1", "algorithm",
+                                 "1_single_function.f90"), api="dynamo0.1")
+        assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and
                   str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1)")!=-1)
 
     def test_zero_invoke_dynamo0p1(self):

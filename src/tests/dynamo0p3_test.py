@@ -783,9 +783,9 @@ def test_int_scalar():
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, iflag, f2_proxy%data,"
-        " m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
-        "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+        "        CALL testkern_code(nlayers, f1_proxy%data, iflag, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
 
 
@@ -1047,19 +1047,19 @@ def test_operator():
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find("SUBROUTINE invoke_0_testkern_operator"
-                                    "_type(mm_w0, chi, a, qr)") != -1
-    assert str(generated_code).find("TYPE(operator_type), intent(inout) ::"
-                                    " mm_w0") != -1
-    assert str(generated_code).find("TYPE(operator_proxy_type) mm_w0_"
-                                    "proxy") != -1
-    assert str(generated_code).find("mm_w0_proxy = mm_w0%get_proxy()") != -1
-    assert str(generated_code).find(
+    generated_code = str(psy.gen)
+    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
+                                "_type(mm_w0, chi, a, qr)") != -1
+    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+                                " mm_w0") != -1
+    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
+                                "proxy") != -1
+    assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
+    assert generated_code.find(
         "CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_"
         "w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_pr"
-        "oxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h"
-        ", nqp_v, wh, wv)") != -1
+        "oxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, "
+        "nqp_h, nqp_v, wh, wv)") != -1
 
 
 def test_operator_different_spaces():
@@ -1201,13 +1201,12 @@ def test_operator_nofield_different_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert ("nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen)
-    assert ("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen)
-    assert ("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen)
-    assert ("DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen)
-    assert (
-        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-        "local_stencil, ndf_w2, ndf_w3)" in gen)
+    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
+    assert "DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+            "local_stencil, ndf_w2, ndf_w3)" in gen)
 
 
 def test_operator_nofield_scalar():
@@ -1219,9 +1218,9 @@ def test_operator_nofield_scalar():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert ("nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen)
-    assert ("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen)
-    assert ("DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen)
+    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert "DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen
     assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
         "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
@@ -1266,9 +1265,9 @@ def test_operator_orientation_different_space():
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
         " => null()" in gen_str)
-    assert ("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str)
-    assert ("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str)
-    assert ("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str)
+    assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
+    assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
+    assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
     assert (
         "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
         " nqp_h, nqp_v, xp, zp)" in gen_str)
