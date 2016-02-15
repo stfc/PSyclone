@@ -664,8 +664,6 @@ def test_field_qr():
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_qr_type"
     )
-    print "====================================================="
-    print "output:\n{0}<<<".format(output)
     assert output in generated_code
 
 
