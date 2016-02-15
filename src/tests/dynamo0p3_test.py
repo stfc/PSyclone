@@ -566,12 +566,14 @@ def test_field_qr():
                                         "1.1_single_invoke_qr.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     print generated_code
     output = (
-        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, qr)\n"
+        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
+        " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
         "      REAL(KIND=r_def), intent(inout) :: a\n"
+        "      INTEGER, intent(inout) :: istp\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
@@ -651,17 +653,20 @@ def test_field_qr():
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, ndf_w1, undf_w1, map_w1, basis_w1, "
-        "ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, undf_w3, map_w3, "
-        "basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
+        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, map_w1, "
+        "basis_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, undf_w3, "
+        "map_w3, basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
         "      DEALLOCATE (basis_w1, diff_basis_w2, basis_w3, diff_basis_w3)\n"
         "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_qr_type")
-    assert str(generated_code).find(output) != -1
+        "    END SUBROUTINE invoke_0_testkern_qr_type"
+    )
+    print "====================================================="
+    print "output:\n{0}<<<".format(output)
+    assert output in generated_code
 
 
 def test_real_scalar():

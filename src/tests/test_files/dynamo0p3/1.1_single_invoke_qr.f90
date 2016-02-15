@@ -15,8 +15,10 @@ program single_invoke
   type(field_type) :: f1, f2, m1, m2
   type(quadrature_rule) :: qr
   real(r_def) :: a
+  integer :: istp
+
   call invoke(                   &
-       testkern_qr_type(f1,f2,m1,a,m2,qr)   &
+       testkern_qr_type(f1,f2,m1,a,m2,istp,qr)   &
           )
 
 end program single_invoke

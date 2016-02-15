@@ -29,9 +29,10 @@ class TestAlgGenClassDynamo0p3:
                             join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1.1_single_invoke_qr.f90"), api="dynamo0.3")
-        assert "USE testkern_qr, ONLY: testkern_qr_type" in str(alg)
-        assert "CALL invoke_0_testkern_qr_type(f1, f2, m1, a, m2, qr)" in \
-            str(alg)
+        gen = str(alg)
+        assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
+        assert ("CALL invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+                in gen)
 
     def test_multi_function_invoke(self):
         ''' two functions specified in an invoke call'''
@@ -50,7 +51,8 @@ class TestAlgGenClassDynamo0p3:
         assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
         assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
         assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
-        assert "CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, qr)" in gen
+        assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+                in gen)
 
     def test_multi_function_multi_invokes(self):
         ''' two invokes, each containing multiple functions '''
@@ -63,8 +65,8 @@ class TestAlgGenClassDynamo0p3:
         print gen
         assert "USE psy_multi_functions_multi_invokes, ONLY: invoke_1" in gen
         assert "USE psy_multi_functions_multi_invokes, ONLY: invoke_0" in gen
-        assert "CALL invoke_0(a, f1, f2, m1, m2, qr)" in gen
-        assert "CALL invoke_1(f1, f2, m1, a, m2, qr)" in gen
+        assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
+        assert "CALL invoke_1(f1, f2, m1, a, m2, istp, qr)" in gen
 
     def test_multi_function_invoke_qr(self):
         '''three functions specified in an invoke call, two of which which
@@ -78,7 +80,7 @@ class TestAlgGenClassDynamo0p3:
         print gen
         assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
         assert "USE testkern, ONLY: testkern_type" in gen
-        assert "CALL invoke_0(f1, f2, m1, a, m2, m3, f3, qr)" in gen
+        assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
 
     def test_invoke_argnames(self):
         ''' invoke call arguments which are arrays '''
@@ -90,7 +92,8 @@ class TestAlgGenClassDynamo0p3:
         print gen
         assert "USE psy_single_function, ONLY: invoke_0" in gen
         assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
-                "f1(index, index2(index3)), a(index1), qr)" in gen)
+                "f1(index, index2(index3)), iflag(2), a(index1), "
+                "iflag(index2(index3)), qr)" in gen)
 
     @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
     def test_multiple_qr_per_invoke(self):
