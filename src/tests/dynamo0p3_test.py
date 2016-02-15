@@ -1307,7 +1307,7 @@ def test_any_space_1():
     assert str(generated_code).find(
         "map_any_space_2 => b_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert str(generated_code).find(
-        "CALL testkern_any_space_1_code(nlayers, a_proxy%data, b_proxy%"
+        "CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, b_proxy%"
         "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
         "ny_space_1, undf_any_space_1, map_any_space_1, basis_any_space"
         "_1, ndf_any_space_2, undf_any_space_2, map_any_space_2, basis_"
@@ -1326,21 +1326,23 @@ def test_any_space_2():
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.1_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find(
+    generated_code = str(psy.gen)
+    print generated_code
+    assert "INTEGER, intent(inout) :: istp" in generated_code
+    assert generated_code.find(
         "INTEGER, pointer :: map_any_space_1(:) => null()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "INTEGER ndf_any_space_1, undf_any_space_1") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "ndf_any_space_1 = a_proxy%vspace%get_ndf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "undf_any_space_1 = a_proxy%vspace%get_undf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
-        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1"
-        ", undf_any_space_1, map_any_space_1)") != -1
+        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
+        "ndf_any_space_1, undf_any_space_1, map_any_space_1)") != -1
 
 
 def test_operator_any_space_different_space_1():
@@ -1564,12 +1566,13 @@ def test_multikern_invoke_any_space():
     different kernels in an invoke must either inherit the space
     from the variable (which needs analysis) or have a unique name
     for the space used by each kernel and at the moment neither of
-    these is the case.c'''
+    these is the case. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api="dynamo0.3")
     with pytest.raises(GenerationError) as excinfo:
         _ = PSyFactory("dynamo0.3").create(invoke_info)
+    print str(excinfo.value)
     assert 'multiple kernels within this invoke with kernel arguments ' + \
         'declared as any_space' in str(excinfo.value)
 
