@@ -731,9 +731,10 @@ def test_real_scalar():
 def test_int_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
     integer scalar argument (plus fields) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.6.1_single_invoke_1_int_scalar.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.1_single_invoke_1_int_scalar.f90"),
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
@@ -792,9 +793,10 @@ def test_int_scalar():
 def test_two_real_scalars():
     ''' tests that we generate correct code when a kernel has two real,
     scalar arguments '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.9_single_invoke_2_real_scalars.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
@@ -1049,11 +1051,11 @@ def test_operator():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                                "_type(mm_w0, chi, a, qr)") != -1
+                               "_type(mm_w0, chi, a, qr)") != -1
     assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                                " mm_w0") != -1
+                               " mm_w0") != -1
     assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
-                                "proxy") != -1
+                               "proxy") != -1
     assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
     assert generated_code.find(
         "CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_"
