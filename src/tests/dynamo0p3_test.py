@@ -31,7 +31,7 @@ module testkern_qr
              arg_type(gh_field,gh_read, w2),        &
              arg_type(gh_operator,gh_read, w2, w2), &
              arg_type(gh_field,gh_read, w3),        &
-             arg_type(gh_iscalar, gh_write)         &
+             arg_type(gh_iscalar, gh_read)          &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -140,8 +140,8 @@ def test_ad_scalar_type_no_write():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'only support scalars with gh_read access but got' \
-        in str(excinfo.value)
+    assert ("scalar arguments must be read-only (gh_read) but found "
+            "'gh_write'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_inc():
@@ -154,7 +154,7 @@ def test_ad_scalar_type_no_inc():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'only support scalars with gh_read access but got' \
+    assert "scalar arguments must be read-only (gh_read) but found 'gh_inc'" \
         in str(excinfo.value)
 
 
@@ -1003,6 +1003,11 @@ def test_two_scalars():
     assert expected in generated_code
 
 
+@pytest.mark.xfail(reason="We currently only support scalars which are "
+                   "gh_read and so the kernel used for this test has no "
+                   "argument that is written to and that triggers a "
+                   "different exception. This test can be re-instated once "
+                   "we support gh_inc for scalars")
 def test_scalar_only():
     ''' tests that we raise an error when a kernel erroneously
     only has scalar arguments '''

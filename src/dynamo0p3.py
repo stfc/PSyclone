@@ -195,6 +195,13 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
+        # Currently we only support read-only scalar arguments
+        if self._type in VALID_SCALAR_NAMES:
+            if self._access_descriptor.name != "gh_read":
+                raise ParseError(
+                    "In the dynamo0.3 API scalar arguments must be "
+                    "read-only (gh_read) but found '{0}' in '{1}'".
+                    format(self._access_descriptor.name, arg_type))
         stencil = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
