@@ -130,6 +130,34 @@ def test_ad_scalar_type_too_many_args():
         in str(excinfo.value)
 
 
+def test_ad_scalar_type_no_write():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies GH_WRITE '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar, gh_write)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'only support scalars with gh_read access but got' \
+        in str(excinfo.value)
+
+
+def test_ad_scalar_type_no_inc():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies GH_INC '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar, gh_inc)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'only support scalars with gh_read access but got' \
+        in str(excinfo.value)
+
+
 def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has fewer than 3 args. '''
