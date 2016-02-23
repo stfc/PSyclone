@@ -80,6 +80,7 @@ contains
 
     integer, parameter                 :: NUM_JACOBI_ITERS = 5
     integer :: fs_l, fs_r
+    real(r_def) :: ascalar = 3.0
 
     fs_l = lhs%which_function_space()
     fs_r = rhs%which_function_space()
@@ -88,7 +89,7 @@ contains
        ! quadrature present, only for W3
        if( (fs_l == W3) .and. (fs_r == W3) ) then
           ! we are on the right space
-          call invoke( w3_solver_kernel_type(lhs,rhs,chi,qr) )
+          call invoke( w3_solver_kernel_type(lhs,rhs,chi,ascalar,qr) )
        else
           write( log_scratch_space, '(A,I3,",",I3)' )  'quadrature required for w3 solver, stopping',fs_l,fs_r
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )

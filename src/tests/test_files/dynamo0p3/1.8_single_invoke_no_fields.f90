@@ -1,24 +1,21 @@
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
+! Met Office and NERC 2015.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab
 
-program multikernel_invokes_1
+program single_invoke
 
-  ! Multiple kernel calls within an invoke
-
-  use testkern, only : testkern_type
-  use inf,      only: field_type
+  ! Description: single function specified in an invoke call
+  use testkern_no_fields, only: testkern_type
   implicit none
-  type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
+  integer(i_def)   :: istep
 
-  call invoke(                            &
-       testkern_type(a,f1,f2,m1,m2),        &
-       testkern_type(a,f1,f2,m1,m2)         &
-       )
+  call invoke(                              &
+       testkern_type(a,istep)   &
+          )
 
-end program multikernel_invokes_1
+end program single_invoke

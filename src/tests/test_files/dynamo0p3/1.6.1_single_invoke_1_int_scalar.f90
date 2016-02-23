@@ -6,19 +6,17 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-program multikernel_invokes_1
+program single_invoke
 
-  ! Multiple kernel calls within an invoke
-
-  use testkern, only : testkern_type
+  ! Description: single function specified in an invoke call
+  use testkern_one_int_scalar, only: testkern_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
-  real(r_def)      :: a
+  integer(i_def)   :: iflag
 
-  call invoke(                            &
-       testkern_type(a,f1,f2,m1,m2),        &
-       testkern_type(a,f1,f2,m1,m2)         &
-       )
+  call invoke(                              &
+       testkern_type(f1,iflag,f2,m1,m2)   &
+          )
 
-end program multikernel_invokes_1
+end program single_invoke

@@ -13,10 +13,10 @@ program multi_invoke
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, f3,m1, m2
-
+  real(r_def) :: a
   call invoke(                      &
-       testkern_type(f1,f2,m1,m2),  &
-       testkern_type(f1,f3,m2,m1)   &
+       testkern_type(a,f1,f2,m1,m2),  &
+       testkern_type(a,f1,f3,m2,m1)   &
           )
 
 end program multi_invoke

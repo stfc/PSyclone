@@ -43,16 +43,18 @@ def test_get_op_orientation_name():
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(4) =    &
-          (/ arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2), &
+     type(arg_type), meta_args(6) =                 &
+          (/ arg_type(gh_rscalar, gh_read),         &
+             arg_type(gh_field,gh_write,w1),        &
+             arg_type(gh_field,gh_read, w2),        &
              arg_type(gh_operator,gh_read, w2, w2), &
-             arg_type(gh_field,gh_read, w3)  &
+             arg_type(gh_field,gh_read, w3),        &
+             arg_type(gh_iscalar, gh_read)          &
            /)
-     type(func_type), dimension(3) :: meta_funcs =    &
-          (/ func_type(w1, gh_basis), &
-             func_type(w2, gh_diff_basis), &
-             func_type(w3, gh_basis, gh_diff_basis)  &
+     type(func_type), dimension(3) :: meta_funcs =  &
+          (/ func_type(w1, gh_basis),               &
+             func_type(w2, gh_diff_basis),          &
+             func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -81,9 +83,102 @@ def test_arg_descriptor_wrong_type():
         in str(excinfo.value)
 
 
+def test_arg_descriptor_vector_str():
+    ''' Test the str method of an argument descriptor containing a vector '''
+    fparser.logging.disable('CRITICAL')
+    # Change the meta-data so that the second argument is a vector
+    code = CODE.replace("gh_field,gh_write,w1", "gh_field*3,gh_write,w1", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[1])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_field'*3\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space[2]='w1'")
+    assert expected in dkm_str
+
+
+def test_arg_descriptor_op_str():
+    '''Test the str method of an argument descriptor containing an
+    operator
+
+    '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[3])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='w2'\n"
+        "  function_space_from[3]='w2'")
+    print dkm_str
+    assert expected in dkm_str
+
+
+def test_ad_scalar_type_too_few_args():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar has fewer than 2 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'each meta_arg entry must have at least 2 args' \
+        in str(excinfo.value)
+
+
+def test_ad_scalar_type_too_many_args():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar has more than 2 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar, gh_read, w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'each meta_arg entry must have 2 arguments if' \
+        in str(excinfo.value)
+
+
+def test_ad_scalar_type_no_write():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies GH_WRITE '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar, gh_write)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("scalar arguments must be read-only (gh_read) but found "
+            "'gh_write'" in str(excinfo.value))
+
+
+def test_ad_scalar_type_no_inc():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for a scalar specifies GH_INC '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar, gh_inc)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert "scalar arguments must be read-only (gh_read) but found 'gh_inc'" \
+        in str(excinfo.value)
+
+
 def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
-    metadata has fewer than 3 args. '''
+    metadata for a field has fewer than 3 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
                         "arg_type(gh_field,gh_write)", 1)
@@ -91,7 +186,7 @@ def test_ad_field_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert 'each meta_arg entry must have at least 3 args' \
+    assert 'each meta_arg entry must have at least 3 arguments' \
         in str(excinfo.value)
 
 
@@ -161,6 +256,20 @@ def test_ad_op_type_wrong_3rd_arg():
         _ = DynKernMetadata(ast, name=name)
     assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
             "a valid function space name" in str(excinfo.value))
+
+
+def test_ad_op_type_1st_arg_not_space():
+    ''' Tests that an error is raised when the operator descriptor
+    metadata contains something that is not a valid space. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_read, wbroke, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'meta_arg entry must be a valid function space' in \
+        str(excinfo.value)
 
 
 def test_ad_invalid_type():
@@ -357,8 +466,9 @@ def test_field():
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_testkern_type(f1, f2, m1, m2)\n"
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
@@ -401,7 +511,7 @@ def test_field():
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
         "      END DO \n"
@@ -516,10 +626,14 @@ def test_field_qr():
                                         "1.1_single_invoke_qr.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
+    print generated_code
     output = (
-        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)\n"
+        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
+        " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
+        "      INTEGER, intent(inout) :: istp\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
@@ -599,17 +713,358 @@ def test_field_qr():
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, basis_w1, "
-        "ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, undf_w3, map_w3, "
-        "basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
+        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, map_w1, "
+        "basis_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, undf_w3, "
+        "map_w3, basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
         "      DEALLOCATE (basis_w1, diff_basis_w2, basis_w3, diff_basis_w3)\n"
         "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_qr_type")
-    assert str(generated_code).find(output) != -1
+        "    END SUBROUTINE invoke_0_testkern_qr_type"
+    )
+    assert output in generated_code
+
+
+def test_real_scalar():
+    ''' tests that we generate correct code when a kernel takes a single,
+    real scalar argument (plus fields)'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
+        "      USE testkern, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
+        " m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+        "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+
+
+def test_int_scalar():
+    ''' tests that we generate correct code when a kernel takes a single,
+    integer scalar argument (plus fields) '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.1_single_invoke_1_int_scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "    SUBROUTINE invoke_0_testkern_type(f1, iflag, f2, m1, m2)\n"
+        "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
+        "      INTEGER, intent(inout) :: iflag\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, f1_proxy%data, iflag, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+
+
+def test_two_real_scalars():
+    ''' tests that we generate correct code when a kernel has two real,
+    scalar arguments '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
+        "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a, b\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, b, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+
+
+def test_two_int_scalars():
+    ''' tests that we generate correct code when a kernel has two integer,
+    scalar arguments '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.6_single_invoke_2_int_scalars.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "    SUBROUTINE invoke_0_testkern_type(iflag, f1, f2, m1, m2, istep)\n"
+        "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
+        "      INTEGER, intent(inout) :: iflag, istep\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, iflag, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+
+
+def test_two_scalars():
+    ''' tests that we generate correct code when a kernel has two scalar
+    arguments, one real and one integer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
+        "      USE testkern_two_scalars, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(inout) :: a\n"
+        "      INTEGER, intent(inout) :: istep\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
+        " m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, map_w1, "
+        "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+
+
+@pytest.mark.xfail(reason="We currently only support scalars which are "
+                   "gh_read and so the kernel used for this test has no "
+                   "argument that is written to and that triggers a "
+                   "different exception. This test can be re-instated once "
+                   "we support gh_inc for scalars")
+def test_scalar_only():
+    ''' tests that we raise an error when a kernel erroneously
+    only has scalar arguments '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.8_single_invoke_no_fields.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert 'Cannot create an Invoke with no field/operator arg' in \
+        str(excinfo.value)
+
+
+def test_no_vector_scalar():
+    ''' Tests that we raise an error when kernel meta-data erroneously
+    specifies a vector scalar '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
+                        "arg_type(gh_rscalar*3, gh_read)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'vector notation is not supported for scalar arguments' in \
+        str(excinfo.value)
 
 
 def test_vector_field():
@@ -659,19 +1114,19 @@ def test_operator():
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find("SUBROUTINE invoke_0_testkern_operator"
-                                    "_type(mm_w0, chi, qr)") != -1
-    assert str(generated_code).find("TYPE(operator_type), intent(inout) ::"
-                                    " mm_w0") != -1
-    assert str(generated_code).find("TYPE(operator_proxy_type) mm_w0_"
-                                    "proxy") != -1
-    assert str(generated_code).find("mm_w0_proxy = mm_w0%get_proxy()") != -1
-    assert str(generated_code).find(
+    generated_code = str(psy.gen)
+    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
+                               "_type(mm_w0, chi, a, qr)") != -1
+    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+                               " mm_w0") != -1
+    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
+                               "proxy") != -1
+    assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
+    assert generated_code.find(
         "CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_"
         "w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_pr"
-        "oxy(3)%data, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h"
-        ", nqp_v, wh, wv)") != -1
+        "oxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, "
+        "nqp_h, nqp_v, wh, wv)") != -1
 
 
 def test_operator_different_spaces():
@@ -811,16 +1266,31 @@ def test_operator_nofield_different_space():
                                         "space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    gen_code_str = str(psy.gen)
-    print gen_code_str
-    assert gen_code_str.find(
-        "nlayers = my_mapping_proxy%fs_from%get_nlayers()")
-    assert gen_code_str.find("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()")
-    assert gen_code_str.find("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()")
-    assert gen_code_str.find("DO cell=1,my_mapping_proxy%fs_from%get_ncell()")
-    assert gen_code_str.find(
+    gen = str(psy.gen)
+    print gen
+    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
+    assert "DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+            "local_stencil, ndf_w2, ndf_w3)" in gen)
+
+
+def test_operator_nofield_scalar():
+    ''' tests that an operator with no field and a
+    scalar argument is implemented correctly in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.6_operator_no_field_scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert "DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen
+    assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-        "local_stencil, ndf_w3, ndf_w2)")
+        "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
 
 
 def test_operator_orientation():
@@ -858,25 +1328,27 @@ def test_operator_orientation_different_space():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
-    assert gen_str.find(
+    print gen_str
+    assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
-        "=> null()")
-    assert gen_str.find("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()")
-    assert gen_str.find("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()")
-    assert gen_str.find("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()")
-    assert gen_str.find(
+        " => null()" in gen_str)
+    assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
+    assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
+    assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
+    assert (
         "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
-        "nqp_h, nqp_v, xp, zp)")
-    assert gen_str.find(
+        " nqp_h, nqp_v, xp, zp)" in gen_str)
+    assert (
         "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
-        "cell)")
-    assert gen_str.find(
-        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)")
-    assert gen_str.find(
+        "cell)" in gen_str)
+    assert (
+        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)"
+        in gen_str)
+    assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
         "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
-        "ndf_w2, orientation_w2, ndf_w1, basis_w1, orientation_w1, ndf_w0, "
-        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")
+        "ndf_w1, basis_w1, orientation_w1, ndf_w2, orientation_w2, ndf_w0, "
+        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)" in gen_str)
 
 
 def test_any_space_1():
@@ -905,7 +1377,7 @@ def test_any_space_1():
     assert generated_code.find(
         "map_any_space_2_b => b_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert generated_code.find(
-        "CALL testkern_any_space_1_code(nlayers, a_proxy%data, b_proxy%"
+        "CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, b_proxy%"
         "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
         "ny_space_1_a, undf_any_space_1_a, map_any_space_1_a, "
         "basis_any_space_1_a, ndf_any_space_2_b, undf_any_space_2_b, "
@@ -938,8 +1410,8 @@ def test_any_space_2():
         "map_any_space_1_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert generated_code.find(
         "CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
-        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1_a"
-        ", undf_any_space_1_a, map_any_space_1_a)") != -1
+        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, ndf_any_sp"
+        "ace_1_a, undf_any_space_1_a, map_any_space_1_a)") != -1
 
 
 def test_operator_any_space_different_space_1():
@@ -993,6 +1465,32 @@ def test_operator_any_space_different_space_2():
         "map_any_space_5_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert str(generated_code).find(
         "map_any_space_4_d => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
+
+
+def test_dyninvoke_uniq_declns():
+    ''' tests that we raise an error when DynInvoke.unique_declarations() is
+    called for an invalid type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations("not_a_type")
+    assert 'unique_declarations called with an invalid datatype' \
+        in str(excinfo.value)
+
+
+def test_dyninvoke_arg_for_fs():
+    ''' tests that we raise an error when DynInvoke.arg_for_funcspace() is
+    called for an un-used space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].arg_for_funcspace("wtheta")
+    assert "No argument found on 'wtheta' space" \
+        in str(excinfo.value)
 
 
 def test_kernel_specific():
@@ -1062,7 +1560,7 @@ def test_multikernel_invoke_1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # check that argument names are not replicated
-    output1 = "SUBROUTINE invoke_0(f1, f2, m1, m2)"
+    output1 = "SUBROUTINE invoke_0(a, f1, f2, m1, m2)"
     assert str(generated_code).find(output1) != -1
     # check that only one proxy initialisation is produced
     output2 = "f1_proxy = f1%get_proxy()"
@@ -1184,7 +1682,7 @@ def test_multikern_invoke_any_space():
     assert ("map_any_space_2_f2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
             "        map_w0 => f3_proxy(1)%vspace%get_cell_dofmap(cell)"
             in gen)
-    assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, "
+    assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
             "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
             "map_any_space_1_f1, basis_any_space_1_f1, ndf_any_space_2_f2, "
@@ -1327,6 +1825,33 @@ def test_stub_generate_working_noapi():
     print result
     assert str(result).find(SIMPLE) != -1
 
+SIMPLE_WITH_SCALARS = (
+    "  MODULE simple_with_scalars_mod\n"
+    "    IMPLICIT NONE\n"
+    "    CONTAINS\n"
+    "    SUBROUTINE simple_with_scalars_code(nlayers, rscalar_1, field_2_w1, "
+    "iscalar_3, ndf_w1, undf_w1, map_w1)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+    "      INTEGER, intent(in) :: undf_w1\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    " field_2_w1\n"
+    "      INTEGER, intent(in) :: iscalar_3\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+    "    END SUBROUTINE simple_with_scalars_code\n"
+    "  END MODULE simple_with_scalars_mod")
+
+
+def test_stub_generate_with_scalars():
+    ''' check that the stub generate produces the expected output when
+    the kernel has scalar arguments '''
+    result = generate("test_files/dynamo0p3/simple_with_scalars.f90",
+                      api="dynamo0.3")
+    print result
+    assert str(result).find(SIMPLE_WITH_SCALARS) != -1
 
 # fields : intent
 INTENT = '''
@@ -1346,6 +1871,20 @@ contains
   end subroutine dummy_code
 end module dummy_mod
 '''
+
+
+def test_load_meta_wrong_type():
+    ''' Test that the load_meta function raises an appropriate error
+    if the meta-data contains an un-recognised type '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(INTENT, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    # Break the meta-data
+    metadata.arg_descriptors[0]._type = "gh_hedge"
+    with pytest.raises(GenerationError) as excinfo:
+        kernel.load_meta(metadata)
+    assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
 
 
 def test_intent():
@@ -2294,7 +2833,7 @@ def test_arg_ref_name_method_error2():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
-    first_argument = first_kernel.arguments.args[0]
+    first_argument = first_kernel.arguments.args[1]
     first_argument._type = "gh_funky_instigator"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
@@ -2317,19 +2856,36 @@ def test_arg_descriptor_function_method_error():
         'not get to here' in str(excinfo.value)
 
 
-def test_arg_descriptor_str():
+def test_arg_descriptor_fld_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
-    expected '''
+    expected for a field argument'''
     fparser.logging.disable('CRITICAL')
     ast = fpapi.parse(CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor = metadata.arg_descriptors[1]
     result = str(field_descriptor)
+    print result
     expected_output = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_field'\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space[2]='w1'")
+    assert expected_output in result
+
+
+def test_arg_descriptor_scalar_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected for a scalar argument'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    print result
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_rscalar'\n"
+        "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
 
@@ -2357,7 +2913,8 @@ def test_arg_descriptor_repr():
     metadata = DynKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     result = repr(field_descriptor)
-    assert 'DynArgDescriptor03(arg_type(gh_field, gh_write, w1))' \
+    print result
+    assert 'DynArgDescriptor03(arg_type(gh_rscalar, gh_read))' \
         in result
 
 
@@ -2440,7 +2997,7 @@ def test_dynkern_arg_for_fs():
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
         _ = first_invoke.arg_for_funcspace("waah")
-    assert "Functionspace name 'waah' not found" in str(err)
+    assert "No argument found on 'waah' space" in str(err)
 
 
 def test_dynkern_op_name():

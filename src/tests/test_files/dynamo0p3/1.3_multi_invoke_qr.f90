@@ -15,11 +15,13 @@ program multi_invoke_qr
   implicit none
   type(field_type) :: f1, f2, f3, m1, m2, m3
   type(quadrature_rule) :: qr
+  real(r_def) :: a
+  integer :: istp
 
-  call invoke(                             &
-       testkern_qr_type(f1,f2,m1,m2,qr),   &
-       testkern_type(f1,f2,m1,m3),         &
-       testkern_qr_type(f1,f3,m1,m2,qr)    &
+  call invoke(                                  &
+       testkern_qr_type(f1,f2,m1,a,m2,istp,qr), &
+       testkern_type(a,f1,f2,m1,m3),            &
+       testkern_qr_type(f1,f3,m1,a,m2,istp,qr)  &
        )
 
 end program multi_invoke_qr

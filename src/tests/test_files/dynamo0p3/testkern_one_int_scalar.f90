@@ -8,12 +8,12 @@
 
 module testkern
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args =    &
-          (/ arg_type(gh_rscalar,gh_read),   &
-             arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w3)  &
+     type(arg_type), dimension(5) :: meta_args = &
+          (/ arg_type(gh_field,   gh_write,w1), &
+             arg_type(gh_iscalar, gh_read    ), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_field,   gh_read, w3)  &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -21,6 +21,8 @@ module testkern
   end type testkern_type
 contains
 
-  subroutine testkern_code()
+  subroutine testkern_code(afield1, iflag, afield2, afield3, afield4)
+    integer, intent(in) :: iflag
+    real(wp), dimension(:,:)  :: afield1, afield2, afield3, afield4
   end subroutine testkern_code
 end module testkern

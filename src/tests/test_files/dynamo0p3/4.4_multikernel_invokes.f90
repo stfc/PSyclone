@@ -17,10 +17,12 @@ program multikernel_invokes_5
   type(field_type)      :: f1(3)
   type(operator_type)   :: op
   type(quadrature_rule) :: qr
-
+  real(r_def)           :: a, b
+  a = 1.0_r_def
+  b = 2.0_r_def
   call invoke(                             &
-       testkern_operator_type(op, f1, qr), &
-       testkern_operator_type(op, f1, qr)  &
+       testkern_operator_type(op, f1, a, qr), &
+       testkern_operator_type(op, f1, b, qr)  &
        )
 
 end program multikernel_invokes_5

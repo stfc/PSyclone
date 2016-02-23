@@ -425,6 +425,7 @@ def test_colouring_multi_kernel():
 
     invoke.schedule = newsched
     gen = str(psy.gen)
+    print gen
 
     # Check that we're calling the API to get the no. of colours
     assert "a_proxy%vspace%get_colours(" in gen
