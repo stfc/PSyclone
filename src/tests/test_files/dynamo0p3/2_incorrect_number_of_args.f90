@@ -13,9 +13,10 @@ program too_few_args
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1
+  real(r_def) :: a
 
   call invoke(                   &
-       testkern_type(f1,f2,m1)   &
+       testkern_type(a,f1,f2,m1)   &
           )
 
 end program too_few_args

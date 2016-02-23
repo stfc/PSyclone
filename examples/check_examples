@@ -1,30 +1,36 @@
 #!/bin/bash
 
+echo "Running examples dynamo/eg1"
 cd dynamo/eg1
 python runme.py
 python runme_openmp.py
 cd -
 
+echo "Running examples dynamo/eg2"
 cd dynamo/eg2
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 cd -
 
+echo "Running example dynamo/eg3"
 cd dynamo/eg3
 python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
 cd -
 
+echo "Running gocean examples"
 cd gocean
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 cd -
 
+echo "Running transformation examples"
 cd transformations/inline
 python module_inline_example.py
 cd -
 
+echo "Running line-length examples"
 cd line_length
 python runme.py
 cd -

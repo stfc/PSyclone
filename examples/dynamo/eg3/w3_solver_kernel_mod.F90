@@ -25,10 +25,11 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: w3_solver_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,   GH_WRITE, W3),                             &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
-       arg_type(GH_FIELD*3, GH_READ,  W0)                              &
+       arg_type(GH_FIELD*3, GH_READ,  W0),                             &
+       arg_type(GH_RSCALAR, GH_READ)                                   &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W3, GH_BASIS),                                        &
@@ -72,9 +73,10 @@ end function w3_solver_kernel_constructor
 !! @param[inout] chi_1 Real array, the x component of the w0 coordinate field
 !! @param[inout] chi_2 Real array, the y component of the w0 coordinate field
 !! @param[inout] chi_3 Real array, the z component of the w0 coordinate field
+!! @param[in] ascalar Example of a real, scalar argument
 subroutine solver_w3_code(nlayers,                                    &
                           x, rhs, &
-                          chi_1, chi_2, chi_3, &
+                          chi_1, chi_2, chi_3, ascalar, &
                           ndf_w3, undf_w3, map_w3, w3_basis, &
                           ndf_w0, undf_w0, map_w0, w0_diff_basis,     &
                           nqp_h, nqp_v, wqp_h, wqp_v                  &
@@ -91,6 +93,7 @@ subroutine solver_w3_code(nlayers,                                    &
   integer, intent(in) :: ndf_w3, undf_w3, ndf_w0, undf_w0
   integer, dimension(ndf_w3), intent(in) :: map_w3
   integer, dimension(ndf_w0), intent(in) :: map_w0
+  real(kind=r_def), intent(in) :: ascalar
   real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: w3_basis
   real(kind=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: w0_diff_basis  
   real(kind=r_def), dimension(undf_w3), intent(inout) :: x

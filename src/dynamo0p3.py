@@ -35,7 +35,8 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
+VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
+VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
@@ -128,11 +129,11 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
-        # we require at least 3 args
-        if len(arg_type.args) < 3:
+        # we require at least 2 args
+        if len(arg_type.args) < 2:
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
-                "3 args, but found '{0}'".format(len(arg_type.args)))
+                "2 args, but found '{0}'".format(len(arg_type.args)))
         # the first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
@@ -153,6 +154,11 @@ class DynArgDescriptor03(Descriptor):
                     "entry should be a valid argument type (one of {0}), but "
                     "found '{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES,
                                                   self._type, arg_type))
+            if self._type in VALID_SCALAR_NAMES and self._vector_size > 1:
+                raise ParseError(
+                    "In the dynamo0.3 API vector notation is not supported "
+                    "for scalar arguments (found '{0}')".
+                    format(arg_type.args[0]))
             if not operator == "*":
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a meta_arg "
@@ -189,8 +195,21 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
+        # Currently we only support read-only scalar arguments
+        if self._type in VALID_SCALAR_NAMES:
+            if self._access_descriptor.name != "gh_read":
+                raise ParseError(
+                    "In the dynamo0.3 API scalar arguments must be "
+                    "read-only (gh_read) but found '{0}' in '{1}'".
+                    format(self._access_descriptor.name, arg_type))
         stencil = None
         if self._type == "gh_field":
+            if len(arg_type.args) < 3:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have at "
+                    "least 3 arguments if its first argument is gh_field, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type)
+                    )
             # There must be at most 4 arguments.
             if len(arg_type.args) > 4:
                 raise ParseError(
@@ -242,6 +261,14 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
+        elif self._type in VALID_SCALAR_NAMES:
+            if len(arg_type.args) != 2:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have 2 "
+                    "arguments if its first argument is gh_{{r,i}}scalar, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # Scalars don't have a function space
+            self._function_space1 = None
         else:  # we should never get to here
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
@@ -282,6 +309,8 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space1
         elif self._type == "gh_operator":
             return self._function_space2
+        elif self._type in VALID_SCALAR_NAMES:
+            return None
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_space(), should "
@@ -297,6 +326,8 @@ class DynArgDescriptor03(Descriptor):
         elif self._type == "gh_operator":
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
+        elif self._type in VALID_SCALAR_NAMES:
+            return []
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_spaces(), should "
@@ -341,6 +372,8 @@ class DynArgDescriptor03(Descriptor):
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[3]='{0}'".\
                    format(self._function_space2) + os.linesep
+        elif self._type in VALID_SCALAR_NAMES:
+            pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
         return res
@@ -558,7 +591,7 @@ class DynInvoke(Invoke):
                 for arg in kern_call.arguments.args:
                     if fs_name in arg.function_spaces:
                         return arg
-        raise GenerationError("Functionspace name not found")
+        raise GenerationError("No argument found on {0} space".format(fs_name))
 
     def unique_fss(self):
         ''' Returns the unique function space names over all kernel
@@ -673,34 +706,55 @@ class DynInvoke(Invoke):
         declaration of its arguments. '''
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
             AllocateGen, DeallocateGen, CallGen, CommentGen
-        # create a namespace manager so we can avoid name clashes
+        # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
-        # create the subroutine
+        # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # add the subroutine argument declarations fields
+        # Add the subroutine argument declarations for real scalars
+        r_declarations = self.unique_declarations("gh_rscalar")
+        if r_declarations:
+            invoke_sub.add(DeclGen(invoke_sub, datatype="real",
+                                   kind="r_def", entity_decls=r_declarations,
+                                   intent="inout"))
+
+        # Add the subroutine argument declarations for integer scalars
+        i_declarations = self.unique_declarations("gh_iscalar")
+        if i_declarations:
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=i_declarations,
+                                   intent="inout"))
+
+        # Add the subroutine argument declarations for fields
         field_declarations = self.unique_declarations("gh_field")
         if len(field_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                        entity_decls=field_declarations,
                                        intent="inout"))
-        # operators
+
+        # Add the subroutine argument declarations for operators
         operator_declarations = self.unique_declarations("gh_operator")
         if len(operator_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
                                        entity_decls=operator_declarations,
                                        intent="inout"))
-        # qr
+
+        # Add the subroutine argument declarations for qr (quadrature
+        # rules)
         if len(self._psy_unique_qr_vars) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
-        # declare and initialise proxies for each of the arguments
+        # declare and initialise proxies for each of the (non-scalar)
+        # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise field proxies"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
+            # We don't have proxies for scalars
+            if arg.type in VALID_SCALAR_NAMES:
+                continue
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
                     invoke_sub.add(
@@ -727,9 +781,18 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        # use the first argument
-        first_var = self.psy_unique_vars[0]
-        # use our namespace manager to create a unique name unless
+
+        # Use the first argument that is not a scalar
+        first_var = None
+        for var in self.psy_unique_vars:
+            if var.type in ["gh_field", "gh_operator"]:
+                first_var = var
+                break
+        if not first_var:
+            raise GenerationError(
+                "Cannot create an Invoke with no field/operator arguments")
+
+        # Use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
         # previous name
         nlayers_name = self._name_space_manager.create_name(
@@ -1038,10 +1101,15 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
+            elif descriptor.type.lower() == "gh_rscalar":
+                pre = "rscalar_"
+            elif descriptor.type.lower() == "gh_iscalar":
+                pre = "iscalar_"
             else:
                 raise GenerationError(
-                    "load_meta expected one of 'gh_field, gh_operator' but "
-                    "found '{0}'".format(descriptor.type))
+                    "load_meta expected one of '{0}' but "
+                    "found '{1}'".format(VALID_ARG_TYPE_NAMES,
+                                         descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
@@ -1189,8 +1257,9 @@ class DynKern(Kern):
         first_arg = True
         first_arg_decl = None
         for arg in self._arguments.args:
-            undf_name = self._fs_descriptors.undf_name(arg.function_space)
+
             if arg.type == "gh_field":
+                undf_name = self._fs_descriptors.undf_name(arg.function_space)
                 dataref = "%data"
                 if arg.vector_size > 1:
                     for idx in range(1, arg.vector_size+1):
@@ -1223,6 +1292,7 @@ class DynKern(Kern):
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
+
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
                     size = arg.name+"_ncell_3d"
@@ -1248,11 +1318,30 @@ class DynKern(Kern):
                 else:
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
                     arglist.append(arg.proxy_name_indexed+"%local_stencil")
+
+            elif arg.type in VALID_SCALAR_NAMES:
+                if my_type == "subroutine":
+                    if arg.type == "gh_rscalar":
+                        decl = DeclGen(parent, datatype="real", kind="r_def",
+                                       intent=arg.intent,
+                                       entity_decls=[arg.name])
+                    elif arg.type == "gh_iscalar":
+                        decl = DeclGen(parent, datatype="integer",
+                                       intent=arg.intent,
+                                       entity_decls=[arg.name])
+                    else:
+                        raise GenerationError(
+                            "Internal error: expected arg type to be one "
+                            "of '{0}' but got '{1}'".format(VALID_SCALAR_NAMES,
+                                                            arg.type))
+                    parent.add(decl)
+                arglist.append(arg.name)
+
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "
-                    "dynamo0p3.py:DynKern:gen_code(). Expected one of"
-                    " [gh_field, gh_operator] but found " + arg.type)
+                    "dynamo0p3.py:DynKern:gen_code(). Expected one of '{0}' "
+                    "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:

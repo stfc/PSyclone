@@ -17,8 +17,10 @@ program multikernel_invokes_7
   use inf, only : field_type
   implicit none
   type(field_type)      :: a, b, c, d, e, f
+  real(r_def)           :: ascalar, rdt
+  integer(i_def)        :: istp
 
-  call invoke( ru_kernel_type(a, b, c, d, e), &
-               testkern_type(f, b, c, d) )
+  call invoke( ru_kernel_type(a, b, c, istp, rdt, d, e), &
+               testkern_type(ascalar, f, b, c, d) )
 
 end program multikernel_invokes_7

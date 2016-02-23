@@ -13,13 +13,14 @@ program single_invoke
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
+  real(r_def) :: a
 
   my_very_long_variable_name(my_very_long_lookup_name(my_very_long_index)) = &
   my_very_long_variable_name(my_very_long_lookup_name(my_very_long_index)) + &
   my_very_long_value_name
 
   call invoke(                      &
-       testkern_type(f1,f2,m1,m2)   &
+       testkern_type(a,f1,f2,m1,m2)   &
           )
 
 end program single_invoke

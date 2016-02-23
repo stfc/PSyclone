@@ -5,10 +5,11 @@ module testkern_any_space_2_mod
 ! 4) any_space used with an operator
 
 type, public, extends(kernel_type) ::testkern_any_space_2_type
-  type(arg_type) :: meta_args(3) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1),       &
+       arg_type(GH_ISCALAR,  GH_READ)                                  &
        /)
   integer :: iterates_over = CELLS
 contains
