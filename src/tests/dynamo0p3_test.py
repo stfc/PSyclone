@@ -9,14 +9,14 @@
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
 # imports
+import os
 import pytest
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
-import os
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern
-from transformations import LoopFuseTrans
+from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
+from transformations import LoopFuseTrans, ColourTrans
 from genkernelstub import generate
 
 # constants
@@ -420,11 +420,11 @@ def test_fsdesc_fs_not_in_argdesc():
 
 
 def test_field():
-    ''' Tests that a call with a set of fields and no basis
-    functions produces correct code. '''
+    ''' Tests that a call with a set of fields, no basis functions and
+    no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     generated_code = psy.gen
     output = (
         "  MODULE psy_single_invoke\n"
@@ -486,6 +486,8 @@ def test_field():
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE psy_single_invoke")
+    print output
+    print generated_code
     assert str(generated_code).find(output) != -1
 
 
@@ -507,6 +509,7 @@ def test_field_fs():
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
         "m3)\n"
         "      USE testkern_fs, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2, f3, f4, m3\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null(), map_wtheta(:) => null(), map_w2h(:) => null(), "
@@ -514,6 +517,7 @@ def test_field_fs():
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
         "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy\n"
@@ -531,6 +535,10 @@ def test_field_fs():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -564,7 +572,7 @@ def test_field_fs():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -579,6 +587,12 @@ def test_field_fs():
         "ndf_w3, undf_w3, map_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
         "ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, map_w2v)\n"
         "      END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_dirty()\n"
+        "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
         "  END MODULE psy_single_invoke_fs")
@@ -596,10 +610,12 @@ def test_field_qr():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+    print generated_code
     output = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      INTEGER, intent(inout) :: istp\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
@@ -615,6 +631,7 @@ def test_field_qr():
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
         "      INTEGER nqp_h, nqp_v\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -628,6 +645,10 @@ def test_field_qr():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise qr values\n"
         "      !\n"
@@ -674,7 +695,7 @@ def test_field_qr():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -685,6 +706,11 @@ def test_field_qr():
         "basis_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, undf_w3, "
         "map_w3, basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      !\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
@@ -1054,9 +1080,10 @@ def test_vector_field_2():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    print generated_code
     # all references to chi_proxy should be chi_proxy(1)
     assert str(generated_code).find("chi_proxy%") == -1
-    assert str(generated_code).count("chi_proxy(1)%vspace") == 5
+    assert str(generated_code).count("chi_proxy(1)%vspace") == 4
     # use each chi field individually in the kernel
     assert str(generated_code).find("chi_proxy(1)%data, chi_proxy(2)%data,"
                                     " chi_proxy(3)%data") != -1
@@ -1110,6 +1137,7 @@ def test_operator_different_spaces():
         "(mapping, chi, qr)\n"
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
@@ -1124,6 +1152,7 @@ def test_operator_different_spaces():
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
         "      INTEGER nqp_h, nqp_v\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
@@ -1138,6 +1167,10 @@ def test_operator_different_spaces():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = mapping%get_mesh()\n"
         "      !\n"
         "      ! Initialise qr values\n"
         "      !\n"
@@ -1178,7 +1211,7 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,mapping_proxy%fs_from%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w0 => chi_proxy(1)%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
@@ -2549,6 +2582,7 @@ end module stencil_mod
 '''
 
 
+@pytest.mark.xfail(reason="stencils not yet supported")
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
@@ -2871,3 +2905,424 @@ def test_func_descriptor_str():
         "  function_space_name[0] = 'w1'\n"
         "  operator_name[1] = 'gh_basis'")
     assert output in func_str
+
+
+def test_dist_memory_true():
+    ''' test that the distributed memory flag is on by default '''
+    import config
+    assert config.DISTRIBUTED_MEMORY
+
+
+def test_halo_dirty_1():
+    ''' check halo_dirty call is added correctly with a simple example '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "     END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n")
+    assert expected in generated_code
+
+
+def test_halo_dirty_2():
+    ''' check halo_dirty calls only for write and inc (not for read) '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.1_halo_writers.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "      END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f5_proxy%set_dirty()\n"
+        "      CALL f6_proxy%set_dirty()\n"
+        "      CALL f7_proxy%set_dirty()\n"
+        "      CALL f8_proxy%set_dirty()\n")
+
+    assert expected in generated_code
+
+
+def test_halo_dirty_3():
+    ''' check halo_dirty calls with multiple kernel calls '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    print generated_code
+    assert str(generated_code).count("CALL f1_proxy%set_dirty()") == 2
+
+
+def test_halo_dirty_4():
+    ''' check halo_dirty calls with field vectors '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "      END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL chi_proxy(1)%set_dirty()\n"
+        "      CALL chi_proxy(2)%set_dirty()\n"
+        "      CALL chi_proxy(3)%set_dirty()\n"
+        "      CALL f1_proxy%set_dirty()\n")
+    assert expected in generated_code
+
+
+def test_halo_dirty_5():
+    ''' check no halo_dirty calls for operators '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.1_operator_nofield.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    assert "set_dirty()" not in generated_code
+    assert "! Set halos dirty" not in generated_code
+
+
+def test_no_halo_dirty():
+    '''check that no halo_dirty code is produced if distributed_memory is
+    set to False'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    assert "set_dirty()" not in generated_code
+    assert "! Set halos dirty" not in generated_code
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_halo_exchange():
+    ''' test that a halo_exchange call is added for a loop with a
+    stencil operation '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    output = (
+        "     IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert output in generated_code
+
+
+def test_halo_exchange_inc():
+    ''' test that halo exchange calls are added if we have a gh_inc
+    operation and that the loop bounds included computation in the l1
+    halo'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    output1 = ("      IF (a_proxy%is_dirty(depth=1)) THEN\n"
+               "        CALL a_proxy%halo_exchange(depth=1)\n"
+               "      END IF \n"
+               "      !\n"
+               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert output1 in result
+    output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN\n"
+               "        CALL f_proxy%halo_exchange(depth=1)\n"
+               "      END IF \n"
+               "      !\n"
+               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert output2 in result
+    assert result.count("halo_exchange") == 2
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_halo_exchange_different_spaces():
+    '''test that all of our different function spaces with a stencil
+    access result in halo calls including any_space'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.3_halo_readers_all_fs.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert result.count("halo_exchange") == 9
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_halo_exchange_vectors():
+    ''' test that halo exchange produces correct code for vector
+    fields. Test both a field with a stencil and a field with gh_inc '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert result.count("halo_exchange(") == 7
+    for idx in range(1, 4):
+        assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
+        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
+    expected = ("      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert expected in result
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_halo_exchange_depths():
+    ''' test that halo exchange (and gh_inc) includes the correct halo
+    depth with gh_write '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.5_halo_depth.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f3_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=2)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f4_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=3)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_edge_cell()\n")
+    assert expected in result
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_halo_exchange_depths_gh_inc():
+    ''' test that halo exchange includes the correct halo depth when
+    we have a gh_inc as this increases the required depth by 1 (as
+    redundant computation is performed in the l1 halo) '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.6_halo_depth_2.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    expected = ("      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f1_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f3_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=3)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f4_proxy%is_dirty(depth=4)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=4)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert expected in result
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_stencil_read_only():
+    '''test that an error is raised if a field with a stencil is not
+    accessed as gh_read'''
+    fparser.logging.disable('CRITICAL')
+    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross,1)",
+                                "gh_write, w2, stencil(cross,1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name="stencil_type")
+    assert "a stencil must be read only" in str(excinfo.value)
+
+
+# def test_halo_exchange_conflicting_stencil(): '''
+# two different stencils for same space in a kernel *** and gh_inc '''
+# only an issue when we have more than one kernel per loop i.e. we
+# need loop fusion. Therefore should go in dynamo0p3_transformations.py
+
+
+def test_w3_and_inc_error():
+    '''test that an error is raised if w3 and gh_inc are provided for the
+    same field in the metadata '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_read, w3)",
+                        "arg_type(gh_field,gh_inc, w3)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name="testkern_qr_type")
+    assert ("it does not make sense for a 'w3' space to have a 'gh_inc' "
+            "access") in str(excinfo.value)
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_halo_exchange_view(capsys):
+    ''' test that the halo exchange view method returns what we expect '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
+    schedule.view()
+    result, _ = capsys.readouterr()
+    expected = (
+        "Schedule[invoke='invoke_0_testkern_stencil_type']\n"
+        "    HaloExchange[field='f2', type='cross', depth=1, "
+        "check_dirty=True]\n"
+        "    Loop[type='',field_space='w1',it_space='cells']\n"
+        "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
+        "[module_inline=False]")
+    print expected
+    print result
+    assert expected in result
+
+
+def test_no_mesh_mod():
+    '''test that we do not add a mesh module to the PSy layer if one is
+    not required. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert "USE mesh_mod, ONLY: mesh_type" not in result
+    assert "TYPE(mesh_type) mesh" not in result
+    assert "mesh = a%get_mesh()" not in result
+
+
+def test_mesh_mod():
+    '''test that a mesh module is added to the PSy layer and a mesh object
+    is created when required. One is required when we determine loop
+    bounds for distributed memory '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert "USE mesh_mod, ONLY: mesh_type" in result
+    assert "TYPE(mesh_type) mesh" in result
+    output = ("      !\n"
+              "      ! Create a mesh object\n"
+              "      !\n"
+              "      mesh = a%get_mesh()\n")
+    assert output in result
+
+# when we add build tests we should test that we can we get the mesh
+# object from an operator
+
+
+def test_no_dm_and_colour():
+    '''test that we raise an exception if colouring and distributed
+    memory are attempted together, as there are a few bugs and there is
+    currently no agreed API for the colouring'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    ctrans = ColourTrans()
+    with pytest.raises(GenerationError) as excinfo:
+        # try to Colour the loop
+        _, _ = ctrans.apply(schedule.children[0])
+    assert 'distributed memory and colours not yet supported' in \
+        str(excinfo.value)
+
+
+def test_no_stencil_support():
+    '''test that we raise an exception if we encounter a stencil kernel
+    as the infrastructure API for this is not yet decided '''
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert 'not supported in PSyclone' in str(excinfo.value)
+
+
+def test_set_bounds_functions():
+    '''test that we raise appropriate exceptions when the lower bound of
+    a loop is set to an invalid value '''
+    my_loop = DynLoop()
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_lower_bound("invalid_loop_bounds_name")
+    assert "lower bound loop name is invalid" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_lower_bound("inner", index=0)
+    assert "specified index" in str(excinfo.value)
+    assert "lower loop bound is invalid" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_upper_bound("invalid_loop_bounds_name")
+    assert "upper bound loop name is invalid" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_upper_bound("start")
+    assert "'start' is not a valid upper bound" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_upper_bound("inner", index=0)
+    assert "specified index" in str(excinfo.value)
+    assert "upper loop bound is invalid" in str(excinfo.value)
+
+
+def test_lower_bound_fortran():
+    '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    method'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    my_loop.set_lower_bound("inner", index=1)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop._lower_bound_fortran()
+    assert ("lower bound must be 'start' if we are sequential" in
+            str(excinfo.value))
+    my_loop.set_upper_bound("halo", index=1)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop._upper_bound_fortran()
+    assert ("upper bound must be 'cells' if we are sequential" in
+            str(excinfo.value))
+
+
+def test_multi_field_name_halo():
+    '''tests the case where we have multiple kernels within an invoke and
+    the same field requires clean halos in more than one Kernel. In
+    this case we raise an error as we don't expect this case to happen. See
+    ticket 420 for more info.'''
+    # parse an example where halo exchanges are needed for each loop
+    # and the variable name is the samefor the Kernel in each
+    # loop. Don't use distributed memory as this will place halo's and
+    # we want to loop fuse without worrying about that.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy.invokes.invoke_list[0].schedule.view()
+    invoke = psy.invokes.invoke_list[0]
+    # Loop fuse so two Kernels requiring halo exchange calls are in the
+    # same loop
+    loop1 = invoke.schedule.children[0]
+    loop2 = invoke.schedule.children[1]
+    trans = LoopFuseTrans()
+    schedule, _ = trans.apply(loop1, loop2)
+    invoke.schedule = schedule
+    loop1 = schedule.children[0]
+    # Now check the fused loop
+    with pytest.raises(GenerationError) as excinfo:
+        _ = loop1.unique_fields_with_halo_reads()
+    assert "non-unique fields are not expected" in str(excinfo.value)

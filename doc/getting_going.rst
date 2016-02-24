@@ -25,7 +25,15 @@ PSyclone is written in python so needs python to be installed on the
 target machine. PSyclone has been tested under python 2.6.5 and 2.7.3.
 
 PSyclone immediately relies on two external libraries, f2py and
-pyparsing. To run the test suite you will require py.test.
+pyparsing. In addition, f2py requires numpy. To run the test suite you
+will require py.test.
+
+System-specific set-up
+^^^^^^^^^^^^^^^^^^^^^^
+
+System-specific set-up instructions are available for the following systems
+
+* :ref:`Ubuntu14.03.3`
 
 f2py quick setup
 ^^^^^^^^^^^^^^^^
@@ -99,7 +107,7 @@ Test
 
 Once you have the necessary dependencies installed and your
 environment configured, you can check that things are working by using
-the PSyclone test suite. These tests is not required and can be
+the PSyclone test suite. These tests are not required and can be
 skipped if preferred:
 ::
 
@@ -127,6 +135,8 @@ If everything is working as expected then you should see output similar to:
     psyGen_test.py ..............................
 
     =================== 160 passed, 15 xfailed in 13.59 seconds ====================
+
+.. _getting-going-run:
 
 Run
 ---

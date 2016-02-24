@@ -98,6 +98,7 @@ API
 .. autoclass:: psyGen.Schedule
     :members:
 
+.. _psy-layer-schedule:
 
 Schedule
 --------
@@ -105,9 +106,11 @@ Schedule
 A PSy **Schedule** object consists of a tree of objects which can be
 used to describe the required schedule for a PSy layer subroutine
 which is called by the algorithm layer and itself calls one or more
-Kernels. These objects can currently be a **Loop**, a **Kernel** or a
-**Directive** (of various types). The order of the tree (depth first)
-indicates the order of the associated Fortran code.
+Kernels. These objects can currently be a **Loop**, a **Kernel**, a
+**Directive** (of various types), or a **HaloExchange** (if
+distributed memory is supported and is switched on, see the
+:ref:`distributed_memory` section). The order of the tree (depth
+first) indicates the order of the associated Fortran code.
 
 PSyclone will initially create a "vanilla" (functionally correct
 but not optimised) schedule.

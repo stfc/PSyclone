@@ -13,11 +13,13 @@
    algorithm_layer
    psy_layer
    transformations
+   distributed_memory
    dynamo0p3
    gocean1p0
    stub_gen
    line_length
    api
+   system_specific_setup
    f2py_install
 ..   developers
 ..   infrastructure_calls

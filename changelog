@@ -11,6 +11,9 @@
 	5) #429 Support for read-only scalar arguments in the 0.3
 	Dynamo API.
 
+	6) #420 Support for inter-invoke halo calls and logic (for
+	distributed memory)
+	
 release 1.1.0
 
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo
