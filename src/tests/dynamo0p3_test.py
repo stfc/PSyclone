@@ -733,12 +733,14 @@ def test_real_scalar():
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -752,6 +754,10 @@ def test_real_scalar():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -770,7 +776,7 @@ def test_real_scalar():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -795,12 +801,14 @@ def test_int_scalar():
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(f1, iflag, f2, m1, m2)\n"
         "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER, intent(inout) :: iflag\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -814,6 +822,10 @@ def test_int_scalar():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -832,7 +844,7 @@ def test_int_scalar():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -857,12 +869,14 @@ def test_two_real_scalars():
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(inout) :: a, b\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -876,6 +890,10 @@ def test_two_real_scalars():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -894,7 +912,7 @@ def test_two_real_scalars():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -918,12 +936,14 @@ def test_two_int_scalars():
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER, intent(inout) :: iflag, istep\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -937,6 +957,10 @@ def test_two_int_scalars():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -955,7 +979,7 @@ def test_two_int_scalars():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -979,6 +1003,7 @@ def test_two_scalars():
     expected = (
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_scalars, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(inout) :: a\n"
         "      INTEGER, intent(inout) :: istep\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
@@ -986,6 +1011,7 @@ def test_two_scalars():
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -999,6 +1025,10 @@ def test_two_scalars():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -1017,7 +1047,7 @@ def test_two_scalars():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -1269,10 +1299,11 @@ def test_operator_nofield_different_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "mesh = my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen
+    assert "DO cell=1,mesh%get_last_edge_cell()" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -1286,9 +1317,10 @@ def test_operator_nofield_scalar():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "mesh = my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert "DO cell=1,my_mapping_proxy%fs_from%get_ncell()" in gen
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
         "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
