@@ -8,6 +8,8 @@
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
+import os
+import pytest
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, \
@@ -17,8 +19,6 @@ from transformations import TransformationError, \
     DynamoOMPParallelLoopTrans, \
     DynamoLoopFuseTrans, \
     KernelModuleInlineTrans
-import os
-import pytest
 
 # The version of the API that the tests in this file
 # exercise.
@@ -33,7 +33,7 @@ def test_colour_trans_declarations():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
@@ -64,7 +64,7 @@ def test_colour_trans():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
     ctrans = Dynamo0p3ColourTrans()
@@ -80,7 +80,9 @@ def test_colour_trans():
     gen = str(psy.gen)
     # Fortran is not case sensitive
     gen = gen.lower()
+    print "**************************"
     print gen
+    print "**************************"
 
     # Check that we're calling the API to get the no. of colours
     assert "f1_proxy%vspace%get_colours(" in gen
@@ -97,6 +99,17 @@ def test_colour_trans():
 
     # Check that we're using the colour map when getting the cell dof maps
     assert "get_cell_dofmap(cmap(colour, cell))" in gen
+
+    # Check that we get the right number of set_dirty halo calls in
+    # the correct location
+    # dirty_str = (
+    #    "      !\n"
+    #    "      ! set halos dirty for fields modified in the above loop\n"
+    #    "      !\n"
+    #    "      call f1_proxy%set_dirty()")
+
+    # assert dirty_str in gen
+    # assert gen.count("set_dirty()") == 1
 
 
 def test_colouring_not_a_loop():
@@ -220,7 +233,7 @@ def test_omp_colour_trans():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
 
@@ -261,7 +274,7 @@ def test_omp_colour_orient_trans():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
     schedule = invoke.schedule
 
@@ -334,7 +347,7 @@ def test_check_seq_colours_omp_parallel_do():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
     schedule = invoke.schedule
 
@@ -360,7 +373,7 @@ def test_check_seq_colours_omp_do():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
     schedule = invoke.schedule
 
@@ -408,7 +421,7 @@ def test_colouring_multi_kernel():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -430,7 +443,9 @@ def test_colouring_multi_kernel():
     # Check that we're calling the API to get the no. of colours
     assert "a_proxy%vspace%get_colours(" in gen
     assert "f_proxy%vspace%get_colours(" in gen
+    assert gen.count("_proxy%vspace%get_colours(") == 2
     assert "private(cell,map_w2,map_w3,map_w0)" in gen
+    assert gen.count("private(cell,map_w2,map_w3,map_w0)") == 2
 
 
 def test_omp_region_omp_do():
@@ -440,7 +455,7 @@ def test_omp_region_omp_do():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
     olooptrans = Dynamo0p3OMPLoopTrans()
@@ -478,12 +493,12 @@ def test_omp_region_omp_do():
 def test_multi_kernel_single_omp_region():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
-    within a single OMP region '''
+    within a single OMP region for a single node (no MPI)'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -499,6 +514,7 @@ def test_multi_kernel_single_omp_region():
 
     invoke.schedule = newsched
     code = str(psy.gen)
+    print code
 
     omp_do_idx = -1
     omp_end_do_idx = -1
@@ -569,7 +585,7 @@ def test_loop_fuse():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -608,6 +624,34 @@ def test_loop_fuse():
     assert call_idx2 < end_loop_idx
 
 
+def test_loop_fuse_set_dirty():
+    ''' Test that we are able to fuse two loops together and produce
+    the expected set_dirty() calls '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    # Fuse the loops
+    nchildren = len(schedule.children)
+    idx = 1
+    fschedule = schedule
+    while idx < nchildren:
+        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                    fschedule.children[idx])
+        idx += 1
+
+    invoke.schedule = fschedule
+    gen = str(psy.gen)
+
+    assert gen.count("set_dirty()") == 1
+
+
 def test_loop_fuse_omp():
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region'''
@@ -615,7 +659,7 @@ def test_loop_fuse_omp():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -635,6 +679,7 @@ def test_loop_fuse_omp():
 
     invoke.schedule = fschedule
     code = str(psy.gen)
+    print code
 
     # Check generated code
     omp_para_idx = -1
@@ -667,13 +712,14 @@ def test_loop_fuse_omp():
 
 
 def test_fuse_colour_loops():
-    ''' Test that we can fuse colour loops, enclose them in an OpenMP
-    parallel region and preceed each by an OpenMP PARALLEL DO '''
+    '''Test that we can fuse colour loops , enclose them in an OpenMP
+    parallel region and preceed each by an OpenMP PARALLEL DO for
+    single node (non MPI) code '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -706,6 +752,7 @@ def test_fuse_colour_loops():
     # generate the code
     invoke.schedule = newsched
     code = str(psy.gen)
+    print code
 
     # Test that the generated code is as expected
     omp_para_idx = -1
@@ -756,6 +803,14 @@ def test_fuse_colour_loops():
     assert call_idx1 < end_loop_idx1
     assert call_idx2 < end_loop_idx2
 
+    # limiting to sequential test for the moment
+    # set_dirty_str = (
+    #    "      ! Set halos dirty for fields modified in the above loop\n"
+    #    "      !\n"
+    #    "      CALL f1_proxy%set_dirty()\n")
+    # assert set_dirty_str in code
+    # assert code.count("set_dirty()") == 1
+
 
 def test_module_inline():
     '''Tests that correct results are obtained when a kernel is inlined
@@ -768,7 +823,7 @@ def test_module_inline():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0]
+    kern_call = schedule.children[1].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)

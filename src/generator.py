@@ -21,12 +21,13 @@ import traceback
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 from algGen import AlgorithmError
-from config import SUPPORTEDAPIS, DEFAULTAPI
+from config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
 from line_length import FortLineLength
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
-             line_length=False):
+             line_length=False,
+             distributed_memory=DISTRIBUTED_MEMORY):
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
@@ -49,6 +50,9 @@ def generate(filename, api="", kernel_path="", script_name=None,
                              characters. If so, the input (algorithm
                              and kernel) code is checked to make sure
                              that it conforms. The default is False.
+    :param bool distributed_memory: A logical flag specifying whether to
+                                    generate distributed memory code. The
+                                    default is set in the config.py file.
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -60,6 +64,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     >>> psy, alg = generate("algspec.f90", kernel_path="src/kernels")
     >>> psy, alg = generate("algspec.f90", script_name="optimise.py")
     >>> psy, alg = generate("algspec.f90", line_length=True)
+    >>> psy, alg = generate("algspec.f90", distributed_memory=False)
 
     '''
 
@@ -80,7 +85,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api).create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory).\
+              create(invoke_info)
         if script_name is not None:
             sys_path_appended = False
             try:
@@ -162,8 +168,16 @@ if __name__ == "__main__":
     PARSER.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
+    PARSER.add_argument(
+        '-dm', '--dist_mem', dest='dist_mem', action='store_true',
+        help='generate distributed memory code')
+    PARSER.add_argument(
+        '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
+        help='do not generate distributed memory code')
+    PARSER.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     ARGS = PARSER.parse_args()
+
     if ARGS.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
             "{1}.".format(ARGS.api, SUPPORTEDAPIS)
@@ -172,7 +186,8 @@ if __name__ == "__main__":
         ALG, PSY = generate(ARGS.filename, api=ARGS.api,
                             kernel_path=ARGS.directory,
                             script_name=ARGS.script,
-                            line_length=ARGS.limit)
+                            line_length=ARGS.limit,
+                            distributed_memory=ARGS.dist_mem)
     except AlgorithmError as error:
         print "Warning:", error
         exit(0)

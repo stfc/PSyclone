@@ -18,12 +18,36 @@ interpreter:
 
   > python <PSYCLONEHOME>/src/generator.py <args>
 
-The -h optional argument gives a description of the options provided
+The optional -h argument gives a description of the options provided
 by the script:
 ::
 
   > python <PSYCLONEHOME>/src/generator.py -h
 
+  usage: generator.py [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
+                      [-d DIRECTORY] [-l] [-dm] [-nodm]
+                      filename
+
+  Run the PSyclone code generator on a particular file
+
+  positional arguments:
+    filename              algorithm-layer source code
+
+  optional arguments:
+    -h, --help            show this help message and exit
+    -oalg OALG            filename of transformed algorithm code
+    -opsy OPSY            filename of generated PSy code
+    -api API              choose a particular api from ['gunghoproto',
+                          'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0'],
+                          default dynamo0.3
+    -s SCRIPT, --script SCRIPT
+                          filename of a PSyclone optimisation script
+    -d DIRECTORY, --directory DIRECTORY
+                          path to root of directory structure containing kernel
+                          source code
+    -l, --limit           limit the fortran line length to 132 characters
+    -dm, --dist_mem       generate distributed memory code
+    -nodm, --no_dist_mem  do not generate distributed memory code
 
 Basic Use
 ---------
@@ -79,11 +103,11 @@ specify this as an argument to the generator.py script.
 File output
 -----------
 
-By default the modified algorithm code and the generated PSy code is
+By default the modified algorithm code and the generated PSy code are
 output to the terminal. These can be output to a file by using the
 -oalg <file> and -opsy <file> options respectively. For example, the
-following will output the generated psy code to a file but the
-algorithm code will be output to the terminal
+following will output the generated psy code to the file 'psy.f90' but
+the algorithm code will be output to the terminal:
 ::
 
     > python <PSYCLONEHOME>/src/generator.py -opsy psy.f90 alg.f90
@@ -92,9 +116,9 @@ Kernel directory
 ----------------
 
 When an algorithm file is parsed, the parser looks for the associated
-kernel files. The way this is done is that any kernel routine
+kernel files. The way this is done requires that any kernel routine
 specified in an invoke must have an explicit use statement. For
-example, the following code gives an error
+example, the following code gives an error:
 ::
 
     > cat no_use.f90
@@ -104,10 +128,10 @@ example, the following code gives an error
     > python <PSYCLONEHOME>/src/generator.py no_use.f90
     "Parse Error: kernel call 'testkern_type' must be named in a use statement"
 
-If the name of kernel is provided in a use statement then the parser
-will look for a file with the same name as the use statement. In the
-example below, the parser will look for a file called "testkern.f90" or
-"testkern.F90":
+If the name of the kernel is provided in a use statement then the
+parser will look for a file with the same name as the module in the
+use statement. In the example below, the parser will look for a file
+called "testkern.f90" or "testkern.F90":
 ::
 
     > cat use.f90
@@ -180,3 +204,17 @@ long lines. The second reason is that the line wrapping implementation
 could fail in certain pathological cases. The implementation and
 limitations of line wrapping are discussed in the
 :ref:`line-length-limitations` section.
+
+Distributed memory
+------------------
+
+By default the generator.py script will generate distributed
+memory (DM) code (i.e. parallelised using MPI). As with the choice of
+API, this default may be configured by editing
+<PSYCLONEHOME>/src/config.py.  Alternatively, whether or not to
+generate DM code can be specified as an argument to the generator.py
+script using the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem``
+flags, respectively.
+
+For details of PSyclone's support for generating DM code see
+:ref:`distributed_memory`.

@@ -24,8 +24,16 @@ executing, e.g.
 
 Examine the runme*.py scripts themselves for further details.
 
-The third example demonstrates the use of a transformation script to
-do loop colouring and OpenMP parallelisation with PSyclone, e.g.
+The third example can be used to demonstrate PSyclone
+
+1) generating distributed memory parallel code
 ::
     cd eg3/
-    python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
+    python ../../../src/generator.py solver_mod.x90
+    # look for %set_dirty and %halo_exchange in the generated code
+
+2) using a transformation script to perform loop colouring and OpenMP
+parallelisation (without distributed memory parallel code)
+::
+    cd eg3/
+    python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90
