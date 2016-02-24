@@ -1645,14 +1645,14 @@ def test_2kern_invoke_any_space():
         "        map_any_space_1_f1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
         "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
-        " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, "
+        " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)\n"
         in gen)
     assert (
         "        map_any_space_1_f2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
         "        CALL testkern_any_space_2_code(cell, nlayers, f2_proxy%data,"
-        " f1_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, "
+        " f1_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
         "ndf_any_space_1_f2, undf_any_space_1_f2, map_any_space_1_f2)\n"
         in gen)
 

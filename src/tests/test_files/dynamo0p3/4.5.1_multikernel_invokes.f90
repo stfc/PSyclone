@@ -17,10 +17,11 @@ program multikernel_invokes_6
   type(field_type)      :: f1, f2, f3(3)
   type(operator_type)   :: op
   type(quadrature_rule) :: qr
+  integer :: scalar
 
-  call invoke(                                    &
-       testkern_any_space_2_type(f1, f2, op),     &
-       testkern_any_space_2_type(f2, f1, op)      &
+  call invoke(                                         &
+       testkern_any_space_2_type(f1, f2, op, scalar),  &
+       testkern_any_space_2_type(f2, f1, op, scalar)   &
        )
 
 end program multikernel_invokes_6
