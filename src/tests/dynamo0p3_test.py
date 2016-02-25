@@ -15,7 +15,7 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
+from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, FunctionSpace
 from transformations import LoopFuseTrans, ColourTrans
 from genkernelstub import generate
 
@@ -3062,7 +3062,7 @@ def test_dynkern_arg_for_fs():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
-        _ = first_invoke.arg_for_funcspace("waah")
+        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah","waah"))
     assert "No argument found on 'waah' space" in str(err)
 
 
