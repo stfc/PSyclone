@@ -1341,13 +1341,6 @@ class Arguments(object):
     def __init__(self, parent_call):
         self._parent_call = parent_call
         self._args = []
-        # Get hold of the name-space manager for the Invoke to which
-        # we belong
-        sched = parent_call.ancestor(Schedule)
-        if not sched:
-            raise GenerationError("Arguments object - cannot find "
-                                  "enclosing Schedule")
-        self._name_space_manager = sched.invoke._name_space_manager
         
     @property
     def raw_arg_list(self):

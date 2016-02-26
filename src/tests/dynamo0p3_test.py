@@ -27,16 +27,18 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
-    from dynamo0p3 import get_operator_name
+    from dynamo0p3 import FunctionSpace, get_operator_name
+    fs = FunctionSpace("w3","w3")
     with pytest.raises(GenerationError) as err:
-        get_operator_name("not_an_op", "w3")
+        get_operator_name("not_an_op", fs)
     assert "Unsupported name 'not_an_op' found" in str(err)
 
 
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
-    from dynamo0p3 import get_operator_name
-    name = get_operator_name("gh_orientation", "w3")
+    from dynamo0p3 import FunctionSpace, get_operator_name
+    fs = FunctionSpace("w3","w3")
+    name = get_operator_name("gh_orientation", fs)
     assert name == "orientation_w3"
 
 

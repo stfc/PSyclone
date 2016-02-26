@@ -1505,10 +1505,11 @@ class DynKern(Kern):
 
     def field_on_space(self, func_space):
         ''' Returns True if a field exists on this space for this kernel. '''
-        if func_space.orig_name in self.arguments.unique_fs_names:
+        if func_space.mangled_name in self.arguments.unique_fs_names:
             for arg in self.arguments.args:
-                if arg.function_space == func_space.orig_name and \
-                        arg.type == "gh_field":
+                if (arg.type == "gh_field" and
+                    arg.function_space.orig_name == func_space.orig_name):
+                    print "field_on_space: returning True"
                     return True
         return False
 
@@ -1541,10 +1542,7 @@ class DynKern(Kern):
         first_arg_decl = None
         for arg in self._arguments.args:
             if arg.type == "gh_field":
-                # Generate the name-mangled function space that this
-                # argument is on
-                mangled_fs = self.arguments.mangled_fs(arg.function_space)
-                undf_name = get_undf_name(mangled_fs)
+                undf_name = get_undf_name(arg.function_space)
                 dataref = "%data"
                 if arg.vector_size > 1:
                     # the range function below returns values from
@@ -1639,10 +1637,9 @@ class DynKern(Kern):
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = self.arguments.mangled_fs(unique_fs)
             # 3.1 Provide compulsory arguments common to operators and
             # fields on a space. There is one: "ndf".
-            ndf_name = get_ndf_name(mangled_fs)
+            ndf_name = get_ndf_name(unique_fs)
             arglist.append(ndf_name)
             if my_type == "subroutine":
                 parent.add(
@@ -1651,9 +1648,9 @@ class DynKern(Kern):
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if self.field_on_space(unique_fs):
-                undf_name = get_undf_name(mangled_fs)
+                undf_name = get_undf_name(unique_fs)
                 arglist.append(undf_name)
-                map_name = get_map_name(mangled_fs)
+                map_name = get_map_name(unique_fs)
                 arglist.append(map_name)
                 if my_type == "subroutine":
                     # ndf* declarations need to be before argument
@@ -1677,7 +1674,7 @@ class DynKern(Kern):
             if self._fs_descriptors.exists(unique_fs):
                 descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if descriptor.requires_basis:
-                    basis_name = get_basis_name(mangled_fs)
+                    basis_name = get_basis_name(unique_fs)
                     arglist.append(basis_name)
                     if my_type == "subroutine":
                         # the size of the first dimension for a
@@ -1694,7 +1691,7 @@ class DynKern(Kern):
                                 "Unsupported space for basis function, "
                                 "expecting one of {0} but found "
                                 "'{1}'".format(VALID_FUNCTION_SPACES,
-                                               unique_fs))
+                                               unique_fs.orig_name))
                         parent.add(DeclGen(parent, datatype="real",
                                            kind="r_def", intent="in",
                                            dimension=first_dim + "," +
@@ -1703,7 +1700,7 @@ class DynKern(Kern):
                                            self._qr_args["nv"],
                                            entity_decls=[basis_name]))
                 if descriptor.requires_diff_basis:
-                    diff_basis_name = get_diff_basis_name(mangled_fs)
+                    diff_basis_name = get_diff_basis_name(unique_fs)
                     arglist.append(diff_basis_name)
                     if my_type == "subroutine":
                         # the size of the first dimension for a
@@ -1720,7 +1717,7 @@ class DynKern(Kern):
                                 "Unsupported space for differential basis "
                                 "function, expecting one of {0} but found "
                                 "'{1}'".format(VALID_FUNCTION_SPACES,
-                                               unique_fs))
+                                               unique_fs.orig_name))
                         parent.add(DeclGen(parent, datatype="real",
                                            kind="r_def", intent="in",
                                            dimension=first_dim + "," +
@@ -1738,10 +1735,10 @@ class DynKern(Kern):
             # 3.3 Fix for boundary_dofs array to the boundary
             # condition kernel (enforce_bc_kernel) arguments
             if self.name.lower() == "enforce_bc_code" and \
-               unique_fs.lower() == "any_space_1":
+               unique_fs.orig_name.lower() == "any_space_1":
                 arglist.append("boundary_dofs")
                 if my_type == "subroutine":
-                    ndf_name = get_ndf_name(mangled_fs)
+                    ndf_name = get_ndf_name(unique_fs)
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                        dimension=ndf_name+",2",
                                        entity_decls=["boundary_dofs"]))
@@ -1894,14 +1891,13 @@ class DynKern(Kern):
         if maps_required:
             parent.add(CommentGen(parent, ""))
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = self.arguments.mangled_fs(unique_fs)
             if self.field_on_space(unique_fs):
                 # A map is required as there is a field on this space
-                map_name = get_map_name(mangled_fs)
+                map_name = get_map_name(unique_fs)
                 field = self._arguments.get_arg_on_space(unique_fs)
                 parent.add(AssignGen(parent, pointer=True, lhs=map_name,
                                      rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name(mangled_fs) +
+                                     "%" + field.ref_name(unique_fs.mangled_name) +
                                      "%get_cell_dofmap("+dofmap_args+")"))
         if maps_required:
             parent.add(CommentGen(parent, ""))
@@ -1909,7 +1905,7 @@ class DynKern(Kern):
         for unique_fs in self.arguments.unique_fss:
             if self.field_on_space(unique_fs):
                 # A map is required as there is a field on this space
-                map_name = get_map_name(unique_fs.mangled_name)
+                map_name = get_map_name(unique_fs)
                 decl_map_names.append(map_name+"(:) => null()")
         if len(decl_map_names) > 0:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
@@ -1922,7 +1918,7 @@ class DynKern(Kern):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
                     field = self._arguments.get_arg_on_space(unique_fs)
-                    oname = get_orientation_name(mangled_fs)
+                    oname = get_orientation_name(unique_fs)
                     orientation_decl_names.append(oname+"(:) => null()")
                     parent.add(
                         AssignGen(parent, pointer=True,
@@ -2126,7 +2122,7 @@ class DynKernelArguments(Arguments):
 
         # TODO can we do away with the list of names and just use the list
         # of objects?
-        # List of unique function-space names
+        # List of unique function-space names: store the mangled names
         self._unique_fs_names = []
         # List of unique function-space objects
         self._unique_fs = []
@@ -2135,10 +2131,11 @@ class DynKernelArguments(Arguments):
         for arg in self._args:
             for function_space in arg.function_spaces:
                 if function_space and \
-                   function_space.orig_name not in self._unique_fs_names:
-                    self._unique_fs_names.append(function_space.orig_name)
+                   function_space.mangled_name not in self._unique_fs_names:
+                    self._unique_fs_names.append(function_space.mangled_name)
                     self._unique_fs.append(function_space)
-        
+        print "Unique args: ",self._unique_fs_names
+
     def get_arg_on_space(self, func_space):
         '''Returns the first argument (field or operator) found that
         is on the specified function space. If no field or operator is
@@ -2213,11 +2210,12 @@ class DynKernelArgument(Argument):
         # mangled name (used to make any-space arguments distinct
         # within an invoke). The argument will only have more than
         # one function-space associated with it if it is an operator.
+        self._name_space_manager = NameSpaceFactory().create()
         if arg.function_space:
             if arg.function_space in VALID_ANY_SPACE_NAMES:
                 # We need the name of the first argument that is on
                 # this space
-                mangled_name = kernel_args._name_space_manager.create_name(root_name=arg.function_space, context="Invoke", label=arg.function_space)
+                mangled_name = self._name_space_manager.create_name(root_name=arg.function_space, context="Invoke", label=arg.function_space)
                 #(arg.function_space + "_" +
                 #                kernel_args.get_arg_on_space(arg.function_space).name)
             else:
