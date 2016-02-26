@@ -69,7 +69,12 @@ def get_undf_name(func_space):
 
 def get_orientation_name(func_space):
     ''' Returns an orientation name for this function space '''
-    return "orientation" + "_" + func_space.mangled_name
+    # TODO get rid of this hack once I've worked through the changes
+    # involved in changing to using a FS object.
+    if type(func_space) is str:
+        return "orientation" + "_" + func_space
+    else:
+        return "orientation" + "_" + func_space.mangled_name
 
 
 def get_basis_name(function_space):
@@ -112,7 +117,6 @@ class FunctionSpace(object):
     def __init__(self, name, mangled_name):
         self._orig_name = name
         self._mangled_name = mangled_name
-        print "FunctionSpace name = ", self._orig_name
         
     @property
     def orig_name(self):
@@ -679,7 +683,6 @@ class DynInvoke(Invoke):
         for kern_call in self.schedule.kern_calls():
             kern_fss = kern_call.arguments.unique_fss
             for fs in kern_fss:
-                print fs.mangled_name
                 if fs.mangled_name not in unique_fs_names:
                     unique_fs.append(fs)
                     unique_fs_names.append(fs.mangled_name)
@@ -1509,7 +1512,6 @@ class DynKern(Kern):
             for arg in self.arguments.args:
                 if (arg.type == "gh_field" and
                     arg.function_space.orig_name == func_space.orig_name):
-                    print "field_on_space: returning True"
                     return True
         return False
 
@@ -1593,6 +1595,7 @@ class DynKern(Kern):
                     arglist.append(text)
                     # Look-up the name of the to and from function spaces as
                     # they are known within the invoke
+                    # TODO replace arguments.mangled_fs() call
                     mangled_fs_to = (self.arguments.
                                      mangled_fs(arg.descriptor.
                                                 function_space_to))
@@ -1897,7 +1900,7 @@ class DynKern(Kern):
                 field = self._arguments.get_arg_on_space(unique_fs)
                 parent.add(AssignGen(parent, pointer=True, lhs=map_name,
                                      rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name(unique_fs.mangled_name) +
+                                     "%" + field.ref_name(unique_fs) +
                                      "%get_cell_dofmap("+dofmap_args+")"))
         if maps_required:
             parent.add(CommentGen(parent, ""))
@@ -2134,7 +2137,6 @@ class DynKernelArguments(Arguments):
                    function_space.mangled_name not in self._unique_fs_names:
                     self._unique_fs_names.append(function_space.mangled_name)
                     self._unique_fs.append(function_space)
-        print "Unique args: ",self._unique_fs_names
 
     def get_arg_on_space(self, func_space):
         '''Returns the first argument (field or operator) found that
@@ -2211,24 +2213,35 @@ class DynKernelArgument(Argument):
         # within an invoke). The argument will only have more than
         # one function-space associated with it if it is an operator.
         self._name_space_manager = NameSpaceFactory().create()
-        if arg.function_space:
-            if arg.function_space in VALID_ANY_SPACE_NAMES:
-                # We need the name of the first argument that is on
-                # this space
-                mangled_name = self._name_space_manager.create_name(root_name=arg.function_space, context="Invoke", label=arg.function_space)
-                #(arg.function_space + "_" +
-                #                kernel_args.get_arg_on_space(arg.function_space).name)
-            else:
-                mangled_name = arg.function_space
-            fs = FunctionSpace(arg.function_space,
-                               mangled_name)
-        else:
-            # Scalar args don't have a function space
-            fs = None
 
-        self._function_spaces = [fs, None]
-        #TODO - need to allow for case where arg is operator and has 
-        # two function spaces
+        fs1 = None
+        fs2 = None
+
+        if self._type == "gh_operator":
+
+            mangled_name = self.mangle_fs_name(arg.function_space_to)
+            fs1 = FunctionSpace(arg.function_space_to,
+                                mangled_name)
+            mangled_name = self.mangle_fs_name(arg.function_space_from)
+            fs2 = FunctionSpace(arg.function_space_from,
+                                mangled_name)
+        else:
+            if arg.function_space:
+                mangled_name = self.mangle_fs_name(arg.function_space)
+                fs1 = FunctionSpace(arg.function_space,
+                                    mangled_name)
+        self._function_spaces = [fs1, fs2]
+
+    def mangle_fs_name(self, fs_name):
+        if fs_name in VALID_ANY_SPACE_NAMES:
+            # We need the name of the first argument that is on
+            # this space
+            mangled_name = self._name_space_manager.create_name(root_name=fs_name, context="Invoke", label=fs_name)
+            #(arg.function_space + "_" +
+            #                kernel_args.get_arg_on_space(arg.function_space).name)
+        else:
+            mangled_name = fs_name
+        return mangled_name
 
     @property
     def descriptor(self):

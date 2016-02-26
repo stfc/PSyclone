@@ -1230,7 +1230,7 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      nlayers = mapping_proxy%fs_to%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -1296,7 +1296,6 @@ def test_operator_different_spaces():
         "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_"
         "type")
     print generated_code
-    print output
     assert output in generated_code
 
 
