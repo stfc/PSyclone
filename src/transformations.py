@@ -165,12 +165,12 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         LoopFuseTrans._validate(self, node1, node2)
 
         try:
-            if node1.field_space != node2.field_space:
+            if node1.field_space.orig_name != node2.field_space.orig_name:
                 raise TransformationError(
                     "Error in DynamoLoopFuse transformation. "
                     "Cannot fuse loops that are over different spaces: "
-                    "{0} {1}".format(node1.field_space,
-                                     node2.field_space))
+                    "{0} {1}".format(node1.field_space.orig_name,
+                                     node2.field_space.orig_name))
             return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
@@ -445,7 +445,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is W3 then we don't need
         # to worry about colouring.
-        if node.field_space != "w3":
+        if node.field_space.orig_name != "w3":
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -772,7 +772,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        if node.field_space == "w3":
+        if node.field_space.orig_name == "w3":
             pass
             # TODO generate a warning here as we don't need to colour
             # a loop that updates a field on W3.
