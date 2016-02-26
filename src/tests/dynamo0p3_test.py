@@ -2881,10 +2881,11 @@ def test_arg_ref_name_method_error1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
-    first_argument = first_kernel.arguments.args[0]
+    first_argument = first_kernel.arguments.args[1]
     # the argument is a field and is on "w1"
+    fs = FunctionSpace("w3", None)
     with pytest.raises(GenerationError) as excinfo:
-        _ = first_argument.ref_name("w3")
+        _ = first_argument.ref_name(fs)
     assert 'not one of the function spaces associated with this argument' \
         in str(excinfo.value)
 

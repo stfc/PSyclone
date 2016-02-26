@@ -2252,14 +2252,20 @@ class DynKernelArgument(Argument):
         if not function_space:
             function_space = self.function_spaces[0]
         else:
-            pass
-            # TODO check that the supplied function space is valid for this arg
-            #if function_space not in self.function_spaces:
-            #    raise GenerationError(
-            #        "DynKernelArgument:ref_name(fs). The supplied function space "
-            #        "(fs='{0}') is not one of the function spaces associated with "
-            #        "this argument (fss='{1}')".format(function_space,
-            #                                           self.function_spaces))
+            # Check that the supplied function space is valid for this
+            # argument
+            found = False
+            for fs in self.function_spaces:
+                if fs and fs.orig_name == function_space.orig_name:
+                    found = True
+                    break
+            if not found:
+                raise GenerationError(
+                    "DynKernelArgument:ref_name(fs). The supplied function "
+                    "space (fs='{0}') is not one of the function spaces "
+                    "associated with this argument (fss='{1}')".format(
+                        function_space.orig_name,
+                        self.function_space_names))
         if self._type == "gh_field":
             return "vspace"
         elif self._type == "gh_operator":
@@ -2365,6 +2371,17 @@ class DynKernelArgument(Argument):
     @function_spaces.setter
     def function_spaces(self, fslist):
         self._function_spaces = fslist
+
+    @property
+    def function_space_names(self):
+        ''' Returns a list of the names of the function spaces associated
+        with this argument. We have more than one function space when
+        dealing with operators. '''
+        fs_names = []
+        for fs in self._function_spaces:
+            if fs:
+                fs_names.append(fs.orig_name)
+        return fs_names
 
     @property
     def intent(self):
