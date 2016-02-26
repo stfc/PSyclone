@@ -28,7 +28,7 @@ def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
     from dynamo0p3 import FunctionSpace, get_operator_name
-    fs = FunctionSpace("w3","w3")
+    fs = FunctionSpace("w3", None)
     with pytest.raises(GenerationError) as err:
         get_operator_name("not_an_op", fs)
     assert "Unsupported name 'not_an_op' found" in str(err)
@@ -37,7 +37,7 @@ def test_get_op_wrong_name():
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
     from dynamo0p3 import FunctionSpace, get_operator_name
-    fs = FunctionSpace("w3","w3")
+    fs = FunctionSpace("w3", None)
     name = get_operator_name("gh_orientation", fs)
     assert name == "orientation_w3"
 
@@ -1333,10 +1333,10 @@ def test_operator_nofield_different_space():
     gen = str(psy.gen)
     print gen
     assert "mesh = my_mapping%get_mesh()" in gen
-    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "nlayers = my_mapping_proxy%fs_to%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_edge_cell()" in gen
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -1553,8 +1553,9 @@ def test_dyninvoke_arg_for_fs():
                                         "1.7_single_invoke_2scalar.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
+    fs = FunctionSpace("wtheta", None)
     with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].arg_for_funcspace("wtheta")
+        psy.invokes.invoke_list[0].arg_for_funcspace(fs)
     assert "No argument found on 'wtheta' space" \
         in str(excinfo.value)
 
@@ -1570,27 +1571,22 @@ def test_kernel_specific():
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
-    assert str(generated_code).find(output0) != -1
-    output1 = "USE function_space_mod, ONLY: w2"
-    assert str(generated_code).find(output1) != -1
-    output2 = "INTEGER fs"
-    assert str(generated_code).find(output2) != -1
-    output3 = "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
-    assert str(generated_code).find(output3) != -1
-    output4 = "fs = f2%which_function_space()"
-    assert str(generated_code).find(output4) != -1
-    output5 = '''IF (fs .eq. w2) THEN
+    generated_code = str(psy.gen)
+    print generated_code
+    assert "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code" in generated_code
+    assert "USE function_space_mod, ONLY: w2" in generated_code
+    assert "INTEGER fs" in generated_code
+    assert "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()" in generated_code
+    assert "fs = f2%which_function_space()" in generated_code
+    assert '''IF (fs .eq. w2) THEN
         boundary_dofs_w2 => f2_proxy%vspace%get_boundary_dofs()
-      END IF'''
-    assert str(generated_code).find(output5) != -1
+      END IF''' in generated_code
     output6 = (
         "IF (fs .eq. w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
-        "ndf_any_space_1, undf_any_space_1, map_any_space_1, "
+        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
         "boundary_dofs_w2)")
-    assert str(generated_code).find(output6) != -1
+    assert output6 in generated_code
 
 
 def test_bc_kernel():
@@ -1733,6 +1729,8 @@ def test_multikern_invoke_any_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert ("INTEGER, pointer :: map_any_space_1_f2(:) => null(), "
+            "map_any_space_2_f1(:) => null()" in gen)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:) => null(), "
             "map_any_space_2_f2(:) => null(), map_w0(:) => null()" in gen)
     assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_f1(:,:,:,:), "

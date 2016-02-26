@@ -114,17 +114,37 @@ class FunctionSpace(object):
     then its name is mangled such that it is unique within the scope
     of an Invoke '''
 
-    def __init__(self, name, mangled_name):
+    def __init__(self, name, kernel_args):
         self._orig_name = name
-        self._mangled_name = mangled_name
-        
+        self._kernel_args = kernel_args
+        if self._orig_name not in VALID_ANY_SPACE_NAMES:
+            # We only need to name-mangle any-space spaces
+            self._mangled_name = self._orig_name
+        else:
+            self._mangled_name = None
+
     @property
     def orig_name(self):
         return self._orig_name
 
     @property
     def mangled_name(self):
-        return self._mangled_name
+        # TODO could I use kernel_args.field_on_space(x) here?
+        # I don't think so because it needs the mangled name in
+        # order to know whether the space is present in the kernel call.
+        if  self._mangled_name:
+            return self._mangled_name
+        else:
+            for arg in self._kernel_args.args:
+                for fs in arg.function_spaces:
+                    if fs and fs.orig_name == self._orig_name:
+                        self._mangled_name = (self._orig_name + "_" +
+                                              arg.name)
+                        return self._mangled_name
+
+        raise GenerationError("Internal error: cannot mangle space '{0}' "
+                              "because call has no field on that space".
+                              format(self._orig_name))
 
 
 class DynFuncDescriptor03(object):
@@ -1552,7 +1572,8 @@ class DynKern(Kern):
                     # require in our Fortran code
                     for idx in range(1, arg.vector_size+1):
                         if my_type == "subroutine":
-                            text = (arg.name + "_" + mangled_fs +
+                            text = (arg.name + "_" +
+                                    arg.function_space.mangled_name +
                                     "_v" + str(idx))
                             intent = arg.intent
                             decl = DeclGen(parent, datatype="real",
@@ -1568,7 +1589,7 @@ class DynKern(Kern):
                         arglist.append(text)
                 else:
                     if my_type == "subroutine":
-                        text = arg.name + "_" + mangled_fs
+                        text = arg.name + "_" + arg.function_space.mangled_name
                         intent = arg.intent
                         decl = DeclGen(parent, datatype="real",
                                        kind="r_def", dimension=undf_name,
@@ -1593,18 +1614,10 @@ class DynKern(Kern):
                         first_arg_decl = decl
                     text = arg.name
                     arglist.append(text)
-                    # Look-up the name of the to and from function spaces as
-                    # they are known within the invoke
-                    # TODO replace arguments.mangled_fs() call
-                    mangled_fs_to = (self.arguments.
-                                     mangled_fs(arg.descriptor.
-                                                function_space_to))
-                    mangled_fs_from = (self.arguments.
-                                       mangled_fs(arg.descriptor.
-                                                  function_space_from))
+
                     intent = arg.intent
-                    ndf_name_to = get_ndf_name(mangled_fs_to)
-                    ndf_name_from = get_ndf_name(mangled_fs_from)
+                    ndf_name_to = get_ndf_name(arg.function_space_to)
+                    ndf_name_from = get_ndf_name(arg.function_space_from)
                     parent.add(DeclGen(parent, datatype="real",
                                        kind="r_def",
                                        dimension=ndf_name_to + "," +
@@ -1685,9 +1698,9 @@ class DynKern(Kern):
                         # function space. The values are
                         # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
                         first_dim = None
-                        if unique_fs.lower() in ["w0", "w3", "wtheta"]:
+                        if unique_fs.orig_name.lower() in ["w0", "w3", "wtheta"]:
                             first_dim = "1"
-                        elif unique_fs.lower() in ["w1", "w2", "w2h", "w2v"]:
+                        elif unique_fs.orig_name.lower() in ["w1", "w2", "w2h", "w2v"]:
                             first_dim = "3"
                         else:
                             raise GenerationError(
@@ -1711,9 +1724,9 @@ class DynKern(Kern):
                         # function space. The values are
                         # w0=3, w1=3, w2=1, w3=1, wtheta=3, w2h=1, w2v=1
                         first_dim = None
-                        if unique_fs.lower() in ["w2", "w3", "w2h", "w2v"]:
+                        if unique_fs.orig_name.lower() in ["w2", "w3", "w2h", "w2v"]:
                             first_dim = "1"
-                        elif unique_fs.lower() in ["w0", "w1", "wtheta"]:
+                        elif unique_fs.orig_name.lower() in ["w0", "w1", "wtheta"]:
                             first_dim = "3"
                         else:
                             raise GenerationError(
@@ -1749,8 +1762,10 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer",
                                        pointer=True, entity_decls=[
                                            "boundary_dofs(:,:) => null()"]))
-                    proxy_name = self._arguments.get_arg_on_space(
-                        "any_space_1").proxy_name
+                    for fs in self._arguments.unique_fss:
+                        if fs.orig_name == "any_space_1":
+                            break
+                    proxy_name = self._arguments.get_arg_on_space(fs).proxy_name
                     new_parent, position = parent.start_parent_loop()
                     new_parent.add(AssignGen(new_parent, pointer=True,
                                              lhs="boundary_dofs",
@@ -2143,12 +2158,10 @@ class DynKernelArguments(Arguments):
         is on the specified function space. If no field or operator is
         found an exception is raised.'''
         for arg in self._args:
-            if arg.function_spaces[0] and \
-               func_space.mangled_name == arg.function_spaces[0].mangled_name:
-                return arg
-            if arg.function_spaces[1] and \
-               func_space.mangled_name == arg.function_spaces[1].mangled_name:
-                return arg
+            for function_space in arg.function_spaces:
+                if function_space and \
+                   func_space.mangled_name == function_space.mangled_name:
+                    return arg
         raise FieldNotFoundError("DynKernelArguments:get_arg_on_space: there "
                                  "is no field or operator with function space "
                                  "{0}".format(func_space.mangled_name))
@@ -2207,41 +2220,26 @@ class DynKernelArgument(Argument):
         Argument.__init__(self, call, arg_info, arg.access)
         self._vector_size = arg.vector_size
         self._type = arg.type
+
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
         # mangled name (used to make any-space arguments distinct
         # within an invoke). The argument will only have more than
         # one function-space associated with it if it is an operator.
-        self._name_space_manager = NameSpaceFactory().create()
-
         fs1 = None
         fs2 = None
 
         if self._type == "gh_operator":
 
-            mangled_name = self.mangle_fs_name(arg.function_space_to)
             fs1 = FunctionSpace(arg.function_space_to,
-                                mangled_name)
-            mangled_name = self.mangle_fs_name(arg.function_space_from)
+                                self._kernel_args)
             fs2 = FunctionSpace(arg.function_space_from,
-                                mangled_name)
+                                self._kernel_args)
         else:
             if arg.function_space:
-                mangled_name = self.mangle_fs_name(arg.function_space)
                 fs1 = FunctionSpace(arg.function_space,
-                                    mangled_name)
+                                    self._kernel_args)
         self._function_spaces = [fs1, fs2]
-
-    def mangle_fs_name(self, fs_name):
-        if fs_name in VALID_ANY_SPACE_NAMES:
-            # We need the name of the first argument that is on
-            # this space
-            mangled_name = self._name_space_manager.create_name(root_name=fs_name, context="Invoke", label=fs_name)
-            #(arg.function_space + "_" +
-            #                kernel_args.get_arg_on_space(arg.function_space).name)
-        else:
-            mangled_name = fs_name
-        return mangled_name
 
     @property
     def descriptor(self):
@@ -2349,6 +2347,14 @@ class DynKernelArgument(Argument):
         self._function_spaces[0] = obj
 
     @property
+    def function_space_to(self):
+        return self._function_spaces[0]
+
+    @property
+    def function_space_from(self):
+        return self._function_spaces[1]
+
+    @property
     def function_spaces(self):
         ''' Returns the expected finite element function spaces for this
         argument as a list as specified by the kernel argument
@@ -2360,6 +2366,7 @@ class DynKernelArgument(Argument):
     def function_spaces(self, fslist):
         self._function_spaces = fslist
 
+    @property
     def intent(self):
         ''' Returns the fortran intent of this argument. '''
         if self.access == "gh_read":
