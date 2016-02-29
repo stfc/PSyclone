@@ -1779,6 +1779,12 @@ def test_mkern_invoke_multiple_any_spaces():
     assert gen.count("ndf_any_space_4_op4 = op4_proxy%fs_from%get_ndf()") == 1
     assert "ndf_any_space_3_op5" not in gen
     assert "ndf_any_space_4_f1" not in gen
+    assert ("CALL op2_proxy%fs_from%compute_basis_function("
+            "basis_any_space_2_op2, ndf_any_space_2_op2, nqp_h, "
+            "nqp_v, xp, zp)" in gen)
+    assert ("CALL op4_proxy%fs_from%compute_diff_basis_function("
+            "diff_basis_any_space_4_op4, ndf_any_space_4_op4, nqp_h, "
+            "nqp_v, xp, zp)" in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -3026,6 +3032,57 @@ def test_arg_descriptor_function_space_tofrom_error():
         _ = field_descriptor.function_space_from
     assert 'function_space_from only makes sense for a gh_operator' \
         in str(excinfo.value)
+
+
+def test_fsdescriptor_no_orientation_error():
+    ''' Tests that an internal error is raised in FSDescriptor
+    when orientation_name is called and the meta-func does not
+    have orientation '''
+    fparser.logging.disable('CRITICAL')
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    fsd1 = first_kernel.fs_descriptors.get_descriptor(
+        FunctionSpace("w0", None))
+    with pytest.raises(GenerationError) as excinfo:
+        _ = fsd1.orientation_name
+    assert 'descriptor has no orientation so cannot have a name' \
+        in str(excinfo.value)
+
+
+def test_mangle_no_space_error():
+    ''' Tests that an error is raised in mangle_fs_name()
+    when none of the provided kernel arguments are on the
+    specified space '''
+    from dynamo0p3 import mangle_fs_name
+    from psyGen import FieldNotFoundError
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        _ = mangle_fs_name(first_kernel.arguments.args, "any_space_7")
+    assert "No kernel argument found for function space 'any_space_7'" \
+        in str(excinfo.value)
+
+
+def test_mangle_function_space():
+    ''' Tests that we correctly mangle the function space name '''
+    from dynamo0p3 import mangle_fs_name
+    from psyGen import FieldNotFoundError
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    name = mangle_fs_name(first_kernel.arguments.args, "any_space_2")
+    assert name == "any_space_2_f2"
 
 
 def test_arg_descriptor_init_error():

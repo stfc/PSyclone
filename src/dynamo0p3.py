@@ -112,8 +112,8 @@ def mangle_fs_name(args, fs_name):
         return fs_name
     for arg in args:
         for fs in arg.function_spaces:
-            if fs and fs.orig_name == fs_name:
-                return fs_name + "_" + arg.name
+            if fs and fs.orig_name.lower() == fs_name.lower():
+                return fs_name.lower() + "_" + arg.name
     raise FieldNotFoundError("No kernel argument found for function space "
                              "'{0}'".format(fs_name))
 
@@ -2030,13 +2030,8 @@ class FSDescriptor(object):
         # The name by which this function space is known in the invoke
         # depends upon the name of the first argument that is on that
         # space. This class knows nothing about kernel arguments so
-        # this 'mangled' name is passed in here. If no mangled name is
-        # provided (as will be the case for anything not ANY_SPACE) we
-        # use the original function space name.
-        if mangled_name:
-            self._mangled_name = mangled_name
-        else:
-            self._mangled_name = descriptor.function_space_name
+        # this 'mangled' name is passed in here.
+        self._mangled_name = mangled_name
 
     @property
     def mangled_name(self):
@@ -2083,10 +2078,10 @@ class FSDescriptor(object):
         metadata value. '''
         for operator_name in self._descriptor.operator_names:
             if operator_name == "gh_orientation":
-                return get_orientation_name(self._mangled_name)
+                return get_orientation_name(self.mangled_name)
         raise GenerationError(
             "Internal logic error: FS-Descriptor:orientation_name: This "
-            "descriptor has no orientation so can not have a name")
+            "descriptor has no orientation so cannot have a name")
 
     @property
     def orientation(self):
