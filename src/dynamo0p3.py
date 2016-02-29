@@ -53,50 +53,46 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 
 
 def get_map_name(func_space):
-    ''' Returns a dofmap name for the supplied function space. '''
+    ''' Returns a dofmap name for the supplied FunctionSpace. '''
     return "map_" + func_space.mangled_name
 
 
 def get_ndf_name(func_space):
-    ''' Returns a ndf name for this function space. '''
+    ''' Returns a ndf name for this FunctionSpace object. '''
     return "ndf_" + func_space.mangled_name
 
 
 def get_undf_name(func_space):
-    ''' Returns a undf name for this function space. '''
+    ''' Returns a undf name for this FunctionSpace object. '''
     return "undf_" + func_space.mangled_name
 
 
-def get_orientation_name(func_space):
-    ''' Returns an orientation name for this function space '''
-    # TODO get rid of this hack once I've worked through the changes
-    # involved in changing to using a FS object.
-    if type(func_space) is str:
-        return "orientation" + "_" + func_space
-    else:
-        return "orientation" + "_" + func_space.mangled_name
+def get_orientation_name(func_space_name):
+    ''' Returns an orientation name for a function space with the
+    supplied name '''
+    return "orientation" + "_" + func_space_name
 
 
 def get_basis_name(function_space):
-    ''' Returns a name for the basis function on this function
-    space. The name is unique to the function space, it is not the
+    ''' Returns a name for the basis function on this FunctionSpace.
+    The name is unique to the function space, it is not the
     raw metadata value. '''
     return "basis" + "_" + function_space.mangled_name
 
 
 def get_diff_basis_name(function_space):
-    ''' Returns a name for the differential basis function on this
-    function space. The name is unique to the function space, it
+    ''' Returns a name for the differential basis function on the
+    supplied FunctionSpace. The name is unique to the function space, it
     is not the raw metadata value. '''
     return "diff_basis" + "_" + function_space.mangled_name
 
 
 def get_operator_name(operator_name, function_space):
-    ''' Returns the names of the specified operator for this
-    function space. The name is unique to the function space, it
+    ''' Returns the names of the specified operator for the supplied
+    FunctionSpace. The name is unique to the function space, it
     is not the raw metadata value. '''
     if operator_name == "gh_orientation":
-        return get_orientation_name(function_space)
+        return get_orientation_name(function_space.mangled_name)
     elif operator_name == "gh_basis":
         return get_basis_name(function_space)
     elif operator_name == "gh_diff_basis":
@@ -105,6 +101,21 @@ def get_operator_name(operator_name, function_space):
         raise GenerationError(
             "Unsupported name '{0}' found. Expected one of {1}".
             format(operator_name, VALID_OPERATOR_NAMES))
+
+
+def mangle_fs_name(args, fs_name):
+    ''' Construct the mangled version of a function-space name given
+    a list of kernel arguments '''
+    if fs_name not in VALID_ANY_SPACE_NAMES:
+        # If it's not any any-space then we don't need to
+        # mangle the name
+        return fs_name
+    for arg in args:
+        for fs in arg.function_spaces:
+            if fs and fs.orig_name == fs_name:
+                return fs_name + "_" + arg.name
+    raise FieldNotFoundError("No kernel argument found for function space "
+                             "'{0}'".format(fs_name))
 
 # classes
 
@@ -121,30 +132,32 @@ class FunctionSpace(object):
             # We only need to name-mangle any-space spaces
             self._mangled_name = self._orig_name
         else:
+            # We cannot construct the name-mangled name at this point
+            # as the full list of kernel arguments is still under
+            # construction.
             self._mangled_name = None
 
     @property
     def orig_name(self):
+        ''' Returns the name of this function space as declared in the
+        kernel meta-data '''
         return self._orig_name
 
     @property
     def mangled_name(self):
-        # TODO could I use kernel_args.field_on_space(x) here?
-        # I don't think so because it needs the mangled name in
-        # order to know whether the space is present in the kernel call.
+        ''' Returns the mangled name of this function space such that
+        it is unique within the scope of an invoke. If the mangled
+        name has not been generated then we do that the first time we're
+        called. '''
         if  self._mangled_name:
             return self._mangled_name
         else:
-            for arg in self._kernel_args.args:
-                for fs in arg.function_spaces:
-                    if fs and fs.orig_name == self._orig_name:
-                        self._mangled_name = (self._orig_name + "_" +
-                                              arg.name)
-                        return self._mangled_name
-
-        raise GenerationError("Internal error: cannot mangle space '{0}' "
-                              "because call has no field on that space".
-                              format(self._orig_name))
+            # Cannot use kernel_args.field_on_space(x) here because that
+            # routine itself requires the mangled name in order to identify
+            # whether the space is present in the kernel call.
+            self._mangled_name = mangle_fs_name(self._kernel_args.args,
+                                                self._orig_name)
+            return self._mangled_name
 
 
 class DynFuncDescriptor03(object):
@@ -1440,7 +1453,8 @@ class DynKern(Kern):
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
         self._func_descriptors = ktype.func_descriptors
-        self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
+        self._fs_descriptors = FSDescriptors(ktype.func_descriptors,
+                                             self._arguments)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
@@ -1931,12 +1945,11 @@ class DynKern(Kern):
         # orientation arrays initialisation and their declarations
         orientation_decl_names = []
         for unique_fs in self.arguments.unique_fss:
-            mangled_fs = unique_fs.mangled_name
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
                     field = self._arguments.get_arg_on_space(unique_fs)
-                    oname = get_orientation_name(unique_fs)
+                    oname = get_orientation_name(unique_fs.mangled_name)
                     orientation_decl_names.append(oname+"(:) => null()")
                     parent.add(
                         AssignGen(parent, pointer=True,
@@ -2009,10 +2022,25 @@ class DynKern(Kern):
 
 
 class FSDescriptor(object):
-    ''' Provides information about a particular function space. '''
+    ''' Provides information about a particular function space used by
+    a meta-funcs entry in the kernel metadata. '''
 
-    def __init__(self, descriptor):
+    def __init__(self, descriptor, mangled_name):
         self._descriptor = descriptor
+        # The name by which this function space is known in the invoke
+        # depends upon the name of the first argument that is on that
+        # space. This class knows nothing about kernel arguments so
+        # this 'mangled' name is passed in here. If no mangled name is
+        # provided (as will be the case for anything not ANY_SPACE) we
+        # use the original function space name.
+        if mangled_name:
+            self._mangled_name = mangled_name
+        else:
+            self._mangled_name = descriptor.function_space_name
+
+    @property
+    def mangled_name(self):
+        return self._mangled_name
 
     @property
     def requires_basis(self):
@@ -2055,8 +2083,7 @@ class FSDescriptor(object):
         metadata value. '''
         for operator_name in self._descriptor.operator_names:
             if operator_name == "gh_orientation":
-                return get_orientation_name(self._descriptor.
-                                            function_space_name)
+                return get_orientation_name(self._mangled_name)
         raise GenerationError(
             "Internal logic error: FS-Descriptor:orientation_name: This "
             "descriptor has no orientation so can not have a name")
@@ -2073,13 +2100,17 @@ class FSDescriptor(object):
 
 class FSDescriptors(object):
     ''' Contains a collection of FSDescriptor objects and methods
-    that provide information across these objects. '''
+    that provide information across these objects. We have one
+    FSDescriptor for each meta-funcs entry in the kernel
+    meta-data '''
 
-    def __init__(self, descriptors):
+    def __init__(self, descriptors, kernel_args):
         self._orig_descriptors = descriptors
         self._descriptors = []
         for descriptor in descriptors:
-            self._descriptors.append(FSDescriptor(descriptor))
+            mangled_name = mangle_fs_name(kernel_args.args,
+                                          descriptor.function_space_name)
+            self._descriptors.append(FSDescriptor(descriptor, mangled_name))
 
     @property
     def orientation(self):
@@ -2138,20 +2169,21 @@ class DynKernelArguments(Arguments):
                                                 parent_call))
         self._dofs = []
 
-        # TODO can we do away with the list of names and just use the list
-        # of objects?
-        # List of unique function-space names: store the mangled names
+        # Generate a static list of unique function-space names used
+        # by the set of arguments: store the mangled names as these
+        # are what we use at the level of an Invoke
         self._unique_fs_names = []
-        # List of unique function-space objects
-        self._unique_fs = []
-        # Generate a static list of the unique function spaces used
-        # by the set of arguments
+        # List of corresponding unique function-space objects
+        self._unique_fss = []
         for arg in self._args:
             for function_space in arg.function_spaces:
+                # We check that function_space is not None because scalar
+                # args don't have one and fields only have one (only
+                # operators have two).
                 if function_space and \
                    function_space.mangled_name not in self._unique_fs_names:
                     self._unique_fs_names.append(function_space.mangled_name)
-                    self._unique_fs.append(function_space)
+                    self._unique_fss.append(function_space)
 
     def get_arg_on_space(self, func_space):
         '''Returns the first argument (field or operator) found that
@@ -2178,7 +2210,7 @@ class DynKernelArguments(Arguments):
     def unique_fss(self):
         ''' Returns a unique list of function space objects used by the
         arguments of this kernel '''
-        return self._unique_fs
+        return self._unique_fss
     
     @property
     def unique_fs_names(self):
@@ -2354,10 +2386,12 @@ class DynKernelArgument(Argument):
 
     @property
     def function_space_to(self):
+        ''' Returns the 'to' function space of an operator '''
         return self._function_spaces[0]
 
     @property
     def function_space_from(self):
+        ''' Returns the 'from' function space of an operator '''
         return self._function_spaces[1]
 
     @property
@@ -2370,6 +2404,8 @@ class DynKernelArgument(Argument):
 
     @function_spaces.setter
     def function_spaces(self, fslist):
+        ''' Setter for the list of FunctionSpace objects associated
+        with this argument '''
         self._function_spaces = fslist
 
     @property
