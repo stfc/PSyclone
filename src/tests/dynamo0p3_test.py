@@ -1755,6 +1755,32 @@ def test_multikern_invoke_any_space():
             "wh, wv" in gen)
 
 
+def test_mkern_invoke_multiple_any_spaces():
+    ''' Test that we generate correct code when there are multiple
+    kernels within an invoke with kernel fields declared as
+    any_space.  '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert ("CALL f1_proxy%vspace%compute_basis_function(basis_any_space_1_f1,"
+            " ndf_any_space_1_f1, nqp_h, nqp_v, xp, zp)" in gen)
+    assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_2_f2,"
+            " ndf_any_space_2_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_any_space_1_op2 = op2_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_any_space_3_op3 = op3_proxy%fs_to%get_ndf()" in gen
+    assert gen.count("ndf_any_space_4_op4 = op4_proxy%fs_from%get_ndf()") == 1
+    assert "ndf_any_space_3_op5" not in gen
+    assert "ndf_any_space_4_f1" not in gen
+
+
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
 def test_loopfuse():
     ''' Tests whether loop fuse actually fuses and whether
