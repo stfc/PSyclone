@@ -149,7 +149,7 @@ class FunctionSpace(object):
         it is unique within the scope of an invoke. If the mangled
         name has not been generated then we do that the first time we're
         called. '''
-        if  self._mangled_name:
+        if self._mangled_name:
             return self._mangled_name
         else:
             # Cannot use kernel_args.field_on_space(x) here because that
@@ -1544,8 +1544,8 @@ class DynKern(Kern):
         ''' Returns True if a field exists on this space for this kernel. '''
         if func_space.mangled_name in self.arguments.unique_fs_names:
             for arg in self.arguments.args:
-                if (arg.type == "gh_field" and
-                    arg.function_space.orig_name == func_space.orig_name):
+                if arg.type == "gh_field" and \
+                   arg.function_space.orig_name == func_space.orig_name:
                     return True
         return False
 
@@ -1712,9 +1712,11 @@ class DynKern(Kern):
                         # function space. The values are
                         # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
                         first_dim = None
-                        if unique_fs.orig_name.lower() in ["w0", "w3", "wtheta"]:
+                        if unique_fs.orig_name.lower() in \
+                           ["w0", "w3", "wtheta"]:
                             first_dim = "1"
-                        elif unique_fs.orig_name.lower() in ["w1", "w2", "w2h", "w2v"]:
+                        elif (unique_fs.orig_name.lower() in
+                              ["w1", "w2", "w2h", "w2v"]):
                             first_dim = "3"
                         else:
                             raise GenerationError(
@@ -1738,9 +1740,11 @@ class DynKern(Kern):
                         # function space. The values are
                         # w0=3, w1=3, w2=1, w3=1, wtheta=3, w2h=1, w2v=1
                         first_dim = None
-                        if unique_fs.orig_name.lower() in ["w2", "w3", "w2h", "w2v"]:
+                        if unique_fs.orig_name.lower() in \
+                           ["w2", "w3", "w2h", "w2v"]:
                             first_dim = "1"
-                        elif unique_fs.orig_name.lower() in ["w0", "w1", "wtheta"]:
+                        elif (unique_fs.orig_name.lower() in
+                              ["w0", "w1", "wtheta"]):
                             first_dim = "3"
                         else:
                             raise GenerationError(
@@ -1779,7 +1783,8 @@ class DynKern(Kern):
                     for fs in self._arguments.unique_fss:
                         if fs.orig_name == "any_space_1":
                             break
-                    proxy_name = self._arguments.get_arg_on_space(fs).proxy_name
+                    proxy_name = (self._arguments.get_arg_on_space(fs).
+                                  proxy_name)
                     new_parent, position = parent.start_parent_loop()
                     new_parent.add(AssignGen(new_parent, pointer=True,
                                              lhs="boundary_dofs",
@@ -2206,7 +2211,7 @@ class DynKernelArguments(Arguments):
         ''' Returns a unique list of function space objects used by the
         arguments of this kernel '''
         return self._unique_fss
-    
+
     @property
     def unique_fs_names(self):
         ''' Return the list of unique function space names used by the
