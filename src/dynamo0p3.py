@@ -111,8 +111,8 @@ def mangle_fs_name(args, fs_name):
         # mangle the name
         return fs_name
     for arg in args:
-        for fs in arg.function_spaces:
-            if fs and fs.orig_name.lower() == fs_name.lower():
+        for fspace in arg.function_spaces:
+            if fspace and fspace.orig_name.lower() == fs_name.lower():
                 return fs_name.lower() + "_" + arg.name
     raise FieldNotFoundError("No kernel argument found for function space "
                              "'{0}'".format(fs_name))
@@ -715,10 +715,10 @@ class DynInvoke(Invoke):
         unique_fs_names = []
         for kern_call in self.schedule.kern_calls():
             kern_fss = kern_call.arguments.unique_fss
-            for fs in kern_fss:
-                if fs.mangled_name not in unique_fs_names:
-                    unique_fs.append(fs)
-                    unique_fs_names.append(fs.mangled_name)
+            for fspace in kern_fss:
+                if fspace.mangled_name not in unique_fs_names:
+                    unique_fs.append(fspace)
+                    unique_fs_names.append(fspace.mangled_name)
         return unique_fs
 
     def basis_required(self, func_space):
@@ -1780,10 +1780,10 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer",
                                        pointer=True, entity_decls=[
                                            "boundary_dofs(:,:) => null()"]))
-                    for fs in self._arguments.unique_fss:
-                        if fs.orig_name == "any_space_1":
+                    for fspace in self._arguments.unique_fss:
+                        if fspace.orig_name == "any_space_1":
                             break
-                    proxy_name = (self._arguments.get_arg_on_space(fs).
+                    proxy_name = (self._arguments.get_arg_on_space(fspace).
                                   proxy_name)
                     new_parent, position = parent.start_parent_loop()
                     new_parent.add(AssignGen(new_parent, pointer=True,
@@ -2040,6 +2040,9 @@ class FSDescriptor(object):
 
     @property
     def mangled_name(self):
+        ''' Returns the mangled name of this function space. This is the
+        name by which it is known within the Invoke from which the associated
+        kernel call occurs '''
         return self._mangled_name
 
     @property
@@ -2287,8 +2290,8 @@ class DynKernelArgument(Argument):
             # Check that the supplied function space is valid for this
             # argument
             found = False
-            for fs in self.function_spaces:
-                if fs and fs.orig_name == function_space.orig_name:
+            for fspace in self.function_spaces:
+                if fspace and fspace.orig_name == function_space.orig_name:
                     found = True
                     break
             if not found:
@@ -2414,9 +2417,9 @@ class DynKernelArgument(Argument):
         with this argument. We have more than one function space when
         dealing with operators. '''
         fs_names = []
-        for fs in self._function_spaces:
-            if fs:
-                fs_names.append(fs.orig_name)
+        for fspace in self._function_spaces:
+            if fspace:
+                fs_names.append(fspace.orig_name)
         return fs_names
 
     @property
