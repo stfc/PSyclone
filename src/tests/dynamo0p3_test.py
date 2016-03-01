@@ -28,17 +28,15 @@ def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
     from dynamo0p3 import FunctionSpace, get_operator_name
-    fs = FunctionSpace("w3", None)
     with pytest.raises(GenerationError) as err:
-        get_operator_name("not_an_op", fs)
+        get_operator_name("not_an_op", FunctionSpace("w3", None))
     assert "Unsupported name 'not_an_op' found" in str(err)
 
 
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
     from dynamo0p3 import FunctionSpace, get_operator_name
-    fs = FunctionSpace("w3", None)
-    name = get_operator_name("gh_orientation", fs)
+    name = get_operator_name("gh_orientation", FunctionSpace("w3", None))
     assert name == "orientation_w3"
 
 
@@ -99,26 +97,6 @@ def test_arg_descriptor_vector_str():
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space[2]='w1'")
-    assert expected in dkm_str
-
-
-def test_arg_descriptor_op_str():
-    '''Test the str method of an argument descriptor containing an
-    operator
-
-    '''
-    fparser.logging.disable('CRITICAL')
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    dkm = DynKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[3])
-    expected = (
-        "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='w2'\n"
-        "  function_space_from[3]='w2'")
-    print dkm_str
     assert expected in dkm_str
 
 
@@ -1553,9 +1531,9 @@ def test_dyninvoke_arg_for_fs():
                                         "1.7_single_invoke_2scalar.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    fs = FunctionSpace("wtheta", None)
     with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].arg_for_funcspace(fs)
+        psy.invokes.invoke_list[0].arg_for_funcspace(FunctionSpace("wtheta",
+                                                                   None))
     assert "No argument found on 'wtheta' space" \
         in str(excinfo.value)
 
@@ -1576,7 +1554,8 @@ def test_kernel_specific():
     assert "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code" in generated_code
     assert "USE function_space_mod, ONLY: w2" in generated_code
     assert "INTEGER fs" in generated_code
-    assert "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()" in generated_code
+    assert "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()" in\
+        generated_code
     assert "fs = f2%which_function_space()" in generated_code
     assert '''IF (fs .eq. w2) THEN
         boundary_dofs_w2 => f2_proxy%vspace%get_boundary_dofs()
@@ -2914,10 +2893,9 @@ def test_arg_ref_name_method_error1():
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     first_argument = first_kernel.arguments.args[1]
-    # the argument is a field and is on "w1"
-    fs = FunctionSpace("w3", None)
     with pytest.raises(GenerationError) as excinfo:
-        _ = first_argument.ref_name(fs)
+        # the argument is a field and is on "w1"
+        _ = first_argument.ref_name(FunctionSpace("w3", None))
     assert 'not one of the function spaces associated with this argument' \
         in str(excinfo.value)
 
@@ -3074,7 +3052,6 @@ def test_mangle_no_space_error():
 def test_mangle_function_space():
     ''' Tests that we correctly mangle the function space name '''
     from dynamo0p3 import mangle_fs_name
-    from psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
                            api="dynamo0.3")
@@ -3145,7 +3122,7 @@ def test_dynkern_arg_for_fs():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
-        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah","waah"))
+        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
     assert "No argument found on 'waah' space" in str(err)
 
 
