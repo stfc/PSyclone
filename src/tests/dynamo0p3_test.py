@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -27,7 +27,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
-    from dynamo0p3 import FunctionSpace, get_operator_name
+    from dynamo0p3 import get_operator_name
     with pytest.raises(GenerationError) as err:
         get_operator_name("not_an_op", FunctionSpace("w3", None))
     assert "Unsupported name 'not_an_op' found" in str(err)
@@ -35,7 +35,7 @@ def test_get_op_wrong_name():
 
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
-    from dynamo0p3 import FunctionSpace, get_operator_name
+    from dynamo0p3 import get_operator_name
     name = get_operator_name("gh_orientation", FunctionSpace("w3", None))
     assert name == "orientation_w3"
 

@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
@@ -88,7 +88,7 @@ def get_diff_basis_name(function_space):
 
 
 def get_operator_name(operator_name, function_space):
-    ''' Returns the names of the specified operator for the supplied
+    ''' Returns the name of the specified operator for the supplied
     FunctionSpace. The name is unique to the function space, it
     is not the raw metadata value. '''
     if operator_name == "gh_orientation":
@@ -132,8 +132,8 @@ class FunctionSpace(object):
             # We only need to name-mangle any-space spaces
             self._mangled_name = self._orig_name
         else:
-            # We cannot construct the name-mangled name at this point
-            # as the full list of kernel arguments is still under
+            # We do not construct the name-mangled name at this point
+            # as the full list of kernel arguments may still be under
             # construction.
             self._mangled_name = None
 
@@ -730,7 +730,7 @@ class DynInvoke(Invoke):
             # is there a descriptor for this function space?
             if kern_call.fs_descriptors.exists(func_space):
                 descriptor = kern_call.fs_descriptors.\
-                             get_descriptor(func_space)
+                    get_descriptor(func_space)
                 # does this descriptor specify that a basis function
                 # is required?
                 if descriptor.requires_basis:
@@ -750,7 +750,7 @@ class DynInvoke(Invoke):
             # is there a descriptor for this function space?
             if kern_call.fs_descriptors.exists(func_space):
                 descriptor = kern_call.fs_descriptors.\
-                             get_descriptor(func_space)
+                    get_descriptor(func_space)
                 # does this descriptor specify that a basis function
                 # is required?
                 if descriptor.requires_diff_basis:
@@ -1780,6 +1780,7 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer",
                                        pointer=True, entity_decls=[
                                            "boundary_dofs(:,:) => null()"]))
+                    fspace = None
                     for fspace in self._arguments.unique_fss:
                         if fspace.orig_name == "any_space_1":
                             break

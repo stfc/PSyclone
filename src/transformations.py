@@ -683,8 +683,8 @@ class KernelModuleInlineTrans(Transformation):
         from psyGen import Kern
         if not isinstance(node, Kern):
             raise TransformationError(
-                "Error in KernelModuleInline transformation. The node is not a \
-                Kernel")
+                "Error in KernelModuleInline transformation. The node is not "
+                "a Kernel")
 
         schedule = node.root
 
