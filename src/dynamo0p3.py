@@ -2031,13 +2031,8 @@ class FSDescriptor(object):
     ''' Provides information about a particular function space used by
     a meta-funcs entry in the kernel metadata. '''
 
-    def __init__(self, descriptor, mangled_name):
+    def __init__(self, descriptor):
         self._descriptor = descriptor
-        # The name by which this function space is known in the invoke
-        # depends upon the name of the first argument that is on that
-        # space. This class knows nothing about kernel arguments so
-        # this 'mangled' name is passed in here.
-        self._mangled_name = mangled_name
 
     @property
     def mangled_name(self):
@@ -2081,18 +2076,6 @@ class FSDescriptor(object):
         return self._descriptor.function_space_name
 
     @property
-    def orientation_name(self):
-        ''' Returns a name for orientation on this function space. The
-        name is unique to the function space, it is not the raw
-        metadata value. '''
-        for operator_name in self._descriptor.operator_names:
-            if operator_name == "gh_orientation":
-                return get_orientation_name(self.mangled_name)
-        raise GenerationError(
-            "Internal logic error: FS-Descriptor:orientation_name: This "
-            "descriptor has no orientation so cannot have a name")
-
-    @property
     def orientation(self):
         ''' Returns True if orientation is associated with this
         function space, otherwise it returns False. '''
@@ -2112,9 +2095,7 @@ class FSDescriptors(object):
         self._orig_descriptors = descriptors
         self._descriptors = []
         for descriptor in descriptors:
-            mangled_name = mangle_fs_name(kernel_args.args,
-                                          descriptor.function_space_name)
-            self._descriptors.append(FSDescriptor(descriptor, mangled_name))
+            self._descriptors.append(FSDescriptor(descriptor))
 
     @property
     def orientation(self):
@@ -2124,16 +2105,6 @@ class FSDescriptors(object):
             if descriptor.orientation:
                 return True
         return False
-
-    @property
-    def orientation_names(self):
-        ''' Returns a list of all orientation names used in this
-        objects collection of FSDescriptor objects. '''
-        names = []
-        for descriptor in self._descriptors:
-            if descriptor.orientation:
-                names.append(descriptor.orientation_name)
-        return names
 
     def exists(self, fspace):
         ''' Return True if a descriptor with the specified function

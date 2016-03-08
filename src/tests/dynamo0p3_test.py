@@ -3012,25 +3012,6 @@ def test_arg_descriptor_function_space_tofrom_error():
         in str(excinfo.value)
 
 
-def test_fsdescriptor_no_orientation_error():
-    ''' Tests that an internal error is raised in FSDescriptor
-    when orientation_name is called and the meta-func does not
-    have orientation '''
-    fparser.logging.disable('CRITICAL')
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.5.2_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    first_kernel = first_invoke.schedule.kern_calls()[0]
-    fsd1 = first_kernel.fs_descriptors.get_descriptor(
-        FunctionSpace("w0", None))
-    with pytest.raises(GenerationError) as excinfo:
-        _ = fsd1.orientation_name
-    assert 'descriptor has no orientation so cannot have a name' \
-        in str(excinfo.value)
-
-
 def test_mangle_no_space_error():
     ''' Tests that an error is raised in mangle_fs_name()
     when none of the provided kernel arguments are on the
