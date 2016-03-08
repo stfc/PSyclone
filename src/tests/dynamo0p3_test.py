@@ -225,8 +225,8 @@ def test_ad_op_type_too_many_args():
 
 
 def test_ad_op_type_wrong_3rd_arg():
-    ''' Tests that an error is raised when the operator descriptor
-    metadata has more than 4 args. '''
+    ''' Tests that an error is raised when the 3rd entry in the operator
+    descriptor metadata is invalid. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator,gh_read, woops, w2)", 1)

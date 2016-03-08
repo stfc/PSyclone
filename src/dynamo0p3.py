@@ -2354,11 +2354,6 @@ class DynKernelArgument(Argument):
             argument as specified by the kernel argument metadata. '''
         return self._function_spaces[0]
 
-    @function_space.setter
-    def function_space(self, obj):
-        ''' Sets the function_space object associated with this argument '''
-        self._function_spaces[0] = obj
-
     @property
     def function_space_to(self):
         ''' Returns the 'to' function space of an operator '''
@@ -2376,12 +2371,6 @@ class DynKernelArgument(Argument):
         metadata. We have more than one function space when dealing
         with operators. '''
         return self._function_spaces
-
-    @function_spaces.setter
-    def function_spaces(self, fslist):
-        ''' Setter for the list of FunctionSpace objects associated
-        with this argument '''
-        self._function_spaces = fslist
 
     @property
     def function_space_names(self):
