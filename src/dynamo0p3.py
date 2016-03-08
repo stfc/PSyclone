@@ -67,10 +67,10 @@ def get_undf_name(func_space):
     return "undf_" + func_space.mangled_name
 
 
-def get_orientation_name(func_space_name):
+def get_orientation_name(func_space):
     ''' Returns an orientation name for a function space with the
     supplied name '''
-    return "orientation" + "_" + func_space_name
+    return "orientation" + "_" + func_space.mangled_name
 
 
 def get_basis_name(function_space):
@@ -92,7 +92,7 @@ def get_operator_name(operator_name, function_space):
     FunctionSpace. The name is unique to the function space, it
     is not the raw metadata value. '''
     if operator_name == "gh_orientation":
-        return get_orientation_name(function_space.mangled_name)
+        return get_orientation_name(function_space)
     elif operator_name == "gh_basis":
         return get_basis_name(function_space)
     elif operator_name == "gh_diff_basis":
@@ -1537,7 +1537,7 @@ class DynKern(Kern):
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
-                    lvars.append(fs_descriptor.orientation_name)
+                    lvars.append(get_orientation_name(unique_fs))
         return lvars
 
     def field_on_space(self, func_space):
@@ -1760,7 +1760,7 @@ class DynKern(Kern):
                                            self._qr_args["nv"],
                                            entity_decls=[diff_basis_name]))
                 if descriptor.requires_orientation:
-                    orientation_name = descriptor.orientation_name
+                    orientation_name = get_orientation_name(unique_fs)
                     arglist.append(orientation_name)
                     if my_type == "subroutine":
                         parent.add(DeclGen(parent, datatype="integer",
@@ -1955,7 +1955,7 @@ class DynKern(Kern):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
                     field = self._arguments.get_arg_on_space(unique_fs)
-                    oname = get_orientation_name(unique_fs.mangled_name)
+                    oname = get_orientation_name(unique_fs)
                     orientation_decl_names.append(oname+"(:) => null()")
                     parent.add(
                         AssignGen(parent, pointer=True,
