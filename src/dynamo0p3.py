@@ -1091,18 +1091,18 @@ class DynHaloExchange(HaloExchange):
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
         from f2pygen import IfThenGen, CallGen, CommentGen
+        if self._vector_index:
+            ref = "(" + str(self._vector_index) + ")"
+        else:
+            ref = ""
         if self._check_dirty:
-            if_then = IfThenGen(parent, self._field.proxy_name +
+            if_then = IfThenGen(parent, self._field.proxy_name + ref +
                                 "%is_dirty(depth=" + str(self._halo_depth) +
                                 ")")
             parent.add(if_then)
             halo_parent = if_then
         else:
             halo_parent = parent
-        if self._vector_index:
-            ref = "(" + str(self._vector_index) + ")"
-        else:
-            ref = ""
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +

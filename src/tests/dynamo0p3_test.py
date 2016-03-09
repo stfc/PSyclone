@@ -3093,6 +3093,26 @@ def test_halo_exchange_different_spaces():
     assert result.count("halo_exchange") == 9
 
 
+def test_halo_exchange_vectors_1():
+    ''' test that halo exchange produces correct code for vector
+    fields. Test a field with gh_inc '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4.1_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert result.count("halo_exchange(") == 3
+    for idx in range(1, 4):
+        assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
+    expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
+                "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert expected in result
+
+
 @pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_vectors():
     ''' test that halo exchange produces correct code for vector
@@ -3107,7 +3127,7 @@ def test_halo_exchange_vectors():
     for idx in range(1, 4):
         assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
         assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
-    expected = ("      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=2)) THEN\n"
                 "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
                 "      END IF \n"
                 "      !\n"

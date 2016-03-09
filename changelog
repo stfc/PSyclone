@@ -13,6 +13,9 @@
 
 	6) #420 Support for inter-invoke halo calls and logic (for
 	distributed memory)
+
+	7) #514 Fix for a bug in the if test round a halo_exchange call
+	in which arrays (vectors) did not have their index added.
 	
 release 1.1.0
 
