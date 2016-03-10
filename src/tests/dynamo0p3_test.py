@@ -3400,3 +3400,17 @@ def test_multi_field_name_halo():
     with pytest.raises(GenerationError) as excinfo:
         _ = loop1.unique_fields_with_halo_reads()
     assert "non-unique fields are not expected" in str(excinfo.value)
+
+
+def test_intent_multi_kern():
+    ''' Test that we correctly generate argument declarations when the
+    same fields are passed to different kernels with different intents '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.8_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    output = str(psy.gen)
+    print output
+    assert "TYPE(field_type), intent(inout) :: b, f\n" in output
+    assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
+    assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
