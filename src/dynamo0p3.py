@@ -599,26 +599,34 @@ class DynInvoke(Invoke):
                 break
         return required
 
-    def unique_declarations(self, datatype, proxy=False):
+    def unique_declarations(self, datatype, proxy=False, access=None):
         ''' Returns a list of all required declarations for the
         specified datatype. If proxy is set to True then the
-        equivalent proxy declarations are returned instead. '''
+        equivalent proxy declarations are returned instead. If access
+        is supplied (e.g. "gh_write") then only declarations with that
+         access are returned. '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
+        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid access type. "
+                "Expected one of '{0}' but got '{1}'".
+                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
         declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
-                if arg.text is not None:
-                    if arg.type == datatype:
-                        if proxy:
-                            test_name = arg.proxy_declaration_name
-                        else:
-                            test_name = arg.declaration_name
-                        if test_name not in declarations:
-                            declarations.append(test_name)
+                if not access or arg.access == access:
+                    if arg.text is not None:
+                        if arg.type == datatype:
+                            if proxy:
+                                test_name = arg.proxy_declaration_name
+                            else:
+                                test_name = arg.declaration_name
+                            if test_name not in declarations:
+                                declarations.append(test_name)
         return declarations
 
     def arg_for_funcspace(self, fs_name):
@@ -752,33 +760,65 @@ class DynInvoke(Invoke):
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # Add the subroutine argument declarations for real scalars
-        r_declarations = self.unique_declarations("gh_rscalar")
+        # Add the subroutine argument declarations for real scalars that
+        # are read
+        r_declarations = self.unique_declarations("gh_rscalar",
+                                                  access="gh_read")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    kind="r_def", entity_decls=r_declarations,
-                                   intent="inout"))
-
+                                   intent="in"))
         # Add the subroutine argument declarations for integer scalars
-        i_declarations = self.unique_declarations("gh_iscalar")
+        # that are read
+        i_declarations = self.unique_declarations("gh_iscalar",
+                                                  access="gh_read")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=i_declarations,
-                                   intent="inout"))
+                                   intent="in"))
 
-        # Add the subroutine argument declarations for fields
-        field_declarations = self.unique_declarations("gh_field")
+        # Add the subroutine argument declarations for fields that are
+        # gh_inc
+        field_declarations = self.unique_declarations("gh_field",
+                                                      access="gh_inc")
         if len(field_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                        entity_decls=field_declarations,
                                        intent="inout"))
+        # Add the subroutine argument declarations for fields that are
+        # written
+        field_declarations = self.unique_declarations("gh_field",
+                                                      access="gh_write")
+        if len(field_declarations) > 0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
+                                       entity_decls=field_declarations,
+                                       intent="out"))
+        # Add the subroutine argument declarations for fields that are
+        # read only
+        field_declarations = self.unique_declarations("gh_field",
+                                                      access="gh_read")
+        if len(field_declarations) > 0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
+                                       entity_decls=field_declarations,
+                                       intent="in"))
 
-        # Add the subroutine argument declarations for operators
-        operator_declarations = self.unique_declarations("gh_operator")
+        # Add the subroutine argument declarations for operators that
+        # are written (operators are always on discontinous spaces and
+        # therefore are never 'inc')
+        operator_declarations = self.unique_declarations("gh_operator",
+                                                         access="gh_write")
         if len(operator_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
                                        entity_decls=operator_declarations,
-                                       intent="inout"))
+                                       intent="out"))
+        # Add the subroutine argument declarations for operators that
+        # are read-only
+        operator_declarations = self.unique_declarations("gh_operator",
+                                                         access="gh_read")
+        if len(operator_declarations) > 0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
+                                       entity_decls=operator_declarations,
+                                       intent="in"))
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)

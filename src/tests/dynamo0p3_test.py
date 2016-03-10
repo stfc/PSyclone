@@ -436,8 +436,9 @@ def test_field():
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -510,7 +511,8 @@ def test_field_fs():
         "m3)\n"
         "      USE testkern_fs, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2, f3, f4, m3\n"
+        "      TYPE(field_type), intent(out) :: f1, f3\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null(), map_wtheta(:) => null(), map_w2h(:) => null(), "
         "map_w2v(:) => null()\n"
@@ -616,9 +618,10 @@ def test_field_qr():
         " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      INTEGER, intent(inout) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      INTEGER, intent(in) :: istp\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
@@ -734,8 +737,9 @@ def test_real_scalar():
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -802,8 +806,9 @@ def test_int_scalar():
         "    SUBROUTINE invoke_0_testkern_type(f1, iflag, f2, m1, m2)\n"
         "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(inout) :: iflag\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, intent(in) :: iflag\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -870,8 +875,9 @@ def test_two_real_scalars():
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a, b\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a, b\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -937,8 +943,9 @@ def test_two_int_scalars():
         "    SUBROUTINE invoke_0_testkern_type(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(inout) :: iflag, istep\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, intent(in) :: iflag, istep\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -1004,9 +1011,10 @@ def test_two_scalars():
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      INTEGER, intent(inout) :: istep\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      INTEGER, intent(in) :: istep\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -1100,7 +1108,7 @@ def test_vector_field():
     generated_code = psy.gen
     assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
                                     "type(f1, chi)") != -1
-    assert str(generated_code).find("TYPE(field_type), intent(inout)"
+    assert str(generated_code).find("TYPE(field_type), intent(out)"
                                     " :: f1, chi(3)") != -1
 
 
@@ -1142,7 +1150,7 @@ def test_operator():
     generated_code = str(psy.gen)
     assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                "_type(mm_w0, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+    assert generated_code.find("TYPE(operator_type), intent(out) ::"
                                " mm_w0") != -1
     assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
                                "proxy") != -1
@@ -1168,8 +1176,8 @@ def test_operator_different_spaces():
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: chi(3)\n"
-        "      TYPE(operator_type), intent(inout) :: mapping\n"
+        "      TYPE(field_type), intent(in) :: chi(3)\n"
+        "      TYPE(operator_type), intent(out) :: mapping\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: orientation_w2(:) => null()\n"
         "      INTEGER, pointer :: map_w0(:) => null()\n"
@@ -1276,7 +1284,7 @@ def test_operator_nofield():
     gen_code_str = str(psy.gen)
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
-    assert gen_code_str.find("TYPE(operator_type), intent(inout) :: "
+    assert gen_code_str.find("TYPE(operator_type), intent(out) :: "
                              "mm_w2") != -1
     assert gen_code_str.find("TYPE(operator_proxy_type) mm_w2_proxy") != -1
     assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
@@ -1337,7 +1345,7 @@ def test_operator_orientation():
     print gen_str
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
-    assert gen_str.find("TYPE(operator_type), intent(inout) ::"
+    assert gen_str.find("TYPE(operator_type), intent(out) ::"
                         " mm_w1") != -1
     assert gen_str.find("TYPE(operator_proxy_type) mm_w1_"
                         "proxy") != -1
@@ -1430,7 +1438,7 @@ def test_any_space_2():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
-    assert "INTEGER, intent(inout) :: istp" in generated_code
+    assert "INTEGER, intent(in) :: istp" in generated_code
     assert generated_code.find(
         "INTEGER, pointer :: map_any_space_1(:) => null()") != -1
     assert generated_code.find(
@@ -1510,6 +1518,20 @@ def test_dyninvoke_uniq_declns():
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
     assert 'unique_declarations called with an invalid datatype' \
+        in str(excinfo.value)
+
+
+def test_dyninvoke_uniq_declns_invalid_access():
+    ''' tests that we raise an error when DynInvoke.unique_declarations() is
+    called for an invalid access type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations("gh_field",
+                                                       access="invalid_acc")
+    assert 'unique_declarations called with an invalid access type' \
         in str(excinfo.value)
 
 
@@ -1621,7 +1643,7 @@ def test_mkern_invoke_vec_fields():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(inout) :: f1, chi(3), chi(3)"
+    output1 = "TYPE(field_type), intent(out) :: f1, chi(3), chi(3)"
     assert str(generated_code).find(output1) == -1
     # 2nd test for duplication of name vector-field declaration
     output2 = "TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
@@ -1637,7 +1659,7 @@ def test_multikern_invoke_orient():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(inout) :: f1, f2, f3(3), f3(3)"
+    output1 = "TYPE(field_type), intent(in) :: f2, f3(3), f3(3)"
     assert str(generated_code).find(output1) == -1
     # 2nd test for duplication of name vector-field declaration
     output2 = (
@@ -1654,7 +1676,7 @@ def test_multikern_invoke_oper():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(inout) :: f1(3), f1(3)"
+    output1 = "TYPE(field_type), intent(in) :: f1(3), f1(3)"
     assert str(generated_code).find(output1) == -1
     # 2nd test for duplication of name vector-field declaration
     output2 = "TYPE(field_proxy_type) f1_proxy(3), f1_proxy(3)"
