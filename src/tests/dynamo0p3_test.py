@@ -3411,6 +3411,7 @@ def test_intent_multi_kern():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     output = str(psy.gen)
     print output
-    assert "TYPE(field_type), intent(inout) :: b, f\n" in output
+    assert "TYPE(field_type), intent(inout) :: g, f\n" in output
+    assert "TYPE(field_type), intent(out) :: b, h\n" in output
     assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
     assert "TYPE(quadrature_type), intent(in) :: qr\n" in output

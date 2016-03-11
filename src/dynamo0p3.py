@@ -51,6 +51,10 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
 
+# The types of 'intent' that an argument to a Fortran subroutine
+# may have
+INTENT_NAMES = ["inout", "out", "in"]
+
 # classes
 
 
@@ -629,6 +633,80 @@ class DynInvoke(Invoke):
                                 declarations.append(test_name)
         return declarations
 
+    def first_access(self, arg_name):
+        ''' Returns the first argument with the specified name passed to
+        a kernel in our schedule '''
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    if arg.declaration_name == arg_name:
+                        return arg
+        raise GenerationError("Failed to find any kernel argument with name "
+                              "'{0}'".format(arg_name))
+
+    def unique_declns_by_intent(self, datatype):
+        ''' Returns a dictionary listing all required declarations for each
+        type of intent ('inout', 'out' and 'in'). '''
+        if datatype not in VALID_ARG_TYPE_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid datatype. "
+                "Expected one of '{0}' but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), datatype))
+
+        inc_args = self.unique_declarations(datatype,
+                                            access="gh_inc")
+        write_args = self.unique_declarations(datatype,
+                                              access="gh_write")
+        read_args = self.unique_declarations(datatype,
+                                             access="gh_read")
+        for arg in write_args[:]:
+            if arg in inc_args:
+                write_args.remove(arg)
+        for arg in read_args[:]:
+            if arg in write_args or arg in inc_args:
+                read_args.remove(arg)
+
+        # We will return a dictionary containing as many lists
+        # as there are types of intent
+        declns = {}
+        for intent in INTENT_NAMES:
+            declns[intent] = []
+
+        for name in inc_args:
+            # For every arg that is 'inc'd' by at least one kernel,
+            # identify the type of the first access. If it is 'write'
+            # then the arg is only intent(out) otherwise it is 
+            # intent(inout)
+            first_arg = self.first_access(name)
+            if first_arg.access != "gh_write":
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
+            else:
+                if name not in declns["out"]:
+                    declns["out"].append(name)
+
+        for name in write_args:
+            # For every argument that is written to by at least one kernel,
+            # identify the type of the first access - if it is read
+            # or inc'd before it is written then it must have intent(inout).
+            # However, we deal with gh_inc args separately so we do
+            # not consider those here.
+            first_arg = self.first_access(name)
+            test_name = name # first_arg.declaration_name
+            if first_arg.access == "gh_read":
+                if test_name not in declns["inout"]:
+                    declns["inout"].append(test_name)
+            else:
+                if test_name not in declns["out"]:
+                    declns["out"].append(test_name)
+
+        # Anything we have left must be declared as intent(in)
+        for name in read_args:
+            if name not in declns["in"]:
+                declns["in"].append(name)
+
+        return declns
+
     def arg_for_funcspace(self, fs_name):
         ''' Returns an argument object which is on the requested
         function space. Searches through all Kernel calls in this
@@ -761,7 +839,7 @@ class DynInvoke(Invoke):
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
         # Add the subroutine argument declarations for real scalars that
-        # are read
+        # are read - we don't currently support any other access type
         r_declarations = self.unique_declarations("gh_rscalar",
                                                   access="gh_read")
         if r_declarations:
@@ -769,7 +847,7 @@ class DynInvoke(Invoke):
                                    kind="r_def", entity_decls=r_declarations,
                                    intent="in"))
         # Add the subroutine argument declarations for integer scalars
-        # that are read
+        # that are read - we don't currently support any other access type
         i_declarations = self.unique_declarations("gh_iscalar",
                                                   access="gh_read")
         if i_declarations:
@@ -777,48 +855,24 @@ class DynInvoke(Invoke):
                                    entity_decls=i_declarations,
                                    intent="in"))
 
+        fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields that are
-        # gh_inc
-        field_declarations = self.unique_declarations("gh_field",
-                                                      access="gh_inc")
-        if len(field_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                       entity_decls=field_declarations,
-                                       intent="inout"))
-        # Add the subroutine argument declarations for fields that are
-        # written
-        field_declarations = self.unique_declarations("gh_field",
-                                                      access="gh_write")
-        if len(field_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                       entity_decls=field_declarations,
-                                       intent="out"))
-        # Add the subroutine argument declarations for fields that are
-        # read only
-        field_declarations = self.unique_declarations("gh_field",
-                                                      access="gh_read")
-        if len(field_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                       entity_decls=field_declarations,
-                                       intent="in"))
+        # intent(inout)
+        for intent in INTENT_NAMES:
+            if len(fld_args[intent]) > 0:
+                invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
+                                           entity_decls=fld_args[intent],
+                                           intent=intent))
 
         # Add the subroutine argument declarations for operators that
         # are written (operators are always on discontinous spaces and
         # therefore are never 'inc')
-        operator_declarations = self.unique_declarations("gh_operator",
-                                                         access="gh_write")
-        if len(operator_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
-                                       entity_decls=operator_declarations,
-                                       intent="out"))
-        # Add the subroutine argument declarations for operators that
-        # are read-only
-        operator_declarations = self.unique_declarations("gh_operator",
-                                                         access="gh_read")
-        if len(operator_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
-                                       entity_decls=operator_declarations,
-                                       intent="in"))
+        operator_declarations = self.unique_declns_by_intent("gh_operator")
+        for intent in INTENT_NAMES:
+            if len(operator_declarations[intent]) > 0:
+                invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
+                                           entity_decls=operator_declarations[intent],
+                                       intent=intent))
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
