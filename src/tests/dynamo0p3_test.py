@@ -1561,9 +1561,9 @@ def test_dyninvoke_uniq_declns_intent_invalid_type():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_intent():
-    ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
-    is called for an invalid argument type '''
+def test_dyninvoke_uniq_declns_intent_fields():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api="dynamo0.3")
@@ -1572,6 +1572,45 @@ def test_dyninvoke_uniq_declns_intent():
     assert args['inout'] == []
     assert args['out'] == ['f1']
     assert args['in'] == ['f2', 'm1', 'm2']
+
+
+def test_dyninvoke_uniq_declns_intent_rscalar():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_rscalar '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_rscalar")
+    assert args['inout'] == []
+    assert args['out'] == []
+    assert args['in'] == ['a']
+
+
+def test_dyninvoke_uniq_declns_intent_iscalar():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_iscalar '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_iscalar")
+    assert args['inout'] == []
+    assert args['out'] == []
+    assert args['in'] == ['istep']
+
+
+def test_dyninvoke_uniq_declns_intent_ops():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for operator arguments '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.4_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
+    assert args['inout'] == []
+    assert args['out'] == ['op']
+    assert args['in'] == []
 
 
 def test_dyninvoke_arg_for_fs():
