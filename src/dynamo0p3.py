@@ -649,19 +649,26 @@ class DynInvoke(Invoke):
         type of intent ('inout', 'out' and 'in'). '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_declarations called with an invalid datatype. "
+                "unique_declns_by_intent called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
 
+        # Get the lists of all kernel arguments that are accessed
+        # as gh_inc, gh_write and gh_read. A single argument may
+        # be accessed in different ways by different kernels.
         inc_args = self.unique_declarations(datatype,
                                             access="gh_inc")
         write_args = self.unique_declarations(datatype,
                                               access="gh_write")
         read_args = self.unique_declarations(datatype,
                                              access="gh_read")
+        # Rationalise our lists so that any fields that have gh_inc
+        # do not appear in the list of those that are written.
         for arg in write_args[:]:
             if arg in inc_args:
                 write_args.remove(arg)
+        # Fields that are only ever read by any kernel that
+        # accesses them
         for arg in read_args[:]:
             if arg in write_args or arg in inc_args:
                 read_args.remove(arg)
@@ -692,13 +699,12 @@ class DynInvoke(Invoke):
             # However, we deal with gh_inc args separately so we do
             # not consider those here.
             first_arg = self.first_access(name)
-            test_name = name # first_arg.declaration_name
             if first_arg.access == "gh_read":
-                if test_name not in declns["inout"]:
-                    declns["inout"].append(test_name)
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
             else:
-                if test_name not in declns["out"]:
-                    declns["out"].append(test_name)
+                if name not in declns["out"]:
+                    declns["out"].append(name)
 
         # Anything we have left must be declared as intent(in)
         for name in read_args:
