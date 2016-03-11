@@ -682,7 +682,7 @@ class DynInvoke(Invoke):
         for name in inc_args:
             # For every arg that is 'inc'd' by at least one kernel,
             # identify the type of the first access. If it is 'write'
-            # then the arg is only intent(out) otherwise it is 
+            # then the arg is only intent(out) otherwise it is
             # intent(inout)
             first_arg = self.first_access(name)
             if first_arg.access != "gh_write":
@@ -865,7 +865,7 @@ class DynInvoke(Invoke):
         # Add the subroutine argument declarations for fields that are
         # intent(inout)
         for intent in INTENT_NAMES:
-            if len(fld_args[intent]) > 0:
+            if fld_args[intent]:
                 invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                            entity_decls=fld_args[intent],
                                            intent=intent))
@@ -875,10 +875,11 @@ class DynInvoke(Invoke):
         # therefore are never 'inc')
         operator_declarations = self.unique_declns_by_intent("gh_operator")
         for intent in INTENT_NAMES:
-            if len(operator_declarations[intent]) > 0:
-                invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
-                                           entity_decls=operator_declarations[intent],
-                                       intent=intent))
+            if operator_declarations[intent]:
+                invoke_sub.add(
+                    TypeDeclGen(invoke_sub, datatype="operator_type",
+                                entity_decls=operator_declarations[intent],
+                                intent=intent))
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
