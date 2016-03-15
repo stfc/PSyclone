@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
@@ -20,13 +20,16 @@ import fparser
 import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    HaloExchange
+    HaloExchange, Call
 import config
 
 # first section : Parser specialisations and classes
 
 # constants
-VALID_FUNCTION_SPACES = ["w0", "w1", "w2", "w3", "wtheta", "w2h", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
+VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
+    CONTINUOUS_FUNCTION_SPACES
 
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
@@ -1028,7 +1031,11 @@ class DynInvoke(Invoke):
                                 arg.ref_name(function_space) +
                                 "%compute_diff_basis_function", args=args))
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
+        if config.DISTRIBUTED_MEMORY:
+            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
+                                      "communication routines"))
+        else:
+            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
@@ -1243,38 +1250,42 @@ class DynLoop(Loop):
 
     def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. If the same field
-        name is found more than once then the field with the largest
-        halo is chosen as this will make all other halo's clean for
-        the same field. '''
-        unique_fields = {}
-        for field in self.halo_fields():
-            if field.name not in unique_fields:
-                unique_fields[field.name] = field
-            else:
-                # This case should not arise at this point as we only
-                # use this call to add halo exchange calls and we only
-                # add halo exchange calls to vanilla code where there
-                # is only one kernel per loop See ticket 420 for more
-                # details.
-                raise GenerationError(
-                    "DynLoop:unique_fields_with_halo_reads(): non-unique "
-                    "fields are not expected.")
-        return unique_fields.values()
+        of their halo to be clean to work correctly. '''
 
-    def halo_fields(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly.'''
-        fields = []
-        for kern_call in self.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.type.lower() == "gh_field":
-                    field = arg
-                    if field.descriptor.stencil or \
-                        (field.access.lower() == "gh_inc" and
-                         field.function_space.lower() != "w3"):
-                        fields.append(field)
-        return fields
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.walk(self.children, Call):
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
+    def _halo_read_access(self, arg):
+        '''Determines whether this argument reads from the halo for this
+        loop'''
+        if arg.descriptor.stencil:
+            raise GenerationError(
+                "Stencils are not yet supported with halo exchange call logic")
+        if arg.type in VALID_SCALAR_NAMES:
+            # scalars do not have halos
+            return False
+        elif arg.discontinuous and arg.access.lower() == "gh_read":
+            # there are no shared dofs so access to inner and edge are
+            # local so we only care about reads in the halo
+            return self._upper_bound_name == "halo"
+        elif arg.access.lower() in ["gh_read", "gh_inc"]:
+            # it is either continuous or we don't know (any_space_x)
+            # and we need to assume it may be continuous for
+            # correctness. There may be shared dofs so only access to
+            # inner is local so we care about reads in both the edge
+            # (annexed dofs) and the halo
+            return self._upper_bound_name in ["halo", "edge"]
+        else:
+            # access is neither a read nor an inc so does not need halo
+            return False
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
@@ -1296,7 +1307,9 @@ class DynLoop(Loop):
         Loop.gen_code(self, parent)
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
-            # Set halo dirty for all fields that are modified
+            # Set halo dirty for all fields that are modified. Ignore
+            # the colour loop as the parent colours loop will set any
+            # required fields dirty
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
             if fields:
@@ -2304,3 +2317,16 @@ class DynKernelArgument(Argument):
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
                 "gh_inc' but found '{0}'".format(self.access))
+
+    @property
+    def discontinuous(self):
+        '''Returns True if this argument is known to be on a discontinuous
+        function space, otherwise returns False.'''
+        if self.function_space in DISCONTINUOUS_FUNCTION_SPACES:
+            return True
+        elif self.function_space in VALID_ANY_SPACE_NAMES:
+            # we will eventually look this up based on our dependence
+            # analysis but for the moment we assume the worst
+            return False
+        else:  # must be a continuous function space
+            return False

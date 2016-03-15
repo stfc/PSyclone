@@ -16,6 +16,9 @@
 
 	7) #514 Fix for a bug in the if test round a halo_exchange call
 	in which arrays (vectors) did not have their index added.
+
+	8) #521 Fix bugs in the logic for adding halo exchange calls before
+	loops.
 	
 release 1.1.0
 
