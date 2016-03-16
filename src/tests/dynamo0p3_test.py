@@ -3234,13 +3234,13 @@ def test_no_halo_exchange_for_operator():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    # This kernel only reads from an operator and that does not
-    # require halos to be updated.
+    # This kernel reads from an operator and a scalar and these
+    # do not require halos to be updated.
     assert "halo_exchange" not in result
 
 
 def test_no_set_dirty_for_operator():
-    ''' Test that we do not call set_dirty for an operator that is updated
+    ''' Test that we do not call set_dirty for an operator that is written
     by a kernel. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.6_operator_no_field_scalar.f90"),

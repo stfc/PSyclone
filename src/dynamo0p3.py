@@ -1259,9 +1259,7 @@ class DynLoop(Loop):
 
         for call in self.walk(self.children, Call):
             for arg in call.arguments.args:
-                # We only consider arguments that are fields (we do not
-                # do halo operations for anything else)
-                if arg.type == "gh_field" and self._halo_read_access(arg):
+                if self._halo_read_access(arg):
                     if arg.name not in unique_field_names:
                         unique_field_names.append(arg.name)
                         unique_fields.append(arg)
@@ -1275,6 +1273,9 @@ class DynLoop(Loop):
                 "Stencils are not yet supported with halo exchange call logic")
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
+            return False
+        elif arg.type == "gh_operator":
+            # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and edge are
