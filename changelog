@@ -19,7 +19,10 @@
 
 	8) #521 Fix bugs in the logic for adding halo exchange calls before
 	loops.
-	
+
+        9) #532 Fix in the logic for adding halo exchange calls before
+	loops which recognises that operators do not have halos.
+
 release 1.1.0
 
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo

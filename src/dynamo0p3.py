@@ -570,7 +570,9 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
-        # lastly, add in halo exchange calls if required
+        # lastly, add in halo exchange calls if required. We only need to
+        # do this for fields since operators are assembled in place
+        # and scalars don't have halos.
         if config.DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
@@ -1271,6 +1273,9 @@ class DynLoop(Loop):
                 "Stencils are not yet supported with halo exchange call logic")
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
+            return False
+        elif arg.type == "gh_operator":
+            # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and edge are

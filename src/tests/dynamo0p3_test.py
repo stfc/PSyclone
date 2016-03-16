@@ -3225,6 +3225,34 @@ def test_halo_exchange_inc():
     assert result.count("halo_exchange") == 12
 
 
+def test_no_halo_exchange_for_operator():
+    ''' Test that no halo exchange is generated before a kernel that reads
+    from an operator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.7_operator_read.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    # This kernel reads from an operator and a scalar and these
+    # do not require halos to be updated.
+    assert "halo_exchange" not in result
+
+
+def test_no_set_dirty_for_operator():
+    ''' Test that we do not call set_dirty for an operator that is written
+    by a kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.6_operator_no_field_scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    # This kernel only writes to an operator and since operators are
+    # cell-local this does not require us to call the is_dirty() method.
+    assert "is_dirty" not in result
+
+
 @pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_different_spaces():
     '''test that all of our different function spaces with a stencil
