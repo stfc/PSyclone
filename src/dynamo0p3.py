@@ -570,7 +570,9 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
-        # lastly, add in halo exchange calls if required
+        # lastly, add in halo exchange calls if required. We only need to
+        # do this for fields since operators are assembled in place
+        # and scalars don't have halos.
         if config.DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
@@ -1257,7 +1259,9 @@ class DynLoop(Loop):
 
         for call in self.walk(self.children, Call):
             for arg in call.arguments.args:
-                if self._halo_read_access(arg):
+                # We only consider arguments that are fields (we do not
+                # do halo operations for anything else)
+                if arg.type == "gh_field" and self._halo_read_access(arg):
                     if arg.name not in unique_field_names:
                         unique_field_names.append(arg.name)
                         unique_fields.append(arg)
