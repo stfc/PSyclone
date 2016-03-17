@@ -57,6 +57,15 @@ API-specific sections).
     :members:
     :noindex:
 
+.. note:: PSyclone does not currently support
+          (distributed-memory) halo swaps within OpenMP parallel regions.
+	  Attempting to create a parallel region for a set of nodes that
+	  includes halo swaps will produce an error. (In such cases it may
+	  be possible to re-order the nodes in the Schedule such that the
+	  halo swaps are performed outside the parallel region.) This
+	  limitation will be removed in version 1.3 of PSyclone.
+
+   
 Applying
 --------
 

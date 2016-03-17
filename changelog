@@ -23,6 +23,10 @@
         9) #532 Fix in the logic for adding halo exchange calls before
 	loops which recognises that operators do not have halos.
 
+	10) #467 Support transformations in Distributed Memory. Enable the use
+	of OpenMP (and other transformations) with DM. Note that PSyclone
+	currently does not support halo swaps inside OpenMP parallel regions.
+
 release 1.1.0
 
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo

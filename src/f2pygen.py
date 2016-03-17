@@ -153,6 +153,16 @@ class BaseGen(object):
                             "not get to here")
         self.children.append(new_object)
 
+    def previous_loop(self):
+        ''' Returns the *last* occurence of a loop in the list of
+        siblings of this node '''
+        from fparser.block_statements import Do
+        for sibling in reversed(self.root.content):
+            if isinstance(sibling, Do):
+                return sibling
+
+        raise RuntimeError("Error, no loop found - there is no previous loop")
+
     def last_declaration(self):
         '''Returns the *last* occurrence of a Declaration in the list of
             siblings of this node

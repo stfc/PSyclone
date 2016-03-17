@@ -864,6 +864,17 @@ class OMPParallelTrans(Transformation):
                                       "object of type: {0}".
                                       format(arg_type))
 
+        # temporary dynamo0.3-specific test for haloexchange calls
+        # existing within a parallel region. As we are going to
+        # support this in the future, see #526, it does not warrant
+        # making a separate dynamo-specific class.
+        from psyGen import HaloExchange
+        for node in node_list:
+            if isinstance(node, HaloExchange):
+                raise TransformationError(
+                    "A halo exchange within a parallel region is not "
+                    "supported")
+
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
         # the first child to be enclosed as that will become the
