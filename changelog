@@ -1,3 +1,5 @@
+release 1.2.0
+
 	1) #415 Support for parsing stencil information supplied in
 	Dynamo 0.3 kernel meta-data.
 
