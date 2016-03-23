@@ -606,20 +606,20 @@ class Node(object):
         return None
 
     def calls(self):
-        ''' return all calls in this schedule '''
-        return self.walk(self.root.children, Call)
+        ''' return all calls that are descendents of this node '''
+        return self.walk(self.children, Call)
 
     @property
     def following_calls(self):
         ''' return all calls after me in the schedule '''
-        all_calls = self.calls()
+        all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[position+1:]
 
     @property
     def preceding_calls(self):
         ''' return all calls before me in the schedule '''
-        all_calls = self.calls()
+        all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[:position-1]
 

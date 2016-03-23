@@ -1266,7 +1266,7 @@ class DynLoop(Loop):
         unique_fields = []
         unique_field_names = []
 
-        for call in self.walk(self.children, Call):
+        for call in self.calls():
             for arg in call.arguments.args:
                 if self._halo_read_access(arg):
                     if arg.name not in unique_field_names:
