@@ -20,7 +20,7 @@ import fparser
 import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    HaloExchange, Call
+    HaloExchange
 import config
 
 # first section : Parser specialisations and classes
