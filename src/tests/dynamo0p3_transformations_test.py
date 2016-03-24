@@ -125,6 +125,38 @@ def test_colour_trans():
             assert gen.count("set_dirty()") == 1
 
 
+def test_colour_trans_operator():
+    '''test of the colouring transformation of a single loop with an
+    operator. We check that the first argument is a colourmap lookup,
+    not a direct cell index. We test when distributed memory is both
+    off and on. '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "10_operator.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_operator_type')
+        schedule = invoke.schedule
+        ctrans = Dynamo0p3ColourTrans()
+
+        if dist_mem:
+            index = 3
+        else:
+            index = 0
+
+        # Colour the loop
+        schedule, _ = ctrans.apply(schedule.children[index])
+
+        # Store the results of applying this code transformation as a
+        # string
+        gen = str(psy.gen)
+        print gen
+
+        # check the first argument is a colourmap lookup
+        assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
+
+
 def test_colouring_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to colour
     something that is not a loop. We test when distributed memory is

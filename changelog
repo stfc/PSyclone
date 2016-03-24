@@ -6,6 +6,12 @@
 	contain any variables names that are not required (as this change
 	fixes that bug).
 
+        3) #546 Bug fix for colouring when a kernel is passed an operator.
+        PSyclone was not generating the correct cell look-up when
+        colouring a loop containing a kernel call with an operator. i.e.
+        the PSy layer passed 'cell' to the kernel rather than 
+        'cmap(colour, cell)'.
+
 release 1.2.0
 
 	1) #415 Support for parsing stencil information supplied in

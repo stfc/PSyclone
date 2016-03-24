@@ -1532,7 +1532,13 @@ class DynKern(Kern):
         arglist = []
         if self._arguments.has_operator:
             # 0.5: provide cell position
-            arglist.append("cell")
+            if my_type == "call":
+                if self.is_coloured():
+                    arglist.append("cmap(colour, cell)")
+                else:
+                    arglist.append("cell")
+            else:
+                arglist.append("cell")
             if my_type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=["cell"]))
