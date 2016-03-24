@@ -1,5 +1,11 @@
         1) Added a PSyclone logo
 
+        2) #360 Internal code structure changes to make the Node class
+	calls() method more intuitive and consistent with other methods. A
+	side effect is that the OpenMP private list should no longer
+	contain any variables names that are not required (as this change
+	fixes that bug).
+
 release 1.2.0
 
 	1) #415 Support for parsing stencil information supplied in
