@@ -222,7 +222,7 @@ def test_omp_do_not_over_cells():
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [True]:
+    for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
@@ -711,6 +711,45 @@ def test_multi_kernel_single_omp_region():
         assert (cell_loop_idx - omp_do_idx) == 1
         assert (omp_end_para_idx - omp_end_do_idx) > 0
         assert (omp_end_do_idx - end_do_idx) == 1
+
+
+def test_multi_different_kernel_omp():
+    '''Test that we correctly generate the OpenMP private lists when we
+    have more than one kernel of a different type (requiring a different
+    private list) within an invoke. Test with and without DM.'''
+
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.7_multikernel_invokes.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
+
+        if dist_mem:
+            index1 = 6
+            index2 = 10
+        else:
+            index1 = 0
+            index2 = 1
+
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = DynamoOMPParallelLoopTrans()
+
+        # colour each loop
+        schedule, _ = ctrans.apply(schedule.children[index1])
+        schedule, _ = ctrans.apply(schedule.children[index2])
+
+        # Apply OpenMP to each of the colour loops
+        schedule, _ = otrans.apply(schedule.children[index1].children[0])
+        schedule, _ = otrans.apply(schedule.children[index2].children[0])
+
+        code = str(psy.gen)
+        print code
+
+        assert "private(cell,map_w2,map_w3,map_w0)" in code
+        assert "private(cell,map_w1,map_w2,map_w3)" in code
 
 
 def test_loop_fuse_different_spaces():
