@@ -1,3 +1,5 @@
+release 1.2.1
+
         1) Added a PSyclone logo
 
         2) #360 Internal code structure changes to make the Node class
@@ -9,7 +11,7 @@
         3) #546 Bug fix for colouring when a kernel is passed an operator.
         PSyclone was not generating the correct cell look-up when
         colouring a loop containing a kernel call with an operator. i.e.
-        the PSy layer passed 'cell' to the kernel rather than 
+        the PSy layer passed 'cell' to the kernel rather than
         'cmap(colour, cell)'.
 
         4) #542 generate correct OpenMP private list. This was actually
