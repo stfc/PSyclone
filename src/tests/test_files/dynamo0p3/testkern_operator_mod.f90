@@ -11,7 +11,7 @@ module testkern_operator_mod
      type(arg_type), dimension(3) :: meta_args =    &
           (/ arg_type(gh_operator,gh_write,w0,w0),  &
              arg_type(gh_field*3,gh_read,w0),       &
-             arg_type(gh_iscalar,gh_read)           &
+             arg_type(gh_integer,gh_read)           &
           /)
      type(func_type) :: meta_funcs(1) =             &
           (/ func_type(w0, gh_basis, gh_diff_basis) &

@@ -26,12 +26,12 @@ CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
      type(arg_type), meta_args(6) =                 &
-          (/ arg_type(gh_rscalar, gh_read),         &
+          (/ arg_type(gh_real, gh_read),         &
              arg_type(gh_field,gh_write,w1),        &
              arg_type(gh_field,gh_read, w2),        &
              arg_type(gh_operator,gh_read, w2, w2), &
              arg_type(gh_field,gh_read, w3),        &
-             arg_type(gh_iscalar, gh_read)          &
+             arg_type(gh_integer, gh_read)          &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -106,8 +106,8 @@ def test_ad_scalar_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has fewer than 2 args. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -120,8 +120,8 @@ def test_ad_scalar_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has more than 2 args. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_read, w1)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_read, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -134,8 +134,8 @@ def test_ad_scalar_type_no_write():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_WRITE '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_write)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_write)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -148,8 +148,8 @@ def test_ad_scalar_type_no_inc():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_INC '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_inc)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_inc)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -1172,8 +1172,8 @@ def test_no_vector_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
     specifies a vector scalar '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar*3, gh_read)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real*3, gh_read)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -2982,7 +2982,7 @@ def test_arg_descriptor_scalar_str():
     print result
     expected_output = (
         "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_rscalar'\n"
+        "  argument_type[0]='gh_real'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
@@ -3012,7 +3012,7 @@ def test_arg_descriptor_repr():
     field_descriptor = metadata.arg_descriptors[0]
     result = repr(field_descriptor)
     print result
-    assert 'DynArgDescriptor03(arg_type(gh_rscalar, gh_read))' \
+    assert 'DynArgDescriptor03(arg_type(gh_real, gh_read))' \
         in result
 
 

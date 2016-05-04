@@ -39,7 +39,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
+VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
@@ -758,14 +758,14 @@ class DynInvoke(Invoke):
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
         # Add the subroutine argument declarations for real scalars
-        r_declarations = self.unique_declarations("gh_rscalar")
+        r_declarations = self.unique_declarations("gh_real")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    kind="r_def", entity_decls=r_declarations,
                                    intent="inout"))
 
         # Add the subroutine argument declarations for integer scalars
-        i_declarations = self.unique_declarations("gh_iscalar")
+        i_declarations = self.unique_declarations("gh_integer")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=i_declarations,
@@ -1391,9 +1391,9 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.type.lower() == "gh_rscalar":
+            elif descriptor.type.lower() == "gh_real":
                 pre = "rscalar_"
-            elif descriptor.type.lower() == "gh_iscalar":
+            elif descriptor.type.lower() == "gh_integer":
                 pre = "iscalar_"
             else:
                 raise GenerationError(
@@ -1620,11 +1620,11 @@ class DynKern(Kern):
 
             elif arg.type in VALID_SCALAR_NAMES:
                 if my_type == "subroutine":
-                    if arg.type == "gh_rscalar":
+                    if arg.type == "gh_real":
                         decl = DeclGen(parent, datatype="real", kind="r_def",
                                        intent=arg.intent,
                                        entity_decls=[arg.name])
-                    elif arg.type == "gh_iscalar":
+                    elif arg.type == "gh_integer":
                         decl = DeclGen(parent, datatype="integer",
                                        intent=arg.intent,
                                        entity_decls=[arg.name])
