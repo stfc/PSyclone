@@ -17,11 +17,87 @@ are discussed separately in the following sections.
 Algorithm
 ---------
 
+The general requirements for the structure of an Algorithm are explained
+in the :ref:`algorithm-layer` section. This section explains the
+dynamo0.3-specific specialisations and extensions.
+
+.. _dynamo0.3-example:
+
+Example
++++++++
+
+An example dynamo0.3 API invoke call is given below with various
+different types of objects supported by the API. These different
+objects and their use are discussed in the following sections.
+
+::
+
+  call invoke( kernel1(field1, field2, operator1, qr),          &
+               builtin1(scalar1, field2, field3),               &
+               kernel2(field1, stencil_extent, field3, scalar1) &
+             )
+
+Built-ins
++++++++++
+
 .. note:: To be written.
 
-.. fields and operators
-.. vector of fields
-.. quadrature rules
+Field
++++++
+
+.. note:: To be written.
+
+Field Vector
+++++++++++++
+
+.. note:: To be written.
+
+Scalar
+++++++
+
+.. note:: To be written.
+
+Operator
+++++++++
+
+.. note:: To be written.
+
+Quadrature rule
++++++++++++++++
+
+.. note:: To be written.
+
+.. _dynamo0.3-alg-stencil:
+
+Stencils
+++++++++
+
+Kernel metadata may specify that a Kernel performs a stencil operation
+on a field. Any such metadata must provide a stencil type. This
+metadata may also optionally provide a stencil ``extent``. See
+the :ref:`dynamo0.3-api-meta-args` section for more details.
+
+If a stencil operation is specified by the Kernel metadata but the
+stencil extent is not provided then it is the responsibility of the
+algorithm layer to provide the extent information. The dynamo0.3 API
+expects this information to be added as an additional integer argument
+immediately after the relevant field when specifying the Kernel via an
+``invoke``.
+
+For example::
+
+  TBD
+
+If the Kernel metadata specifies that the stencil is of type
+``xory1d`` then it is the responsibility of the algorithm layer to
+specify whether the particular case is ``x1d`` or ``y1d`` for that
+``invoke`` call. The dynamo0.3 API expects this information to be added
+as an additional argument of type **TBD** immediately after the
+relevant stencil extent argument.
+
+For example::
+
+  TBD
 
 Kernel
 -------
@@ -179,11 +255,23 @@ Stencil metadata is written in the following format:
 
 ::
 
-  STENCIL(type,extent)
+  STENCIL(type[,extent])
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``CROSS`` or ``REGION``
-and extent is an integer which specifies the maximum distance from the
-central point that a stencil extends.
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``
+or ``REGION`` and ``extent`` is an optional integer (indicated by the
+square brackets) which specifies the maximum distance from the central
+point that a stencil extends. If extent is specified in the metadata
+it means that the associated Kernel data can only be called with
+stencils of that size. If the extent is not specified it means that
+the Kernel is written to support different extents (for the particular
+field) and the algorithm writer is expected to provide the actual
+extent as part of ``invoke`` call (see Section
+:ref:`dynamo0.3-alg-stencil`).
+
+The ``XORY1D`` type indicates that the Kernel can accept either ``X1D`` or
+``Y1D`` stencils. In this case it is up to the algorithm developer to
+specify which of these it is from the algorithm layer as part of the
+``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`).
 
 For example, the following stencil:
 
@@ -233,9 +321,13 @@ Below is an example of stencil information within the full kernel metadata.
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
-       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(REGION,1)),            &
+       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(REGION)),              &
        arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
        /)
+
+.. note:: Kernels with explicit extents are not supported in the
+          current API and their use will result in an exception being
+          raised by PSyclone.
 
 meta_funcs
 ##########

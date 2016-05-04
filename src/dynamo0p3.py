@@ -44,7 +44,7 @@ VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
-VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
+VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
                            "ncolours", "cells"]
