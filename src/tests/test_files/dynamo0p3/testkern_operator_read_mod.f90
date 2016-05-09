@@ -6,20 +6,21 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_operator_nofield_scalar_mod
-  type, extends(kernel_type) :: testkern_operator_nofield_scalar_type
-     type(arg_type), dimension(2) :: meta_args =    &
-          (/ arg_type(gh_operator,gh_write,w2,w2),  &
-             arg_type(gh_integer, gh_read)          &
+module testkern_operator_read_mod
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(3) :: meta_args =    &
+          (/ arg_type(gh_operator,gh_read,w0,w0),  &
+             arg_type(gh_field*3,gh_write,w0),       &
+             arg_type(gh_integer,gh_read)           &
           /)
      type(func_type) :: meta_funcs(1) =             &
-          (/ func_type(w2, gh_basis)                &
+          (/ func_type(w0, gh_basis, gh_diff_basis) &
           /)
      integer, parameter :: iterates_over = cells
    contains
      procedure() :: code => testkern_operator_code
-  end type testkern_operator_nofield_scalar_type
+  end type testkern_operator_type
 contains
   subroutine testkern_operator_code()
   end subroutine testkern_operator_code
-end module testkern_operator_nofield_scalar_mod
+end module testkern_operator_read_mod

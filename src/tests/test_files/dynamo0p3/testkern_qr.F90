@@ -12,9 +12,9 @@ module testkern_qr_mod
           (/ arg_type(gh_field,  gh_write,w1), &
              arg_type(gh_field,  gh_read, w2), &
              arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_rscalar,gh_read),     &
+             arg_type(gh_real,   gh_read),     &
              arg_type(gh_field,  gh_read, w3), &
-             arg_type(gh_iscalar,gh_read)      &
+             arg_type(gh_integer,gh_read)      &
            /)
      type(func_type), dimension(3) :: meta_funcs =    &
           (/ func_type(w1, gh_basis), &

@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
@@ -14,10 +14,10 @@
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # imports
+import os
 from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
-import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
     HaloExchange
@@ -26,7 +26,10 @@ import config
 # first section : Parser specialisations and classes
 
 # constants
-VALID_FUNCTION_SPACES = ["w0", "w1", "w2", "w3", "wtheta", "w2h", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
+VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
+    CONTINUOUS_FUNCTION_SPACES
 
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
@@ -36,12 +39,12 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
+VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
-VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
+VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
                            "ncolours", "cells"]
@@ -571,7 +574,9 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
-        # lastly, add in halo exchange calls if required
+        # lastly, add in halo exchange calls if required. We only need to
+        # do this for fields since operators are assembled in place
+        # and scalars don't have halos.
         if config.DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
@@ -846,7 +851,7 @@ class DynInvoke(Invoke):
                                    self._psy_unique_qr_vars)
         # Add the subroutine argument declarations for real scalars that
         # are read - we don't currently support any other access type
-        r_declarations = self.unique_declarations("gh_rscalar",
+        r_declarations = self.unique_declarations("gh_real",
                                                   access="gh_read")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
@@ -854,7 +859,7 @@ class DynInvoke(Invoke):
                                    intent="in"))
         # Add the subroutine argument declarations for integer scalars
         # that are read - we don't currently support any other access type
-        i_declarations = self.unique_declarations("gh_iscalar",
+        i_declarations = self.unique_declarations("gh_integer",
                                                   access="gh_read")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
@@ -1060,15 +1065,15 @@ class DynInvoke(Invoke):
                                            op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
-        if not var_list == []:
+        if var_list != []:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_list))
-        if not var_dim_list == []:
+        if var_dim_list != []:
             # declare dim and diff_dim for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_dim_list))
-        if not operator_declarations == []:
+        if operator_declarations != []:
             # declare the basis function operators
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    allocatable=True,
@@ -1129,7 +1134,11 @@ class DynInvoke(Invoke):
                                 arg.ref_name(function_space) +
                                 "%compute_diff_basis_function", args=args))
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
+        if config.DISTRIBUTED_MEMORY:
+            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
+                                      "communication routines"))
+        else:
+            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
@@ -1165,6 +1174,15 @@ class DynSchedule(Schedule):
 
     def __init__(self, arg):
         Schedule.__init__(self, DynLoop, DynInf, arg)
+
+    def view(self, indent=0):
+        '''a method implemented by all classes in a schedule which display the
+        tree in a textual form. This method overrides the default view
+        method to include distributed memory information '''
+        print self.indent(indent) + "Schedule[invoke='" + self.invoke.name + \
+            "' dm="+str(config.DISTRIBUTED_MEMORY)+"]"
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
 
 class DynHaloExchange(HaloExchange):
@@ -1222,12 +1240,6 @@ class DynLoop(Loop):
         Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
                       valid_loop_types=["colours", "colour", ""])
         self.loop_type = loop_type
-
-        if config.DISTRIBUTED_MEMORY and self._loop_type in ["colour",
-                                                             "colours"]:
-            # the API has not yet been defined and implemented
-            raise GenerationError(
-                "distributed memory and colours not yet supported")
 
         # set our variable name at initialisation as it might be
         # required by other classes before code generation
@@ -1291,31 +1303,37 @@ class DynLoop(Loop):
             # the start of our space is the end of the previous space +1
             if self._lower_bound_name == "inner":
                 prev_space_name = self._lower_bound_name
-                prev_space_index = self._lower_bound_index+1
+                prev_space_index_str = str(self._lower_bound_index + 1)
             elif self._lower_bound_name == "edge":
                 prev_space_name = "inner"
-                prev_space_index = 1
+                prev_space_index_str = "1"
             elif (self._lower_bound_name == "halo" and
                   self._lower_bound_index == 1):
                 prev_space_name = "edge"
-                prev_space_index = ""
+                prev_space_index_str = ""
             elif (self._lower_bound_name == "halo" and
                   self._lower_bound_index > 1):
                 prev_space_name = self._lower_bound_name
-                prev_space_index = self._lower_bound_index-1
+                prev_space_index_str = str(self._lower_bound_index - 1)
             else:
                 raise GenerationError("Unsupported lower bound name found")
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-                + prev_space_index + ")+1"
+                + prev_space_index_str + ")+1"
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
-        if not config.DISTRIBUTED_MEMORY:
+        if self._upper_bound_name == "ncolours":
+            return "ncolour"
+        elif self._upper_bound_name == "ncolour":
+            return "ncp_colour(colour)"
+        elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
                 return self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
+            # keep ncolours and ncolour here as options as we will
+            # need them again when the DM colouring API is implemented
             elif self._upper_bound_name == "ncolours":
                 return "ncolour"
             elif self._upper_bound_name == "ncolour":
@@ -1344,38 +1362,45 @@ class DynLoop(Loop):
 
     def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. If the same field
-        name is found more than once then the field with the largest
-        halo is chosen as this will make all other halo's clean for
-        the same field. '''
-        unique_fields = {}
-        for field in self.halo_fields():
-            if field.name not in unique_fields:
-                unique_fields[field.name] = field
-            else:
-                # This case should not arise at this point as we only
-                # use this call to add halo exchange calls and we only
-                # add halo exchange calls to vanilla code where there
-                # is only one kernel per loop See ticket 420 for more
-                # details.
-                raise GenerationError(
-                    "DynLoop:unique_fields_with_halo_reads(): non-unique "
-                    "fields are not expected.")
-        return unique_fields.values()
+        of their halo to be clean to work correctly. '''
 
-    def halo_fields(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly.'''
-        fields = []
-        for kern_call in self.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.type.lower() == "gh_field":
-                    field = arg
-                    if field.descriptor.stencil or \
-                        (field.access.lower() == "gh_inc" and
-                         field.function_space.lower() != "w3"):
-                        fields.append(field)
-        return fields
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
+    def _halo_read_access(self, arg):
+        '''Determines whether this argument reads from the halo for this
+        loop'''
+        if arg.descriptor.stencil:
+            raise GenerationError(
+                "Stencils are not yet supported with halo exchange call logic")
+        if arg.type in VALID_SCALAR_NAMES:
+            # scalars do not have halos
+            return False
+        elif arg.type == "gh_operator":
+            # operators do not have halos
+            return False
+        elif arg.discontinuous and arg.access.lower() == "gh_read":
+            # there are no shared dofs so access to inner and edge are
+            # local so we only care about reads in the halo
+            return self._upper_bound_name == "halo"
+        elif arg.access.lower() in ["gh_read", "gh_inc"]:
+            # it is either continuous or we don't know (any_space_x)
+            # and we need to assume it may be continuous for
+            # correctness. There may be shared dofs so only access to
+            # inner is local so we care about reads in both the edge
+            # (annexed dofs) and the halo
+            return self._upper_bound_name in ["halo", "edge"]
+        else:
+            # access is neither a read nor an inc so does not need halo
+            return False
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
@@ -1397,7 +1422,9 @@ class DynLoop(Loop):
         Loop.gen_code(self, parent)
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
-            # Set halo dirty for all fields that are modified
+            # Set halo dirty for all fields that are modified. Ignore
+            # the colour loop as the parent colours loop will set any
+            # required fields dirty
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
             if fields:
@@ -1465,9 +1492,9 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.type.lower() == "gh_rscalar":
+            elif descriptor.type.lower() == "gh_real":
                 pre = "rscalar_"
-            elif descriptor.type.lower() == "gh_iscalar":
+            elif descriptor.type.lower() == "gh_integer":
                 pre = "iscalar_"
             else:
                 raise GenerationError(
@@ -1606,7 +1633,13 @@ class DynKern(Kern):
         arglist = []
         if self._arguments.has_operator:
             # 0.5: provide cell position
-            arglist.append("cell")
+            if my_type == "call":
+                if self.is_coloured():
+                    arglist.append("cmap(colour, cell)")
+                else:
+                    arglist.append("cell")
+            else:
+                arglist.append("cell")
             if my_type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=["cell"]))
@@ -1688,11 +1721,11 @@ class DynKern(Kern):
 
             elif arg.type in VALID_SCALAR_NAMES:
                 if my_type == "subroutine":
-                    if arg.type == "gh_rscalar":
+                    if arg.type == "gh_real":
                         decl = DeclGen(parent, datatype="real", kind="r_def",
                                        intent=arg.intent,
                                        entity_decls=[arg.name])
-                    elif arg.type == "gh_iscalar":
+                    elif arg.type == "gh_integer":
                         decl = DeclGen(parent, datatype="integer",
                                        intent=arg.intent,
                                        entity_decls=[arg.name])
@@ -2075,30 +2108,21 @@ class FSDescriptor(object):
     def requires_basis(self):
         ''' Returns True if a basis function is associated with this
         function space, otherwise it returns False. '''
-        if "gh_basis" in self._descriptor.operator_names:
-            return True
-        else:
-            return False
+        return "gh_basis" in self._descriptor.operator_names
 
     @property
     def requires_diff_basis(self):
         ''' Returns True if a differential basis function is
         associated with this function space, otherwise it returns
         False. '''
-        if "gh_diff_basis" in self._descriptor.operator_names:
-            return True
-        else:
-            return False
+        return "gh_diff_basis" in self._descriptor.operator_names
 
     @property
     def requires_orientation(self):
         ''' Returns True if an orientation function is
         associated with this function space, otherwise it returns
         False. '''
-        if "gh_orientation" in self._descriptor.operator_names:
-            return True
-        else:
-            return False
+        return "gh_orientation" in self._descriptor.operator_names
 
     def name(self, operator_name):
         ''' Returns the names of the specified operator for this
@@ -2405,3 +2429,16 @@ class DynKernelArgument(Argument):
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
                 "gh_inc' but found '{0}'".format(self.access))
+
+    @property
+    def discontinuous(self):
+        '''Returns True if this argument is known to be on a discontinuous
+        function space, otherwise returns False.'''
+        if self.function_space in DISCONTINUOUS_FUNCTION_SPACES:
+            return True
+        elif self.function_space in VALID_ANY_SPACE_NAMES:
+            # we will eventually look this up based on our dependence
+            # analysis but for the moment we assume the worst
+            return False
+        else:  # must be a continuous function space
+            return False

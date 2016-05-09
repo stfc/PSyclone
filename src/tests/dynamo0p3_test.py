@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -15,8 +15,8 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
-from transformations import LoopFuseTrans, ColourTrans
+from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, VALID_STENCIL_TYPES
+from transformations import LoopFuseTrans
 from genkernelstub import generate
 
 # constants
@@ -26,12 +26,12 @@ CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
      type(arg_type), meta_args(6) =                 &
-          (/ arg_type(gh_rscalar, gh_read),         &
+          (/ arg_type(gh_real, gh_read),         &
              arg_type(gh_field,gh_write,w1),        &
              arg_type(gh_field,gh_read, w2),        &
              arg_type(gh_operator,gh_read, w2, w2), &
              arg_type(gh_field,gh_read, w3),        &
-             arg_type(gh_iscalar, gh_read)          &
+             arg_type(gh_integer, gh_read)          &
            /)
      type(func_type), dimension(3) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &
@@ -106,8 +106,8 @@ def test_ad_scalar_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has fewer than 2 args. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -120,8 +120,8 @@ def test_ad_scalar_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has more than 2 args. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_read, w1)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_read, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -134,8 +134,8 @@ def test_ad_scalar_type_no_write():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_WRITE '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_write)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_write)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -148,8 +148,8 @@ def test_ad_scalar_type_no_inc():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_INC '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_inc)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_inc)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -572,7 +572,27 @@ def test_field_fs():
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m3_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -611,7 +631,6 @@ def test_field_qr():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
-    print generated_code
     print generated_code
     output = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -696,7 +715,19 @@ def test_field_qr():
         "      CALL m2_proxy%vspace%compute_diff_basis_function("
         "diff_basis_w3, ndf_w3, nqp_h, nqp_v, xp, zp)\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -778,7 +809,19 @@ def test_real_scalar():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -847,7 +890,19 @@ def test_int_scalar():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -916,7 +971,19 @@ def test_two_real_scalars():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -984,7 +1051,19 @@ def test_two_int_scalars():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1053,7 +1132,19 @@ def test_two_scalars():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1089,8 +1180,8 @@ def test_no_vector_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
     specifies a vector scalar '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar*3, gh_read)", 1)
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real*3, gh_read)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
@@ -1247,7 +1338,19 @@ def test_operator_different_spaces():
         "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
         "diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (chi_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL chi_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (chi_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL chi_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (chi_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL chi_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1574,27 +1677,27 @@ def test_dyninvoke_uniq_declns_intent_fields():
     assert args['in'] == ['f2', 'm1', 'm2']
 
 
-def test_dyninvoke_uniq_declns_intent_rscalar():
+def test_dyninvoke_uniq_declns_intent_real():
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_rscalar '''
+    list of arguments for gh_real '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_rscalar")
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
     assert args['inout'] == []
     assert args['out'] == []
     assert args['in'] == ['a']
 
 
-def test_dyninvoke_uniq_declns_intent_iscalar():
+def test_dyninvoke_uniq_declns_intent_integer():
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for gh_iscalar '''
+    list of arguments for gh_integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_iscalar")
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
     assert args['inout'] == []
     assert args['out'] == []
     assert args['in'] == ['istep']
@@ -2701,7 +2804,7 @@ module stencil_mod
   type, extends(kernel_type) :: stencil_type
      type(arg_type), meta_args(2) =    &
           (/ arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2, stencil(cross,1)) &
+             arg_type(gh_field,gh_read, w2, stencil(cross)) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -2730,8 +2833,8 @@ def test_field_metadata_too_many_arguments():
     '''Check that we raise an exception if more than 4 arguments are
     provided in the metadata for a gh_field arg_type.'''
     result = STENCIL_CODE.replace(
-        "gh_field,gh_read, w2, stencil(cross,1)",
-        "gh_field,gh_read, w2, stencil(cross,1), w1", 1)
+        "gh_field,gh_read, w2, stencil(cross)",
+        "gh_field,gh_read, w2, stencil(cross), w1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2741,8 +2844,8 @@ def test_field_metadata_too_many_arguments():
 
 def test_invalid_stencil_form_1():
     '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>,<extent) format by being a literal integer'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "1", 1)
+    stencil(<type>[,<extent>]) format by being a literal integer'''
+    result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2754,8 +2857,8 @@ def test_invalid_stencil_form_1():
 
 def test_invalid_stencil_form_2():
     '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>,<extent) format by having an invalid name'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stenci(cross,1)", 1)
+    stencil(<type>[,<extent>]) format by having an invalid name'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2765,8 +2868,8 @@ def test_invalid_stencil_form_2():
 
 def test_invalid_stencil_form_3():
     '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>,<extent) format by not having brackets'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil", 1)
+    stencil(<type>[,<extent>]) format by not having brackets'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2776,22 +2879,46 @@ def test_invalid_stencil_form_3():
 
 def test_invalid_stencil_form_4():
     '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>,<extent) format by not containing two values in the
-    brackets '''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cross)", 1)
+    stencil(<type>[,<extent>]) format by containing no values in
+    the brackets '''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "kernel metadata has an invalid format" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_5():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>[,<extent>]) format by containing no values in
+    the brackets, with a separator '''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "kernel metadata has an invalid format" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_6():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>[,<extent>]) format by containing more than two
+    values in in the brackets '''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,1,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
-    assert "there are not two arguments inside the brackets" \
+    assert "there must be at most two arguments inside the brackets" \
         in str(excinfo.value)
 
 
 def test_invalid_stencil_first_arg_1():
     '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>,<extent) is not valid and is an integer'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(1,1)", 1)
+    stencil(<type>[,<extent>]) is not valid and is an integer'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2801,8 +2928,8 @@ def test_invalid_stencil_first_arg_1():
 
 def test_invalid_stencil_first_arg_2():
     '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>,<extent) is not valid and is a name'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cros,1)", 1)
+    stencil(<type>[,<extent>]) is not valid and is a name'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2811,8 +2938,8 @@ def test_invalid_stencil_first_arg_2():
 
 def test_invalid_stencil_first_arg_3():
     '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>,<extent) is not valid and has brackets'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d(xx),1)", 1)
+    stencil(<type>[,<extent>]) is not valid and has brackets'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2822,8 +2949,8 @@ def test_invalid_stencil_first_arg_3():
 
 def test_invalid_stencil_second_arg_1():
     '''Check that we raise an exception if the value of the stencil extent in
-    stencil(<type>,<extent) is not an integer'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,x1d)", 1)
+    stencil(<type>[,<extent>]) is not an integer'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2833,13 +2960,34 @@ def test_invalid_stencil_second_arg_1():
 
 def test_invalid_stencil_second_arg_2():
     '''Check that we raise an exception if the value of the stencil extent in
-    stencil(<type>,<extent) is less than 1'''
-    result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,0)", 1)
+    stencil(<type>[,<extent>]) is less than 1'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is less than 1" in str(excinfo.value)
+
+
+def test_unsupported_second_argument():
+    '''Check that we raise an exception if stencil extent is specified, as
+    we do not currently support it'''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "Kernels with fixed stencil extents are not currently supported" \
+        in str(excinfo.value)
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_valid_stencil_types():
+    ''' Check that we successfully parse all valid stencil types '''
+    for stencil_type in VALID_STENCIL_TYPES:
+        result = STENCIL_CODE.replace("stencil(cross,1)",
+                                      "stencil("+stencil_type+",1)", 1)
+        ast = fpapi.parse(result, ignore_comments=False)
+        _ = DynKernMetadata(ast)
 
 
 def test_arg_descriptor_functions_method_error():
@@ -2935,7 +3083,7 @@ def test_arg_descriptor_scalar_str():
     print result
     expected_output = (
         "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_rscalar'\n"
+        "  argument_type[0]='gh_real'\n"
         "  access_descriptor[1]='gh_read'\n")
     assert expected_output in result
 
@@ -2965,7 +3113,7 @@ def test_arg_descriptor_repr():
     field_descriptor = metadata.arg_descriptors[0]
     result = repr(field_descriptor)
     print result
-    assert 'DynArgDescriptor03(arg_type(gh_rscalar, gh_read))' \
+    assert 'DynArgDescriptor03(arg_type(gh_real, gh_read))' \
         in result
 
 
@@ -3156,28 +3304,98 @@ def test_halo_exchange():
 
 
 def test_halo_exchange_inc():
-    ''' test that halo exchange calls are added if we have a gh_inc
-    operation and that the loop bounds included computation in the l1
-    halo'''
+    '''test that appropriate halo exchange calls are added if we have a
+    gh_inc operation and that the loop bounds included computation in
+    the l1 halo '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    output1 = ("      IF (a_proxy%is_dirty(depth=1)) THEN\n"
-               "        CALL a_proxy%halo_exchange(depth=1)\n"
-               "      END IF \n"
-               "      !\n"
-               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    output1 = (
+        "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL a_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL b_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL d_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    output2 = (
+        "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL b_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL d_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output1 in result
-    output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN\n"
-               "        CALL f_proxy%halo_exchange(depth=1)\n"
-               "      END IF \n"
-               "      !\n"
-               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output2 in result
-    assert result.count("halo_exchange") == 2
+    assert result.count("halo_exchange") == 12
+
+
+def test_no_halo_exchange_for_operator():
+    ''' Test that no halo exchange is generated before a kernel that reads
+    from an operator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.7_operator_read.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    # This kernel reads from an operator and a scalar and these
+    # do not require halos to be updated.
+    assert "halo_exchange" not in result
+
+
+def test_no_set_dirty_for_operator():
+    ''' Test that we do not call set_dirty for an operator that is written
+    by a kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.6_operator_no_field_scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    # This kernel only writes to an operator and since operators are
+    # cell-local this does not require us to call the is_dirty() method.
+    assert "is_dirty" not in result
 
 
 @pytest.mark.xfail(reason="stencils not yet supported")
@@ -3381,25 +3599,6 @@ def test_mesh_mod():
 # object from an operator
 
 
-def test_no_dm_and_colour():
-    '''test that we raise an exception if colouring and distributed
-    memory are attempted together, as there are a few bugs and there is
-    currently no agreed API for the colouring'''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    ctrans = ColourTrans()
-    with pytest.raises(GenerationError) as excinfo:
-        # try to Colour the loop
-        _, _ = ctrans.apply(schedule.children[0])
-    assert 'distributed memory and colours not yet supported' in \
-        str(excinfo.value)
-
-
 def test_no_stencil_support():
     '''test that we raise an exception if we encounter a stencil kernel
     as the infrastructure API for this is not yet decided '''
@@ -3493,3 +3692,4 @@ def test_intent_multi_kern():
     assert "TYPE(field_type), intent(out) :: b, h\n" in output
     assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
     assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+

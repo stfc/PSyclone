@@ -1,3 +1,29 @@
+        1) #575 Add parser support for stencil meta-data.
+
+        2) #587 Changed scalar metadata names to gh_real and gh_integer
+
+release 1.2.1
+
+        1) Added a PSyclone logo
+
+        2) #360 Internal code structure changes to make the Node class
+	calls() method more intuitive and consistent with other methods. A
+	side effect is that the OpenMP private list should no longer
+	contain any variables names that are not required (as this change
+	fixes that bug).
+
+        3) #546 Bug fix for colouring when a kernel is passed an operator.
+        PSyclone was not generating the correct cell look-up when
+        colouring a loop containing a kernel call with an operator. i.e.
+        the PSy layer passed 'cell' to the kernel rather than
+        'cmap(colour, cell)'.
+
+        4) #542 generate correct OpenMP private list. This was actually
+        fixed by the changes made under #360 (change 2 above) so this
+        ticket only adds a test for this functionality.
+
+release 1.2.0
+
 	1) #415 Support for parsing stencil information supplied in
 	Dynamo 0.3 kernel meta-data.
 
@@ -16,7 +42,17 @@
 
 	7) #514 Fix for a bug in the if test round a halo_exchange call
 	in which arrays (vectors) did not have their index added.
-	
+
+	8) #521 Fix bugs in the logic for adding halo exchange calls before
+	loops.
+
+        9) #532 Fix in the logic for adding halo exchange calls before
+	loops which recognises that operators do not have halos.
+
+	10) #467 Support transformations in Distributed Memory. Enable the use
+	of OpenMP (and other transformations) with DM. Note that PSyclone
+	currently does not support halo swaps inside OpenMP parallel regions.
+
 release 1.1.0
 
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo

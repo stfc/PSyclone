@@ -1,7 +1,13 @@
+'''File containing a PSyclone transformation script for the dynamo0p3
+api to apply colouring and OpenMP generically. This can be applied via
+the -s option in the generator.py script. '''
 from transformations import Dynamo0p3ColourTrans, DynamoOMPParallelLoopTrans
 from psyGen import Loop
 
+
 def trans(psy):
+    ''' PSyclone transformation script for the dynamo0p3 api to apply
+    colouring and OpenMP generically.'''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
@@ -20,16 +26,14 @@ def trans(psy):
         # Then apply OpenMP to each of the colour loops
         schedule = cschedule
         for child in schedule.children:
-            print "child is of type ",type(child)
+            print "child is of type ", type(child)
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
-                    newsched, _ = otrans.apply(child.children[0])
+                    schedule, _ = otrans.apply(child.children[0])
                 else:
-                    newsched, _ = otrans.apply(child)
-            schedule = newsched
+                    schedule, _ = otrans.apply(child)
 
         schedule.view()
         invoke.schedule = schedule
 
     return psy
-

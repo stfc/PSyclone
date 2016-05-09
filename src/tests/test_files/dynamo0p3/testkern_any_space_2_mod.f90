@@ -9,7 +9,7 @@ type, public, extends(kernel_type) ::testkern_any_space_2_type
        arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1),       &
-       arg_type(GH_ISCALAR,  GH_READ)                                  &
+       arg_type(GH_INTEGER,  GH_READ)                                  &
        /)
   integer :: iterates_over = CELLS
 contains
