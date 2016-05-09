@@ -2776,6 +2776,7 @@ def test_invalid_stencil_form_3():
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
 
+
 def test_invalid_stencil_form_4():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by containing no values in
