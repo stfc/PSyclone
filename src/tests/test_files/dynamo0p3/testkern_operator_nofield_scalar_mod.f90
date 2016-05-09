@@ -10,7 +10,7 @@ module testkern_operator_nofield_scalar_mod
   type, extends(kernel_type) :: testkern_operator_nofield_scalar_type
      type(arg_type), dimension(2) :: meta_args =    &
           (/ arg_type(gh_operator,gh_write,w2,w2),  &
-             arg_type(gh_iscalar, gh_read)          &
+             arg_type(gh_integer, gh_read)          &
           /)
      type(func_type) :: meta_funcs(1) =             &
           (/ func_type(w2, gh_basis)                &

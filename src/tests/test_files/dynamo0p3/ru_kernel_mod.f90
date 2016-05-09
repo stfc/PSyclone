@@ -5,8 +5,8 @@ type, public, extends(kernel_type) :: ru_kernel_type
   type(arg_type) :: meta_args(6) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W2),                              &
        arg_type(GH_FIELD,   GH_READ, W3),                              &
-       arg_type(GH_ISCALAR, GH_READ),                                  &
-       arg_type(GH_RSCALAR, GH_READ),                                  &
+       arg_type(GH_INTEGER, GH_READ),                                  &
+       arg_type(GH_REAL,    GH_READ),                                  &
        arg_type(GH_FIELD,   GH_READ, W0),                              &
        arg_type(GH_FIELD*3, GH_READ, W0)                               &
        /)

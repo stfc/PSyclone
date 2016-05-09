@@ -159,8 +159,8 @@ Argument-metadata (metadata contained within the brackets of an
 **operator**.
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a real scalar (``GH_RSCALAR``), an integer scalar
-(``GH_ISCALAR``), a field (``GH_FIELD``) or an operator
+being passed is for a real scalar (``GH_REAL``), an integer scalar
+(``GH_INTEGER``), a field (``GH_FIELD``) or an operator
 (``GH_OPERATOR``). This information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
@@ -175,7 +175,7 @@ fourth is an operator. The third entry is a field vector of size 3.
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_RSCALAR, ...),                                      &
+       arg_type(GH_REAL, ...),                                         &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
@@ -194,7 +194,7 @@ For example:
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_RSCALAR, GH_READ),                                  &
+       arg_type(GH_REAL,  GH_READ),                                    &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &

@@ -14,10 +14,10 @@
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # imports
+import os
 from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
-import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
     HaloExchange
@@ -39,7 +39,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
+VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
@@ -758,14 +758,14 @@ class DynInvoke(Invoke):
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
         # Add the subroutine argument declarations for real scalars
-        r_declarations = self.unique_declarations("gh_rscalar")
+        r_declarations = self.unique_declarations("gh_real")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    kind="r_def", entity_decls=r_declarations,
                                    intent="inout"))
 
         # Add the subroutine argument declarations for integer scalars
-        i_declarations = self.unique_declarations("gh_iscalar")
+        i_declarations = self.unique_declarations("gh_integer")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=i_declarations,
@@ -964,15 +964,15 @@ class DynInvoke(Invoke):
                                            op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
-        if not var_list == []:
+        if var_list != []:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_list))
-        if not var_dim_list == []:
+        if var_dim_list != []:
             # declare dim and diff_dim for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_dim_list))
-        if not operator_declarations == []:
+        if operator_declarations != []:
             # declare the basis function operators
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    allocatable=True,
@@ -1202,24 +1202,24 @@ class DynLoop(Loop):
             # the start of our space is the end of the previous space +1
             if self._lower_bound_name == "inner":
                 prev_space_name = self._lower_bound_name
-                prev_space_index = self._lower_bound_index+1
+                prev_space_index_str = str(self._lower_bound_index + 1)
             elif self._lower_bound_name == "edge":
                 prev_space_name = "inner"
-                prev_space_index = 1
+                prev_space_index_str = "1"
             elif (self._lower_bound_name == "halo" and
                   self._lower_bound_index == 1):
                 prev_space_name = "edge"
-                prev_space_index = ""
+                prev_space_index_str = ""
             elif (self._lower_bound_name == "halo" and
                   self._lower_bound_index > 1):
                 prev_space_name = self._lower_bound_name
-                prev_space_index = self._lower_bound_index-1
+                prev_space_index_str = str(self._lower_bound_index - 1)
             else:
                 raise GenerationError("Unsupported lower bound name found")
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-                + prev_space_index + ")+1"
+                + prev_space_index_str + ")+1"
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
@@ -1391,9 +1391,9 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
-            elif descriptor.type.lower() == "gh_rscalar":
+            elif descriptor.type.lower() == "gh_real":
                 pre = "rscalar_"
-            elif descriptor.type.lower() == "gh_iscalar":
+            elif descriptor.type.lower() == "gh_integer":
                 pre = "iscalar_"
             else:
                 raise GenerationError(
@@ -1620,11 +1620,11 @@ class DynKern(Kern):
 
             elif arg.type in VALID_SCALAR_NAMES:
                 if my_type == "subroutine":
-                    if arg.type == "gh_rscalar":
+                    if arg.type == "gh_real":
                         decl = DeclGen(parent, datatype="real", kind="r_def",
                                        intent=arg.intent,
                                        entity_decls=[arg.name])
-                    elif arg.type == "gh_iscalar":
+                    elif arg.type == "gh_integer":
                         decl = DeclGen(parent, datatype="integer",
                                        intent=arg.intent,
                                        entity_decls=[arg.name])
@@ -2007,30 +2007,21 @@ class FSDescriptor(object):
     def requires_basis(self):
         ''' Returns True if a basis function is associated with this
         function space, otherwise it returns False. '''
-        if "gh_basis" in self._descriptor.operator_names:
-            return True
-        else:
-            return False
+        return "gh_basis" in self._descriptor.operator_names
 
     @property
     def requires_diff_basis(self):
         ''' Returns True if a differential basis function is
         associated with this function space, otherwise it returns
         False. '''
-        if "gh_diff_basis" in self._descriptor.operator_names:
-            return True
-        else:
-            return False
+        return "gh_diff_basis" in self._descriptor.operator_names
 
     @property
     def requires_orientation(self):
         ''' Returns True if an orientation function is
         associated with this function space, otherwise it returns
         False. '''
-        if "gh_orientation" in self._descriptor.operator_names:
-            return True
-        else:
-            return False
+        return "gh_orientation" in self._descriptor.operator_names
 
     def name(self, operator_name):
         ''' Returns the names of the specified operator for this

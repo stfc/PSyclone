@@ -9,8 +9,8 @@
 module testkern
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_rscalar, gh_write   ), &
-             arg_type(gh_iscalar, gh_read    )  &
+          (/ arg_type(gh_real,    gh_write   ), &
+             arg_type(gh_integer, gh_read    )  &
            /)
      integer, parameter :: iterates_over = cells
    contains
