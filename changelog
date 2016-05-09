@@ -1,5 +1,7 @@
         1) #575 Add parser support for stencil meta-data.
 
+        2) #587 Changed scalar metadata names to gh_real and gh_integer
+
 release 1.2.1
 
         1) Added a PSyclone logo
