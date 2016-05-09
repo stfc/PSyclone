@@ -1,3 +1,5 @@
+.. _algorithm-layer:
+
 Algorithm layer
 ===============
 

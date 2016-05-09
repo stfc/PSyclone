@@ -11,10 +11,10 @@
     function.
 '''
 
+import os
+import pytest
 from generator import generate, GenerationError
 from parse import ParseError
-import pytest
-import os
 
 
 def delete_module(modname):
@@ -298,12 +298,18 @@ def test_script_trans():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    # remove unecessary halos between loops. At the moment we have no
+    # intra halo analysis so we add them before all loops just in
+    # case.
+    del schedule.children[4:7]
+    loop1 = schedule.children[3]
+    loop2 = schedule.children[4]
     trans = LoopFuseTrans()
+    schedule.view()
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
     generated_code_1 = psy.gen
+    schedule.view()
     # second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="dynamo0.3",
                                    script_name=os.path.join(

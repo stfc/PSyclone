@@ -1013,3 +1013,16 @@ def test_do_loop_add_after():
     a1_line = line_number(sub.root, "happy = ")
     a2_line = line_number(sub.root, "sad = ")
     assert a1_line > a2_line
+
+
+def test_basegen_previous_loop_no_loop():
+    '''Check that we raise an error when requesting the position of the
+    previous loop if we don't have a loop '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # Request the position of the last loop
+    # even though we haven't got one
+    with pytest.raises(RuntimeError) as err:
+        sub.previous_loop()
+    assert "no loop found - there is no previous loop" in str(err)

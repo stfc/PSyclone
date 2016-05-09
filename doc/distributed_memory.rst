@@ -55,14 +55,21 @@ Control
 Support for distributed memory can be switched on or off with the
 default being on. The default can be changed permanently by modifying
 the ``DISTRIBUTED_MEMORY`` variable in the ``config.py`` file to
-``False``. Alternatively, the distributed memory option can be changed
-interactively from the ``PSyFactory`` routine by setting the optional
+``False``.
+
+Distributed memory can be switched on or off from the ``generator``
+script using the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem``
+flags, respectively.
+
+For interactive access, the distributed memory option can be changed
+interactively from the ``PSyFactory`` class by setting the optional
 ``distributed_memory`` flag; for example: ::
 
     psy = PSyFactory(api=api, distributed_memory=False)
 
-At this time there is no way to switch distributed memory support off
-from the ``generator`` script.
+Similarly the distributed memory option can be changed interactively from the ``generate`` function by setting the optional ``distributed_memory`` flag, e.g.: ::
+
+    psy, alg = generate("file.f90", distributed_memory=False).
 
 Status
 ------

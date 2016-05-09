@@ -7,7 +7,7 @@ type, public, extends(kernel_type) ::testkern_any_space_1_type
   private
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),                     &
-       arg_type(GH_RSCALAR, GH_READ),                                  &
+       arg_type(GH_REAL,    GH_READ),                                  &
        ARG_TYPE(GH_FIELD,   GH_READ, ANY_SPACE_2),                     &
        ARG_TYPE(GH_FIELD*3, GH_READ, W0)                               &
        /)

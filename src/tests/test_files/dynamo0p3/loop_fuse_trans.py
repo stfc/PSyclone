@@ -12,8 +12,9 @@ def trans(psy):
     from transformations import LoopFuseTrans
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[0]
-    loop2 = schedule.children[1]
+    del schedule.children[4:7]
+    loop1 = schedule.children[3]
+    loop2 = schedule.children[4]
     transform = LoopFuseTrans()
     schedule, _ = transform.apply(loop1, loop2)
     invoke.schedule = schedule
