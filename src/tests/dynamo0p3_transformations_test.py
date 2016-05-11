@@ -11,7 +11,7 @@
 import os
 import pytest
 from parse import parse
-from psyGen import PSyFactory
+from psyGen import PSyFactory, GenerationError
 from transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -23,6 +23,8 @@ from transformations import TransformationError, \
 # The version of the API that the tests in this file
 # exercise.
 TEST_API = "dynamo0.3"
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
 
 
 def test_colour_trans_declarations():
@@ -1124,3 +1126,20 @@ def test_module_inline():
         assert 'SUBROUTINE ru_code()' in gen
         # check that the associated psy "use" does not exist
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
+
+
+def test_scalar_sum_and_OpenMP_unsupported():
+    ''' Test that we fail if OpenMP and global sums are specified '''
+    _, info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                    api=TEST_API, distributed_memory=False)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    # We should get an error when we try to generate the code
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert "OpenMP reductions are not yet supported" in str(excinfo.value)

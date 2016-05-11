@@ -183,18 +183,27 @@ fourth is an operator. The third entry is a field vector of size 3.
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``arg_type``) describes how the Kernel makes use of
-the data being passed into it. There are 3 possible values of this
-metadata ``GH_WRITE``, ``GH_READ`` and ``GH_INC``. ``GH_WRITE``
-indicates the data is modified in the Kernel before (optionally) being
-read. ``GH_READ`` indicates that the data is read and left
-unmodified. ``GH_INC`` **explanation TBD**.
+the data being passed into it (the way it is accessed within a
+Kernel). This information is mandatory. There are currently 4 possible
+values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
+``GH_SUM``. However, not all combinations of metadata entries are
+valid and PSyclone will raise an exception if an invalid combination
+is specified. Valid combinations are specified later in this section.
+
+* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
+
+* ``GH_READ`` indicates that the data is read and is unmodified.
+
+* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
+
+* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
 
 For example:
 
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL,  GH_READ),                                    &
+       arg_type(GH_REAL,  GH_sum),                                     &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -243,6 +252,40 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2 ),                   &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
+
+.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
+          pattern must be a discontinuous function in the
+          horizontal. At the moment that means it must be ``w3`` but
+          in the future there will be more discontinuous function
+          spaces. A GH_FIELD that specifies GH_INC as its access
+          pattern may be continuous in the vertical (and discontinuous
+          in the horizontal), continuous in the horizontal (and
+          discontinuous in the vertical), or continuous in both. In
+          each case the code is the same. However, if a field is
+          discontinuous in the horizontal then it will not need
+          colouring and there is currently no way to determine this
+          from the metadata (unless we can statically determine the
+          space of the field being passed in). At the moment this type
+          of Kernel is always treated as if it is continuous in the
+          horizontal, even if it is not.
+
+As mentioned earlier, not all combinations of metadata are
+valid. Valid combinations are summarised here. All types of data
+(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
+be read within a Kernel and this is specified in metadata using
+``GH_READ``. If data is *modified* in a Kernel then the permitted access
+modes depend on the type of data it is and the function
+space it is on. Valid values are given in the table below.
+
+=============     ============================    ============
+Argument Type     Function space                  Access type
+=============     ============================    ============
+GH_INTEGER        n/a                             GH_SUM
+GH_REAL           n/a                             GH_SUM
+GH_FIELD          Discontinuous (w3)              GH_WRITE
+GH_FIELD          Continuous (not w3)             GH_INC
+GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
+=============     ============================    ============
 
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the

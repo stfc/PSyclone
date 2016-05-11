@@ -15,11 +15,18 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
+import os
 import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, GenerationError
+    NameSpaceFactory, GenerationError, OMPParallelDoDirective, \
+    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
+from parse import parse
+from transformations import OMPParallelLoopTrans
+
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
 
 
 # PSyFactory class unit tests
@@ -412,3 +419,47 @@ end module dummy_mod
     expected_output = \
         "KernCall dummy_code(field_1) [module_inline=False]"
     assert expected_output in out
+
+
+def test_OMPDoDirective_class_view(capsys):
+    '''tests the view method in the OMPDoDirective class. We create a
+    sub-class object then call this method from it '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+
+    cases = [
+        {"current_class": OMPParallelDoDirective,
+         "current_string": "[OMP parallel do]"},
+        {"current_class": OMPDoDirective, "current_string": "[OMP do]"},
+        {"current_class": OMPParallelDirective,
+         "current_string": "[OMP parallel]"},
+        {"current_class": OMPDirective, "current_string": "[OMP]"},
+        {"current_class": Directive, "current_string": ""}]
+    for case in cases:
+        for dist_mem in [False, True]:
+
+            psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
+                  create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+            otrans = OMPParallelLoopTrans()
+
+            if dist_mem:
+                idx = 3
+            else:
+                idx = 0
+
+            _, _ = otrans.apply(schedule.children[idx])
+            omp_parallel_loop = schedule.children[idx]
+
+            # call the OMPDirective view method
+            case["current_class"].view(omp_parallel_loop)
+
+            out, _ = capsys.readouterr()
+            expected_output = (
+                "Directive" + case["current_string"] + "\n"
+                "    Loop[type='',field_space='w1',it_space='cells']\n"
+                "        KernCall testkern_code(a,f1,f2,m1,m2) "
+                "[module_inline=False]")
+
+            assert expected_output in out

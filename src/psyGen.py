@@ -12,6 +12,14 @@
 
 import abc
 
+# These mappings will be set by a particular API if supported. We
+# provide a default here for API's which do not have their own mapping
+# (or support this mapping). This allows codes with no support to run.
+# Names of reduction operations
+MAPPING_REDUCTIONS = {"sum": "sum"}
+# Names of types of scalar variable
+MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
+
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
@@ -728,15 +736,28 @@ class Directive(Node):
 class OMPDirective(Directive):
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP]"
+        print self.indent(indent) + "Directive[OMP]"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def _get_reductions_list(self, reduction_type):
+        '''Return the name of all scalars within this region that require a
+        reduction of type reduction_type. Returned names will be unique. '''
+        result = []
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if arg.type in MAPPING_SCALARS.values():
+                    if arg.descriptor.access == \
+                       MAPPING_REDUCTIONS[reduction_type]:
+                        if arg.name not in result:
+                            result.append(arg.name)
+        return result
 
 
 class OMPParallelDirective(OMPDirective):
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP Parallel]"
+        print self.indent(indent)+"Directive[OMP parallel]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -895,6 +916,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
+
+        reductions = self._get_reductions_list("sum")
+        if reductions:
+            # reductions are not yet supported so raise an exception
+            raise GenerationError("OpenMP reductions are not yet supported")
 
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
@@ -1448,6 +1474,14 @@ class Argument(object):
     @property
     def access(self):
         return self._access
+
+    @property
+    def type(self):
+        '''Return the type of the argument. API's that do not have this
+        concept (such as gocean0.1 and dynamo0.1) can use this
+        baseclass version which just returns "field" in all
+        cases. API's with this concept can override this method '''
+        return "field"
 
     def set_dependencies(self):
         writers = ["WRITE", "INC", "SUM"]

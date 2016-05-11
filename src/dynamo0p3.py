@@ -21,6 +21,7 @@ import fparser
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
     HaloExchange
+import psyGen
 import config
 
 # first section : Parser specialisations and classes
@@ -42,7 +43,9 @@ VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
+VALID_REDUCTION_NAMES = ["gh_sum"]
+VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
+    VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 
@@ -53,6 +56,11 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
+
+# Mappings used by reduction code in psyGen
+psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
+psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
+
 
 # classes
 
@@ -202,13 +210,30 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
-        # Currently we only support read-only scalar arguments
+        # Reduction access descriptors are only valid for scalar arguments
+        if self._type not in VALID_SCALAR_NAMES and \
+           self._access_descriptor.name in VALID_REDUCTION_NAMES:
+            raise ParseError(
+                "In the dynamo0.3 API a reduction access '{0}' is only valid "
+                "with a scalar argument, but '{1}' was found".
+                format(self._access_descriptor.name, self._type))
+        # Scalars can only be read_only or reductions
         if self._type in VALID_SCALAR_NAMES:
-            if self._access_descriptor.name != "gh_read":
+            if self._access_descriptor.name not in ["gh_read"] + \
+               VALID_REDUCTION_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) but found '{0}' in '{1}'".
-                    format(self._access_descriptor.name, arg_type))
+                    "read-only (gh_read) or a reduction ({0}) but found "
+                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
+                                            self._access_descriptor.name,
+                                            arg_type))
+        # Scalars with reductions do not work with Distributed Memory
+        if self._type in VALID_SCALAR_NAMES and \
+           self._access_descriptor.name in VALID_REDUCTION_NAMES and \
+           config.DISTRIBUTED_MEMORY:
+            raise ParseError(
+                "Scalar reductions are not yet supported with distributed "
+                "memory.")
         stencil = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
@@ -362,10 +387,7 @@ class DynArgDescriptor03(Descriptor):
         any_space_2, ... any_space_9, otherwise returns False. For
         operators, returns True if the source descriptor is of type
         any_space, else returns False. '''
-        if self.function_space in VALID_ANY_SPACE_NAMES:
-            return True
-        else:
-            return False
+        return self.function_space in VALID_ANY_SPACE_NAMES
 
     @property
     def vector_size(self):
@@ -964,15 +986,15 @@ class DynInvoke(Invoke):
                                            op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
-        if var_list != []:
+        if var_list:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_list))
-        if var_dim_list != []:
+        if var_dim_list:
             # declare dim and diff_dim for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_dim_list))
-        if operator_declarations != []:
+        if operator_declarations:
             # declare the basis function operators
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    allocatable=True,
@@ -2184,14 +2206,32 @@ class DynKernelArguments(Arguments):
         return func_space_list
 
     def iteration_space_arg(self, mapping=None):
-        ''' Returns the first argument that is written to. This can be
-        used to dereference for the iteration space. '''
-        if mapping is not None:
-            my_mapping = mapping
-        else:
-            my_mapping = FIELD_ACCESS_MAP
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
+        '''Returns the first argument we can use to dereference the iteration
+        space. This can be a field or operator that is modified or
+        alternatively a field that is read if one or more scalars
+        are modified. '''
+
+        # first look for known function spaces then try any_space
+        for spaces in [VALID_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES]:
+
+            # do we have a field or operator that is modified?
+            for arg in self._args:
+                if arg.type in ["gh_field", "gh_operator"] and \
+                   arg.access in ["gh_write", "gh_inc"] \
+                   and arg.function_space in spaces:
+                    return arg
+
+        # no modified fields or operators. Check for unmodified fields
+        for arg in self._args:
+            if arg.type == "gh_field" and \
+               arg.access == "gh_read":
+                return arg
+
+        # it is an error if we get to here
+        raise GenerationError(
+            "iteration_space_arg(). The dynamo0.3 api must have a modified "
+            "field, a modified operator, or an unmodified field (in the case "
+            "of a modified scalar). None of these were found.")
 
     @property
     def dofs(self):
@@ -2322,12 +2362,13 @@ class DynKernelArgument(Argument):
             return "in"
         elif self.access == "gh_write":
             return "out"
-        elif self.access == "gh_inc":
+        elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
             return "inout"
         else:
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc' but found '{0}'".format(self.access))
+                "gh_inc' or one of {0}, but found '{1}'".
+                format(str(VALID_REDUCTION_NAMES), self.access))
 
     @property
     def discontinuous(self):
