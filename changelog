@@ -2,6 +2,11 @@
 
         2) #587 Changed scalar metadata names to gh_real and gh_integer
 
+        3) #501 Updates to parser and documentation to support writing to
+	scalar arguments (reductions). Note that this is currently only
+	supported for serial code. Implementation of this functionality
+	for OpenMP and MPI will be done under #484 and #423, respectively.
+
 release 1.2.1
 
         1) Added a PSyclone logo

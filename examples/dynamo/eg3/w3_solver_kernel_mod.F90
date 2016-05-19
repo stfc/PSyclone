@@ -29,7 +29,7 @@ type, public, extends(kernel_type) :: w3_solver_kernel_type
        arg_type(GH_FIELD,   GH_WRITE, W3),                             &
        arg_type(GH_FIELD,   GH_READ,  W3),                             &
        arg_type(GH_FIELD*3, GH_READ,  W0),                             &
-       arg_type(GH_RSCALAR, GH_READ)                                   &
+       arg_type(GH_REAL,    GH_READ)                                   &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W3, GH_BASIS),                                        &
