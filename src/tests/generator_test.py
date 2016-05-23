@@ -13,10 +13,10 @@ functions.
 '''
 
 import os
+import tempfile
 import pytest
 from generator import generate, GenerationError, main
 from parse import ParseError
-
 
 def delete_module(modname):
     '''a function to remove a module from Python's internal modules
@@ -404,8 +404,14 @@ def test_main_no_invoke_alg_file(capsys):
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "test_files", "dynamo0p3",
                               "testkern.F90"))
-    alg_filename = 'alg.f90'
-    psy_filename = 'psy.f90'
+
+    fileTemp_alg = tempfile.NamedTemporaryFile()
+    alg_filename = fileTemp_alg.name
+    fileTemp_psy = tempfile.NamedTemporaryFile()
+    psy_filename = fileTemp_psy.name
+    fileTemp_alg.close()
+    fileTemp_psy.close()
+    # no need to delete the files as they are never created
 
     main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
     stdout, _ = capsys.readouterr()
