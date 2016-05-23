@@ -149,7 +149,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
         raise msg
     return alg.gen, psy.gen
 
-if __name__ == "__main__":
+
+def main():
 
     PARSER = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
@@ -190,6 +191,8 @@ if __name__ == "__main__":
                             distributed_memory=ARGS.dist_mem)
     except AlgorithmError as error:
         print "Warning:", error
+        print STR(ALG)
+        print STR(PSY)
         exit(0)
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
@@ -222,3 +225,7 @@ if __name__ == "__main__":
         MY_FILE.close()
     else:
         print "Generated psy layer code:\n", PSY_STR
+
+
+if __name__ == "__main__":
+    main()
