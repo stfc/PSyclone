@@ -20,7 +20,7 @@ import expression as expr
 import fparser
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    HaloExchange
+    HaloExchange, FORTRAN_INTENT_NAMES
 import psyGen
 import config
 
@@ -57,13 +57,12 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
 
-# The types of 'intent' that an argument to a Fortran subroutine
-# may have
-INTENT_NAMES = ["inout", "out", "in"]
-
-# Mappings used by reduction code in psyGen
+# Mappings used by non-API-Specific code in psyGen
 psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
+psyGen.MAPPING_ACCESSES = {"inc": "gh_inc", "write": "gh_write",
+                           "read": "gh_read"}
+psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
 
 # classes
 
@@ -649,7 +648,7 @@ class DynInvoke(Invoke):
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
-                    if arg.text is not None:
+                    if arg.text:
                         if arg.type == datatype:
                             if proxy:
                                 test_name = arg.proxy_declaration_name
@@ -658,86 +657,6 @@ class DynInvoke(Invoke):
                             if test_name not in declarations:
                                 declarations.append(test_name)
         return declarations
-
-    def first_access(self, arg_name):
-        ''' Returns the first argument with the specified name passed to
-        a kernel in our schedule '''
-        for call in self.schedule.calls():
-            for arg in call.arguments.args:
-                if arg.text is not None:
-                    if arg.declaration_name == arg_name:
-                        return arg
-        raise GenerationError("Failed to find any kernel argument with name "
-                              "'{0}'".format(arg_name))
-
-    def unique_declns_by_intent(self, datatype):
-        ''' Returns a dictionary listing all required declarations for each
-        type of intent ('inout', 'out' and 'in'). '''
-        if datatype not in VALID_ARG_TYPE_NAMES:
-            raise GenerationError(
-                "unique_declns_by_intent called with an invalid datatype. "
-                "Expected one of '{0}' but found '{1}'".
-                format(str(VALID_ARG_TYPE_NAMES), datatype))
-
-        # Get the lists of all kernel arguments that are accessed
-        # as gh_inc, gh_write and gh_read. A single argument may
-        # be accessed in different ways by different kernels.
-        inc_args = self.unique_declarations(datatype,
-                                            access="gh_inc")
-        write_args = self.unique_declarations(datatype,
-                                              access="gh_write")
-        read_args = self.unique_declarations(datatype,
-                                             access="gh_read")
-        # Rationalise our lists so that any fields that have gh_inc
-        # do not appear in the list of those that are written.
-        for arg in write_args[:]:
-            if arg in inc_args:
-                write_args.remove(arg)
-        # Fields that are only ever read by any kernel that
-        # accesses them
-        for arg in read_args[:]:
-            if arg in write_args or arg in inc_args:
-                read_args.remove(arg)
-
-        # We will return a dictionary containing as many lists
-        # as there are types of intent
-        declns = {}
-        for intent in INTENT_NAMES:
-            declns[intent] = []
-
-        for name in inc_args:
-            # For every arg that is 'inc'd' by at least one kernel,
-            # identify the type of the first access. If it is 'write'
-            # then the arg is only intent(out) otherwise it is
-            # intent(inout)
-            first_arg = self.first_access(name)
-            if first_arg.access != "gh_write":
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
-            else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        for name in write_args:
-            # For every argument that is written to by at least one kernel,
-            # identify the type of the first access - if it is read
-            # or inc'd before it is written then it must have intent(inout).
-            # However, we deal with gh_inc args separately so we do
-            # not consider those here.
-            first_arg = self.first_access(name)
-            if first_arg.access == "gh_read":
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
-            else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        # Anything we have left must be declared as intent(in)
-        for name in read_args:
-            if name not in declns["in"]:
-                declns["in"].append(name)
-
-        return declns
 
     def arg_for_funcspace(self, fs_name):
         ''' Returns an argument object which is on the requested
@@ -890,7 +809,7 @@ class DynInvoke(Invoke):
         fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields that are
         # intent(inout)
-        for intent in INTENT_NAMES:
+        for intent in FORTRAN_INTENT_NAMES:
             if fld_args[intent]:
                 invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                            entity_decls=fld_args[intent],
@@ -900,7 +819,7 @@ class DynInvoke(Invoke):
         # are written (operators are always on discontinous spaces and
         # therefore are never 'inc')
         operator_declarations = self.unique_declns_by_intent("gh_operator")
-        for intent in INTENT_NAMES:
+        for intent in FORTRAN_INTENT_NAMES:
             if operator_declarations[intent]:
                 invoke_sub.add(
                     TypeDeclGen(invoke_sub, datatype="operator_type",

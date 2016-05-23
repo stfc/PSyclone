@@ -12,14 +12,21 @@
 
 import abc
 
-# These mappings will be set by a particular API if supported. We
+# The types of 'intent' that an argument to a Fortran subroutine
+# may have
+FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
+
+# The following mappings will be set by a particular API if supported. We
 # provide a default here for API's which do not have their own mapping
 # (or support this mapping). This allows codes with no support to run.
 # Names of reduction operations
 MAPPING_REDUCTIONS = {"sum": "sum"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-
+# Types of access for a kernel argument
+MAPPING_ACCESSES = {"inc": "inc", "write": "write", "read": "read"}
+# Valid types of argument to a kernel call
+VALID_ARG_TYPE_NAMES = ["field", "operator", "real", "integer"]
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
@@ -410,6 +417,111 @@ class Invoke(object):
     @schedule.setter
     def schedule(self, obj):
         self._schedule = obj
+
+    def unique_declarations(self, datatype, access=None):
+        ''' Returns a list of all required declarations for the
+        specified datatype. If access is supplied (e.g. "gh_write") then
+        only declarations with that access are returned. '''
+        if datatype not in VALID_ARG_TYPE_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid datatype. "
+                "Expected one of '{0}' but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), datatype))
+        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid access type. "
+                "Expected one of '{0}' but got '{1}'".
+                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
+        declarations = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if not access or arg.access == access:
+                    if arg.text is not None:
+                        if arg.type == datatype:
+                            test_name = arg.declaration_name
+                            if test_name not in declarations:
+                                declarations.append(test_name)
+        return declarations
+
+    def first_access(self, arg_name):
+        ''' Returns the first argument with the specified name passed to
+        a kernel in our schedule '''
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    if arg.declaration_name == arg_name:
+                        return arg
+        raise GenerationError("Failed to find any kernel argument with name "
+                              "'{0}'".format(arg_name))
+
+    def unique_declns_by_intent(self, datatype):
+        ''' Returns a dictionary listing all required declarations for each
+        type of intent ('inout', 'out' and 'in'). '''
+        if datatype not in VALID_ARG_TYPE_NAMES:
+            raise GenerationError(
+                "unique_declns_by_intent called with an invalid datatype. "
+                "Expected one of '{0}' but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), datatype))
+
+        # Get the lists of all kernel arguments that are accessed
+        # as inc (shared update), write and read. A single argument may
+        # be accessed in different ways by different kernels.
+        inc_args = self.unique_declarations(datatype,
+                                            access=MAPPING_ACCESSES["inc"])
+        write_args = self.unique_declarations(datatype,
+                                              access=MAPPING_ACCESSES["write"])
+        read_args = self.unique_declarations(datatype,
+                                             access=MAPPING_ACCESSES["read"])
+        # Rationalise our lists so that any fields that have inc
+        # do not appear in the list of those that are written.
+        for arg in write_args[:]:
+            if arg in inc_args:
+                write_args.remove(arg)
+        # Fields that are only ever read by any kernel that
+        # accesses them
+        for arg in read_args[:]:
+            if arg in write_args or arg in inc_args:
+                read_args.remove(arg)
+
+        # We will return a dictionary containing as many lists
+        # as there are types of intent
+        declns = {}
+        for intent in FORTRAN_INTENT_NAMES:
+            declns[intent] = []
+
+        for name in inc_args:
+            # For every arg that is 'inc'd' by at least one kernel,
+            # identify the type of the first access. If it is 'write'
+            # then the arg is only intent(out) otherwise it is
+            # intent(inout)
+            first_arg = self.first_access(name)
+            if first_arg.access != MAPPING_ACCESSES["write"]:
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
+            else:
+                if name not in declns["out"]:
+                    declns["out"].append(name)
+
+        for name in write_args:
+            # For every argument that is written to by at least one kernel,
+            # identify the type of the first access - if it is read
+            # or inc'd before it is written then it must have intent(inout).
+            # However, we deal with inc args separately so we do
+            # not consider those here.
+            first_arg = self.first_access(name)
+            if first_arg.access == MAPPING_ACCESSES["read"]:
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
+            else:
+                if name not in declns["out"]:
+                    declns["out"].append(name)
+
+        # Anything we have left must be declared as intent(in)
+        for name in read_args:
+            if name not in declns["in"]:
+                declns["in"].append(name)
+
+        return declns
 
     def gen(self):
         from f2pygen import ModuleGen
