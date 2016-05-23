@@ -18,6 +18,7 @@ import pytest
 from generator import generate, GenerationError, main
 from parse import ParseError
 
+
 def delete_module(modname):
     '''a function to remove a module from Python's internal modules
        list. This is useful as some tests affect others by importing
@@ -382,8 +383,8 @@ def test_main_no_invoke_alg_stdout(capsys):
 
     # pass in a kernel file as that has no invokes in it
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "testkern.F90"))
+                                  "test_files", "dynamo0p3",
+                                  "testkern.F90"))
     main([kern_filename])
     out, _ = capsys.readouterr()
 
@@ -402,15 +403,15 @@ def test_main_no_invoke_alg_file(capsys):
 
     # pass in a kernel file as that has no invokes in it
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "testkern.F90"))
+                                  "test_files", "dynamo0p3",
+                                  "testkern.F90"))
 
-    fileTemp_alg = tempfile.NamedTemporaryFile()
-    alg_filename = fileTemp_alg.name
-    fileTemp_psy = tempfile.NamedTemporaryFile()
-    psy_filename = fileTemp_psy.name
-    fileTemp_alg.close()
-    fileTemp_psy.close()
+    filetemp_alg = tempfile.NamedTemporaryFile()
+    alg_filename = filetemp_alg.name
+    filetemp_psy = tempfile.NamedTemporaryFile()
+    psy_filename = filetemp_psy.name
+    filetemp_alg.close()
+    filetemp_psy.close()
     # no need to delete the files as they are never created
 
     main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
@@ -419,8 +420,9 @@ def test_main_no_invoke_alg_file(capsys):
     # check stdout contains warning
     kern_file = open(kern_filename)
     kern_str = kern_file.read()
-    expected_stdout = ("Warning: 'Algorithm Error: Algorithm file contains no "
-                       "invoke() calls: refusing to generate empty PSy code'\n")
+    expected_stdout = ("Warning: 'Algorithm Error: Algorithm file contains "
+                       "no invoke() calls: refusing to generate empty PSy "
+                       "code'\n")
     assert expected_stdout == stdout
 
     # check alg file has same output as input file
@@ -430,4 +432,4 @@ def test_main_no_invoke_alg_file(capsys):
     os.remove(alg_filename)
 
     # check psy file is not created
-    assert not os.path.isfile(psy_filename) 
+    assert not os.path.isfile(psy_filename)

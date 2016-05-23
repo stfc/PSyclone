@@ -194,7 +194,7 @@ def main(args):
                             script_name=args.script,
                             line_length=args.limit,
                             distributed_memory=args.dist_mem)
-    except AlgorithmError as error:
+    except AlgorithmError:
         _, exc_value, _ = sys.exc_info()
         print "Warning: {0}".format(exc_value)
         # no invoke calls were found in the algorithm file so we need
@@ -202,14 +202,14 @@ def main(args):
         # output the original algorithm file and set the psy file to
         # be empty
         alg_file = open(args.filename)
-        alg=alg_file.read()
-        psy=""
+        alg = alg_file.read()
+        psy = ""
     except (OSError, IOError, ParseError, GenerationError,
-            RuntimeError) as error:
+            RuntimeError):
         _, exc_value, _ = sys.exc_info()
         print exc_value
         exit(1)
-    except Exception as error:
+    except Exception:
         print "Error, unexpected exception:\n"
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print exc_type
