@@ -63,6 +63,7 @@ psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 psyGen.MAPPING_ACCESSES = {"inc": "gh_inc", "write": "gh_write",
                            "read": "gh_read"}
 psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
+psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 
 # classes
 
@@ -628,34 +629,27 @@ class DynInvoke(Invoke):
                 break
         return required
 
-    def unique_declarations(self, datatype, proxy=False, access=None):
-        ''' Returns a list of all required declarations for the
-        specified datatype. If proxy is set to True then the
-        equivalent proxy declarations are returned instead. If access
-        is supplied (e.g. "gh_write") then only declarations with that
-         access are returned. '''
+    def unique_proxy_declarations(self, datatype, access=None):
+        ''' Returns a list of all required proxy declarations for the
+        specified datatype.  If access is supplied (e.g. "gh_write")
+        then only declarations with that access are returned. '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_declarations called with an invalid datatype. "
+                "unique_proxy_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
         if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise GenerationError(
-                "unique_declarations called with an invalid access type. "
+                "unique_proxy_declarations called with an invalid access type. "
                 "Expected one of '{0}' but got '{1}'".
                 format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
         declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if not access or arg.access == access:
-                    if arg.text:
-                        if arg.type == datatype:
-                            if proxy:
-                                test_name = arg.proxy_declaration_name
-                            else:
-                                test_name = arg.declaration_name
-                            if test_name not in declarations:
-                                declarations.append(test_name)
+                    if arg.text and arg.type == datatype:
+                        if arg.proxy_declaration_name not in declarations:
+                            declarations.append(arg.proxy_declaration_name)
         return declarations
 
     def arg_for_funcspace(self, fs_name):
@@ -854,13 +848,13 @@ class DynInvoke(Invoke):
                 invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
                                          rhs=arg.name+"%get_proxy()"))
 
-        field_proxy_decs = self.unique_declarations("gh_field", proxy=True)
+        field_proxy_decs = self.unique_proxy_declarations("gh_field")
         if len(field_proxy_decs) > 0:
             invoke_sub.add(
                 TypeDeclGen(invoke_sub,
                             datatype="field_proxy_type",
                             entity_decls=field_proxy_decs))
-        op_proxy_decs = self.unique_declarations("gh_operator", proxy=True)
+        op_proxy_decs = self.unique_proxy_declarations("gh_operator")
         if len(op_proxy_decs) > 0:
             invoke_sub.add(
                 TypeDeclGen(invoke_sub,

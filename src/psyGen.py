@@ -27,6 +27,8 @@ MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 MAPPING_ACCESSES = {"inc": "inc", "write": "write", "read": "read"}
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = ["field", "operator", "real", "integer"]
+# List of all valid access types for a kernel argument
+VALID_ACCESS_DESCRIPTOR_TYPES = ["read", "write"]
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
