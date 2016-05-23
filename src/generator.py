@@ -86,7 +86,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
                                  kernel_path=kernel_path,
                                  line_length=line_length)
         psy = PSyFactory(api, distributed_memory=distributed_memory).\
-              create(invoke_info)
+            create(invoke_info)
         if script_name is not None:
             sys_path_appended = False
             try:
@@ -152,79 +152,84 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
 def main():
 
-    PARSER = argparse.ArgumentParser(
+    ''' Parses and checks the command line arguments, calls the generate
+    function if all is well, catches any errors and outputs the
+    results
+    '''
+
+    parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
-    PARSER.add_argument('-oalg', help='filename of transformed algorithm code')
-    PARSER.add_argument(
+    parser.add_argument('-oalg', help='filename of transformed algorithm code')
+    parser.add_argument(
         '-opsy', help='filename of generated PSy code')
-    PARSER.add_argument(
+    parser.add_argument(
         '-api', default=DEFAULTAPI, help='choose a particular api from {0}, '
         'default {1}'.format(str(SUPPORTEDAPIS), DEFAULTAPI))
-    PARSER.add_argument('filename', help='algorithm-layer source code')
-    PARSER.add_argument('-s', '--script', help='filename of a PSyclone'
+    parser.add_argument('filename', help='algorithm-layer source code')
+    parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
-    PARSER.add_argument(
+    parser.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
-    PARSER.add_argument(
+    parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
-    PARSER.add_argument(
+    parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
         help='generate distributed memory code')
-    PARSER.add_argument(
+    parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
-    PARSER.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
+    parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
-    ARGS = PARSER.parse_args()
+    args = parser.parse_args()
 
-    if ARGS.api not in SUPPORTEDAPIS:
+    if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(ARGS.api, SUPPORTEDAPIS)
+            "{1}.".format(args.api, SUPPORTEDAPIS)
         exit(1)
     try:
-        ALG, PSY = generate(ARGS.filename, api=ARGS.api,
-                            kernel_path=ARGS.directory,
-                            script_name=ARGS.script,
-                            line_length=ARGS.limit,
-                            distributed_memory=ARGS.dist_mem)
+        alg, psy = generate(args.filename, api=args.api,
+                            kernel_path=args.directory,
+                            script_name=args.script,
+                            line_length=args.limit,
+                            distributed_memory=args.dist_mem)
     except AlgorithmError as error:
         print "Warning:", error
-        print STR(ALG)
-        print STR(PSY)
+        print str(alg)
+        print str(psy)
         exit(0)
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
-        _, EXC_VALUE, _ = sys.exc_info()
-        print EXC_VALUE
+        _, exc_value, _ = sys.exc_info()
+        print exc_value
         exit(1)
     except Exception as error:
         print "Error, unexpected exception:\n"
-        EXC_TYPE, EXC_VALUE, EXC_TRACEBACK = sys.exc_info()
-        print EXC_TYPE
-        print EXC_VALUE
-        traceback.print_tb(EXC_TRACEBACK)
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print exc_type
+        print exc_value
+        traceback.print_tb(exc_traceback)
         exit(1)
-    if ARGS.limit:
-        FLL = FortLineLength()
-        PSY_STR = FLL.process(str(PSY))
-        ALG_STR = FLL.process(str(ALG))
+    if args.limit:
+        fll = FortLineLength()
+        psy_str = fll.process(str(psy))
+        alg_str = fll.process(str(alg))
     else:
-        PSY_STR = str(PSY)
-        ALG_STR = str(ALG)
-    if ARGS.oalg is not None:
-        MY_FILE = open(ARGS.oalg, "w")
-        MY_FILE.write(ALG_STR)
-        MY_FILE.close()
+        psy_str = str(psy)
+        alg_str = str(alg)
+    if args.oalg is not None:
+        my_file = open(args.oalg, "w")
+        my_file.write(alg_str)
+        my_file.close()
     else:
-        print "Transformed algorithm code:\n", ALG_STR
-    if ARGS.opsy is not None:
-        MY_FILE = open(ARGS.opsy, "w")
-        MY_FILE.write(PSY_STR)
-        MY_FILE.close()
+        print "Transformed algorithm code:\n", alg_str
+    if args.opsy is not None:
+        my_file = open(args.opsy, "w")
+        my_file.write(psy_str)
+        my_file.close()
     else:
-        print "Generated psy layer code:\n", PSY_STR
+        print "Generated psy layer code:\n", psy_str
 
 
 if __name__ == "__main__":

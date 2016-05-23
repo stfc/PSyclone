@@ -7,8 +7,9 @@
 # Author R. Ford STFC Daresbury Lab
 
 '''
-    A module to perform pytest unit and functional tests on the generator
-    function.
+A module to perform pytest unit and functional tests on the code in
+the generator.py file. This includes the generate and the main
+functions.
 '''
 
 import os
@@ -372,3 +373,6 @@ def test_continuators():
                                  "test_files", "dynamo0p3",
                                  "1.1_single_invoke_qr.f90"),
                     api="dynamo0.3", line_length=True)
+
+
+def test_main
