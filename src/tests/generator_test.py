@@ -427,6 +427,7 @@ def test_main_no_invoke_alg_file(capsys):
     expected_file = open(alg_filename)
     expected_alg_str = expected_file.read()
     assert expected_alg_str == kern_str
+    os.remove(alg_filename)
 
     # check psy file is not created
     assert not os.path.isfile(psy_filename) 
