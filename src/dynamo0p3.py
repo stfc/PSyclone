@@ -810,14 +810,14 @@ class DynInvoke(Invoke):
                                            intent=intent))
 
         # Add the subroutine argument declarations for operators that
-        # are written (operators are always on discontinous spaces and
-        # therefore are never 'inc')
-        operator_declarations = self.unique_declns_by_intent("gh_operator")
+        # are read or written (operators are always on discontinous spaces
+        # and therefore are never 'inc')
+        op_declarations_dict = self.unique_declns_by_intent("gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
-            if operator_declarations[intent]:
+            if op_declarations_dict[intent]:
                 invoke_sub.add(
                     TypeDeclGen(invoke_sub, datatype="operator_type",
-                                entity_decls=operator_declarations[intent],
+                                entity_decls=op_declarations_dict[intent],
                                 intent=intent))
 
         # Add the subroutine argument declarations for qr (quadrature
