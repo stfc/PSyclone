@@ -195,10 +195,15 @@ def main():
                             line_length=args.limit,
                             distributed_memory=args.dist_mem)
     except AlgorithmError as error:
-        print "Warning:", error
-        print str(alg)
-        print str(psy)
-        exit(0)
+        _, exc_value, _ = sys.exc_info()
+        print "Warning: {0}".format(exc_value)
+        # no invoke calls were found in the algorithm file so we need
+        # not need to process it, or generate any psy layer code so
+        # output the original algorithm file and set the psy file to
+        # be empty
+        alg_file = open(args.filename)
+        alg=alg_file.read()
+        psy=""
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
         _, exc_value, _ = sys.exc_info()
@@ -224,7 +229,11 @@ def main():
         my_file.close()
     else:
         print "Transformed algorithm code:\n", alg_str
-    if args.opsy is not None:
+
+    if not psy_str:
+        # empty file so do not output anything
+        pass
+    elif args.opsy is not None:
         my_file = open(args.opsy, "w")
         my_file.write(psy_str)
         my_file.close()
