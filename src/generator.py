@@ -150,7 +150,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     return alg.gen, psy.gen
 
 
-def main():
+def main(args):
 
     ''' Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
@@ -182,7 +182,7 @@ def main():
         help='do not generate distributed memory code')
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
@@ -242,4 +242,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
