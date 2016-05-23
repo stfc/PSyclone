@@ -14,7 +14,7 @@ functions.
 
 import os
 import pytest
-from generator import generate, GenerationError
+from generator import generate, GenerationError, main
 from parse import ParseError
 
 
@@ -375,4 +375,52 @@ def test_continuators():
                     api="dynamo0.3", line_length=True)
 
 
-def test_main
+def test_main_no_invoke_alg_stdout(capsys):
+    '''Tests that the main() function outputs the original algorithm input
+    file to stdout when the algorithm file does not contain an invoke and that
+    it does not produce any psy output.'''
+
+    # pass in a kernel file as that has no invokes in it
+    kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "testkern.F90"))
+    main([kern_filename])
+    out, _ = capsys.readouterr()
+
+    kern_file = open(kern_filename)
+    kern_str = kern_file.read()
+    expected_output = ("Warning: 'Algorithm Error: Algorithm file contains no "
+                       "invoke() calls: refusing to generate empty PSy code'\n"
+                       "Transformed algorithm code:\n") + kern_str + "\n"
+    assert expected_output == out
+
+
+def test_main_no_invoke_alg_file(capsys):
+    '''Tests that the main() function outputs the original algorithm input
+    file to file when the algorithm file does not contain an invoke and that
+    it does not produce any psy output.'''
+
+    # pass in a kernel file as that has no invokes in it
+    kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "test_files", "dynamo0p3",
+                              "testkern.F90"))
+    alg_filename = 'alg.f90'
+    psy_filename = 'psy.f90'
+
+    main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
+    stdout, _ = capsys.readouterr()
+
+    # check stdout contains warning
+    kern_file = open(kern_filename)
+    kern_str = kern_file.read()
+    expected_stdout = ("Warning: 'Algorithm Error: Algorithm file contains no "
+                       "invoke() calls: refusing to generate empty PSy code'\n")
+    assert expected_stdout == stdout
+
+    # check alg file has same output as input file
+    expected_file = open(alg_filename)
+    expected_alg_str = expected_file.read()
+    assert expected_alg_str == kern_str
+
+    # check psy file is not created
+    assert not os.path.isfile(psy_filename) 
