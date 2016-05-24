@@ -640,8 +640,8 @@ class DynInvoke(Invoke):
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
         if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise GenerationError(
-                "unique_proxy_declarations called with an invalid access type. "
-                "Expected one of '{0}' but got '{1}'".
+                "unique_proxy_declarations called with an invalid access "
+                "type. Expected one of '{0}' but got '{1}'".
                 format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
         declarations = []
         for call in self.schedule.calls():
