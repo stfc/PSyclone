@@ -112,6 +112,21 @@ the algorithm code will be output to the terminal:
 
     > python <PSYCLONEHOME>/src/generator.py -opsy psy.f90 alg.f90
 
+Algorithm files with no invokes
+-------------------------------
+
+If the generator script is provided with a file that contains no
+``invoke`` calls then the script outputs a warning to ``stdout`` and
+copies the input file to ``stdout``, or to the specified algorithm
+file (if the -oalg <file> option is used). No PSy code will be
+output. If a file is specified using the -opsy <file> option this file
+will not be created.
+::
+
+    > python <PSYCLONEHOME>/src/generator.py -opsy psy.f90 -oalg alg_new.f90 empty_alg.f90
+    Warning: 'Algorithm Error: Algorithm file contains no invoke() calls: refusing to
+    generate empty PSy code'
+
 Kernel directory
 ----------------
 
