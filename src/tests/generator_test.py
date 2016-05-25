@@ -376,6 +376,86 @@ def test_continuators():
                     api="dynamo0.3", line_length=True)
 
 
+def test_main_invalid_api(capsys):
+    '''Tests that we get the expected output and the code exits
+    with an error if the supplied API is not known'''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "test_files", "dynamo0p3",
+                                  "1_single_invoke.f90"))
+    with pytest.raises(SystemExit) as excinfo:
+        main([filename, "-api", "madeup"])
+    # the error code should be 1
+    assert str(excinfo.value) == "1"
+    output, _ = capsys.readouterr()
+    expected_output = ("Unsupported API 'madeup' specified. Supported API's "
+                       "are ['gunghoproto', 'dynamo0.1', 'dynamo0.3', "
+                       "'gocean0.1', 'gocean1.0'].\n")
+    assert output == expected_output
+
+
+def test_main_expected_fatal_error(capsys):
+    '''Tests that we get the expected output and the code exits with an
+    error when an expected fatal error is returned from the generate
+    function.'''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "test_files", "dynamo0p3",
+                                  "2_incorrect_number_of_args.f90"))
+    with pytest.raises(SystemExit) as excinfo:
+        main([filename])
+    # the error code should be 1
+    assert str(excinfo.value) == "1"
+    output, _ = capsys.readouterr()
+    expected_output = ("\"Parse Error: Kernel 'testkern_type' called from the "
+                       "algorithm layer with an insufficient number of "
+                       "arguments as specified by the metadata. Expected at "
+                       "least '5' but found '4'.\"\n")
+    assert output == expected_output
+
+
+# I don't know how to test for an unexpected exception as there is no
+# known way of making this happen (by definition). It may be possible
+# to saboutage some value somewhere but it is not obvious.
+def test_main_unexpected_fatal_error(capsys):
+    '''Tests that we get the expected output and the code exits with an
+    error when an unexpected fatal error is returned from the generate
+    function.'''
+    # sabotage the code so one of our constant lists is now an int
+    import dynamo0p3
+    keep = dynamo0p3.VALID_FUNCTION_SPACES
+    dynamo0p3.VALID_FUNCTION_SPACES=1
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "1_single_invoke.f90"))
+    with pytest.raises(SystemExit) as excinfo:
+        main([filename])
+    # the error code should be 1
+    assert str(excinfo.value) == "1"
+    output, _ = capsys.readouterr()
+    expected_output_1 = (
+        "Error, unexpected exception, please report to the authors:\n"
+        "Description ...\n"
+        "argument of type 'int' is not iterable\n"
+        "Type ...\n"
+        "<type 'exceptions.TypeError'>\n"
+        "Stacktrace ...\n"
+        "  File \"/home/rupert/proj/GungHoSVN/PSyclone_r6349_alg_file_output"
+        "/src/generator.py\", line 196, in main\n"
+        "    distributed_memory=args.dist_mem)")
+    expected_output_2 = (
+        "  File \"/home/rupert/proj/GungHoSVN/PSyclone_r6349_alg_file_output/"
+        "src/psyGen.py\", line 706, in __init__\n    sequence.append(Loop(call"
+        ", parent=self))")
+    assert expected_output_1 in output
+    assert expected_output_2 in output
+    # reset our code sabotage to avoid affecting future tests
+    dynamo0p3.VALID_FUNCTION_SPACES = keep
+
+
+#def test_main_fort_line_length():
+#    '''Tests that the fortran line length object works correctly'''
+#    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+
 def test_main_no_invoke_alg_stdout(capsys):
     '''Tests that the main() function outputs the original algorithm input
     file to stdout when the algorithm file does not contain an invoke and that

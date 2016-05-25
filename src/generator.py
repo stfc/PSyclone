@@ -145,8 +145,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
             if sys_path_appended:
                 os.sys.path.pop()
         alg = Alg(ast, psy)
-    except Exception as msg:
-        raise msg
+    except Exception:
+        raise
     return alg.gen, psy.gen
 
 
@@ -210,11 +210,14 @@ def main(args):
         print exc_value
         exit(1)
     except Exception:
-        print "Error, unexpected exception:\n"
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print exc_type
+        print "Error, unexpected exception, please report to the authors:"
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        print "Description ..."
         print exc_value
-        traceback.print_tb(exc_traceback)
+        print "Type ..."
+        print exc_type
+        print "Stacktrace ..."
+        traceback.print_tb(exc_tb, limit=10, file=sys.stdout)
         exit(1)
     if args.limit:
         fll = FortLineLength()
