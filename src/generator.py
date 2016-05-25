@@ -20,7 +20,7 @@ import os
 import traceback
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
-from algGen import AlgorithmError
+from algGen import NoInvokesError
 from config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
 from line_length import FortLineLength
 
@@ -194,7 +194,7 @@ def main(args):
                             script_name=args.script,
                             line_length=args.limit,
                             distributed_memory=args.dist_mem)
-    except AlgorithmError:
+    except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print "Warning: {0}".format(exc_value)
         # no invoke calls were found in the algorithm file so we need

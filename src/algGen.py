@@ -8,9 +8,9 @@
 
 import fparser
 
-class AlgorithmError(Exception):
-    ''' Provides a PSyclone-specific error class for errors found during 
-        Algorithm code generation. '''
+class NoInvokesError(Exception):
+    '''Provides a PSyclone-specific error class for the situation when an
+    algorithm code contains no invoke calls.'''
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Algorithm Error: "+value
@@ -64,7 +64,7 @@ class Alg(object):
           idx+=1
 
     if idx==0:
-      raise AlgorithmError, "Algorithm file contains no invoke() calls: refusing to generate empty PSy code"
+      raise NoInvokesError, "Algorithm file contains no invoke() calls: refusing to generate empty PSy code"
 
     return self._ast
 

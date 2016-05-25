@@ -8,7 +8,7 @@
 
 import os
 from generator import generate
-from algGen import AlgorithmError
+from algGen import NoInvokesError
 import pytest
 
 class TestAlgGenClassDynamo0p3:
@@ -206,6 +206,6 @@ class TestAlgGenClassDynamo0p1:
     def test_zero_invoke_dynamo0p1(self):
         '''test that an exception is raised if the specified file does not contain any actual invoke() calls'''
         import pytest
-        with pytest.raises(AlgorithmError):
+        with pytest.raises(NoInvokesError):
             alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","missing_invokes.f90"),api="dynamo0.1")
 
