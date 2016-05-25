@@ -1622,8 +1622,8 @@ def test_operator_any_space_different_space_2():
         "map_any_space_4 => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
 
 
-def test_dyninvoke_uniq_declns():
-    ''' tests that we raise an error when DynInvoke.unique_declarations() is
+def test_invoke_uniq_declns():
+    ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
@@ -1635,8 +1635,8 @@ def test_dyninvoke_uniq_declns():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_invalid_access():
-    ''' tests that we raise an error when DynInvoke.unique_declarations() is
+def test_invoke_uniq_declns_invalid_access():
+    ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
@@ -1646,6 +1646,34 @@ def test_dyninvoke_uniq_declns_invalid_access():
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
     assert 'unique_declarations called with an invalid access type' \
+        in str(excinfo.value)
+
+
+def test_invoke_uniq_proxy_declns():
+    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
+    assert 'unique_proxy_declarations called with an invalid datatype' \
+        in str(excinfo.value)
+
+
+def test_invoke_uniq_proxy_declns_invalid_access():
+    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid access type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations(
+            "gh_field",
+            access="invalid_acc")
+    assert 'unique_proxy_declarations called with an invalid access type' \
         in str(excinfo.value)
 
 
