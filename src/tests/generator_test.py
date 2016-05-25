@@ -412,9 +412,6 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
-# I don't know how to test for an unexpected exception as there is no
-# known way of making this happen (by definition). It may be possible
-# to saboutage some value somewhere but it is not obvious.
 def test_main_unexpected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
@@ -428,32 +425,32 @@ def test_main_unexpected_fatal_error(capsys):
                              "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as excinfo:
         main([filename])
+    # reset our code sabotage to avoid affecting future tests
+    dynamo0p3.VALID_FUNCTION_SPACES = keep
     # the error code should be 1
     assert str(excinfo.value) == "1"
     output, _ = capsys.readouterr()
-    expected_output_1 = (
+    expected_output = (
         "Error, unexpected exception, please report to the authors:\n"
         "Description ...\n"
         "argument of type 'int' is not iterable\n"
         "Type ...\n"
         "<type 'exceptions.TypeError'>\n"
-        "Stacktrace ...\n"
-        "  File \"/home/rupert/proj/GungHoSVN/PSyclone_r6349_alg_file_output"
-        "/src/generator.py\", line 196, in main\n"
-        "    distributed_memory=args.dist_mem)")
-    expected_output_2 = (
-        "  File \"/home/rupert/proj/GungHoSVN/PSyclone_r6349_alg_file_output/"
-        "src/psyGen.py\", line 706, in __init__\n    sequence.append(Loop(call"
-        ", parent=self))")
-    assert expected_output_1 in output
-    assert expected_output_2 in output
-    # reset our code sabotage to avoid affecting future tests
-    dynamo0p3.VALID_FUNCTION_SPACES = keep
+        "Stacktrace ...\n")
+    assert expected_output in output
 
 
-#def test_main_fort_line_length():
-#    '''Tests that the fortran line length object works correctly'''
-#    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+def test_main_fort_line_length(capsys):
+    '''Tests that the fortran line length object works correctly. Without
+    the -l option one of the generated psy-layer lines would be longer
+    than 132 characters'''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'dynamo0.3', '-l'])
+    output, _ = capsys.readouterr()
+    for line in output.split('\n'):
+        assert len(line) <= 132
 
 
 def test_main_no_invoke_alg_stdout(capsys):
@@ -476,6 +473,35 @@ def test_main_no_invoke_alg_stdout(capsys):
     assert expected_output == out
 
 
+def test_main_write_psy_file(capsys):
+    '''Tests that the main() function outputs successfully writes the
+    generated psy output to a specified file'''
+
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+
+    filetemp_psy = tempfile.NamedTemporaryFile()
+    psy_filename = filetemp_psy.name
+    filetemp_psy.close()
+    # no need to delete the file as it has not been created
+
+    main([alg_filename, '-opsy', psy_filename])
+
+    # check psy file is created
+    assert os.path.isfile(psy_filename)
+
+    # extract psy file content
+    psy_file = open(psy_filename)
+    psy_str = psy_file.read()
+
+    # check content of generated psy file by comparing it with stdout
+    main([alg_filename])
+    stdout, _ = capsys.readouterr()
+
+    assert psy_str in stdout
+
+
 def test_main_no_invoke_alg_file(capsys):
     '''Tests that the main() function outputs the original algorithm input
     file to file when the algorithm file does not contain an invoke and that
@@ -492,7 +518,7 @@ def test_main_no_invoke_alg_file(capsys):
     psy_filename = filetemp_psy.name
     filetemp_alg.close()
     filetemp_psy.close()
-    # no need to delete the files as they are never created
+    # no need to delete the files as they have not been created
 
     main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
     stdout, _ = capsys.readouterr()
