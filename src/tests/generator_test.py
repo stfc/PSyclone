@@ -380,8 +380,8 @@ def test_main_invalid_api(capsys):
     '''Tests that we get the expected output and the code exits
     with an error if the supplied API is not known'''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "test_files", "dynamo0p3",
-                                  "1_single_invoke.f90"))
+                             "test_files", "dynamo0p3",
+                             "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as excinfo:
         main([filename, "-api", "madeup"])
     # the error code should be 1
@@ -398,8 +398,8 @@ def test_main_expected_fatal_error(capsys):
     error when an expected fatal error is returned from the generate
     function.'''
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "test_files", "dynamo0p3",
-                                  "2_incorrect_number_of_args.f90"))
+                             "test_files", "dynamo0p3",
+                             "2_incorrect_number_of_args.f90"))
     with pytest.raises(SystemExit) as excinfo:
         main([filename])
     # the error code should be 1
@@ -419,7 +419,7 @@ def test_main_unexpected_fatal_error(capsys):
     # sabotage the code so one of our constant lists is now an int
     import dynamo0p3
     keep = dynamo0p3.VALID_FUNCTION_SPACES
-    dynamo0p3.VALID_FUNCTION_SPACES=1
+    dynamo0p3.VALID_FUNCTION_SPACES = 1
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "1_single_invoke.f90"))
