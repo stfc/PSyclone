@@ -30,6 +30,7 @@ VALID_ARG_TYPE_NAMES = []
 # List of all valid access types for a kernel argument
 VALID_ACCESS_DESCRIPTOR_NAMES = []
 
+
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
         code generation. '''
