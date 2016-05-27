@@ -20,7 +20,7 @@ import expression as expr
 import fparser
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    HaloExchange
+    HaloExchange, FORTRAN_INTENT_NAMES
 import psyGen
 import config
 
@@ -57,10 +57,13 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
 
-# Mappings used by reduction code in psyGen
+# Mappings used by non-API-Specific code in psyGen
 psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
-
+psyGen.MAPPING_ACCESSES = {"inc": "gh_inc", "write": "gh_write",
+                           "read": "gh_read"}
+psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
+psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 
 # classes
 
@@ -626,26 +629,27 @@ class DynInvoke(Invoke):
                 break
         return required
 
-    def unique_declarations(self, datatype, proxy=False):
-        ''' Returns a list of all required declarations for the
-        specified datatype. If proxy is set to True then the
-        equivalent proxy declarations are returned instead. '''
+    def unique_proxy_declarations(self, datatype, access=None):
+        ''' Returns a list of all required proxy declarations for the
+        specified datatype.  If access is supplied (e.g. "gh_write")
+        then only declarations with that access are returned. '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
-                "unique_declarations called with an invalid datatype. "
+                "unique_proxy_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
+        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
+            raise GenerationError(
+                "unique_proxy_declarations called with an invalid access "
+                "type. Expected one of '{0}' but got '{1}'".
+                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
         declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
-                if arg.text is not None:
-                    if arg.type == datatype:
-                        if proxy:
-                            test_name = arg.proxy_declaration_name
-                        else:
-                            test_name = arg.declaration_name
-                        if test_name not in declarations:
-                            declarations.append(test_name)
+                if not access or arg.access == access:
+                    if arg.text and arg.type == datatype:
+                        if arg.proxy_declaration_name not in declarations:
+                            declarations.append(arg.proxy_declaration_name)
         return declarations
 
     def arg_for_funcspace(self, fs_name):
@@ -779,33 +783,42 @@ class DynInvoke(Invoke):
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # Add the subroutine argument declarations for real scalars
-        r_declarations = self.unique_declarations("gh_real")
+        # Add the subroutine argument declarations for real scalars that
+        # are read - we don't currently support any other access type
+        r_declarations = self.unique_declarations("gh_real",
+                                                  access="gh_read")
         if r_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    kind="r_def", entity_decls=r_declarations,
-                                   intent="inout"))
-
+                                   intent="in"))
         # Add the subroutine argument declarations for integer scalars
-        i_declarations = self.unique_declarations("gh_integer")
+        # that are read - we don't currently support any other access type
+        i_declarations = self.unique_declarations("gh_integer",
+                                                  access="gh_read")
         if i_declarations:
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=i_declarations,
-                                   intent="inout"))
+                                   intent="in"))
 
-        # Add the subroutine argument declarations for fields
-        field_declarations = self.unique_declarations("gh_field")
-        if len(field_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                       entity_decls=field_declarations,
-                                       intent="inout"))
+        fld_args = self.unique_declns_by_intent("gh_field")
+        # Add the subroutine argument declarations for fields that are
+        # intent(inout)
+        for intent in FORTRAN_INTENT_NAMES:
+            if fld_args[intent]:
+                invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
+                                           entity_decls=fld_args[intent],
+                                           intent=intent))
 
-        # Add the subroutine argument declarations for operators
-        operator_declarations = self.unique_declarations("gh_operator")
-        if len(operator_declarations) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
-                                       entity_decls=operator_declarations,
-                                       intent="inout"))
+        # Add the subroutine argument declarations for operators that
+        # are read or written (operators are always on discontinous spaces
+        # and therefore are never 'inc')
+        op_declarations_dict = self.unique_declns_by_intent("gh_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if op_declarations_dict[intent]:
+                invoke_sub.add(
+                    TypeDeclGen(invoke_sub, datatype="operator_type",
+                                entity_decls=op_declarations_dict[intent],
+                                intent=intent))
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
@@ -835,13 +848,13 @@ class DynInvoke(Invoke):
                 invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
                                          rhs=arg.name+"%get_proxy()"))
 
-        field_proxy_decs = self.unique_declarations("gh_field", proxy=True)
+        field_proxy_decs = self.unique_proxy_declarations("gh_field")
         if len(field_proxy_decs) > 0:
             invoke_sub.add(
                 TypeDeclGen(invoke_sub,
                             datatype="field_proxy_type",
                             entity_decls=field_proxy_decs))
-        op_proxy_decs = self.unique_declarations("gh_operator", proxy=True)
+        op_proxy_decs = self.unique_proxy_declarations("gh_operator")
         if len(op_proxy_decs) > 0:
             invoke_sub.add(
                 TypeDeclGen(invoke_sub,

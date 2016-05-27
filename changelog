@@ -7,6 +7,12 @@
 	supported for serial code. Implementation of this functionality
 	for OpenMP and MPI will be done under #484 and #423, respectively.
 
+	4) #235 PSyclone now uses the appropriate intent for arguments in
+	the generated PSy code. Previously it always used inout. This
+	allows the algorithm developer to specify the intent of data in
+	the algorithm layer appropriately, rather than being forced to use
+	inout in all cases.
+
 release 1.2.1
 
         1) Added a PSyclone logo
