@@ -13,6 +13,11 @@
 	the algorithm layer appropriately, rather than being forced to use
 	inout in all cases.
 
+        5) #604 If PSyclone encounters an Algorithm file that contains no
+	invoke calls then it now issues a warning and outputs that file
+	unchanged (previously it did not output a file at all). No PSy
+	file is created in this case.
+
 release 1.2.1
 
         1) Added a PSyclone logo
