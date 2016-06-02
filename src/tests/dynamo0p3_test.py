@@ -2890,7 +2890,6 @@ end module stencil_mod
 '''
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
@@ -2899,7 +2898,8 @@ def test_stencil_metadata():
     assert stencil_descriptor_0.stencil is None
     stencil_descriptor_1 = metadata.arg_descriptors[1]
     assert stencil_descriptor_1.stencil['type'] == 'cross'
-    assert stencil_descriptor_1.stencil['extent'] == 1
+    # stencil extent is not provided in the above metadata
+    assert stencil_descriptor_1.stencil['extent'] is None
 
 
 def test_field_metadata_too_many_arguments():
@@ -3053,12 +3053,11 @@ def test_unsupported_second_argument():
         in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_valid_stencil_types():
     ''' Check that we successfully parse all valid stencil types '''
     for stencil_type in VALID_STENCIL_TYPES:
-        result = STENCIL_CODE.replace("stencil(cross,1)",
-                                      "stencil("+stencil_type+",1)", 1)
+        result = STENCIL_CODE.replace("stencil(cross)",
+                                      "stencil("+stencil_type+")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
         _ = DynKernMetadata(ast)
 
@@ -3382,7 +3381,6 @@ def test_no_halo_dirty():
     assert "! Set halos dirty" not in generated_code
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange():
     ''' test that a halo_exchange call is added for a loop with a
     stencil operation '''
@@ -3495,7 +3493,6 @@ def test_no_set_dirty_for_operator():
     assert "is_dirty" not in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_different_spaces():
     '''test that all of our different function spaces with a stencil
     access result in halo calls including any_space'''
@@ -3528,7 +3525,6 @@ def test_halo_exchange_vectors_1():
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_vectors():
     ''' test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with gh_inc '''
@@ -3550,7 +3546,6 @@ def test_halo_exchange_vectors():
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_depths():
     ''' test that halo exchange (and gh_inc) includes the correct halo
     depth with gh_write '''
@@ -3576,7 +3571,6 @@ def test_halo_exchange_depths():
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_depths_gh_inc():
     ''' test that halo exchange includes the correct halo depth when
     we have a gh_inc as this increases the required depth by 1 (as
@@ -3607,13 +3601,12 @@ def test_halo_exchange_depths_gh_inc():
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_stencil_read_only():
     '''test that an error is raised if a field with a stencil is not
     accessed as gh_read'''
     fparser.logging.disable('CRITICAL')
-    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross,1)",
-                                "gh_write, w2, stencil(cross,1)", 1)
+    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross)",
+                                "gh_write, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
@@ -3639,7 +3632,6 @@ def test_w3_and_inc_error():
             "access") in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
@@ -3694,15 +3686,6 @@ def test_mesh_mod():
 
 # when we add build tests we should test that we can we get the mesh
 # object from an operator
-
-
-def test_no_stencil_support():
-    '''test that we raise an exception if we encounter a stencil kernel
-    as the infrastructure API for this is not yet decided '''
-    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert 'not supported in PSyclone' in str(excinfo.value)
 
 
 def test_set_bounds_functions():

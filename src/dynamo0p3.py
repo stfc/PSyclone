@@ -272,10 +272,6 @@ class DynArgDescriptor03(Descriptor):
                         "entry must be a valid stencil specification but "
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
-                raise GenerationError(
-                    "Stencils are currently not supported in PSyclone, "
-                    "pending agreement and implementation of the associated "
-                    "infrastructure")
 
             if self._function_space1.lower() == "w3" and \
                self._access_descriptor.name.lower() == "gh_inc":
