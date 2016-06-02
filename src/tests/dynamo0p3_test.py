@@ -3641,8 +3641,12 @@ def test_halo_exchange_view(capsys):
     schedule.view()
     result, _ = capsys.readouterr()
     expected = (
-        "Schedule[invoke='invoke_0_testkern_stencil_type']\n"
-        "    HaloExchange[field='f2', type='cross', depth=1, "
+        "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        "    HaloExchange[field='f2', type='cross', depth=unknown, "
+        "check_dirty=True]\n"
+        "    HaloExchange[field='f3', type='region', depth=1, "
+        "check_dirty=True]\n"
+        "    HaloExchange[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
         "    Loop[type='',field_space='w1',it_space='cells']\n"
         "        KernCall testkern_stencil_code(f1,f2,f3,f4) "

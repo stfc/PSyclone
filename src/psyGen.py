@@ -1060,7 +1060,10 @@ class HaloExchange(Node):
         Node.__init__(self, children=[], parent=parent)
         self._field = field
         self._halo_type = halo_type
-        self._halo_depth = halo_depth
+        if halo_depth:
+            self._halo_depth = halo_depth
+        else:
+            self._halo_depth = "unknown"
         self._check_dirty = check_dirty
 
     def view(self, indent):

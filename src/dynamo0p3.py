@@ -1127,10 +1127,24 @@ class DynHaloExchange(HaloExchange):
         if field.descriptor.stencil:
             halo_type = field.descriptor.stencil['type']
             halo_depth = field.descriptor.stencil['extent']
-            if inc:
-                # there is an inc writer which needs redundant
-                # computation so our halo depth must be increased by 1
-                halo_depth += 1
+            if halo_depth:
+                # halo depth is known
+                self._depth_known = True
+                # we can increment our depth now as the value is known
+                self._inc_depth = False
+                if inc:
+                    # there is an inc writer which needs redundant
+                    # computation so our halo depth must be increased by 1
+                    halo_depth += 1
+            else:
+                # halo_depth is provided by the algorithm layer so is unknown
+                self._depth_known = False
+                if inc:
+                    # we need to increment our unknown depth
+                    self._inc_depth = True
+                else:
+                    # no need to increment our unknown depth
+                    self._inc_depth = False
         else:
             halo_type = 'region'
             halo_depth = 1
@@ -1309,8 +1323,8 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            raise GenerationError(
-                "Stencils are not yet supported with halo exchange call logic")
+            # TODO: check assumtion that "inner" includes the stencil
+            return self._upper_bound_name in ["halo", "edge"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
