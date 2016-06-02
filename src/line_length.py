@@ -22,16 +22,16 @@ class FortLineLength(object):
         self._line_types = ["statement", "openmp_directive",
                             "openacc_directive", "comment",
                             "unknown"]
-        self._cont_start = {"statement": "",
+        self._cont_start = {"statement": "&",
                             "openmp_directive": "!$omp& ",
                             "openacc_directive": "!$acc& ",
                             "comment": "!& ",
-                            "unknown": ""}
-        self._cont_end = {"statement": " &",
+                            "unknown": "&"}
+        self._cont_end = {"statement": "&",
                           "openmp_directive": " &",
                           "openacc_directive": " &",
                           "comment": "",
-                          "unknown": " &"}
+                          "unknown": "&"}
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
