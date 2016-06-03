@@ -18,6 +18,10 @@
 	unchanged (previously it did not output a file at all). No PSy
 	file is created in this case.
 
+        6) #618 fix for #235. Data with intent out should have fields
+	declared as inout as internal subroutines within the field are
+	dereferenced so are required as intent in.
+
 release 1.2.1
 
         1) Added a PSyclone logo
