@@ -1,18 +1,18 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module tests the line_limit module using pytest. '''
 
 # imports
+import os
 import pytest
 from line_length import FortLineLength
 from generator import generate
-import os
 
 # functions
 
@@ -370,10 +370,10 @@ def test_long_line_continuator():
        length limit, does not cause an error.
     '''
     alg, _ = generate(os.path.join(os.path.dirname(os.path.
-                                                     abspath(__file__)),
-                                     "test_files", "dynamo0p3",
-                                     "13.2_alg_long_line_continuator.f90"),
-                        api="dynamo0.3")
+                                                   abspath(__file__)),
+                                   "test_files", "dynamo0p3",
+                                   "13.2_alg_long_line_continuator.f90"),
+                      api="dynamo0.3")
     input_string = str(alg)
     fll = FortLineLength()
     _ = fll.process(input_string)
