@@ -3,7 +3,7 @@ Line length
 
 By default PSyclone will generate fortran code with no consideration
 of fortran line length limits.  As the line length limit for
-free-format fortran is 132 characters, the code that is output may be
+free-form fortran is 132 characters, the code that is output may be
 non-conformant.
 
 Line length is not an issue for many compilers as they allow compiler
@@ -59,19 +59,28 @@ Limitations
 -----------
 
 The :class:`line_length.FortLineLength` class is only partially aware
-of fortran syntax. It has been designed to work in the cases that are
-anticipated to produce long lines when generating code using PSyclone,
-i.e. call and subroutine arguments, use statements, directives and
-declarations.
+of fortran syntax. This awareness is required so that appropriate
+continuation characters can be used (for example ``&`` at the end of a
+line and ``!$omp&`` at the start of a line for OpenMP directives, ``&`` at
+the end of a line for statements and ``&`` at the end of a line and ``&``
+at the beginning of a line for strings).
 
-If other types of line are too long (e.g. an assignment) then an
-exception will be raised. This situation is not expected as the code
-generator should not produce assignment lines that are longer than
-132 characters.
+Whilst statements only require an ``&`` at the end of the line when line
+wrapping with free-form fortran they may optionally also have an ``&``
+at the beginning of the subsequent line. In contrast, when splitting a
+string over multiple lines an ``&`` is required at both
+locations. Therefore an instance of the
+:class:`line_length.FortLineLength` class will always add ``&`` at the
+beginning of a continuation line for a statement, in case the line is
+split within a string.
 
-Other known situations that could cause an instance of the
-:class:`line_length.FortLineLength` class to fail are
-
-#. When an inline comment is used at the end of line to make it too long. However, PSyclone does not generate such code.
-
-#. When a long line includes a string. The :class:`line_length.FortLineLength` class is not aware of strings and therefore will not produce correct code if it attempts to line break within a string. Again it is believed that PSyclone will currently not generate long lines with strings in them.
+One known situation that could cause an instance of the
+:class:`line_length.FortLineLength` class to fail is when an inline
+comment is used at the end of a line to make it longer than the 132
+character limit. Whilst PSyclone does not generate such code for the
+PSy-layer, this might occur in Algorithm-layer code, even if the
+Algorithm-layer code conforms to the 132 line length limit. The reason
+for this is that PSyclone's internal parser concatenates lines
+together, thus a long line correctly split with continuation characters
+in the Algorithm-layer becomes a line that needs to be split by an
+instance of the :class:`line_length.FortLineLength` class.

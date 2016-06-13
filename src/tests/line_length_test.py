@@ -1,18 +1,18 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module tests the line_limit module using pytest. '''
 
 # imports
+import os
 import pytest
 from line_length import FortLineLength
 from generator import generate
-import os
 
 # functions
 
@@ -79,18 +79,18 @@ INPUT_FILE = (
     "    stuff\n")
 
 EXPECTED_OUTPUT = (
-    "    INTEGER    stuff blah  &\n"
-    "blah blah\n"
-    "    REAL       stuff blah  &\n"
-    "blah blah\n"
-    "    TYPE       stuff blah  &\n"
-    "blah blah\n"
-    "    CALL       stuff blah  &\n"
-    "blah blah\n"
-    "    SUBROUTINE stuff blah  &\n"
-    "blah blah\n"
-    "    USE        stuff blah  &\n"
-    "blah blah\n"
+    "    INTEGER    stuff blah &\n"
+    "&blah blah\n"
+    "    REAL       stuff blah &\n"
+    "&blah blah\n"
+    "    TYPE       stuff blah &\n"
+    "&blah blah\n"
+    "    CALL       stuff blah &\n"
+    "&blah blah\n"
+    "    SUBROUTINE stuff blah &\n"
+    "&blah blah\n"
+    "    USE        stuff blah &\n"
+    "&blah blah\n"
     "    !$OMP      stuff blah  &\n"
     "!$omp& blah blah\n"
     "    !$ACC      stuff blah  &\n"
@@ -138,8 +138,8 @@ def test_multiple_lines_statements():
     input_file = (
         "INTEGER blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
     expected_output = (
-        "INTEGER  &\nblahdeblah,  &\nblahdeblah,  &\nblahdeblah,"
-        "  &\nblahdeblah\n")
+        "INTEGER &\n&blahdeblah, &\n&blahdeblah, &\n&blahdeblah,"
+        " &\n&blahdeblah\n")
     fll = FortLineLength(line_length=18)
     output_file = fll.process(input_file)
     assert output_file == expected_output
@@ -203,7 +203,7 @@ def test_break_types_multi_line():
         "!$acc stuffynostrils,(blahdeblah)blahdeblah=(blahdeblah)\n"
         "!     stuffynostrils,blahdeblah.blahdeblah blahdeblah).\n")
     expected_output = (
-        "INTEGER  &\nstuffynostrils,  &\nblahdeblah, &\nblahdeblah"
+        "INTEGER stuffynostrils,&\n& blahdeblah,&\n&blahdeblah"
         " blahdeblah\n"
         "!$omp  &\n!$omp& stuffynostrils, &\n!$omp& (blahdeblah) &\n!$omp&"
         " blahdeblah= &\n!$omp& (blahdeblah)\n"
@@ -215,6 +215,7 @@ def test_break_types_multi_line():
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
     print "("+output_file+")"
+    print expected_output
     assert output_file == expected_output
 
 
@@ -227,19 +228,29 @@ def test_edge_conditions_statements():
     input_string = (
         "INTEGER INTEG\n"
         "INTEGER INTEGE\n"
-        "INTEGER INTEGER\n"
+        "INTEGER INTEGER\n")
+    expected_output = (
+        "INTEGER INTEG\n"
+        "INTEGER INTEGE\n"
+        "INTEGER &\n&INTEGER\n")
+    fll = FortLineLength(line_length=len("INTEGER INTEGE"))
+    output_string = fll.process(input_string)
+    print output_string
+    print expected_output
+    assert output_string == expected_output
+
+    input_string = (
         "INTEGER INTEGER INTEG\n"
         "INTEGER INTEGER INTEGE\n"
         "INTEGER INTEGER INTEGER\n")
     expected_output = (
-        "INTEGER INTEG\n"
-        "INTEGER INTEGE\n"
-        "INTEGER  &\nINTEGER\n"
-        "INTEGER  &\nINTEGER INTEG\n"
-        "INTEGER  &\nINTEGER INTEGE\n"
-        "INTEGER  &\nINTEGER  &\nINTEGER\n")
-    fll = FortLineLength(line_length=len("INTEGER INTEGE"))
+        "INTEGER &\n&INTEGER INTEG\n"
+        "INTEGER &\n&INTEGER INTEGE\n"
+        "INTEGER &\n&INTEGER &\n&INTEGER\n")
+    fll = FortLineLength(line_length=len("INTEGER INTEGER"))
     output_string = fll.process(input_string)
+    print output_string
+    print expected_output
     assert output_string == expected_output
 
 
@@ -359,10 +370,10 @@ def test_long_line_continuator():
        length limit, does not cause an error.
     '''
     alg, _ = generate(os.path.join(os.path.dirname(os.path.
-                                                     abspath(__file__)),
-                                     "test_files", "dynamo0p3",
-                                     "13.2_alg_long_line_continuator.f90"),
-                        api="dynamo0.3")
+                                                   abspath(__file__)),
+                                   "test_files", "dynamo0p3",
+                                   "13.2_alg_long_line_continuator.f90"),
+                      api="dynamo0.3")
     input_string = str(alg)
     fll = FortLineLength()
     _ = fll.process(input_string)

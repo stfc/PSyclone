@@ -22,6 +22,12 @@
 	declared as inout as internal subroutines within the field are
 	dereferenced so are required as intent in.
 
+	7) #610 When PSyclone is operating in line length limiting mode
+	("-l" switch) problems are caused if it breaks a line in the middle
+	of a string. PSyclone now prefixes all continued lines with an
+	ampersand. This then produces valid Fortran irrespective of whether
+	the line-break happens within a string.
+	
 release 1.2.1
 
         1) Added a PSyclone logo

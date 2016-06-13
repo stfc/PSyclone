@@ -33,10 +33,10 @@ class Alg(object):
     :class:`psyGen.PSy` class as input.
 
     :param ast ast: An object containing an ast of the algorithm
-    specification which was produced by the function
-    :func:`parse.parse`.
+        specification which was produced by the function
+        :func:`parse.parse`.
     :param PSy psy: An object (:class:`psyGen.PSy`) containing
-    information about the PSy layer.
+        information about the PSy layer.
 
     For example:
 
@@ -47,6 +47,7 @@ class Alg(object):
     >>> from algGen import Alg
     >>> alg=Alg(ast,psy)
     >>> print(alg.gen)
+
     '''
 
     def __init__(self, ast, psy):
