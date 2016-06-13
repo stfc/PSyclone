@@ -11,6 +11,8 @@ from generator import generate
 from algGen import NoInvokesError
 import pytest
 
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3")
+
 class TestAlgGenClassDynamo0p3:
     ''' AlgGen class unit tests for the Dynamo0.3 API. We use the
     generate function, as parse and PSyFactory need to be called before
@@ -108,6 +110,22 @@ class TestAlgGenClassDynamo0p3:
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","7_QR_field_array.f90"),api="dynamo0.3")
         assert (str(alg).find("USE psy_qr_field_array, ONLY: invoke_0")!=-1 and \
                   str(alg).find("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), qr1(i, k(l)))")!=-1)
+
+    # stencil correct number of args
+    def test_single_stencil(self):
+        ''' test extent value is passed correctly from the algorithm layer '''
+        path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        assert "CALL invoke_0_testkern_stencil_type(f1, f2, f2_extent, f3)" \
+            in output
+
+    # single invoke, single field, single stencil, standard type
+    # single invoke, single field, single stencil, xory
+    # single invoke, multiple fields, multiple stencils, all types
+    # ???single invoke, 2 fields, same stencil value
+    # ???single invoke, multiple fields, multiple stencils, some same value
+    # multiple invokes, as above
 
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for

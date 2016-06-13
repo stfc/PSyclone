@@ -1475,29 +1475,36 @@ class DynKern(Kern):
         self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
         # perform some consistency checks as we have switched these
         # off in the base class
+
+        stencil_arg_count = 0
+        # count the number of extra arguments expected for stencil information
+        for arg in self.arguments.args:
+            if arg.descriptor.stencil:
+                if arg.descriptor.stencil['type'] == 'xory1d':
+                    # a dimension argument must be added
+                    stencil_arg_count += 1
+                if not arg.descriptor.stencil['extent']:
+                    # an extent argument must be added
+                    stencil_arg_count += 1
+
+        # add in extra qr arg if necessary
         if self._qr_required:
-            # check we have an extra argument in the algorithm call
-            if len(ktype.arg_descriptors)+1 != len(args):
-                raise GenerationError(
-                    "error: QR is required for kernel '{0}' which means that "
-                    "a QR argument must be passed by the algorithm layer. "
-                    "Therefore the number of arguments specified in the "
-                    "kernel metadata '{1}', must be one less than the number "
-                    "of arguments in the algorithm layer. However, I found "
-                    "'{2}'".format(ktype.procedure.name,
-                                   len(ktype.arg_descriptors),
-                                   len(args)))
+            # an extra qr arg is expected
+            qr_arg_count = 1
         else:
-            # check we have the same number of arguments in the
-            # algorithm call and the kernel metadata
-            if len(ktype.arg_descriptors) != len(args):
-                raise GenerationError(
-                    "error: QR is not required for kernel '{0}'. Therefore "
-                    "the number of arguments specified in the kernel "
-                    "metadata '{1}', must equal the number of arguments in "
-                    "the algorithm layer. However, I found '{2}'".
-                    format(ktype.procedure.name,
-                           len(ktype.arg_descriptors), len(args)))
+            qr_arg_count = 0
+
+        expected_arg_count = len(ktype.arg_descriptors) + stencil_arg_count + qr_arg_count
+
+        if expected_arg_count != len(args):
+            raise GenerationError(
+                "error: expected '{0}' arguments in the algorithm layer but "
+                "found '{1}'. Expected '{2}' standard arguments, '{3}' "
+                "stencil arguments and '{4}' qr_arguments'".format(
+                    expected_arg_count, len(args),
+                    len(ktype.arg_descriptors), stencil_arg_count,
+                    qr_arg_count))
+
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
