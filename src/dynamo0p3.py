@@ -801,13 +801,19 @@ class DynInvoke(Invoke):
                                    intent="in"))
 
         fld_args = self.unique_declns_by_intent("gh_field")
-        # Add the subroutine argument declarations for fields that are
-        # intent(inout)
+        # Add the subroutine argument declarations for fields
         for intent in FORTRAN_INTENT_NAMES:
             if fld_args[intent]:
+                if intent == "out":
+                    # The data part of a field might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
                 invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                            entity_decls=fld_args[intent],
-                                           intent=intent))
+                                           intent=fort_intent))
 
         # Add the subroutine argument declarations for operators that
         # are read or written (operators are always on discontinous spaces
@@ -815,10 +821,17 @@ class DynInvoke(Invoke):
         op_declarations_dict = self.unique_declns_by_intent("gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
             if op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
                 invoke_sub.add(
                     TypeDeclGen(invoke_sub, datatype="operator_type",
                                 entity_decls=op_declarations_dict[intent],
-                                intent=intent))
+                                intent=fort_intent))
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
