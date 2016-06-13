@@ -79,7 +79,7 @@ One known situation that could cause an instance of the
 comment is used at the end of a line to make it longer than the 132
 character limit. Whilst PSyclone does not generate such code for the
 PSy-layer, this might occur in Algorithm-layer code, even if the
-Algorihm-layer code conforms to the 132 line length limit. The reason
+Algorithm-layer code conforms to the 132 line length limit. The reason
 for this is that PSyclone's internal parser concatenates lines
 together, thus a long line correctly split with continuation characters
 in the Algorithm-layer becomes a line that needs to be split by an
