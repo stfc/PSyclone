@@ -7,7 +7,7 @@
 # Author R. Ford STFC Daresbury Lab
 
 import os
-from generator import generate
+from generator import generate, GenerationError
 from algGen import NoInvokesError
 import pytest
 
@@ -111,17 +111,39 @@ class TestAlgGenClassDynamo0p3:
         assert (str(alg).find("USE psy_qr_field_array, ONLY: invoke_0")!=-1 and \
                   str(alg).find("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), qr1(i, k(l)))")!=-1)
 
-    # stencil correct number of args
+
+    # simple stencil code generation
     def test_single_stencil(self):
         ''' test extent value is passed correctly from the algorithm layer '''
         path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
         alg, _ = generate(path, api = "dynamo0.3")
         output = str(alg)
-        assert "CALL invoke_0_testkern_stencil_type(f1, f2, f2_extent, f3)" \
+        assert "CALL invoke_0_testkern_stencil_type(f1, f2, f2_extent, f3, f4)" \
             in output
 
-    # single invoke, single field, single stencil, standard type
-    # single invoke, single field, single stencil, xory
+
+    # stencil code with wrong number of arguments
+    def test_single_stencil_broken(self):
+        '''test we raise an exception when we do not pass a stencil argument '''
+        path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
+        with pytest.raises(GenerationError) as excinfo:
+            alg, _ = generate(path, api = "dynamo0.3")
+        assert "expected '5' arguments in the algorithm layer but found '4'" \
+            in str(excinfo.value)
+
+
+    # single invoke, single field, single stencil of type xory1d
+    def test_single_stencil_xory1d(self):
+        '''test extent and dimension values are passed correctly from the
+        algorithm layer when xory1d is specified'''
+        path = os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
+                "f2_extent, f2_direction, f3, f4)") in output
+
+    # single invoke, single field, single stencil, literal value
     # single invoke, multiple fields, multiple stencils, all types
     # ???single invoke, 2 fields, same stencil value
     # ???single invoke, multiple fields, multiple stencils, some same value
