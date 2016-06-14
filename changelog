@@ -1,3 +1,5 @@
+release 1.2.2
+
         1) #575 Add parser support for stencil meta-data.
 
         2) #587 Changed scalar metadata names to gh_real and gh_integer
@@ -27,7 +29,7 @@
 	of a string. PSyclone now prefixes all continued lines with an
 	ampersand. This then produces valid Fortran irrespective of whether
 	the line-break happens within a string.
-	
+
 release 1.2.1
 
         1) Added a PSyclone logo
