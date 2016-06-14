@@ -2281,7 +2281,11 @@ class DynKernelArgument(Argument):
     def ref_name(self, function_space=None):
         ''' Returns the name used to dereference this type of argument. '''
         if not function_space:
-            function_space = self.function_spaces[0]
+            if self._type == "gh_operator":
+                # For an operator we use the 'from' FS
+                function_space = self._function_spaces[1]
+            else:
+                function_space = self._function_spaces[0]
         else:
             # Check that the supplied function space is valid for this
             # argument

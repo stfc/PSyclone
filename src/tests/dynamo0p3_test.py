@@ -1300,7 +1300,7 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = mapping_proxy%fs_to%get_nlayers()\n"
+        "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -1415,7 +1415,7 @@ def test_operator_nofield_different_space():
     gen = str(psy.gen)
     print gen
     assert "mesh = my_mapping%get_mesh()" in gen
-    assert "nlayers = my_mapping_proxy%fs_to%get_nlayers()" in gen
+    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
