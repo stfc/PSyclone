@@ -94,8 +94,7 @@ class DynBuiltIn(BuiltIn):
         BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
-        self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors,
-                                             self._arguments)
+        self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
 
     def array_ref(self, fld_name):
         ''' Returns a string containing the array reference for a

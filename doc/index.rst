@@ -14,6 +14,7 @@
    psy_layer
    transformations
    distributed_memory
+   built_ins
    dynamo0p3
    gocean1p0
    stub_gen
@@ -22,7 +23,6 @@
    system_specific_setup
    f2py_install
 ..   developers
-..   infrastructure_calls
 ..   tutorial
 ..   examples
 ..   FAQS

@@ -832,20 +832,19 @@ class DynInvoke(Invoke):
         return False
 
     def get_operator_name(self, operator_name, function_space):
-	''' A convenience method that returns an operator name for a
-	particular operator on a particular function space. These
+        ''' A convenience method that returns an operator name for a
+        particular operator on a particular function space. These
         names are specified in function_space_descriptors objects
-	contained within Kernel objects. The first Kernel which uses
-	the specified function space is used to return the name. If no
-	Kernel using this function space exists in this invoke, an
-	error is thrown. '''
-	for kern_call in self.schedule.kern_calls():
-	    if kern_call.fs_descriptors.exists(function_space):
-	        return get_operator_name(operator_name, function_space)
-	raise GenerationError(
-	    "Dyn_invoke:get_operator_name: no kern call with function space "
-	    "'{0}' and operator '{1}'".format(function_space, operator_name))
-
+        contained within Kernel objects. The first Kernel which uses
+        the specified function space is used to return the name. If no
+        Kernel using this function space exists in this invoke, an
+        error is thrown. '''
+        for kern_call in self.schedule.kern_calls():
+            if kern_call.fs_descriptors.exists(function_space):
+                return get_operator_name(operator_name, function_space)
+        raise GenerationError(
+            "Dyn_invoke:get_operator_name: no kern call with function space "
+            "'{0}' and operator '{1}'".format(function_space, operator_name))
 
     def field_on_space(self, func_space):
         ''' Returns true if a field exists on this space for any
@@ -1544,6 +1543,13 @@ class DynKern(Kern):
     def __init__(self):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
+        self._func_descriptors = None
+        self._fs_descriptors = None
+        self._qr_required = False
+        self._qr_text = ""
+        self._qr_name = ""
+        self._qr_args = None
+        self._name_space_manager = NameSpaceFactory().create()
 
     def load(self, call, parent=None):
         ''' sets up kernel information with the call object which is
@@ -1599,8 +1605,7 @@ class DynKern(Kern):
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
         self._func_descriptors = ktype.func_descriptors
-        self._fs_descriptors = FSDescriptors(ktype.func_descriptors,
-                                             self._arguments)
+        self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
@@ -1636,7 +1641,6 @@ class DynKern(Kern):
         if self._qr_required:
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
-            self._name_space_manager = NameSpaceFactory().create()
             # use our namespace manager to create a unique name unless
             # the context and label match and in this case return the
             # previous name
@@ -2187,13 +2191,6 @@ class FSDescriptor(object):
         self._descriptor = descriptor
 
     @property
-    def mangled_name(self):
-        ''' Returns the mangled name of this function space. This is the
-        name by which it is known within the Invoke from which the associated
-        kernel call occurs '''
-        return self._mangled_name
-
-    @property
     def requires_basis(self):
         ''' Returns True if a basis function is associated with this
         function space, otherwise it returns False. '''
@@ -2234,7 +2231,7 @@ class FSDescriptors(object):
     FSDescriptor for each meta-funcs entry in the kernel
     meta-data '''
 
-    def __init__(self, descriptors, kernel_args):
+    def __init__(self, descriptors):
         self._orig_descriptors = descriptors
         self._descriptors = []
         for descriptor in descriptors:
@@ -2277,7 +2274,7 @@ class DynKernelArguments(Arguments):
 
     def __init__(self, call, parent_call):
         if False:  # for pyreverse
-            self._0_to_n = DynKernelArgument(None, None, None)
+            self._0_to_n = DynKernelArgument(None, None, None, None)
 
         Arguments.__init__(self, parent_call)
 

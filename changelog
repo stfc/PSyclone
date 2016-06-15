@@ -1,6 +1,37 @@
+        1) #111 Adds support for dynamo0.3 built-in operations running
+	sequentially.
+
+release 1.2.2
+
         1) #575 Add parser support for stencil meta-data.
 
         2) #587 Changed scalar metadata names to gh_real and gh_integer
+
+        3) #501 Updates to parser and documentation to support writing to
+	scalar arguments (reductions). Note that this is currently only
+	supported for serial code. Implementation of this functionality
+	for OpenMP and MPI will be done under #484 and #423, respectively.
+
+	4) #235 PSyclone now uses the appropriate intent for arguments in
+	the generated PSy code. Previously it always used inout. This
+	allows the algorithm developer to specify the intent of data in
+	the algorithm layer appropriately, rather than being forced to use
+	inout in all cases.
+
+        5) #604 If PSyclone encounters an Algorithm file that contains no
+	invoke calls then it now issues a warning and outputs that file
+	unchanged (previously it did not output a file at all). No PSy
+	file is created in this case.
+
+        6) #618 fix for #235. Data with intent out should have fields
+	declared as inout as internal subroutines within the field are
+	dereferenced so are required as intent in.
+
+	7) #610 When PSyclone is operating in line length limiting mode
+	("-l" switch) problems are caused if it breaks a line in the middle
+	of a string. PSyclone now prefixes all continued lines with an
+	ampersand. This then produces valid Fortran irrespective of whether
+	the line-break happens within a string.
 
 release 1.2.1
 

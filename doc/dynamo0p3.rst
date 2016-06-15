@@ -37,11 +37,6 @@ objects and their use are discussed in the following sections.
                kernel2(field1, stencil_extent, field3, scalar1) &
              )
 
-Built-ins
-+++++++++
-
-.. note:: To be written.
-
 Field
 +++++
 
@@ -183,18 +178,27 @@ fourth is an operator. The third entry is a field vector of size 3.
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``arg_type``) describes how the Kernel makes use of
-the data being passed into it. There are 3 possible values of this
-metadata ``GH_WRITE``, ``GH_READ`` and ``GH_INC``. ``GH_WRITE``
-indicates the data is modified in the Kernel before (optionally) being
-read. ``GH_READ`` indicates that the data is read and left
-unmodified. ``GH_INC`` **explanation TBD**.
+the data being passed into it (the way it is accessed within a
+Kernel). This information is mandatory. There are currently 4 possible
+values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
+``GH_SUM``. However, not all combinations of metadata entries are
+valid and PSyclone will raise an exception if an invalid combination
+is specified. Valid combinations are specified later in this section.
+
+* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
+
+* ``GH_READ`` indicates that the data is read and is unmodified.
+
+* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
+
+* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
 
 For example:
 
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL,  GH_READ),                                    &
+       arg_type(GH_REAL,  GH_sum),                                     &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -252,6 +256,40 @@ these two function spaces be the same. Put another way, if an Invoke
 contained two calls of a kernel with arguments described by the above
 meta-data then the first field argument passed to each kernel call
 need not be on the same space.
+
+.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
+          pattern must be a discontinuous function in the
+          horizontal. At the moment that means it must be ``w3`` but
+          in the future there will be more discontinuous function
+          spaces. A GH_FIELD that specifies GH_INC as its access
+          pattern may be continuous in the vertical (and discontinuous
+          in the horizontal), continuous in the horizontal (and
+          discontinuous in the vertical), or continuous in both. In
+          each case the code is the same. However, if a field is
+          discontinuous in the horizontal then it will not need
+          colouring and there is currently no way to determine this
+          from the metadata (unless we can statically determine the
+          space of the field being passed in). At the moment this type
+          of Kernel is always treated as if it is continuous in the
+          horizontal, even if it is not.
+
+As mentioned earlier, not all combinations of metadata are
+valid. Valid combinations are summarised here. All types of data
+(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
+be read within a Kernel and this is specified in metadata using
+``GH_READ``. If data is *modified* in a Kernel then the permitted access
+modes depend on the type of data it is and the function
+space it is on. Valid values are given in the table below.
+
+=============     ============================    ============
+Argument Type     Function space                  Access type
+=============     ============================    ============
+GH_INTEGER        n/a                             GH_SUM
+GH_REAL           n/a                             GH_SUM
+GH_FIELD          Discontinuous (w3)              GH_WRITE
+GH_FIELD          Continuous (not w3)             GH_INC
+GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
+=============     ============================    ============
 
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
@@ -407,6 +445,256 @@ rules, along with PSyclone's naming conventions, are:
     3) include ``wh``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_h``.
     4) include ``wv``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_v``.
 
+
+Built-ins
+---------
+
+The basic concept of a PSyclone Built-in is described in the
+:ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
+built-ins generally follow a convention that the field/scalar written
+to comes last in the argument list. Although field arguments to all currently
+supported built-ins may be on any space, the arguments to any given
+call must all be on the same space.
+
+The built-ins supported for the Dynamo 0.3 API are
+listed in alphabetical order below. For clarity, the calculation
+performed by each built-in is described using Fortran array syntax; this
+does not necessarily reflect the actual implementation of the
+built-in (*e.g.* it could be implemented by PSyclone
+generating a call to an optimised maths library).
+
+axpby
++++++
+
+**axpby** (*a*, *field1*, *b*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inc_axpby
++++++++++
+
+**inc_axpby** (*a*, *field1*, *b*, *field2*)
+
+Performs: ::
+   
+   field1(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+axpy
+++++
+
+**axpy** (*a*, *field1*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inc_axpy
+++++++++
+
+**inc_axpy** (*a*, *field1*, *field2*)
+
+Performs an AXPY and returns the result as an increment to the first
+field: ::
+   
+   field1(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+copy_field
+++++++++++
+
+**copy_field** (*field1*, *field2*)
+
+Copy the values from *field1* into *field2*: ::
+
+   field2(:) = field1(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
+copy_scaled_field
++++++++++++++++++
+
+**copy_scaled_field** (*value*, *field1*, *field2*)
+
+Multiplies a field by a scalar and stores the result in a second field: ::
+  
+  field2(:) = value * field1(:)
+
+where:
+
+* real(r_def), intent(in) :: *value*
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
+divide_field
+++++++++++++
+
+**divide_field** (*field1*, *field2*)
+
+Divides the first field by the second and returns it: ::
+
+   field1(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+divide_fields
++++++++++++++
+
+**divide_fields** (*field1*, *field2*, *field3*)
+
+Divides the first field by the second and returns the result in the third: ::
+
+   field3(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inner_product
++++++++++++++
+
+**inner_product** (*field1*, *field2*, *sumval*)
+
+Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+
+  sumval = SUM(field1(:)*field2(:))
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* real(r_def), intent(out) :: *sumval*
+
+inc_field
++++++++++
+
+**inc_field** (*field1*, *field2*)
+
+Adds the second field to the first and returns it: ::
+
+  field1(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+minus_fields
+++++++++++++
+
+**minus_fields** (*field1*, *field2*, *field3*)
+
+Subtracts the second field from the first and stores the result in
+the third. *i.e.* performs the operation: ::
+  
+  field3(:) = field1(:) - field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(out) :: *field3*
+
+multiply_fields
++++++++++++++++
+
+**multiply_fields** (*field1*, *field2*, *field3*)
+
+Multiplies two fields together and returns the result in a third field: ::
+
+  field3(:) = field1(:)*field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+plus_fields
++++++++++++
+
+**plus_fields** (*field1*, *field2*, *field3*)
+
+Sums two fields: ::
+  
+  field3(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(out) :: *field3*
+
+scale_field
++++++++++++
+
+**scale_field** (*scalar*, *field1*)
+
+Multiplies a field by a scalar value and returns the field: ::
+
+  field1(:) = scalar * field1(:)
+
+where:
+
+* real(r_def),      intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+
+set_field_scalar
+++++++++++++++++
+
+**set_field_scalar** (*value*, *field*)
+
+Set all elements of the field *field* to the value *value*.
+The field may be on any function space.
+
+* type(field_type), intent(out) :: *field*
+* real(r_def), intent(in) :: *value*
+
+.. note:: The Fortran parser used by PSyclone cannot currently cope with numerical constants containing an explicit kind paramer (e.g. ``1.0_r_def``). This limitation may be worked around by passing the scalar quantity by argument instead of by value.
+
+sum_field
++++++++++
+
+**sum_field** (*field*, *sumval*)
+
+Sums all of the elements of the field *field* and returns the result
+in the scalar variable *sumval*: ::
+  
+  sumval = SUM(field(:))
+
+where:
+
+* type(field_type), intent(in) :: field
+* real(r_def), intent(out) :: sumval
 
 Conventions
 -----------

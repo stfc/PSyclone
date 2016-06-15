@@ -2,13 +2,16 @@ PSy layer
 =========
 
 In the PSyKAl separation of concerns, the PSy layer is responsible for
-linking together the Algorithm layer and Kernel layer. Its
+linking together the Algorithm and Kernel layers and for providing the
+implementation of any Built-in operations used. Its
 functional responsibilities are to
 
 
-1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Kernel call (as these will not have a one-to-one correspondance).
-2. call the Kernel routine so that it covers the required iteration space and
-3. include any required distributed memory operations such as halo swaps and reductions.
+1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Built-in or Kernel call (as these will not have a one-to-one correspondance).
+2. call any Kernel routines such that they cover the required iteration space and
+3. perform any Built-in operations (either by including the necessary code
+   directly in the PSy layer or by e.g. calling a maths library) and
+4. include any required distributed memory operations such as halo swaps and reductions.
 
 Its other role is to allow the optimisation expert to optimise any
 required distributed memory operations, include and optimise any
@@ -28,14 +31,14 @@ arguments and datatypes passed by the algorithm layer and the
 arguments and datatypes expected by the Kernel layer; it needs to know
 the name of the Kernel subroutine(s); it needs to know the iteration
 space that the Kernel(s) is/are written to iterate over; it also needs
-to know the ordering of Kernels as specified in the algorithm
+to know the ordering of Kernels and Built-ins as specified in the algorithm
 layer. Finally, it needs to know where to place any distributed memory
 operations.
 
 PSyclone determines the above information by being told the API in
-question (by the user), by reading the appropriate Kernel metadata and
-by reading the order of kernels in an invoke call (as specified in the
-algorithm layer).
+question (by the user), by reading the appropriate Kernel and Built-in
+metadata and by reading the order of Kernels and Built-ins in an
+invoke call (as specified in the algorithm layer).
 
 PSyclone has an API-specific parsing stage which reads the algorithm
 layer and all associated Kernel metadata. This information is passed
@@ -104,11 +107,13 @@ Schedule
 --------
 
 A PSy **Schedule** object consists of a tree of objects which can be
-used to describe the required schedule for a PSy layer subroutine
-which is called by the algorithm layer and itself calls one or more
-Kernels. These objects can currently be a **Loop**, a **Kernel**, a
+used to describe the required schedule for a PSy layer
+subroutine. This subroutine is called by the Algorithm layer and
+itself calls one or more Kernels and/or implements any required
+Built-in operations. These objects can currently be a **Loop**, a
+**Kernel**, a **Built-in** (see the :ref:`built-ins` section), a
 **Directive** (of various types), or a **HaloExchange** (if
-distributed memory is supported and is switched on, see the
+distributed memory is supported and is switched on; see the
 :ref:`distributed_memory` section). The order of the tree (depth
 first) indicates the order of the associated Fortran code.
 
