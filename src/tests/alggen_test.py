@@ -143,11 +143,69 @@ class TestAlgGenClassDynamo0p3:
         assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
                 "f3, f4, f2_extent, f2_direction)") in output
 
+
     # single invoke, single field, single stencil, literal value
-    # single invoke, multiple fields, multiple stencils, all types
-    # ???single invoke, 2 fields, same stencil value
-    # ???single invoke, multiple fields, multiple stencils, some same value
-    # multiple invokes, as above
+    def test_single_stencil_literal(self):
+        ''' test extent value is passed correctly from the algorithm layer '''
+        path = os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4)" \
+            in output
+
+
+    # single invoke, single field, single stencil of type xory1d literal
+    def test_single_stencil_xory1d_literal(self):
+        '''test dimension value is recognised and not passed if either
+        x_direction or y_direction'''
+        path = os.path.join(BASE_PATH, "19.5_single_stencil_xory1d_literal.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
+                "f3, f4)") in output
+
+    # single invoke, single field, single stencil of type xory1d scalar
+    def test_single_stencil_xory1d_scalar(self):
+        '''test we raise an error if a value is passed for the direction argument'''
+        path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
+        with pytest.raises(GenerationError) as excinfo:
+            alg, _ = generate(path, api = "dynamo0.3")
+        assert "literal is not a valid value for a stencil direction" in str(excinfo.value)
+
+    # single kernel, multiple simple stencils
+    def test_multiple_stencils(self):
+        '''more than one stencil in a kernel'''
+        path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
+                "f3, f4, f2_extent, f3_extent, f3_direction)") in output
+
+    # single kernel, multiple simple stencils same name
+    def test_multiple_stencil_same_name(self):
+        '''more than one stencil in a kernel with the same name for extent'''
+        path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
+                "f3, f4, extent, f3_direction)") in output
+
+    # single kernel, multiple stencils same name for direction
+    def test_multiple_stencil_same_name_direction(self):
+        '''more than one stencil in a kernel with the same name for direction'''
+        path = os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
+                "f3, f4, extent, direction)") in output
+
+    # multiple kernels in an invoke *****
+    # args are the wrong type *****
+
 
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for

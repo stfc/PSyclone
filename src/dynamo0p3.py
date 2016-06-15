@@ -578,34 +578,28 @@ class DynInvoke(Invoke):
         # arguments so we need to add them in.
 
         # adding in stencil extent arguments
-        count = 0
         alg_unique_stencil_extent_args = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:
-                        count += 1
-                        alg_unique_stencil_extent_args.append(arg.stencil.extent_arg.text)
+                        if not arg.stencil.extent_arg.is_literal():
+                            if arg.stencil.extent_arg.text not in alg_unique_stencil_extent_args:
+                                alg_unique_stencil_extent_args.append(arg.stencil.extent_arg.text)
         self._alg_unique_args.extend(alg_unique_stencil_extent_args)
 
-        if count>1:
-            raise GenerationError(
-                "Only one stencil extent argument per invoke is currently supported")
-
         # adding in stencil direction arguments
-        count = 0
         alg_unique_stencil_direction_args = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
                     if arg.stencil.direction_arg:
-                        count += 1
-                        alg_unique_stencil_direction_args.append(arg.stencil.direction_arg.text)
+                        if arg.stencil.direction_arg.is_literal():
+                            raise GenerationError("A literal is not a valid value for a stencil direction")
+                        if arg.stencil.direction_arg.text.lower() not in ["x_direction", "y_direction"]:
+                            if arg.stencil.direction_arg.text not in alg_unique_stencil_direction_args:
+                                alg_unique_stencil_direction_args.append(arg.stencil.direction_arg.text)
         self._alg_unique_args.extend(alg_unique_stencil_direction_args)
-
-        if count>1:
-            raise GenerationError(
-                "Only one stencil direction argument per invoke is currently supported")
 
         # adding in qr arguments
         self._alg_unique_qr_args = []
