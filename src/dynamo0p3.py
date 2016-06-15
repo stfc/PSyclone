@@ -1473,37 +1473,6 @@ class DynKern(Kern):
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
-        # perform some consistency checks as we have switched these
-        # off in the base class
-
-        stencil_arg_count = 0
-        # count the number of extra arguments expected for stencil information
-        for arg in self.arguments.args:
-            if arg.descriptor.stencil:
-                if arg.descriptor.stencil['type'] == 'xory1d':
-                    # a dimension argument must be added
-                    stencil_arg_count += 1
-                if not arg.descriptor.stencil['extent']:
-                    # an extent argument must be added
-                    stencil_arg_count += 1
-
-        # add in extra qr arg if necessary
-        if self._qr_required:
-            # an extra qr arg is expected
-            qr_arg_count = 1
-        else:
-            qr_arg_count = 0
-
-        expected_arg_count = len(ktype.arg_descriptors) + stencil_arg_count + qr_arg_count
-
-        if expected_arg_count != len(args):
-            raise GenerationError(
-                "error: expected '{0}' arguments in the algorithm layer but "
-                "found '{1}'. Expected '{2}' standard arguments, '{3}' "
-                "stencil arguments and '{4}' qr_arguments'".format(
-                    expected_arg_count, len(args),
-                    len(ktype.arg_descriptors), stencil_arg_count,
-                    qr_arg_count))
 
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
@@ -2191,6 +2160,44 @@ class FSDescriptors(object):
             "function space {0}".format(fs_name))
 
 
+def check_args(call):
+    '''checks that the kernel arguments provided via the invoke call are
+    consistent with the information expected, as specified by the
+    kernel metadata '''
+
+    # stencil arguments
+    stencil_arg_count = 0
+    for arg_descriptor in call.ktype.arg_descriptors:
+        if arg_descriptor.stencil:
+            if not arg_descriptor.stencil['extent']:
+                # an extent argument must be provided
+                stencil_arg_count += 1
+            if arg_descriptor.stencil['type'] == 'xory1d':
+                # a dimension argument must be provided
+                stencil_arg_count += 1
+
+    # qr_argument
+    qr_required = False
+    for descriptor in call.ktype.func_descriptors:
+        if len(descriptor.operator_names) > 0:
+            qr_required = True
+    if qr_required:
+        qr_arg_count = 1
+    else:
+        qr_arg_count = 0
+
+    expected_arg_count = len(call.ktype.arg_descriptors) + stencil_arg_count + qr_arg_count
+
+    if expected_arg_count != len(call.args):
+        raise GenerationError(
+            "error: expected '{0}' arguments in the algorithm layer but "
+            "found '{1}'. Expected '{2}' standard arguments, '{3}' "
+            "stencil arguments and '{4}' qr_arguments'".format(
+                expected_arg_count, len(call.args),
+                len(call.ktype.arg_descriptors), stencil_arg_count,
+                qr_arg_count))
+
+
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments
     collectively, as specified by the kernel argument metadata. '''
@@ -2199,10 +2206,23 @@ class DynKernelArguments(Arguments):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None)
         Arguments.__init__(self, parent_call)
+        check_args(call)
         self._args = []
-        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
-            self._args.append(DynKernelArgument(arg, call.args[idx],
-                                                parent_call))
+        idx = 0
+        for arg in call.ktype.arg_descriptors:
+
+            dyn_argument = DynKernelArgument(arg, call.args[idx],
+                                                parent_call)
+            idx +=1
+            if dyn_argument.descriptor.stencil:
+                if dyn_argument.descriptor.stencil['type'] == 'xory1d':
+                    # a dimension argument has been added
+                    idx += 1
+                if not dyn_argument.descriptor.stencil['extent']:
+                    # an extent argument has been added
+                    idx += 1
+            self._args.append(dyn_argument)
+
         self._dofs = []
 
     def get_arg_on_space(self, func_space):
