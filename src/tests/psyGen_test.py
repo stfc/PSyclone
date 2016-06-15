@@ -18,8 +18,9 @@
 import os
 import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, GenerationError, OMPParallelDoDirective, \
+    NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
+from psyGen import GenerationError, FieldNotFoundError
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
 from parse import parse
@@ -389,13 +390,7 @@ def test_reset():
     assert ns1 != ns2
 
 
-# Kern class test
-
-
-def test_kern_class_view(capsys):
-    ''' tests the view method in the Kern class. The simplest way to
-    do this is via the dynamo0.3 subclass '''
-    meta = '''
+FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(1) =    &
@@ -410,7 +405,14 @@ contains
   end subroutine dummy_code
 end module dummy_mod
 '''
-    ast = fpapi.parse(meta, ignore_comments=False)
+
+# Kern class test
+
+
+def test_kern_class_view(capsys):
+    ''' tests the view method in the Kern class. The simplest way to
+    do this is via the dynamo0.3 subclass '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
@@ -419,6 +421,38 @@ end module dummy_mod
     expected_output = \
         "KernCall dummy_code(field_1) [module_inline=False]"
     assert expected_output in out
+
+
+def test_kern_local_vars():
+    ''' Check that calling the abstract local_vars() method of Kern raises
+    the expected exception '''
+    from psyGen import Kern
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(NotImplementedError) as excinfo:
+        Kern.local_vars(my_kern)
+    assert "Kern.local_vars should be implemented" in str(excinfo.value)
+
+
+def test_written_arg():
+    ''' Check that we raise the expected exception when Kern.written_arg()
+    is called for a kernel that doesn't have an argument that is written
+    to '''
+    from psyGen import Kern
+    # Change the kernel metadata so that the only kernel argument has
+    # read access
+    kernel_metadata = FAKE_KERNEL_METADATA.replace("gh_write", "gh_read", 1)
+    ast = fpapi.parse(kernel_metadata, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        Kern.written_arg(my_kern,
+                         mapping={"write": "gh_write", "readwrite": "gh_inc"})
+    assert "does not have an argument with gh_write or gh_inc access" in \
+        str(excinfo.value)
 
 
 def test_OMPDoDirective_class_view(capsys):
@@ -439,7 +473,7 @@ def test_OMPDoDirective_class_view(capsys):
         for dist_mem in [False, True]:
 
             psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
-                  create(invoke_info)
+                create(invoke_info)
             invoke = psy.invokes.invoke_list[0]
             schedule = invoke.schedule
             otrans = OMPParallelLoopTrans()
@@ -463,3 +497,24 @@ def test_OMPDoDirective_class_view(capsys):
                 "[module_inline=False]")
 
             assert expected_output in out
+
+
+def test_call_abstract_methods():
+    ''' Check that calling __str__() and gen_code() on the base Call
+    class raises the expected exception '''
+    from psyGen import Call
+    # Monkey-patch a GenerationError object to mock-up suitable
+    # arguments to create a Call
+    fake_call = GenerationError("msg")
+    fake_ktype = GenerationError("msg")
+    fake_ktype.iterates_over = "something"
+    fake_call.ktype = fake_ktype
+    fake_call.module_name = "a_name"
+    my_call = Call(fake_call, fake_call, name="a_name", arguments=None)
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.__str__()
+    assert "Call.__str__ should be implemented" in str(excinfo.value)
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.gen_code(None)
+    assert "Call.gen_code should be implemented" in str(excinfo.value)

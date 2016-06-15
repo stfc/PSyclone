@@ -35,6 +35,7 @@ class Alg(object):
     :param ast ast: An object containing an ast of the algorithm
         specification which was produced by the function
         :func:`parse.parse`.
+
     :param PSy psy: An object (:class:`psyGen.PSy`) containing
         information about the PSy layer.
 

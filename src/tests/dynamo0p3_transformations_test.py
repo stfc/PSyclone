@@ -238,7 +238,8 @@ def test_omp_do_not_over_cells():
         with pytest.raises(TransformationError) as excinfo:
             _, _ = otrans.apply(schedule.children[index])
         assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
-        assert "The iteration space is not 'cells'" in str(excinfo.value)
+        assert "The iteration space (dofs) is not 'cells'" in \
+            str(excinfo.value)
 
 
 def test_omp_parallel_do_not_over_cells():
@@ -784,8 +785,8 @@ def test_loop_fuse_different_spaces():
             _, _ = ftrans.apply(schedule.children[index],
                                 schedule.children[index+1])
         assert "Error in DynamoLoopFuse transformation" in str(excinfo.value)
-        assert "Cannot fuse loops" in str(excinfo.value)
-        assert "over different spaces: w2 w1" in str(excinfo.value)
+        assert "Cannot fuse loops that are over different spaces" in \
+            str(excinfo.value)
 
 
 def test_loop_fuse_unexpected_error():
@@ -1143,3 +1144,20 @@ def test_scalar_sum_and_OpenMP_unsupported():
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert "OpenMP reductions are not yet supported" in str(excinfo.value)
+
+
+def test_builtin_and_OpenMP_unsupported():
+    ''' Test that we raise an error if we attempt to use OpenMP on
+    code containing a call to a built-in. '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15_single_pointwise_invoke.f90"),
+                    api=TEST_API, distributed_memory=False)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = otrans.apply(schedule.children[0])
+    assert "The iteration space is not 'cells'." in str(excinfo.value)

@@ -3136,6 +3136,24 @@ def test_arg_ref_name_method_error2():
     assert 'ref_name: Error, unsupported arg type' in str(excinfo)
 
 
+def test_arg_intent_error():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when intent() is called and the argument access property is not one of
+    gh_{read,write,inc} '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    # Mess with the internal state of this argument object
+    first_argument._access = "gh_not_an_intent"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.intent()
+    assert "Expecting argument access to be one of 'gh_read, gh_write, "
+    "gh_inc' but found 'gh_not_an_intent'" in str(excinfo)
+
+
 def test_arg_descriptor_function_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space is called and the internal type is an
@@ -3743,7 +3761,8 @@ def test_lower_bound_fortran():
     my_loop.set_upper_bound("halo", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert ("upper bound must be 'cells' if we are sequential" in
+    assert ("For sequential/shared-memory code, the upper loop bound must "
+            "be one of ncolours, ncolour, cells or dofs" in
             str(excinfo.value))
 
 

@@ -1,0 +1,98 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!> @brief Contains methods and algorithms for solving a system A.x = b for known
+!! input field b and matrix A and returns field x
+!!
+!! @details Contains a selction of solvers for inverting the matrix vector
+!! system A.x = b to return x = A^{-1}.b Depending upom the type of system to
+!! solve a number of iterative solver algorithms are possible or for
+!! discontinuous systems an exact solver can be used
+module solver_mod
+  use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL, &
+                                      CG_SOLVER, BICG_SOLVER, JACOBI_SOLVER, &
+                                      GMRES_SOLVER, GCR_SOLVER, NO_PRE_COND
+  use log_mod,                 only : log_event,         &
+                                      log_scratch_space, &
+                                      LOG_LEVEL_ERROR,   &
+                                      LOG_LEVEL_INFO,    &
+                                      LOG_LEVEL_DEBUG,   &
+                                      LOG_LEVEL_TRACE
+  use field_mod,               only : field_type
+  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, Wtheta, W2V, W2H
+  use w3_solver_kernel_mod, only: w3_solver_kernel_type
+  use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
+
+  use quadrature_mod,  only : quadrature_type
+  use operator_mod,    only : operator_type
+  use mesh_mod,        only : mesh_type
+
+  implicit none
+  private
+
+  public :: solver_algorithm
+
+contains
+
+!> @brief Jacobi solver for the system A.x = b.
+!! @details solves A.x = b where the operation A.x is encoded in a kernel using
+!! a fixed (n_iter) number of iterations. The choice of matrix is
+!! encoded in the matrix vector kernel that is called. No measure of convergence
+!! is used instead the algorithm is assumed to have converged sufficiently
+!! after (n_iter) iterations
+!! @param[in] rhs_field The input b
+!! @param[inout] lhs_field The answser, x
+!! @param[in] mm operator type, the mass matrix
+!! @param[in] mesh The mesh object the model for fields
+!! @param[in] n_iter The number of Jacobi iterations to perform
+  subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
+
+
+  implicit none
+
+  integer,             intent(in)    :: n_iter
+  type(field_type),    intent(inout) :: lhs, rhs
+  type(operator_type), intent(inout) :: mm
+  type(mesh_type),     intent(in)    :: mesh
+  type(field_type)                   :: Ax, lumped_weight, res
+
+  real(kind=r_def), parameter :: MU = 0.9_r_def
+
+  integer :: iter
+  integer                            :: rhs_fs
+  type( function_space_type )        :: fs
+
+  rhs_fs = rhs%which_function_space()
+
+  Ax = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+  lumped_weight = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+  res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+
+! Compute mass lump
+  call invoke ( set_field_scalar(1.0, Ax))
+  call invoke( matrix_vector_kernel_mm_type(lumped_weight,Ax,mm) )
+
+  call invoke ( divide_fields(rhs, lumped_weight, lhs))
+
+! initial guess
+  call invoke ( set_field_scalar(0.0, lhs))
+
+  do iter = 1,n_iter
+    call invoke( set_field_scalar(0.0, Ax) )
+    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
+
+    call invoke ( minus_fields(rhs,Ax,res) )
+    call invoke ( divide_fields(res, lumped_weight, res) )
+    call invoke( axpy(MU, res, lhs, lhs) )
+
+! Ready for next iteration
+  end do
+
+  end subroutine jacobi_solver_algorithm
+
+end module solver_mod

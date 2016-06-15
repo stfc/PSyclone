@@ -5,7 +5,7 @@ Algorithm layer
 
 In the PSyKAl separation of concerns, the Algorithm layer specifies
 the algorithm that the scientist would like to run (in terms of calls
-to kernel and infrastructure routines) and logically operates on full
+to kernel routines and built-in operations) and logically operates on full
 fields. Algorithm code in the algorithm layer is not allowed to
 include any parallelisation calls or directives and passes datatypes
 specified by the particular API.
@@ -15,18 +15,25 @@ API
 
 The Algorithm layer is forbidden from calling the Kernel layer
 directly. In PSyclone, if the programmer would like to call a Kernel
-routine from the algorithm layer they must use the ``invoke`` call
-(which is common to all API's). The ``invoke`` call is not necessary
-(and indeed will not work) if the PSy layer is written manually.
+routine or a Built-in operation from the algorithm layer they must use
+the ``invoke`` call (which is common to all API's). The ``invoke``
+call is not necessary (and indeed will not work) if the PSy layer is
+written manually.
 
-In an ``invoke`` call, the algorithm layer developer adds ``call invoke()``
+To make an ``invoke`` call, the algorithm layer developer adds one or more
+``call invoke()`` statements
 to their code and within the content of the ``invoke`` call they add a
-reference to the required Kernel and the data to pass to it. For example,
+reference to the required Kernel/Built-in and the data to pass to it. For
+example,
 ::
 
     ...
     call invoke(integrate_one_kernel(arg1,arg2))
     ...
+
+For more information on the concept of Built-in operations see the
+:ref:`built-ins` Section. Details of which operations are supported
+for a specific API are given in the documentation of that API.
 
 The algorithm layer can consist of an arbitrary number of files
 containing fortran code, any of which may contain as many ``invoke()``
@@ -34,7 +41,8 @@ calls as is required. PSyclone is applied to an individual algorithm
 layer file and must therefore be run multiple times if multiple files
 containing ``invoke()`` calls exist in the algorithm layer.
 
-The algorithm developer is also able to reference more than one Kernel
+The algorithm developer is also able to reference more than one
+Kernel/Built-in
 within an invoke. In fact this feature is encouraged for performance
 reasons. **As a general guideline the developer should aim to use as
 few invokes as possible with as many Kernel references within them as

@@ -17,6 +17,33 @@ from line_length import FortLineLength
 import config
 
 
+def check_api(api):
+    ''' Check that the supplied API is valid '''
+    from config import SUPPORTEDAPIS
+    if api not in SUPPORTEDAPIS:
+        raise ParseError(
+            "check_api: Unsupported API '{0}' specified. "
+            "Supported types are {1}.".format(api,
+                                              SUPPORTEDAPIS))
+
+
+def get_builtin_defs(api):
+    '''Get the names of the supported built-in operations
+    and the file containing the associated meta-data for the supplied API '''
+
+    # Check that the supplied API is valid
+    check_api(api)
+
+    if api == "dynamo0.3":
+        from dynamo0p3_builtins import BUILTIN_MAP as builtins
+        from dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as fname
+    else:
+        # We don't support any built-ins for this API
+        builtins = []
+        fname = None
+    return builtins, fname
+
+
 class ParseError(Exception):
     def __init__(self, value):
         self.value = "Parse Error: " + value
@@ -63,8 +90,8 @@ class Descriptor(object):
             # (currently at line 394 of this file) when no arguments
             # are supplied.
             raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but there must be "
-                "at least one argument inside the brackets {0}".
+                "Expecting format stencil(<type>[,<extent>]) but there must "
+                "be at least one argument inside the brackets {0}".
                 format(metadata))
         if len(metadata.args) > 2:
             raise ParseError(
@@ -314,19 +341,18 @@ class KernelProcedure(object):
 
 
 class KernelTypeFactory(object):
+    ''' Factory for calls to user-supplied Kernels '''
+
     def __init__(self, api=""):
         if api == "":
             from config import DEFAULTAPI
             self._type = DEFAULTAPI
         else:
-            from config import SUPPORTEDAPIS as supportedTypes
+            check_api(api)
             self._type = api
-            if self._type not in supportedTypes:
-                raise ParseError("KernelTypeFactory: Unsupported API '{0}' "
-                                 "specified. Supported types are {1}.".
-                                 format(self._type, supportedTypes))
 
     def create(self, ast, name=None):
+
         if self._type == "gunghoproto":
             return GHProtoKernelType(ast, name=name)
         elif self._type == "dynamo0.1":
@@ -343,7 +369,41 @@ class KernelTypeFactory(object):
             raise ParseError(
                 "KernelTypeFactory: Internal Error: Unsupported "
                 "kernel type '{0}' found. Should not be possible.".
-                format(self._myType))
+                format(self._type))
+
+
+class BuiltInKernelTypeFactory(KernelTypeFactory):
+    ''' Factory class for calls to built-ins '''
+
+    def create(self, builtin_names, builtin_defs_file, name=None):
+        ''' Create a built-in call object '''
+        if name not in builtin_names:
+            raise ParseError(
+                "BuiltInKernelTypeFactory: unrecognised built-in name. "
+                "Got '{0}' but expected one of {1}".format(name,
+                                                           builtin_names))
+        # The meta-data for these lives in a Fortran module file
+        # passed in to this method.
+        fname = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            builtin_defs_file)
+        if not os.path.isfile(fname):
+            raise ParseError(
+                "Kernel '{0}' is a recognised Built-in but cannot "
+                "find file '{1}' containing the meta-data describing "
+                "the Built-in operations for API '{2}'".format(name,
+                                                               fname,
+                                                               self._type))
+        # Attempt to parse the meta-data
+        try:
+            ast = fpapi.parse(fname)
+        except:
+            raise ParseError(
+                "Failed to parse the meta-data for PSyclone "
+                "built-ins in {0}".format(fname))
+
+        # Now we have the AST, call our parent class to create the object
+        return KernelTypeFactory.create(self, ast, name)
 
 
 class KernelType(object):
@@ -416,7 +476,7 @@ class KernelType(object):
                 "{0}, please use (/.../) instead".format(var_name))
         try:
             inits = expr.expression.parseString(descs.init)[0]
-        except expr.ParseException as e:
+        except expr.ParseException:
             raise ParseError("kernel metadata has an invalid format {0}".
                              format(descs.init))
         nargs = int(descs.shape[0])
@@ -540,40 +600,11 @@ class GHProtoKernelType(KernelType):
                                          init.args[2].name))
 
 
-class InfCall(object):
-    """An infrastructure call (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
-    def __init__(self, module_name, func_name, args):
-        self._module_name = module_name
-        self._args = args
-        self._func_name = func_name
+class ParsedCall(object):
+    ''' A call to either a user-supplied kernel or a built-in appearing
+    in an invoke. '''
 
-    @property
-    def args(self):
-        return self._args
-
-    @property
-    def module_name(self):
-        return self._module_name
-
-    @property
-    def func_name(self):
-        return self._func_name
-
-    @property
-    def type(self):
-        return "InfrastructureCall"
-
-    def __repr__(self):
-        return 'InfrastructureCall(%s, %s)' % (self.module_name, self.args)
-
-
-class KernelCall(object):
-    """A kernel call (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
-
-    def __init__(self, module_name, ktype, args):
-        self._module_name = module_name
+    def __init__(self, ktype, args):
         self._ktype = ktype
         self._args = args
         if len(self._args) < self._ktype.nargs:
@@ -600,6 +631,15 @@ class KernelCall(object):
     def module_name(self):
         return self._module_name
 
+
+class KernelCall(ParsedCall):
+    """A call to a user-supplied kernel (appearing in
+    `call invoke(kernel_name(field_name, ...))`"""
+
+    def __init__(self, module_name, ktype, args):
+        ParsedCall.__init__(self, ktype, args)
+        self._module_name = module_name
+
     @property
     def type(self):
         return "kernelCall"
@@ -608,8 +648,29 @@ class KernelCall(object):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
 
 
+class BuiltInCall(ParsedCall):
+    ''' A built-in call (appearing in
+    `call invoke(kernel_name(field_name, ...))` '''
+
+    def __init__(self, ktype, args):
+        ParsedCall.__init__(self, ktype, args)
+        self._func_name = ktype.name
+
+    @property
+    def func_name(self):
+        return self._func_name
+
+    @property
+    def type(self):
+        return "BuiltInCall"
+
+    def __repr__(self):
+        return 'BuiltInCall(%s, %s)' % (self.args)
+
+
 class Arg(object):
-    ''' Descriptions of an argument '''
+    ''' Description of an argument as obtained from parsing the Fortran code
+        where a kernel is invoke'd '''
     def __init__(self, form, text, varName=None):
         formOptions = ["literal", "variable", "indexed_variable"]
         self._form = form
@@ -716,13 +777,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         from config import DEFAULTAPI
         api = DEFAULTAPI
     else:
-        from config import SUPPORTEDAPIS
-        if api not in SUPPORTEDAPIS:
-            raise ParseError(
-                "parse: Unsupported API '{0}' specified. Supported types "
-                "are {1}.".format(api, SUPPORTEDAPIS))
+        check_api(api)
 
-    from pyparsing import ParseException
+    # Get the names of the supported Built-in operations for this API
+    builtin_names, builtin_defs_file = get_builtin_defs(api)
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -790,7 +848,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             for arg in statement.items:
                 try:
                     parsed = expr.expression.parseString(arg)[0]
-                except ParseException:
+                except expr.ParseException:
                     raise ParseError("Failed to parse string: {0}".format(arg))
 
                 argname = parsed.name
@@ -810,18 +868,34 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName))
                         else:
                             # argument is a standard variable
-                            argargs.append(Arg('variable', variableName,
+                            argargs.append(Arg('variable',
+                                               variableName,
                                                variableName))
-                if argname in ['set']:  # this is an infrastructure call
-                    statement_kcalls.append(InfCall(inf_name, argname,
-                                                    argargs))
+                if argname in builtin_names:
+                    if argname in name_to_module:
+                        raise ParseError("A built-in cannot be named in a use "
+                                         "statement but '{0}' is used from "
+                                         "module '{1}' in file {2}".
+                                         format(argname,
+                                                name_to_module[argname],
+                                                alg_filename))
+                    # this is a call to a built-in operation. The
+                    # KernelTypeFactory will generate appropriate meta-data
+                    statement_kcalls.append(
+                        BuiltInCall(
+                            BuiltInKernelTypeFactory(api=api).create(
+                                builtin_names, builtin_defs_file,
+                                name=argname),
+                            argargs))
                 else:
                     try:
                         modulename = name_to_module[argname]
                     except KeyError:
                         raise ParseError(
-                            "kernel call '%s' must be named in a use "
-                            "statement" % argname)
+                            "kernel call '{0}' must either be named in a use "
+                            "statement or be a recognised built-in "
+                            "(one of '{1}' for this API)".
+                            format(argname, builtin_names))
 
                     # Search for the file containing the kernel source
                     import fnmatch

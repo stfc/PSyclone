@@ -37,11 +37,6 @@ objects and their use are discussed in the following sections.
                kernel2(field1, stencil_extent, field3, scalar1) &
              )
 
-Built-ins
-+++++++++
-
-.. note:: To be written.
-
 Field
 +++++
 
@@ -441,6 +436,256 @@ rules, along with PSyclone's naming conventions, are:
     3) include ``wh``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_h``.
     4) include ``wv``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_v``.
 
+
+Built-ins
+---------
+
+The basic concept of a PSyclone Built-in is described in the
+:ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
+built-ins generally follow a convention that the field/scalar written
+to comes last in the argument list. Although field arguments to all currently
+supported built-ins may be on any space, the arguments to any given
+call must all be on the same space.
+
+The built-ins supported for the Dynamo 0.3 API are
+listed in alphabetical order below. For clarity, the calculation
+performed by each built-in is described using Fortran array syntax; this
+does not necessarily reflect the actual implementation of the
+built-in (*e.g.* it could be implemented by PSyclone
+generating a call to an optimised maths library).
+
+axpby
++++++
+
+**axpby** (*a*, *field1*, *b*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inc_axpby
++++++++++
+
+**inc_axpby** (*a*, *field1*, *b*, *field2*)
+
+Performs: ::
+   
+   field1(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+axpy
+++++
+
+**axpy** (*a*, *field1*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inc_axpy
+++++++++
+
+**inc_axpy** (*a*, *field1*, *field2*)
+
+Performs an AXPY and returns the result as an increment to the first
+field: ::
+   
+   field1(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+copy_field
+++++++++++
+
+**copy_field** (*field1*, *field2*)
+
+Copy the values from *field1* into *field2*: ::
+
+   field2(:) = field1(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
+copy_scaled_field
++++++++++++++++++
+
+**copy_scaled_field** (*value*, *field1*, *field2*)
+
+Multiplies a field by a scalar and stores the result in a second field: ::
+  
+  field2(:) = value * field1(:)
+
+where:
+
+* real(r_def), intent(in) :: *value*
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
+divide_field
+++++++++++++
+
+**divide_field** (*field1*, *field2*)
+
+Divides the first field by the second and returns it: ::
+
+   field1(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+divide_fields
++++++++++++++
+
+**divide_fields** (*field1*, *field2*, *field3*)
+
+Divides the first field by the second and returns the result in the third: ::
+
+   field3(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inner_product
++++++++++++++
+
+**inner_product** (*field1*, *field2*, *sumval*)
+
+Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+
+  sumval = SUM(field1(:)*field2(:))
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* real(r_def), intent(out) :: *sumval*
+
+inc_field
++++++++++
+
+**inc_field** (*field1*, *field2*)
+
+Adds the second field to the first and returns it: ::
+
+  field1(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+minus_fields
+++++++++++++
+
+**minus_fields** (*field1*, *field2*, *field3*)
+
+Subtracts the second field from the first and stores the result in
+the third. *i.e.* performs the operation: ::
+  
+  field3(:) = field1(:) - field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(out) :: *field3*
+
+multiply_fields
++++++++++++++++
+
+**multiply_fields** (*field1*, *field2*, *field3*)
+
+Multiplies two fields together and returns the result in a third field: ::
+
+  field3(:) = field1(:)*field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+plus_fields
++++++++++++
+
+**plus_fields** (*field1*, *field2*, *field3*)
+
+Sums two fields: ::
+  
+  field3(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(out) :: *field3*
+
+scale_field
++++++++++++
+
+**scale_field** (*scalar*, *field1*)
+
+Multiplies a field by a scalar value and returns the field: ::
+
+  field1(:) = scalar * field1(:)
+
+where:
+
+* real(r_def),      intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+
+set_field_scalar
+++++++++++++++++
+
+**set_field_scalar** (*value*, *field*)
+
+Set all elements of the field *field* to the value *value*.
+The field may be on any function space.
+
+* type(field_type), intent(out) :: *field*
+* real(r_def), intent(in) :: *value*
+
+.. note:: The Fortran parser used by PSyclone cannot currently cope with numerical constants containing an explicit kind paramer (e.g. ``1.0_r_def``). This limitation may be worked around by passing the scalar quantity by argument instead of by value.
+
+sum_field
++++++++++
+
+**sum_field** (*field*, *sumval*)
+
+Sums all of the elements of the field *field* and returns the result
+in the scalar variable *sumval*: ::
+  
+  sumval = SUM(field(:))
+
+where:
+
+* type(field_type), intent(in) :: field
+* real(r_def), intent(out) :: sumval
 
 Conventions
 -----------

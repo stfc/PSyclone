@@ -1,3 +1,6 @@
+        1) #111 Adds support for dynamo0.3 built-in operations running
+	sequentially.
+
 release 1.2.2
 
         1) #575 Add parser support for stencil meta-data.

@@ -14,7 +14,7 @@ module testkern
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w3)  &
            /)
-     integer, parameter :: iterates_over = points
+     integer, parameter :: iterates_over = DOFS
    contains
      procedure() :: code => testkern_code
   end type testkern_type

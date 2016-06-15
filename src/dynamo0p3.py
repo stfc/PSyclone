@@ -18,9 +18,9 @@ import os
 from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    HaloExchange, FORTRAN_INTENT_NAMES
+from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+    Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
+    FieldNotFoundError, HaloExchange, FORTRAN_INTENT_NAMES
 import psyGen
 import config
 
@@ -50,12 +50,16 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
-                           "ncolours", "cells"]
+                           "ncolours", "cells", "dofs"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
+
+# Valid Dynamo loop types. The default is "" which is over cells (in the
+# horizontal plane).
+VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # Mappings used by non-API-Specific code in psyGen
 psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
@@ -65,7 +69,20 @@ psyGen.MAPPING_ACCESSES = {"inc": "gh_inc", "write": "gh_write",
 psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
 psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 
-# classes
+# Functions
+
+
+def field_on_space(func_space, arguments):
+    ''' Returns True if the supplied list of arguments contains a field
+    that exists on the specified space. '''
+    if func_space in arguments.unique_fss:
+        for arg in arguments.args:
+            if arg.function_space == func_space and \
+               arg.type == "gh_field":
+                return True
+    return False
+
+# Classes
 
 
 class DynFuncDescriptor03(object):
@@ -195,7 +212,7 @@ class DynArgDescriptor03(Descriptor):
             # we expect 'field_type' to have been specified
             if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
-                    "In the dynamo0.3 API Each the 1st argument of a "
+                    "In the dynamo0.3 API the 1st argument of a "
                     "meta_arg entry should be a valid argument type (one of "
                     "{0}), but found '{1}' in '{2}'".
                     format(VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
@@ -555,6 +572,7 @@ class DynInvoke(Invoke):
         if False:
             self._schedule = DynSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+
         # check whether we have more than one kernel call within this
         # invoke which specifies any_space. This is not supported at
         # the moment so we raise an error.  any_space with different
@@ -657,7 +675,7 @@ class DynInvoke(Invoke):
         function space. Searches through all Kernel calls in this
         invoke. Currently the first argument object that is found is
         used. Throws an exception if no argument exists. '''
-        for kern_call in self.schedule.kern_calls():
+        for kern_call in self.schedule.calls():
             if fs_name in kern_call.arguments.unique_fss:
                 for arg in kern_call.arguments.args:
                     if fs_name in arg.function_spaces:
@@ -668,7 +686,7 @@ class DynInvoke(Invoke):
         ''' Returns the unique function space names over all kernel
         calls in this invoke. '''
         unique_fs_names = []
-        for kern_call in self.schedule.kern_calls():
+        for kern_call in self.schedule.calls():
             for fs_name in kern_call.arguments.unique_fss:
                 if fs_name not in unique_fs_names:
                     unique_fs_names.append(fs_name)
@@ -727,7 +745,7 @@ class DynInvoke(Invoke):
         function_space_descriptors objects contained within Kernel
         objects. The first Kernel in the invoke is used to return the
         name. If no Kernel exist in this invoke an error is thrown. '''
-        kern_calls = self.schedule.kern_calls()
+        kern_calls = self.schedule.calls()
         if len(kern_calls) == 0:
             raise GenerationError(
                 "ndf_name makes no sense if there are no kernel calls")
@@ -739,7 +757,7 @@ class DynInvoke(Invoke):
         function_space_descriptors objects contained within Kernel
         objects. The first Kernel in the invoke is used to return the
         name. If no Kernel exists in this invoke an error is thrown. '''
-        kern_calls = self.schedule.kern_calls()
+        kern_calls = self.schedule.calls()
         if len(kern_calls) == 0:
             raise GenerationError(
                 "undf_name makes no sense if there are no kernel calls")
@@ -765,8 +783,8 @@ class DynInvoke(Invoke):
     def field_on_space(self, func_space):
         ''' Returns true if a field exists on this space for any
         kernel in this invoke. '''
-        for kern_call in self.schedule.kern_calls():
-            if kern_call.field_on_space(func_space):
+        for kern_call in self.schedule.calls():
+            if field_on_space(func_space, kern_call.arguments):
                 return True
         return False
 
@@ -839,6 +857,17 @@ class DynInvoke(Invoke):
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
+
+        # Zero any scalar arguments that are GH_SUM
+        zero_args = self.unique_declarations("gh_real", access="gh_sum")
+        if zero_args:
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            for arg in zero_args:
+                invoke_sub.add(AssignGen(invoke_sub,
+                                         lhs=arg, rhs="0.0_r_def"))
+
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -1115,12 +1144,13 @@ class DynInvoke(Invoke):
 
 
 class DynSchedule(Schedule):
-    ''' The Dynamo specific schedule class. This passes the Dynamo
-    specific loop and infrastructure classes to the base class so it
-    creates the ones we require. '''
+    ''' The Dynamo specific schedule class. This passes the Dynamo-
+    specific factories for creating kernel and infrastructure calls
+    to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
-        Schedule.__init__(self, DynLoop, DynInf, arg)
+        from dynamo0p3_builtins import DynBuiltInCallFactory
+        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
         '''a method implemented by all classes in a schedule which display the
@@ -1182,23 +1212,56 @@ class DynLoop(Loop):
     we require.  Creates Dynamo specific loop bounds when the code is
     being generated. '''
 
-    def __init__(self, call=None, parent=None,
-                 loop_type=""):
-        Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
-                      valid_loop_types=["colours", "colour", ""])
+    def __init__(self, parent=None, loop_type=""):
+        Loop.__init__(self, parent=parent,
+                      valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
+        self._kern = None
+
+        # Get the namespace manager instance so we can look-up
+        # the name of the nlayers and ndf variables
+        self._name_space_manager = NameSpaceFactory().create()
 
         # set our variable name at initialisation as it might be
         # required by other classes before code generation
         if self._loop_type == "colours":
             self._variable_name = "colour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+        elif self._loop_type == "dofs":
+            self._variable_name = self._name_space_manager.\
+                create_name(root_name="df",
+                            context="PSyVars",
+                            label="dof_loop_idx")
         else:
             self._variable_name = "cell"
 
-        if call:
-            # a kernel call has been passed so we can determine our
-            # default loop bounds from this
-            self.set_lower_bound("start")
+        # At this stage we don't know what our loop bounds are
+        self._lower_bound_name = None
+        self._lower_bound_index = None
+        self._upper_bound_name = None
+        self._upper_bound_index = None
+
+    def load(self, kern):
+        ''' Load the state of this Loop using the supplied Kernel
+        object. This method is provided so that we can individually
+        construct Loop objects for a given kernel call. '''
+        self._kern = kern
+
+        self._field = kern.arguments.iteration_space_arg()
+        self._field_name = self._field.name
+        self._field_space = self._field.function_space
+        self._iteration_space = kern.iterates_over  # cells etc.
+
+        # Loop bounds
+        self.set_lower_bound("start")
+
+        from dynamo0p3_builtins import DynBuiltIn
+        if isinstance(kern, DynBuiltIn):
+            # If the kernel is a built-in/pointwise operation
+            # then this loop must be over DoFs
+            self.set_upper_bound("dofs")
+        else:
             if config.DISTRIBUTED_MEMORY:
                 if self.field_space == "w3":  # discontinuous
                     self.set_upper_bound("edge")
@@ -1206,11 +1269,6 @@ class DynLoop(Loop):
                     self.set_upper_bound("halo", index=1)
             else:  # sequential
                 self.set_upper_bound("cells")
-        else:
-            self._lower_bound_name = None
-            self._lower_bound_index = None
-            self._upper_bound_name = None
-            self._upper_bound_index = None
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
@@ -1285,9 +1343,13 @@ class DynLoop(Loop):
                 return "ncolour"
             elif self._upper_bound_name == "ncolour":
                 return "ncp_colour(colour)"
+            elif self._upper_bound_name == "dofs":
+                return self._kern.undf_name
             else:
                 raise GenerationError(
-                    "The upper bound must be 'cells' if we are sequential")
+                    "For sequential/shared-memory code, the upper loop "
+                    "bound must be one of ncolours, ncolour, cells or dofs "
+                    "but got '{0}'".format(self._upper_bound_name))
         else:
             if self._upper_bound_name in ["inner", "halo"]:
                 index = self._upper_bound_index
@@ -1354,24 +1416,20 @@ class DynLoop(Loop):
         depending on the loop type and then call the base class to
         generate the code. '''
 
-        # create a namespace manager so we can avoid name clashes
-        self._name_space_manager = NameSpaceFactory().create()
-
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
             raise GenerationError("Cannot have a loop over "
                                   "colours within an OpenMP "
                                   "parallel region.")
+
         # get fortran loop bounds
         self._start = self._lower_bound_fortran()
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
-            # Set halo dirty for all fields that are modified. Ignore
-            # the colour loop as the parent colours loop will set any
-            # required fields dirty
+            # Set halo dirty for all fields that are modified
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
             if fields:
@@ -1393,19 +1451,6 @@ class DynLoop(Loop):
                         parent.add(CallGen(parent, name=field.proxy_name +
                                            "%set_dirty()"))
                 parent.add(CommentGen(parent, ""))
-
-
-class DynInf(Inf):
-    ''' A Dynamo 0.3 specific infrastructure call factory. No
-    infrastructure calls are supported in Dynamo at the moment so we
-    just call the base class (which currently recognises the set()
-    infrastructure call). '''
-
-    @staticmethod
-    def create(call, parent=None):
-        ''' Creates a specific infrastructure call. Currently just calls
-            the base class method. '''
-        return Inf.create(call, parent)
 
 
 class DynKern(Kern):
@@ -1547,7 +1592,7 @@ class DynKern(Kern):
         lvars = []
         # Dof maps for fields
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 # A map is required as there is a field on this space
                 lvars.append(self._fs_descriptors.map_name(unique_fs))
         # Orientation maps
@@ -1557,15 +1602,6 @@ class DynKern(Kern):
                 if fs_descriptor.orientation:
                     lvars.append(fs_descriptor.orientation_name)
         return lvars
-
-    def field_on_space(self, func_space):
-        ''' Returns True if a field exists on this space for this kernel. '''
-        if func_space in self.arguments.unique_fss:
-            for arg in self.arguments.args:
-                if arg.function_space == func_space and \
-                        arg.type == "gh_field":
-                    return True
-        return False
 
     def _create_arg_list(self, parent, my_type="call"):
         ''' creates the kernel call or kernel stub subroutine argument
@@ -1702,7 +1738,7 @@ class DynKern(Kern):
                             entity_decls=[ndf_name]))
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 undf_name = self._fs_descriptors.undf_name(unique_fs)
                 arglist.append(undf_name)
                 map_name = self._fs_descriptors.map_name(unique_fs)
@@ -1855,24 +1891,24 @@ class DynKern(Kern):
         return psy_module.root
 
     @property
-    def incremented_field(self, mapping=None):
-        ''' Returns the argument corresponding to a field that has
+    def incremented_arg(self, mapping=None):
+        ''' Returns the argument corresponding to a field or operator that has
         INC access.  '''
         if mapping is None:
             my_mapping = FIELD_ACCESS_MAP
         else:
             my_mapping = mapping
-        return Kern.incremented_field(self, my_mapping)
+        return Kern.incremented_arg(self, my_mapping)
 
     @property
-    def written_field(self, mapping=None):
-        ''' Returns the argument corresponding to a field that has
+    def written_arg(self, mapping=None):
+        ''' Returns the argument corresponding to a field or operator that has
         WRITE access '''
         if mapping is None:
             my_mapping = FIELD_ACCESS_MAP
         else:
             my_mapping = mapping
-        return Kern.written_field(self, my_mapping)
+        return Kern.written_arg(self, my_mapping)
 
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
@@ -1889,11 +1925,11 @@ class DynKern(Kern):
             # Find which argument object has INC access in order to look-up
             # the colour map
             try:
-                arg = self.incremented_field
+                arg = self.incremented_arg
             except FieldNotFoundError:
                 # TODO Warn that we're colouring a kernel that has
                 # no field object with INC access
-                arg = self.written_field
+                arg = self.written_arg
 
             new_parent, position = parent.start_parent_loop()
             # Add the look-up of the colouring map for this kernel
@@ -1924,7 +1960,7 @@ class DynKern(Kern):
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_field
+                    arg = self.incremented_arg
                 except FieldNotFoundError:
                     arg = None
                 if arg:
@@ -1939,14 +1975,14 @@ class DynKern(Kern):
         # spacer comments if necessary
         maps_required = False
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 maps_required = True
 
         # function-space maps initialisation and their declarations
         if maps_required:
             parent.add(CommentGen(parent, ""))
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 field = self._arguments.get_arg_on_space(unique_fs)
@@ -1958,7 +1994,7 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
         decl_map_names = []
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 decl_map_names.append(map_name+"(:) => null()")
@@ -2267,15 +2303,14 @@ class DynKernelArguments(Arguments):
         return self._dofs
 
 
-class DynKernelArgument(Argument):
+class DynKernelArgument(KernelArgument):
     ''' Provides information about individual Dynamo kernel call
     arguments as specified by the kernel argument metadata. '''
 
-    def __init__(self, arg, arg_info, call):
-        self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
-        self._vector_size = arg.vector_size
-        self._type = arg.type
+    def __init__(self, arg_meta_data, arg_info, call):
+        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
+        self._vector_size = arg_meta_data.vector_size
+        self._type = arg_meta_data.type
 
     @property
     def descriptor(self):
@@ -2408,3 +2443,29 @@ class DynKernelArgument(Argument):
             return False
         else:  # must be a continuous function space
             return False
+
+
+class DynKernCallFactory(object):
+    ''' Create the necessary framework for a Dynamo kernel call.
+    This consists of a Loop over cells containing a call to the
+    user-supplied kernel routine. '''
+    @staticmethod
+    def create(call, parent=None):
+        ''' Create the objects needed for a call to the kernel
+        described in the call object '''
+
+        # Loop over cells
+        cloop = DynLoop(parent=parent)
+
+        # The kernel itself
+        kern = DynKern()
+        kern.load(call, cloop)
+
+        # Add the kernel as a child of the loop
+        cloop.addchild(kern)
+
+        # Set-up the loop now we have the kernel object
+        cloop.load(kern)
+
+        # Return the outermost loop
+        return cloop
