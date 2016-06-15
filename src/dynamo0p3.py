@@ -591,11 +591,13 @@ class DynInvoke(Invoke):
         # adding in stencil direction arguments
         alg_unique_stencil_direction_args = []
         for call in self.schedule.calls():
+            idx = 0
             for arg in call.arguments.args:
+                idx += 1
                 if arg.stencil:
                     if arg.stencil.direction_arg:
                         if arg.stencil.direction_arg.is_literal():
-                            raise GenerationError("A literal is not a valid value for a stencil direction")
+                            raise GenerationError("Kernel {0}, metadata arg {1}, a literal is not a valid value for a stencil direction".format(call.name, str(idx)))
                         if arg.stencil.direction_arg.text.lower() not in ["x_direction", "y_direction"]:
                             if arg.stencil.direction_arg.text not in alg_unique_stencil_direction_args:
                                 alg_unique_stencil_direction_args.append(arg.stencil.direction_arg.text)

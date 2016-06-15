@@ -19,8 +19,8 @@ class TestAlgGenClassDynamo0p3:
     AlgGen so it is simpler to use this'''
 
     def test_single_function_invoke(self):
-        ''' single function specified in an invoke call'''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1_single_invoke.f90"), api = "dynamo0.3")
+        ''' single kernel specified in an invoke call'''
+        alg,psy=generate(os.path.join(BASE_PATH, "1_single_invoke.f90"), api = "dynamo0.3")
         assert (str(alg).find("USE psy_single_invoke, ONLY: invoke_0_testkern_type")!=-1 and \
                   str(alg).find("CALL invoke_0_testkern_type(a, f1, f2, m1, m2)")!=-1)
 
@@ -121,7 +121,6 @@ class TestAlgGenClassDynamo0p3:
         assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4, f2_extent)" \
             in output
 
-
     # stencil code with wrong number of arguments
     def test_single_stencil_broken(self):
         '''test we raise an exception when we do not pass a stencil argument '''
@@ -130,7 +129,6 @@ class TestAlgGenClassDynamo0p3:
             alg, _ = generate(path, api = "dynamo0.3")
         assert "expected '5' arguments in the algorithm layer but found '4'" \
             in str(excinfo.value)
-
 
     # single invoke, single field, single stencil of type xory1d
     def test_single_stencil_xory1d(self):
@@ -143,7 +141,6 @@ class TestAlgGenClassDynamo0p3:
         assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
                 "f3, f4, f2_extent, f2_direction)") in output
 
-
     # single invoke, single field, single stencil, literal value
     def test_single_stencil_literal(self):
         ''' test extent value is passed correctly from the algorithm layer '''
@@ -152,7 +149,6 @@ class TestAlgGenClassDynamo0p3:
         output = str(alg)
         assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4)" \
             in output
-
 
     # single invoke, single field, single stencil of type xory1d literal
     def test_single_stencil_xory1d_literal(self):
@@ -204,8 +200,25 @@ class TestAlgGenClassDynamo0p3:
                 "f3, f4, extent, direction)") in output
 
     # multiple kernels in an invoke *****
-    # args are the wrong type *****
+    def test_multiple_kernels_stencils(self):
+        '''more than one kernel with stencils'''
+        path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("USE psy_multiple_stencil, ONLY: invoke_0") in output
+        assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
+                "f3_direction, direction)") in output
 
+    # single kernel, multiple stencils same name for direction different case
+    def test_multiple_stencil_same_name_case(self):
+        '''more than one stencil in a kernel with the same names but different case'''
+        path = os.path.join(BASE_PATH, "19.11_multiple_stencils_mixed_case.f90")
+        alg, _ = generate(path, api = "dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
+                "f3, f4, extent, direction)") in output
 
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for
