@@ -12,6 +12,40 @@
 
 import abc
 
+# The types of 'intent' that an argument to a Fortran subroutine
+# may have
+FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
+
+# The following mappings will be set by a particular API if supported. We
+# provide a default here for API's which do not have their own mapping
+# (or support this mapping). This allows codes with no support to run.
+# Names of reduction operations
+MAPPING_REDUCTIONS = {"sum": "sum"}
+# Names of types of scalar variable
+MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
+# Types of access for a kernel argument
+MAPPING_ACCESSES = {"inc": "inc", "write": "write", "read": "read"}
+# Valid types of argument to a kernel call
+VALID_ARG_TYPE_NAMES = []
+# List of all valid access types for a kernel argument
+VALID_ACCESS_DESCRIPTOR_NAMES = []
+
+
+def get_api(api):
+    ''' If no API is specified then return the default. Otherwise, check that
+    the supplied API is valid. '''
+    if api == "":
+        from config import DEFAULTAPI
+        api = DEFAULTAPI
+    else:
+        from config import SUPPORTEDAPIS as supported_types
+        if api not in supported_types:
+            raise GenerationError("get_api: Unsupported API '{0}' "
+                                  "specified. Supported types are "
+                                  "{1}.".format(api,
+                                                supported_types))
+    return api
+
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
@@ -37,7 +71,7 @@ class FieldNotFoundError(Exception):
 
 class PSyFactory(object):
     '''Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the configs.py
+        provided then the default api, as specified in the config.py
         file, is chosen. Note, for pytest to work we need to set
         distributed_memory to the same default as the value found in
         config.DISTRIBUTED_MEMORY. If we set it to None and then test
@@ -51,17 +85,7 @@ class PSyFactory(object):
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         config.DISTRIBUTED_MEMORY = distributed_memory
-        if api == "":
-            from config import DEFAULTAPI
-            self._type = DEFAULTAPI
-        else:
-            from config import SUPPORTEDAPIS as supported_types
-            self._type = api
-            if self._type not in supported_types:
-                raise GenerationError("PSyFactory: Unsupported API '{0}' "
-                                      "specified. Supported types are "
-                                      "{1}.".format(self._type,
-                                                    supported_types))
+        self._type = get_api(api)
 
     def create(self, invoke_info):
         ''' Return the specified version of PSy. '''
@@ -403,6 +427,111 @@ class Invoke(object):
     def schedule(self, obj):
         self._schedule = obj
 
+    def unique_declarations(self, datatype, access=None):
+        ''' Returns a list of all required declarations for the
+        specified datatype. If access is supplied (e.g. "gh_write") then
+        only declarations with that access are returned. '''
+        if datatype not in VALID_ARG_TYPE_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid datatype. "
+                "Expected one of '{0}' but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), datatype))
+        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid access type. "
+                "Expected one of '{0}' but got '{1}'".
+                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
+        declarations = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if not access or arg.access == access:
+                    if arg.text is not None:
+                        if arg.type == datatype:
+                            test_name = arg.declaration_name
+                            if test_name not in declarations:
+                                declarations.append(test_name)
+        return declarations
+
+    def first_access(self, arg_name):
+        ''' Returns the first argument with the specified name passed to
+        a kernel in our schedule '''
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    if arg.declaration_name == arg_name:
+                        return arg
+        raise GenerationError("Failed to find any kernel argument with name "
+                              "'{0}'".format(arg_name))
+
+    def unique_declns_by_intent(self, datatype):
+        ''' Returns a dictionary listing all required declarations for each
+        type of intent ('inout', 'out' and 'in'). '''
+        if datatype not in VALID_ARG_TYPE_NAMES:
+            raise GenerationError(
+                "unique_declns_by_intent called with an invalid datatype. "
+                "Expected one of '{0}' but found '{1}'".
+                format(str(VALID_ARG_TYPE_NAMES), datatype))
+
+        # Get the lists of all kernel arguments that are accessed
+        # as inc (shared update), write and read. A single argument may
+        # be accessed in different ways by different kernels.
+        inc_args = self.unique_declarations(datatype,
+                                            access=MAPPING_ACCESSES["inc"])
+        write_args = self.unique_declarations(datatype,
+                                              access=MAPPING_ACCESSES["write"])
+        read_args = self.unique_declarations(datatype,
+                                             access=MAPPING_ACCESSES["read"])
+        # Rationalise our lists so that any fields that have inc
+        # do not appear in the list of those that are written.
+        for arg in write_args[:]:
+            if arg in inc_args:
+                write_args.remove(arg)
+        # Fields that are only ever read by any kernel that
+        # accesses them
+        for arg in read_args[:]:
+            if arg in write_args or arg in inc_args:
+                read_args.remove(arg)
+
+        # We will return a dictionary containing as many lists
+        # as there are types of intent
+        declns = {}
+        for intent in FORTRAN_INTENT_NAMES:
+            declns[intent] = []
+
+        for name in inc_args:
+            # For every arg that is 'inc'd' by at least one kernel,
+            # identify the type of the first access. If it is 'write'
+            # then the arg is only intent(out) otherwise it is
+            # intent(inout)
+            first_arg = self.first_access(name)
+            if first_arg.access != MAPPING_ACCESSES["write"]:
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
+            else:
+                if name not in declns["out"]:
+                    declns["out"].append(name)
+
+        for name in write_args:
+            # For every argument that is written to by at least one kernel,
+            # identify the type of the first access - if it is read
+            # or inc'd before it is written then it must have intent(inout).
+            # However, we deal with inc args separately so we do
+            # not consider those here.
+            first_arg = self.first_access(name)
+            if first_arg.access == MAPPING_ACCESSES["read"]:
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
+            else:
+                if name not in declns["out"]:
+                    declns["out"].append(name)
+
+        # Anything we have left must be declared as intent(in)
+        for name in read_args:
+            if name not in declns["in"]:
+                declns["in"].append(name)
+
+        return declns
+
     def gen(self):
         from f2pygen import ModuleGen
         module = ModuleGen("container")
@@ -505,8 +634,11 @@ class Node(object):
                 result += ","
         return result
 
-    def __init__(self, children=[], parent=None):
-        self._children = children
+    def __init__(self, children=None, parent=None):
+        if not children:
+            self._children = []
+        else:
+            self._children = children
         self._parent = parent
 
     def __str__(self):
@@ -624,12 +756,8 @@ class Node(object):
         return all_calls[:position-1]
 
     def kern_calls(self):
-        ''' return all kernel calls in this schedule '''
+        '''return all user-supplied kernel calls in this schedule'''
         return self.walk(self._children, Kern)
-
-    def inf_calls(self):
-        ''' return all infrastructure calls in this schedule '''
-        return self.walk(self._children, Inf)
 
     def loops(self):
         ''' return all loops currently in this schedule '''
@@ -684,18 +812,18 @@ class Schedule(Node):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def __init__(self, Loop, Inf, alg_calls=[]):
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
 
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         sequence = []
-        from parse import InfCall
+        from parse import BuiltInCall
         for call in alg_calls:
-            if isinstance(call, InfCall):
-                sequence.append(Inf.create(call, parent=self))
+            if isinstance(call, BuiltInCall):
+                sequence.append(BuiltInFactory.create(call, parent=self))
             else:
-                sequence.append(Loop(call, parent=self))
+                sequence.append(KernFactory.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
 
@@ -728,15 +856,28 @@ class Directive(Node):
 class OMPDirective(Directive):
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP]"
+        print self.indent(indent) + "Directive[OMP]"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def _get_reductions_list(self, reduction_type):
+        '''Return the name of all scalars within this region that require a
+        reduction of type reduction_type. Returned names will be unique. '''
+        result = []
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if arg.type in MAPPING_SCALARS.values():
+                    if arg.descriptor.access == \
+                       MAPPING_REDUCTIONS[reduction_type]:
+                        if arg.name not in result:
+                            result.append(arg.name)
+        return result
 
 
 class OMPParallelDirective(OMPDirective):
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP Parallel]"
+        print self.indent(indent)+"Directive[OMP parallel]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -896,6 +1037,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
 
+        reductions = self._get_reductions_list("sum")
+        if reductions:
+            # reductions are not yet supported so raise an exception
+            raise GenerationError("OpenMP reductions are not yet supported")
+
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
@@ -942,12 +1088,12 @@ class Loop(Node):
             "Error, loop_type value is invalid"
         self._loop_type = value
 
-    def __init__(self, Inf, Kern, call=None, parent=None,
-                 variable_name="", topology_name="topology",
+    def __init__(self, parent=None,
+                 variable_name="",
+                 topology_name="topology",
                  valid_loop_types=[]):
 
-        children = []
-        # we need to determine whether this is an infrastructure or kernel
+        # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
 
         self._valid_loop_types = valid_loop_types
@@ -959,26 +1105,8 @@ class Loop(Node):
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
-        if call is not None:
-            from parse import InfCall, KernelCall
-            if isinstance(call, InfCall):
-                my_call = Inf.create(call, parent=self)
-                self._iteration_space = "unknown"
-                self._iterates_over = "unknown"  # needs to inherit this?
-                self._field_space = "any"
-            elif isinstance(call, KernelCall):
-                my_call = Kern()
-                my_call.load(call, parent=self)
-                self._iterates_over = my_call.iterates_over
-                self._iteration_space = my_call.iterates_over
-                self._field_space = my_call.arguments.iteration_space_arg().\
-                    function_space
-                self._field = my_call.arguments.iteration_space_arg()
-                self._field_name = self._field.name
-            else:
-                raise Exception
-            children.append(my_call)
-        Node.__init__(self, children=children, parent=parent)
+
+        Node.__init__(self, parent=parent)
 
         self._variable_name = variable_name
 
@@ -1184,6 +1312,7 @@ class Call(Node):
         self._module_name = call.module_name
         self._arguments = arguments
         self._name = name
+        self._iterates_over = call.ktype.iterates_over
 
         # visual properties
         self._width = 250
@@ -1191,6 +1320,15 @@ class Call(Node):
         self._shape = None
         self._text = None
         self._canvas = None
+        self._arg_descriptors = None
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
+
+    @arg_descriptors.setter
+    def arg_descriptors(self, obj):
+        self._arg_descriptors = obj
 
     def set_constraints(self):
         # first set up the dependencies of my arguments
@@ -1205,59 +1343,21 @@ class Call(Node):
     def name(self):
         return self._name
 
+    @property
+    def iterates_over(self):
+        return self._iterates_over
+
     def __str__(self):
         raise NotImplementedError("Call.__str__ should be implemented")
 
-    def iterates_over(self):
-        raise NotImplementedError("Call.iterates_over should be implemented")
-
-    def local_vars(self):
-        raise NotImplementedError("Call.local_vars should be implemented")
-
-    def gen_code(self):
-        raise NotImplementedError("Call.gen_code should be implemented")
-
-
-class Inf(object):
-    ''' infrastructure call factory, Used to create a call specific class '''
-    @staticmethod
-    def create(call, parent=None):
-        supported_calls = ["set"]
-        if call.func_name not in supported_calls:
-            raise GenerationError("Unknown infrastructure call. Supported "
-                                  "calls are {0} but found {1}".
-                                  format(str(supported_calls), call.func_name))
-        if call.func_name == "set":
-            return SetInfCall(call, parent)
-
-
-class SetInfCall(Call):
-    ''' the set infrastructure call '''
-    def __init__(self, call, parent=None):
-        assert call.func_name == "set", "Error"
-        access = ["write", None]
-        Call.__init__(self, parent, call, call.func_name,
-                      InfArguments(call, self, access))
-        # self._arguments = InfArguments(call, self, access)
-
-    def __str__(self):
-        return "set inf call"
-
     def gen_code(self, parent):
-        from f2pygen import AssignGen
-        field_name = self._arguments.arglist[0]
-        var_name = field_name+"%data"
-        value = self._arguments.arglist[1]
-        assign_2 = AssignGen(parent, lhs=var_name, rhs=value)
-        parent.add(assign_2)
-        return
+        raise NotImplementedError("Call.gen_code should be implemented")
 
 
 class Kern(Call):
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
-        self._iterates_over = call.ktype.iterates_over
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._module_inline = False
@@ -1269,14 +1369,13 @@ class Kern(Call):
                 format(call.ktype.procedure.name,
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
-        self._arg_descriptors = call.ktype.arg_descriptors
+        self.arg_descriptors = call.ktype.arg_descriptors
 
     def __str__(self):
         return "kern call: "+self._name
 
-    @property
-    def iterates_over(self):
-        return self._iterates_over
+    def local_vars(self):
+        raise NotImplementedError("Kern.local_vars should be implemented")
 
     @property
     def module_inline(self):
@@ -1301,20 +1400,16 @@ class Kern(Call):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    @property
-    def arg_descriptors(self):
-        return self._arg_descriptors
-
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
 
-    def incremented_field(self, mapping={}):
-        ''' Returns the argument corresponding to a field that has
-        INC access. Raises a GenerationError if none is found. '''
-        assert mapping != {}, "psyGen:Kern:incremented_field: Error - a "\
+    def incremented_arg(self, mapping={}):
+        ''' Returns the argument that has INC access. Raises a
+        FieldNotFoundError if none is found. '''
+        assert mapping != {}, "psyGen:Kern:incremented_arg: Error - a "\
             "mapping must be provided"
         for arg in self.arguments.args:
             if arg.access.lower() == mapping["inc"]:
@@ -1323,22 +1418,42 @@ class Kern(Call):
                                  "{1} access".
                                  format(self.name, mapping["inc"]))
 
-    def written_field(self, mapping={}):
-        ''' Returns the argument corresponding to a field that has
-        WRITE access '''
-        assert mapping != {}, "psyGen:Kern:written_field: Error - a "\
+    def written_arg(self, mapping={}):
+        ''' Returns the argument that has WRITE access '''
+        assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
             "mapping must be provided"
-        for arg in self.arguments.args:
-            if arg.access.lower() == mapping["write"]:
-                return arg
+        for access in ["write", "readwrite"]:
+            for arg in self.arguments.args:
+                if arg.access.lower() == mapping[access]:
+                    return arg
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "{1} access".
-                                 format(self.name, mapping["write"]))
+                                 "{1} or {2} access".
+                                 format(self.name, mapping["write"],
+                                        mapping["readwrite"]))
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''
         return self.parent.loop_type == "colour"
+
+
+class BuiltIn(Call):
+    ''' Parent class for all built-ins (field operations for which the user
+    does not have to provide a kernel). '''
+    def __init__(self):
+        # We cannot call Call.__init__ as don't have necessary information
+        # here. Instead we provide a load() method that can be called once
+        # that information is available.
+        self._arg_descriptors = None
+        self._func_descriptors = None
+        self._fs_descriptors = None
+
+    def load(self, call, arguments, parent=None):
+        ''' Set-up the state of this BuiltIn call '''
+        Node.__init__(self, children=[], parent=parent)
+        self._arguments = arguments
+        self._name = call.ktype.procedure.name
+        self._iterates_over = call.ktype.iterates_over
 
 
 class Arguments(object):
@@ -1378,28 +1493,6 @@ class Arguments(object):
         for argument in self._args:
             argument.set_dependencies()
         # TODO create a summary of dependencies
-
-
-class InfArguments(Arguments):
-    ''' arguments associated with an infrastructure call '''
-    def __init__(self, call_info, parent_call, access):
-        Arguments.__init__(self, parent_call)
-        if False:
-            # only here for pyreverse!
-            self._0_to_n = InfArgument(None, None, None)
-        for idx, arg in enumerate(call_info.args):
-            self._args.append(InfArgument(arg, parent_call, access[idx]))
-
-    @property
-    def args(self):
-        return self._args
-
-    @property
-    def arglist(self):
-        my_arg_list = []
-        for arg in self._args:
-            my_arg_list.append(arg.name)
-        return my_arg_list
 
 
 class Argument(object):
@@ -1448,6 +1541,14 @@ class Argument(object):
     @property
     def access(self):
         return self._access
+
+    @property
+    def type(self):
+        '''Return the type of the argument. API's that do not have this
+        concept (such as gocean0.1 and dynamo0.1) can use this
+        baseclass version which just returns "field" in all
+        cases. API's with this concept can override this method '''
+        return "field"
 
     def set_dependencies(self):
         writers = ["WRITE", "INC", "SUM"]
@@ -1499,12 +1600,6 @@ class KernelArgument(Argument):
     @property
     def stencil(self):
         return self._arg.stencil
-
-
-class InfArgument(Argument):
-    ''' infrastructure call argument '''
-    def __init__(self, arg_info, call, access):
-        Argument.__init__(self, call, arg_info, access)
 
 
 class TransInfo(object):

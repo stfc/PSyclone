@@ -516,8 +516,8 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
             raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".
-                                      format(self.name))
+                                      "iteration space ({1}) is not 'cells'.".
+                                      format(self.name, node.iteration_space))
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
@@ -594,7 +594,7 @@ class ColourTrans(Transformation):
     def apply(self, node):
         '''Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour.
+        loop is over cells of that colour.
         '''
         schedule = node.root
 
@@ -763,7 +763,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         '''Performs Dynamo0.3-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour.
+        loop is over cells of that colour.
 
         '''
         # check node is a loop

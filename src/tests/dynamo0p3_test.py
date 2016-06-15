@@ -70,6 +70,17 @@ end module testkern_qr
 # functions
 
 
+def test_scalar_sum_and_dm_unsupported():
+    '''Test that we fail if DM and global sums are specified. We do this
+    test here as at the end of the file the value of DM is set to
+    False and can't be changed for some reason.'''
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                     api="dynamo0.3")
+    assert "Scalar reductions are not yet supported with distributed " \
+        "memory" in str(excinfo.value)
+
+
 def test_arg_descriptor_wrong_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
@@ -139,8 +150,8 @@ def test_ad_scalar_type_no_write():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("scalar arguments must be read-only (gh_read) but found "
-            "'gh_write'" in str(excinfo.value))
+    assert ("scalar arguments must be read-only (gh_read) or a reduction "
+            "(['gh_sum']) but found 'gh_write'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_inc():
@@ -153,8 +164,8 @@ def test_ad_scalar_type_no_inc():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert "scalar arguments must be read-only (gh_read) but found 'gh_inc'" \
-        in str(excinfo.value)
+    assert ("scalar arguments must be read-only (gh_read) or a reduction "
+            "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():
@@ -449,8 +460,9 @@ def test_field():
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -523,7 +535,8 @@ def test_field_fs():
         "m3)\n"
         "      USE testkern_fs, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2, f3, f4, m3\n"
+        "      TYPE(field_type), intent(inout) :: f1, f3\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null(), map_wtheta(:) => null(), map_w2h(:) => null(), "
         "map_w2v(:) => null()\n"
@@ -648,9 +661,10 @@ def test_field_qr():
         " qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      INTEGER, intent(inout) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      INTEGER, intent(in) :: istp\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
@@ -778,8 +792,9 @@ def test_real_scalar():
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "      USE testkern, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -858,8 +873,9 @@ def test_int_scalar():
         "    SUBROUTINE invoke_0_testkern_type(f1, iflag, f2, m1, m2)\n"
         "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(inout) :: iflag\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, intent(in) :: iflag\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -938,8 +954,9 @@ def test_two_real_scalars():
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, b)\n"
         "      USE testkern_two_real_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a, b\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a, b\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -1017,8 +1034,9 @@ def test_two_int_scalars():
         "    SUBROUTINE invoke_0_testkern_type(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      INTEGER, intent(inout) :: iflag, istep\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      INTEGER, intent(in) :: iflag, istep\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -1096,9 +1114,10 @@ def test_two_scalars():
         "    SUBROUTINE invoke_0_testkern_type(a, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: a\n"
-        "      INTEGER, intent(inout) :: istep\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      INTEGER, intent(in) :: istep\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
@@ -1272,7 +1291,7 @@ def test_operator_different_spaces():
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: chi(3)\n"
+        "      TYPE(field_type), intent(in) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: orientation_w2(:) => null()\n"
@@ -1546,6 +1565,7 @@ def test_any_space_2():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+    assert "INTEGER, intent(in) :: istp" in generated_code
     assert generated_code.find(
         "INTEGER, pointer :: map_any_space_1_a(:) => null()") != -1
     assert generated_code.find(
@@ -1615,8 +1635,8 @@ def test_operator_any_space_different_space_2():
         "map_any_space_4_d => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
 
 
-def test_dyninvoke_uniq_declns():
-    ''' tests that we raise an error when DynInvoke.unique_declarations() is
+def test_invoke_uniq_declns():
+    ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
@@ -1626,6 +1646,126 @@ def test_dyninvoke_uniq_declns():
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
     assert 'unique_declarations called with an invalid datatype' \
         in str(excinfo.value)
+
+
+def test_invoke_uniq_declns_invalid_access():
+    ''' tests that we raise an error when Invoke.unique_declarations() is
+    called for an invalid access type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declarations("gh_field",
+                                                       access="invalid_acc")
+    assert 'unique_declarations called with an invalid access type' \
+        in str(excinfo.value)
+
+
+def test_invoke_uniq_proxy_declns():
+    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
+    assert 'unique_proxy_declarations called with an invalid datatype' \
+        in str(excinfo.value)
+
+
+def test_invoke_uniq_proxy_declns_invalid_access():
+    ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
+    is called for an invalid access type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_proxy_declarations(
+            "gh_field",
+            access="invalid_acc")
+    assert 'unique_proxy_declarations called with an invalid access type' \
+        in str(excinfo.value)
+
+
+def test_dyninvoke_first_access():
+    ''' tests that we raise an error if DynInvoke.first_access(name) is
+    called for an argument name that doesn't exist '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].first_access("not_an_arg")
+    assert 'Failed to find any kernel argument with name' \
+        in str(excinfo.value)
+
+
+def test_dyninvoke_uniq_declns_intent_invalid_type():
+    ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
+    is called for an invalid argument type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
+    assert 'unique_declns_by_intent called with an invalid datatype' \
+        in str(excinfo.value)
+
+
+def test_dyninvoke_uniq_declns_intent_fields():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
+    assert args['inout'] == []
+    assert args['out'] == ['f1']
+    assert args['in'] == ['f2', 'm1', 'm2']
+
+
+def test_dyninvoke_uniq_declns_intent_real():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_real '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
+    assert args['inout'] == []
+    assert args['out'] == []
+    assert args['in'] == ['a']
+
+
+def test_dyninvoke_uniq_declns_intent_integer():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for gh_integer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
+    assert args['inout'] == []
+    assert args['out'] == []
+    assert args['in'] == ['istep']
+
+
+def test_dyninvoke_uniq_declns_intent_ops():
+    ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
+    list of arguments for operator arguments '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.4_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
+    assert args['inout'] == []
+    assert args['out'] == ['op']
+    assert args['in'] == []
 
 
 def test_dyninvoke_arg_for_fs():
@@ -1749,7 +1889,7 @@ def test_multikern_invoke_orient():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(inout) :: f1, f2, f3(3), f3(3)"
+    output1 = "TYPE(field_type), intent(in) :: f2, f3(3), f3(3)"
     assert str(generated_code).find(output1) == -1
     # 2nd test for duplication of name vector-field declaration
     output2 = (
@@ -1766,7 +1906,7 @@ def test_multikern_invoke_oper():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(inout) :: f1(3), f1(3)"
+    output1 = "TYPE(field_type), intent(in) :: f1(3), f1(3)"
     assert str(generated_code).find(output1) == -1
     # 2nd test for duplication of name vector-field declaration
     output2 = "TYPE(field_proxy_type) f1_proxy(3), f1_proxy(3)"
@@ -2031,6 +2171,40 @@ def test_stub_generate_with_scalars():
                       api="dynamo0.3")
     print result
     assert str(result).find(SIMPLE_WITH_SCALARS) != -1
+
+
+SCALAR_SUMS = (
+    "  MODULE testkern_multiple_scalar_sums_mod\n"
+    "    IMPLICIT NONE\n"
+    "    CONTAINS\n"
+    "    SUBROUTINE testkern_multiple_scalar_sums_code(nlayers, rscalar_1, "
+    "iscalar_2, field_3_w3, rscalar_4, iscalar_5, ndf_w3, undf_w3, map_w3)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      REAL(KIND=r_def), intent(inout) :: rscalar_1\n"
+    "      INTEGER, intent(inout) :: iscalar_2\n"
+    "      INTEGER, intent(in) :: undf_w3\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_3_w3\n"
+    "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
+    "      INTEGER, intent(inout) :: iscalar_5\n"
+    "      INTEGER, intent(in) :: ndf_w3\n"
+    "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+    "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
+    "  END MODULE testkern_multiple_scalar_sums_mod")
+
+
+def test_stub_generate_with_scalar_sums():
+    ''' check that the stub generate produces the expected output when
+    the kernel has scalar arguments with a reduction operation (gh_sum) '''
+    # hack while DM does not support reductions
+    import config
+    config.DISTRIBUTED_MEMORY = False
+    # end hack
+    result = generate("test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+                      api="dynamo0.3")
+    print result
+    assert SCALAR_SUMS in str(result)
 
 # fields : intent
 INTENT = '''
@@ -3032,6 +3206,30 @@ def test_arg_descriptor_functions_method_error():
         'not get to here' in str(excinfo.value)
 
 
+def test_DynKernelArgument_intent_invalid():
+    '''Tests that an error is raised in DynKernelArgument when an invalid
+    intent value is found. Tests with and without distributed memory '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        if dist_mem:
+            idx = 3
+        else:
+            idx = 0
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        loop = schedule.children[idx]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        arg._access = "invalid"
+        with pytest.raises(GenerationError) as excinfo:
+            _ = arg.intent
+        assert "Expecting argument access to be one of 'gh_read," in \
+            str(excinfo.value)
+
+
 def test_arg_ref_name_method_error1():
     ''' Tests that an internal error is raised in DynKernelArgument
     when ref_name() is called with a function space that is not
@@ -3063,6 +3261,24 @@ def test_arg_ref_name_method_error2():
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
     assert 'ref_name: Error, unsupported arg type' in str(excinfo)
+
+
+def test_arg_intent_error():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when intent() is called and the argument access property is not one of
+    gh_{read,write,inc} '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    # Mess with the internal state of this argument object
+    first_argument._access = "gh_not_an_intent"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.intent()
+    assert "Expecting argument access to be one of 'gh_read, gh_write, "
+    "gh_inc' but found 'gh_not_an_intent'" in str(excinfo)
 
 
 def test_arg_descriptor_function_method_error():
@@ -3727,5 +3943,158 @@ def test_lower_bound_fortran():
     my_loop.set_upper_bound("halo", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert ("upper bound must be 'cells' if we are sequential" in
+    assert ("For sequential/shared-memory code, the upper loop bound must "
+            "be one of ncolours, ncolour, cells or dofs" in
             str(excinfo.value))
+
+
+def test_intent_multi_kern():
+    ''' Test that we correctly generate argument declarations when the
+    same fields are passed to different kernels with different intents '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.8_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    output = str(psy.gen)
+    print output
+    assert "TYPE(field_type), intent(inout) :: g, f\n" in output
+    assert "TYPE(field_type), intent(inout) :: b, h\n" in output
+    assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
+    assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+
+
+def test_field_gh_sum_invalid():
+    ''' Tests that an error is raised when a field is specified with
+    access type gh_sum '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                        "arg_type(gh_field, gh_sum, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert "reduction access 'gh_sum' is only valid with a scalar argument" \
+        in str(excinfo.value)
+    assert "but 'gh_field' was found" in str(excinfo.value)
+
+
+def test_operator_gh_sum_invalid():
+    ''' Tests that an error is raised when an operator is specified with
+    access type gh_sum '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator, gh_sum, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert "reduction access 'gh_sum' is only valid with a scalar argument" \
+        in str(excinfo.value)
+    assert "but 'gh_operator' was found" in str(excinfo.value)
+
+
+def test_single_integer_scalar_sum():
+    '''Test that a single integer scalar generates correct code when it
+    is specified with gh_sum'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.2_integer_scalar_sum.f90"),
+                           api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
+        "undf_w3, map_w3)" in gen
+
+
+def test_single_real_scalar_sum():
+    '''Test that a single real scalar generates correct code when it is
+    specified with gh_sum'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                           api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+        "undf_w3, map_w3)" in gen
+
+
+def test_multiple_scalar_sums():
+    ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.4_multiple_scalar_sums.f90"),
+                           api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, " \
+        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)" in gen
+
+
+def test_multiple_kernels_scalar_sums():
+    '''Add a test for multiple kernels within an invoke with scalar
+    (gh_sum) reductions'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+             "undf_w3, map_w3)"
+    assert output in gen
+    assert gen.count(output) == 2
+
+
+def test_scalars_only_invalid():
+    '''Test that a Kernel consisting of only scalars fails as it has
+    nothing to iterate over '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
+            create(invoke_info)
+    assert "dynamo0.3 api must have a modified field" in str(excinfo.value)
+    assert "modified operator, or an unmodified field" in str(excinfo.value)
+
+
+def test_scalar_int_sum_field_read():
+    '''Test that a write to a single integer scalar is valid if we have at
+    least one field that is read '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    expected_output = (
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, "
+        "undf_w3, map_w3)\n"
+        "      END DO \n")
+    assert expected_output in gen
+
+
+def test_scalar_real_sum_field_read():
+    '''Test that a write to a single real scalar is valid if we have at
+    least one field that is read '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    expected_output = (
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+        "ndf_w3, undf_w3, map_w3)\n"
+        "      END DO \n")
+    assert expected_output in gen
