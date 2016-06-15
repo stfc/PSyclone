@@ -118,7 +118,7 @@ class TestAlgGenClassDynamo0p3:
         path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
         alg, _ = generate(path, api = "dynamo0.3")
         output = str(alg)
-        assert "CALL invoke_0_testkern_stencil_type(f1, f2, f2_extent, f3, f4)" \
+        assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4, f2_extent)" \
             in output
 
 
@@ -141,7 +141,7 @@ class TestAlgGenClassDynamo0p3:
         output = str(alg)
         print output
         assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
-                "f2_extent, f2_direction, f3, f4)") in output
+                "f3, f4, f2_extent, f2_direction)") in output
 
     # single invoke, single field, single stencil, literal value
     # single invoke, multiple fields, multiple stencils, all types

@@ -574,8 +574,40 @@ class DynInvoke(Invoke):
                 "supported.")
         # the baseclass works out the algorithms codes unique argument
         # list and stores it in the self._alg_unique_args
-        # list. However, the base class currently ignores any qr
+        # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
+
+        # adding in stencil extent arguments
+        count = 0
+        alg_unique_stencil_extent_args = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if not arg.stencil.extent:
+                        count += 1
+                        alg_unique_stencil_extent_args.append(arg.stencil.extent_arg.text)
+        self._alg_unique_args.extend(alg_unique_stencil_extent_args)
+
+        if count>1:
+            raise GenerationError(
+                "Only one stencil extent argument per invoke is currently supported")
+
+        # adding in stencil direction arguments
+        count = 0
+        alg_unique_stencil_direction_args = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if arg.stencil.direction_arg:
+                        count += 1
+                        alg_unique_stencil_direction_args.append(arg.stencil.direction_arg.text)
+        self._alg_unique_args.extend(alg_unique_stencil_direction_args)
+
+        if count>1:
+            raise GenerationError(
+                "Only one stencil direction argument per invoke is currently supported")
+
+        # adding in qr arguments
         self._alg_unique_qr_args = []
         for call in self.schedule.calls():
             if call.qr_required:
@@ -2198,6 +2230,47 @@ def check_args(call):
                 qr_arg_count))
 
 
+class DynStencil(object):
+    ''' Provides stencil information about a Dynamo argument '''
+    def __init__(self, name):
+        self._name = name
+        self._extent = None
+        self._extent_arg = None
+        self._direction_arg = None
+
+    @property
+    def extent(self):
+        ''' returns the extent of the stencil if it is known '''
+        return self._extent
+
+    @extent.setter
+    def extent(self, value):
+        ''' sets the extent of the stencil '''
+        self._extent = value
+
+    @property
+    def extent_arg(self):
+        '''returns the algorithm argument associated with the extent value if
+        it is not known'''
+        return self._extent_arg
+
+    @extent_arg.setter
+    def extent_arg(self, value):
+        ''' sets the extent_arg value '''
+        self._extent_arg = value
+
+    @property
+    def direction_arg(self):
+        '''returns the direction argument associated with the direction of
+        the stencil if it is not known'''
+        return self._direction_arg
+
+    @direction_arg.setter
+    def direction_arg(self, value):
+        ''' sets the direction_arg value '''
+        self._direction_arg = value
+
+
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments
     collectively, as specified by the kernel argument metadata. '''
@@ -2206,7 +2279,12 @@ class DynKernelArguments(Arguments):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None)
         Arguments.__init__(self, parent_call)
+
+        # check that the arguments provided by the algorithm layer are
+        # consistent with those expected by the kernel(s)
         check_args(call)
+
+        # create out arguments and add in stencil information where appropriate.
         self._args = []
         idx = 0
         for arg in call.ktype.arg_descriptors:
@@ -2215,12 +2293,18 @@ class DynKernelArguments(Arguments):
                                                 parent_call)
             idx +=1
             if dyn_argument.descriptor.stencil:
-                if dyn_argument.descriptor.stencil['type'] == 'xory1d':
-                    # a dimension argument has been added
-                    idx += 1
+                stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
+                if dyn_argument.descriptor.stencil['extent']:
+                    stencil.extent = dyn_argument.descriptor.stencil['extent']
                 if not dyn_argument.descriptor.stencil['extent']:
                     # an extent argument has been added
+                    stencil.extent_arg = call.args[idx]
                     idx += 1
+                if dyn_argument.descriptor.stencil['type'] == 'xory1d':
+                    # a direction argument has been added
+                    stencil.direction_arg = call.args[idx]
+                    idx += 1
+                dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
 
         self._dofs = []
@@ -2300,6 +2384,7 @@ class DynKernelArgument(Argument):
         Argument.__init__(self, call, arg_info, arg.access)
         self._vector_size = arg.vector_size
         self._type = arg.type
+        self._stencil = None
 
     @property
     def descriptor(self):
@@ -2432,3 +2517,13 @@ class DynKernelArgument(Argument):
             return False
         else:  # must be a continuous function space
             return False
+
+    @property
+    def stencil(self):
+        ''' Return a stencil information object if it exists '''
+        return self._stencil
+
+    @stencil.setter
+    def stencil(self, value):
+        ''' Set our stencil information '''
+        self._stencil = value
