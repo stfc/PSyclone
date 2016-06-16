@@ -12,9 +12,12 @@ program halo_reader_fs
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, f3, f4, f5, f6, f7, f8, f9, f10
+  integer :: extent=1
 
   call invoke(                                                    &
-       testkern_stencil_fs_type(f1,f2,f3,f4,f5,f6,f7,f8,f9,f10)   &
+       testkern_stencil_fs_type(f1,f2,extent,f3,extent,f4,extent, &
+                                f5,extent,f6,extent,f7,extent,f8, &
+                                extent,f9,extent,f10,extent)      &
           )
 
 end program halo_reader_fs

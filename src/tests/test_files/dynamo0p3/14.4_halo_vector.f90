@@ -12,9 +12,10 @@ program halo_reader_vector
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2
+  integer :: f2_extent=3
 
-  call invoke(                               &
-       testkern_stencil_vector_type(f1,f2)   &
+  call invoke(                                       &
+       testkern_stencil_vector_type(f1,f2,f2_extent) &
           )
 
 end program halo_reader_vector
