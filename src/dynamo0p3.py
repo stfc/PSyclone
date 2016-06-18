@@ -541,6 +541,114 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke)
 
 
+def stencil_map_name(name):
+    return name + "_stencil_map"
+
+
+class DynInvokeStencil(object):
+    ''' stencil information associated with a DynInvoke call '''
+
+    def __init__(self, schedule):
+
+        self._unique_extent_args = []
+        extent_names = []
+        for call in schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if not arg.stencil.extent:
+                        if not arg.stencil.extent_arg.is_literal():
+                            if arg.stencil.extent_arg.text not in extent_names:
+                                extent_names.append(arg.stencil.extent_arg.text)
+                                self._unique_extent_args.append(arg)
+
+        self._unique_direction_args = []
+        direction_names = []
+        for call in schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if arg.stencil.direction_arg:
+                        if arg.stencil.direction_arg.is_literal():
+                            raise GenerationError("Kernel {0}, metadata arg {1}, a literal is not a valid value for a stencil direction".format(call.name, str(idx)))
+                        if arg.stencil.direction_arg.text.lower() not in ["x_direction", "y_direction"]:
+                            if arg.stencil.direction_arg.text not in direction_names:
+                                direction_names.append(arg.stencil.direction_arg.text)
+                                self._unique_direction_args.append(arg)
+
+
+    @property
+    def unique_extent_vars(self):
+        names = []
+        for arg in self._unique_extent_args:
+            names.append(arg.stencil.extent_arg.varName)
+        return names
+
+    def declare_unique_extent_vars(self, parent):
+        from f2pygen import DeclGen
+        if self.unique_extent_vars:
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self.unique_extent_vars,
+                               intent="in"))
+
+    @property
+    def unique_direction_args(self):
+        '''return all arguments that require a direction value to be passed
+        from the algorithm layer. If the same direction value is used
+        for more than one argument then only return one of them.'''
+        return self._unique_direction_args
+
+    @property
+    def unique_direction_arg_names(self):
+        names = []
+        for arg in self.unique_direction_args:
+            names.append(arg.name)
+        return names
+
+    @property
+    def unique_direction_stencil_map_arg_names(self):
+        names = []
+        for name in self.unique_direction_arg_names:
+            names.append(stencil_map_name(name))
+        return names
+
+    @property
+    def unique_direction_vars(self):
+        names = []
+        for arg in self.unique_direction_args:
+            names.append(arg.stencil.direction_arg.varName)
+        return names
+
+    def declare_unique_direction_vars(self, parent):
+        from f2pygen import DeclGen
+        if self.unique_extent_vars:
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self.unique_direction_vars,
+                               intent="in"))
+
+    @property
+    def unique_vars(self):
+        return self.unique_extent_vars + self.unique_direction_vars
+
+    def declare_unique_vars(self, parent):
+        self.declare_unique_extent_vars(parent)
+        self.declare_unique_direction_vars(parent)
+
+    def initialise_direction_values(self, parent):
+        from f2pygen import UseGen, TypeDeclGen, IfThenGen, AssignGen
+        if self.unique_direction_args:
+            parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
+                              funcnames=["stencil_dofmap_type", "x_direction",
+                                         "y_direction"]))
+
+            parent.add(TypeDeclGen(parent, datatype="stencil_dofmap_type", entity_decls=self.unique_direction_stencil_map_arg_names))
+            for arg in self.unique_direction_args:
+                direction_name = arg.stencil.direction_arg.varName
+                for direction in ["x", "y"]:
+                    if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
+                    if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+str(arg.stencil.extent_arg.varName)+")"))
+                    parent.add(if_then)
+
+
+
 class DynInvoke(Invoke):
     ''' The Dynamo specific invoke class. This passes the Dynamo
     specific schedule class to the base class so it creates the one we
@@ -577,31 +685,11 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
-        # adding in stencil extent arguments
-        alg_unique_stencil_extent_args = []
-        for call in self.schedule.calls():
-            for arg in call.arguments.args:
-                if arg.stencil:
-                    if not arg.stencil.extent:
-                        if not arg.stencil.extent_arg.is_literal():
-                            if arg.stencil.extent_arg.text not in alg_unique_stencil_extent_args:
-                                alg_unique_stencil_extent_args.append(arg.stencil.extent_arg.text)
-        self._alg_unique_args.extend(alg_unique_stencil_extent_args)
+        # initialise our invoke stencil information
+        self.stencil = DynInvokeStencil(self.schedule)
 
-        # adding in stencil direction arguments
-        alg_unique_stencil_direction_args = []
-        for call in self.schedule.calls():
-            idx = 0
-            for arg in call.arguments.args:
-                idx += 1
-                if arg.stencil:
-                    if arg.stencil.direction_arg:
-                        if arg.stencil.direction_arg.is_literal():
-                            raise GenerationError("Kernel {0}, metadata arg {1}, a literal is not a valid value for a stencil direction".format(call.name, str(idx)))
-                        if arg.stencil.direction_arg.text.lower() not in ["x_direction", "y_direction"]:
-                            if arg.stencil.direction_arg.text not in alg_unique_stencil_direction_args:
-                                alg_unique_stencil_direction_args.append(arg.stencil.direction_arg.text)
-        self._alg_unique_args.extend(alg_unique_stencil_direction_args)
+        # extend arg list
+        self._alg_unique_args.extend(self.stencil.unique_vars)
 
         # adding in qr arguments
         self._alg_unique_qr_args = []
@@ -806,6 +894,7 @@ class DynInvoke(Invoke):
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
+                                   self.stencil.unique_vars +
                                    self._psy_unique_qr_vars)
         # Add the subroutine argument declarations for real scalars that
         # are read - we don't currently support any other access type
@@ -823,6 +912,9 @@ class DynInvoke(Invoke):
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=i_declarations,
                                    intent="in"))
+
+        # declare any stencil arguments
+        self.stencil.declare_unique_vars(invoke_sub)
 
         fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields that are
@@ -926,6 +1018,9 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, lhs=mesh_obj_name, rhs=rhs))
+
+        # declare and initialise local stencil direction values
+        self.stencil.initialise_direction_values(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
