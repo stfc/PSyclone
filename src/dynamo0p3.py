@@ -48,6 +48,9 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
     VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+# xory1d does not have a direct mapping as it indicates either x1d or y1d
+# dynamo currently does not have region as an option in stencil_dofmap_mod.F90
+STENCIL_MAPPING = { "x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY", "cross": "STENCIL_CROSS"}
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
                            "ncolours", "cells"]
@@ -574,79 +577,71 @@ class DynInvokeStencil(object):
                                 direction_names.append(arg.stencil.direction_arg.text)
                                 self._unique_direction_args.append(arg)
 
-
     @property
-    def unique_extent_vars(self):
+    def _unique_extent_vars(self):
         names = []
         for arg in self._unique_extent_args:
             names.append(arg.stencil.extent_arg.varName)
         return names
 
-    def declare_unique_extent_vars(self, parent):
+    def _declare_unique_extent_vars(self, parent):
         from f2pygen import DeclGen
-        if self.unique_extent_vars:
+        if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=self.unique_extent_vars,
+                               entity_decls=self._unique_extent_vars,
                                intent="in"))
 
     @property
-    def unique_direction_args(self):
-        '''return all arguments that require a direction value to be passed
-        from the algorithm layer. If the same direction value is used
-        for more than one argument then only return one of them.'''
-        return self._unique_direction_args
-
-    @property
-    def unique_direction_arg_names(self):
+    def _unique_direction_vars(self):
         names = []
-        for arg in self.unique_direction_args:
-            names.append(arg.name)
-        return names
-
-    @property
-    def unique_direction_stencil_map_arg_names(self):
-        names = []
-        for name in self.unique_direction_arg_names:
-            names.append(stencil_map_name(name))
-        return names
-
-    @property
-    def unique_direction_vars(self):
-        names = []
-        for arg in self.unique_direction_args:
+        for arg in self._unique_direction_args:
             names.append(arg.stencil.direction_arg.varName)
         return names
 
-    def declare_unique_direction_vars(self, parent):
+    def _declare_unique_direction_vars(self, parent):
         from f2pygen import DeclGen
-        if self.unique_extent_vars:
+        if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=self.unique_direction_vars,
+                               entity_decls=self._unique_direction_vars,
                                intent="in"))
 
     @property
     def unique_vars(self):
-        return self.unique_extent_vars + self.unique_direction_vars
+        return self._unique_extent_vars + self._unique_direction_vars
 
     def declare_unique_vars(self, parent):
-        self.declare_unique_extent_vars(parent)
-        self.declare_unique_direction_vars(parent)
+        self._declare_unique_extent_vars(parent)
+        self._declare_unique_direction_vars(parent)
 
-    def initialise_direction_values(self, parent):
-        from f2pygen import UseGen, TypeDeclGen, IfThenGen, AssignGen
-        if self.unique_direction_args:
+    def initialise_stencil_maps(self, parent):
+        from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, CommentGen
+        if self._unique_extent_args:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
+            parent.add(CommentGen(parent, ""))
             parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
-                              funcnames=["stencil_dofmap_type", "x_direction",
-                                         "y_direction"]))
-
-            parent.add(TypeDeclGen(parent, datatype="stencil_dofmap_type", entity_decls=self.unique_direction_stencil_map_arg_names))
-            for arg in self.unique_direction_args:
-                direction_name = arg.stencil.direction_arg.varName
-                for direction in ["x", "y"]:
-                    if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
-                    if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+str(arg.stencil.extent_arg.varName)+")"))
-                    parent.add(if_then)
-
+                              funcnames=["stencil_dofmap_type"]))
+            for arg in self._unique_extent_args:
+                parent.add(TypeDeclGen(parent, pointer=True, datatype="stencil_dofmap_type", entity_decls=[stencil_map_name(arg.name)+" => null()"]))
+                stencil_type = arg.descriptor.stencil['type']
+                if stencil_type == "xory1d":
+                    parent.add(UseGen(parent,name="flux_direction_mod", only=True,
+                                      funcnames=["x_direction", "y_direction"]))
+                    parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
+                                      funcnames=["STENCIL_1DX", "STENCIL_1DY"]))
+                    direction_name = arg.stencil.direction_arg.varName
+                    for direction in ["x", "y"]:
+                        if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
+                        if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+str(arg.stencil.extent_arg.varName)+")"))
+                        parent.add(if_then)
+                else:
+                    try:
+                        stencil_name = STENCIL_MAPPING[stencil_type]
+                    except KeyError:
+                        raise GenerationError("Unsupported stencil type '{0}' supplied. Supported mappings are {1}".format(arg.descriptor.stencil['type'], str(STENCIL_MAPPING)))
+                    parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
+                                      funcnames=[stencil_name]))
+                    parent.add(AssignGen(parent, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+str(arg.stencil.extent_arg.varName)+")"))
 
 
 class DynInvoke(Invoke):
@@ -1019,8 +1014,8 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, lhs=mesh_obj_name, rhs=rhs))
 
-        # declare and initialise local stencil direction values
-        self.stencil.initialise_direction_values(invoke_sub)
+        # declare and initialise stencil maps
+        self.stencil.initialise_stencil_maps(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
