@@ -3277,8 +3277,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert "Expecting argument access to be one of 'gh_read, gh_write, "
-    "gh_inc' but found 'gh_not_an_intent'" in str(excinfo)
+    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
+            "gh_inc' or one of ['gh_sum'], but found 'gh_not_an_intent'" in
+            str(excinfo))
 
 
 def test_arg_descriptor_function_method_error():
@@ -3406,6 +3407,36 @@ def test_mangle_function_space():
     first_kernel = first_invoke.schedule.kern_calls()[0]
     name = mangle_fs_name(first_kernel.arguments.args, "any_space_2")
     assert name == "any_space_2_f2"
+
+
+def test_no_mangle_specified_function_space():
+    ''' Test that we do not name-mangle a function space that is not
+    any_space '''
+    from dynamo0p3 import mangle_fs_name
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    name = mangle_fs_name(first_kernel.arguments.args, "w2")
+    assert name == "w2"
+
+
+def test_fsdescriptors_get_descriptor():
+    ''' Test that FSDescriptors.get_descriptor() raises the expected error
+    when passed a function space for which there is no corresponding kernel
+    argument '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    fspace = FunctionSpace("w0", None)
+    with pytest.raises(GenerationError) as excinfo:
+        first_kernel.fs_descriptors.get_descriptor(fspace)
+    assert "there is no descriptor for function space w0" in str(excinfo.value)
 
 
 def test_arg_descriptor_init_error():
