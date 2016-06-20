@@ -8,7 +8,7 @@
 
 program multikernel_invokes_6
 
-  ! Multiple kernel calls within an invoke where the kernels are specified
+  ! Multiple kernel calls within an invoke where the arguments are specified
   ! as any_space
 
   use testkern_any_space_2_mod, only : testkern_any_space_2_type
