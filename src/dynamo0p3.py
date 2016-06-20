@@ -1245,27 +1245,18 @@ class DynHaloExchange(HaloExchange):
         if field.descriptor.stencil:
             halo_type = field.descriptor.stencil['type']
             halo_depth = field.descriptor.stencil['extent']
-            if halo_depth:
-                # halo depth is known
-                self._depth_known = True
-                # we can increment our depth now as the value is known
-                self._inc_depth = False
-                if inc:
-                    # there is an inc writer which needs redundant
-                    # computation so our halo depth must be increased by 1
-                    halo_depth += 1
+            if not halo_depth:
+                # halo_depth is provided by the algorithm layer
+                halo_depth = field.stencil.extent_arg.varName
             else:
-                # halo_depth is provided by the algorithm layer so is unknown
-                self._depth_known = False
-                if inc:
-                    # we need to increment our unknown depth
-                    self._inc_depth = True
-                else:
-                    # no need to increment our unknown depth
-                    self._inc_depth = False
+                halo_depth = str(halo_depth)
+            if inc:
+                # there is an inc writer which needs redundant
+                # computation so our halo depth must be increased by 1
+                halo_depth += "+1"
         else:
             halo_type = 'region'
-            halo_depth = 1
+            halo_depth = "1"
         HaloExchange.__init__(self, field, halo_type, halo_depth,
                               check_dirty, parent=parent)
 
@@ -1278,7 +1269,7 @@ class DynHaloExchange(HaloExchange):
             ref = ""
         if self._check_dirty:
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" + str(self._halo_depth) +
+                                "%is_dirty(depth=" + self._halo_depth +
                                 ")")
             parent.add(if_then)
             halo_parent = if_then
@@ -1287,7 +1278,7 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + str(self._halo_depth) + ")"))
+                "%halo_exchange(depth=" + self._halo_depth + ")"))
         parent.add(CommentGen(parent, ""))
 
 
