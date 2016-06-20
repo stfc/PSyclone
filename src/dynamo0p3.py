@@ -2063,7 +2063,7 @@ class DynKern(Kern):
             test_str = ""
             for idx, space_name in enumerate(space_names):
                 test_str += "("+fs_name+" .eq. "+space_name+")"
-                if idx<(len(space_names)-1):
+                if idx < (len(space_names)-1):
                     test_str += " .or. "
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
