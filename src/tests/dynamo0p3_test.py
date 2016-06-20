@@ -1782,23 +1782,23 @@ def test_kernel_specific():
     generated_code = psy.gen
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert str(generated_code).find(output0) != -1
-    output1 = "USE function_space_mod, ONLY: w2"
+    output1 = "USE function_space_mod, ONLY: w1, w2"
     assert str(generated_code).find(output1) != -1
     output2 = "INTEGER fs"
     assert str(generated_code).find(output2) != -1
-    output3 = "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
+    output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
     assert str(generated_code).find(output3) != -1
     output4 = "fs = f2%which_function_space()"
     assert str(generated_code).find(output4) != -1
-    output5 = '''IF (fs .eq. w2) THEN
-        boundary_dofs_w2 => f2_proxy%vspace%get_boundary_dofs()
+    output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+        boundary_dofs => f2_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert str(generated_code).find(output5) != -1
     output6 = (
-        "IF (fs .eq. w2) THEN\n"
+        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1, undf_any_space_1, map_any_space_1, "
-        "boundary_dofs_w2)")
+        "boundary_dofs)")
     assert str(generated_code).find(output6) != -1
 
 
