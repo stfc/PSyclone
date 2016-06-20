@@ -143,8 +143,8 @@ def field_on_space(function_space, arguments):
     that exists on the specified space. '''
     if function_space.mangled_name in arguments.unique_fs_names:
         for arg in arguments.args:
-            # Test that arg is a field first in case it's a scalar which
-            # won't then have a function space at all
+            # First, test that arg is a field as some argument objects won't
+            # have function spaces, e.g. scalars
             if arg.type == "gh_field" and \
                arg.function_space.orig_name == function_space.orig_name:
                 return True
@@ -1687,18 +1687,9 @@ class DynKern(Kern):
         for unique_fs in self.arguments.unique_fss:
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.orientation:
+                if fs_descriptor.requires_orientation:
                     lvars.append(get_fs_orientation_name(unique_fs))
         return lvars
-
-    def field_on_space(self, func_space):
-        ''' Returns True if a field exists on this space for this kernel. '''
-        if func_space.mangled_name in self.arguments.unique_fs_names:
-            for arg in self.arguments.args:
-                if arg.type == "gh_field" and \
-                   arg.function_space.orig_name == func_space.orig_name:
-                    return True
-        return False
 
     def _create_arg_list(self, parent, my_type="call"):
         ''' creates the kernel call or kernel stub subroutine argument
@@ -2110,7 +2101,7 @@ class DynKern(Kern):
         for unique_fs in self.arguments.unique_fss:
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.orientation:
+                if fs_descriptor.requires_orientation:
                     field = self._arguments.get_arg_on_space(unique_fs)
                     oname = get_fs_orientation_name(unique_fs)
                     orientation_decl_names.append(oname+"(:) => null()")
@@ -2216,15 +2207,6 @@ class FSDescriptor(object):
         ''' Returns the raw metadata value of this function space. '''
         return self._descriptor.function_space_name
 
-    @property
-    def orientation(self):
-        ''' Returns True if orientation is associated with this
-        function space, otherwise it returns False. '''
-        for operator_name in self._descriptor.operator_names:
-            if operator_name == "gh_orientation":
-                return True
-        return False
-
 
 class FSDescriptors(object):
     ''' Contains a collection of FSDescriptor objects and methods
@@ -2237,15 +2219,6 @@ class FSDescriptors(object):
         self._descriptors = []
         for descriptor in descriptors:
             self._descriptors.append(FSDescriptor(descriptor))
-
-    @property
-    def orientation(self):
-        ''' Return True if at least one descriptor specifies
-        orientation, otherwise return False. '''
-        for descriptor in self._descriptors:
-            if descriptor.orientation:
-                return True
-        return False
 
     def exists(self, fspace):
         ''' Return True if a descriptor with the specified function
