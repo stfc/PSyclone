@@ -28,16 +28,16 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
-    from dynamo0p3 import get_operator_name
+    from dynamo0p3 import get_fs_operator_name
     with pytest.raises(GenerationError) as err:
-        get_operator_name("not_an_op", FunctionSpace("w3", None))
+        get_fs_operator_name("not_an_op", FunctionSpace("w3", None))
     assert "Unsupported name 'not_an_op' found" in str(err)
 
 
 def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
-    from dynamo0p3 import get_operator_name
-    name = get_operator_name("gh_orientation", FunctionSpace("w3", None))
+    from dynamo0p3 import get_fs_operator_name
+    name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
     assert name == "orientation_w3"
 
 
@@ -3480,7 +3480,7 @@ def test_dynkern_op_name():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
-        _ = first_invoke.get_operator_name("gh_orientation", "w3")
+        _ = first_invoke.get_fs_operator_name("gh_orientation", "w3")
     assert "no kern call with function space 'w3' and" in str(err)
 
 
