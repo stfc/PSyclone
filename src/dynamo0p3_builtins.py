@@ -114,13 +114,6 @@ class DynBuiltIn(BuiltIn):
         ''' Built-ins do not currently require quadrature '''
         return False
 
-    @property
-    def fs_descriptors(self):
-        ''' Returns a list of function space descriptor objects of
-        type FSDescriptor which contain information about the function
-        spaces. '''
-        return self._fs_descriptors
-
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
 
