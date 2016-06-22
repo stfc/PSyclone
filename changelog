@@ -5,6 +5,12 @@
 	call to matrix_vector_kernel if the space is W1 or W2. (Previously
 	PSyclone looked for matrix_vector_mm_kernel and only W2.)
 
+	3) #430 Adds support for multiple kernels within an invoke with
+	kernel arguments specified as any_space. Previously there was a
+	limit of one kernel per invoke. This is particularly relevant for
+	built-ins as all of these currently have arguments that are
+	any_space.
+
 release 1.2.2
 
         1) #575 Add parser support for stencil meta-data.
