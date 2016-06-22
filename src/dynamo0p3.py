@@ -2030,26 +2030,26 @@ class DynKern(Kern):
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name,
                               only=True, funcnames=[self._name]))
-        # 5: Fix for boundary_dofs array in matrix_vector_mm_code
-        if self.name == "matrix_vector_mm_code":
-            # In matrix_vector_mm_code, all fields are on the same
+        # 5: Fix for boundary_dofs array in matrix_vector_code
+        if self.name == "matrix_vector_code":
+            # In matrix_vector_code, all fields are on the same
             # (unknown) space. Therefore we can use any field to
             # dereference. We choose the 2nd one as that is what is
             # done in the manual implementation.
             reference_arg = self.arguments.args[1]
             enforce_bc_arg = self.arguments.args[0]
-            space_name = "w2"
+            space_names = ["w1", "w2"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = self.fs_descriptors.ndf_name(kern_func_space_name)
             undf_name = self.fs_descriptors.undf_name(kern_func_space_name)
             map_name = self.fs_descriptors.map_name(kern_func_space_name)
-            w2_proxy_name = reference_arg.proxy_name
+            proxy_name = reference_arg.proxy_name
             self._name_space_manager = NameSpaceFactory().create()
             fs_name = self._name_space_manager.create_name(root_name="fs")
             boundary_dofs_name = self._name_space_manager.create_name(
-                root_name="boundary_dofs_"+space_name)
+                root_name="boundary_dofs")
             parent.add(UseGen(parent, name="function_space_mod",
-                              only=True, funcnames=[space_name]))
+                              only=True, funcnames=space_names))
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=[boundary_dofs_name +
                                              "(:,:) => null()"]))
@@ -2060,14 +2060,19 @@ class DynKern(Kern):
                                      rhs=reference_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
-            if_then = IfThenGen(new_parent, fs_name+" .eq. "+space_name)
+            test_str = ""
+            for idx, space_name in enumerate(space_names):
+                test_str += "("+fs_name+" .eq. "+space_name+")"
+                if idx < (len(space_names)-1):
+                    test_str += " .or. "
+            if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,
                                   lhs=boundary_dofs_name,
-                                  rhs=w2_proxy_name +
+                                  rhs=proxy_name +
                                   "%vspace%get_boundary_dofs()"))
             parent.add(CommentGen(parent, ""))
-            if_then = IfThenGen(parent, fs_name+" .eq. "+space_name)
+            if_then = IfThenGen(parent, test_str)
             parent.add(if_then)
             nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
