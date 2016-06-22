@@ -90,19 +90,15 @@ contains
   diagonal = field_type( vector_space = rhs_fs )
   res      = field_type( vector_space = rhs_fs )
 
-  call invoke( mm_diagonal_kernel_type(diagonal, mm) )
-  call invoke ( divide_fields( rhs, diagonal, lhs ))
-
-! initial guess
-  call invoke ( set_field_scalar(0.0, lhs))
+  call invoke( mm_diagonal_kernel_type(diagonal, mm), &
+               divide_fields( rhs, diagonal, lhs ))
 
   do iter = 1,n_iter
-    call invoke ( set_field_scalar(0.0, Ax) )
-    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
-
-    call invoke ( minus_fields( rhs, Ax, res ) )
-    call invoke ( divide_fields( res, diagonal, res ) )
-    call invoke ( axpy( MU, res, lhs, lhs ) )
+    call invoke ( set_field_scalar(0.0, Ax),            &
+                  matrix_vector_kernel_type(Ax,lhs,mm), &
+                  minus_fields( rhs, Ax, res ),         &
+                  divide_fields( res, diagonal, res ),  &
+                  axpy( MU, res, lhs, lhs ) )
 
 ! Ready for next iteration
   end do

@@ -15,13 +15,32 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, VALID_STENCIL_TYPES
+from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
+    FunctionSpace, VALID_STENCIL_TYPES
 from transformations import LoopFuseTrans
 from genkernelstub import generate
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+
+def test_get_op_wrong_name():
+    ''' Tests that the get_operator_name() utility raises an error
+    if passed the name of something that is not a valid operator '''
+    from dynamo0p3 import get_fs_operator_name
+    with pytest.raises(GenerationError) as err:
+        get_fs_operator_name("not_an_op", FunctionSpace("w3", None))
+    assert "Unsupported name 'not_an_op' found" in str(err)
+
+
+def test_get_op_orientation_name():
+    ''' Test that get_operator_name() works for the orientation operator '''
+    from dynamo0p3 import get_fs_operator_name
+    name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
+    assert name == "orientation_w3"
+
+
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
@@ -90,26 +109,6 @@ def test_arg_descriptor_vector_str():
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space[2]='w1'")
-    assert expected in dkm_str
-
-
-def test_arg_descriptor_op_str():
-    '''Test the str method of an argument descriptor containing an
-    operator
-
-    '''
-    fparser.logging.disable('CRITICAL')
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    dkm = DynKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[3])
-    expected = (
-        "DynArgDescriptor03 object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  access_descriptor[1]='gh_read'\n"
-        "  function_space_to[2]='w2'\n"
-        "  function_space_from[3]='w2'")
-    print dkm_str
     assert expected in dkm_str
 
 
@@ -235,6 +234,20 @@ def test_ad_op_type_too_many_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+
+
+def test_ad_op_type_wrong_3rd_arg():
+    ''' Tests that an error is raised when the 3rd entry in the operator
+    descriptor metadata is invalid. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_read, woops, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("dynamo0.3 API the 3rd argument of a meta_arg entry must be "
+            "a valid function space name" in str(excinfo.value))
 
 
 def test_ad_op_type_1st_arg_not_space():
@@ -1384,7 +1397,6 @@ def test_operator_different_spaces():
         "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_"
         "type")
     print generated_code
-    print output
     assert output in generated_code
 
 
@@ -1425,7 +1437,7 @@ def test_operator_nofield_different_space():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_edge_cell()" in gen
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -1513,32 +1525,33 @@ def test_any_space_1():
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find(
-        "INTEGER, pointer :: map_any_space_1(:) => null(), map_any_space_2"
+    generated_code = str(psy.gen)
+    print generated_code
+    assert generated_code.find(
+        "INTEGER, pointer :: map_any_space_1_a(:) => null(), map_any_space_2_b"
         "(:) => null()") != -1
-    assert str(generated_code).find(
-        "REAL(KIND=r_def), allocatable :: basis_any_space_1(:,:,:,:), "
-        "basis_any_space_2(:,:,:,:)") != -1
-    assert str(generated_code).find(
-        "ALLOCATE (basis_any_space_1(dim_any_space_1, ndf_any_space_1, "
+    assert generated_code.find(
+        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a(:,:,:,:), "
+        "basis_any_space_2_b(:,:,:,:)") != -1
+    assert generated_code.find(
+        "ALLOCATE (basis_any_space_1_a(dim_any_space_1_a, ndf_any_space_1_a, "
         "nqp_h, nqp_v))") != -1
-    assert str(generated_code).find(
-        "ALLOCATE (basis_any_space_2(dim_any_space_2, ndf_any_space_2, "
+    assert generated_code.find(
+        "ALLOCATE (basis_any_space_2_b(dim_any_space_2_b, ndf_any_space_2_b, "
         "nqp_h, nqp_v))") != -1
-    assert str(generated_code).find(
-        "map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
-    assert str(generated_code).find(
-        "map_any_space_2 => b_proxy%vspace%get_cell_dofmap(cell)") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
+        "map_any_space_1_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert generated_code.find(
+        "map_any_space_2_b => b_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert generated_code.find(
         "CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, b_proxy%"
         "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
-        "ny_space_1, undf_any_space_1, map_any_space_1, basis_any_space"
-        "_1, ndf_any_space_2, undf_any_space_2, map_any_space_2, basis_"
-        "any_space_2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nq"
-        "p_v, wh, wv)") != -1
-    assert str(generated_code).find(
-        "DEALLOCATE (basis_any_space_1, basis_any_space_2, diff_basis_w"
+        "ny_space_1_a, undf_any_space_1_a, map_any_space_1_a, "
+        "basis_any_space_1_a, ndf_any_space_2_b, undf_any_space_2_b, "
+        "map_any_space_2_b, basis_any_space_2_b, ndf_w0, undf_w0, map_w0, "
+        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert generated_code.find(
+        "DEALLOCATE (basis_any_space_1_a, basis_any_space_2_b, diff_basis_w"
         "0)") != -1
 
 
@@ -1554,19 +1567,19 @@ def test_any_space_2():
     print generated_code
     assert "INTEGER, intent(in) :: istp" in generated_code
     assert generated_code.find(
-        "INTEGER, pointer :: map_any_space_1(:) => null()") != -1
+        "INTEGER, pointer :: map_any_space_1_a(:) => null()") != -1
     assert generated_code.find(
-        "INTEGER ndf_any_space_1, undf_any_space_1") != -1
+        "INTEGER ndf_any_space_1_a, undf_any_space_1_a") != -1
     assert generated_code.find(
-        "ndf_any_space_1 = a_proxy%vspace%get_ndf()") != -1
+        "ndf_any_space_1_a = a_proxy%vspace%get_ndf()") != -1
     assert generated_code.find(
-        "undf_any_space_1 = a_proxy%vspace%get_undf()") != -1
+        "undf_any_space_1_a = a_proxy%vspace%get_undf()") != -1
     assert generated_code.find(
-        "map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+        "map_any_space_1_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert generated_code.find(
         "CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
-        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
-        "ndf_any_space_1, undf_any_space_1, map_any_space_1)") != -1
+        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, ndf_any_sp"
+        "ace_1_a, undf_any_space_1_a, map_any_space_1_a)") != -1
 
 
 def test_operator_any_space_different_space_1():
@@ -1576,12 +1589,12 @@ def test_operator_any_space_different_space_1():
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     print generated_code
-    assert str(generated_code).find(
-        "ndf_any_space_2 = a_proxy%fs_from%get_ndf()") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_1 = a_proxy%fs_to%get_ndf()") != -1
+    assert generated_code.find(
+        "ndf_any_space_2_a = a_proxy%fs_from%get_ndf()") != -1
+    assert generated_code.find(
+        "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
 def test_operator_any_space_different_space_2():
@@ -1593,23 +1606,23 @@ def test_operator_any_space_different_space_2():
     generated_code = psy.gen
     print generated_code
     assert str(generated_code).find(
-        "ndf_any_space_1 = b_proxy%fs_to%get_ndf()") != -1
+        "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()") != -1
     assert str(generated_code).find(
-        "dim_any_space_1 = b_proxy%fs_to%get_dim_space()") != -1
+        "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_2 = b_proxy%fs_from%get_ndf()") != -1
+        "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_3 = c_proxy%fs_to%get_ndf()") != -1
+        "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_4 = d_proxy%fs_from%get_ndf()") != -1
+        "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()") != -1
     assert str(generated_code).find(
-        "undf_any_space_4 = d_proxy%fs_from%get_undf()") != -1
+        "undf_any_space_4_d = d_proxy%fs_from%get_undf()") != -1
     assert str(generated_code).find(
-        "dim_any_space_4 = d_proxy%fs_from%get_dim_space()") != -1
+        "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()") != -1
     assert str(generated_code).find(
-        "ndf_any_space_5 = a_proxy%vspace%get_ndf()") != -1
+        "ndf_any_space_5_a = a_proxy%vspace%get_ndf()") != -1
     assert str(generated_code).find(
-        "undf_any_space_5 = a_proxy%vspace%get_undf()") != -1
+        "undf_any_space_5_a = a_proxy%vspace%get_undf()") != -1
     assert str(generated_code).find(
         "CALL b_proxy%fs_to%compute_basis_function") != -1
     assert str(generated_code).find(
@@ -1617,9 +1630,9 @@ def test_operator_any_space_different_space_2():
     assert str(generated_code).find(
         "CALL d_proxy%fs_from%compute_diff_basis_function") != -1
     assert str(generated_code).find(
-        "map_any_space_5 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+        "map_any_space_5_a => a_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert str(generated_code).find(
-        "map_any_space_4 => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
+        "map_any_space_4_d => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
 
 
 def test_invoke_uniq_declns():
@@ -1763,8 +1776,9 @@ def test_dyninvoke_arg_for_fs():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].arg_for_funcspace("wtheta")
-    assert 'No argument found on wtheta space' \
+        psy.invokes.invoke_list[0].arg_for_funcspace(FunctionSpace("wtheta",
+                                                                   None))
+    assert "No argument found on 'wtheta' space" \
         in str(excinfo.value)
 
 
@@ -1779,27 +1793,27 @@ def test_kernel_specific():
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
-    assert str(generated_code).find(output0) != -1
+    assert output0 in generated_code
     output1 = "USE function_space_mod, ONLY: w1, w2"
-    assert str(generated_code).find(output1) != -1
+    assert output1 in generated_code
     output2 = "INTEGER fs"
-    assert str(generated_code).find(output2) != -1
+    assert output2 in generated_code
     output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
-    assert str(generated_code).find(output3) != -1
+    assert output3 in generated_code
     output4 = "fs = f2%which_function_space()"
-    assert str(generated_code).find(output4) != -1
+    assert output4 in generated_code
     output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
         boundary_dofs => f2_proxy%vspace%get_boundary_dofs()
       END IF'''
-    assert str(generated_code).find(output5) != -1
+    assert output5 in generated_code
     output6 = (
         "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
-        "ndf_any_space_1, undf_any_space_1, map_any_space_1, "
+        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
         "boundary_dofs)")
-    assert str(generated_code).find(output6) != -1
+    assert output6 in generated_code
 
 
 def test_bc_kernel():
@@ -1820,8 +1834,8 @@ def test_bc_kernel():
     output2 = "boundary_dofs => a_proxy%vspace%get_boundary_dofs()"
     assert str(generated_code).find(output2) != -1
     output3 = (
-        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1, "
-        "undf_any_space_1, map_any_space_1, boundary_dofs)")
+        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
+        "undf_any_space_1_a, map_any_space_1_a, boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
 
@@ -1903,22 +1917,101 @@ def test_multikern_invoke_oper():
     assert str(generated_code).find(output2) == -1
 
 
-def test_multikern_invoke_any_space():
-    ''' Test that an error is thrown when there are multiple
+def test_2kern_invoke_any_space():
+    ''' Test correct code is generated when there are just two
     kernels within an invoke with kernel fields declared as
-    any_space. This is not yet supported as any_space with
-    different kernels in an invoke must either inherit the space
-    from the variable (which needs analysis) or have a unique name
-    for the space used by each kernel and at the moment neither of
-    these is the case. '''
+    any_space. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.1_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert ("      INTEGER, pointer :: map_any_space_1_f2(:) => null()\n"
+            "      INTEGER, pointer :: map_any_space_1_f1(:) => null()\n"
+            in gen)
+    assert (
+        "        map_any_space_1_f1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
+        " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
+        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)\n"
+        in gen)
+    assert (
+        "        map_any_space_1_f2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_any_space_2_code(cell, nlayers, f2_proxy%data,"
+        " f1_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
+        "ndf_any_space_1_f2, undf_any_space_1_f2, map_any_space_1_f2)\n"
+        in gen)
+
+
+def test_multikern_invoke_any_space():
+    ''' Test that we generate correct code when there are multiple
+    kernels within an invoke with kernel fields declared as
+    any_space.  '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3").create(invoke_info)
-    print str(excinfo.value)
-    assert 'multiple kernels within this invoke with kernel arguments ' + \
-        'declared as any_space' in str(excinfo.value)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert ("INTEGER, pointer :: map_any_space_1_f2(:) => null(), "
+            "map_any_space_2_f1(:) => null()" in gen)
+    assert ("INTEGER, pointer :: map_any_space_1_f1(:) => null(), "
+            "map_any_space_2_f2(:) => null(), map_w0(:) => null()" in gen)
+    assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_f1(:,:,:,:), "
+            "basis_any_space_2_f2(:,:,:,:), diff_basis_w0(:,:,:,:), "
+            "basis_any_space_1_f2(:,:,:,:), basis_any_space_2_f1(:,:,:,:)"
+            in gen)
+    assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
+    assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_1_f2,"
+            " ndf_any_space_1_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("map_any_space_2_f2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        map_w0 => f3_proxy(1)%vspace%get_cell_dofmap(cell)"
+            in gen)
+    assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
+            "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
+            "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
+            "map_any_space_1_f1, basis_any_space_1_f1, ndf_any_space_2_f2, "
+            "undf_any_space_2_f2, map_any_space_2_f2, basis_any_space_2_f2,"
+            " ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, "
+            "wh, wv" in gen)
+
+
+def test_mkern_invoke_multiple_any_spaces():
+    ''' Test that we generate correct code when there are multiple
+    kernels within an invoke with kernel fields declared as
+    any_space.  '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert ("CALL f1_proxy%vspace%compute_basis_function(basis_any_space_1_f1,"
+            " ndf_any_space_1_f1, nqp_h, nqp_v, xp, zp)" in gen)
+    assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_2_f2,"
+            " ndf_any_space_2_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_any_space_1_op2 = op2_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_any_space_3_op3 = op3_proxy%fs_to%get_ndf()" in gen
+    assert gen.count("ndf_any_space_4_op4 = op4_proxy%fs_from%get_ndf()") == 1
+    assert "ndf_any_space_3_op5" not in gen
+    assert "ndf_any_space_4_f1" not in gen
+    assert ("CALL op2_proxy%fs_from%compute_basis_function("
+            "basis_any_space_2_op2, ndf_any_space_2_op2, nqp_h, "
+            "nqp_v, xp, zp)" in gen)
+    assert ("CALL op4_proxy%fs_from%compute_diff_basis_function("
+            "diff_basis_any_space_4_op4, ndf_any_space_4_op4, nqp_h, "
+            "nqp_v, xp, zp)" in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -2316,6 +2409,24 @@ def test_vectors():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
+def test_arg_descriptor_vec_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected when we have a vector quantity '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(VECTORS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_field'*3\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space[2]='w0'")
+    print result
+    assert expected_output in result
+
+
 # operators : spaces and intent
 OPERATORS = '''
 module dummy_mod
@@ -2352,7 +2463,7 @@ def test_operators():
         "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
         "op_5_ncell_3d, op_5, ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
-        "ndf_any_space_1)\n"
+        "ndf_any_space_1_op_5)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
@@ -2370,18 +2481,37 @@ def test_operators():
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER, intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1,"
-        "ndf_any_space_1,op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
+        "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_5\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+
+def test_arg_descriptor_op_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected when we have an operator '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(OPERATORS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space_to[2]='w0'\n"
+        "  function_space_from[3]='w0'\n")
+    print result
+    assert expected_output in result
+
 
 OPERATOR_DIFFERENT_SPACES = '''
 module dummy_mod
@@ -2771,22 +2901,23 @@ def test_enforce_bc_kernel_stub_gen():
         "  MODULE enforce_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1, "
-        "ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs)\n"
+        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1_field_1, "
+        "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
+        "map_any_space_1_field_1, boundary_dofs)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: undf_any_space_1\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_any_space_1)"
-        " :: field_1_any_space_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1) :: "
-        "map_any_space_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: "
+        "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
+        "      REAL(KIND=r_def), intent(inout), "
+        "dimension(undf_any_space_1_field_1)"
+        " :: field_1_any_space_1_field_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
+        "map_any_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,2) :: "
         "boundary_dofs\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
-    print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
@@ -2875,7 +3006,7 @@ def test_kernel_stub_gen_cmd_line():
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
-     type(arg_type), meta_args(2) =    &
+     type(arg_type), meta_args(2) =          &
           (/ arg_type(gh_field,gh_write,w1), &
              arg_type(gh_field,gh_read, w2, stencil(cross)) &
            /)
@@ -3112,10 +3243,10 @@ def test_arg_ref_name_method_error1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
-    first_argument = first_kernel.arguments.args[0]
-    # the argument is a field and is on "w1"
+    first_argument = first_kernel.arguments.args[1]
     with pytest.raises(GenerationError) as excinfo:
-        _ = first_argument.ref_name("w3")
+        # the argument is a field and is on "w1"
+        _ = first_argument.ref_name(FunctionSpace("w3", None))
     assert 'not one of the function spaces associated with this argument' \
         in str(excinfo.value)
 
@@ -3150,8 +3281,9 @@ def test_arg_intent_error():
     first_argument._access = "gh_not_an_intent"
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
-    assert "Expecting argument access to be one of 'gh_read, gh_write, "
-    "gh_inc' but found 'gh_not_an_intent'" in str(excinfo)
+    assert ("Expecting argument access to be one of 'gh_read, gh_write, "
+            "gh_inc' or one of ['gh_sum'], but found 'gh_not_an_intent'" in
+            str(excinfo))
 
 
 def test_arg_descriptor_function_method_error():
@@ -3250,6 +3382,67 @@ def test_arg_descriptor_function_space_tofrom_error():
         in str(excinfo.value)
 
 
+def test_mangle_no_space_error():
+    ''' Tests that an error is raised in mangle_fs_name()
+    when none of the provided kernel arguments are on the
+    specified space '''
+    from dynamo0p3 import mangle_fs_name
+    from psyGen import FieldNotFoundError
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        _ = mangle_fs_name(first_kernel.arguments.args, "any_space_7")
+    assert "No kernel argument found for function space 'any_space_7'" \
+        in str(excinfo.value)
+
+
+def test_mangle_function_space():
+    ''' Tests that we correctly mangle the function space name '''
+    from dynamo0p3 import mangle_fs_name
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    name = mangle_fs_name(first_kernel.arguments.args, "any_space_2")
+    assert name == "any_space_2_f2"
+
+
+def test_no_mangle_specified_function_space():
+    ''' Test that we do not name-mangle a function space that is not
+    any_space '''
+    from dynamo0p3 import mangle_fs_name
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    name = mangle_fs_name(first_kernel.arguments.args, "w2")
+    assert name == "w2"
+
+
+def test_fsdescriptors_get_descriptor():
+    ''' Test that FSDescriptors.get_descriptor() raises the expected error
+    when passed a function space for which there is no corresponding kernel
+    argument '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    fspace = FunctionSpace("w0", None)
+    with pytest.raises(GenerationError) as excinfo:
+        first_kernel.fs_descriptors.get_descriptor(fspace)
+    assert "there is no descriptor for function space w0" in str(excinfo.value)
+
+
 def test_arg_descriptor_init_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when an invalid type is provided. However this error never gets
@@ -3300,6 +3493,30 @@ def test_func_descriptor_str():
         "  function_space_name[0] = 'w1'\n"
         "  operator_name[1] = 'gh_basis'")
     assert output in func_str
+
+
+def test_dynkern_arg_for_fs():
+    ''' Test that DynInvoke.arg_for_funcspace() raises an error if
+    passed an invalid function space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    with pytest.raises(GenerationError) as err:
+        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
+    assert "No argument found on 'waah' space" in str(err)
+
+
+def test_dynkern_op_name():
+    ''' Test that DynInvoke.get_operator_name() raises an error if
+    passed an invalid function space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    with pytest.raises(GenerationError) as err:
+        _ = first_invoke.get_fs_operator_name("gh_orientation", "w3")
+    assert "no kern call with function space 'w3' and" in str(err)
 
 
 def test_dist_memory_true():

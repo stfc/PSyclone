@@ -248,6 +248,15 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
 
+Note also that the scope of this naming of any-space function spaces is
+restricted to the argument list of individual kernels. i.e. if an
+Invoke contains say, two kernel calls that each support arguments on
+any function space, e.g. ``ANY_SPACE_1``, there is no requirement that
+these two function spaces be the same. Put another way, if an Invoke
+contained two calls of a kernel with arguments described by the above
+meta-data then the first field argument passed to each kernel call
+need not be on the same space.
+
 .. note:: A GH_FIELD argument that specifies GH_WRITE as its access
           pattern must be a discontinuous function in the
           horizontal. At the moment that means it must be ``w3`` but

@@ -106,19 +106,13 @@ class DynBuiltIn(BuiltIn):
         ''' Dynamically looks up the name of the undf variable for the
         space that this kernel updates '''
         field = self._arguments.iteration_space_arg()
-        return self.fs_descriptors.undf_name(field.function_space)
+        from dynamo0p3 import get_fs_undf_name
+        return get_fs_undf_name(field.function_space)
 
     @property
     def qr_required(self):
         ''' Built-ins do not currently require quadrature '''
         return False
-
-    @property
-    def fs_descriptors(self):
-        ''' Returns a list of function space descriptor objects of
-        type FSDescriptor which contain information about the function
-        spaces. '''
-        return self._fs_descriptors
 
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
