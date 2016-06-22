@@ -713,9 +713,15 @@ conditions are added automatically after a call to
 ``matrix_vector_type`` if the function space of the fields being
 passed into the call are either ``w1`` or ``w2``. This functionality
 was requested by the scientists to avoid having to write a large
-number of ```enforce_bc_type``` calls in the algorithm layer as
+number of ``enforce_bc_type`` calls in the algorithm layer as
 ``matrix_vector_type`` may be used a large number of times in an
 algorithm.
+
+Example ``eg4`` in the ``examples/dynamo`` directory includes a call
+to ``matrix_vector_type`` so can be used to see the boundary condition
+code that is added by PSyclone. See the ``README`` in the
+``examples/dynamo`` directory for instructions on how to run this
+example.
 
 
 Conventions
