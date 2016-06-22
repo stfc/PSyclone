@@ -1,6 +1,10 @@
         1) #111 Adds support for dynamo0.3 built-in operations running
 	sequentially.
 
+        2) #640 Update PSyclone to call enforce_bc_kernel after every
+	call to matrix_vector_kernel if the space is W1 or W2. (Previously
+	PSyclone looked for matrix_vector_mm_kernel and only W2.)
+
 release 1.2.2
 
         1) #575 Add parser support for stencil meta-data.

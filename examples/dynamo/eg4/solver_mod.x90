@@ -13,27 +13,44 @@
 !! solve a number of iterative solver algorithms are possible or for
 !! discontinuous systems an exact solver can be used
 module solver_mod
-  use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL, &
-                                      CG_SOLVER, BICG_SOLVER, JACOBI_SOLVER, &
-                                      GMRES_SOLVER, GCR_SOLVER, NO_PRE_COND
-  use log_mod,                 only : log_event,         &
-                                      log_scratch_space, &
-                                      LOG_LEVEL_ERROR,   &
-                                      LOG_LEVEL_INFO,    &
-                                      LOG_LEVEL_DEBUG,   &
-                                      LOG_LEVEL_TRACE
-  use field_mod,               only : field_type
-  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, Wtheta, W2V, W2H
-  use w3_solver_kernel_mod, only: w3_solver_kernel_type
-  use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
 
-  use quadrature_mod,  only : quadrature_type
-  use operator_mod,    only : operator_type
-  use mesh_mod,        only : mesh_type
+  use constants_mod,                 only : r_def, str_def, i_def
+  use function_space_collection_mod, only : function_space_collection
+  use field_mod,                     only : field_type
+  use finite_element_config_mod,     only : element_order
+  use fs_continuity_mod,             only : W3
+  use function_space_mod,            only : function_space_type
+  use log_mod,                   only : log_event,         &
+                                        log_scratch_space, &
+                                        LOG_LEVEL_ERROR,   &
+                                        LOG_LEVEL_INFO,    &
+                                        LOG_LEVEL_DEBUG,   &
+                                        LOG_LEVEL_TRACE
+  use matrix_vector_kernel_mod,  only : matrix_vector_kernel_type
+  use operator_mod,              only : operator_type
+  use psykal_lite_mod,           only : invoke_inner_prod,              &
+                                        invoke_axpy,                    &
+                                        invoke_minus_field_data,        &
+                                        invoke_copy_field_data,         &
+                                        invoke_set_field_scalar,        &
+                                        invoke_divide_field,            &
+                                        invoke_copy_scaled_field_data
+  use quadrature_mod,            only : quadrature_type
+  use solver_config_mod,         only : solver_method_cg,               &
+                                        solver_method_bicgstab,         &
+                                        solver_method_jacobi,           &
+                                        solver_method_gmres,            &
+                                        solver_method_gcr,              &
+                                        tolerance,                      &
+                                        maximum_iterations,             &
+                                        solver_preconditioner_none,     &
+                                        solver_preconditioner_diagonal, &
+                                        gcrk
+  use w3_solver_kernel_mod,      only : w3_solver_kernel_type
 
   implicit none
-  private
 
+  private
   public :: solver_algorithm
 
 contains
@@ -47,48 +64,41 @@ contains
 !! @param[in] rhs_field The input b
 !! @param[inout] lhs_field The answser, x
 !! @param[in] mm operator type, the mass matrix
-!! @param[in] mesh The mesh object the model for fields
+!! @param[in] mesh The id of mesh object the model for fields
 !! @param[in] n_iter The number of Jacobi iterations to perform
   subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
 
-
+  use mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
   implicit none
 
-  integer,             intent(in)    :: n_iter
+  integer(i_def),      intent(in)    :: n_iter
   type(field_type),    intent(inout) :: lhs, rhs
   type(operator_type), intent(inout) :: mm
-  type(mesh_type),     intent(in)    :: mesh
-  type(field_type)                   :: Ax, lumped_weight, res
+  integer(i_def),      intent(in)    :: mesh
+  type(field_type)                   :: Ax, diagonal, res
 
   real(kind=r_def), parameter :: MU = 0.9_r_def
 
-  integer :: iter
-  integer                            :: rhs_fs
-  type( function_space_type )        :: fs
+  integer(i_def) :: iter
 
-  rhs_fs = rhs%which_function_space()
+  type(function_space_type), pointer :: rhs_fs => null()
 
-  Ax = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+  rhs_fs => function_space_collection%get_fs( mesh, &
+                                              element_order, &
+                                              rhs%which_function_space() )
 
-  lumped_weight = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
-  res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
+  diagonal = field_type( vector_space = rhs_fs )
+  res      = field_type( vector_space = rhs_fs )
 
-! Compute mass lump
-  call invoke ( set_field_scalar(1.0, Ax))
-  call invoke( matrix_vector_kernel_mm_type(lumped_weight,Ax,mm) )
-
-  call invoke ( divide_fields(rhs, lumped_weight, lhs))
-
-! initial guess
-  call invoke ( set_field_scalar(0.0, lhs))
+  call invoke( mm_diagonal_kernel_type(diagonal, mm), &
+               divide_fields( rhs, diagonal, lhs ))
 
   do iter = 1,n_iter
-    call invoke( set_field_scalar(0.0, Ax) )
-    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
-
-    call invoke ( minus_fields(rhs,Ax,res) )
-    call invoke ( divide_fields(res, lumped_weight, res) )
-    call invoke( axpy(MU, res, lhs, lhs) )
+    call invoke ( set_field_scalar(0.0, Ax),            &
+                  matrix_vector_kernel_type(Ax,lhs,mm), &
+                  minus_fields( rhs, Ax, res ),         &
+                  divide_fields( res, diagonal, res ),  &
+                  axpy( MU, res, lhs, lhs ) )
 
 ! Ready for next iteration
   end do

@@ -38,7 +38,7 @@ parallelisation (without distributed memory parallel code)
     cd eg3/
     python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90
 
-The fourth example illustrates the use of calls to built-in operations
+The fourth example illustrates the use of (multiple) calls to built-in operations
 within an invoke. The "-nodm" flag is required because the current version of
 PSyclone does not support either distributed-memory or OpenMP parallelism when
 generating built-ins. (This restriction will be lifted in a future release).

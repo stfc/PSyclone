@@ -696,6 +696,43 @@ where:
 * type(field_type), intent(in) :: field
 * real(r_def), intent(out) :: sumval
 
+Boundary Conditions
+-------------------
+
+In the dynamo0.3 API, boundary conditions for a field can be enforced
+by the algorithm developer by calling a particular Kernel called
+``enforce_bc_type``. This kernel takes a field as input and applies
+boundary conditions. For example:
+
+::
+
+  call invoke( kernel_type(field1, field2), &
+               enforce_bc_type(field1)      &
+             )
+
+The particular boundary conditions that are applied are not known by
+PSyclone, PSyclone simply recognises this kernel by its name and passes
+pre-specified dofmap and boundary_value arrays into its kernel
+implementation, the contents of which are set by the LFRic
+infrastructure.
+
+There is one situation where boundary conditions are applied without
+the algorithm developer having to specify them explicitly. Boundary
+conditions are added automatically after a call to
+``matrix_vector_type`` if the function space of the fields being
+passed into the call are either ``w1`` or ``w2``. This functionality
+was requested by the scientists to avoid having to write a large
+number of ``enforce_bc_type`` calls in the algorithm layer as
+``matrix_vector_type`` may be used a large number of times in an
+algorithm.
+
+Example ``eg4`` in the ``examples/dynamo`` directory includes a call
+to ``matrix_vector_type`` so can be used to see the boundary condition
+code that is added by PSyclone. See the ``README`` in the
+``examples/dynamo`` directory for instructions on how to run this
+example.
+
+
 Conventions
 -----------
 
