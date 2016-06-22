@@ -1794,21 +1794,25 @@ def test_kernel_specific():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
-    print generated_code
-    assert "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code" in generated_code
-    assert "USE function_space_mod, ONLY: w2" in generated_code
-    assert "INTEGER fs" in generated_code
-    assert "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()" in\
-        generated_code
-    assert "fs = f2%which_function_space()" in generated_code
-    assert '''IF (fs .eq. w2) THEN
-        boundary_dofs_w2 => f2_proxy%vspace%get_boundary_dofs()
-      END IF''' in generated_code
+    output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
+    assert output0 in generated_code
+    output1 = "USE function_space_mod, ONLY: w1, w2"
+    assert output1 in generated_code
+    output2 = "INTEGER fs"
+    assert output2 in generated_code
+    output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    assert output3 in generated_code
+    output4 = "fs = f2%which_function_space()"
+    assert output4 in generated_code
+    output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+        boundary_dofs => f2_proxy%vspace%get_boundary_dofs()
+      END IF'''
+    assert output5 in generated_code
     output6 = (
-        "IF (fs .eq. w2) THEN\n"
+        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
-        "boundary_dofs_w2)")
+        "boundary_dofs)")
     assert output6 in generated_code
 
 
