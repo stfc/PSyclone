@@ -1,3 +1,5 @@
+release 1.2.3
+
         1) #111 Adds support for dynamo0.3 built-in operations running
 	sequentially.
 
