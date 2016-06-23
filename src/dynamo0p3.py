@@ -1679,7 +1679,9 @@ class DynKern(Kern):
                                entity_decls=["nlayers"]))
         # 2: Provide data associated with fields in the order
         #    specified in the metadata.  If we have a vector field
-        #    then generate the appropriate number of arguments.
+        #    then generate the appropriate number of arguments.  If
+        #    the field is accessed with a stencil operation then add
+        #    in any required additional arguments.
         first_arg = True
         first_arg_decl = None
         for arg in self._arguments.args:
@@ -1721,6 +1723,22 @@ class DynKern(Kern):
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
+                # add in any required stencil arguments
+                if arg.descriptor.stencil: # or arg.stencil
+                    if not arg.descriptor.stencil['extent']:
+                        # the extent is not specified in the metadata so pass the value in
+                        name = arg.stencil.extent_arg.varName
+                        arglist.append(name)
+                        if my_type == "subroutine":
+                            parent.add(DeclGen(parent, datatype="integer",
+                                               intent="in", entity_decls=[name]))
+                    if arg.descriptor.stencil['type'] == "xory1d":
+                        # the direction of the stencil is not known so pass the value in
+                        name = arg.stencil.direction_arg.varName
+                        arglist.append(name)
+                        if my_type == "subroutine":
+                            parent.add(DeclGen(parent, datatype="integer",
+                                               intent="in", entity_decls=[name]))                            
 
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
