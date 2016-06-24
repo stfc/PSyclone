@@ -3557,16 +3557,16 @@ def test_halo_exchange_depths():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
+    expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=extent)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
+                "      IF (f3_proxy%is_dirty(depth=extent)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=extent)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f4_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL f4_proxy%halo_exchange(depth=f4_extent)\n"
+                "      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=extent)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_edge_cell()\n")
