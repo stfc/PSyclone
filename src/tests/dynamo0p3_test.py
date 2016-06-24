@@ -3888,8 +3888,10 @@ def test_scalar_real_sum_field_read():
     assert expected_output in gen
 
 
-def test_single_stencil():
-    ''' test extent value is treated correctly in PSy layer '''
+def test_single_stencil_extent():
+    '''test a single stencil access with an extent value passed from the
+    algorithm layer is treated correctly in the PSy layer. Test both
+    sequential and distributed memory '''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
@@ -3928,3 +3930,119 @@ def test_single_stencil():
             " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, "
             "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
         assert output6 in result
+
+
+def test_single_stencil_xory1d():
+    '''test a single stencil access with an extent and direction value
+    passed from the algorithm layer is treated correctly in the PSy
+    layer. Test both sequential and distributed memory '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, "
+            "f4, f2_extent, f2_direction)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, intent(in) :: f2_extent\n"
+            "      INTEGER, intent(in) :: f2_direction\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output4 in result
+        output5 = (
+            "      !\n"
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      IF (f2_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_extent)\n"
+            "      END IF \n"
+            "      IF (f2_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_extent)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      !\n")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_extent, f2_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output6 in result
+
+
+# single invoke, single field, single stencil, literal value
+def test_single_stencil_literal():
+    '''test extent value is used correctly from the algorithm layer when
+    it is a literal value so is not passed by argument'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = "    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4)"
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      !\n"
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,1)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      !\n")
+        assert output4 in result
+        if dist_mem:
+            output5 = (
+                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n")
+            assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, 1, f2_stencil_dofmap(:,:,cell), f3_proxy%data, "
+            "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+            "ndf_w3, undf_w3, map_w3)")
+        assert output6 in result
+
+
+def test_stencil_region_unsupported():
+    '''Check that we raise an exception if the value of the stencil type
+    in stencil(<type>[,<extent>]) is region. This is not a parse error
+    as region is a valid value, it is just that the LFRic
+    infrastructure does not yet support it. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        with pytest.raises(GenerationError) as excinfo:
+            result = str(psy.gen)
+        assert "Unsupported stencil type 'region' supplied" in str(excinfo.value)

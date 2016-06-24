@@ -547,22 +547,43 @@ class DynamoInvokes(Invokes):
 def stencil_map_name(name):
     return name + "_stencil_map"
 
+def stencil_extent_value(field):
+    if field.stencil.extent_arg.is_literal():
+        extent = field.stencil.extent_arg.text
+    else:
+        extent = field.stencil.extent_arg.varName
+    return extent
+
 
 class DynInvokeStencil(object):
     ''' stencil information associated with a DynInvoke call '''
 
     def __init__(self, schedule):
 
+        # list of arguments which have an extent value passed to this invoke routine from the algorithm layer
         self._unique_extent_args = []
         extent_names = []
         for call in schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:
-                        if not arg.stencil.extent_arg.is_literal():
+                        if arg.stencil.extent_arg.is_literal():
+                            pass
+                        else:
                             if arg.stencil.extent_arg.text not in extent_names:
                                 extent_names.append(arg.stencil.extent_arg.text)
                                 self._unique_extent_args.append(arg)
+
+        # list of fields which have an extent value passed into a kernel call
+        self._unique_extent_kern_args = []
+        extent_names = []
+        for call in schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if not arg.stencil.extent:
+                        if arg.stencil.extent_arg.text not in extent_names:
+                            extent_names.append(arg.stencil.extent_arg.text)
+                            self._unique_extent_kern_args.append(arg)
 
         self._unique_direction_args = []
         direction_names = []
@@ -606,22 +627,22 @@ class DynInvokeStencil(object):
                                intent="in"))
 
     @property
-    def unique_vars(self):
+    def unique_alg_vars(self):
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def declare_unique_vars(self, parent):
+    def declare_unique_alg_vars(self, parent):
         self._declare_unique_extent_vars(parent)
         self._declare_unique_direction_vars(parent)
 
     def initialise_stencil_maps(self, parent):
         from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, CommentGen, DeclGen
-        if self._unique_extent_args:
+        if self._unique_extent_kern_args:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
             parent.add(CommentGen(parent, ""))
             parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
                               funcnames=["stencil_dofmap_type"]))
-            for arg in self._unique_extent_args:
+            for arg in self._unique_extent_kern_args:
                 parent.add(TypeDeclGen(parent, pointer=True, datatype="stencil_dofmap_type", entity_decls=[stencil_map_name(arg.name)+" => null()"]))
                 stencil_type = arg.descriptor.stencil['type']
                 if stencil_type == "xory1d":
@@ -632,7 +653,7 @@ class DynInvokeStencil(object):
                     direction_name = arg.stencil.direction_arg.varName
                     for direction in ["x", "y"]:
                         if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
-                        if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+str(arg.stencil.extent_arg.varName)+")"))
+                        if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+stencil_extent_value(arg)+")"))
                         parent.add(if_then)
                 else:
                     try:
@@ -641,7 +662,7 @@ class DynInvokeStencil(object):
                         raise GenerationError("Unsupported stencil type '{0}' supplied. Supported mappings are {1}".format(arg.descriptor.stencil['type'], str(STENCIL_MAPPING)))
                     parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
                                       funcnames=[stencil_name]))
-                    parent.add(AssignGen(parent, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+str(arg.stencil.extent_arg.varName)+")"))
+                    parent.add(AssignGen(parent, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+stencil_extent_value(arg)+")"))
                 # now get our actual dofmap. Note, this logic needs to
                 # be changed for the case where the same field has
                 # stencil accesses of different types i.e. different
@@ -692,7 +713,7 @@ class DynInvoke(Invoke):
         self.stencil = DynInvokeStencil(self.schedule)
 
         # extend arg list
-        self._alg_unique_args.extend(self.stencil.unique_vars)
+        self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
         # adding in qr arguments
         self._alg_unique_qr_args = []
@@ -897,7 +918,7 @@ class DynInvoke(Invoke):
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
-                                   self.stencil.unique_vars +
+                                   self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
         # Add the subroutine argument declarations for real scalars that
         # are read - we don't currently support any other access type
@@ -917,7 +938,7 @@ class DynInvoke(Invoke):
                                    intent="in"))
 
         # declare any stencil arguments
-        self.stencil.declare_unique_vars(invoke_sub)
+        self.stencil.declare_unique_alg_vars(invoke_sub)
 
         fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields that are
@@ -1255,7 +1276,7 @@ class DynHaloExchange(HaloExchange):
             halo_depth = field.descriptor.stencil['extent']
             if not halo_depth:
                 # halo_depth is provided by the algorithm layer
-                halo_depth = field.stencil.extent_arg.varName
+                halo_depth = stencil_extent_value(field)
             else:
                 halo_depth = str(halo_depth)
             if inc:
@@ -1735,7 +1756,7 @@ class DynKern(Kern):
                 if arg.descriptor.stencil: # or arg.stencil
                     if not arg.descriptor.stencil['extent']:
                         # the extent is not specified in the metadata so pass the value in
-                        name = arg.stencil.extent_arg.varName
+                        name = stencil_extent_value(arg)
                         arglist.append(name)
                         if my_type == "subroutine":
                             parent.add(DeclGen(parent, datatype="integer",

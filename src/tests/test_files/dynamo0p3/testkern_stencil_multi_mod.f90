@@ -12,7 +12,7 @@ module testkern_stencil_multi
           (/ arg_type(gh_field,gh_write,w1),                  &
              arg_type(gh_field,gh_read, w2, stencil(cross)),  &
              arg_type(gh_field,gh_read, w2, stencil(xory1d)), &
-             arg_type(gh_field,gh_read, w3, stencil(region))  &
+             arg_type(gh_field,gh_read, w3, stencil(x1d))     &
            /)
      integer, parameter :: iterates_over = cells
    contains
