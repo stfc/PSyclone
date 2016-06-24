@@ -3380,7 +3380,7 @@ def test_no_halo_dirty():
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
 
-@pytest.mark.xfail(reason="Still working on dynamic stencil code generation")
+
 def test_halo_exchange():
     ''' test that a halo_exchange call is added for a loop with a
     stencil operation '''
@@ -3389,14 +3389,16 @@ def test_halo_exchange():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
-    output = (
-        "     IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+    output1 = (
+        "     IF (f2_proxy%is_dirty(depth=f2_extent)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
         "      END IF \n"
-        "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    print output
-    assert output in generated_code
+        "      !\n")
+    print output1
+    assert output1 in generated_code
+    output2 = ("      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    print output2
+    assert output2 in generated_code
 
 
 def test_halo_exchange_inc():
@@ -3525,7 +3527,6 @@ def test_halo_exchange_vectors_1():
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
-@pytest.mark.xfail(reason="Still working on dynamic stencil code generation")
 def test_halo_exchange_vectors():
     ''' test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with gh_inc '''
@@ -3538,15 +3539,15 @@ def test_halo_exchange_vectors():
     assert result.count("halo_exchange(") == 7
     for idx in range(1, 4):
         assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
-        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
-    expected = ("      IF (f2_proxy(4)%is_dirty(depth=2)) THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
+        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=f2_extent+1)" in result
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) THEN\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
-@pytest.mark.xfail(reason="Still working on dynamic stencil code generation")
+
 def test_halo_exchange_depths():
     ''' test that halo exchange (and gh_inc) includes the correct halo
     depth with gh_write '''
@@ -3557,21 +3558,21 @@ def test_halo_exchange_depths():
     result = str(psy.gen)
     print result
     expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
                 "      END IF \n"
                 "      !\n"
                 "      IF (f3_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=2)\n"
+                "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
                 "      END IF \n"
                 "      !\n"
                 "      IF (f4_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL f4_proxy%halo_exchange(depth=3)\n"
+                "        CALL f4_proxy%halo_exchange(depth=f4_extent)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_edge_cell()\n")
     assert expected in result
 
-@pytest.mark.xfail(reason="Still working on dynamic stencil code generation")
+
 def test_halo_exchange_depths_gh_inc():
     ''' test that halo exchange includes the correct halo depth when
     we have a gh_inc as this increases the required depth by 1 (as
@@ -3586,16 +3587,16 @@ def test_halo_exchange_depths_gh_inc():
                 "        CALL f1_proxy%halo_exchange(depth=1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=3)\n"
+                "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f4_proxy%is_dirty(depth=4)) THEN\n"
-                "        CALL f4_proxy%halo_exchange(depth=4)\n"
+                "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
@@ -3643,7 +3644,7 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
     expected = (
         "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    HaloExchange[field='f2', type='cross', depth=unknown, "
+        "    HaloExchange[field='f2', type='cross', depth=f2_extent, "
         "check_dirty=True]\n"
         "    HaloExchange[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -3886,15 +3887,44 @@ def test_scalar_real_sum_field_read():
         "      END DO \n")
     assert expected_output in gen
 
+
 def test_single_stencil():
-    ''' test extent value is treated correctly in psy layer '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    output = str(psy.gen)
-    print "******"
-    print output
-    print "******"
-    exit(1)
+    ''' test extent value is treated correctly in PSy layer '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
+            "f2_extent)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = ("      INTEGER, intent(in) :: f2_extent\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output4 in result
+        output5 = (
+            "      !\n"
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f2_extent)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      !\n")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
+            " f2_proxy%data, f2_extent, f2_stencil_dofmap(:,:,cell),"
+            " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output6 in result

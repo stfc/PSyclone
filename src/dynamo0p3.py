@@ -567,7 +567,7 @@ class DynInvokeStencil(object):
         self._unique_direction_args = []
         direction_names = []
         for call in schedule.calls():
-            for arg in call.arguments.args:
+            for idx, arg in enumerate(call.arguments.args):
                 if arg.stencil:
                     if arg.stencil.direction_arg:
                         if arg.stencil.direction_arg.is_literal():
