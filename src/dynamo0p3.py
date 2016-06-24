@@ -614,7 +614,7 @@ class DynInvokeStencil(object):
         self._declare_unique_direction_vars(parent)
 
     def initialise_stencil_maps(self, parent):
-        from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, CommentGen
+        from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, CommentGen, DeclGen
         if self._unique_extent_args:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
@@ -642,6 +642,14 @@ class DynInvokeStencil(object):
                     parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
                                       funcnames=[stencil_name]))
                     parent.add(AssignGen(parent, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+str(arg.stencil.extent_arg.varName)+")"))
+                # now get our actual dofmap. Note, this logic needs to
+                # be changed for the case where the same field has
+                # stencil accesses of different types i.e. different
+                # extent or different stencil
+                parent.add(DeclGen(parent, datatype="integer",
+                                   pointer=True,
+                                   entity_decls=[arg.name+"_stencil_dofmap(:,:,:) => null()"]))
+                parent.add(AssignGen(parent, pointer=True, lhs=arg.name+"_stencil_dofmap", rhs=stencil_map_name(arg.name)+"%get_dofmap()"))
 
 
 class DynInvoke(Invoke):
@@ -1738,7 +1746,16 @@ class DynKern(Kern):
                         arglist.append(name)
                         if my_type == "subroutine":
                             parent.add(DeclGen(parent, datatype="integer",
-                                               intent="in", entity_decls=[name]))                            
+                                               intent="in", entity_decls=[name]))
+                    # add in stencil dofmap
+                    var_name = arg.name+"_stencil_dofmap"
+                    name = var_name+"(:,:,"
+                    if self.is_coloured():
+                        name += "cmap(colour, cell)"
+                    else:
+                        name += "cell"
+                    name += ")"
+                    arglist.append(name)
 
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
