@@ -576,14 +576,11 @@ class DynInvokeStencil(object):
 
         # list of fields which have an extent value passed into a kernel call
         self._unique_extent_kern_args = []
-        extent_names = []
         for call in schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:
-                        if arg.stencil.extent_arg.text not in extent_names:
-                            extent_names.append(arg.stencil.extent_arg.text)
-                            self._unique_extent_kern_args.append(arg)
+                        self._unique_extent_kern_args.append(arg)
 
         self._unique_direction_args = []
         direction_names = []

@@ -203,7 +203,7 @@ class TestAlgGenClassDynamo0p3:
         assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
                 "f3, f4, extent, direction)") in output
 
-    # multiple kernels in an invoke *****
+    # multiple kernels in an invoke with stencils
     def test_multiple_kernels_stencils(self):
         '''more than one kernel with stencils'''
         path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
