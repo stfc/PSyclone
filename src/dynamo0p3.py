@@ -48,6 +48,9 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
     VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+# can't use VALID_STENCIL_DIRECTIONS in all locations as it causes
+# failures with py.test 2.8.7
+VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 # xory1d does not have a direct mapping as it indicates either x1d or y1d
 # dynamo currently does not have region as an option in stencil_dofmap_mod.F90
 STENCIL_MAPPING = { "x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY", "cross": "STENCIL_CROSS"}
@@ -539,13 +542,11 @@ class DynamoInvokes(Invokes):
     require. '''
 
     def __init__(self, alg_calls):
+        self._name_space_manager = NameSpaceFactory().create()
         if False:
             self._0_to_n = DynInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke)
 
-
-def stencil_map_name(name):
-    return name + "_stencil_map"
 
 def stencil_extent_value(field):
     if field.stencil.extent_arg.is_literal():
@@ -555,11 +556,19 @@ def stencil_extent_value(field):
     return extent
 
 
+def stencil_dofmap_name(name):
+    root = name + "_stencil_dofmap"
+    name_space_manager = NameSpaceFactory().create()
+    return name_space_manager.create_name(
+        root_name=root, context="PSyVars", label=root)
+
+
 class DynInvokeStencil(object):
     ''' stencil information associated with a DynInvoke call '''
 
     def __init__(self, schedule):
 
+        self._name_space_manager = NameSpaceFactory().create()
         # list of arguments which have an extent value passed to this invoke routine from the algorithm layer
         self._unique_extent_args = []
         extent_names = []
@@ -594,6 +603,11 @@ class DynInvokeStencil(object):
                             if arg.stencil.direction_arg.text not in direction_names:
                                 direction_names.append(arg.stencil.direction_arg.text)
                                 self._unique_direction_args.append(arg)
+
+    def stencil_map_name(self, name):
+        root = name + "_stencil_map"
+        return self._name_space_manager.create_name(
+            root_name=root, context="PSyVars", label=root)
 
     @property
     def _unique_extent_vars(self):
@@ -640,7 +654,7 @@ class DynInvokeStencil(object):
             parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
                               funcnames=["stencil_dofmap_type"]))
             for arg in self._unique_extent_kern_args:
-                parent.add(TypeDeclGen(parent, pointer=True, datatype="stencil_dofmap_type", entity_decls=[stencil_map_name(arg.name)+" => null()"]))
+                parent.add(TypeDeclGen(parent, pointer=True, datatype="stencil_dofmap_type", entity_decls=[self.stencil_map_name(arg.name)+" => null()"]))
                 stencil_type = arg.descriptor.stencil['type']
                 if stencil_type == "xory1d":
                     parent.add(UseGen(parent,name="flux_direction_mod", only=True,
@@ -650,7 +664,7 @@ class DynInvokeStencil(object):
                     direction_name = arg.stencil.direction_arg.varName
                     for direction in ["x", "y"]:
                         if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
-                        if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+stencil_extent_value(arg)+")"))
+                        if_then.add(AssignGen(if_then, pointer=True, lhs=self.stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+stencil_extent_value(arg)+")"))
                         parent.add(if_then)
                 else:
                     try:
@@ -659,15 +673,15 @@ class DynInvokeStencil(object):
                         raise GenerationError("Unsupported stencil type '{0}' supplied. Supported mappings are {1}".format(arg.descriptor.stencil['type'], str(STENCIL_MAPPING)))
                     parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
                                       funcnames=[stencil_name]))
-                    parent.add(AssignGen(parent, pointer=True, lhs=stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+stencil_extent_value(arg)+")"))
+                    parent.add(AssignGen(parent, pointer=True, lhs=self.stencil_map_name(arg.name), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+stencil_extent_value(arg)+")"))
                 # now get our actual dofmap. Note, this logic needs to
                 # be changed for the case where the same field has
                 # stencil accesses of different types i.e. different
                 # extent or different stencil
                 parent.add(DeclGen(parent, datatype="integer",
                                    pointer=True,
-                                   entity_decls=[arg.name+"_stencil_dofmap(:,:,:) => null()"]))
-                parent.add(AssignGen(parent, pointer=True, lhs=arg.name+"_stencil_dofmap", rhs=stencil_map_name(arg.name)+"%get_dofmap()"))
+                                   entity_decls=[stencil_dofmap_name(arg.name)+"(:,:,:) => null()"]))
+                parent.add(AssignGen(parent, pointer=True, lhs=stencil_dofmap_name(arg.name), rhs=self.stencil_map_name(arg.name)+"%get_dofmap()"))
 
 
 class DynInvoke(Invoke):
@@ -679,7 +693,11 @@ class DynInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         if False:
             self._schedule = DynSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+        reserved_names_list = []
+        reserved_names_list.extend(STENCIL_MAPPING.values())
+        reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        Invoke.__init__(self, alg_invocation, idx, DynSchedule,
+                        reserved_names=reserved_names_list)
         # check whether we have more than one kernel call within this
         # invoke which specifies any_space. This is not supported at
         # the moment so we raise an error.  any_space with different
@@ -1766,7 +1784,7 @@ class DynKern(Kern):
                             parent.add(DeclGen(parent, datatype="integer",
                                                intent="in", entity_decls=[name]))
                     # add in stencil dofmap
-                    var_name = arg.name+"_stencil_dofmap"
+                    var_name = stencil_dofmap_name(arg.name)
                     name = var_name+"(:,:,"
                     if self.is_coloured():
                         name += "cmap(colour, cell)"

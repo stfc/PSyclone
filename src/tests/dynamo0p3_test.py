@@ -4344,8 +4344,6 @@ def test_multiple_stencil_same_name_direction():
             "undf_w3, map_w3)")
         assert output5 in result
 
-# one kernel in an invoke multiple stencils same arg - raise exception??
-# add test here???
 
 def test_multiple_kernels_stencils_different_fields():
     '''multiple kernels with stencils and different fields for each. Also
@@ -4413,4 +4411,58 @@ def test_multiple_kernels_stencils_different_fields():
             "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
         assert output8 in result
 
+
 # name clash test for all vars 1) extent, 2) direction, 3) dofmaps, 4) 
+def test_extent_name_clash():
+    '''kernel with stencil and an extent name that would clash with an
+    argument name in the PSy layer.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_stencil_type(f2_stencil_map, "
+            "f2, f2_stencil_dofmap, stencil_cross_1, f2_extent)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, intent(in) :: f2_extent\n"
+            "      TYPE(field_type), intent(out) :: f2_stencil_map\n"
+            "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
+            "stencil_cross_1\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
+            "null()")
+        assert output4 in result
+        output5 = (
+            "      TYPE(field_proxy_type) f2_stencil_map_proxy, f2_proxy, "
+            "f2_stencil_dofmap_proxy, stencil_cross_1_proxy")
+        assert output5 in result
+        output6 = (
+            "      stencil_cross_1_proxy = stencil_cross_1%get_proxy()")
+        assert output6 in result
+        output7 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f2_extent)\n"
+            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_dofmap()\n"
+            "      !\n")
+        assert output7 in result
+        output8 = (
+            "        CALL testkern_stencil_code(nlayers, "
+            "f2_stencil_map_proxy%data, f2_proxy%data, f2_extent, "
+            "f2_stencil_dofmap_1(:,:,cell), f2_stencil_dofmap_proxy%data, "
+            "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output8 in result
+
