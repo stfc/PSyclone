@@ -4412,10 +4412,10 @@ def test_multiple_kernels_stencils_different_fields():
         assert output8 in result
 
 
-# name clash test for all vars 1) extent, 2) direction, 3) dofmaps, 4) 
+# name clash test for 1) extent, 2) direction, 3) stencil dofmaps
 def test_extent_name_clash():
-    '''kernel with stencil and an extent name that would clash with an
-    argument name in the PSy layer.'''
+    '''Kernel with argument names passed from the algorithm layer that
+    would clash with a stencil name and stencil dofmap variables.'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
@@ -4465,4 +4465,55 @@ def test_extent_name_clash():
             "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
             "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
         assert output8 in result
+
+def test_two_stencils_same_field():
+    '''Two Kernels within an invoke, with the same field having a stencil
+    access in each kernel. f2_w2 is the field we care about.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0(f1_w1, f2_w2, f3_w2, f4_w3, f1_w3, "
+            "f2_extent, extent)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, pointer :: f2_w2_stencil_dofmap_1(:,:,:) => "
+            "null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map_1 "
+            "=> null()")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, pointer :: f2_w2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map "
+            "=> null()")
+        assert output3 in result
+        output4 = (
+            "      f2_w2_stencil_map => f2_w2_proxy%vspace%get_stencil_dofmap"
+            "(STENCIL_CROSS,f2_extent)\n"
+            "      f2_w2_stencil_dofmap => f2_w2_stencil_map%get_dofmap()")
+        assert output4 in result
+        output5 = (
+            "      f2_w2_stencil_map_1 => f2_w2_proxy%vspace%get_stencil_dofmap"
+            "(STENCIL_CROSS,extent)\n"
+            "      f2_w2_stencil_dofmap_1 => f2_w2_stencil_map_1%get_dofmap()")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
+            "f2_w2_proxy%data, f2_extent, f2_w2_stencil_dofmap(:,:,cell), "
+            "f3_w2_proxy%data, f4_w3_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output6 in result
+        output7 = (
+            "        CALL testkern_stencil_depth_code(nlayers, "
+            "f1_w3_proxy%data, f1_w1_proxy%data, extent, "
+            "f1_w1_stencil_dofmap(:,:,cell), f2_w2_proxy%data, extent, "
+            "f2_w2_stencil_dofmap_1(:,:,cell), f4_w3_proxy%data, extent, "
+            "f4_w3_stencil_dofmap(:,:,cell), ndf_w3, undf_w3, map_w3, ndf_w1, "
+            "undf_w1, map_w1, ndf_w2, undf_w2, map_w2)")
+        assert output7 in result
 
