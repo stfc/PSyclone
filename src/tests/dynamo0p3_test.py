@@ -4517,3 +4517,106 @@ def test_two_stencils_same_field():
             "undf_w1, map_w1, ndf_w2, undf_w2, map_w2)")
         assert output7 in result
 
+def test_stencils_same_field_literal_extent():
+    '''Three Kernels within an invoke, with the same field having a stencil
+    access in each kernel and the extent being passed as a literal
+    value. extent is the same in two kernels and different in the third.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.15_stencils_same_field_literal_extent.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
+            "=> null()\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
+            "=> null()")
+        assert output1 in result
+        output2 = (
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,1)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,2)\n"
+            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_dofmap()\n"
+            "      !")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, 1, f2_stencil_dofmap(:,:,cell), f3_proxy%data, "
+            "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+            "ndf_w3, undf_w3, map_w3)")
+        assert result.count(output3)==2
+        output4 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, 2, f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, "
+            "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+            "ndf_w3, undf_w3, map_w3)")
+        assert result.count(output4)==1
+
+
+def test_stencils_same_field_literal_direction():
+    '''Three Kernels within an invoke, with the same field having a stencil
+    access in each kernel and the direction being passed as a literal
+    value. In two kernels the direction value is the same and in the third
+    it is different.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.16_stencils_same_field_literal_direction.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
+            "=> null()\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
+            "=> null()")
+        assert output1 in result
+        output2 = (
+            "      !\n"
+            "      IF (x_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
+            "      END IF \n"
+            "      IF (x_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      IF (y_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
+            "      END IF \n"
+            "      IF (y_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_dofmap()\n"
+            "      !")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, 2, x_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert result.count(output3) == 2
+        output4 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, 2, y_direction, "
+            "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert result.count(output4) == 1
+

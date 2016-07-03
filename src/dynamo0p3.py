@@ -670,35 +670,36 @@ class DynInvokeStencil(object):
             parent.add(CommentGen(parent, ""))
             parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
                               funcnames=["stencil_dofmap_type"]))
+            stencil_map_names = []
             for arg in self._unique_extent_kern_args:
-                parent.add(TypeDeclGen(parent, pointer=True, datatype="stencil_dofmap_type", entity_decls=[stencil_map_name(arg)+" => null()"]))
-                stencil_type = arg.descriptor.stencil['type']
-                if stencil_type == "xory1d":
-                    parent.add(UseGen(parent,name="flux_direction_mod", only=True,
-                                      funcnames=["x_direction", "y_direction"]))
-                    parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
-                                      funcnames=["STENCIL_1DX", "STENCIL_1DY"]))
-                    direction_name = arg.stencil.direction_arg.varName
-                    for direction in ["x", "y"]:
-                        if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
-                        if_then.add(AssignGen(if_then, pointer=True, lhs=stencil_map_name(arg), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+stencil_extent_value(arg)+")"))
-                        parent.add(if_then)
-                else:
-                    try:
-                        stencil_name = STENCIL_MAPPING[stencil_type]
-                    except KeyError:
-                        raise GenerationError("Unsupported stencil type '{0}' supplied. Supported mappings are {1}".format(arg.descriptor.stencil['type'], str(STENCIL_MAPPING)))
-                    parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
-                                      funcnames=[stencil_name]))
-                    parent.add(AssignGen(parent, pointer=True, lhs=stencil_map_name(arg), rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+stencil_extent_value(arg)+")"))
-                # now get our actual dofmap. Note, this logic needs to
-                # be changed for the case where the same field has
-                # stencil accesses of different types i.e. different
-                # extent or different stencil
-                parent.add(DeclGen(parent, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=[stencil_dofmap_name(arg)+"(:,:,:) => null()"]))
-                parent.add(AssignGen(parent, pointer=True, lhs=stencil_dofmap_name(arg), rhs=stencil_map_name(arg)+"%get_dofmap()"))
+                map_name = stencil_map_name(arg)
+                if map_name not in stencil_map_names:
+                    # only initialise maps once
+                    stencil_map_names.append(map_name)
+                    parent.add(TypeDeclGen(parent, pointer=True, datatype="stencil_dofmap_type", entity_decls=[map_name+" => null()"]))
+                    stencil_type = arg.descriptor.stencil['type']
+                    if stencil_type == "xory1d":
+                        parent.add(UseGen(parent,name="flux_direction_mod", only=True,
+                                          funcnames=["x_direction", "y_direction"]))
+                        parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
+                                          funcnames=["STENCIL_1DX", "STENCIL_1DY"]))
+                        direction_name = arg.stencil.direction_arg.varName
+                        for direction in ["x", "y"]:
+                            if_then = IfThenGen(parent, direction_name + " .eq. " + direction + "_direction")
+                            if_then.add(AssignGen(if_then, pointer=True, lhs=map_name, rhs=arg.proxy_name+"%vspace%get_stencil_dofmap(STENCIL_1D" + direction.upper() + ","+stencil_extent_value(arg)+")"))
+                            parent.add(if_then)
+                    else:
+                        try:
+                            stencil_name = STENCIL_MAPPING[stencil_type]
+                        except KeyError:
+                            raise GenerationError("Unsupported stencil type '{0}' supplied. Supported mappings are {1}".format(arg.descriptor.stencil['type'], str(STENCIL_MAPPING)))
+                        parent.add(UseGen(parent,name="stencil_dofmap_mod", only=True,
+                                          funcnames=[stencil_name]))
+                        parent.add(AssignGen(parent, pointer=True, lhs=map_name, rhs=arg.proxy_name+"%vspace%get_stencil_dofmap("+stencil_name+","+stencil_extent_value(arg)+")"))
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       pointer=True,
+                                       entity_decls=[stencil_dofmap_name(arg)+"(:,:,:) => null()"]))
+                    parent.add(AssignGen(parent, pointer=True, lhs=stencil_dofmap_name(arg), rhs=map_name+"%get_dofmap()"))
 
 
 class DynInvoke(Invoke):
