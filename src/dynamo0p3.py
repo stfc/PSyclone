@@ -1617,6 +1617,15 @@ class DynKern(Kern):
                     "found '{1}'".format(VALID_ARG_TYPE_NAMES,
                                          descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
+
+            if descriptor.stencil:
+                if not descriptor.stencil["extent"]:
+                    # extent is passed in
+                    args.append(Arg("variable",pre+str(idx+1)+"_extent"))
+                if descriptor.stencil["type"] == "xory1d":
+                    # direction is passed in
+                    args.append(Arg("variable",pre+str(idx+1)+"_direction"))
+
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
         if self._qr_required:
@@ -1786,30 +1795,36 @@ class DynKern(Kern):
                         text = arg.proxy_name+dataref
                     arglist.append(text)
                 # add in any required stencil arguments
-                if arg.descriptor.stencil: # or arg.stencil
+                if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
                         # the extent is not specified in the metadata so pass the value in
-                        name = stencil_extent_value(arg)
-                        arglist.append(name)
                         if my_type == "subroutine":
+                            name = arg.name+"_extent"
                             parent.add(DeclGen(parent, datatype="integer",
                                                intent="in", entity_decls=[name]))
+                        else:
+                            name = stencil_extent_value(arg)
+                        arglist.append(name)
+                        
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # the direction of the stencil is not known so pass the value in
-                        name = arg.stencil.direction_arg.varName
-                        arglist.append(name)
                         if my_type == "subroutine":
+                            name = arg.name+"_direction"
                             parent.add(DeclGen(parent, datatype="integer",
                                                intent="in", entity_decls=[name]))
-                    # add in stencil dofmap
-                    var_name = stencil_dofmap_name(arg)
-                    name = var_name+"(:,:,"
-                    if self.is_coloured():
-                        name += "cmap(colour, cell)"
-                    else:
-                        name += "cell"
-                    name += ")"
-                    arglist.append(name)
+                        else:
+                            name = arg.stencil.direction_arg.varName
+                        arglist.append(name)
+                    if not my_type == "subroutine":
+                        # add in stencil dofmap
+                        var_name = stencil_dofmap_name(arg)
+                        name = var_name+"(:,:,"
+                        if self.is_coloured():
+                            name += "cmap(colour, cell)"
+                        else:
+                            name += "cell"
+                        name += ")"
+                        arglist.append(name)
 
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":

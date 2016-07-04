@@ -2872,6 +2872,92 @@ def test_kernel_stub_gen_cmd_line():
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
 
+
+def test_stub_stencil_extent():
+    ''' Check that produce correct stub code when we have a stencil access '''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_extent, field_3_w2, field_4_w3, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = "      INTEGER, intent(in) :: field_2_extent"
+    assert result2 in generated_code
+
+
+def test_stub_stencil_direction():
+    '''Check that produce correct stub code when we have a stencil access
+    which requires a direction argument'''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_xory1d_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_xory1d_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_extent, field_2_direction, field_3_w2, "
+        "field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+        "ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = (
+        "      INTEGER, intent(in) :: field_2_extent\n"
+        "      INTEGER, intent(in) :: field_2_direction")
+    assert result2 in generated_code
+
+def test_stub_stencil_vector():
+    '''Check that produce correct stub code when we have a stencil access
+    which is a vector'''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_vector_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
+        "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
+        "field_2_w3_v3, field_2_w3_v4, field_2_extent, ndf_w0, undf_w0, "
+        "map_w0, ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = "      INTEGER, intent(in) :: field_2_extent\n"
+    assert result2 in generated_code
+
+def test_stub_stencil_vector():
+    '''Check that produce correct stub code when we have a stencil access
+    which is a vector'''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_multi_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_multi_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_extent, field_3_w2, field_3_extent, "
+        "field_3_direction, field_4_w3, field_4_extent, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = (
+        "      INTEGER, intent(in) :: field_2_extent\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: field_3_extent\n"
+        "      INTEGER, intent(in) :: field_3_direction\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
+        "field_4_w3\n"
+        "      INTEGER, intent(in) :: field_4_extent")
+    assert result2 in generated_code
+
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
@@ -2888,7 +2974,6 @@ contains
   end subroutine stencil_code
 end module stencil_mod
 '''
-
 
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
