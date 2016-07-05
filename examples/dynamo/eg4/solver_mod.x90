@@ -1,0 +1,108 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!> @brief Contains methods and algorithms for solving a system A.x = b for known
+!! input field b and matrix A and returns field x
+!!
+!! @details Contains a selction of solvers for inverting the matrix vector
+!! system A.x = b to return x = A^{-1}.b Depending upom the type of system to
+!! solve a number of iterative solver algorithms are possible or for
+!! discontinuous systems an exact solver can be used
+module solver_mod
+
+  use constants_mod,                 only : r_def, str_def, i_def
+  use function_space_collection_mod, only : function_space_collection
+  use field_mod,                     only : field_type
+  use finite_element_config_mod,     only : element_order
+  use fs_continuity_mod,             only : W3
+  use function_space_mod,            only : function_space_type
+  use log_mod,                   only : log_event,         &
+                                        log_scratch_space, &
+                                        LOG_LEVEL_ERROR,   &
+                                        LOG_LEVEL_INFO,    &
+                                        LOG_LEVEL_DEBUG,   &
+                                        LOG_LEVEL_TRACE
+  use matrix_vector_kernel_mod,  only : matrix_vector_kernel_type
+  use operator_mod,              only : operator_type
+  use psykal_lite_mod,           only : invoke_inner_prod,              &
+                                        invoke_axpy,                    &
+                                        invoke_minus_field_data,        &
+                                        invoke_copy_field_data,         &
+                                        invoke_set_field_scalar,        &
+                                        invoke_divide_field,            &
+                                        invoke_copy_scaled_field_data
+  use quadrature_mod,            only : quadrature_type
+  use solver_config_mod,         only : solver_method_cg,               &
+                                        solver_method_bicgstab,         &
+                                        solver_method_jacobi,           &
+                                        solver_method_gmres,            &
+                                        solver_method_gcr,              &
+                                        tolerance,                      &
+                                        maximum_iterations,             &
+                                        solver_preconditioner_none,     &
+                                        solver_preconditioner_diagonal, &
+                                        gcrk
+  use w3_solver_kernel_mod,      only : w3_solver_kernel_type
+
+  implicit none
+
+  private
+  public :: solver_algorithm
+
+contains
+
+!> @brief Jacobi solver for the system A.x = b.
+!! @details solves A.x = b where the operation A.x is encoded in a kernel using
+!! a fixed (n_iter) number of iterations. The choice of matrix is
+!! encoded in the matrix vector kernel that is called. No measure of convergence
+!! is used instead the algorithm is assumed to have converged sufficiently
+!! after (n_iter) iterations
+!! @param[in] rhs_field The input b
+!! @param[inout] lhs_field The answser, x
+!! @param[in] mm operator type, the mass matrix
+!! @param[in] mesh The id of mesh object the model for fields
+!! @param[in] n_iter The number of Jacobi iterations to perform
+  subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
+
+  use mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
+  implicit none
+
+  integer(i_def),      intent(in)    :: n_iter
+  type(field_type),    intent(inout) :: lhs, rhs
+  type(operator_type), intent(inout) :: mm
+  integer(i_def),      intent(in)    :: mesh
+  type(field_type)                   :: Ax, diagonal, res
+
+  real(kind=r_def), parameter :: MU = 0.9_r_def
+
+  integer(i_def) :: iter
+
+  type(function_space_type), pointer :: rhs_fs => null()
+
+  rhs_fs => function_space_collection%get_fs( mesh, &
+                                              element_order, &
+                                              rhs%which_function_space() )
+
+  diagonal = field_type( vector_space = rhs_fs )
+  res      = field_type( vector_space = rhs_fs )
+
+  call invoke( mm_diagonal_kernel_type(diagonal, mm), &
+               divide_fields( rhs, diagonal, lhs ))
+
+  do iter = 1,n_iter
+    call invoke ( set_field_scalar(0.0, Ax),            &
+                  matrix_vector_kernel_type(Ax,lhs,mm), &
+                  minus_fields( rhs, Ax, res ),         &
+                  divide_fields( res, diagonal, res ),  &
+                  axpy( MU, res, lhs, lhs ) )
+
+! Ready for next iteration
+  end do
+
+  end subroutine jacobi_solver_algorithm
+
+end module solver_mod

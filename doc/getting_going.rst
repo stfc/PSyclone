@@ -6,14 +6,14 @@ Getting Going
 Download
 --------
 
-PSyclone is available for download from the GungHo repository. The
-latest release is 1.2.1.
+PSyclone is available for download from the Met Office Science
+Repository Service (SRS). The latest release is 1.2.3.
 
-``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/tags/vn1.2.1 PSyclone``
+``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/tags/vn1.2.3 PSyclone``
 
 The latest stable version is maintained on the trunk.
 
-``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/trunk PSyclone``
+``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/trunk PSyclone``
 
 Hereon the location where you download PSyclone (including the
 PSyclone directory itself) will be refered to as <PSYCLONEHOME>

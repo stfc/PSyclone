@@ -5,7 +5,6 @@
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 
-import pytest
 from parse import parse
 from psyGen import PSyFactory
 import os
@@ -42,3 +41,11 @@ def test_loop_bounds_gen_multiple_loops():
         "        END DO \n"
         "      END DO ")
     assert expected in gen
+
+
+def test_gobuiltin_call_factory():
+    ''' Test that the GOBuiltInCallFactory does nothing in version 0.1
+    of the GOcean API '''
+    from gocean0p1 import GOBuiltInCallFactory
+    builtin = GOBuiltInCallFactory.create()
+    assert builtin is None

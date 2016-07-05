@@ -23,7 +23,7 @@ Kernel layer and the Parallelisation System (PSy) layer. Together this
 separation is termed PSyKAl.
 
 The Algorithm layer specifies the algorithm that the scientist would
-like to run (in terms of calls to kernel and infrastructure routines)
+like to run (in terms of calls to kernel routines and built-in operations)
 and logically operates on full fields.
 
 The Kernel layer provides the implementation of the code kernels as

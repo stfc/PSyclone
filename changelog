@@ -1,3 +1,20 @@
+release 1.2.3
+
+        1) #111 Adds support for dynamo0.3 built-in operations running
+	sequentially.
+
+        2) #640 Update PSyclone to call enforce_bc_kernel after every
+	call to matrix_vector_kernel if the space is W1 or W2. (Previously
+	PSyclone looked for matrix_vector_mm_kernel and only W2.)
+
+	3) #430 Adds support for multiple kernels within an invoke with
+	kernel arguments specified as any_space. Previously there was a
+	limit of one kernel per invoke. This is particularly relevant for
+	built-ins as all of these currently have arguments that are
+	any_space.
+
+release 1.2.2
+
         1) #575 Add parser support for stencil meta-data.
 
         2) #587 Changed scalar metadata names to gh_real and gh_integer
@@ -17,6 +34,16 @@
 	invoke calls then it now issues a warning and outputs that file
 	unchanged (previously it did not output a file at all). No PSy
 	file is created in this case.
+
+        6) #618 fix for #235. Data with intent out should have fields
+	declared as inout as internal subroutines within the field are
+	dereferenced so are required as intent in.
+
+	7) #610 When PSyclone is operating in line length limiting mode
+	("-l" switch) problems are caused if it breaks a line in the middle
+	of a string. PSyclone now prefixes all continued lines with an
+	ampersand. This then produces valid Fortran irrespective of whether
+	the line-break happens within a string.
 
 release 1.2.1
 

@@ -165,12 +165,12 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         LoopFuseTrans._validate(self, node1, node2)
 
         try:
-            if node1.field_space != node2.field_space:
+            if node1.field_space.orig_name != node2.field_space.orig_name:
                 raise TransformationError(
                     "Error in DynamoLoopFuse transformation. "
                     "Cannot fuse loops that are over different spaces: "
-                    "{0} {1}".format(node1.field_space,
-                                     node2.field_space))
+                    "{0} {1}".format(node1.field_space.orig_name,
+                                     node2.field_space.orig_name))
             return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
@@ -445,7 +445,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is W3 then we don't need
         # to worry about colouring.
-        if node.field_space != "w3":
+        if node.field_space.orig_name != "w3":
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
@@ -516,8 +516,8 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
             raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".
-                                      format(self.name))
+                                      "iteration space ({1}) is not 'cells'.".
+                                      format(self.name, node.iteration_space))
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
@@ -594,7 +594,7 @@ class ColourTrans(Transformation):
     def apply(self, node):
         '''Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour.
+        loop is over cells of that colour.
         '''
         schedule = node.root
 
@@ -683,8 +683,8 @@ class KernelModuleInlineTrans(Transformation):
         from psyGen import Kern
         if not isinstance(node, Kern):
             raise TransformationError(
-                "Error in KernelModuleInline transformation. The node is not a \
-                Kernel")
+                "Error in KernelModuleInline transformation. The node is not "
+                "a Kernel")
 
         schedule = node.root
 
@@ -763,7 +763,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         '''Performs Dynamo0.3-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour.
+        loop is over cells of that colour.
 
         '''
         # check node is a loop
@@ -772,7 +772,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        if node.field_space == "w3":
+        if node.field_space.orig_name == "w3":
             pass
             # TODO generate a warning here as we don't need to colour
             # a loop that updates a field on W3.
