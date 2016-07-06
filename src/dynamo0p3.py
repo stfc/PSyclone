@@ -493,7 +493,6 @@ class DynArgDescriptor03(Descriptor):
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_space(), should "
                 "not get to here.")
-
     @property
     def function_spaces(self):
         ''' Return the function space names that this instance operates
@@ -1551,6 +1550,10 @@ class DynLoop(Loop):
         self._field = kern.arguments.iteration_space_arg()
         self._field_name = self._field.name
         self._field_space = self._field.function_space
+        #print "In loop field_name is {0}".format(self._field_name)
+        #print "In loop field fs_name is {0}".format(self._field_space.orig_name)
+        #print "aborting"
+        #exit(1)
         self._iteration_space = kern.iterates_over  # cells etc.
 
         # Loop bounds
@@ -1563,11 +1566,11 @@ class DynLoop(Loop):
             self.set_upper_bound("dofs")
         else:
             if config.DISTRIBUTED_MEMORY:
-                print self.field_space.orig_name
-                exit(1)
                 if self.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
                     self.set_upper_bound("edge")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
+                    self.set_upper_bound("halo", index=1)
+                elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
                     self.set_upper_bound("halo", index=1)
                 else:
                     raise GenerationError("Unexpected function space found. Expecting one of {0} but found '{1}'".format(str(VALID_FUNCTION_SPACES), self.field_space.orig_name))
@@ -2843,7 +2846,10 @@ class DynKernelArgument(KernelArgument):
     def function_space(self):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata. '''
-        return self._function_spaces[0]
+        if self._type == "gh_operator":
+            return self.function_spaces[1]
+        else:
+            return self._function_spaces[0]
 
     @property
     def function_space_to(self):

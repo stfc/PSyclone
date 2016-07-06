@@ -535,7 +535,9 @@ def test_call_abstract_methods():
     fake_ktype.iterates_over = "something"
     fake_call.ktype = fake_ktype
     fake_call.module_name = "a_name"
-    my_call = Call(fake_call, fake_call, name="a_name", arguments=None)
+    fake_arguments = GenerationError("msg")
+    fake_arguments.args = []
+    my_call = Call(fake_call, fake_call, name="a_name", arguments=fake_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.__str__()
     assert "Call.__str__ should be implemented" in str(excinfo.value)

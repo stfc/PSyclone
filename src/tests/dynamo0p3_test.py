@@ -1437,7 +1437,7 @@ def test_operator_nofield_different_space():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "DO cell=1,mesh%get_last_edge_cell" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -4755,7 +4755,7 @@ def test_extent_name_clash():
         assert output2 in result
         output3 = (
             "      INTEGER, intent(in) :: f2_extent\n"
-            "      TYPE(field_type), intent(out) :: f2_stencil_map\n"
+            "      TYPE(field_type), intent(inout) :: f2_stencil_map\n"
             "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
             "stencil_cross_1\n")
         assert output3 in result
