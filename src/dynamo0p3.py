@@ -493,6 +493,7 @@ class DynArgDescriptor03(Descriptor):
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_space(), should "
                 "not get to here.")
+
     @property
     def function_spaces(self):
         ''' Return the function space names that this instance operates
@@ -674,6 +675,9 @@ class DynamoInvokes(Invokes):
 
 
 def stencil_extent_value(field):
+    '''Returns the content of the stencil extent. This may be a literal
+    value (a number) or a variable name. This function simplifies this
+    problem by returning a string in either case'''
     if field.stencil.extent_arg.is_literal():
         extent = field.stencil.extent_arg.text
     else:
@@ -682,6 +686,10 @@ def stencil_extent_value(field):
 
 
 def stencil_unique_str(arg, context):
+    '''Returns a string that uniquely identifies a stencil. As a stencil
+    differs due to its argument name, type of stencil and extent of
+    stencil we concatenate these things together to return a unique
+    string'''
     unique = context
     unique += arg.name
     unique += arg.descriptor.stencil['type']
@@ -696,7 +704,7 @@ def stencil_unique_str(arg, context):
 
 
 def stencil_map_name(arg):
-    ''' field_name, stencil type, stencil extent, stencil_direction '''
+    ''' returns a valid unique map name for a stencil in the PSy layer '''
     root_name = arg.name + "_stencil_map"
     unique = stencil_unique_str(arg, "map")
     name_space_manager = NameSpaceFactory().create()
@@ -705,6 +713,7 @@ def stencil_map_name(arg):
 
 
 def stencil_dofmap_name(arg):
+    ''' returns a valid unique dofmap name for a stencil in the PSy layer '''
     root_name = arg.name + "_stencil_dofmap"
     unique = stencil_unique_str(arg, "dofmap")
     name_space_manager = NameSpaceFactory().create()
@@ -789,13 +798,18 @@ class DynInvokeStencil(object):
 
     @property
     def unique_alg_vars(self):
+        '''returns a list of the names of the extent and direction arguments
+        specified in the algorithm layer'''
         return self._unique_extent_vars + self._unique_direction_vars
 
     def declare_unique_alg_vars(self, parent):
+        '''declares all extent and direction arguments passed into the PSy
+        layer'''
         self._declare_unique_extent_vars(parent)
         self._declare_unique_direction_vars(parent)
 
     def initialise_stencil_maps(self, parent):
+        '''adds in the required stencil dofmap code to the PSy layer'''
         from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, \
             CommentGen, DeclGen
         if self._unique_extent_kern_args:
@@ -1550,10 +1564,6 @@ class DynLoop(Loop):
         self._field = kern.arguments.iteration_space_arg()
         self._field_name = self._field.name
         self._field_space = self._field.function_space
-        #print "In loop field_name is {0}".format(self._field_name)
-        #print "In loop field fs_name is {0}".format(self._field_space.orig_name)
-        #print "aborting"
-        #exit(1)
         self._iteration_space = kern.iterates_over  # cells etc.
 
         # Loop bounds
@@ -1573,7 +1583,11 @@ class DynLoop(Loop):
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
                     self.set_upper_bound("halo", index=1)
                 else:
-                    raise GenerationError("Unexpected function space found. Expecting one of {0} but found '{1}'".format(str(VALID_FUNCTION_SPACES), self.field_space.orig_name))
+                    raise GenerationError(
+                        "Unexpected function space found. Expecting one of "
+                        "{0} but found '{1}'".format(
+                            str(VALID_FUNCTION_SPACES),
+                            self.field_space.orig_name))
             else:  # sequential
                 self.set_upper_bound("cells")
 
@@ -1999,7 +2013,7 @@ class DynKern(Kern):
                         else:
                             name = arg.stencil.direction_arg.varName
                         arglist.append(name)
-                    if not my_type == "subroutine":
+                    if my_type != "subroutine":
                         # add in stencil dofmap
                         var_name = stencil_dofmap_name(arg)
                         name = var_name+"(:,:,"
@@ -2943,4 +2957,3 @@ class DynKernCallFactory(object):
 
         # Return the outermost loop
         return cloop
-

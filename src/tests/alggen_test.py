@@ -6,16 +6,18 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+''' py.test tests for the algGen.py file '''
+
 import os
+import pytest
 from generator import generate, GenerationError
 from algGen import NoInvokesError
-import pytest
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-class TestAlgGenClassDynamo0p3:
+class TestAlgGenClassDynamo0p3(object):
     ''' AlgGen class unit tests for the Dynamo0.3 API. We use the
     generate function, as parse and PSyFactory need to be called before
     AlgGen so it is simpler to use this'''
@@ -62,7 +64,7 @@ class TestAlgGenClassDynamo0p3:
         ''' two invokes, each containing multiple functions '''
         alg, _ = generate(os.path.join(
             BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-            api="dynamo0.3")
+                          api="dynamo0.3")
         gen = str(alg)
         print gen
         assert "USE psy_multi_functions_multi_invokes, ONLY: invoke_1" in gen
@@ -126,7 +128,7 @@ class TestAlgGenClassDynamo0p3:
         '''
         path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
         with pytest.raises(GenerationError) as excinfo:
-            alg, _ = generate(path, api="dynamo0.3")
+            _, _ = generate(path, api="dynamo0.3")
         assert "expected '5' arguments in the algorithm layer but found '4'" \
             in str(excinfo.value)
 
@@ -168,7 +170,7 @@ class TestAlgGenClassDynamo0p3:
         argument'''
         path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
         with pytest.raises(GenerationError) as excinfo:
-            alg, _ = generate(path, api="dynamo0.3")
+            _, _ = generate(path, api="dynamo0.3")
         assert ("literal is not a valid value for a stencil direction"
                 in str(excinfo.value))
 
@@ -210,7 +212,7 @@ class TestAlgGenClassDynamo0p3:
         alg, _ = generate(path, api="dynamo0.3")
         output = str(alg)
         print output
-        assert ("USE psy_multiple_stencil, ONLY: invoke_0") in output
+        assert "USE psy_multiple_stencil, ONLY: invoke_0" in output
         assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
                 "f3_direction, direction)") in output
 
@@ -227,7 +229,7 @@ class TestAlgGenClassDynamo0p3:
                 "f3, f4, extent, direction)") in output
 
 
-class TestAlgGenClassDynamo0p1:
+class TestAlgGenClassDynamo0p1(object):
     ''' AlgGen class unit tests for the Dynamo0.1 API. We use the
     generate function as parse and PSyFactory need to be called before
     AlgGen so it is simpler to use this'''

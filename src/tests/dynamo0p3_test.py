@@ -3025,7 +3025,8 @@ def test_stub_stencil_extent():
 def test_stub_stencil_direction():
     '''Check that produce correct stub code when we have a stencil access
     which requires a direction argument'''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_xory1d_mod.f90"),
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -3043,10 +3044,12 @@ def test_stub_stencil_direction():
         "      INTEGER, intent(in) :: field_2_direction")
     assert result2 in generated_code
 
+
 def test_stub_stencil_vector():
     '''Check that produce correct stub code when we have a stencil access
     which is a vector'''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_vector_mod.f90"),
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -3062,10 +3065,11 @@ def test_stub_stencil_vector():
     result2 = "      INTEGER, intent(in) :: field_2_extent\n"
     assert result2 in generated_code
 
-def test_stub_stencil_vector():
-    '''Check that produce correct stub code when we have a stencil access
-    which is a vector'''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_multi_mod.f90"),
+
+def test_stub_stencil_multi():
+    '''Check that produce correct stub code when we have multiple stencils'''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -3105,6 +3109,7 @@ contains
   end subroutine stencil_code
 end module stencil_mod
 '''
+
 
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
@@ -3847,6 +3852,7 @@ def test_halo_exchange_vectors_1():
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
+
 def test_halo_exchange_vectors():
     ''' test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with gh_inc '''
@@ -3859,7 +3865,8 @@ def test_halo_exchange_vectors():
     assert result.count("halo_exchange(") == 7
     for idx in range(1, 4):
         assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
-        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=f2_extent+1)" in result
+        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=f2_extent+1)" \
+            in result
     expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) THEN\n"
                 "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
@@ -4299,8 +4306,8 @@ def test_single_stencil_xory1d():
             "      !\n")
         assert output5 in result
         output6 = (
-            "        CALL testkern_stencil_xory1d_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, f2_extent, f2_direction, "
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_extent, f2_direction, "
             "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
             "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
             "undf_w3, map_w3)")
@@ -4319,7 +4326,8 @@ def test_single_stencil_literal():
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print result
-        output1 = "    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4)"
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, "
+                   "f3, f4)")
         assert output1 in result
         output2 = (
             "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
@@ -4365,8 +4373,9 @@ def test_stencil_region_unsupported():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         with pytest.raises(GenerationError) as excinfo:
-            result = str(psy.gen)
-        assert "Unsupported stencil type 'region' supplied" in str(excinfo.value)
+            _ = str(psy.gen)
+        assert "Unsupported stencil type 'region' supplied" in \
+            str(excinfo.value)
 
 
 # single invoke, single field, single stencil of type xory1d literal
@@ -4381,7 +4390,8 @@ def test_single_stencil_xory1d_literal():
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print result
-        output1 = "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, f4)"
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
+                   "f1, f2, f3, f4)")
         assert output1 in result
         output2 = (
             "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
@@ -4397,10 +4407,12 @@ def test_single_stencil_xory1d_literal():
             "      ! Initialise stencil dofmaps\n"
             "      !\n"
             "      IF (x_direction .eq. x_direction) THEN\n"
-            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,2)\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
             "      END IF \n"
             "      IF (x_direction .eq. y_direction) THEN\n"
-            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DY,2)\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
             "      END IF \n"
             "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
             "      !\n")
@@ -4412,27 +4424,29 @@ def test_single_stencil_xory1d_literal():
                 "      END IF \n")
             assert output5 in result
         output6 = (
-            "        CALL testkern_stencil_xory1d_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, 2, x_direction, f2_stencil_dofmap(:,:,cell), f3_proxy%data, "
-            "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
-            "ndf_w3, undf_w3, map_w3)")
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, 2, x_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
         assert output6 in result
 
 
-# single invoke, single field, single stencil of type xory1d literal mixed case
 def test_single_stencil_xory1d_literal_mixed():
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument and the case of the
     literal is specified in mixed case'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
-            os.path.join(BASE_PATH, "19.5.1_single_stencil_xory1d_literal.f90"),
+            os.path.join(BASE_PATH,
+                         "19.5.1_single_stencil_xory1d_literal.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print result
-        output1 = "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, f4)"
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
+                   "f1, f2, f3, f4)")
         assert output1 in result
         output2 = (
             "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
@@ -4448,10 +4462,12 @@ def test_single_stencil_xory1d_literal_mixed():
             "      ! Initialise stencil dofmaps\n"
             "      !\n"
             "      IF (x_direction .eq. x_direction) THEN\n"
-            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,2)\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
             "      END IF \n"
             "      IF (x_direction .eq. y_direction) THEN\n"
-            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DY,2)\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
             "      END IF \n"
             "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
             "      !\n")
@@ -4463,10 +4479,11 @@ def test_single_stencil_xory1d_literal_mixed():
                 "      END IF \n")
             assert output5 in result
         output6 = (
-            "        CALL testkern_stencil_xory1d_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, 2, x_direction, f2_stencil_dofmap(:,:,cell), f3_proxy%data, "
-            "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
-            "ndf_w3, undf_w3, map_w3)")
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, 2, x_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
         assert output6 in result
 
 
@@ -4567,11 +4584,14 @@ def test_multiple_stencil_same_name():
         assert output2 in result
         output3 = (
             "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+            "null()\n"
             "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => null()\n")
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
@@ -4624,34 +4644,43 @@ def test_multiple_stencil_same_name_direction():
         assert output2 in result
         output3 = (
             "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+            "null()\n"
             "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => null()\n")
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
             "      !\n"
             "      IF (direction .eq. x_direction) THEN\n"
-            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,extent)\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
             "      END IF \n"
             "      IF (direction .eq. y_direction) THEN\n"
-            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DY,extent)\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
             "      END IF \n"
             "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
             "      IF (direction .eq. x_direction) THEN\n"
-            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,extent)\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
             "      END IF \n"
             "      IF (direction .eq. y_direction) THEN\n"
-            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap(STENCIL_1DY,extent)\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
             "      END IF \n"
             "      f3_stencil_dofmap => f3_stencil_map%get_dofmap()\n"
             "      IF (direction .eq. x_direction) THEN\n"
-            "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,extent)\n"
+            "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
             "      END IF \n"
             "      IF (direction .eq. y_direction) THEN\n"
-            "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap(STENCIL_1DY,extent)\n"
+            "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
             "      END IF \n"
             "      f4_stencil_dofmap => f4_stencil_map%get_dofmap()\n"
             "      !\n")
@@ -4787,6 +4816,7 @@ def test_extent_name_clash():
             "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
         assert output8 in result
 
+
 def test_two_stencils_same_field():
     '''Two Kernels within an invoke, with the same field having a stencil
     access in each kernel. f2_w2 is the field we care about.'''
@@ -4819,8 +4849,8 @@ def test_two_stencils_same_field():
             "      f2_w2_stencil_dofmap => f2_w2_stencil_map%get_dofmap()")
         assert output4 in result
         output5 = (
-            "      f2_w2_stencil_map_1 => f2_w2_proxy%vspace%get_stencil_dofmap"
-            "(STENCIL_CROSS,extent)\n"
+            "      f2_w2_stencil_map_1 => "
+            "f2_w2_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,extent)\n"
             "      f2_w2_stencil_dofmap_1 => f2_w2_stencil_map_1%get_dofmap()")
         assert output5 in result
         output6 = (
@@ -4838,13 +4868,15 @@ def test_two_stencils_same_field():
             "undf_w1, map_w1, ndf_w2, undf_w2, map_w2)")
         assert output7 in result
 
+
 def test_stencils_same_field_literal_extent():
     '''Three Kernels within an invoke, with the same field having a stencil
     access in each kernel and the extent being passed as a literal
     value. extent is the same in two kernels and different in the third.'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
-            os.path.join(BASE_PATH, "19.15_stencils_same_field_literal_extent.f90"),
+            os.path.join(BASE_PATH,
+                         "19.15_stencils_same_field_literal_extent.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
@@ -4873,13 +4905,13 @@ def test_stencils_same_field_literal_extent():
             "f2_proxy%data, 1, f2_stencil_dofmap(:,:,cell), f3_proxy%data, "
             "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
             "ndf_w3, undf_w3, map_w3)")
-        assert result.count(output3)==2
+        assert result.count(output3) == 2
         output4 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2_proxy%data, 2, f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, "
             "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
             "ndf_w3, undf_w3, map_w3)")
-        assert result.count(output4)==1
+        assert result.count(output4) == 1
 
 
 def test_stencils_same_field_literal_direction():
@@ -4940,4 +4972,3 @@ def test_stencils_same_field_literal_direction():
             "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
             "undf_w3, map_w3)")
         assert result.count(output4) == 1
-

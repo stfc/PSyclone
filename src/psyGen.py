@@ -1322,9 +1322,12 @@ class Call(Node):
         arg_names = []
         for arg in self._arguments.args:
             if arg.text:
-                text = arg.text.lower().replace(" ","")
+                text = arg.text.lower().replace(" ", "")
                 if text in arg_names:
-                    raise GenerationError("Argument '{0}' is passed into kernel '{1}' code more than once from the algorithm layer. This is not allowed.".format(arg.text, self._name))
+                    raise GenerationError(
+                        "Argument '{0}' is passed into kernel '{1}' code more "
+                        "than once from the algorithm layer. This is not "
+                        "allowed.".format(arg.text, self._name))
                 else:
                     arg_names.append(text)
 

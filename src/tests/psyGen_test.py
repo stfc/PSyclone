@@ -392,16 +392,18 @@ def test_reset():
 
 # tests for class Call
 
+
 def test_same_name_invalid():
     '''test that we raise an error if the same name is passed into the
     same kernel or built-in instance. We need to choose a particular
     API to check this although the code is in psyGen.py '''
     with pytest.raises(GenerationError) as excinfo:
-        alg, _ = generate(
+        _, _ = generate(
             os.path.join(BASE_PATH, "1.10_single_invoke_same_name.f90"),
             api="dynamo0.3")
     assert ("Argument 'f1' is passed into kernel 'testkern_code' code "
             "more than once") in str(excinfo.value)
+
 
 def test_same_name_invalid_array():
     '''test that we raise an error if the same name is passed into the
@@ -409,7 +411,7 @@ def test_same_name_invalid_array():
     array references and mixed case. We need to choose a particular
     API to check this although the code is in psyGen.py. '''
     with pytest.raises(GenerationError) as excinfo:
-        alg, _ = generate(
+        _, _ = generate(
             os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
             api="dynamo0.3")
     assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
@@ -537,7 +539,8 @@ def test_call_abstract_methods():
     fake_call.module_name = "a_name"
     fake_arguments = GenerationError("msg")
     fake_arguments.args = []
-    my_call = Call(fake_call, fake_call, name="a_name", arguments=fake_arguments)
+    my_call = Call(fake_call, fake_call, name="a_name",
+                   arguments=fake_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.__str__()
     assert "Call.__str__ should be implemented" in str(excinfo.value)
