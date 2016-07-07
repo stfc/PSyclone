@@ -4972,3 +4972,26 @@ def test_stencils_same_field_literal_direction():
             "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
             "undf_w3, map_w3)")
         assert result.count(output4) == 1
+
+
+def test_stencil_extent_specified():
+    '''the function stencil_unique_str() raises an error if a stencil
+    with an extent provided in the metadata is passed in. This is because
+    this is not currently supported. This test checks that the appropriate
+    error is raised. '''
+    # load an example with an argument that has stencil metadata
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # access the argument with stencil metadata
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[3].children[0]
+    stencil_arg = kernel.arguments.args[1]
+    # artificially add an extent to the stencil metadata info
+    stencil_arg.descriptor.stencil['extent'] = 1
+    from dynamo0p3 import stencil_unique_str
+    with pytest.raises(GenerationError) as err:
+        stencil_unique_str(stencil_arg, "")
+    assert ("found a stencil with an extent specified in the metadata. "
+            "This is not coded for." in str(err))

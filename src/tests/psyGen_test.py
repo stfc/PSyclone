@@ -20,7 +20,7 @@ import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
-from psyGen import GenerationError, FieldNotFoundError
+from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
 from parse import parse
@@ -548,3 +548,10 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
     assert "Call.gen_code should be implemented" in str(excinfo.value)
+
+
+def test_haloexchange_unknown_halo_depth():
+    '''test the case when the halo exchange base class is called without
+    a halo depth'''
+    halo_exchange = HaloExchange(None, None, None, None, None)
+    assert halo_exchange._halo_depth == "unknown"
