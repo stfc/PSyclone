@@ -16,7 +16,7 @@ program single_invoke
 
 
   call invoke(                    &
-              axpy(0.5, f1, f2, f3)   &
+              axpy(0.5_rdef, f1, f2, f3)   &
              )
 
 end program single_invoke
