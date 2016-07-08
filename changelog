@@ -13,6 +13,10 @@ release 1.2.3
 	built-ins as all of these currently have arguments that are
 	any_space.
 
+	4) #657 Changes to the declaration and assignment of the mesh
+	object (it is now a pointer) within the generated PSy layer so as
+	to use the mesh singleton and not generate a temporary copy of it.
+
 release 1.2.2
 
         1) #575 Add parser support for stencil meta-data.
