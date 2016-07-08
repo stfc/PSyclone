@@ -836,7 +836,7 @@ def test_axpby_by_value():
         "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1_f1\n"
-        "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + "
+        "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
         "0.8*f2_proxy%data(df)\n"
         "      END DO \n"
         )
