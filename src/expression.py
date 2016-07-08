@@ -183,15 +183,18 @@ class LiteralArray(ExpressionNode):
     def __str__(self):
         return "["+str(self.expr)+"]"
 
-# Let's start with integers.
-integer = Optional(Word("+-", exact=1)) + Word(nums)
+# A Fortran name starts with a letter and continues with letters, numbers
+# and _. Can you start a name with _?
+name = Word(alphas, alphanums+"_") | Literal(".false.") | Literal(".true.")
+
+# Let's start with integers - construct a grammar using PyParsing
+#                   Sign                    Digits       Kind specification
+integer = Optional(Word("+-", exact=1)) + Word(nums) + Optional("_" + name)
 unsigned = Word(nums)
 point = Literal(".")
 real = Combine(
-    (Word("+-"+nums, nums)+point+Optional(unsigned)|point+unsigned)
-    +Optional(Word("dDeE",exact=1)
-              +Optional(integer)
-              )
+    (Word("+-"+nums, nums) + point + Optional(unsigned)|point+unsigned)
+    + (Optional(Word("dDeE", exact=1) + Optional(integer)))#|Optional("_" + name))
     )
 
 # Literal brackets.
@@ -200,10 +203,6 @@ rpar  = Literal( ")" )
 
 lit_array_start = Literal( "[" ) | Literal( "(/" )
 lit_array_end = Literal( "]" ) | Literal( "/)" )
-
-# A Fortran name starts with a letter and continues with letters, numbers
-# and _. Can you start a name with _?
-name = Word(alphas, alphanums+"_") | Literal(".false.") | Literal(".true.")
 
 expr = Forward()
 
@@ -236,30 +235,3 @@ operator = operatorPrecedence\
 expr << (operator | operand)
 
 expression = StringStart() + expr + StringEnd()
-
-def my_test(name, parser, test_string, names=None):
-    '''This function ensures that the parse-unparse and parse-repr-unparse
-    operations are equivalent to the identity. Note that whitespace is not
-    preserved by the parsing operation, so the test_string must conform to
-    the whitespace conventions of the unparser for the test to succeed.'''
-
-    s=parser.parseString(test_string)
-    assert (str(s[0])==test_string), "Failed to parse "+name+"."
-    exec("s="+repr(s[0]))
-    assert (str(s)==test_string), "Error in repr for "+name+"."
-    if names:
-        assert s.names==set(names), "Names do not match for "+name+"."
-
-
-if __name__=="__main__":
-    my_test("function calls", var_or_function, "foo(bar(baz, bam), wibble(wub))", 
-         names=["foo", "bar", "baz", "bam", "wibble", "wub"])
-    my_test("trivial slice", slicing, ":")
-    my_test("simple slice", slicing, "1:2:3")
-    my_test("stride slice", slicing, "::3")
-    my_test("exponent", expression, "2 ** 3 ** 4")
-    my_test("plus mult", expression, "f(x) + g(x, y) * 2", names=["f", "g", "x", "y"])
-    my_test("group", expression, "(x)", names="x")
-    my_test("real", expression, "-.5e-200")
-    my_test("group operations", expression, "(f(x + 2 * y, z:z + 2 + -.5) + (g + h) ** (z - 2))", 
-         names=["f", "g", "h", "x", "y", "z"])

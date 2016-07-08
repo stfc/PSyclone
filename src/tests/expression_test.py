@@ -58,6 +58,10 @@ def test_group():
     my_test("group", expression, "(x)", names="x")
 
 
+def test_integer_kind():
+    ''' Test parsing of an integer with kind specified '''
+    my_test("integer", expression, "5_i_def")
+
 def test_real():
     ''' Test parsing of a real scalar '''
     my_test("real", expression, "-.5e-200")
