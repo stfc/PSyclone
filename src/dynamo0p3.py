@@ -687,11 +687,11 @@ def stencil_extent_value(field):
 
 def stencil_unique_str(arg, context):
     '''Returns a string that uniquely identifies a stencil. As a stencil
-    differs due to its argument name, type of stencil and extent of
-    stencil we concatenate these things together to return a unique
-    string'''
+    differs due to the function space it operates on, type of
+    stencil and extent of stencil, we concatenate these things together
+    to return a unique string '''
     unique = context
-    unique += arg.name
+    unique += arg.function_space.mangled_name
     unique += arg.descriptor.stencil['type']
     if arg.descriptor.stencil['extent']:
         raise GenerationError(

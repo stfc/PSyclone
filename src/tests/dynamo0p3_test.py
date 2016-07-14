@@ -16,7 +16,7 @@ from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES
+    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange
 from transformations import LoopFuseTrans
 from genkernelstub import generate
 
@@ -4719,9 +4719,6 @@ def test_multiple_kernels_stencils_different_fields():
             "      INTEGER, intent(in) :: f2a_extent, extent\n")
         assert output3 in result
         output4 = (
-            "      INTEGER, pointer :: f2c_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f2c_stencil_map "
-            "=> null()\n"
             "      INTEGER, pointer :: f2b_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2b_stencil_map "
             "=> null()\n"
@@ -4737,9 +4734,6 @@ def test_multiple_kernels_stencils_different_fields():
             "      f2b_stencil_map => f2b_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
             "      f2b_stencil_dofmap => f2b_stencil_map%get_dofmap()\n"
-            "      f2c_stencil_map => f2c_proxy%vspace%get_stencil_dofmap("
-            "STENCIL_CROSS,extent)\n"
-            "      f2c_stencil_dofmap => f2c_stencil_map%get_dofmap()\n"
             "      !\n")
         assert output5 in result
         output6 = (
@@ -4756,7 +4750,7 @@ def test_multiple_kernels_stencils_different_fields():
         assert output7 in result
         output8 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-            "f2c_proxy%data, extent, f2c_stencil_dofmap(:,:,cell), "
+            "f2c_proxy%data, extent, f2b_stencil_dofmap(:,:,cell), "
             "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
             "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
         assert output8 in result
@@ -4995,3 +4989,91 @@ def test_stencil_extent_specified():
         stencil_unique_str(stencil_arg, "")
     assert ("found a stencil with an extent specified in the metadata. "
             "This is not coded for." in str(err))
+
+
+def test_haloexchange_unknown_halo_depth():
+    '''If a stencil extent is provided in the kernel metadata then the
+    value is stored in an instance of the DynHalExchange class. This test
+    checks that the value is stored as expected (although stencil extents
+    in metadata are not currently supported in PSyclone).'''
+    # load an example with an argument that has stencil metadata
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # access the argument with stencil metadata
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[3].children[0]
+    stencil_arg = kernel.arguments.args[1]
+    # artificially add an extent to the stencil metadata info
+    stencil_arg.descriptor.stencil['extent'] = 10
+    from dynamo0p3 import stencil_unique_str
+    halo_exchange = DynHaloExchange(stencil_arg)
+    assert halo_exchange._halo_depth == '10'
+
+
+def test_single_kernel_multi_field_same_stencil():
+    '''same stencil used by more than one field in a kernel'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.17_single_kernel_multi_field_same_stencil.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_multi_field_same_stencil_type("
+            "f0, f1, f2, f3, f4, extent, direction)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, intent(in) :: extent\n"
+            "      INTEGER, intent(in) :: direction\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
+            "      INTEGER, pointer :: f1_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f1_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_dofmap()\n"
+            "      IF (direction .eq. x_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      END IF \n"
+            "      IF (direction .eq. y_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
+            "      END IF \n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_dofmap()\n"
+            "      !\n")
+        assert output4 in result
+        output5 = (
+            "        CALL testkern_multi_field_same_stencil_code(nlayers, "
+            "f0_proxy%data, f1_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), f3_proxy%data, extent, direction, "
+            "f3_stencil_dofmap(:,:,cell), f4_proxy%data, extent, direction, "
+            "f3_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2)")
+        assert output5 in result
+
+
+def test_dynloop_load_unexpected_function_space():
+    '''The load function of an instance of the dynloop class raises an
+    error if an unexpexted function space is found. This test makes sure
+    this error works correctly.'''
+    # it is not possible to trigger this exception. The invalid
+    # function space value causing the exception is read from a method
+    # (iteration_space_arg) that will never return a field with a
+    # function space that is invalid
+    pass
+

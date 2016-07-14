@@ -6,21 +6,22 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_stencil_2_multi
-  type, extends(kernel_type) :: testkern_stencil_multi_2_type
-     type(arg_type), dimension(4) :: meta_args =              &
+module testkern_multi_field_same_stencil_mod
+  type, extends(kernel_type) :: testkern_multi_field_same_stencil_type
+     type(arg_type), dimension(5) :: meta_args =              &
           (/ arg_type(gh_field,gh_write,w1),                  &
-             arg_type(gh_field,gh_read, w1, stencil(xory1d)), &
+             arg_type(gh_field,gh_read, w1, stencil(cross)),  &
+             arg_type(gh_field,gh_read, w1, stencil(cross)),  &
              arg_type(gh_field,gh_read, w2, stencil(xory1d)), &
-             arg_type(gh_field,gh_read, w3, stencil(xory1d))  &
+             arg_type(gh_field,gh_read, w2, stencil(xory1d))  &
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => testkern_stencil_multi_2_code
-  end type testkern_stencil_multi_2_type
+     procedure() :: code => testkern_multi_field_same_stencil_code
+  end type testkern_multi_field_same_stencil_type
 contains
 
-  subroutine testkern_stencil_multi_2_code()
-  end subroutine testkern_stencil_multi_2_code
+  subroutine testkern_multi_field_same_stencil_code()
+  end subroutine testkern_multi_field_same_stencil_code
 
-end module testkern_stencil_2_multi
+end module testkern_multi_field_same_stencil_mod
