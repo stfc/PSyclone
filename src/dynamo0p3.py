@@ -48,11 +48,15 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
     VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
-# can't use VALID_STENCIL_DIRECTIONS in all locations as it causes
-# failures with py.test 2.8.7
+# Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
+# file as it causes failures with py.test 2.8.7. Therefore some parts
+# of the code do not use the VALID_STENCIL_DIRECTIONS variable.
 VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
-# xory1d does not have a direct mapping as it indicates either x1d or y1d
-# dynamo currently does not have region as an option in stencil_dofmap_mod.F90
+# Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
+# indicates either x1d or y1d.
+# Note, the LFRic infrastructure currently does not have 'region' as
+# an option in stencil_dofmap_mod.F90 so it is not included in
+# STENCIL_MAPPING.
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 

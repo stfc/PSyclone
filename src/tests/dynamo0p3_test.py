@@ -5067,6 +5067,96 @@ def test_single_kernel_multi_field_same_stencil():
         assert output5 in result
 
 
+def test_single_kernel_any_space_stencil():
+    '''test for stencils and any_space within a single kernel and between
+    kernels. We test when any_space is the same and when it is
+    different within kernels and between kernels for the case of
+    different fields. When it is the same we should have the same
+    stencil dofmap (as all other stencil information is the same) and
+    when it is different we should have a different stencil dofmap (as
+    we do not know if they are on the same space). '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.18_anyspace_stencil_1.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_dofmap()\n"
+            "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_dofmap()\n"
+            "      f5_stencil_map => f5_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f5_stencil_dofmap => f5_stencil_map%get_dofmap()\n"
+            "      !\n")
+        assert output1 in result
+        # use the same stencil dofmap
+        output2 = (
+            "        CALL testkern_same_anyspace_stencil_code(nlayers, "
+            "f0_proxy%data, f1_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_different_anyspace_stencil_code(nlayers, "
+            "f3_proxy%data, f4_proxy%data, extent, "
+            "f4_stencil_dofmap(:,:,cell), f5_proxy%data, extent, "
+            "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f4, undf_any_space_1_f4, map_any_space_1_f4, "
+            "ndf_any_space_2_f5, undf_any_space_2_f5, map_any_space_2_f5)")
+        # use a different stencil dofmap
+        assert output3 in result
+
+
+@pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
+def test_multi_kernel_any_space_stencil_1():
+    '''test for stencils and any_space with two kernels. We test when
+    any_space is the same and when it is different for the same
+    field. In our example we should have a single dofmap. However, at
+    the moment we produce two. This is valid but not optimal. It is not
+    a big deal at the moment as the Met Office do not plan to use
+    any_space but it should be able to be fixed when we get dependence
+    analysis within invokes working. Therefore making it xfail for the
+    moment. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.19_anyspace_stencil_2.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_dofmap()\n"
+            "      !\n")
+        assert output1 in result
+        output2 = (
+            "        CALL testkern_same_anyspace_stencil_code(nlayers, "
+            "f0_proxy%data, f1_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_different_anyspace_stencil_code(nlayers, "
+            "f3_proxy%data, f1_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, extent, "
+            "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
+            "ndf_any_space_2_f2, undf_any_space_2_f2, map_any_space_2_f2)")
+        assert output3 in result
+
+
 def test_dynloop_load_unexpected_function_space():
     '''The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
@@ -5100,13 +5190,17 @@ def test_dynloop_load_unexpected_function_space():
             "of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but found "
             "'broken'" in str(err))
 
+
 def test_dynkernelarguments_unexpected_stencil_extent():
-    ''' xxx '''
-    # first parse some valid code
+    '''This test checks that we raise an error in DynKernelArguments if
+    metadata is provided with an extent value. This is a litle tricky to
+    raise as the parser does not not allow this to happen. We therefore
+    modify the results from the parser to raise the error.'''
+    # parse some valid code with a stencil
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api="dynamo0.3")
-    # next find the parsed code's call class
+    # find the parsed code's call class
     call = invoke_info.calls.values()[0].kcalls[0]
     # add an extent to the stencil metadata
     kernel_metadata = call.ktype
