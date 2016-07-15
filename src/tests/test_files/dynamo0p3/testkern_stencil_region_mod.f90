@@ -16,4 +16,5 @@ contains
 
   subroutine testkern_stencil_region_code()
   end subroutine testkern_stencil_region_code
+
 end module testkern_stencil_region_mod

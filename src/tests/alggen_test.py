@@ -113,7 +113,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), "
                 "qr1(i, k(l)))" in gen)
 
-    # simple stencil code generation
     def test_single_stencil(self):
         ''' test extent value is passed correctly from the algorithm layer '''
         path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
@@ -122,7 +121,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
                 "f2_extent)" in output)
 
-    # stencil code with wrong number of arguments
     def test_single_stencil_broken(self):
         '''test we raise an exception when we do not pass a stencil argument
         '''
@@ -132,7 +130,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert "expected '5' arguments in the algorithm layer but found '4'" \
             in str(excinfo.value)
 
-    # single invoke, single field, single stencil of type xory1d
     def test_single_stencil_xory1d(self):
         '''test extent and dimension values are passed correctly from the
         algorithm layer when xory1d is specified'''
@@ -143,7 +140,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
                 "f3, f4, f2_extent, f2_direction)") in output
 
-    # single invoke, single field, single stencil, literal value
     def test_single_stencil_literal(self):
         ''' test extent value is passed correctly from the algorithm layer '''
         path = os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90")
@@ -152,7 +148,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4)" \
             in output
 
-    # single invoke, single field, single stencil of type xory1d literal
     def test_single_stencil_xory1d_literal(self):
         '''test dimension value is recognised and not passed if either
         x_direction or y_direction'''
@@ -164,7 +159,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
                 "f3, f4)") in output
 
-    # single invoke, single field, single stencil of type xory1d scalar
     def test_single_stencil_xory1d_scalar(self):
         '''test we raise an error if a value is passed for the direction
         argument'''
@@ -174,7 +168,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("literal is not a valid value for a stencil direction"
                 in str(excinfo.value))
 
-    # single kernel, multiple simple stencils
     def test_multiple_stencils(self):
         '''more than one stencil in a kernel'''
         path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
@@ -184,7 +177,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
                 "f3, f4, f2_extent, f3_extent, f3_direction)") in output
 
-    # single kernel, multiple simple stencils same name
     def test_multiple_stencil_same_name(self):
         '''more than one stencil in a kernel with the same name for extent'''
         path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
@@ -194,7 +186,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
                 "f3, f4, extent, f3_direction)") in output
 
-    # single kernel, multiple stencils same name for direction
     def test_multiple_stencil_same_name_direction(self):
         ''' more than one stencil in a kernel with the same name for direction
         '''
@@ -205,7 +196,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
                 "f3, f4, extent, direction)") in output
 
-    # multiple kernels in an invoke with stencils
     def test_multiple_kernels_stencils(self):
         '''more than one kernel with stencils'''
         path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
@@ -216,7 +206,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
                 "f3_direction, direction)") in output
 
-    # single kernel, multiple stencils same name for direction different case
     def test_multiple_stencil_same_name_case(self):
         '''more than one stencil in a kernel with the same names but different
         case'''

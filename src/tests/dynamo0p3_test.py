@@ -3005,7 +3005,8 @@ def test_kernel_stub_gen_cmd_line():
 
 
 def test_stub_stencil_extent():
-    ''' Check that produce correct stub code when we have a stencil access '''
+    ''' Check that correct stub code is produced when there is a stencil
+    access '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3023,8 +3024,8 @@ def test_stub_stencil_extent():
 
 
 def test_stub_stencil_direction():
-    '''Check that produce correct stub code when we have a stencil access
-    which requires a direction argument'''
+    '''Check that correct stub code is produced when there is a stencil
+    access which requires a direction argument '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
@@ -3046,8 +3047,8 @@ def test_stub_stencil_direction():
 
 
 def test_stub_stencil_vector():
-    '''Check that produce correct stub code when we have a stencil access
-    which is a vector'''
+    '''Check that correct stub code is produced when there is a stencil
+    access which is a vector '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
@@ -3067,7 +3068,8 @@ def test_stub_stencil_vector():
 
 
 def test_stub_stencil_multi():
-    '''Check that produce correct stub code when we have multiple stencils'''
+    '''Check that correct stub code is produced when there are multiple
+    stencils'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
@@ -3942,12 +3944,6 @@ def test_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-# def test_halo_exchange_conflicting_stencil(): '''
-# two different stencils for same space in a kernel *** and gh_inc '''
-# only an issue when we have more than one kernel per loop i.e. we
-# need loop fusion. Therefore should go in dynamo0p3_transformations.py
-
-
 def test_w3_and_inc_error():
     '''test that an error is raised if w3 and gh_inc are provided for the
     same field in the metadata '''
@@ -4314,7 +4310,6 @@ def test_single_stencil_xory1d():
         assert output6 in result
 
 
-# single invoke, single field, single stencil, literal value
 def test_single_stencil_literal():
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument'''
@@ -4378,7 +4373,6 @@ def test_stencil_region_unsupported():
             str(excinfo.value)
 
 
-# single invoke, single field, single stencil of type xory1d literal
 def test_single_stencil_xory1d_literal():
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument'''
@@ -4487,9 +4481,8 @@ def test_single_stencil_xory1d_literal_mixed():
         assert output6 in result
 
 
-# single kernel, multiple simple stencils
 def test_multiple_stencils():
-    '''more than one stencil in a kernel'''
+    '''test for correct output when there is more than one stencil in a kernel'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
@@ -4563,9 +4556,9 @@ def test_multiple_stencils():
         assert output7 in result
 
 
-# single kernel, multiple simple stencils same name for extent
 def test_multiple_stencil_same_name():
-    '''more than one stencil in a kernel with the same name for extent'''
+    '''test the case when there is more than one stencil in a kernel with
+    the same name for extent'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90"),
@@ -4623,9 +4616,9 @@ def test_multiple_stencil_same_name():
         assert output5 in result
 
 
-# single kernel, multiple stencils same name for direction
 def test_multiple_stencil_same_name_direction():
-    '''more than one stencil in a kernel with the same name for direction'''
+    '''test the case where there is more than one stencil in a kernel with
+    the same name for direction'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90"),
@@ -4696,11 +4689,12 @@ def test_multiple_stencil_same_name_direction():
 
 
 def test_multiple_kernels_stencils_different_fields():
-    '''multiple kernels with stencils and different fields for each. Also
-    tests extent with shared and individual names'''
+    '''Test the case where we have multiple kernels with stencils and
+    different fields for each. We also test extent names by having both
+    shared and individual names.'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
-            os.path.join(BASE_PATH, "19.12_multiple_kernels_stencils.f90"),
+            os.path.join(BASE_PATH, "19.20_multiple_kernels_stencils.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
@@ -4756,9 +4750,9 @@ def test_multiple_kernels_stencils_different_fields():
         assert output8 in result
 
 
-# name clash test for 1) extent, 2) direction, 3) stencil dofmaps
 def test_extent_name_clash():
-    '''Kernel with argument names passed from the algorithm layer that
+    '''Test we can deal with name clashes for stencils. We have a single
+    kernel with argument names passed from the algorithm layer that
     would clash with a stencil name and stencil dofmap variables.'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
@@ -4812,8 +4806,9 @@ def test_extent_name_clash():
 
 
 def test_two_stencils_same_field():
-    '''Two Kernels within an invoke, with the same field having a stencil
-    access in each kernel. f2_w2 is the field we care about.'''
+    '''Test two Kernels within an invoke, with the same field having a
+    stencil access in each kernel. f2_w2 is the field we care
+    about. '''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
@@ -4864,9 +4859,10 @@ def test_two_stencils_same_field():
 
 
 def test_stencils_same_field_literal_extent():
-    '''Three Kernels within an invoke, with the same field having a stencil
-    access in each kernel and the extent being passed as a literal
-    value. extent is the same in two kernels and different in the third.'''
+    '''Test three Kernels within an invoke, with the same field having a
+    stencil access in each kernel and the extent being passed as a
+    literal value. Extent is the same in two kernels and different in
+    the third. '''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -4909,10 +4905,10 @@ def test_stencils_same_field_literal_extent():
 
 
 def test_stencils_same_field_literal_direction():
-    '''Three Kernels within an invoke, with the same field having a stencil
-    access in each kernel and the direction being passed as a literal
-    value. In two kernels the direction value is the same and in the third
-    it is different.'''
+    '''Test three Kernels within an invoke, with the same field having a
+    stencil access in each kernel and the direction being passed as a
+    literal value. In two kernels the direction value is the same and
+    in the third it is different. '''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -4993,7 +4989,7 @@ def test_stencil_extent_specified():
 
 def test_haloexchange_unknown_halo_depth():
     '''If a stencil extent is provided in the kernel metadata then the
-    value is stored in an instance of the DynHalExchange class. This test
+    value is stored in an instance of the DynHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
     in metadata are not currently supported in PSyclone).'''
     # load an example with an argument that has stencil metadata
@@ -5013,7 +5009,8 @@ def test_haloexchange_unknown_halo_depth():
 
 
 def test_single_kernel_multi_field_same_stencil():
-    '''same stencil used by more than one field in a kernel'''
+    '''This test checks for the case where we have the same stencil used
+    by more than one field in a kernel'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -5068,9 +5065,9 @@ def test_single_kernel_multi_field_same_stencil():
 
 
 def test_single_kernel_any_space_stencil():
-    '''test for stencils and any_space within a single kernel and between
-    kernels. We test when any_space is the same and when it is
-    different within kernels and between kernels for the case of
+    '''This is a test for stencils and any_space within a single kernel
+    and between kernels. We test when any_space is the same and when
+    it is different within kernels and between kernels for the case of
     different fields. When it is the same we should have the same
     stencil dofmap (as all other stencil information is the same) and
     when it is different we should have a different stencil dofmap (as
@@ -5117,11 +5114,11 @@ def test_single_kernel_any_space_stencil():
 
 @pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
 def test_multi_kernel_any_space_stencil_1():
-    '''test for stencils and any_space with two kernels. We test when
-    any_space is the same and when it is different for the same
+    '''This is a test for stencils and any_space with two kernels. We test
+    when any_space is the same and when it is different for the same
     field. In our example we should have a single dofmap. However, at
-    the moment we produce two. This is valid but not optimal. It is not
-    a big deal at the moment as the Met Office do not plan to use
+    the moment we produce two. This is valid but not optimal. It is
+    not a big deal at the moment as the Met Office do not plan to use
     any_space but it should be able to be fixed when we get dependence
     analysis within invokes working. Therefore making it xfail for the
     moment. '''

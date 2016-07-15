@@ -726,13 +726,15 @@ def stencil_dofmap_name(arg):
 
 
 class DynInvokeStencil(object):
-    ''' stencil information associated with a DynInvoke call '''
+    '''stencil information and code generation associated with a
+    DynInvoke call'''
 
     def __init__(self, schedule):
 
         self._name_space_manager = NameSpaceFactory().create()
         # list of arguments which have an extent value passed to this
-        # invoke routine from the algorithm layer
+        # invoke routine from the algorithm layer. Duplicate argument
+        # names are removed.
         self._unique_extent_args = []
         extent_names = []
         for call in schedule.calls():
@@ -745,15 +747,9 @@ class DynInvokeStencil(object):
                                     arg.stencil.extent_arg.text)
                                 self._unique_extent_args.append(arg)
 
-        # list of lists, one for each call, within which has all args
-        # which require a stencil access
-        self._unique_extent_kern_args = []
-        for idx, call in enumerate(schedule.calls()):
-            for arg in call.arguments.args:
-                if arg.stencil:
-                    if not arg.stencil.extent:
-                        self._unique_extent_kern_args.append(arg)
-
+        # a list of arguments that have a direction variable passed in
+        # to this invoke routine from the algorithm layer. Duplicate
+        # argument names are removed.
         self._unique_direction_args = []
         direction_names = []
         for call in schedule.calls():
@@ -771,6 +767,16 @@ class DynInvokeStencil(object):
                             direction_names.append(
                                 arg.stencil.direction_arg.text)
                             self._unique_direction_args.append(arg)
+
+        # list of stencil args with an extent variable passed in. The same
+        # field name may occur more than once here from different kernels.
+        self._kern_args = []
+        for call in schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if not arg.stencil.extent:
+                        self._kern_args.append(arg)
+
 
     @property
     def _unique_extent_vars(self):
@@ -816,14 +822,14 @@ class DynInvokeStencil(object):
         '''adds in the required stencil dofmap code to the PSy layer'''
         from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, \
             CommentGen, DeclGen
-        if self._unique_extent_kern_args:
+        if self._kern_args:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
             parent.add(CommentGen(parent, ""))
             parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
                               funcnames=["stencil_dofmap_type"]))
             stencil_map_names = []
-            for arg in self._unique_extent_kern_args:
+            for arg in self._kern_args:
                 map_name = stencil_map_name(arg)
                 if map_name not in stencil_map_names:
                     # only initialise maps once
@@ -1713,7 +1719,7 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            # TODO: check assumption that "inner" includes the stencil
+            # warning: assuming that "inner" includes the stencil
             return self._upper_bound_name in ["halo", "edge"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
@@ -2611,13 +2617,11 @@ class DynKernelArguments(Arguments):
             idx += 1
             if dyn_argument.descriptor.stencil:
                 stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
-                # we can not cover the if test below as the specification of
-                # stencil extent in metadata is not supported
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line. However, note there is currently no setter
-                    # for extent in DynStencil.
+                    # for extent in DynStencil so this would need to be added.
                     # stencil.extent = dyn_argument.descriptor.stencil['extent']
                 else:
                     # an extent argument has been added
