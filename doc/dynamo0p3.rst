@@ -679,8 +679,6 @@ The field may be on any function space.
 * type(field_type), intent(out) :: *field*
 * real(r_def), intent(in) :: *value*
 
-.. note:: The Fortran parser used by PSyclone cannot currently cope with numerical constants containing an explicit kind paramer (e.g. ``1.0_r_def``). This limitation may be worked around by passing the scalar quantity by argument instead of by value.
-
 sum_field
 +++++++++
 
