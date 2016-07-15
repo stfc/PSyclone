@@ -1,96 +1,90 @@
-#-------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2014.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author D. Ham Imperial College
+# Modified by R. Ford and A. R. Porter, STFC Daresbury Laboratory
 
-# A simple Fortran expression parser. Note that this does not parse Fortran,
-# only legal Fortran expressions.
-#
+''' A simple Fortran expression parser. Note that this does not parse Fortran,
+only legal Fortran expressions. '''
 
-from pyparsing import *
+import pyparsing as pparse
 # Enable the packrat optimisation. This seems to be performance-critical.
-ParserElement.enablePackrat()
+pparse.ParserElement.enablePackrat()
+
 
 class ExpressionNode(object):
     '''Base class for all expression tree nodes'''
     def __init__(self, toks):
         ''' The recursive collection of names enables the dependencies of
-    expressions to be analysed. ''' 
-        self.names=set()
-        for t in toks:
-            if isinstance(t, ExpressionNode):
-                self.names.update(t.names)
+        expressions to be analysed. '''
+        self.names = set()
+        for tok in toks:
+            if isinstance(tok, ExpressionNode):
+                self.names.update(tok.names)
 
         # Keep the list of toks for future reference.
         self.toks = toks
 
-    def walk(self):
-        # Generator for depth-first walk of this expression.
-        for t in self.toks:
-            if isinstance(t, ExpressionNode):
-                for i in t.walk():
-                    yield(i)
-
-        yield(self)
-
     def walk_skipping_name(self):
-        # Generator for depth-first walk of this expression, skipping the name part of the walk.
-        for t in self.toks:
-            if isinstance(t, ExpressionNode):
-                for index,i in enumerate(t.walk_skipping_name()):
-                    if index>0:
-                        yield(i)
-        yield(self)
+        ''' Generator for depth-first walk of this expression, skipping
+        the name part of the walk. '''
+        for tok in self.toks:
+            if isinstance(tok, ExpressionNode):
+                for index, i in enumerate(tok.walk_skipping_name()):
+                    if index > 0:
+                        yield i
+        yield self
 
 
 class Grouping(ExpressionNode):
-    """Expression node for a parenthesised expression."""
+    '''Expression node for a parenthesised expression.'''
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks)
-        
-        self.expr=toks[1]
+
+        self.expr = toks[1]
 
     def __repr__(self):
-        return "Grouping(['(',"+ repr(self.expr)+",')'])"
+        return "Grouping(['('," + repr(self.expr) + ",')'])"
 
     def __str__(self):
-        return "("+str(self.expr)+")"
-        
+        return "(" + str(self.expr) + ")"
+
 
 class BinaryOperator(ExpressionNode):
-    """Expression node for one or more binary operators with the same precedence.
+    '''Expression node for one or more binary operators with the same
+    precedence.
 
-    For some reason, operator tokens come in a list of lists.
-    """
+    For some reason, operator tokens come in a list of lists.'''
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks[0])
 
         self.operands = [toks[0][0]]
         self.symbols = []
-        i=iter(toks[0][1:])
+        i = iter(toks[0][1:])
         try:
             while True:
-                t=i.next()
-                self.symbols.append(t)
-                t=i.next()                
-                self.operands.append(t)
+                tok = i.next()
+                self.symbols.append(tok)
+                tok = i.next()
+                self.operands.append(tok)
         except StopIteration:
             pass
-                         
+
     def __repr__(self):
         _str = "BinaryOperator([["+repr(self.operands[0])
-        for s, o in zip(self.symbols, self.operands[1:]):
-            _str += ", "+repr(s)+", "+repr(o)
+        for sym, opd in zip(self.symbols, self.operands[1:]):
+            _str += ", " + repr(sym) + ", " + repr(opd)
         _str += "]])"
         return _str
 
     def __str__(self):
-        return str(self.operands[0])+\
-            "".join([" "+str(s)+" "+str(o) for s, o in zip(self.symbols, self.operands[1:])])
-    
+        return str(self.operands[0]) + \
+            "".join([" "+str(sym)+" "+str(opd) for sym, opd in
+                     zip(self.symbols, self.operands[1:])])
+
 
 class Slicing(ExpressionNode):
     """Expression node for Fortran colon array slicings."""
@@ -102,23 +96,22 @@ class Slicing(ExpressionNode):
         self.stride = ""
 
         tokiter = iter(toks)
-        t=tokiter.next()
-        if t!=":":
-            self.start=t
-            t=tokiter.next()
+        tok = tokiter.next()
+        if tok != ":":
+            self.start = tok
+            tok = tokiter.next()
 
         try:
-            t=tokiter.next()
-            if t!=":":
-                self.stop=t
-                t=tokiter.next()
-            
-            t=tokiter.next()
-            self.stride=t
+            tok = tokiter.next()
+            if tok != ":":
+                self.stop = tok
+                tok = tokiter.next()
+
+            tok = tokiter.next()
+            self.stride = tok
         except StopIteration:
             pass
 
-        
     def __repr__(self):
         _str = "Slicing(["
         if self.start:
@@ -136,40 +129,40 @@ class Slicing(ExpressionNode):
         if self.stride:
             _str += ":"+str(self.stride)
         return _str
-        
+
 
 class FunctionVar(ExpressionNode):
-    """Expression node for a Fortran variable or function call."""
+    '''Expression node for a Fortran variable or function call.'''
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks)
 
         self.name = toks[0]
         self.names.update([self.name])
 
-        if len(toks)>1:
+        if len(toks) > 1:
             self.args = toks[2:-1]
         else:
-            self.args=None
+            self.args = None
 
     def __repr__(self):
-        _str = "FunctionVar(['"+self.name+"'"
+        _str = "FunctionVar(['" + self.name + "'"
         if self.args is not None:
-            _str += ",'(',"+", ".join([repr(a) for a in self.args])+",')'"
+            _str += ",'('," + ", ".join([repr(a) for a in self.args])+",')'"
         _str += "])"
         return _str
 
     def __str__(self):
-        _str=str(self.name)
+        _str = str(self.name)
         if self.args is not None:
-            _str += '('+", ".join([str(a) for a in self.args])+')'
+            _str += '(' + ", ".join([str(a) for a in self.args]) + ')'
         return _str
 
 
 class LiteralArray(ExpressionNode):
-    """Expression node for a Fortran literal array."""
+    '''Expression node for a Fortran literal array.'''
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks)
-        self.expr=toks[1:-1]    # first and last are delimiters
+        self.expr = toks[1:-1]    # first and last are delimiters
 
     def __getitem__(self, idx):
         return self.expr[idx]
@@ -178,64 +171,72 @@ class LiteralArray(ExpressionNode):
         return len(self.expr)
 
     def __repr__(self):
-        return "LiteralArray(['(',"+ repr(self.expr)+",')'])"
+        return "LiteralArray(['('," + repr(self.expr) + ",')'])"
 
     def __str__(self):
-        return "["+str(self.expr)+"]"
+        return "[" + str(self.expr) + "]"
 
 # A Fortran name starts with a letter and continues with letters, numbers
 # and _. Can you start a name with _?
-name = Word(alphas, alphanums+"_") | Literal(".false.") | Literal(".true.")
+NAME = pparse.Word(pparse.alphas, pparse.alphanums+"_") | \
+       pparse.Literal(".false.") | pparse.Literal(".true.")
 
 # In Fortran, a numerical constant can have its kind appended after an
 # underscore. The kind can be a 'name' or just digits.
-kind = Word("_",exact=1) + (name | Word(nums))
+KIND = pparse.Word("_", exact=1) + (NAME | pparse.Word(pparse.nums))
 
 # Let's start with integers - construct a grammar using PyParsing
 #                           Sign                    Digits
-signed = Combine(Optional(Word("+-", exact=1)) + Word(nums))
-integer = Combine(signed + Optional(kind))
-unsigned = Word(nums)
-point = Literal(".")
-real = Combine(
-    (Word("+-"+nums, nums) + point + Optional(unsigned)|point+unsigned) +
-    Optional(Word("dDeE", exact=1) + signed) + Optional(kind) )
+SIGNED = pparse.Combine(pparse.Optional(pparse.Word("+-", exact=1)) +
+                        pparse.Word(pparse.nums))
+INTEGER = pparse.Combine(SIGNED + pparse.Optional(KIND))
+UNSIGNED = pparse.Word(pparse.nums)
+POINT = pparse.Literal(".")
+REAL = pparse.Combine(
+    (pparse.Word("+-"+pparse.nums, pparse.nums) + POINT +
+     pparse.Optional(UNSIGNED) | POINT+UNSIGNED) +
+    pparse.Optional(pparse.Word("dDeE", exact=1) + SIGNED) +
+    pparse.Optional(KIND))
 
 # Literal brackets.
-lpar  = Literal( "(" )
-rpar  = Literal( ")" )
+LPAR = pparse.Literal("(")
+RPAR = pparse.Literal(")")
 
-lit_array_start = Literal( "[" ) | Literal( "(/" )
-lit_array_end = Literal( "]" ) | Literal( "/)" )
+LIT_ARRAY_START = pparse.Literal("[") | pparse.Literal("(/")
+LIT_ARRAY_END = pparse.Literal("]") | pparse.Literal("/)")
 
-expr = Forward()
+EXPR = pparse.Forward()
 
-colon = Literal( ":" )
-slicing = Optional(expr)+colon+Optional(expr)+Optional(colon+Optional(expr))
-slicing.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
+COLON = pparse.Literal(":")
+SLICING = pparse.Optional(EXPR) + COLON + pparse.Optional(EXPR) + \
+          pparse.Optional(COLON+pparse.Optional(EXPR))
+SLICING.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
 
-var_or_function = name + Optional(lpar + delimitedList(slicing | expr) + rpar)
-var_or_function.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
+VAR_OR_FUNCTION = NAME + pparse.Optional(LPAR +
+                                         pparse.delimitedList(SLICING | EXPR) +
+                                         RPAR)
+VAR_OR_FUNCTION.setParseAction(lambda strg, loc,
+                               toks: [FunctionVar(toks)])
 
-literal_array = lit_array_start + delimitedList(expr) + lit_array_end
-literal_array.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
+LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
+LITERAL_ARRAY.setParseAction(lambda strg, loc,
+                             toks: [LiteralArray(toks)])
 
-group = lpar+expr+rpar
-group.setParseAction(lambda strg, loc, toks: [Grouping(toks)])
+GROUP = LPAR+EXPR+RPAR
+GROUP.setParseAction(lambda strg, loc, toks: [Grouping(toks)])
 
-operand = (group | var_or_function | real | integer | literal_array)
+OPERAND = (GROUP | VAR_OR_FUNCTION | REAL | INTEGER | LITERAL_ARRAY)
 
 # Cause the binary operators to work.
-operator = operatorPrecedence\
-    ( operand,
-      (
-            (Literal("**"), 2, opAssoc.RIGHT, lambda strg, loc, toks: [BinaryOperator(toks)]),
-            (Literal("*")|Literal("/"), 2, opAssoc.LEFT, lambda strg, loc,
-    toks: [BinaryOperator(toks)]),
-            (Literal("+")|Literal("-"), 2, opAssoc.LEFT, lambda strg, loc, toks: [BinaryOperator(toks)]),
-            )
-      )
+OPERATOR = pparse.operatorPrecedence(
+    OPERAND,
+    ((pparse.Literal("**"), 2, pparse.opAssoc.RIGHT, lambda strg, loc,
+      toks: [BinaryOperator(toks)]),
+     (pparse.Literal("*") | pparse.Literal("/"), 2, pparse.opAssoc.LEFT,
+      lambda strg, loc, toks: [BinaryOperator(toks)]),
+     (pparse.Literal("+") | pparse.Literal("-"), 2, pparse.opAssoc.LEFT,
+      lambda strg, loc, toks: [BinaryOperator(toks)]),))
 
-expr << (operator | operand)
+EXPR << (OPERATOR | OPERAND)
 
-expression = StringStart() + expr + StringEnd()
+FORT_EXPRESSION = pparse.StringStart() + EXPR + pparse.StringEnd()
