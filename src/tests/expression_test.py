@@ -60,6 +60,11 @@ def test_group():
     my_test("group", expression, "(x)", names="x")
 
 
+def test_integer():
+    ''' Test parsing of an integer '''
+    my_test("integer with kind", expression, "-500")
+
+
 def test_integer_kind():
     ''' Test parsing of an integer with kind specified '''
     my_test("integer with kind", expression, "5_i_def")
@@ -78,6 +83,17 @@ def test_real():
 def test_real_kind():
     ''' Test parsing of a real scalar with kind specified'''
     my_test("real with kind", expression, "-.5e-200_r_def")
+
+
+def test_real_no_exp_kind():
+    ''' Test parsing of a real scalar with no exponent but with kind
+    specified '''
+    my_test("no exponent real with kind", expression, "-.5_r_def")
+
+
+def test_real_kind_digits():
+    ''' Test parsing of a real scalar with kind specified using digits only'''
+    my_test("real with kind", expression, "-.5e-200_32")
 
 
 def test_group_operations():
