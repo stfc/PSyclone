@@ -1031,7 +1031,7 @@ def test_two_int_scalars():
     generated_code = str(psy.gen)
     print generated_code
     expected = (
-        "    SUBROUTINE invoke_0_testkern_type(iflag, f1, f2, m1, m2, istep)\n"
+        "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER, intent(in) :: iflag, istep\n"
@@ -1099,7 +1099,12 @@ def test_two_int_scalars():
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
         "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
-
+    # Check that we pass iflag by value in the second kernel call
+    expected = (
+        "        CALL testkern_code(nlayers, 1_i_def, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
 
 def test_two_scalars():
     ''' tests that we generate correct code when a kernel has two scalar
