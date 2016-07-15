@@ -159,6 +159,44 @@ def test_colour_trans_operator():
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
 
+def test_colour_trans_stencil():
+    '''test of the colouring transformation of a single loop with a
+    stencil access. We test when distributed memory is both off and
+    on    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "19.1_single_stencil.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_stencil_type')
+        schedule = invoke.schedule
+        ctrans = Dynamo0p3ColourTrans()
+
+        if dist_mem:
+            index = 3
+        else:
+            index = 0
+
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[index])
+
+        # Replace the original loop schedule with the transformed one
+        invoke.schedule = cschedule
+
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        print gen
+
+        # Check that we index the stencil dofmap appropriately
+        assert ("          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+                "f2_proxy%data, f2_extent, "
+                "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
+                "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, "
+                "map_w2, ndf_w3, undf_w3, map_w3)") in gen
+
+
 def test_colouring_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to colour
     something that is not a loop. We test when distributed memory is

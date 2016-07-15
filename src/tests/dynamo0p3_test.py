@@ -5069,11 +5069,33 @@ def test_single_kernel_multi_field_same_stencil():
 
 def test_dynloop_load_unexpected_function_space():
     '''The load function of an instance of the dynloop class raises an
-    error if an unexpexted function space is found. This test makes sure
-    this error works correctly.'''
-    # it is not possible to trigger this exception. The invalid
-    # function space value causing the exception is read from a method
-    # (iteration_space_arg) that will never return a field with a
-    # function space that is invalid
-    pass
-
+    error if an unexpexted function space is found. This test makes
+    sure this error works correctly. It's a little tricky to raise
+    this error as it is unreachable. However, we can sabotage an
+    earlier function to make it return an invalid value. '''
+    # first create a working instance of the DynLoop class
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # now get access to the DynLoop class, the associated kernel class
+    # and the associated field.
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    field = kernel.arguments.iteration_space_arg()
+    # break the fields function space
+    field._function_spaces[0]._orig_name = "broken"
+    # create a function which always returns the broken field
+    def broken_func():
+        return field
+    # replace the iteration_space_arg method with our broke
+    # function. This is required as iteration_space_arg currently
+    # never returns a field with an invalid function space.
+    kernel.arguments.iteration_space_arg = broken_func
+    # We can now raise the exception.
+    with pytest.raises(GenerationError) as err:
+        loop.load(kernel)
+    assert ("Generation Error: Unexpected function space found. Expecting one "
+            "of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but found "
+            "'broken'" in str(err))

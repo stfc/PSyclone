@@ -1709,7 +1709,7 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            # TODO: check assumtion that "inner" includes the stencil
+            # TODO: check assumption that "inner" includes the stencil
             return self._upper_bound_name in ["halo", "edge"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
@@ -2558,11 +2558,6 @@ class DynStencil(object):
     def extent(self):
         ''' returns the extent of the stencil if it is known '''
         return self._extent
-
-    @extent.setter
-    def extent(self, value):
-        ''' sets the extent of the stencil '''
-        self._extent = value
 
     @property
     def extent_arg(self):
