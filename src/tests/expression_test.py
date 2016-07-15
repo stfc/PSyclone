@@ -11,6 +11,8 @@ def my_test(name, parser, test_string, names=None):
     from expression import Grouping, BinaryOperator, FunctionVar, Slicing
 
     s = parser.parseString(test_string)
+    for item in s:
+        print str(item)
     assert (str(s[0]) == test_string), "Failed to parse " + name + "."
     exec("s="+repr(s[0]))
     assert (str(s) == test_string), "Error in repr for " + name + "."
@@ -60,11 +62,22 @@ def test_group():
 
 def test_integer_kind():
     ''' Test parsing of an integer with kind specified '''
-    my_test("integer", expression, "5_i_def")
+    my_test("integer with kind", expression, "5_i_def")
+
+
+def test_integer_kind_digits():
+    ''' Test parsing of an integer with kind specified using digits only'''
+    my_test("integer with kind digits", expression, "5_16")
+
 
 def test_real():
     ''' Test parsing of a real scalar '''
     my_test("real", expression, "-.5e-200")
+
+
+def test_real_kind():
+    ''' Test parsing of a real scalar with kind specified'''
+    my_test("real with kind", expression, "-.5e-200_r_def")
 
 
 def test_group_operations():

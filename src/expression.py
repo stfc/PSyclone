@@ -187,15 +187,20 @@ class LiteralArray(ExpressionNode):
 # and _. Can you start a name with _?
 name = Word(alphas, alphanums+"_") | Literal(".false.") | Literal(".true.")
 
+# In Fortran, a numerical constant can have its kind appended after an
+# underscore. The kind can be a 'name' or just digits.
+# TODO check that the 'just digits' form is standard Fortran
+kind = Word("_",exact=1) + name # Word(alphas, alphanums)|Word(nums)
+
 # Let's start with integers - construct a grammar using PyParsing
-#                   Sign                    Digits       Kind specification
-integer = Optional(Word("+-", exact=1)) + Word(nums) + Optional("_" + name)
+#                           Sign                    Digits
+integer = Combine(Optional(Word("+-", exact=1)) + Word(nums) +
+                  Optional(kind))
 unsigned = Word(nums)
 point = Literal(".")
 real = Combine(
-    (Word("+-"+nums, nums) + point + Optional(unsigned)|point+unsigned)
-    + (Optional(Word("dDeE", exact=1) + Optional(integer)))#|Optional("_" + name))
-    )
+    (Word("+-"+nums, nums) + point + Optional(unsigned)|point+unsigned) +
+    Optional(Word("dDeE", exact=1) + integer) + Optional(kind) )
 
 # Literal brackets.
 lpar  = Literal( "(" )
