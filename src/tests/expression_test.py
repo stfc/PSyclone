@@ -15,7 +15,7 @@ def my_test(name, parser, test_string, names=None):
     for item in pstr:
         print str(item)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
-    exec("s="+repr(pstr[0]))
+    exec("pstr="+repr(pstr[0]))
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
     if names:
         assert pstr.names == set(names), "Names do not match for " + name + "."
