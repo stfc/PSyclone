@@ -5099,3 +5099,23 @@ def test_dynloop_load_unexpected_function_space():
     assert ("Generation Error: Unexpected function space found. Expecting one "
             "of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but found "
             "'broken'" in str(err))
+
+def test_dynkernelarguments_unexpected_stencil_extent():
+    ''' xxx '''
+    # first parse some valid code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    # next find the parsed code's call class
+    call = invoke_info.calls.values()[0].kcalls[0]
+    # add an extent to the stencil metadata
+    kernel_metadata = call.ktype
+    kernel_metadata._arg_descriptors[1].stencil['extent'] = 2
+    # remove the extra argument (as the extent value no longer needs
+    # to be passed so an associated error will be raised)
+    del call.args[2]
+    # finally call our object to raise the error
+    from dynamo0p3 import DynKernelArguments
+    with pytest.raises(GenerationError) as err:
+        _ = DynKernelArguments(call, None)
+    assert ("extent metadata not yet supported" in str(err))

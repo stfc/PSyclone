@@ -2596,7 +2596,7 @@ class DynKernelArguments(Arguments):
         # consistent with those expected by the kernel(s)
         check_args(call)
 
-        # create out arguments and add in stencil information where
+        # create our arguments and add in stencil information where
         # appropriate.
         self._args = []
         idx = 0
@@ -2607,9 +2607,15 @@ class DynKernelArguments(Arguments):
             idx += 1
             if dyn_argument.descriptor.stencil:
                 stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
+                # we can not cover the if test below as the specification of
+                # stencil extent in metadata is not supported
                 if dyn_argument.descriptor.stencil['extent']:
-                    stencil.extent = dyn_argument.descriptor.stencil['extent']
-                if not dyn_argument.descriptor.stencil['extent']:
+                    raise GenerationError("extent metadata not yet supported")
+                    # if supported we would add the following
+                    # line. However, note there is currently no setter
+                    # for extent in DynStencil.
+                    # stencil.extent = dyn_argument.descriptor.stencil['extent']
+                else:
                     # an extent argument has been added
                     stencil.extent_arg = call.args[idx]
                     idx += 1
@@ -2619,11 +2625,6 @@ class DynKernelArguments(Arguments):
                     idx += 1
                 dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
-
-# *******************************************************
-#        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
-#            self._args.append(DynKernelArgument(self, arg, call.args[idx],
-#                                                parent_call))
 
         self._dofs = []
 
