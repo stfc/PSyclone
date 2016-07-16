@@ -1,7 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program multiple_stencils
   ! Description: multiple kernels with the same field having a stencil
-  ! access (f2) with a literal valeue for extent and the same value in
+  ! access (f2) with a literal value for extent and the same value in
   ! one case and a different value in another.
   use testkern_stencil_mod, only: testkern_stencil_type
   use inf,      only: field_type

@@ -1,7 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program single_stencil
   ! Description: single stencil specified incorrectly in an invoke call
-  ! as as direction can not be a literal scalar
+  ! as direction can not be a literal scalar
   use testkern_stencil_xory1d_mod, only: testkern_stencil_xory1d_type
   use inf, only: field_type
   use flux_direction_mod, only: x_direction

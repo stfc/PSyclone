@@ -1,6 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program single_stencil
-  ! Description: single kernel call with multiple extents of the same name
+  ! Description: single kernel call with multiple extents having the
+  ! same name
   use testkern_stencil_multi_mod, only: testkern_stencil_multi_type
   use inf, only: field_type
   use flux_direction_mod, only: y_direction

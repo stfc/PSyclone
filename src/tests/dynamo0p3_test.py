@@ -3878,7 +3878,7 @@ def test_halo_exchange_vectors():
 
 
 def test_halo_exchange_depths():
-    ''' test that halo exchange (and gh_inc) includes the correct halo
+    ''' test that halo exchange includes the correct halo
     depth with gh_write '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.5_halo_depth.f90"),

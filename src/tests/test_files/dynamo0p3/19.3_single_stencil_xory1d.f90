@@ -1,7 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program single_stencil
-  ! Description: single stencil specified incorrectly in an invoke call
-  ! as stencil extent argument is not provided
+  ! Description: single stencil with an xory1d stencil specified in
+  ! the metadata which therefore requires a direction argument.
   use testkern_stencil_xory1d_mod, only: testkern_stencil_xory1d_type
   use inf, only: field_type
   use flux_direction_mod, only: x_direction

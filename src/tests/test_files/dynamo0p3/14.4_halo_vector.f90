@@ -8,6 +8,7 @@
 
 program halo_reader_vector
 
+  ! test halo exchange calls and vector fields
   use testkern_stencil_vector_mod, only: testkern_stencil_vector_type
   use inf,      only: field_type
   implicit none

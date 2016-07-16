@@ -1,6 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program multiple_stencil
-  ! Description: single kernel call with multiple directions of the same name
+  ! Description: multiple kernel calls with the same and different
+  ! extent and direction names.
   use testkern_stencil_xory1d_mod, only: testkern_stencil_xory1d_type
   use testkern_stencil_multi_mod, only: testkern_stencil_multi_type
   use testkern_stencil_multi_2_mod, only: testkern_stencil_multi_2_type

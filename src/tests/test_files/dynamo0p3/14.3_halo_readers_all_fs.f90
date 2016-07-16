@@ -8,6 +8,9 @@
 
 program halo_reader_fs
 
+  ! a single kernel call testing all function spaces. Each function
+  ! space has a stencil operation so that it requires halo exchange
+  ! calls. All extents are passed in and are the same for all fields.
   use testkern_stencil_fs_mod, only: testkern_stencil_fs_type
   use inf,      only: field_type
   implicit none

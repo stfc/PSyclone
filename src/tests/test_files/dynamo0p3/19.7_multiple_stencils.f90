@@ -1,6 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program single_stencil
-  ! Description: single stencil with multiple extents
+  ! Description: single stencil with multiple extents having different
+  ! values
   use testkern_stencil_multi_mod, only: testkern_stencil_multi_type
   use inf, only: field_type
   use flux_direction_mod, only: y_direction

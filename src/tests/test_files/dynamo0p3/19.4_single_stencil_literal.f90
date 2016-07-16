@@ -1,6 +1,7 @@
 ! Author R. Ford STFC Daresbury Lab
 program single_stencil
-  ! Description: single stencil specified in an invoke call
+  ! Description: single stencil specified in an invoke call with a
+  ! literal value passed for the extent value
   use testkern_stencil_mod, only: testkern_stencil_type
   use inf,      only: field_type
   implicit none

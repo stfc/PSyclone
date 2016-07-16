@@ -8,7 +8,9 @@
 
 program halo_reader
 
-  ! Description: single function specified in an invoke call
+  ! Description: single function specified in an invoke call. On
+  ! argument (f2) requires a halo operation as it has a stencil. The
+  ! extent of the halo is passed in as an argument.
   use testkern_stencil_mod, only: testkern_stencil_type
   use inf,      only: field_type
   implicit none
