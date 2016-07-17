@@ -1237,13 +1237,15 @@ class DynInvoke(Invoke):
                 root_name="mesh", context="PSyVars", label="mesh")
             invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
                                   funcnames=["mesh_type"]))
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="mesh_type",
-                                       entity_decls=[mesh_obj_name]))
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub, datatype="mesh_type", pointer=True,
+                            entity_decls=[mesh_obj_name+" => null()"]))
             rhs = first_var.name_indexed + "%get_mesh()"
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, lhs=mesh_obj_name, rhs=rhs))
+            invoke_sub.add(AssignGen(invoke_sub, pointer=True,
+                                     lhs=mesh_obj_name, rhs=rhs))
 
         # declare and initialise stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)

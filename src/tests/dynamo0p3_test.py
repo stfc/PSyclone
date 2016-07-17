@@ -543,7 +543,7 @@ def test_field_fs():
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
         "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy\n"
@@ -564,7 +564,7 @@ def test_field_fs():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -677,7 +677,7 @@ def test_field_qr():
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
         "      INTEGER nqp_h, nqp_v\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -694,7 +694,7 @@ def test_field_qr():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise qr values\n"
         "      !\n"
@@ -799,7 +799,7 @@ def test_real_scalar():
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -816,7 +816,7 @@ def test_real_scalar():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -880,7 +880,7 @@ def test_int_scalar():
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -897,7 +897,7 @@ def test_int_scalar():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -961,7 +961,7 @@ def test_two_real_scalars():
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -978,7 +978,7 @@ def test_two_real_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -1041,7 +1041,7 @@ def test_two_int_scalars():
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -1058,7 +1058,7 @@ def test_two_int_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -1122,7 +1122,7 @@ def test_two_scalars():
         "map_w3(:) => null()\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -1139,7 +1139,7 @@ def test_two_scalars():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f1%get_mesh()\n"
+        "      mesh => f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -1305,7 +1305,7 @@ def test_operator_different_spaces():
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
         "      INTEGER nqp_h, nqp_v\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
@@ -1323,7 +1323,7 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = mapping%get_mesh()\n"
+        "      mesh => mapping%get_mesh()\n"
         "      !\n"
         "      ! Initialise qr values\n"
         "      !\n"
@@ -1433,7 +1433,7 @@ def test_operator_nofield_different_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "mesh = my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
@@ -1451,7 +1451,7 @@ def test_operator_nofield_scalar():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "mesh = my_mapping%get_mesh()" in gen
+    assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
@@ -3991,8 +3991,8 @@ def test_no_mesh_mod():
     result = str(psy.gen)
     print result
     assert "USE mesh_mod, ONLY: mesh_type" not in result
-    assert "TYPE(mesh_type) mesh" not in result
-    assert "mesh = a%get_mesh()" not in result
+    assert "TYPE(mesh_type), pointer :: mesh => null()" not in result
+    assert "mesh => a%get_mesh()" not in result
 
 
 def test_mesh_mod():
@@ -4006,11 +4006,11 @@ def test_mesh_mod():
     result = str(psy.gen)
     print result
     assert "USE mesh_mod, ONLY: mesh_type" in result
-    assert "TYPE(mesh_type) mesh" in result
+    assert "TYPE(mesh_type), pointer :: mesh => null()" in result
     output = ("      !\n"
               "      ! Create a mesh object\n"
               "      !\n"
-              "      mesh = a%get_mesh()\n")
+              "      mesh => a%get_mesh()\n")
     assert output in result
 
 # when we add build tests we should test that we can we get the mesh
