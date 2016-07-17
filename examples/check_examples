@@ -27,6 +27,11 @@ cd dynamo/eg4
 python ../../../src/generator.py -nodm solver_mod.x90
 cd -
 
+echo "Running example dynamo/eg5"
+cd dynamo/eg5
+python ../../../src/generator.py alg.f90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py
