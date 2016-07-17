@@ -884,7 +884,7 @@ class DynInvokeStencil(object):
                                                      "(:,:,:) => null()"]))
                     parent.add(AssignGen(parent, pointer=True,
                                          lhs=stencil_dofmap_name(arg),
-                                         rhs=map_name + "%get_dofmap()"))
+                                         rhs=map_name + "%get_whole_dofmap()"))
 
 
 class DynInvoke(Invoke):

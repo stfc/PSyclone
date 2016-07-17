@@ -4245,7 +4245,7 @@ def test_single_stencil_extent():
             "      !\n"
             "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,f2_extent)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output5 in result
         output6 = (
@@ -4298,7 +4298,7 @@ def test_single_stencil_xory1d():
             "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,f2_extent)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output5 in result
         output6 = (
@@ -4339,7 +4339,7 @@ def test_single_stencil_literal():
             "      !\n"
             "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,1)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output4 in result
         if dist_mem:
@@ -4408,7 +4408,7 @@ def test_single_stencil_xory1d_literal():
             "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,2)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output4 in result
         if dist_mem:
@@ -4463,7 +4463,7 @@ def test_single_stencil_xory1d_literal_mixed():
             "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,2)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output4 in result
         if dist_mem:
@@ -4521,7 +4521,7 @@ def test_multiple_stencils():
             "      !\n"
             "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,f2_extent)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      IF (f3_direction .eq. x_direction) THEN\n"
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,f3_extent)\n"
@@ -4530,10 +4530,10 @@ def test_multiple_stencils():
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,f3_extent)\n"
             "      END IF \n"
-            "      f3_stencil_dofmap => f3_stencil_map%get_dofmap()\n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
             "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,1)\n"
-            "      f4_stencil_dofmap => f4_stencil_map%get_dofmap()\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output5 in result
         if dist_mem:
@@ -4591,7 +4591,7 @@ def test_multiple_stencil_same_name():
             "      !\n"
             "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      IF (f3_direction .eq. x_direction) THEN\n"
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,extent)\n"
@@ -4600,10 +4600,10 @@ def test_multiple_stencil_same_name():
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,extent)\n"
             "      END IF \n"
-            "      f3_stencil_dofmap => f3_stencil_map%get_dofmap()\n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
             "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,extent)\n"
-            "      f4_stencil_dofmap => f4_stencil_map%get_dofmap()\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output4 in result
         output5 = (
@@ -4657,7 +4657,7 @@ def test_multiple_stencil_same_name_direction():
             "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,extent)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      IF (direction .eq. x_direction) THEN\n"
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,extent)\n"
@@ -4666,7 +4666,7 @@ def test_multiple_stencil_same_name_direction():
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,extent)\n"
             "      END IF \n"
-            "      f3_stencil_dofmap => f3_stencil_map%get_dofmap()\n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
             "      IF (direction .eq. x_direction) THEN\n"
             "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,extent)\n"
@@ -4675,7 +4675,7 @@ def test_multiple_stencil_same_name_direction():
             "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,extent)\n"
             "      END IF \n"
-            "      f4_stencil_dofmap => f4_stencil_map%get_dofmap()\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output4 in result
         output5 = (
@@ -4724,10 +4724,10 @@ def test_multiple_kernels_stencils_different_fields():
             "      !\n"
             "      f2a_stencil_map => f2a_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,f2a_extent)\n"
-            "      f2a_stencil_dofmap => f2a_stencil_map%get_dofmap()\n"
+            "      f2a_stencil_dofmap => f2a_stencil_map%get_whole_dofmap()\n"
             "      f2b_stencil_map => f2b_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f2b_stencil_dofmap => f2b_stencil_map%get_dofmap()\n"
+            "      f2b_stencil_dofmap => f2b_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output5 in result
         output6 = (
@@ -4793,7 +4793,7 @@ def test_extent_name_clash():
             "      !\n"
             "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,f2_extent)\n"
-            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_dofmap()\n"
+            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_whole_dofmap()\n"
             "      !\n")
         assert output7 in result
         output8 = (
@@ -4835,12 +4835,12 @@ def test_two_stencils_same_field():
         output4 = (
             "      f2_w2_stencil_map => f2_w2_proxy%vspace%get_stencil_dofmap"
             "(STENCIL_CROSS,f2_extent)\n"
-            "      f2_w2_stencil_dofmap => f2_w2_stencil_map%get_dofmap()")
+            "      f2_w2_stencil_dofmap => f2_w2_stencil_map%get_whole_dofmap()")
         assert output4 in result
         output5 = (
             "      f2_w2_stencil_map_1 => "
             "f2_w2_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,extent)\n"
-            "      f2_w2_stencil_dofmap_1 => f2_w2_stencil_map_1%get_dofmap()")
+            "      f2_w2_stencil_dofmap_1 => f2_w2_stencil_map_1%get_whole_dofmap()")
         assert output5 in result
         output6 = (
             "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
@@ -4884,10 +4884,10 @@ def test_stencils_same_field_literal_extent():
             "      !\n"
             "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,1)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,2)\n"
-            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_dofmap()\n"
+            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_whole_dofmap()\n"
             "      !")
         assert output2 in result
         output3 = (
@@ -4936,7 +4936,7 @@ def test_stencils_same_field_literal_direction():
             "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,2)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_dofmap()\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      IF (y_direction .eq. x_direction) THEN\n"
             "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,2)\n"
@@ -4945,7 +4945,7 @@ def test_stencils_same_field_literal_direction():
             "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,2)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_dofmap()\n"
+            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_whole_dofmap()\n"
             "      !")
         assert output2 in result
         output3 = (
@@ -5041,7 +5041,7 @@ def test_single_kernel_multi_field_same_stencil():
             "      !\n"
             "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f1_stencil_dofmap => f1_stencil_map%get_dofmap()\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
             "      IF (direction .eq. x_direction) THEN\n"
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DX,extent)\n"
@@ -5050,7 +5050,7 @@ def test_single_kernel_multi_field_same_stencil():
             "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,extent)\n"
             "      END IF \n"
-            "      f3_stencil_dofmap => f3_stencil_map%get_dofmap()\n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output4 in result
         output5 = (
@@ -5084,13 +5084,13 @@ def test_single_kernel_any_space_stencil():
         output1 = (
             "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f1_stencil_dofmap => f1_stencil_map%get_dofmap()\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
             "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f4_stencil_dofmap => f4_stencil_map%get_dofmap()\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
             "      f5_stencil_map => f5_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f5_stencil_dofmap => f5_stencil_map%get_dofmap()\n"
+            "      f5_stencil_dofmap => f5_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output1 in result
         # use the same stencil dofmap
@@ -5134,7 +5134,7 @@ def test_multi_kernel_any_space_stencil_1():
         output1 = (
             "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,extent)\n"
-            "      f1_stencil_dofmap => f1_stencil_map%get_dofmap()\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
             "      !\n")
         assert output1 in result
         output2 = (
