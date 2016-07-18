@@ -62,9 +62,9 @@ class TestAlgGenClassDynamo0p3(object):
 
     def test_multi_function_multi_invokes(self):
         ''' two invokes, each containing multiple functions '''
-        alg, _ = generate(os.path.join(
-            BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-                          api="dynamo0.3")
+        alg, _ = generate(
+            os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
+            api="dynamo0.3")
         gen = str(alg)
         print gen
         assert "USE psy_multi_functions_multi_invokes, ONLY: invoke_1" in gen

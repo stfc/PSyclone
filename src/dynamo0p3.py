@@ -777,7 +777,6 @@ class DynInvokeStencil(object):
                     if not arg.stencil.extent:
                         self._kern_args.append(arg)
 
-
     @property
     def _unique_extent_vars(self):
         names = []
@@ -2623,8 +2622,9 @@ class DynKernelArguments(Arguments):
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line. However, note there is currently no setter
-                    # for extent in DynStencil so this would need to be added.
-                    # stencil.extent = dyn_argument.descriptor.stencil['extent']
+                    # for extent in DynStencil so this would need to
+                    # be added.  stencil.extent =
+                    # dyn_argument.descriptor.stencil['extent']
                 else:
                     # an extent argument has been added
                     stencil.extent_arg = call.args[idx]

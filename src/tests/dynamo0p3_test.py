@@ -4482,7 +4482,8 @@ def test_single_stencil_xory1d_literal_mixed():
 
 
 def test_multiple_stencils():
-    '''test for correct output when there is more than one stencil in a kernel'''
+    '''test for correct output when there is more than one stencil in a
+    kernel'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
@@ -4793,7 +4794,8 @@ def test_extent_name_clash():
             "      !\n"
             "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,f2_extent)\n"
-            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_stencil_dofmap_1 => "
+            "f2_stencil_map_1%get_whole_dofmap()\n"
             "      !\n")
         assert output7 in result
         output8 = (
@@ -4835,12 +4837,14 @@ def test_two_stencils_same_field():
         output4 = (
             "      f2_w2_stencil_map => f2_w2_proxy%vspace%get_stencil_dofmap"
             "(STENCIL_CROSS,f2_extent)\n"
-            "      f2_w2_stencil_dofmap => f2_w2_stencil_map%get_whole_dofmap()")
+            "      f2_w2_stencil_dofmap => "
+            "f2_w2_stencil_map%get_whole_dofmap()")
         assert output4 in result
         output5 = (
             "      f2_w2_stencil_map_1 => "
             "f2_w2_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,extent)\n"
-            "      f2_w2_stencil_dofmap_1 => f2_w2_stencil_map_1%get_whole_dofmap()")
+            "      f2_w2_stencil_dofmap_1 => "
+            "f2_w2_stencil_map_1%get_whole_dofmap()")
         assert output5 in result
         output6 = (
             "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
@@ -4887,7 +4891,8 @@ def test_stencils_same_field_literal_extent():
             "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
             "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,2)\n"
-            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_stencil_dofmap_1 => "
+            "f2_stencil_map_1%get_whole_dofmap()\n"
             "      !")
         assert output2 in result
         output3 = (
@@ -4945,7 +4950,8 @@ def test_stencils_same_field_literal_direction():
             "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
             "STENCIL_1DY,2)\n"
             "      END IF \n"
-            "      f2_stencil_dofmap_1 => f2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_stencil_dofmap_1 => "
+            "f2_stencil_map_1%get_whole_dofmap()\n"
             "      !")
         assert output2 in result
         output3 = (
@@ -5003,7 +5009,6 @@ def test_haloexchange_unknown_halo_depth():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
-    from dynamo0p3 import stencil_unique_str
     halo_exchange = DynHaloExchange(stencil_arg)
     assert halo_exchange._halo_depth == '10'
 
@@ -5174,7 +5179,9 @@ def test_dynloop_load_unexpected_function_space():
     # break the fields function space
     field._function_spaces[0]._orig_name = "broken"
     # create a function which always returns the broken field
+
     def broken_func():
+        ''' returns the above field no matter what '''
         return field
     # replace the iteration_space_arg method with our broke
     # function. This is required as iteration_space_arg currently
@@ -5183,9 +5190,9 @@ def test_dynloop_load_unexpected_function_space():
     # We can now raise the exception.
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
-    assert ("Generation Error: Unexpected function space found. Expecting one "
-            "of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but found "
-            "'broken'" in str(err))
+    assert ("Generation Error: Unexpected function space found. Expecting "
+            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but "
+            "found 'broken'" in str(err))
 
 
 def test_dynkernelarguments_unexpected_stencil_extent():
