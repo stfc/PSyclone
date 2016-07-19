@@ -94,7 +94,7 @@ subroutine subgrid_coeffs_code(                                               &
                                 nlayers,                                      &
                                 a0,                                           &
                                 a1,                                           &
-                                a2                                            &
+                                a2,                                           &
                                 rho,                                          &
                                 stencil_length,                               &
                                 stencil_map,                                  &
