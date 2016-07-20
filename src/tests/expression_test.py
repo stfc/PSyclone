@@ -18,6 +18,8 @@ def my_test(name, parser, test_string, names=None):
     for item in pstr:
         print str(item)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
+    # ast.literal_eval can't be used here as the generated expression
+    # calls constructors of user-defined objects
     exec("pstr="+repr(pstr[0]))
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
     if names:
