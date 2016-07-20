@@ -1106,6 +1106,7 @@ def test_two_int_scalars():
         "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
 
+
 def test_two_scalars():
     ''' tests that we generate correct code when a kernel has two scalar
     arguments, one real and one integer '''

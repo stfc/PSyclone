@@ -116,7 +116,7 @@ def test_dynbuiltin_str():
     kern = first_invoke.schedule.children[0].children[0]
     with pytest.raises(NotImplementedError) as excinfo:
         DynBuiltIn.__str__(kern)
-    assert ("DynBuiltIn.__str__ must be overridden" in str(excinfo.value))
+    assert "DynBuiltIn.__str__ must be overridden" in str(excinfo.value)
 
 
 def test_dynbuiltin_gen_code():
@@ -133,7 +133,7 @@ def test_dynbuiltin_gen_code():
     kern = first_invoke.schedule.children[0].children[0]
     with pytest.raises(NotImplementedError) as excinfo:
         DynBuiltIn.gen_code(kern, None)
-    assert ("DynBuiltIn.gen_code must be overridden" in str(excinfo.value))
+    assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
 
 
 def test_dynbuiltfactory_str():

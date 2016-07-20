@@ -229,12 +229,10 @@ SLICING.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
 VAR_OR_FUNCTION = NAME + pparse.Optional(LPAR +
                                          pparse.delimitedList(SLICING | EXPR) +
                                          RPAR)
-VAR_OR_FUNCTION.setParseAction(lambda strg, loc,
-                               toks: [FunctionVar(toks)])
+VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 
 LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
-LITERAL_ARRAY.setParseAction(lambda strg, loc,
-                             toks: [LiteralArray(toks)])
+LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 
 GROUP = LPAR+EXPR+RPAR
 GROUP.setParseAction(lambda strg, loc, toks: [Grouping(toks)])
@@ -244,8 +242,8 @@ OPERAND = (GROUP | VAR_OR_FUNCTION | REAL | INTEGER | LITERAL_ARRAY)
 # Cause the binary operators to work.
 OPERATOR = pparse.operatorPrecedence(
     OPERAND,
-    ((pparse.Literal("**"), 2, pparse.opAssoc.RIGHT, lambda strg, loc,
-      toks: [BinaryOperator(toks)]),
+    ((pparse.Literal("**"), 2, pparse.opAssoc.RIGHT,
+      lambda strg, loc, toks: [BinaryOperator(toks)]),
      (pparse.Literal("*") | pparse.Literal("/"), 2, pparse.opAssoc.LEFT,
       lambda strg, loc, toks: [BinaryOperator(toks)]),
      (pparse.Literal("+") | pparse.Literal("-"), 2, pparse.opAssoc.LEFT,
