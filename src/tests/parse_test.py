@@ -117,3 +117,12 @@ def test_builtin_with_use():
     assert ("A built-in cannot be named in a use statement but "
             "'set_field_scalar' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
+
+
+def test_element_unpack():
+    ''' Check that the unpack method of the Element class behaves as
+    expected when passed a string '''
+    from parse import Element
+    ele = Element()
+    stuff = ele.unpack("andy")
+    assert str(stuff) == "andy"
