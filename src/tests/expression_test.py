@@ -9,7 +9,10 @@ def my_test(name, parser, test_string, names=None):
     operations are equivalent to the identity. Note that whitespace is not
     preserved by the parsing operation, so the test_string must conform to
     the whitespace conventions of the unparser for the test to succeed.'''
-    from expression import Grouping, BinaryOperator, FunctionVar, Slicing
+    # These imports are required in order for the exec in the code below
+    # to work
+    from expression import Grouping, BinaryOperator, FunctionVar, Slicing, \
+        LiteralArray
 
     pstr = parser.parseString(test_string)
     for item in pstr:
@@ -103,3 +106,9 @@ def test_group_operations():
             FORT_EXPRESSION,
             "(f(x + 2 * y, z:z + 2 + -.5) + (g + h) ** (z - 2))",
             names=["f", "g", "h", "x", "y", "z"])
+
+def test_literal_array():
+    ''' Test parsing of a literal array '''
+    my_test("literal array",
+            FORT_EXPRESSION,
+            "[1, 2, 3]")

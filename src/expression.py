@@ -171,30 +171,44 @@ class LiteralArray(ExpressionNode):
         return len(self.expr)
 
     def __repr__(self):
-        return "LiteralArray(['('," + repr(self.expr) + ",')'])"
+        _str = "LiteralArray(['[',"
+        if self.expr:
+            _str += ", ".join([repr(a) for a in self.expr])
+        _str += ", ']'])"
+        return _str
 
     def __str__(self):
-        return "[" + str(self.expr) + "]"
+        _str = "[" + str(self.expr[0])
+        for tok in self.expr[1:]:
+            _str += ", "+tok
+        _str += "]"
+        return _str
 
-# A Fortran name starts with a letter and continues with letters, numbers
-# and _. Can you start a name with _?
-NAME = pparse.Word(pparse.alphas, pparse.alphanums+"_") | \
-       pparse.Literal(".false.") | pparse.Literal(".true.")
+
+# Construct a grammar using PyParsing
+
+# A Fortran variable name starts with a letter and continues with
+# letters, numbers and _. Can you start a name with _?
+VAR_NAME = pparse.Word(pparse.alphas, pparse.alphanums+"_")
+NAME = VAR_NAME | pparse.Literal(".false.") | pparse.Literal(".true.")
+
+# An unsigned integer
+UNSIGNED = pparse.Word(pparse.nums)
 
 # In Fortran, a numerical constant can have its kind appended after an
 # underscore. The kind can be a 'name' or just digits.
-KIND = pparse.Word("_", exact=1) + (NAME | pparse.Word(pparse.nums))
+KIND = pparse.Word("_", exact=1) + (VAR_NAME | UNSIGNED)
 
-# Let's start with integers - construct a grammar using PyParsing
-#                           Sign                    Digits
-SIGNED = pparse.Combine(pparse.Optional(pparse.Word("+-", exact=1)) +
-                        pparse.Word(pparse.nums))
+# First arg to Word gives allowed initial chars, 2nd arg gives allowed
+# body characters
+SIGNED = pparse.Word("+-"+pparse.nums, pparse.nums)
 INTEGER = pparse.Combine(SIGNED + pparse.Optional(KIND))
-UNSIGNED = pparse.Word(pparse.nums)
+
 POINT = pparse.Literal(".")
+
+# A floating point number
 REAL = pparse.Combine(
-    (pparse.Word("+-"+pparse.nums, pparse.nums) + POINT +
-     pparse.Optional(UNSIGNED) | POINT+UNSIGNED) +
+    (SIGNED + POINT + pparse.Optional(UNSIGNED) | POINT + UNSIGNED) +
     pparse.Optional(pparse.Word("dDeE", exact=1) + SIGNED) +
     pparse.Optional(KIND))
 
