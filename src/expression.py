@@ -223,7 +223,7 @@ EXPR = pparse.Forward()
 
 COLON = pparse.Literal(":")
 SLICING = pparse.Optional(EXPR) + COLON + pparse.Optional(EXPR) + \
-          pparse.Optional(COLON+pparse.Optional(EXPR))
+    pparse.Optional(COLON+pparse.Optional(EXPR))
 SLICING.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
 
 VAR_OR_FUNCTION = NAME + pparse.Optional(LPAR +
