@@ -18,7 +18,8 @@ module oned_conservative_flux_alg_mod
                                          u,            &
                                          dep_pts,      &
                                          rho_in,       &
-                                         mass_flux)
+                                         mass_flux,    &
+                                         mesh_id)
 
     use subgrid_coeffs_kernel_mod, only : subgrid_coeffs_kernel_type
     use conservative_flux_kernel_mod, only : conservative_flux_kernel_type
@@ -29,9 +30,15 @@ module oned_conservative_flux_alg_mod
     type(field_type),    intent(in)     :: u
     type(field_type),    intent(in)     :: dep_pts
     type(field_type),    intent(in)     :: rho_in
+    type(field_type),    intent(inout)  :: mass_flux
+    integer(i_def),      intent(in)     :: mesh_id
 
     type( field_type ) :: a0, a1, a2
 
+    type(function_space_type), pointer :: rho_fs   => null()
+
+    rho_fs => function_space_collection%get_fs( mesh_id, element_order,      &
+                                              rho_in%which_function_space() )
 
     a0 = field_type( vector_space = rho_fs )
     a1 = field_type( vector_space = rho_fs )
