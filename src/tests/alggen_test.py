@@ -26,6 +26,18 @@ class TestAlgGenClassDynamo0p3:
         assert "USE psy_single_invoke, ONLY: invoke_0_testkern_type" in gen
         assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
 
+    def test_single_function_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_single_invoke, ONLY: invoke_important_invoke" in gen
+        assert "CALL invoke_important_invoke(a, f1, f2, m1, m2)" in gen
+
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a
         quadrature rule'''
