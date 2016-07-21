@@ -740,6 +740,11 @@ class DynInvokeStencil(object):
         for call in schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
+                    # check for the existence of arg.extent here as in
+                    # the future we plan to support kernels which
+                    # specify the value of extent in metadata. If this
+                    # is the case then an extent argument is not
+                    # required.
                     if not arg.stencil.extent:
                         if not arg.stencil.extent_arg.is_literal():
                             if arg.stencil.extent_arg.text not in extent_names:
@@ -841,12 +846,12 @@ class DynInvokeStencil(object):
                     if stencil_type == "xory1d":
                         parent.add(UseGen(parent, name="flux_direction_mod",
                                           only=True,
-                                          funcnames=
-                                          ["x_direction", "y_direction"]))
+                                          funcnames=["x_direction",
+                                                     "y_direction"]))
                         parent.add(UseGen(parent, name="stencil_dofmap_mod",
                                           only=True,
-                                          funcnames=
-                                          ["STENCIL_1DX", "STENCIL_1DY"]))
+                                          funcnames=["STENCIL_1DX",
+                                                     "STENCIL_1DY"]))
                         direction_name = arg.stencil.direction_arg.varName
                         for direction in ["x", "y"]:
                             if_then = IfThenGen(parent, direction_name +
@@ -1720,7 +1725,10 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            # warning: assuming that "inner" includes the stencil
+            if self._upper_bound_name not in ["halo", "edge"]:
+                raise GenerationError(
+                    "Loop bounds other than halo and edge are currently "
+                    "unsupported. Found '{0}'.".format(self._upper_bound_name))
             return self._upper_bound_name in ["halo", "edge"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos

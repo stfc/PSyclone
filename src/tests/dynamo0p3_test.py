@@ -5217,3 +5217,30 @@ def test_dynkernelarguments_unexpected_stencil_extent():
     with pytest.raises(GenerationError) as err:
         _ = DynKernelArguments(call, None)
     assert ("extent metadata not yet supported" in str(err))
+
+
+def test_unsupported_halo_read_access():
+    '''This test checks that we raise an error if the halo_read_access
+    method finds an upper bound other than halo or edge. The
+    particular issue at the moment is that if inner is specified we do
+    not know whether the stencil accesses the halo or not. However,
+    this limitation is not going to affect anyone until we add in loop
+    iteration space splitting transformations.
+    '''
+    # create a valid loop with a stencil access
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # get access to the DynLoop object
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    # access to the argument that has a stencil access in the kernel
+    kernel = loop.children[0]
+    stencil_arg = kernel.arguments.args[1]
+    loop.set_upper_bound("inner", 1)
+    # call our method
+    with pytest.raises(GenerationError) as err:
+        _ = loop._halo_read_access(stencil_arg)
+    assert ("Loop bounds other than halo and edge are currently unsupported. "
+            "Found 'inner'." in str(err))
