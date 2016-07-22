@@ -189,9 +189,11 @@ class NamedArg(ExpressionNode):
     ''' Expression node for a Fortran named argument. '''
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks)
+
         # First token is the name of the argument
-        self.name = toks[0]
-        self.names.update([self.name])
+        self._name = toks[0]
+        self.names.update([self._name])
+
         # The second token is the '=' so we ignore that and skip to
         # the third token which contains the value assigned to the
         # argument...
@@ -201,31 +203,33 @@ class NamedArg(ExpressionNode):
         first_char = toks[2][0]
         if first_char in ["'", '"']:
             # Store the quotation character and the content of the string
+            # excluding the quotation marks
             self._quote = toks[2][0]
-            self.args = toks[2][1:-1]
+            self._value = toks[2][1:-1]
         else:
             # The quantity being assigned is not a string
             self._quote = None
-            self.args = toks[2]
+            self._value = toks[2]
 
     def __repr__(self):
         if self._quote:
             if self._quote == "'":
-                _str = "NamedArg(['{0}', '=', \"'{1}'\"])".format(self.name,
-                                                                  self.args)
+                _str = "NamedArg(['{0}', '=', \"'{1}'\"])".format(self._name,
+                                                                  self._value)
             else:
-                _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self.name,
-                                                                  self.args)
+                _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self._name,
+                                                                  self._value)
         else:
-            _str = "NamedArg(['" + self.name + "', '=', '" + self.args + "'])"
+            _str = "NamedArg(['{0}', '=', '{1}'])".format(self._name,
+                                                          self._value)
         return _str
 
     def __str__(self):
-        _str = str(self.name) + "="
+        _str = str(self._name) + "="
         if self._quote:
-            _str += self._quote + str(self.args) + self._quote
+            _str += self._quote + str(self._value) + self._quote
         else:
-            _str += str(self.args)
+            _str += str(self._value)
         return _str
 
 
@@ -265,6 +269,7 @@ LIT_ARRAY_END = pparse.Literal("]") | pparse.Literal("/)")
 
 EXPR = pparse.Forward()
 
+# Array slicing
 COLON = pparse.Literal(":")
 SLICING = pparse.Optional(EXPR) + COLON + pparse.Optional(EXPR) + \
     pparse.Optional(COLON+pparse.Optional(EXPR))
@@ -278,6 +283,7 @@ VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
 LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 
+# An optional/named argument
 OPTIONAL_VAR = VAR_NAME + "=" + ((NAME | REAL | INTEGER) |
                                  pparse.QuotedString("'",
                                                      unquoteResults=False) |
