@@ -123,6 +123,7 @@ class TestAlgGenClassDynamo0p3:
             "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag())"
             in gen)
 
+
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for
     correct code transformation. We use the generate function as parse

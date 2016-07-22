@@ -4139,3 +4139,23 @@ def test_scalar_real_sum_field_read():
         "ndf_w3, undf_w3, map_w3)\n"
         "      END DO \n")
     assert expected_output in gen
+
+
+def test_derived_type_arg():
+    ''' Test that we generate a suitable name for a dummy variable
+    in the PSy layer when its value in the algorithm layer is
+    obtained from the component of a derived type '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.2_single_invoke_1_int_from_derived_type.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    expected = (
+        "    SUBROUTINE invoke_0(f1, my_obj_iflag, f2, m1, m2, my_obj_get_flag)"
+        "      USE testkern_one_int_scalar, ONLY: testkern_code"
+        "      INTEGER, intent(in) :: my_obj_iflag, my_obj_get_flag")
+    assert expected in gen
+

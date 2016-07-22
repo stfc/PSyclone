@@ -138,7 +138,7 @@ class FunctionVar(ExpressionNode):
 
         self.name = toks[0]
         self.names.update([self.name])
-        print "toks are: "+str(toks)
+
         if len(toks) > 1:
             # No. of args is not sufficient to determine whether this
             # is a function call since a function may have zero
@@ -242,7 +242,8 @@ SLICING.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
 
 VAR_OR_FUNCTION = (DERIVED_TYPE_COMPONENT | NAME) + \
                   pparse.Optional(LPAR +
-                                  pparse.Optional(pparse.delimitedList(SLICING | EXPR)) +
+                                  pparse.Optional(
+                                      pparse.delimitedList(SLICING | EXPR)) +
                                   RPAR)
 VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 
