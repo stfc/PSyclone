@@ -114,3 +114,16 @@ def test_literal_array():
     my_test("literal array",
             FORT_EXPRESSION,
             "[1, 2, 3]")
+
+def test_derived_type_deref():
+    ''' Test parsing of reference to a component of a derived type '''
+    my_test("ref. to derived-type component",
+            FORT_EXPRESSION,
+            "field%ndf")
+
+def test_derived_type_deref_arg():
+    ''' Test parsing of reference to a component of a derived type passed
+    as an argument to a function call '''
+    my_test("ref. to derived-type component",
+            FORT_EXPRESSION,
+            "get_colour_map(a, field%ndf)")
