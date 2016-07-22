@@ -185,6 +185,47 @@ class LiteralArray(ExpressionNode):
         return _str
 
 
+class NamedArg(ExpressionNode):
+    ''' Expression node for a Fortran named argument. '''
+    def __init__(self, toks):
+        ExpressionNode.__init__(self, toks)
+        self.name = toks[0]
+        self.names.update([self.name])
+        # The second token is the '=' so we ignore that
+        # The named variable can be assigned a character string. We've
+        # told the parser not to remove the delimiters so that we can
+        # see whether they are single or double quotes.
+        first_char = toks[2][0]
+        if first_char in ["'", '"']:
+            # Store the quotation character and the content of the string
+            self._quote = toks[2][0]
+            self.args = toks[2][1:-1]
+        else:
+            # The quantity being assigned is not a string
+            self._quote = None
+            self.args = toks[2]
+
+    def __repr__(self):
+        if self._quote:
+            if self._quote == "'":
+                _str = "NamedArg(['{0}', '=', \"'{1}'\"])".format(self.name,
+                                                                  self.args)
+            else:
+                _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self.name,
+                                                                  self.args)
+        else:
+            _str = "NamedArg(['"+ self.name + "', '=', '" + self.args + "'])"
+        return _str
+
+    def __str__(self):
+        _str = str(self.name) + "="
+        if self._quote:
+            _str += self._quote + str(self.args) + self._quote
+        else:
+            _str += str(self.args)
+        return _str
+
+
 # Construct a grammar using PyParsing
 
 # A Fortran variable name starts with a letter and continues with
@@ -234,10 +275,20 @@ VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
 LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 
-GROUP = LPAR+EXPR+RPAR
+OPTIONAL_VAR = VAR_NAME + "=" + ((NAME | REAL | INTEGER) |
+                                 pparse.QuotedString("'",
+                                                     unquoteResults=False) |
+                                 pparse.QuotedString('"',
+                                                     unquoteResults=False))
+# lambda creates a temporary function which, in this case, takes three
+# arguments and creates a NamedArg object.
+OPTIONAL_VAR.setParseAction(lambda strg, loc, toks: [NamedArg(toks)])
+
+GROUP = LPAR + EXPR + RPAR
 GROUP.setParseAction(lambda strg, loc, toks: [Grouping(toks)])
 
-OPERAND = (GROUP | VAR_OR_FUNCTION | REAL | INTEGER | LITERAL_ARRAY)
+OPERAND = (GROUP | OPTIONAL_VAR | VAR_OR_FUNCTION | REAL | INTEGER |
+           LITERAL_ARRAY)
 
 # Cause the binary operators to work.
 OPERATOR = pparse.operatorPrecedence(

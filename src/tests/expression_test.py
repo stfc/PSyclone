@@ -12,7 +12,7 @@ def my_test(name, parser, test_string, names=None):
     # These imports are required in order for the exec in the code below
     # to work
     from expression import Grouping, BinaryOperator, FunctionVar, Slicing, \
-        LiteralArray
+        LiteralArray, NamedArg
 
     pstr = parser.parseString(test_string)
     for item in pstr:
@@ -114,3 +114,44 @@ def test_literal_array():
     my_test("literal array",
             FORT_EXPRESSION,
             "[1, 2, 3]")
+
+
+def test_named_int_arg():
+    ''' Test parsing of a named, integer argument '''
+    my_test("named int arg", FORT_EXPRESSION, "my_arg=2")
+
+
+def test_named_logical_arg():
+    ''' Test parsing of a named, logical argument '''
+    my_test("named logical arg", FORT_EXPRESSION, "my_arg=.true.")
+
+
+def test_named_real_arg():
+    ''' Test parsing of a named, real argument '''
+    my_test("named real arg", FORT_EXPRESSION, "my_arg=-2.0E3")
+
+
+def test_named_str_arg_single_quotes():
+    ''' Test parsing a named string argument specified using single
+    quotes '''
+    my_test("named arg single quotes", FORT_EXPRESSION, "my_arg='funny'")
+
+
+def test_named_str_arg_dble_quotes():
+    ''' Test parsing a named string argument specified using double
+    quotes '''
+    my_test("named arg double quotes", FORT_EXPRESSION, 'my_arg="funny"')
+
+
+def test_named_str_arg_spaces():
+    ''' Test parsing a named string argument where the value contains a
+    space '''
+    my_test("named arg string with space", FORT_EXPRESSION,
+            'my_arg="very funny"')
+
+
+def test_fn_call_named_arg():
+    ''' Test parsing of an expression containing a function call with a
+    named argument '''
+    my_test("Fn call with named arg", FORT_EXPRESSION,
+            "f(x, y=3, z='hello')", names=["f", "x", "y", "z"])
