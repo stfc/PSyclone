@@ -137,14 +137,21 @@ class TestAlgGenClassGungHoProto:
         assert (str(alg).find("USE psy, ONLY: invoke_multikern_kern")!=-1 and \
                 str(alg).find("CALL invoke_0_multikern_kern(f1, f2, f3, m1, m3, m2)")!=-1)
 
-    @pytest.mark.xfail(reason="unknown")
+    @pytest.mark.xfail(reason="ghproto still expects an Inf class to exist")
     def test_multi_single_invoke(self):
         ''' multiple invoke's (2 of) each with a single function'''
-        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","5_two_single-function_invokes.f90"), api = "gunghoproto")
-        self.assertTrue(str(alg).find("USE psy, ONLY: invoke_testkern1_kern") and \
-                        str(alg).find("USE psy, ONLY: invoke_testkern2_kern") and \
-                        str(alg).find("CALL invoke_0_testkern1_kern(f1, f2, m1, m2)") and \
-                        str(alg).find("CALL invoke_1_testkern2_kern(f1, f3, m1, m3)"))
+        alg, psy = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "gunghoproto",
+                         "5_two_single-function_invokes.f90"),
+            api = "gunghoproto")
+        gen = str(alg)
+        print gen
+        self.assertTrue(
+            "USE psy, ONLY: invoke_testkern1_kern" in gen and \
+            "USE psy, ONLY: invoke_testkern2_kern" in gen and \
+            "CALL invoke_0_testkern1_kern(f1, f2, m1, m2)" in gen and \
+            "CALL invoke_1_testkern2_kern(f1, f3, m1, m3)" in gen)
 
     @pytest.mark.xfail(reason="unknown")
     def test_other_calls_invoke(self):
