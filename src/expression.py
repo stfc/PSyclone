@@ -189,9 +189,12 @@ class NamedArg(ExpressionNode):
     ''' Expression node for a Fortran named argument. '''
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks)
+        # First token is the name of the argument
         self.name = toks[0]
         self.names.update([self.name])
-        # The second token is the '=' so we ignore that
+        # The second token is the '=' so we ignore that and skip to
+        # the third token which contains the value assigned to the
+        # argument...
         # The named variable can be assigned a character string. We've
         # told the parser not to remove the delimiters so that we can
         # see whether they are single or double quotes.
@@ -214,7 +217,7 @@ class NamedArg(ExpressionNode):
                 _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self.name,
                                                                   self.args)
         else:
-            _str = "NamedArg(['"+ self.name + "', '=', '" + self.args + "'])"
+            _str = "NamedArg(['" + self.name + "', '=', '" + self.args + "'])"
         return _str
 
     def __str__(self):
