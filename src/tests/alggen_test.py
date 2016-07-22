@@ -120,7 +120,8 @@ class TestAlgGenClassDynamo0p3:
         gen = str(alg)
         print gen
         assert (
-            "CALL invoke_0_testkern_type(f1, my_obj%iflag, f2, m1, m2)" in gen)
+            "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag())"
+            in gen)
 
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for
