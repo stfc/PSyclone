@@ -192,6 +192,9 @@ class LiteralArray(ExpressionNode):
 VAR_NAME = pparse.Word(pparse.alphas, pparse.alphanums+"_")
 NAME = VAR_NAME | pparse.Literal(".false.") | pparse.Literal(".true.")
 
+# Reference to a component of a derived type
+DERIVED_TYPE_COMPONENT = pparse.Combine(VAR_NAME + "%" + VAR_NAME)
+
 # An unsigned integer
 UNSIGNED = pparse.Word(pparse.nums)
 
@@ -237,7 +240,11 @@ LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 GROUP = LPAR+EXPR+RPAR
 GROUP.setParseAction(lambda strg, loc, toks: [Grouping(toks)])
 
-OPERAND = (GROUP | VAR_OR_FUNCTION | REAL | INTEGER | LITERAL_ARRAY)
+# Parser will attempt to match with the expressions in the order they
+# are specified here. Therefore must list them in order of decreasing
+# generality
+OPERAND = (GROUP | DERIVED_TYPE_COMPONENT | VAR_OR_FUNCTION | REAL |
+           INTEGER | LITERAL_ARRAY)
 
 # Cause the binary operators to work.
 OPERATOR = pparse.operatorPrecedence(

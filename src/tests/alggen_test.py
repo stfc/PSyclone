@@ -109,6 +109,19 @@ class TestAlgGenClassDynamo0p3:
         assert (str(alg).find("USE psy_qr_field_array, ONLY: invoke_0")!=-1 and \
                   str(alg).find("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), qr1(i, k(l)))")!=-1)
 
+    def test_deref_derived_type_args(self):
+        ''' Test the case where a kernel argument is specified as the
+        component of a derived type '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.6.2_single_invoke_1_int_from_derived_type.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert (
+            "CALL invoke_0_testkern_type(f1, my_obj%iflag, f2, m1, m2)" in gen)
+
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for
     correct code transformation. We use the generate function as parse
