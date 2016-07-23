@@ -2539,7 +2539,7 @@ def check_args(call):
                 # an extent argument must be provided
                 stencil_arg_count += 1
             if arg_descriptor.stencil['type'] == 'xory1d':
-                # a dimension argument must be provided
+                # a direction argument must be provided
                 stencil_arg_count += 1
 
     # qr_argument
@@ -2575,29 +2575,30 @@ class DynStencil(object):
 
     @property
     def extent(self):
-        ''' returns the extent of the stencil if it is known '''
+        '''Returns the extent of the stencil if it is known. It will be known
+        if it is specified in the metadata.'''
         return self._extent
 
     @property
     def extent_arg(self):
-        '''returns the algorithm argument associated with the extent value if
-        it is not known'''
+        '''Returns the algorithm argument associated with the extent value if
+        extent has not been provided in the metadata.'''
         return self._extent_arg
 
     @extent_arg.setter
     def extent_arg(self, value):
-        ''' sets the extent_arg value '''
+        ''' sets the extent_arg argument. '''
         self._extent_arg = value
 
     @property
     def direction_arg(self):
         '''returns the direction argument associated with the direction of
-        the stencil if it is not known'''
+        the stencil if the direction of the stencil is not known'''
         return self._direction_arg
 
     @direction_arg.setter
     def direction_arg(self, value):
-        ''' sets the direction_arg value '''
+        ''' sets the direction_arg argument. '''
         self._direction_arg = value
 
 
@@ -2938,12 +2939,14 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def stencil(self):
-        ''' Return a stencil information object if it exists '''
+        '''Return stencil information about this kernel argument if it
+        exists. The information is returned as a DynStencil object.'''
         return self._stencil
 
     @stencil.setter
     def stencil(self, value):
-        ''' Set our stencil information '''
+        '''Set stencil information for this kernel argument. The information
+        should be provided as a DynStencil object. '''
         self._stencil = value
 
 
