@@ -48,3 +48,8 @@ echo "Running line-length examples"
 cd line_length
 python runme.py
 cd -
+
+echo "Running stub generation examples"
+cd stub_generation
+python ../../src/genkernelstub.py testkern_stencil_multi_mod.f90
+cd -
