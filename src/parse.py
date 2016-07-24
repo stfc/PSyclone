@@ -15,6 +15,7 @@ import expression as expr
 import os
 from line_length import FortLineLength
 import config
+from pyparsing import ParseException
 
 
 def check_api(api):
@@ -186,7 +187,7 @@ class GHProtoDescriptor(Descriptor):
 class FunctionSpace(object):
     @staticmethod
     def unpack(string):
-        p = expr.expression.parseString(string)[0]
+        p = expr.FORT_EXPRESSION.parseString(string)[0]
         dim = 1
         if isinstance(p, expr.BinaryOperator) and p.symbols[0] == '**':
             dim = int(p.operands[1])
@@ -211,7 +212,7 @@ class Element(object):
     @staticmethod
     def unpack(string_or_expr):
         if isinstance(string_or_expr, str):
-            p = expr.expression.parseString(string_or_expr)[0]
+            p = expr.FORT_EXPRESSION.parseString(string_or_expr)[0]
         else:
             p = string_or_expr
         if isinstance(p, expr.Grouping):
@@ -475,8 +476,8 @@ class KernelType(object):
                 "Parser does not currently support [...] initialisation for "
                 "{0}, please use (/.../) instead".format(var_name))
         try:
-            inits = expr.expression.parseString(descs.init)[0]
-        except expr.ParseException:
+            inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
+        except ParseException:
             raise ParseError("kernel metadata has an invalid format {0}".
                              format(descs.init))
         nargs = int(descs.shape[0])
@@ -847,8 +848,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             statement_kcalls = []
             for arg in statement.items:
                 try:
-                    parsed = expr.expression.parseString(arg)[0]
-                except expr.ParseException:
+                    parsed = expr.FORT_EXPRESSION.parseString(arg)[0]
+                except ParseException:
                     raise ParseError("Failed to parse string: {0}".format(arg))
 
                 argname = parsed.name
