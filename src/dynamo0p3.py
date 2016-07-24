@@ -784,12 +784,18 @@ class DynInvokeStencil(object):
 
     @property
     def _unique_extent_vars(self):
+        '''return a list of all the unique extent argument names in this
+        invoke call. '''
         names = []
         for arg in self._unique_extent_args:
             names.append(arg.stencil.extent_arg.varName)
         return names
 
     def _declare_unique_extent_vars(self, parent):
+        '''Declare all unique extent arguments as integers with intent in and
+        add the declaration as a child of the parent argument passed
+        in. The parent argument should be an appropriate f2pygen
+        object. '''
         from f2pygen import DeclGen
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
@@ -798,12 +804,18 @@ class DynInvokeStencil(object):
 
     @property
     def _unique_direction_vars(self):
+        '''return a list of all the unique direction argument names in this
+        invoke call.'''
         names = []
         for arg in self._unique_direction_args:
             names.append(arg.stencil.direction_arg.varName)
         return names
 
     def _declare_unique_direction_vars(self, parent):
+        '''Declare all unique direction arguments as integers with intent in
+        and add the declaration as a child of the parent argument
+        passed in. The parent argument should be an appropriate
+        f2pygen object. '''
         from f2pygen import DeclGen
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
