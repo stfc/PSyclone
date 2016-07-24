@@ -5216,7 +5216,7 @@ def test_dynkernelarguments_unexpected_stencil_extent():
     from dynamo0p3 import DynKernelArguments
     with pytest.raises(GenerationError) as err:
         _ = DynKernelArguments(call, None)
-    assert ("extent metadata not yet supported" in str(err))
+    assert "extent metadata not yet supported" in str(err)
 
 
 def test_unsupported_halo_read_access():
