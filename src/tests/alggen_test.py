@@ -9,9 +9,9 @@
 ''' Tests for the algorithm generation (re-writing) '''
 
 import os
+import pytest
 from generator import generate
 from algGen import NoInvokesError
-import pytest
 
 
 class TestAlgGenClassDynamo0p3(object):
