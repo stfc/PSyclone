@@ -6,7 +6,8 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-''' py.test tests for the algGen.py file '''
+''' Tests for the algorithm generation (re-writing) as implemented
+    in algGen.py '''
 
 import os
 import pytest
@@ -159,15 +160,6 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
                 "f3, f4)") in output
 
-    def test_single_stencil_xory1d_scalar(self):
-        '''test we raise an error if a value is passed for the direction
-        argument'''
-        path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
-        with pytest.raises(GenerationError) as excinfo:
-            _, _ = generate(path, api="dynamo0.3")
-        assert ("literal is not a valid value for a stencil direction"
-                in str(excinfo.value))
-
     def test_multiple_stencils(self):
         '''more than one stencil in a kernel'''
         path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
@@ -176,15 +168,6 @@ class TestAlgGenClassDynamo0p3(object):
         print output
         assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
                 "f3, f4, f2_extent, f3_extent, f3_direction)") in output
-
-    def test_multiple_stencil_same_name(self):
-        '''more than one stencil in a kernel with the same name for extent'''
-        path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
-        alg, _ = generate(path, api="dynamo0.3")
-        output = str(alg)
-        print output
-        assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
-                "f3, f4, extent, f3_direction)") in output
 
     def test_multiple_stencil_same_name_direction(self):
         ''' more than one stencil in a kernel with the same name for direction
@@ -217,6 +200,24 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
                 "f3, f4, extent, direction)") in output
 
+    def test_single_stencil_xory1d_scalar(self):
+        '''test we raise an error if a value is passed for the direction
+        argument'''
+        path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
+        with pytest.raises(GenerationError) as excinfo:
+            _, _ = generate(path, api="dynamo0.3")
+        assert ("literal is not a valid value for a stencil direction"
+                in str(excinfo.value))
+
+    def test_multiple_stencil_same_name(self):
+        '''more than one stencil in a kernel with the same name for extent'''
+        path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
+        alg, _ = generate(path, api="dynamo0.3")
+        output = str(alg)
+        print output
+        assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
+                "f3, f4, extent, f3_direction)") in output
+
 
 class TestAlgGenClassDynamo0p1(object):
     ''' AlgGen class unit tests for the Dynamo0.1 API. We use the
@@ -226,7 +227,7 @@ class TestAlgGenClassDynamo0p1(object):
     @pytest.mark.xfail(reason="unknown")
     def test_single_invoke_dynamo0p1(self):
         ''' test for correct code transformation for a single function
-        specified in an invoke call for the gunghoproto api '''
+        specified in an invoke call for the dynamo0.1 api '''
         alg, _ = generate(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p1", "algorithm",
@@ -236,8 +237,8 @@ class TestAlgGenClassDynamo0p1(object):
         assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
 
     def test_zero_invoke_dynamo0p1(self):
-        '''test that an exception is raised if the specified file does not
-        contain any actual invoke() calls'''
+        ''' Test that an exception is raised if the specified file does
+        not contain any actual invoke() calls '''
         with pytest.raises(NoInvokesError):
             _, _ = generate(
                 os.path.join(os.path.dirname(os.path.abspath(__file__)),
