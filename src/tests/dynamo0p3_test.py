@@ -1808,10 +1808,10 @@ def test_kernel_specific():
     assert output2 in generated_code
     output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
     assert output3 in generated_code
-    output4 = "fs = f2%which_function_space()"
+    output4 = "fs = f1%which_function_space()"
     assert output4 in generated_code
     output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
-        boundary_dofs => f2_proxy%vspace%get_boundary_dofs()
+        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output5 in generated_code
     output6 = (

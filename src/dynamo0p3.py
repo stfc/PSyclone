@@ -2295,7 +2295,18 @@ class DynKern(Kern):
         else:
             my_mapping = mapping
         return Kern.written_arg(self, my_mapping)
-
+    
+    @property
+    def updated_arg(self, mapping=None):
+        ''' Returns the kernel argument that is updated (incremented or
+        written to) '''
+        arg = None
+        try:
+            arg = self.incremented_arg
+        except FieldNotFoundError:
+            arg = self.written_arg
+        return arg
+    
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
@@ -2310,12 +2321,9 @@ class DynKern(Kern):
 
             # Find which argument object has INC access in order to look-up
             # the colour map
-            try:
-                arg = self.incremented_arg
-            except FieldNotFoundError:
-                # TODO Warn that we're colouring a kernel that has
-                # no field object with INC access
-                arg = self.written_arg
+            arg = self.updated_arg
+            # TODO Check whether this arg is gh_inc and if not, Warn that
+            # we're colouring a kernel that has no field object with INC access
 
             new_parent, position = parent.start_parent_loop()
             # Add the look-up of the colouring map for this kernel
@@ -2417,18 +2425,19 @@ class DynKern(Kern):
                               only=True, funcnames=[self._name]))
         # 5: Fix for boundary_dofs array in matrix_vector_code
         if self.name == "matrix_vector_code":
-            # In matrix_vector_code, all fields are on the same
-            # (unknown) space. Therefore we can use any field to
-            # dereference. We choose the 2nd one as that is what is
-            # done in the manual implementation.
-            reference_arg = self.arguments.args[1]
-            enforce_bc_arg = self.arguments.args[0]
+            # Any call to this kernel must be followed by a call
+            # to update boundary conditions (if the updated field
+            # is not on W3 space).
+            # Rather than rely on knowledge of the interface to
+            # matrix_vector kernel, look-up the argument that is
+            # updated and then apply b.c.'s to that...
+            enforce_bc_arg = self.updated_arg
             space_names = ["w1", "w2"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
             map_name = get_fs_map_name(kern_func_space_name)
-            proxy_name = reference_arg.proxy_name
+            proxy_name = enforce_bc_arg.proxy_name
             self._name_space_manager = NameSpaceFactory().create()
             fs_name = self._name_space_manager.create_name(root_name="fs")
             boundary_dofs_name = self._name_space_manager.create_name(
@@ -2442,7 +2451,7 @@ class DynKern(Kern):
                                entity_decls=[fs_name]))
             new_parent, position = parent.start_parent_loop()
             new_parent.add(AssignGen(new_parent, lhs=fs_name,
-                                     rhs=reference_arg.name +
+                                     rhs=enforce_bc_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
             test_str = ""
