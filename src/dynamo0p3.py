@@ -2295,7 +2295,7 @@ class DynKern(Kern):
         else:
             my_mapping = mapping
         return Kern.written_arg(self, my_mapping)
-    
+
     @property
     def updated_arg(self, mapping=None):
         ''' Returns the kernel argument that is updated (incremented or
@@ -2306,7 +2306,7 @@ class DynKern(Kern):
         except FieldNotFoundError:
             arg = self.written_arg
         return arg
-    
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
