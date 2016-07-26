@@ -133,6 +133,8 @@ In the above example ``field2`` and ``field3`` in ``kernel1`` and
 ``field3`` in ``kernel1`` and ``field4`` in ``kernel2`` will have the
 same ``direction`` value.
 
+An example of the use of stencils is available in ``examples/dynamo0p3/eg5``.
+
 There is currently no attempt to perform type checking in PSyclone so
 any errors in the type and/or position of arguments will not be picked
 up until compile time. However, PSyclone does check for the correct
@@ -410,6 +412,8 @@ Below is an example of stencil information within the full kernel metadata.
        arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
        /)
 
+There is a full example of this distributed with PSyclone. It may
+be found in ``examples/dynamo0p3/eg5``.
 
 meta_funcs
 ##########

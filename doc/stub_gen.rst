@@ -281,6 +281,14 @@ position in the metadata. For a vector field, each vector results in a
 different array. These are distinguished by appending ``_vx`` where ``x`` is
 the number of the vector.
 
+The introduction of stencil operations on field arguments futher complicates
+the argument list of a kernel. An example of the use of the stub generator
+for a kernel that performs stencil operations is provided in
+``examples/dynamo0p3/eg5``.
+::
+
+  > python genkernelstub.py ../examples/dynamo/eg5/conservative_flux_kernel_mod.F90
+
 .. _stub-generation-errors:
 
 Errors
