@@ -3,6 +3,13 @@
 	kind specified in kernel calls from the algorithm layer. For
 	example 0.0_rdef. This will be particularly useful for built-ins.
 
+        2) #475 Fixes any remaining string assert comparison errors in
+	tests. Updates algen_test.py to be pep8, pyflakes and pylint
+	compliant.
+
+	3) #468 Add support for kernels that perform stencil operations.
+	Stencil depth is specified at the algorithm layer.
+
 release 1.2.3
 
         1) #111 Adds support for dynamo0.3 built-in operations running

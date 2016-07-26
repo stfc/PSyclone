@@ -27,6 +27,11 @@ cd dynamo/eg4
 python ../../../src/generator.py -nodm solver_mod.x90
 cd -
 
+echo "Running example dynamo/eg5"
+cd dynamo/eg5
+python ../../../src/generator.py alg.f90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py
@@ -42,4 +47,9 @@ cd -
 echo "Running line-length examples"
 cd line_length
 python runme.py
+cd -
+
+echo "Running stub generation examples"
+cd stub_generation
+python ../../src/genkernelstub.py testkern_stencil_multi_mod.f90
 cd -
