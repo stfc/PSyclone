@@ -1789,13 +1789,12 @@ def test_dyninvoke_arg_for_fs():
 
 
 def test_kernel_specific():
-    '''tests that kernel-specific code is added to the
-    matrix_vector_kernel_mm kernel. This code is required as the
-    dynamo0.3 api does not know about boundary conditions but this
+    ''' Test that a call to enforce boundary conditions is added following
+    a call to the matrix_vector_kernel_type kernel. This code is required
+    as the dynamo0.3 api does not know about boundary conditions but this
     kernel requires them. This "hack" is only supported to get
-    PSyclone to generate correct code for the current
-    implementation of dynamo. Future API's will not support any
-    hacks. '''
+    PSyclone to generate correct code for the current implementation
+    of dynamo. Future API's will not support any hacks. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)

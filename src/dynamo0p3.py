@@ -2277,27 +2277,19 @@ class DynKern(Kern):
         return psy_module.root
 
     @property
-    def incremented_arg(self, mapping=None):
+    def incremented_arg(self):
         ''' Returns the argument corresponding to a field or operator that has
         INC access.  '''
-        if mapping is None:
-            my_mapping = FIELD_ACCESS_MAP
-        else:
-            my_mapping = mapping
-        return Kern.incremented_arg(self, my_mapping)
+        return Kern.incremented_arg(self, FIELD_ACCESS_MAP)
 
     @property
-    def written_arg(self, mapping=None):
+    def written_arg(self):
         ''' Returns the argument corresponding to a field or operator that has
         WRITE access '''
-        if mapping is None:
-            my_mapping = FIELD_ACCESS_MAP
-        else:
-            my_mapping = mapping
-        return Kern.written_arg(self, my_mapping)
+        return Kern.written_arg(self, FIELD_ACCESS_MAP)
 
     @property
-    def updated_arg(self, mapping=None):
+    def updated_arg(self):
         ''' Returns the kernel argument that is updated (incremented or
         written to) '''
         arg = None
@@ -2319,8 +2311,8 @@ class DynKern(Kern):
         # loop then we have to look-up the colour map
         if self.is_coloured():
 
-            # Find which argument object has INC access in order to look-up
-            # the colour map
+            # Find which argument object the kernel writes to (either GH_INC
+            # or GH_WRITE) in order to look-up the colour map
             arg = self.updated_arg
             # TODO Check whether this arg is gh_inc and if not, Warn that
             # we're colouring a kernel that has no field object with INC access
