@@ -116,6 +116,7 @@ def test_group_operations():
             "(f(x + 2 * y, z:z + 2 + -.5) + (g + h) ** (z - 2))",
             names=["f", "g", "h", "x", "y", "z"])
 
+
 def test_literal_array():
     ''' Test parsing of a literal array '''
     my_test("literal array",
