@@ -45,3 +45,11 @@ generating built-ins. (This restriction will be lifted in a future release).
 ::
     cd eg4/
     python ../../../src/generator.py -nodm solver_mod.x90
+
+The fifth example illustrates the use of stencils in kernels and the associated
+passing of extent and direction information (where appropriate) from the
+algorithm layer.
+::
+    cd eg5/
+    python ../../../src/generator.py alg.f90
+

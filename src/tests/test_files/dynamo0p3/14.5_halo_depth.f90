@@ -12,9 +12,11 @@ program halo_depth
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, f3, f4
+  integer :: extent=2
 
-  call invoke(                                    &
-       testkern_stencil_depth_type(f1,f2,f3,f4)   &
+  call invoke(                                             &
+       testkern_stencil_depth_type(f1,f2,extent,f3,extent, &
+                                   f4,extent)              &
           )
 
 end program halo_depth

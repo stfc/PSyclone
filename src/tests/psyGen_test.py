@@ -20,11 +20,12 @@ import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
-from psyGen import GenerationError, FieldNotFoundError
+from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
 from parse import parse
 from transformations import OMPParallelLoopTrans
+from generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -389,6 +390,32 @@ def test_reset():
     ns2 = nsf.create()
     assert ns1 != ns2
 
+# tests for class Call
+
+
+def test_same_name_invalid():
+    '''test that we raise an error if the same name is passed into the
+    same kernel or built-in instance. We need to choose a particular
+    API to check this although the code is in psyGen.py '''
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "1.10_single_invoke_same_name.f90"),
+            api="dynamo0.3")
+    assert ("Argument 'f1' is passed into kernel 'testkern_code' code "
+            "more than once") in str(excinfo.value)
+
+
+def test_same_name_invalid_array():
+    '''test that we raise an error if the same name is passed into the
+    same kernel or built-in instance. In this case arguments have
+    array references and mixed case. We need to choose a particular
+    API to check this although the code is in psyGen.py. '''
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
+            api="dynamo0.3")
+    assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
+            "more than once") in str(excinfo.value)
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
@@ -510,7 +537,10 @@ def test_call_abstract_methods():
     fake_ktype.iterates_over = "something"
     fake_call.ktype = fake_ktype
     fake_call.module_name = "a_name"
-    my_call = Call(fake_call, fake_call, name="a_name", arguments=None)
+    fake_arguments = GenerationError("msg")
+    fake_arguments.args = []
+    my_call = Call(fake_call, fake_call, name="a_name",
+                   arguments=fake_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.__str__()
     assert "Call.__str__ should be implemented" in str(excinfo.value)
@@ -518,3 +548,10 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
     assert "Call.gen_code should be implemented" in str(excinfo.value)
+
+
+def test_haloexchange_unknown_halo_depth():
+    '''test the case when the halo exchange base class is called without
+    a halo depth'''
+    halo_exchange = HaloExchange(None, None, None, None, None)
+    assert halo_exchange._halo_depth == "unknown"

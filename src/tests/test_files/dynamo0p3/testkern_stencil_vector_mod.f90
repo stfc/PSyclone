@@ -8,9 +8,9 @@
 
 module testkern_stencil_vector_mod
   type, extends(kernel_type) :: testkern_stencil_vector_type
-     type(arg_type), dimension(2) :: meta_args =                       &
-          (/ arg_type(gh_field*3,gh_inc,w0),                           &
-             arg_type(gh_field*4,gh_read, w3, stencil(cross,1))        &
+     type(arg_type), dimension(2) :: meta_args =                     &
+          (/ arg_type(gh_field*3,gh_inc,w0),                         &
+             arg_type(gh_field*4,gh_read, w3, stencil(cross))        &
            /)
      integer, parameter :: iterates_over = cells
    contains
