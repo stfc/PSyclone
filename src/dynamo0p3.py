@@ -2044,7 +2044,15 @@ class DynKern(Kern):
                         else:
                             name = arg.stencil.direction_arg.varName
                         arglist.append(name)
-                    if my_type != "subroutine":
+                    if my_type == "subroutine":
+                        name = arg.name+"_stencil_map"
+                        ndf_name = get_fs_ndf_name(arg.function_space)
+                        parent.add(DeclGen(parent, datatype="integer",
+                                           intent="in",
+                                           dimension=ndf_name + "," +
+                                           arg.name + "_extent",
+                                           entity_decls=[name]))
+                    else:
                         # add in stencil dofmap
                         var_name = stencil_dofmap_name(arg)
                         name = var_name+"(:,:,"
@@ -2053,7 +2061,7 @@ class DynKern(Kern):
                         else:
                             name += "cell"
                         name += ")"
-                        arglist.append(name)
+                    arglist.append(name)
 
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
@@ -2113,7 +2121,8 @@ class DynKern(Kern):
             if my_type == "subroutine":
                 parent.add(
                     DeclGen(parent, datatype="integer", intent="in",
-                            entity_decls=[ndf_name]))
+                            entity_decls=[ndf_name]),
+                    position=["before", first_arg_decl.root])
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if field_on_space(unique_fs, self.arguments):
