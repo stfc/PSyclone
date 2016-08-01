@@ -130,6 +130,21 @@ class TestAlgGenClassDynamo0p3(object):
             "my_obj%get_flag(switch))"
             in gen)
 
+    def test_multi_deref_derived_type_args(self):
+        ''' Test the case where a given kernel argument is specified using
+        different derived types in the same invoke. '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.6.3_single_invoke_multiple_derived_types.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert (
+            "CALL invoke_0(f1, obj_a%iflag, f2, m1, m2, obj_b%iflag, "
+            "obj_a%obj_b, obj_b%obj_a)"
+            in gen)
+
     def test_single_stencil(self):
         ''' test extent value is passed correctly from the algorithm layer '''
         path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")

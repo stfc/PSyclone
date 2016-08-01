@@ -4253,6 +4253,46 @@ def test_derived_type_arg():
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
 
 
+def test_multiple_derived_type_args():
+    ''' Test that we generate correct code when kernel arguments are
+    supplied from the algorithm layer as different components of the
+    same derived type object '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.3_single_invoke_multiple_derived_types.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    # Check the four integer variables are named and declared correctly
+    expected = (
+        "    SUBROUTINE invoke_0(f1, obj_a_iflag, f2, m1, m2, "
+        "obj_b_iflag, obj_a_obj_b, obj_b_obj_a)\n"
+        "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
+        "      INTEGER, intent(in) :: obj_a_iflag, obj_b_iflag, "
+        "obj_a_obj_b, obj_b_obj_a\n")
+    assert expected in gen
+    # Check that they are still named correctly when passed to the
+    # kernels
+    assert (
+        "CALL testkern_code(nlayers, f1_proxy%data, obj_a_iflag, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+    assert (
+        "CALL testkern_code(nlayers, f1_proxy%data, obj_b_iflag, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+    assert (
+        "CALL testkern_code(nlayers, f1_proxy%data, obj_a_obj_b, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+    assert (
+        "CALL testkern_code(nlayers, f1_proxy%data, obj_b_obj_a, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+
+
 def test_single_stencil_extent():
     '''test a single stencil access with an extent value passed from the
     algorithm layer is treated correctly in the PSy layer. Test both
