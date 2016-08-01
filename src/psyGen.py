@@ -1538,6 +1538,10 @@ class Argument(object):
             # end up with variable names like 'my_obj%my_val'. We
             # generate the name of the corresponding dummy argument in
             # the PSy layer by simply replacing "%" with "_"...
+            # Note that we retain the full text of the original variable
+            # as the 'label', thus preventing name clashes that would
+            # otherwise result from e.g. my_type_value and my_type%value
+            # or my_type%get_flag(var1) and my_type%get_flag(var2).
             root = self._orig_name.replace("%", "_")
             self._name = self._name_space_manager.create_name(
                 root_name=root, context="AlgArgs", label=self._text)
