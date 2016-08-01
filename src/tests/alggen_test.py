@@ -127,7 +127,7 @@ class TestAlgGenClassDynamo0p3(object):
         print gen
         assert (
             "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag(), "
-            "my_obj%get_flag(switch))"
+            "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
             in gen)
 
     def test_multi_deref_derived_type_args(self):

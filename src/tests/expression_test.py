@@ -145,6 +145,22 @@ def test_type_bound_call():
             "field%get_ndf(a, b)")
 
 
+def test_type_bound_call_deref_arg():
+    ''' Test parsing of call to a type-bound routine which takes arguments,
+    one of which is specified as the component of a derived type. '''
+    my_test("call to type-bound routine with derived-type arg",
+            FORT_EXPRESSION,
+            "field%get_ndf(a, b%c)")
+
+
+def test_type_bound_call_type_bound_arg():
+    ''' Test parsing of call to a type-bound routine which takes arguments,
+    one of which is specified as the result of a type-bound procedure call '''
+    my_test("call to type-bound routine with type-bound arg",
+            FORT_EXPRESSION,
+            "field%get_ndf(a, b%c())")
+
+
 def test_derived_type_deref_arg():
     ''' Test parsing of reference to a component of a derived type passed
     as an argument to a function call '''
