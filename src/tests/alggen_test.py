@@ -115,8 +115,9 @@ class TestAlgGenClassDynamo0p3(object):
                 "qr1(i, k(l)))" in gen)
 
     def test_deref_derived_type_args(self):
-        ''' Test the case where a kernel argument is specified as the
-        component of a derived type '''
+        ''' Test the case where a kernel argument is specified as both a
+        component of a derived type and as the result of a call to a
+        type-bound procedure '''
         alg, _ = generate(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3",
@@ -125,7 +126,8 @@ class TestAlgGenClassDynamo0p3(object):
         gen = str(alg)
         print gen
         assert (
-            "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag())"
+            "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag(), "
+            "my_obj%get_flag(switch))"
             in gen)
 
     def test_single_stencil(self):
