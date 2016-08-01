@@ -778,6 +778,20 @@ def test_field_qr():
     )
     assert output in generated_code
 
+def test_field_qr_deref():
+    ''' Tests that a call, with a set of fields requiring
+    quadrature, produces correct code when the quadrature is supplied as the
+    component of a derived type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.1_single_invoke_qr_deref.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert (
+        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
+        " qr_data)\n" in gen)
+    assert "TYPE(quadrature_type), intent(in) :: qr_data" in gen
 
 def test_real_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
