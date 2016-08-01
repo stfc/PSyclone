@@ -4221,80 +4221,84 @@ def test_derived_type_arg():
     in the PSy layer when its value in the algorithm layer is
     obtained from the component of a derived type or from a type-bound
     procedure call. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.2_single_invoke_1_int_from_derived_type.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    # Check the three integer variables are named and declared correctly
-    expected = (
-        "    SUBROUTINE invoke_0(f1, my_obj_iflag, f2, m1, m2, "
-        "my_obj_get_flag, my_obj_get_flag_1, my_obj_get_flag_2)\n"
-        "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
-        "      INTEGER, intent(in) :: my_obj_iflag, my_obj_get_flag, "
-        "my_obj_get_flag_1, my_obj_get_flag_2\n")
-    assert expected in gen
-    # Check that they are still named correctly when passed to the
-    # kernels
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_1, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_2, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+    for dist_mem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.6.2_single_invoke_1_int_from_derived_type.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        # Check the four integer variables are named and declared correctly
+        expected = (
+            "    SUBROUTINE invoke_0(f1, my_obj_iflag, f2, m1, m2, "
+            "my_obj_get_flag, my_obj_get_flag_1, my_obj_get_flag_2)\n")
+        assert expected in gen
+        expected = (
+            "      INTEGER, intent(in) :: my_obj_iflag, my_obj_get_flag, "
+            "my_obj_get_flag_1, my_obj_get_flag_2\n")
+        assert expected in gen
+        # Check that they are still named correctly when passed to the
+        # kernels
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_iflag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_1, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_2, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
 
 
 def test_multiple_derived_type_args():
     ''' Test that we generate correct code when kernel arguments are
     supplied from the algorithm layer as different components of the
     same derived type object '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.3_single_invoke_multiple_derived_types.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    # Check the four integer variables are named and declared correctly
-    expected = (
-        "    SUBROUTINE invoke_0(f1, obj_a_iflag, f2, m1, m2, "
-        "obj_b_iflag, obj_a_obj_b, obj_b_obj_a)\n"
-        "      USE testkern_one_int_scalar, ONLY: testkern_code\n"
-        "      INTEGER, intent(in) :: obj_a_iflag, obj_b_iflag, "
-        "obj_a_obj_b, obj_b_obj_a\n")
-    assert expected in gen
-    # Check that they are still named correctly when passed to the
-    # kernels
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_a_iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_b_iflag, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_a_obj_b, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
-    assert (
-        "CALL testkern_code(nlayers, f1_proxy%data, obj_b_obj_a, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+    for dist_mem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.6.3_single_invoke_multiple_derived_types.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        # Check the four integer variables are named and declared correctly
+        expected = (
+            "    SUBROUTINE invoke_0(f1, obj_a_iflag, f2, m1, m2, "
+            "obj_b_iflag, obj_a_obj_b, obj_b_obj_a)\n")
+        assert expected in gen
+        expected = (
+            "      INTEGER, intent(in) :: obj_a_iflag, obj_b_iflag, "
+            "obj_a_obj_b, obj_b_obj_a\n")
+        assert expected in gen
+        # Check that they are still named correctly when passed to the
+        # kernels
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_a_iflag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_b_iflag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_a_obj_b, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_b_obj_a, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
 
 
 def test_single_stencil_extent():
