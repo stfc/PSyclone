@@ -1538,6 +1538,28 @@ def test_operator_orientation_different_space():
         "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)" in gen_str)
 
 
+def test_operator_deref():
+    ''' Tests that we generate correct names for an operator in the PSy
+    layer when obtained by de-referencing a derived type in the Algorithm
+    layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
+                               "_type(mm_w0_op, chi, a, qr)") != -1
+    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+                               " mm_w0_op") != -1
+    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
+                               "proxy") != -1
+    assert generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1
+    assert generated_code.find(
+        "CALL testkern_operator_code(cell, nlayers, mm_w0_op_proxy%ncell_3d, "
+        "mm_w0_op_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
+        "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, "
+        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+
+
 def test_any_space_1():
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
