@@ -516,6 +516,74 @@ def test_field():
     assert str(generated_code).find(output) != -1
 
 
+def test_field_deref():
+    ''' Tests that a call with a set of fields (some obtained by
+    de-referencing derived types), no basis functions and
+    no distributed memory, produces correct code.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.13_single_invoke_field_deref.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    generated_code = psy.gen
+    output = (
+        "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, est_m2)\n"
+        "      USE testkern, ONLY: testkern_code\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
+        "est_m2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      est_f2_proxy = est_f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      est_m2_proxy = est_m2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => est_f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => est_m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+        "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
+        "      END DO \n"
+        "      !\n"
+        "    END SUBROUTINE invoke_0_testkern_type\n"
+        "  END MODULE psy_single_invoke")
+    print generated_code
+    assert str(generated_code).find(output) != -1
+
+
 def test_field_fs():
     ''' Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code.'''
