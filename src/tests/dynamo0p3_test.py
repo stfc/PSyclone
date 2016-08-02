@@ -1262,6 +1262,21 @@ def test_vector_field_2():
                                     " chi_proxy(3)%data") != -1
 
 
+def test_vector_field_deref():
+    ''' tests that a vector field is declared correctly in the PSy
+    layer when it is obtained by de-referencing a derived type in the
+    Algorithm layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "8.1_vector_field_deref.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
+                                    "type(f1, box_chi)") != -1
+    assert str(generated_code).find("TYPE(field_type), intent(inout)"
+                                    " :: f1, box_chi(3)") != -1
+
+
 def test_orientation():
     ''' tests that orientation information is created correctly in
     the PSy '''
