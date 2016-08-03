@@ -13,10 +13,7 @@ def my_test(name, parser, test_string, names=None):
     # to work
     from expression import Grouping, BinaryOperator, FunctionVar, Slicing, \
         LiteralArray, NamedArg
-
     pstr = parser.parseString(test_string)
-    for item in pstr:
-        print str(item)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
     # ast.literal_eval can't be used here as the generated expression
     # calls constructors of user-defined objects
@@ -24,6 +21,9 @@ def my_test(name, parser, test_string, names=None):
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
     if names:
         assert pstr.names == set(names), "Names do not match for " + name + "."
+    # Return the object created by the parser so that more specific checks
+    # can be performed
+    return pstr
 
 
 def test_function_calls():
@@ -124,31 +124,40 @@ def test_named_int_arg():
 
 def test_named_logical_arg():
     ''' Test parsing of a named, logical argument '''
-    my_test("named logical arg", FORT_EXPRESSION, "my_arg=.true.")
+    named_arg = my_test("named logical arg", FORT_EXPRESSION,
+                        "my_arg=.true.", names=["my_arg"])
+    assert named_arg.value == ".true."
 
 
 def test_named_real_arg():
     ''' Test parsing of a named, real argument '''
-    my_test("named real arg", FORT_EXPRESSION, "my_arg=-2.0E3")
+    named_arg = my_test("named real arg", FORT_EXPRESSION, "my_arg=-2.0E3",
+                        names=["my_arg"])
+    assert named_arg.value == "-2.0E3"
 
 
 def test_named_str_arg_single_quotes():
     ''' Test parsing a named string argument specified using single
     quotes '''
-    my_test("named arg single quotes", FORT_EXPRESSION, "my_arg='funny'")
+    named_arg = my_test("named arg single quotes", FORT_EXPRESSION,
+                        "my_arg='funny'", names=["my_arg"])
+    assert named_arg.value == "funny"
 
 
 def test_named_str_arg_dble_quotes():
     ''' Test parsing a named string argument specified using double
     quotes '''
-    my_test("named arg double quotes", FORT_EXPRESSION, 'my_arg="funny"')
+    named_arg = my_test("named arg double quotes", FORT_EXPRESSION,
+                        'my_arg="funny"', names=["my_arg"])
+    assert named_arg.value == "funny"
 
 
 def test_named_str_arg_spaces():
     ''' Test parsing a named string argument where the value contains a
     space '''
-    my_test("named arg string with space", FORT_EXPRESSION,
-            'my_arg="very funny"')
+    named_arg = my_test("named arg string with space", FORT_EXPRESSION,
+                        'my_arg="very funny"', names=["my_arg"])
+    assert named_arg.value == "very funny"
 
 
 def test_fn_call_named_arg():
@@ -156,3 +165,11 @@ def test_fn_call_named_arg():
     named argument '''
     my_test("Fn call with named arg", FORT_EXPRESSION,
             "f(x, y=3, z='hello')", names=["f", "x", "y", "z"])
+
+
+def test_named_arg_variable():
+    ''' Test the parsing of a named argument where the value is the name
+    of a variable rather than a constant. '''
+    named_arg = my_test("named arg variable", FORT_EXPRESSION,
+                        "name=this_invoke", names=["name"])
+    assert named_arg.value == "this_invoke"

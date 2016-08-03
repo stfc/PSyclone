@@ -232,6 +232,11 @@ class NamedArg(ExpressionNode):
             _str += str(self._value)
         return _str
 
+    @property
+    def value(self):
+        ''' Returns the value (RHS) of the named argument '''
+        return self._value
+
 
 # Construct a grammar using PyParsing
 
