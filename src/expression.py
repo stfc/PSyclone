@@ -290,10 +290,9 @@ LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 
 # An optional/named argument
 OPTIONAL_VAR = VAR_NAME + "=" + ((NAME | REAL | INTEGER) |
-                                 pparse.QuotedString("'",
-                                                     unquoteResults=False) |
-                                 pparse.QuotedString('"',
-                                                     unquoteResults=False))
+                                 pparse.sglQuotedString() |
+                                 pparse.dblQuotedString())
+
 # lambda creates a temporary function which, in this case, takes three
 # arguments and creates a NamedArg object.
 OPTIONAL_VAR.setParseAction(lambda strg, loc, toks: [NamedArg(toks)])
