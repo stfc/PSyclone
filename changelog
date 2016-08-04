@@ -14,6 +14,9 @@
 	matrix_vector_kernel. The function space check is now always
 	correct (hopefully).
 
+        5) #680 Bug fix: the kernel stub generator was not adding the stencil
+	dofmap required by a field with stencil access.
+
 release 1.2.3
 
         1) #111 Adds support for dynamo0.3 built-in operations running
