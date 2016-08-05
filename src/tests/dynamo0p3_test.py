@@ -4812,7 +4812,8 @@ def test_multiple_kernels_stencils_different_fields():
 def test_extent_name_clash():
     '''Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
-    would clash with a stencil name and stencil dofmap variables.'''
+    would clash with stencil-name, stencil-dofmap and stencil-size
+    variables.'''
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
@@ -4822,28 +4823,35 @@ def test_extent_name_clash():
         result = str(psy.gen)
         print result
         output1 = (
-            "    SUBROUTINE invoke_0_testkern_stencil_type(f2_stencil_map, "
-            "f2, f2_stencil_dofmap, stencil_cross_1, f2_extent)")
+            "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
+            "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
+            "f2_extent, f3_stencil_size)")
         assert output1 in result
         output2 = (
             "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
             "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type")
         assert output2 in result
         output3 = (
-            "      INTEGER, intent(in) :: f2_extent\n"
-            "      TYPE(field_type), intent(inout) :: f2_stencil_map\n"
+            "      INTEGER, intent(in) :: f2_extent, f3_stencil_size\n"
+            "      TYPE(field_type), intent(inout) :: f2_stencil_map, "
+            "f3_stencil_map\n"
             "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
-            "stencil_cross_1\n")
+            "stencil_cross_1, f3, f3_stencil_dofmap\n")
         assert output3 in result
         output4 = (
+            "      INTEGER f3_stencil_size_1\n"
+            "      INTEGER, pointer :: f3_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
+            "null()\n"
             "      INTEGER f2_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
-            "null()")
+            "null()\n")
         assert output4 in result
         output5 = (
             "      TYPE(field_proxy_type) f2_stencil_map_proxy, f2_proxy, "
-            "f2_stencil_dofmap_proxy, stencil_cross_1_proxy")
+            "f2_stencil_dofmap_proxy, stencil_cross_1_proxy, "
+            "f3_stencil_map_proxy, f3_proxy, f3_stencil_dofmap_proxy\n")
         assert output5 in result
         output6 = (
             "      stencil_cross_1_proxy = stencil_cross_1%get_proxy()")
@@ -4856,6 +4864,10 @@ def test_extent_name_clash():
             "      f2_stencil_dofmap_1 => "
             "f2_stencil_map_1%get_whole_dofmap()\n"
             "      f2_stencil_size = f2_stencil_map_1%get_size()\n"
+            "      f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f3_stencil_size)\n"
+            "      f3_stencil_dofmap_1 => f3_stencil_map_1%get_whole_dofmap()\n"
+            "      f3_stencil_size_1 = f3_stencil_map_1%get_size()\n"
             "      !\n")
         assert output7 in result
         output8 = (
@@ -4865,6 +4877,13 @@ def test_extent_name_clash():
             "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
             "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
         assert output8 in result
+        output9 = (
+            "        CALL testkern_stencil_code(nlayers, "
+            "f3_stencil_map_proxy%data, f3_proxy%data, f3_stencil_size_1, "
+            "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_proxy%data, "
+            "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output9 in result
 
 
 def test_two_stencils_same_field():
