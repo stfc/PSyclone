@@ -4835,6 +4835,7 @@ def test_extent_name_clash():
             "stencil_cross_1\n")
         assert output3 in result
         output4 = (
+            "      INTEGER f2_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
             "null()")
