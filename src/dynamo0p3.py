@@ -758,8 +758,16 @@ class DynInvokeStencil(object):
                     if not arg.stencil.extent:
                         if not arg.stencil.extent_arg.is_literal():
                             if arg.stencil.extent_arg.text not in extent_names:
-                                extent_names.append(
-                                    arg.stencil.extent_arg.text)
+                                extent_names.append(arg.stencil.extent_arg.text)
+                                # Record this name with our name-space manager
+                                # so that it has a record of this variable
+                                # name. This avoids clashes with any
+                                # names we'll subsequently generate in
+                                # the PSy layer.
+                                self._name_space_manager.create_name(
+                                    root_name=arg.stencil.extent_arg.text,
+                                    context="PSyVars",
+                                    label=arg.name+"_stencil_size")
                                 self._unique_extent_args.append(arg)
 
         # a list of arguments that have a direction variable passed in
@@ -781,6 +789,14 @@ class DynInvokeStencil(object):
                            direction_names:
                             direction_names.append(
                                 arg.stencil.direction_arg.text)
+                            # Again, use our name-space manager to
+                            # avoid clashes with any variable names
+                            # we'll subsequently generate in the PSy
+                            # layer
+                            self._name_space_manager.create_name(
+                                root_name=arg.stencil.direction_arg.text,
+                                context="PSyVars",
+                                label=arg.name+"_stencil_direction")
                             self._unique_direction_args.append(arg)
 
         # list of stencil args with an extent variable passed in. The same
