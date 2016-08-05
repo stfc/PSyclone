@@ -3031,6 +3031,7 @@ def test_stub_stencil_extent():
         "INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) "
         ":: field_2_stencil_map" in generated_code)
 
+
 def test_stub_stencil_direction():
     '''Check that correct stub code is produced when there is a stencil
     access which requires a direction argument '''
