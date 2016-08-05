@@ -3025,7 +3025,7 @@ def test_stub_stencil_extent():
         "field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
         "ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
-    result2 = "      INTEGER, intent(in) :: field_2_stencil_size"
+    result2 = "INTEGER, intent(in) :: field_2_stencil_size"
     assert result2 in generated_code
     assert (
         "INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) "
@@ -4257,10 +4257,10 @@ def test_single_stencil_extent():
         output3 = ("      INTEGER, intent(in) :: f2_extent\n")
         assert output3 in result
         output4 = (
+            "      INTEGER f2_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-            "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "null()\n")
         assert output4 in result
         output5 = (
             "      !\n"
@@ -4306,10 +4306,10 @@ def test_single_stencil_xory1d():
             "      INTEGER, intent(in) :: f2_direction\n")
         assert output3 in result
         output4 = (
+            "      INTEGER f2_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-            "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "null()\n")
         assert output4 in result
         output5 = (
             "      !\n"
@@ -4355,10 +4355,10 @@ def test_single_stencil_literal():
             "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
         assert output2 in result
         output3 = (
+            "      INTEGER f2_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-            "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "null()\n")
         assert output3 in result
         output4 = (
             "      !\n"
@@ -4421,10 +4421,10 @@ def test_single_stencil_xory1d_literal():
             "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
         assert output2 in result
         output3 = (
+            "      INTEGER f2_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-            "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "null()\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
@@ -4481,7 +4481,7 @@ def test_single_stencil_xory1d_literal_mixed():
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "      INTEGER f2_stencil_size\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
@@ -4542,15 +4542,15 @@ def test_multiple_stencils():
             "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
             "null()\n"
-            "      INTEGER :: f4_stencil_size\n"
+            "      INTEGER f4_stencil_size\n"
             "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
             "null()\n"
-            "      INTEGER :: f3_stencil_size\n"
+            "      INTEGER f3_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "      INTEGER f2_stencil_size\n")
         assert output4 in result
         output5 = (
             "      ! Initialise stencil dofmaps\n"
@@ -4618,15 +4618,15 @@ def test_multiple_stencil_same_name():
             "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
             "null()\n"
-            "      INTEGER :: f4_stencil_size\n"
+            "      INTEGER f4_stencil_size\n"
             "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
             "null()\n"
-            "      INTEGER :: f3_stencil_size\n"
+            "      INTEGER f3_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "      INTEGER f2_stencil_size\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
@@ -4684,15 +4684,15 @@ def test_multiple_stencil_same_name_direction():
             "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
             "null()\n"
-            "      INTEGER :: f4_stencil_size\n"
+            "      INTEGER f4_stencil_size\n"
             "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
             "null()\n"
-            "      INTEGER :: f3_stencil_size\n"
+            "      INTEGER f3_stencil_size\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n"
-            "      INTEGER :: f2_stencil_size\n")
+            "      INTEGER f2_stencil_size\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
@@ -4770,11 +4770,11 @@ def test_multiple_kernels_stencils_different_fields():
             "      INTEGER, pointer :: f2b_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2b_stencil_map "
             "=> null()\n"
-            "      INTEGER :: f2b_stencil_size\n"
+            "      INTEGER f2b_stencil_size\n"
             "      INTEGER, pointer :: f2a_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2a_stencil_map "
             "=> null()\n"
-            "      INTEGER :: f2a_stencil_size\n")
+            "      INTEGER f2a_stencil_size\n")
         assert output4 in result
         output5 = (
             "      !\n"
@@ -4886,13 +4886,13 @@ def test_two_stencils_same_field():
             "null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map_1 "
             "=> null()"
-            "      INTEGER :: f2_w2_stencil_size_1\n")
+            "      INTEGER f2_w2_stencil_size_1\n")
         assert output2 in result
         output3 = (
             "      INTEGER, pointer :: f2_w2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map "
             "=> null()"
-            "      INTEGER :: f2_w2_stencil_size\n")
+            "      INTEGER f2_w2_stencil_size\n")
         assert output3 in result
         output4 = (
             "      f2_w2_stencil_map => f2_w2_proxy%vspace%get_stencil_dofmap"
@@ -4945,11 +4945,11 @@ def test_stencils_same_field_literal_extent():
             "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
             "=> null()\n"
-            "      INTEGER :: f2_stencil_size_1\n"
+            "      INTEGER f2_stencil_size_1\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
             "=> null()"
-            "      INTEGER :: f2_stencil_size\n")
+            "      INTEGER f2_stencil_size\n")
         assert output1 in result
         output2 = (
             "      !\n"
@@ -4996,11 +4996,11 @@ def test_stencils_same_field_literal_direction():
             "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
             "=> null()\n"
-            "      INTEGER :: f2_stencil_size_1\n"
+            "      INTEGER f2_stencil_size_1\n"
             "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
             "=> null()"
-            "      INTEGER :: f2_stencil_size\n")
+            "      INTEGER f2_stencil_size\n")
         assert output1 in result
         output2 = (
             "      !\n"
@@ -5110,11 +5110,11 @@ def test_single_kernel_multi_field_same_stencil():
             "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
             "null()\n"
-            "      INTEGER :: f3_stencil_size\n"
+            "      INTEGER f3_stencil_size\n"
             "      INTEGER, pointer :: f1_stencil_dofmap(:,:,:) => null()\n"
             "      TYPE(stencil_dofmap_type), pointer :: f1_stencil_map => "
             "null()\n"
-            "      INTEGER :: f1_stencil_size\n")
+            "      INTEGER f1_stencil_size\n")
         assert output3 in result
         output4 = (
             "      ! Initialise stencil dofmaps\n"
