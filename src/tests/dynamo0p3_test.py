@@ -4866,7 +4866,8 @@ def test_extent_name_clash():
             "      f2_stencil_size = f2_stencil_map_1%get_size()\n"
             "      f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
             "STENCIL_CROSS,f3_stencil_size)\n"
-            "      f3_stencil_dofmap_1 => f3_stencil_map_1%get_whole_dofmap()\n"
+            "      f3_stencil_dofmap_1 => "
+            "f3_stencil_map_1%get_whole_dofmap()\n"
             "      f3_stencil_size_1 = f3_stencil_map_1%get_size()\n"
             "      !\n")
         assert output7 in result

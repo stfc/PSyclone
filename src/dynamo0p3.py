@@ -758,7 +758,8 @@ class DynInvokeStencil(object):
                     if not arg.stencil.extent:
                         if not arg.stencil.extent_arg.is_literal():
                             if arg.stencil.extent_arg.text not in extent_names:
-                                extent_names.append(arg.stencil.extent_arg.text)
+                                extent_names.append(
+                                    arg.stencil.extent_arg.text)
                                 # Record this name with our name-space manager
                                 # so that it has a record of this variable
                                 # name. This avoids clashes with any
