@@ -7,9 +7,9 @@ Download
 --------
 
 PSyclone is available for download from the Met Office Science
-Repository Service (SRS). The latest release is 1.2.3.
+Repository Service (SRS). The latest release is 1.2.4.
 
-``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/tags/vn1.2.3 PSyclone``
+``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/tags/vn1.2.4 PSyclone``
 
 The latest stable version is maintained on the trunk.
 
