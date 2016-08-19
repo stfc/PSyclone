@@ -4809,7 +4809,7 @@ def test_multiple_kernels_stencils_different_fields():
         assert output8 in result
 
 
-@pytest.mark.xfail(reason="bug : stencil name clashes currently not dealt with")
+@pytest.mark.xfail(reason="bug : stencil name clashes not dealt with")
 def test_extent_name_clash():
     '''Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
