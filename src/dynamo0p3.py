@@ -725,6 +725,16 @@ def stencil_dofmap_name(arg):
         root_name=root_name, context="PSyVars", label=unique)
 
 
+def stencil_size_name(arg):
+    ''' returns a valid unique name for the size (in cells) of a stencil
+    in the PSy layer '''
+    root_name = arg.name + "_stencil_size"
+    unique = stencil_unique_str(arg, "size")
+    name_space_manager = NameSpaceFactory().create()
+    return name_space_manager.create_name(
+        root_name=root_name, context="PSyVars", label=unique)
+
+
 class DynInvokeStencil(object):
     '''stencil information and code generation associated with a
     DynInvoke call'''
@@ -901,6 +911,12 @@ class DynInvokeStencil(object):
                     parent.add(AssignGen(parent, pointer=True,
                                          lhs=stencil_dofmap_name(arg),
                                          rhs=map_name + "%get_whole_dofmap()"))
+
+                    # Add declaration and look-up of stencil size
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       entity_decls=[stencil_size_name(arg)]))
+                    parent.add(AssignGen(parent, lhs=stencil_size_name(arg),
+                                         rhs=map_name + "%get_size()"))
 
 
 class DynInvoke(Invoke):
@@ -1856,8 +1872,9 @@ class DynKern(Kern):
 
             if descriptor.stencil:
                 if not descriptor.stencil["extent"]:
-                    # extent is passed in
-                    args.append(Arg("variable", pre+str(idx+1)+"_extent"))
+                    # stencil size (in cells) is passed in
+                    args.append(Arg("variable",
+                                    pre+str(idx+1)+"_stencil_size"))
                 if descriptor.stencil["type"] == "xory1d":
                     # direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
@@ -2026,12 +2043,12 @@ class DynKern(Kern):
                         # the extent is not specified in the metadata
                         # so pass the value in
                         if my_type == "subroutine":
-                            name = arg.name+"_extent"
+                            name = arg.name + "_stencil_size"
                             parent.add(DeclGen(parent, datatype="integer",
                                                intent="in",
                                                entity_decls=[name]))
                         else:
-                            name = stencil_extent_value(arg)
+                            name = stencil_size_name(arg)
                         arglist.append(name)
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # the direction of the stencil is not known so
@@ -2050,7 +2067,7 @@ class DynKern(Kern):
                         parent.add(DeclGen(parent, datatype="integer",
                                            intent="in",
                                            dimension=ndf_name + "," +
-                                           arg.name + "_extent",
+                                           arg.name + "_stencil_size",
                                            entity_decls=[name]))
                     else:
                         # add in stencil dofmap

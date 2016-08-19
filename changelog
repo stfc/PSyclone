@@ -1,3 +1,8 @@
+        1) #686 Stencil extents (depth of the stencil) are now changed to
+	stencil sizes (number of elements in the stencil) in the PSy-layer
+	as the algorithm expects to provide the former and the kernel
+	expects to receive the latter.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

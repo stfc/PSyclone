@@ -191,7 +191,7 @@ def test_colour_trans_stencil():
 
         # Check that we index the stencil dofmap appropriately
         assert ("          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-                "f2_proxy%data, f2_extent, "
+                "f2_proxy%data, f2_stencil_size, "
                 "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
                 "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, "
                 "map_w2, ndf_w3, undf_w3, map_w3)") in gen
