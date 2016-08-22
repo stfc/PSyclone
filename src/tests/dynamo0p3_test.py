@@ -4809,7 +4809,6 @@ def test_multiple_kernels_stencils_different_fields():
         assert output8 in result
 
 
-@pytest.mark.xfail(reason="bug : stencil name clashes not dealt with")
 def test_extent_name_clash():
     '''Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
@@ -5262,6 +5261,52 @@ def test_multi_kernel_any_space_stencil_1():
             "ndf_any_space_2_f2, undf_any_space_2_f2, map_any_space_2_f2)")
         assert output3 in result
 
+
+def test_stencil_args_unique_1():
+    '''This test checks that stencil extent and direction arguments do not
+    clash with internal names generated in the PSy-layer. f2_stencil_size
+    and nlayers are chosen as the names that would clash.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.21_stencil_names_clash.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        assert "broken" in result
+
+
+def test_stencil_args_unique_2():
+    '''This test checks that stencil extent and direction arguments are
+    unique within the generated PSy-layer when they are accessed as
+    indexed arrays, with the same array name, from the algorithm
+    layer.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.22_stencil_names_indexed.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        assert "broken" in result
+
+
+@pytest.mark.xfail(reason="deref in invokes not yet supported")
+def test_stencil_args_unique_3():
+    '''This test checks that stencil extent and direction arguments are
+    unique within the generated PSy-layer when they are dereferenced,
+    with the same type/class name, from the algorithm layer. '''
+    for dist_mem in [False, True]:
+        with pytest.raises(ParseError) as err:
+            _, invoke_info = parse(
+                os.path.join(BASE_PATH,
+                             "19.23_stencil_names_deref.f90"),
+                api="dynamo0.3", distributed_memory=dist_mem)
+        assert "I should not raise a parse error" in str(err)
 
 def test_dynloop_load_unexpected_function_space():
     '''The load function of an instance of the dynloop class raises an
