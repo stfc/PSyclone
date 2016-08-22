@@ -2689,7 +2689,7 @@ class DynKernelArguments(Arguments):
                         root_name=stencil.extent_arg.varName,
                         context="AlgArgs",
                         label=stencil.extent_arg.text)
-                    stencil.extent_arg._varName = unique_name
+                    stencil.extent_arg.varName = unique_name
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
@@ -2703,7 +2703,7 @@ class DynKernelArguments(Arguments):
                             root_name=stencil.direction_arg.varName,
                             context="AlgArgs",
                             label=stencil.direction_arg.text)
-                        stencil.direction_arg._varName = unique_name
+                        stencil.direction_arg.varName = unique_name
                     idx += 1
                 dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
