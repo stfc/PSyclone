@@ -5571,18 +5571,20 @@ def test_stencil_args_unique_2():
         assert output5 in result
 
 
-@pytest.mark.xfail(reason="deref in invokes not yet supported")
 def test_stencil_args_unique_3():
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are dereferenced,
     with the same type/class name, from the algorithm layer. '''
     for dist_mem in [False, True]:
-        with pytest.raises(ParseError) as err:
-            _, _ = parse(
-                os.path.join(BASE_PATH,
-                             "19.23_stencil_names_deref.f90"),
-                api="dynamo0.3", distributed_memory=dist_mem)
-        assert "I should not raise a parse error" in str(err)
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.23_stencil_names_deref.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        exit(1)
 
 
 def test_dynloop_load_unexpected_function_space():
