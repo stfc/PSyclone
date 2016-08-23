@@ -5,12 +5,14 @@ program single_stencil
   use testkern_stencil_mod, only: testkern_stencil_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f2_dofmap,f2,f3,f4
-  integer :: f2_extent=1
+  type(field_type) :: f2_dofmap,f2,f3
+  integer :: f2_extent=1, f3_stencil_size=1
 
-  call invoke(                                            &
-       testkern_stencil_type(f2_stencil_map,f2,f2_extent, &
-       f2_stencil_dofmap,stencil_cross)                   &
+  call invoke(                                                  &
+       testkern_stencil_type(f2_stencil_map,f2,f2_extent,       &
+                             f2_stencil_dofmap,stencil_cross),  &
+       testkern_stencil_type(f3_stencil_map,f3,f3_stencil_size, &
+                             f3_stencil_dofmap,stencil_cross)   &
        )
 
 end program single_stencil

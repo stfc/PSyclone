@@ -698,6 +698,11 @@ class Arg(object):
     def varName(self):
         return self._varName
 
+    @varName.setter
+    def varName(self, value):
+        ''' sets the varName value '''
+        self._varName = value
+
     def is_literal(self):
         if self._form == "literal":
             return True

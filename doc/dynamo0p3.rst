@@ -91,8 +91,10 @@ access.
 
   call invoke(kernel(field1, field2, 2))
 
-where, again, ``field2`` has kernel metadata specifying that is has a
+where, again, ``field2`` has kernel metadata specifying that it has a
 stencil access.
+
+.. note:: The stencil extent specified in the Algorithm layer is not the same as the stencil size passed in to the Kernel. The latter contains the number of cells in the stencil which is dependent on both the stencil type and extent.
 
 If the Kernel metadata specifies that the stencil is of type
 ``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
@@ -366,7 +368,8 @@ it is expected to be provided by the algorithm writer as part of the
 ``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
 is currently no way to specify a fixed extent value for stencils in the
 Kernel metadata, Kernels must therefore be written to support
-different values of extent.
+different values of extent (i.e. stencils with a variable number of
+cells).
 
 The ``XORY1D`` stencil type indicates that the Kernel can accept
 either ``X1D`` or ``Y1D`` stencils. In this case it is up to the
@@ -461,7 +464,7 @@ rules, along with PSyclone's naming conventions, are:
     1) if the current entry is a scalar quantity then include the Fortran variable in the argument list. The intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
     2) if the current entry is a field then include the field array. The field array name is currently specified as being ``"field_"<argument_position>"_"<field_function_space>``. A field array is a real array of type ``r_def`` and dimensioned as the unique degrees of freedom for the space that the field operates on. This value is passed in separately. Again, the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-       1) If the field entry has a stencil access then add an integer extent argument with intent ``in``.
+       1) If the field entry has a stencil access then add an integer stencil-size argument with intent ``in``. This will supply the number of cells in the stencil.
        2) If the field entry stencil access is of type ``XORY1D`` then add an integer direction argument with intent ``in``.
 
     3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
