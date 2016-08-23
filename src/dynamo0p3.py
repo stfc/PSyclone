@@ -2696,9 +2696,10 @@ class DynKernelArguments(Arguments):
                     stencil.direction_arg = call.args[idx]
                     if stencil.direction_arg.varName not in \
                        VALID_STENCIL_DIRECTIONS:
-                        # diection_arg is not a standard dynamo argument, it is
-                        # an Arg object created by the parser. Therefore its
-                        # name may clash. We register and update the name here.
+                        # direction_arg is not a standard dynamo
+                        # argument, it is an Arg object created by the
+                        # parser. Therefore its name may clash. We
+                        # register and update the name here.
                         unique_name = self._name_space_manager.create_name(
                             root_name=stencil.direction_arg.varName,
                             context="AlgArgs",
