@@ -3,6 +3,9 @@
 	as the algorithm expects to provide the former and the kernel
 	expects to receive the latter.
 
+        2) #706 Avoid potential name clashes with stencil extent and
+	direction arguments (as well as nlayers).
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

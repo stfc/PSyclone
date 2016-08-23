@@ -1987,10 +1987,14 @@ class DynKern(Kern):
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=["cell"]))
         # 1: provide mesh height
-        arglist.append("nlayers")
         if my_type == "subroutine":
+            arglist.append("nlayers")
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                entity_decls=["nlayers"]))
+        else:
+            nlayers_name = self._name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
+            arglist.append(nlayers_name)
         # 2: Provide data associated with fields in the order
         #    specified in the metadata.  If we have a vector field
         #    then generate the appropriate number of arguments.  If
@@ -2649,6 +2653,8 @@ class DynKernelArguments(Arguments):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
 
+        self._name_space_manager = NameSpaceFactory().create()
+
         Arguments.__init__(self, parent_call)
 
         # check that the arguments provided by the algorithm layer are
@@ -2676,10 +2682,29 @@ class DynKernelArguments(Arguments):
                 else:
                     # an extent argument has been added
                     stencil.extent_arg = call.args[idx]
+                    # extent_arg is not a standard dynamo argument, it is
+                    # an Arg object created by the parser. Therefore its
+                    # name may clash. We register and update the name here.
+                    unique_name = self._name_space_manager.create_name(
+                        root_name=stencil.extent_arg.varName,
+                        context="AlgArgs",
+                        label=stencil.extent_arg.text)
+                    stencil.extent_arg.varName = unique_name
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
+                    if stencil.direction_arg.varName not in \
+                       VALID_STENCIL_DIRECTIONS:
+                        # direction_arg is not a standard dynamo
+                        # argument, it is an Arg object created by the
+                        # parser. Therefore its name may clash. We
+                        # register and update the name here.
+                        unique_name = self._name_space_manager.create_name(
+                            root_name=stencil.direction_arg.varName,
+                            context="AlgArgs",
+                            label=stencil.direction_arg.text)
+                        stencil.direction_arg.varName = unique_name
                     idx += 1
                 dyn_argument.stencil = stencil
             self._args.append(dyn_argument)

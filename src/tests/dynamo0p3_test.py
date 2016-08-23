@@ -4809,7 +4809,6 @@ def test_multiple_kernels_stencils_different_fields():
         assert output8 in result
 
 
-@pytest.mark.xfail(reason="bug : stencil name clashes not dealt with")
 def test_extent_name_clash():
     '''Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
@@ -5261,6 +5260,126 @@ def test_multi_kernel_any_space_stencil_1():
             "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
             "ndf_any_space_2_f2, undf_any_space_2_f2, map_any_space_2_f2)")
         assert output3 in result
+
+
+def test_stencil_args_unique_1():
+    '''This test checks that stencil extent and direction arguments do not
+    clash with internal names generated in the PSy-layer. f2_stencil_size
+    and nlayers are chosen as the names that would clash.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.21_stencil_names_clash.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        # we use f2_stencil_size for extent and nlayers for direction
+        # as arguments
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
+                   "f2, f3, f4, f2_stencil_size, nlayers)")
+        assert output1 in result
+        output2 = ("      INTEGER, intent(in) :: f2_stencil_size\n"
+                   "      INTEGER, intent(in) :: nlayers")
+        assert output2 in result
+        output3 = "      INTEGER f2_stencil_size_1"
+        assert output3 in result
+        # therefore the local variable is now declared as nlayers_1"
+        output4 = "      INTEGER nlayers_1"
+        assert output4 in result
+        output5 = "      nlayers_1 = f1_proxy%vspace%get_nlayers()"
+        assert output5 in result
+        output6 = (
+            "      IF (nlayers .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_stencil_size)\n"
+            "      END IF \n"
+            "      IF (nlayers .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_stencil_size)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size_1 = f2_stencil_map%get_size()")
+        assert output6 in result
+        output7 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers_1, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, nlayers, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output7 in result
+
+
+def test_stencil_args_unique_2():
+    '''This test checks that stencil extent and direction arguments are
+    unique within the generated PSy-layer when they are accessed as
+    indexed arrays, with the same array name, from the algorithm
+    layer.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.22_stencil_names_indexed.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = ("    SUBROUTINE invoke_0(f1, f2, f3, f4, f2_info, "
+                   "f2_info_2, f2_info_1, f2_info_3)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, intent(in) :: f2_info, f2_info_2\n"
+            "      INTEGER, intent(in) :: f2_info_1, f2_info_3")
+        assert output2 in result
+        output3 = (
+            "      IF (f2_info_1 .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_info)\n"
+            "      END IF \n"
+            "      IF (f2_info_1 .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_info)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      IF (f2_info_3 .eq. x_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_info_2)\n"
+            "      END IF \n"
+            "      IF (f2_info_3 .eq. y_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_info_2)\n"
+            "      END IF ")
+        assert output3 in result
+        output4 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_info_1, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output4 in result
+        output5 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, f2_info_3, "
+            "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output5 in result
+
+
+@pytest.mark.xfail(reason="deref in invokes not yet supported")
+def test_stencil_args_unique_3():
+    '''This test checks that stencil extent and direction arguments are
+    unique within the generated PSy-layer when they are dereferenced,
+    with the same type/class name, from the algorithm layer. '''
+    for dist_mem in [False, True]:
+        with pytest.raises(ParseError) as err:
+            _, _ = parse(
+                os.path.join(BASE_PATH,
+                             "19.23_stencil_names_deref.f90"),
+                api="dynamo0.3", distributed_memory=dist_mem)
+        assert "I should not raise a parse error" in str(err)
 
 
 def test_dynloop_load_unexpected_function_space():
