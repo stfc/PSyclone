@@ -6,6 +6,8 @@
         2) #706 Avoid potential name clashes with stencil extent and
 	direction arguments (as well as nlayers).
 
+	3) #673 Fixed an xfailing built-in test
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
