@@ -5375,7 +5375,7 @@ def test_stencil_args_unique_3():
     with the same type/class name, from the algorithm layer. '''
     for dist_mem in [False, True]:
         with pytest.raises(ParseError) as err:
-            _, invoke_info = parse(
+            _, _ = parse(
                 os.path.join(BASE_PATH,
                              "19.23_stencil_names_deref.f90"),
                 api="dynamo0.3", distributed_memory=dist_mem)
