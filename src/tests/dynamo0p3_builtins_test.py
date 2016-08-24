@@ -310,6 +310,15 @@ def test_builtin_set_plus_normal():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
+    dofmap_output = (
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n")
+    assert dofmap_output in code
+    
     output = (
         "      ! Initialise sizes and allocate any basis arrays for w3\n"
         "      !\n"
@@ -322,20 +331,14 @@ def test_builtin_set_plus_normal():
         "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        CALL testkern_code(nlayers, ginger, f1_proxy%data, "
-        "f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-        "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+        "map_w3(:,cell))\n"
         "      END DO \n"
         "      DO df=1,undf_any_space_1_f1\n"
         "        f1_proxy%data(df) = 0.0\n"
