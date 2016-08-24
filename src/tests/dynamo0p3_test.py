@@ -1562,7 +1562,8 @@ def test_any_space_1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
-    assert ("INTEGER, pointer :: map_any_space_2_b(:,:) => null(), "
+    assert ("INTEGER, pointer :: map_w0(:,:) => null(), "
+            "map_any_space_2_b(:,:) => null(), "
             "map_any_space_1_a(:,:) => null()\n" in generated_code)
     assert generated_code.find(
         "REAL(KIND=r_def), allocatable :: basis_any_space_1_a(:,:,:,:), "
@@ -1880,13 +1881,17 @@ def test_multikernel_invoke_1():
                                         "4_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
+    print generated_code
     # check that argument names are not replicated
     output1 = "SUBROUTINE invoke_0(a, f1, f2, m1, m2)"
-    assert str(generated_code).find(output1) != -1
+    assert generated_code.find(output1) != -1
     # check that only one proxy initialisation is produced
     output2 = "f1_proxy = f1%get_proxy()"
-    assert str(generated_code).count(output2) == 1
+    assert generated_code.count(output2) == 1
+    # check that we only initialise dofmaps once
+    output3 = "map_w2 => f2_proxy%vspace%get_whole_dofmap()"
+    assert generated_code.count(output3) == 1
 
 
 def test_multikernel_invoke_qr():
@@ -1964,6 +1969,7 @@ def test_2kern_invoke_any_space():
             "map_any_space_1_f2(:,:) => null()\n"
             in gen)
     assert "map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
+    assert "map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
         " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
