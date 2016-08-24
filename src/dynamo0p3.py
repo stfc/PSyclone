@@ -938,7 +938,7 @@ class DynInvokeDofmaps(object):
                     if field_on_space(unique_fs, call.arguments):
                         map_name = get_fs_map_name(unique_fs)
                         if map_name not in self._unique_fs_maps:
-                            field = call._arguments.get_arg_on_space(unique_fs)
+                            field = call.arguments.get_arg_on_space(unique_fs)
                             self._unique_fs_maps[map_name] = field
 
     def initialise_dofmaps(self, parent):
@@ -951,28 +951,28 @@ class DynInvokeDofmaps(object):
         # If we've got no dofmaps then we do nothing
         if not self._unique_fs_maps:
             return
-        
+
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
                               " Look-up dofmaps for each function space"))
         parent.add(CommentGen(parent, ""))
-        
-        for map, field in self._unique_fs_maps.items():
-            parent.add(AssignGen(parent, pointer=True, lhs=map,
+
+        for dmap, field in self._unique_fs_maps.items():
+            parent.add(AssignGen(parent, pointer=True, lhs=dmap,
                                  rhs=field.proxy_name_indexed +
                                  "%" + field.ref_name() +
                                  "%get_whole_dofmap()"))
 
     def declare_dofmaps(self, parent):
         ''' Declare all unique function space dofmaps as pointers to
-        integer arrays of rank 2. The declarations are added as 
+        integer arrays of rank 2. The declarations are added as
         children of the supplied parent argument. This must be an
         appropriate f2pygen object. '''
         from f2pygen import DeclGen
-        decl_map_names = []
-        for map in self._unique_fs_maps:
-            decl_map_names.append(map+"(:,:) => null()")
-        if len(decl_map_names) > 0:
+        decl_map_names = \
+            [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
+
+        if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_map_names))
 
@@ -1214,7 +1214,7 @@ class DynInvoke(Invoke):
 
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
-        
+
         fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields
         for intent in FORTRAN_INTENT_NAMES:
@@ -2042,13 +2042,13 @@ class DynKern(Kern):
             parent.add(UseGen(parent, name="constants_mod", only=True,
                               funcnames=["r_def"]))
 
-        cell_ref_name = "cell"
         # Store the expression used to get the current cell index when
         # the kernel is called. If the parent loop has been coloured
         # then this requires a look-up from the colour map.
+        cell_ref_name = "cell"
         if my_type == "call" and self.is_coloured():
             cell_ref_name = "cmap(colour, cell)"
-  
+
         # create the argument list
         arglist = []
         if self._arguments.has_operator:
@@ -2150,8 +2150,7 @@ class DynKern(Kern):
                     else:
                         # add in stencil dofmap
                         var_name = stencil_dofmap_name(arg)
-                        name = var_name + "(:,:," + cell_ref_name
-                        name += ")"
+                        name = var_name + "(:,:," + cell_ref_name + ")"
                     arglist.append(name)
 
             elif arg.type == "gh_operator":
@@ -2438,9 +2437,9 @@ class DynKern(Kern):
             new_parent.add(CommentGen(new_parent, ""),
                            position=["before", position])
 
-            # We must pass the colour map to the dofmap/orientation
-            # lookup rather than just the cell
-            dofmap_args = "cmap(colour, cell)"
+            # We must look-up the cell index using the colour map rather than
+            # use the current cell index directly
+            cell_index = "cmap(colour, cell)"
         else:
             # This kernel call has not been coloured
             #  - is it OpenMP parallel, i.e. are we a child of
@@ -2458,8 +2457,8 @@ class DynKern(Kern):
                                           "be coloured in order to be "
                                           "parallelised with OpenMP".
                                           format(self._name))
-            dofmap_args = "cell"
-            
+            cell_index = "cell"
+
         parent.add(CommentGen(parent, ""))
 
         # orientation arrays initialisation and their declarations
@@ -2477,7 +2476,7 @@ class DynKern(Kern):
                                   rhs=field.proxy_name_indexed + "%" +
                                   field.ref_name(unique_fs) +
                                   "%get_cell_orientation(" +
-                                  dofmap_args + ")"))
+                                  cell_index + ")"))
         if orientation_decl_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=orientation_decl_names))
@@ -2543,7 +2542,7 @@ class DynKern(Kern):
                                 [nlayers_name,
                                  enforce_bc_arg.proxy_name+"%data",
                                  ndf_name, undf_name,
-                                 map_name+"(:,"+dofmap_args+")",
+                                 map_name+"(:,"+cell_index+")",
                                  boundary_dofs_name]))
             parent.add(CommentGen(parent, ""))
 
