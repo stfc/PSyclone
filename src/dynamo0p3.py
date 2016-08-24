@@ -2038,13 +2038,12 @@ class DynKern(Kern):
             parent.add(UseGen(parent, name="constants_mod", only=True,
                               funcnames=["r_def"]))
 
+        cell_ref_name = "cell"
         # Store the expression used to get the current cell index when
         # the kernel is called. If the parent loop has been coloured
         # then this requires a look-up from the colour map.
-        if self.is_coloured():
+        if my_type == "call" and self.is_coloured():
             cell_ref_name = "cmap(colour, cell)"
-        else:
-            cell_ref_name = "cell"
   
         # create the argument list
         arglist = []
@@ -2456,6 +2455,8 @@ class DynKern(Kern):
                                           "parallelised with OpenMP".
                                           format(self._name))
             dofmap_args = "cell"
+            
+        parent.add(CommentGen(parent, ""))
 
         # orientation arrays initialisation and their declarations
         orientation_decl_names = []
@@ -2537,7 +2538,8 @@ class DynKern(Kern):
             if_then.add(CallGen(if_then, "enforce_bc_code",
                                 [nlayers_name,
                                  enforce_bc_arg.proxy_name+"%data",
-                                 ndf_name, undf_name, map_name,
+                                 ndf_name, undf_name,
+                                 map_name+"(:,"+dofmap_args+")",
                                  boundary_dofs_name]))
             parent.add(CommentGen(parent, ""))
 
