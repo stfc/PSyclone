@@ -111,7 +111,12 @@ def test_colour_trans():
         assert cell_loop_idx - col_loop_idx == 1
 
         # Check that we're using the colour map when getting the cell dof maps
-        assert "map(:,cmap(colour, cell))" in gen
+        assert (
+            "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+            "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
+            "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
+            "map_w3(:,cmap(colour, cell)))" in gen)
 
         if dist_mem:
             # Check that we get the right number of set_dirty halo calls in
@@ -193,8 +198,9 @@ def test_colour_trans_stencil():
         assert ("          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
                 "f2_proxy%data, f2_stencil_size, "
                 "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
-                "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
-                "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, map_w3(:,cmap(colour,cell)))") in gen
+                "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
+                "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
+                "undf_w3, map_w3(:,cmap(colour, cell)))") in gen
 
 
 def test_colouring_not_a_loop():
@@ -369,7 +375,8 @@ def test_omp_colour_trans():
 
         invoke.schedule = schedule
         code = str(psy.gen)
-
+        print code
+        
         col_loop_idx = -1
         omp_idx = -1
         cell_loop_idx = -1

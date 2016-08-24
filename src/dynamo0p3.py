@@ -2015,11 +2015,6 @@ class DynKern(Kern):
         invocation to the next and therefore require privatisation
         when parallelised. '''
         lvars = []
-        # Dof maps for fields
-        for unique_fs in self.arguments.unique_fss:
-            if field_on_space(unique_fs, self.arguments):
-                # A map is required as there is a field on this space
-                lvars.append(get_fs_map_name(unique_fs))
         # Orientation maps
         for unique_fs in self.arguments.unique_fss:
             if self._fs_descriptors.exists(unique_fs):
