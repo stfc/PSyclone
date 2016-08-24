@@ -238,39 +238,35 @@ def test_builtin_set_by_ref():
     assert output in code
 
 
-@pytest.mark.xfail(reason="Invokes containing multiple kernels with "
-                   "any-space arguments are not yet supported")
 def test_multiple_builtin_set():
     ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.0.2_multiple_set_kernels.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
-        "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(inout) :: fred, ginger\n"
+        "    SUBROUTINE invoke_0(fred, f1, f2, ginger, f3)\n"
+        "      REAL(KIND=r_def), intent(in) :: fred, ginger\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, f3\n"
         "      INTEGER df\n"
-        "      INTEGER ndf_any_space_1, undf_any_space_1\n"
-        "      TYPE(mesh_type) mesh\n"
+        "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1, "
+        "ndf_any_space_1_f2, undf_any_space_1_f2, "
+        "ndf_any_space_1_f3, undf_any_space_1_f3\n"
         "      INTEGER nlayers\n"
-        "      TYPE(field_proxy_type) f1_proxy\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
         "      !\n"
         "      ! Initialise field proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1_f1\n"
@@ -278,15 +274,27 @@ def test_multiple_builtin_set():
         "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1_f2\n"
+        "      !\n"
+        "      ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1_f3\n"
+        "      !\n"
+        "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1_f1\n"
         "        f1_proxy%data(df) = fred\n"
         "      END DO \n"
-        "      DO df=1,undf_any_space_1_f1\n"
+        "      DO df=1,undf_any_space_1_f2\n"
         "        f2_proxy%data(df) = 3.0\n"
         "      END DO \n"
-        "      DO df=1,undf_any_space_1_f1\n"
+        "      DO df=1,undf_any_space_1_f3\n"
         "        f3_proxy%data(df) = ginger\n"
         "      END DO \n")
     assert output in code
