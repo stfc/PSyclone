@@ -318,7 +318,7 @@ def test_builtin_set_plus_normal():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n")
     assert dofmap_output in code
-    
+
     output = (
         "      ! Initialise sizes and allocate any basis arrays for w3\n"
         "      !\n"

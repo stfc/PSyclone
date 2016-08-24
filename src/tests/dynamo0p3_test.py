@@ -546,8 +546,10 @@ def test_field_fs():
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy\n"
-        "      INTEGER, pointer :: map_w2(:,:) => null(), map_w3(:,:) => null(), "
-        "map_wtheta(:,:) => null(), map_w1(:,:) => null(), map_w2v(:,:) => null(), map_w2h(:,:) => null()\n"
+        "      INTEGER, pointer :: map_w2(:,:) => null(), "
+        "map_w3(:,:) => null(), map_wtheta(:,:) => null(), "
+        "map_w1(:,:) => null(), map_w2v(:,:) => null(), "
+        "map_w2h(:,:) => null()\n"
         "      !\n"
         "      ! Initialise field proxies\n"
         "      !\n"
@@ -768,9 +770,10 @@ def test_field_qr():
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, map_w1(:,cell), "
-        "basis_w1, ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2, ndf_w3, undf_w3, "
-        "map_w3(:,cell), basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
+        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "map_w1(:,cell), basis_w1, ndf_w2, undf_w2, map_w2(:,cell), "
+        "diff_basis_w2, ndf_w3, undf_w3, map_w3(:,cell), basis_w3, "
+        "diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
         "      !\n"
         "      ! Set halos dirty for fields modified in the above loop\n"
@@ -864,8 +867,8 @@ def test_real_scalar():
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
-        " m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-        "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        " m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -948,7 +951,8 @@ def test_int_scalar():
         "        !\n"
         "        CALL testkern_code(nlayers, f1_proxy%data, iflag, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+        "map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -1031,7 +1035,8 @@ def test_two_real_scalars():
         "        !\n"
         "        CALL testkern_code(nlayers, a, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, b, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -1113,13 +1118,15 @@ def test_two_int_scalars():
         "        !\n"
         "        CALL testkern_code(nlayers, iflag, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
         "        CALL testkern_code(nlayers, 1_i_def, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+        "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -1201,8 +1208,9 @@ def test_two_scalars():
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
-        " m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        " m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, "
+        "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+        "map_w3(:,cell))\n")
     assert expected in generated_code
 
 
@@ -1445,8 +1453,8 @@ def test_operator_nofield():
     assert gen_code_str.find(
         "CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
         " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
-        ", chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, map_w0(:,cell), "
-        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+        ", chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, "
+        "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
 def test_operator_nofield_different_space():
@@ -1554,8 +1562,8 @@ def test_any_space_1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
-    assert "INTEGER, pointer :: map_any_space_2_b(:,:) => null(), "
-    "map_any_space_1_a(:,:) => null()\n" in generated_code
+    assert ("INTEGER, pointer :: map_any_space_2_b(:,:) => null(), "
+            "map_any_space_1_a(:,:) => null()\n" in generated_code)
     assert generated_code.find(
         "REAL(KIND=r_def), allocatable :: basis_any_space_1_a(:,:,:,:), "
         "basis_any_space_2_b(:,:,:,:)") != -1
@@ -1959,8 +1967,8 @@ def test_2kern_invoke_any_space():
     assert (
         "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
         " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
-        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell))\n"
-        in gen)
+        "ndf_any_space_1_f1, undf_any_space_1_f1, "
+        "map_any_space_1_f1(:,cell))\n" in gen)
     assert "map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
     assert (
         "        CALL testkern_any_space_2_code(cell, nlayers, f2_proxy%data,"
@@ -1999,8 +2007,7 @@ def test_multikern_invoke_any_space():
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()"
-            in gen)
+        "      map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()" in gen)
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
             "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
@@ -4297,7 +4304,8 @@ def test_single_stencil_extent():
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
             " f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell),"
             " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output6 in result
 
 
@@ -4352,8 +4360,8 @@ def test_single_stencil_xory1d():
             "        CALL testkern_stencil_xory1d_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_direction, "
             "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output6 in result
 
 
@@ -4400,8 +4408,9 @@ def test_single_stencil_literal():
         output6 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
-            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output6 in result
 
 
@@ -4472,8 +4481,8 @@ def test_single_stencil_xory1d_literal():
             "        CALL testkern_stencil_xory1d_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
             "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output6 in result
 
 
@@ -4529,8 +4538,8 @@ def test_single_stencil_xory1d_literal_mixed():
             "        CALL testkern_stencil_xory1d_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
             "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output6 in result
 
 
@@ -4611,8 +4620,9 @@ def test_multiple_stencils():
             "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
             "f3_proxy%data, f3_stencil_size, f3_direction, "
             "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size, "
-            "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output7 in result
 
 
@@ -4677,8 +4687,9 @@ def test_multiple_stencil_same_name():
             "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
             "f3_proxy%data, f3_stencil_size, f3_direction, "
             "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size, "
-            "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output5 in result
 
 
@@ -4758,8 +4769,8 @@ def test_multiple_stencil_same_name_direction():
             "f3_stencil_dofmap(:,:,cell), "
             "f4_proxy%data, f4_stencil_size, direction, "
             "f4_stencil_dofmap(:,:,cell), "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output5 in result
 
 
@@ -4812,20 +4823,23 @@ def test_multiple_kernels_stencils_different_fields():
         output6 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2a_proxy%data, f2a_stencil_size, f2a_stencil_dofmap(:,:,cell), "
-            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output6 in result
         output7 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2b_proxy%data, f2b_stencil_size, f2b_stencil_dofmap(:,:,cell), "
-            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output7 in result
         output8 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2c_proxy%data, f2b_stencil_size, f2b_stencil_dofmap(:,:,cell), "
-            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output8 in result
 
 
@@ -4903,8 +4917,9 @@ def test_extent_name_clash():
             "        CALL testkern_stencil_code(nlayers, "
             "f3_stencil_map_proxy%data, f3_proxy%data, f3_stencil_size_1, "
             "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_proxy%data, "
-            "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert output9 in result
 
 
@@ -4955,8 +4970,9 @@ def test_two_stencils_same_field():
             "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
             "f2_w2_proxy%data, f2_w2_stencil_size, "
             "f2_w2_stencil_dofmap(:,:,cell), "
-            "f3_w2_proxy%data, f4_w3_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_w2_proxy%data, f4_w3_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
+            "undf_w3, map_w3(:,cell))")
         assert output6 in result
         output7 = (
             "        CALL testkern_stencil_depth_code(nlayers, "
@@ -4965,8 +4981,9 @@ def test_two_stencils_same_field():
             "f2_w2_stencil_size_1, "
             "f2_w2_stencil_dofmap_1(:,:,cell), f4_w3_proxy%data, "
             "f4_w3_stencil_size, "
-            "f4_w3_stencil_dofmap(:,:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_w1, "
-            "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell))")
+            "f4_w3_stencil_dofmap(:,:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell))")
         assert output7 in result
 
 
@@ -5010,14 +5027,16 @@ def test_stencils_same_field_literal_extent():
         output3 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
-            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert result.count(output3) == 2
         output4 = (
             "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
             "f2_proxy%data, f2_stencil_size_1, f2_stencil_dofmap_1(:,:,cell), "
-            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
-            "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))")
         assert result.count(output4) == 1
 
 
@@ -5185,7 +5204,8 @@ def test_single_kernel_multi_field_same_stencil():
             "f1_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size, "
             "direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
             "f3_stencil_size, direction, f3_stencil_dofmap(:,:,cell), "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell))")
         assert output5 in result
 
 
@@ -5329,8 +5349,8 @@ def test_stencil_args_unique_1():
             "        CALL testkern_stencil_xory1d_code(nlayers_1, "
             "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, nlayers, "
             "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output7 in result
 
 
@@ -5379,15 +5399,15 @@ def test_stencil_args_unique_2():
             "        CALL testkern_stencil_xory1d_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_info_1, "
             "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output4 in result
         output5 = (
             "        CALL testkern_stencil_xory1d_code(nlayers, "
             "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, f2_info_3, "
             "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
-            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))")
+            "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+            "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output5 in result
 
 
