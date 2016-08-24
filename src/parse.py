@@ -676,7 +676,12 @@ class Arg(object):
         formOptions = ["literal", "variable", "indexed_variable"]
         self._form = form
         self._text = text
-        self._varName = varName
+        # Replace any '%' chars in the supplied name with underscores so
+        # as to have a valid Fortran variable name (in the PSy layer).
+        if varName:
+            self._varName = varName.replace("%", "_")
+        else:
+            self._varName = None
         if form not in formOptions:
             raise ParseError(
                 "Unknown arg type provided. Expected one of {0} but found "

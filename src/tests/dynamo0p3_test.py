@@ -5584,7 +5584,14 @@ def test_stencil_args_unique_3():
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print result
-        exit(1)
+        assert (
+            "      INTEGER, intent(in) :: my_info_f2_info, my_info_f2_info_2\n"
+            "      INTEGER, intent(in) :: my_info_f2_info_1, "
+            "my_info_f2_info_3\n"
+            in result)
+        assert (
+            "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
+            "my_info_f2_info)" in result)
 
 
 def test_dynloop_load_unexpected_function_space():

@@ -1914,20 +1914,12 @@ class DynKern(Kern):
         if self._qr_required:
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
-            # Generate root of variable name by replacing any '%' chars
-            # with underscores (an issue if qr arg obtained by de-referencing
-            # a derived type). We retain the full text of the original
-            # algorithm-layer expression to use as a label.
-            var_name = qr_arg.varName
-            if var_name:
-                root = var_name.replace("%", "_")
-            else:
-                root = None
             # use our namespace manager to create a unique name unless
             # the context and label match and in this case return the
-            # previous name
+            # previous name. We use the full text of the original
+            # as a label.
             self._qr_name = self._name_space_manager.create_name(
-                root_name=root, context="AlgArgs",
+                root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
 
     @property
