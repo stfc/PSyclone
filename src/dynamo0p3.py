@@ -927,15 +927,19 @@ class DynInvokeDofmaps(object):
         self._name_space_manager = NameSpaceFactory().create()
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
-        # We store a list of (fs-map-name, associated field) tuples...
+        # We create a dictionary whose keys are the map names and entries
+        # are the corresponding field objects.
         self._unique_fs_maps = {}
         for call in schedule.calls():
-            for unique_fs in call.arguments.unique_fss:
-                if field_on_space(unique_fs, call.arguments):
-                    map_name = get_fs_map_name(unique_fs)
-                    if map_name not in self._unique_fs_maps:
-                        field = call._arguments.get_arg_on_space(unique_fs)
-                        self._unique_fs_maps[map_name] = field
+            # Currently, built-in kernels do not need dofmaps so we have
+            # to check
+            if call.requires_fs_dofmap:
+                for unique_fs in call.arguments.unique_fss:
+                    if field_on_space(unique_fs, call.arguments):
+                        map_name = get_fs_map_name(unique_fs)
+                        if map_name not in self._unique_fs_maps:
+                            field = call._arguments.get_arg_on_space(unique_fs)
+                            self._unique_fs_maps[map_name] = field
 
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
@@ -1902,6 +1906,11 @@ class DynKern(Kern):
         self._qr_name = ""
         self._qr_args = None
         self._name_space_manager = NameSpaceFactory().create()
+        # In the dynamo 0.3 API, all user-supplied kernels must be
+        # passed dofmaps for each function space that they
+        # use. This info is used in DynInvokeDofmaps to determine
+        # which dofmaps to declare and initialise.
+        self.requires_fs_dofmap = True
 
     def load(self, call, parent=None):
         ''' sets up kernel information with the call object which is
