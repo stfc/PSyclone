@@ -919,6 +919,60 @@ class DynInvokeStencil(object):
                                          rhs=map_name + "%get_size()"))
 
 
+class DynInvokeDofmaps(object):
+    ''' Holds all information on the dofmaps required by an invoke '''
+
+    def __init__(self, schedule):
+
+        self._name_space_manager = NameSpaceFactory().create()
+        # Look at every kernel call in this invoke and generate a list
+        # of the unique function spaces involved.
+        # We store a list of (fs-map-name, associated field) tuples...
+        self._unique_fs_maps = {}
+        for call in schedule.calls():
+            for unique_fs in call.arguments.unique_fss:
+                if field_on_space(unique_fs, call.arguments):
+                    map_name = get_fs_map_name(unique_fs)
+                    if map_name not in self._unique_fs_maps:
+                        field = call._arguments.get_arg_on_space(unique_fs)
+                        self._unique_fs_maps[map_name] = field
+
+    def initialise_dofmaps(self, parent):
+        ''' Generates the calls to the LFRic infrastructure that
+        look-up the necessary dofmaps. Adds these calls as children
+        of the supplied parent node. This must be an appropriate
+        f2pygen object. '''
+        from f2pygen import CommentGen, AssignGen
+
+        # If we've got no dofmaps then we do nothing
+        if not self._unique_fs_maps:
+            return
+        
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                              " Look-up dofmaps for each function space"))
+        parent.add(CommentGen(parent, ""))
+        
+        for map, field in self._unique_fs_maps.items():
+            parent.add(AssignGen(parent, pointer=True, lhs=map,
+                                 rhs=field.proxy_name_indexed +
+                                 "%" + field.ref_name() +
+                                 "%get_whole_dofmap()"))
+
+    def declare_dofmaps(self, parent):
+        ''' Declare all unique function space dofmaps as pointers to
+        integer arrays of rank 2. The declarations are added as 
+        children of the supplied parent argument. This must be an
+        appropriate f2pygen object. '''
+        from f2pygen import DeclGen
+        decl_map_names = []
+        for map in self._unique_fs_maps:
+            decl_map_names.append(map+"(:,:) => null()")
+        if len(decl_map_names) > 0:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=decl_map_names))
+
+
 class DynInvoke(Invoke):
     ''' The Dynamo specific invoke class. This passes the Dynamo
     specific schedule class to the base class so it creates the one we
@@ -941,6 +995,10 @@ class DynInvoke(Invoke):
 
         # initialise our invoke stencil information
         self.stencil = DynInvokeStencil(self.schedule)
+
+        # Initialise the object holding all information on the dofmaps
+        # required by this invoke.
+        self.dofmaps = DynInvokeDofmaps(self.schedule)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -1150,6 +1208,9 @@ class DynInvoke(Invoke):
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
 
+        # Declare any dofmaps
+        self.dofmaps.declare_dofmaps(invoke_sub)
+        
         fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields
         for intent in FORTRAN_INTENT_NAMES:
@@ -1279,8 +1340,12 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, pointer=True,
                                      lhs=mesh_obj_name, rhs=rhs))
 
-        # declare and initialise stencil maps
+        # Initialise any stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)
+
+        # Initialise dofmaps (one for each function space that is used
+        # in this invoke)
+        self.dofmaps.initialise_dofmaps(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
@@ -1972,15 +2037,21 @@ class DynKern(Kern):
             # add in any required USE associations
             parent.add(UseGen(parent, name="constants_mod", only=True,
                               funcnames=["r_def"]))
+
+        # Store the expression used to get the current cell index when
+        # the kernel is called. If the parent loop has been coloured
+        # then this requires a look-up from the colour map.
+        if self.is_coloured():
+            cell_ref_name = "cmap(colour, cell)"
+        else:
+            cell_ref_name = "cell"
+  
         # create the argument list
         arglist = []
         if self._arguments.has_operator:
             # 0.5: provide cell position
             if my_type == "call":
-                if self.is_coloured():
-                    arglist.append("cmap(colour, cell)")
-                else:
-                    arglist.append("cell")
+                arglist.append(cell_ref_name)
             else:
                 arglist.append("cell")
             if my_type == "subroutine":
@@ -2076,11 +2147,7 @@ class DynKern(Kern):
                     else:
                         # add in stencil dofmap
                         var_name = stencil_dofmap_name(arg)
-                        name = var_name+"(:,:,"
-                        if self.is_coloured():
-                            name += "cmap(colour, cell)"
-                        else:
-                            name += "cell"
+                        name = var_name + "(:,:," + cell_ref_name
                         name += ")"
                     arglist.append(name)
 
@@ -2150,8 +2217,8 @@ class DynKern(Kern):
                 undf_name = get_fs_undf_name(unique_fs)
                 arglist.append(undf_name)
                 map_name = get_fs_map_name(unique_fs)
-                arglist.append(map_name)
                 if my_type == "subroutine":
+                    arglist.append(map_name)
                     # ndf* declarations need to be before argument
                     # declarations as some compilers don't like
                     # declarations after they have been used. We place
@@ -2166,6 +2233,9 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                        dimension=ndf_name,
                                        entity_decls=[map_name]))
+                else:
+                    arglist.append(map_name+"(:,"+cell_ref_name+")")
+
             # 3.2 Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function,
             # differential basis function and orientation) for a
@@ -2387,36 +2457,6 @@ class DynKern(Kern):
                                           format(self._name))
             dofmap_args = "cell"
 
-        # create a maps_required logical which we can use to add in
-        # spacer comments if necessary
-        maps_required = False
-        for unique_fs in self.arguments.unique_fss:
-            if field_on_space(unique_fs, self.arguments):
-                maps_required = True
-
-        # function-space maps initialisation and their declarations
-        if maps_required:
-            parent.add(CommentGen(parent, ""))
-        for unique_fs in self.arguments.unique_fss:
-            if field_on_space(unique_fs, self.arguments):
-                # A map is required as there is a field on this space
-                map_name = get_fs_map_name(unique_fs)
-                field = self._arguments.get_arg_on_space(unique_fs)
-                parent.add(AssignGen(parent, pointer=True, lhs=map_name,
-                                     rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name(unique_fs) +
-                                     "%get_cell_dofmap("+dofmap_args+")"))
-        if maps_required:
-            parent.add(CommentGen(parent, ""))
-        decl_map_names = []
-        for unique_fs in self.arguments.unique_fss:
-            if field_on_space(unique_fs, self.arguments):
-                # A map is required as there is a field on this space
-                map_name = get_fs_map_name(unique_fs)
-                decl_map_names.append(map_name+"(:) => null()")
-        if len(decl_map_names) > 0:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_map_names))
         # orientation arrays initialisation and their declarations
         orientation_decl_names = []
         for unique_fs in self.arguments.unique_fss:
