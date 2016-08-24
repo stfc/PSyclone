@@ -518,70 +518,107 @@ def test_field():
 
 def test_field_deref():
     ''' Tests that a call with a set of fields (some obtained by
-    de-referencing derived types), no basis functions and
-    no distributed memory, produces correct code.'''
+    de-referencing derived types) and no basis functions produces
+    correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.13_single_invoke_field_deref.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    generated_code = psy.gen
-    output = (
-        "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, est_m2)\n"
-        "      USE testkern, ONLY: testkern_code\n"
-        "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
-        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
-        "map_w3(:) => null()\n"
-        "      INTEGER cell\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      INTEGER nlayers\n"
-        "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
-        "est_m2_proxy\n"
-        "      !\n"
-        "      ! Initialise field proxies\n"
-        "      !\n"
-        "      f1_proxy = f1%get_proxy()\n"
-        "      est_f2_proxy = est_f2%get_proxy()\n"
-        "      m1_proxy = m1%get_proxy()\n"
-        "      est_m2_proxy = est_m2%get_proxy()\n"
-        "      !\n"
-        "      ! Initialise number of layers\n"
-        "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
-        "      !\n"
-        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
-        "      !\n"
-        "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
-        "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
-        "      !\n"
-        "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
-        "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Call our kernels\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
-        "        map_w2 => est_f2_proxy%vspace%get_cell_dofmap(cell)\n"
-        "        map_w3 => est_m2_proxy%vspace%get_cell_dofmap(cell)\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
-        "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
-        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
-        "      END DO \n"
-        "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_type\n"
-        "  END MODULE psy_single_invoke")
-    print generated_code
-    assert str(generated_code).find(output) != -1
+    for dist_mem in [True, False]:
+
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = psy.gen
+        output = (
+            "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, "
+            "est_m2)\n"
+            "      USE testkern, ONLY: testkern_code\n")
+        if dist_mem:
+            output += "      USE mesh_mod, ONLY: mesh_type\n"
+        output += (
+            "      REAL(KIND=r_def), intent(in) :: a\n"
+            "      TYPE(field_type), intent(inout) :: f1\n"
+            "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
+            "      INTEGER, pointer :: map_w1(:) => null(), "
+            "map_w2(:) => null(), map_w3(:) => null()\n"
+            "      INTEGER cell\n"
+            "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+            "undf_w3\n")
+        if dist_mem:
+            output += "      TYPE(mesh_type), pointer :: mesh => null()\n"
+        output += (
+            "      INTEGER nlayers\n"
+            "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
+            "est_m2_proxy\n"
+            "      !\n"
+            "      ! Initialise field proxies\n"
+            "      !\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      est_f2_proxy = est_f2%get_proxy()\n"
+            "      m1_proxy = m1%get_proxy()\n"
+            "      est_m2_proxy = est_m2%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of layers\n"
+            "      !\n"
+            "      nlayers = f1_proxy%vspace%get_nlayers()\n")
+        if dist_mem:
+            output += (
+                "      !\n"
+                "      ! Create a mesh object\n"
+                "      !\n"
+                "      mesh => f1%get_mesh()\n"
+            )
+        output += (
+            "      !\n"
+            "      ! Initialise sizes and allocate any basis arrays for w1\n"
+            "      !\n"
+            "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Initialise sizes and allocate any basis arrays for w2\n"
+            "      !\n"
+            "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
+            "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Initialise sizes and allocate any basis arrays for w3\n"
+            "      !\n"
+            "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
+            "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
+            "      !\n")
+        if dist_mem:
+            output += (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL m1_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        else:
+            output += (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+        output += (
+            "        !\n"
+            "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        map_w2 => est_f2_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        map_w3 => est_m2_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        !\n"
+            "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+            "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
+            "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, "
+            "map_w3)\n"
+            "      END DO \n")
+        print generated_code
+        assert str(generated_code).find(output) != -1
 
 
 def test_field_fs():
@@ -846,6 +883,7 @@ def test_field_qr():
     )
     assert output in generated_code
 
+
 def test_field_qr_deref():
     ''' Tests that a call, with a set of fields requiring
     quadrature, produces correct code when the quadrature is supplied as the
@@ -853,13 +891,16 @@ def test_field_qr_deref():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.1_single_invoke_qr_deref.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert (
-        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
-        " qr_data)\n" in gen)
-    assert "TYPE(quadrature_type), intent(in) :: qr_data" in gen
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert (
+            "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
+            " qr_data)\n" in gen)
+        assert "TYPE(quadrature_type), intent(in) :: qr_data" in gen
+
 
 def test_real_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
@@ -1337,12 +1378,14 @@ def test_vector_field_deref():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "8.1_vector_field_deref.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
-                                    "type(f1, box_chi)") != -1
-    assert str(generated_code).find("TYPE(field_type), intent(inout)"
-                                    " :: f1, box_chi(3)") != -1
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = psy.gen
+        assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
+                                        "type(f1, box_chi)") != -1
+        assert str(generated_code).find("TYPE(field_type), intent(inout)"
+                                        " :: f1, box_chi(3)") != -1
 
 
 def test_orientation():
@@ -1627,20 +1670,24 @@ def test_operator_deref():
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = str(psy.gen)
-    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                               "_type(mm_w0_op, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                               " mm_w0_op") != -1
-    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
-                               "proxy") != -1
-    assert generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1
-    assert generated_code.find(
-        "CALL testkern_operator_code(cell, nlayers, mm_w0_op_proxy%ncell_3d, "
-        "mm_w0_op_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
-        "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, "
-        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
+                                   "_type(mm_w0_op, chi, a, qr)") != -1
+        assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+                                   " mm_w0_op") != -1
+        assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
+                                   "proxy") != -1
+        assert (
+            generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
+        assert generated_code.find(
+            "CALL testkern_operator_code(cell, nlayers, "
+            "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
+            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
+            "ndf_w0, undf_w0, map_w0, basis_w0, "
+            "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
 def test_any_space_1():
