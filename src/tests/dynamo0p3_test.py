@@ -1606,6 +1606,29 @@ def test_operator_nofield_scalar():
         "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
 
 
+def test_operator_nofield_scalar_deref():
+    ''' Tests that an operator with no field and a
+    scalar argument is implemented correctly in the PSy layer when both
+    are obtained by dereferencing derived type objects '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "10.6.1_operator_no_field_scalar_deref.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "mesh => opbox_my_mapping%get_mesh()" in gen
+    assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert ("CALL opbox_my_mapping_proxy%fs_from%compute_basis_function("
+            "basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert (
+        "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
+        "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, basis_w2, "
+        "nqp_h, nqp_v, wh, wv)" in gen)
+
+
 def test_operator_orientation():
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
