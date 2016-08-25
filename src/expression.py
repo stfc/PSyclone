@@ -288,11 +288,13 @@ VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
 LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 
-# An optional/named argument
+# An optional/named argument. We use QuotedString here to avoid versioning
+# problems with the interface to {sgl,dbl}QuotedString in pyparsing.
 OPTIONAL_VAR = VAR_NAME + "=" + ((NAME | REAL | INTEGER) |
-                                 pparse.sglQuotedString() |
-                                 pparse.dblQuotedString())
-
+                                 pparse.QuotedString("'",
+                                                     unquoteResults=False) |
+                                 pparse.QuotedString('"',
+                                                     unquoteResults=False))
 # lambda creates a temporary function which, in this case, takes three
 # arguments and creates a NamedArg object.
 OPTIONAL_VAR.setParseAction(lambda strg, loc, toks: [NamedArg(toks)])
