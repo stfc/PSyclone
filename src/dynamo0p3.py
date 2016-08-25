@@ -20,7 +20,7 @@ import expression as expr
 import fparser
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    FieldNotFoundError, HaloExchange, FORTRAN_INTENT_NAMES
+    FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 import psyGen
 import config
 
@@ -355,13 +355,6 @@ class DynArgDescriptor03(Descriptor):
                     "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
                                             self._access_descriptor.name,
                                             arg_type))
-        # Scalars with reductions do not work with Distributed Memory
-        if self._type in VALID_SCALAR_NAMES and \
-           self._access_descriptor.name in VALID_REDUCTION_NAMES and \
-           config.DISTRIBUTED_MEMORY:
-            raise ParseError(
-                "Scalar reductions are not yet supported with distributed "
-                "memory.")
         stencil = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
@@ -700,10 +693,13 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
-        # lastly, add in halo exchange calls if required. We only need to
-        # do this for fields since operators are assembled in place
-        # and scalars don't have halos.
+        # lastly, add in halo exchange calls and global sums if
+        # required. We only need to add halo exchange calls for fields
+        # since operators are assembled in place and scalars don't
+        # have halos. We only need to add global sum calls for scalars
+        # which have a gh_sum access.
         if config.DISTRIBUTED_MEMORY:
+            # halo exchange calls
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
                 inc = loop.has_inc_arg()
@@ -722,6 +718,13 @@ class DynInvoke(Invoke):
                         exchange = DynHaloExchange(halo_field, parent=loop,
                                                    inc=inc)
                         loop.parent.children.insert(loop.position, exchange)
+            # global sum calls
+            for loop in self.schedule.loops():
+                for scalar in loop.args_filter(
+                        arg_types=VALID_SCALAR_NAMES,
+                        arg_accesses=VALID_REDUCTION_NAMES, unique=True):
+                    global_sum = DynGlobalSum(scalar, parent=loop)
+                    loop.parent.children.insert(loop.position+1,global_sum)
 
     @property
     def qr_required(self):
@@ -1232,6 +1235,25 @@ class DynSchedule(Schedule):
             "' dm="+str(config.DISTRIBUTED_MEMORY)+"]"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+
+class DynGlobalSum(GlobalSum):
+    ''' Dynamo specific global sum class which can be added to and
+    manipulated in, a schedule '''
+    def __init__(self, scalar, parent=None):
+        GlobalSum.__init__(self, scalar, parent=parent)
+
+    def gen_code(self, parent):
+        ''' Dynamo specific code generation for this class '''
+        from f2pygen import AssignGen, TypeDeclGen
+        name = self._scalar.name
+        name_space_manager = NameSpaceFactory().create()
+        sum_name = name_space_manager.create_name(
+            root_name="global_sum", context="PSyVars", label="global_sum")
+        parent.add(TypeDeclGen(parent, datatype="scalar_type",
+                               entity_decls=[sum_name]))
+        parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
+        parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
 class DynHaloExchange(HaloExchange):

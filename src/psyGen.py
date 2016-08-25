@@ -1056,6 +1056,19 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                    position=["after", position])
 
 
+class GlobalSum(Node):
+    ''' Generic Global Sum class which can be added to and
+    manipulated in, a schedule. '''
+    def __init__(self, scalar, parent=None):
+        Node.__init__(self, children=[], parent=parent)
+        self._scalar = scalar
+
+    def view(self, indent):
+        ''' Class specific view  '''
+        print self.indent(indent) + (
+            "GlobalSum[scalar='{0}']".format(self._scalar.name))
+
+
 class HaloExchange(Node):
 
     ''' Generic Halo Exchange class which can be added to and
@@ -1236,6 +1249,23 @@ class Loop(Node):
                             arg_names.append(arg.name)
                             args.append(arg)
         return args
+
+    def args_filter(self, arg_types=[], arg_accesses=[], unique=False):
+        '''Return all arguments of type arg_types and arg_accesses. If these are
+        not set then return all arguments. If unique is set to True then only
+        return uniquely named arguments'''
+        all_args = []
+        all_arg_names = []
+        for call in self.calls():
+            call_args = call.arguments.args_filter(arg_types, arg_accesses)
+            if unique:
+                for arg in call_args:
+                    if arg.name not in all_arg_names:
+                        all_args.append(arg)
+                        all_arg_names.append(arg.name)
+            else:
+                all_args.extend(call_args)
+        return all_args
 
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
@@ -1488,6 +1518,27 @@ class Arguments(object):
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
+
+    def args_filter(self, arg_types=[], arg_accesses=[]):
+        '''Return all arguments of type arg_types and arg_accesses. If these are
+        not set then return all arguments.'''
+        arguments = []
+        if arg_types != [] and arg_accesses != []:
+            for argument in self._args:
+                if argument.type.lower() in arg_types and \
+                   argument.access.lower() in arg_accesses:
+                    arguments.append(argument)
+        elif arg_types != []:
+            for argument in self._args:
+                if argument.type.lower() in arg_types:
+                    arguments.append(argument)
+        elif arg_accesses != []:
+            for argument in self._args:
+                if argument.access.lower() in arg_accesses:
+                    arguments.append(argument)
+        else: # no conditions provided so return all args
+            return self._args
+        return arguments
 
     def set_dependencies(self):
         for argument in self._args:

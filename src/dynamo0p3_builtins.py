@@ -40,10 +40,10 @@ class DynBuiltInCallFactory(object):
 
         # We do not currently support built-in kernel calls if we're
         # generating code for distributed-memory parallelism
-        if config.DISTRIBUTED_MEMORY:
-            raise ParseError(
-                "Calls to built-in kernels are not supported when "
-                "generating distributed-memory code")
+        #if config.DISTRIBUTED_MEMORY:
+        #    raise ParseError(
+        #        "Calls to built-in kernels are not supported when "
+        #        "generating distributed-memory code")
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
