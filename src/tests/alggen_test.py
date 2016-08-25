@@ -159,6 +159,19 @@ class TestAlgGenClassDynamo0p3(object):
             "CALL invoke_0_testkern_operator_nofield_scalar_type("
             "opbox%my_mapping, box%b(1), qr%get_instance(qr3, 9, 3))" in gen)
 
+    def test_vector_field_arg_deref(self):
+        ''' Test that we generate a correct invoke call when a kernel
+        argument representing a field vector is obtained by de-referencing a
+        derived type '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "8.1_vector_field_deref.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "CALL invoke_0_testkern_chi_type(f1, box%chi)" in gen
+
     def test_single_stencil(self):
         ''' test extent value is passed correctly from the algorithm layer '''
         path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
