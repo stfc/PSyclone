@@ -1368,8 +1368,8 @@ def test_inc_field_str():
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Increment field"
 
-***** up to here *****
-also, is distributed_memory = xxx required for parse?
+# ***** up to here *****
+# also, is distributed_memory = xxx required for parse?
 
 def test_inc_field():
     ''' Test that we generate correct code for the built-in y = y + x

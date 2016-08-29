@@ -70,17 +70,6 @@ end module testkern_qr
 # functions
 
 
-def test_scalar_sum_and_dm_unsupported():
-    '''Test that we fail if DM and global sums are specified. We do this
-    test here as at the end of the file the value of DM is set to
-    False and can't be changed for some reason.'''
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                     api="dynamo0.3")
-    assert "Scalar reductions are not yet supported with distributed " \
-        "memory" in str(excinfo.value)
-
-
 def test_arg_descriptor_wrong_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
@@ -4030,13 +4019,16 @@ def test_operator_gh_sum_invalid():
 
 def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
-    is specified with gh_sum'''
+    is specified with gh_sum with dm=False'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.2_integer_scalar_sum.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
+    assert "integer :: isum" in gen
+    assert "isum = 0.0" in gen
     assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
         "undf_w3, map_w3)" in gen
 
@@ -4044,58 +4036,87 @@ def test_single_integer_scalar_sum():
 def test_single_real_scalar_sum():
     '''Test that a single real scalar generates correct code when it is
     specified with gh_sum'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                           api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-        "undf_w3, map_w3)" in gen
+    for dm in [False, True]:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "16.3_real_scalar_sum.f90"),
+                               api="dynamo0.3", distributed_memory=dm)
+        psy = PSyFactory("dynamo0.3", distributed_memory=dm).\
+              create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        if dm==True:
+            assert "TYPE(scalar_type) global_sum" in gen
+            assert "real :: rsum" in gen
+            assert "rsum = 0.0_r_def" in gen
+            assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+            assert (
+                "      global_sum%value = rsum\n"
+                "      rsum = global_sum%get_sum()") in gen
+        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
+        assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+            "undf_w3, map_w3)" in gen
 
 
 def test_multiple_scalar_sums():
-    ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
+    '''Test that multiple mixed scalar (gh_sum) reductions generate
+    correct code with dm=False (dm=True is not supported with
+    gh_integer) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.4_multiple_scalar_sums.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, " \
-        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)" in gen
+    assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
+        "isum1, f1, rsum2, isum2)") in gen
+    assert (
+        "      rsum1 = 0.0_r_def\n"
+        "      rsum2 = 0.0_r_def\n"
+        "      isum1 = 0\n"
+        "      isum2 = 0")
+    assert ("CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
+        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)") in gen
 
 
 def test_multiple_kernels_scalar_sums():
-    '''Add a test for multiple kernels within an invoke with scalar
-    (gh_sum) reductions'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-             "undf_w3, map_w3)"
-    assert output in gen
-    assert gen.count(output) == 2
+    '''Test that multiple kernels within an invoke with the same real
+    scalar (gh_sum) for each reduction generate correct code '''
+    for dm in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
+            api="dynamo0.3", distributed_memory=dm)
+        psy = PSyFactory("dynamo0.3", distributed_memory=dm). \
+              create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert "SUBROUTINE invoke_0(rsum, f1)" in gen
+        assert "real :: rsum" in gen
+        assert "rsum = 0.0_r_def" in gen
+        output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+                 "undf_w3, map_w3)"
+        assert output in gen
+        assert gen.count(output) == 2
 
 
 def test_scalars_only_invalid():
     '''Test that a Kernel consisting of only scalars fails as it has
     nothing to iterate over '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
-            create(invoke_info)
-    assert "dynamo0.3 api must have a modified field" in str(excinfo.value)
-    assert "modified operator, or an unmodified field" in str(excinfo.value)
+    for dm in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dm)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = PSyFactory("dynamo0.3", distributed_memory=dm).\
+                create(invoke_info)
+        assert "dynamo0.3 api must have a modified field" in \
+            str(excinfo.value)
+        assert "modified operator, or an unmodified field" in \
+            str(excinfo.value)
 
 
 def test_scalar_int_sum_field_read():
-    '''Test that a write to a single integer scalar is valid if we have at
-    least one field that is read '''
+    '''Test that a write to a single integer scalar is valid with dm=False
+    if we have at least one field that is read '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
@@ -4103,6 +4124,9 @@ def test_scalar_int_sum_field_read():
                      distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
+    assert "integer isum" in gen
+    assert "isum = 0" in gen
     expected_output = (
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
@@ -4114,22 +4138,53 @@ def test_scalar_int_sum_field_read():
     assert expected_output in gen
 
 
+def test_scalar_int_sum_field_read_error():
+    '''Test that a sum of an integer scalar raises an exception if
+    distributed memory is set to True as the infrastructure does not
+    currently support this'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=True)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
+    assert "Integer reductions are not currently supported" \
+        in str(excinfo.value)
+
+
 def test_scalar_real_sum_field_read():
     '''Test that a write to a single real scalar is valid if we have at
     least one field that is read '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    expected_output = (
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
-        "ndf_w3, undf_w3, map_w3)\n"
-        "      END DO \n")
-    assert expected_output in gen
+    for dm in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dm)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dm).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
+        assert "real rsum" in gen
+        assert "rsum = 0.0_r_def" in gen
+        
+        if dm:
+            expected_output = (
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n")
+        else:
+            expected_output = (
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n"
+                "      global_sum%value = rsum\n"
+                "      rsum = global_sum%get_sum()")
+        assert expected_output in gen
