@@ -935,14 +935,18 @@ class DynInvoke(Invoke):
                                        intent="in"))
 
         # Zero any scalar arguments that are GH_SUM
-        zero_args = self.unique_declarations("gh_real", access="gh_sum")
-        if zero_args:
+        zero_real_args = self.unique_declarations("gh_real", access="gh_sum")
+        zero_integer_args = self.unique_declarations("gh_integer", access="gh_sum")
+        if zero_real_args or zero_integer_args:
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            for arg in zero_args:
+            for arg in zero_real_args:
                 invoke_sub.add(AssignGen(invoke_sub,
                                          lhs=arg, rhs="0.0_r_def"))
+            for arg in zero_integer_args:
+                invoke_sub.add(AssignGen(invoke_sub,
+                                         lhs=arg, rhs="0"))
 
         # declare and initialise proxies for each of the (non-scalar)
         # arguments

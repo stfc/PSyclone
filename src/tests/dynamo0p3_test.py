@@ -4028,7 +4028,7 @@ def test_single_integer_scalar_sum():
     print gen
     assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
     assert "INTEGER, intent(out) :: isum" in gen
-    assert "isum = 0.0" in gen
+    assert "isum = 0" in gen
     assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
         "undf_w3, map_w3)" in gen
 
@@ -4046,7 +4046,7 @@ def test_single_real_scalar_sum():
         print gen
         if dm==True:
             assert "TYPE(scalar_type) global_sum" in gen
-            assert "real :: rsum" in gen
+            assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
             assert "rsum = 0.0_r_def" in gen
             assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
             assert (
@@ -4069,6 +4069,8 @@ def test_multiple_scalar_sums():
     print gen
     assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
         "isum1, f1, rsum2, isum2)") in gen
+    assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
+    assert "INTEGER, intent(out) :: isum1, isum2" in gen
     assert (
         "      rsum1 = 0.0_r_def\n"
         "      rsum2 = 0.0_r_def\n"
@@ -4090,7 +4092,7 @@ def test_multiple_kernels_scalar_sums():
         gen = str(psy.gen)
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
-        assert "real :: rsum" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
         assert "rsum = 0.0_r_def" in gen
         output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
                  "undf_w3, map_w3)"
@@ -4125,7 +4127,7 @@ def test_scalar_int_sum_field_read():
     gen = str(psy.gen)
     print gen
     assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
-    assert "integer isum" in gen
+    assert "INTEGER, intent(out) :: isum" in gen
     assert "isum = 0" in gen
     expected_output = (
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
@@ -4164,19 +4166,10 @@ def test_scalar_real_sum_field_read():
         gen = str(psy.gen)
         print gen
         assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
-        assert "real rsum" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
         assert "rsum = 0.0_r_def" in gen
         
         if dm:
-            expected_output = (
-                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
-                "        !\n"
-                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
-                "ndf_w3, undf_w3, map_w3)\n"
-                "      END DO \n")
-        else:
             expected_output = (
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n"
                 "        !\n"
@@ -4187,4 +4180,13 @@ def test_scalar_real_sum_field_read():
                 "      END DO \n"
                 "      global_sum%value = rsum\n"
                 "      rsum = global_sum%get_sum()")
+        else:
+            expected_output = (
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n")
         assert expected_output in gen
