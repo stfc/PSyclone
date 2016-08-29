@@ -481,6 +481,9 @@ class Invoke(object):
                                               access=MAPPING_ACCESSES["write"])
         read_args = self.unique_declarations(datatype,
                                              access=MAPPING_ACCESSES["read"])
+        sum_args =  self.unique_declarations(datatype,
+                                             access=MAPPING_REDUCTIONS["sum"])
+        write_args += sum_args
         # Rationalise our lists so that any fields that have inc
         # do not appear in the list of those that are written.
         for arg in write_args[:]:

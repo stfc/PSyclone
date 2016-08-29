@@ -4027,7 +4027,7 @@ def test_single_integer_scalar_sum():
     gen = str(psy.gen)
     print gen
     assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
-    assert "integer :: isum" in gen
+    assert "INTEGER, intent(out) :: isum" in gen
     assert "isum = 0.0" in gen
     assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
         "undf_w3, map_w3)" in gen

@@ -877,25 +877,25 @@ class DynInvoke(Invoke):
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # Add the subroutine argument declarations for real scalars that
-        # are read - we don't currently support any other access type
-        r_declarations = self.unique_declarations("gh_real",
-                                                  access="gh_read")
-        if r_declarations:
-            invoke_sub.add(DeclGen(invoke_sub, datatype="real",
-                                   kind="r_def", entity_decls=r_declarations,
-                                   intent="in"))
-        # Add the subroutine argument declarations for integer scalars
-        # that are read - we don't currently support any other access type
-        i_declarations = self.unique_declarations("gh_integer",
-                                                  access="gh_read")
-        if i_declarations:
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=i_declarations,
-                                   intent="in"))
 
-        fld_args = self.unique_declns_by_intent("gh_field")
+        # Add the subroutine argument declarations for real scalars
+        scalar_args = self.unique_declns_by_intent("gh_real")
+        for intent in FORTRAN_INTENT_NAMES:
+            if scalar_args[intent]:
+                invoke_sub.add(DeclGen(invoke_sub, datatype="real",kind="r_def",
+                                       entity_decls=scalar_args[intent],
+                                       intent=intent))
+
+        # Add the subroutine argument declarations for integer scalars
+        scalar_args = self.unique_declns_by_intent("gh_integer")
+        for intent in FORTRAN_INTENT_NAMES:
+            if scalar_args[intent]:
+                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                       entity_decls=scalar_args[intent],
+                                       intent=intent))
+
         # Add the subroutine argument declarations for fields
+        fld_args = self.unique_declns_by_intent("gh_field")
         for intent in FORTRAN_INTENT_NAMES:
             if fld_args[intent]:
                 if intent == "out":
