@@ -1730,6 +1730,8 @@ class DynLoop(Loop):
             return "ncolour"
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
+        elif self._upper_bound_name == "dofs":
+            return self._kern.undf_name
         elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
                 return self.field.proxy_name_indexed + "%" + \
@@ -1740,8 +1742,6 @@ class DynLoop(Loop):
                 return "ncolour"
             elif self._upper_bound_name == "ncolour":
                 return "ncp_colour(colour)"
-            elif self._upper_bound_name == "dofs":
-                return self._kern.undf_name
             else:
                 raise GenerationError(
                     "For sequential/shared-memory code, the upper loop "
