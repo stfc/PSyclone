@@ -1083,7 +1083,10 @@ class HaloExchange(Node):
         Node.__init__(self, children=[], parent=parent)
         self._field = field
         self._halo_type = halo_type
-        self._halo_depth = halo_depth
+        if halo_depth:
+            self._halo_depth = halo_depth
+        else:
+            self._halo_depth = "unknown"
         self._check_dirty = check_dirty
 
     def view(self, indent):
@@ -1348,6 +1351,20 @@ class Call(Node):
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
+
+        # check algorithm arguments are unique for a kernel or
+        # built-in call
+        arg_names = []
+        for arg in self._arguments.args:
+            if arg.text:
+                text = arg.text.lower().replace(" ", "")
+                if text in arg_names:
+                    raise GenerationError(
+                        "Argument '{0}' is passed into kernel '{1}' code more "
+                        "than once from the algorithm layer. This is not "
+                        "allowed.".format(arg.text, self._name))
+                else:
+                    arg_names.append(text)
 
         # visual properties
         self._width = 250

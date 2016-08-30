@@ -37,10 +37,10 @@ def test_continuators_algorithm():
 def test_get_builtin_defs_wrong_api():
     ''' Check that we raise an appropriate error if we call
     get_builtin_defs() with an invalid API '''
-    import parse
+    import parse as pparse
     with pytest.raises(ParseError) as excinfo:
-        _, _ = parse.get_builtin_defs('invalid_api')
-    assert ("check_api: Unsupported API 'invalid_api'" in str(excinfo.value))
+        _, _ = pparse.get_builtin_defs('invalid_api')
+    assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
 def test_kerneltypefactory_wrong_api():
@@ -49,7 +49,7 @@ def test_kerneltypefactory_wrong_api():
     from parse import KernelTypeFactory
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
-    assert ("check_api: Unsupported API 'invalid_api'" in str(excinfo.value))
+    assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
 def test_kerneltypefactory_default_api():
@@ -109,7 +109,7 @@ def test_builtin_with_use():
     ''' Check that we raise an error if we encounter a use statement for
     a built-in operation '''
     with pytest.raises(ParseError) as excinfo:
-        _, invoke_info = parse(
+        _, _ = parse(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3",
                          "15.0.3_builtin_with_use.f90"),
@@ -117,3 +117,12 @@ def test_builtin_with_use():
     assert ("A built-in cannot be named in a use statement but "
             "'set_field_scalar' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
+
+
+def test_element_unpack():
+    ''' Check that the unpack method of the Element class behaves as
+    expected when passed a string '''
+    from parse import Element
+    ele = Element()
+    output = ele.unpack("andy")
+    assert str(output) == "andy"

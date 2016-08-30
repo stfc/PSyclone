@@ -116,7 +116,7 @@ def test_dynbuiltin_str():
         kern = first_invoke.schedule.children[0].children[0]
         with pytest.raises(NotImplementedError) as excinfo:
             DynBuiltIn.__str__(kern)
-        assert ("DynBuiltIn.__str__ must be overridden" in str(excinfo.value))
+        assert "DynBuiltIn.__str__ must be overridden" in str(excinfo.value)
 
 
 def test_dynbuiltin_gen_code():
@@ -133,7 +133,7 @@ def test_dynbuiltin_gen_code():
         kern = first_invoke.schedule.children[0].children[0]
         with pytest.raises(NotImplementedError) as excinfo:
             DynBuiltIn.gen_code(kern, None)
-        assert ("DynBuiltIn.gen_code must be overridden" in str(excinfo.value))
+        assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
 
 
 def test_dynbuiltfactory_str():
@@ -996,7 +996,7 @@ def test_axpy_by_value():
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=1,undf_any_space_1_f1\n"
-            "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)\n"
+            "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)\n"
             "      END DO \n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -1008,7 +1008,7 @@ def test_axpy_by_value():
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
                 "      DO df=1,mesh%get_last_dofs_cell()\n"
-                "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + f2_proxy%data(df)\n"
+                "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
                 "      ! Set halos dirty for fields modified in the "
@@ -1212,7 +1212,7 @@ def test_axpby_by_value():
                 "      ! Call our kernels\n"
                 "      !\n"
                 "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + 0.8*f2_proxy%data(df)\n"
+                "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + 0.8*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
@@ -1224,7 +1224,7 @@ def test_axpby_by_value():
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
                 "      DO df=1,mesh%get_last_dofs_cell()\n"
-                "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + 0.8*f2_proxy%data(df)\n"
+                "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + 0.8*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
                 "      ! Set halos dirty for fields modified in the "

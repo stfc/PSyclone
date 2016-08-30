@@ -48,6 +48,17 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
     VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
+# Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
+# file as it causes failures with py.test 2.8.7. Therefore some parts
+# of the code do not use the VALID_STENCIL_DIRECTIONS variable.
+VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
+# Note, xory1d does not have a direct mapping in STENCIL_MAPPING as it
+# indicates either x1d or y1d.
+# Note, the LFRic infrastructure currently does not have 'region' as
+# an option in stencil_dofmap_mod.F90 so it is not included in
+# STENCIL_MAPPING.
+STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
+                   "cross": "STENCIL_CROSS"}
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
                            "ncolours", "cells", "dofs"]
@@ -390,10 +401,6 @@ class DynArgDescriptor03(Descriptor):
                         "entry must be a valid stencil specification but "
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
-                raise GenerationError(
-                    "Stencils are currently not supported in PSyclone, "
-                    "pending agreement and implementation of the associated "
-                    "infrastructure")
 
             if self._function_space1.lower() == "w3" and \
                self._access_descriptor.name.lower() == "gh_inc":
@@ -658,9 +665,251 @@ class DynamoInvokes(Invokes):
     require. '''
 
     def __init__(self, alg_calls):
+        self._name_space_manager = NameSpaceFactory().create()
         if False:
             self._0_to_n = DynInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke)
+
+
+def stencil_extent_value(field):
+    '''Returns the content of the stencil extent. This may be a literal
+    value (a number) or a variable name. This function simplifies this
+    problem by returning a string in either case'''
+    if field.stencil.extent_arg.is_literal():
+        extent = field.stencil.extent_arg.text
+    else:
+        extent = field.stencil.extent_arg.varName
+    return extent
+
+
+def stencil_unique_str(arg, context):
+    '''Returns a string that uniquely identifies a stencil. As a stencil
+    differs due to the function space it operates on, type of
+    stencil and extent of stencil, we concatenate these things together
+    to return a unique string '''
+    unique = context
+    unique += arg.function_space.mangled_name
+    unique += arg.descriptor.stencil['type']
+    if arg.descriptor.stencil['extent']:
+        raise GenerationError(
+            "found a stencil with an extent specified in the metadata. This "
+            "is not coded for.")
+    unique += arg.stencil.extent_arg.text.lower()
+    if arg.descriptor.stencil['type'] == 'xory1d':
+        unique += arg.stencil.direction_arg.text.lower()
+    return unique
+
+
+def stencil_map_name(arg):
+    ''' returns a valid unique map name for a stencil in the PSy layer '''
+    root_name = arg.name + "_stencil_map"
+    unique = stencil_unique_str(arg, "map")
+    name_space_manager = NameSpaceFactory().create()
+    return name_space_manager.create_name(
+        root_name=root_name, context="PSyVars", label=unique)
+
+
+def stencil_dofmap_name(arg):
+    ''' returns a valid unique dofmap name for a stencil in the PSy layer '''
+    root_name = arg.name + "_stencil_dofmap"
+    unique = stencil_unique_str(arg, "dofmap")
+    name_space_manager = NameSpaceFactory().create()
+    return name_space_manager.create_name(
+        root_name=root_name, context="PSyVars", label=unique)
+
+
+def stencil_size_name(arg):
+    ''' returns a valid unique name for the size (in cells) of a stencil
+    in the PSy layer '''
+    root_name = arg.name + "_stencil_size"
+    unique = stencil_unique_str(arg, "size")
+    name_space_manager = NameSpaceFactory().create()
+    return name_space_manager.create_name(
+        root_name=root_name, context="PSyVars", label=unique)
+
+
+class DynInvokeStencil(object):
+    '''stencil information and code generation associated with a
+    DynInvoke call'''
+
+    def __init__(self, schedule):
+
+        self._name_space_manager = NameSpaceFactory().create()
+        # list of arguments which have an extent value passed to this
+        # invoke routine from the algorithm layer. Duplicate argument
+        # names are removed.
+        self._unique_extent_args = []
+        extent_names = []
+        for call in schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    # check for the existence of arg.extent here as in
+                    # the future we plan to support kernels which
+                    # specify the value of extent in metadata. If this
+                    # is the case then an extent argument is not
+                    # required.
+                    if not arg.stencil.extent:
+                        if not arg.stencil.extent_arg.is_literal():
+                            if arg.stencil.extent_arg.text not in extent_names:
+                                extent_names.append(
+                                    arg.stencil.extent_arg.text)
+                                self._unique_extent_args.append(arg)
+
+        # a list of arguments that have a direction variable passed in
+        # to this invoke routine from the algorithm layer. Duplicate
+        # argument names are removed.
+        self._unique_direction_args = []
+        direction_names = []
+        for call in schedule.calls():
+            for idx, arg in enumerate(call.arguments.args):
+                if arg.stencil and arg.stencil.direction_arg:
+                    if arg.stencil.direction_arg.is_literal():
+                        raise GenerationError(
+                            "Kernel {0}, metadata arg {1}, a literal is not "
+                            "a valid value for a stencil direction".
+                            format(call.name, str(idx)))
+                    if arg.stencil.direction_arg.text.lower() not in \
+                       ["x_direction", "y_direction"]:
+                        if arg.stencil.direction_arg.text not in \
+                           direction_names:
+                            direction_names.append(
+                                arg.stencil.direction_arg.text)
+                            self._unique_direction_args.append(arg)
+
+        # list of stencil args with an extent variable passed in. The same
+        # field name may occur more than once here from different kernels.
+        self._kern_args = []
+        for call in schedule.calls():
+            for arg in call.arguments.args:
+                if arg.stencil:
+                    if not arg.stencil.extent:
+                        self._kern_args.append(arg)
+
+    @property
+    def _unique_extent_vars(self):
+        '''return a list of all the unique extent argument names in this
+        invoke call. '''
+        names = []
+        for arg in self._unique_extent_args:
+            names.append(arg.stencil.extent_arg.varName)
+        return names
+
+    def _declare_unique_extent_vars(self, parent):
+        '''Declare all unique extent arguments as integers with intent in and
+        add the declaration as a child of the parent argument passed
+        in. The parent argument should be an appropriate f2pygen
+        object. '''
+        from f2pygen import DeclGen
+        if self._unique_extent_vars:
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self._unique_extent_vars,
+                               intent="in"))
+
+    @property
+    def _unique_direction_vars(self):
+        '''return a list of all the unique direction argument names in this
+        invoke call.'''
+        names = []
+        for arg in self._unique_direction_args:
+            names.append(arg.stencil.direction_arg.varName)
+        return names
+
+    def _declare_unique_direction_vars(self, parent):
+        '''Declare all unique direction arguments as integers with intent in
+        and add the declaration as a child of the parent argument
+        passed in. The parent argument should be an appropriate
+        f2pygen object. '''
+        from f2pygen import DeclGen
+        if self._unique_direction_vars:
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self._unique_direction_vars,
+                               intent="in"))
+
+    @property
+    def unique_alg_vars(self):
+        '''returns a list of the names of the extent and direction arguments
+        specified in the algorithm layer'''
+        return self._unique_extent_vars + self._unique_direction_vars
+
+    def declare_unique_alg_vars(self, parent):
+        '''declares all extent and direction arguments passed into the PSy
+        layer'''
+        self._declare_unique_extent_vars(parent)
+        self._declare_unique_direction_vars(parent)
+
+    def initialise_stencil_maps(self, parent):
+        '''adds in the required stencil dofmap code to the PSy layer'''
+        from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, \
+            CommentGen, DeclGen
+        if self._kern_args:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
+            parent.add(CommentGen(parent, ""))
+            parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
+                              funcnames=["stencil_dofmap_type"]))
+            stencil_map_names = []
+            for arg in self._kern_args:
+                map_name = stencil_map_name(arg)
+                if map_name not in stencil_map_names:
+                    # only initialise maps once
+                    stencil_map_names.append(map_name)
+                    parent.add(
+                        TypeDeclGen(parent, pointer=True,
+                                    datatype="stencil_dofmap_type",
+                                    entity_decls=[map_name+" => null()"]))
+                    stencil_type = arg.descriptor.stencil['type']
+                    if stencil_type == "xory1d":
+                        parent.add(UseGen(parent, name="flux_direction_mod",
+                                          only=True,
+                                          funcnames=["x_direction",
+                                                     "y_direction"]))
+                        parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                          only=True,
+                                          funcnames=["STENCIL_1DX",
+                                                     "STENCIL_1DY"]))
+                        direction_name = arg.stencil.direction_arg.varName
+                        for direction in ["x", "y"]:
+                            if_then = IfThenGen(parent, direction_name +
+                                                " .eq. " + direction +
+                                                "_direction")
+                            if_then.add(
+                                AssignGen(if_then, pointer=True,
+                                          lhs=map_name, rhs=arg.proxy_name +
+                                          "%vspace%get_stencil_dofmap("
+                                          "STENCIL_1D" + direction.upper() +
+                                          ","+stencil_extent_value(arg)+")"))
+                            parent.add(if_then)
+                    else:
+                        try:
+                            stencil_name = STENCIL_MAPPING[stencil_type]
+                        except KeyError:
+                            raise GenerationError(
+                                "Unsupported stencil type '{0}' supplied. "
+                                "Supported mappings are {1}".
+                                format(arg.descriptor.stencil['type'],
+                                       str(STENCIL_MAPPING)))
+                        parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                          only=True,
+                                          funcnames=[stencil_name]))
+                        parent.add(
+                            AssignGen(parent, pointer=True, lhs=map_name,
+                                      rhs=arg.proxy_name +
+                                      "%vspace%get_stencil_dofmap(" +
+                                      stencil_name + "," +
+                                      stencil_extent_value(arg) + ")"))
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       pointer=True,
+                                       entity_decls=[stencil_dofmap_name(arg) +
+                                                     "(:,:,:) => null()"]))
+                    parent.add(AssignGen(parent, pointer=True,
+                                         lhs=stencil_dofmap_name(arg),
+                                         rhs=map_name + "%get_whole_dofmap()"))
+
+                    # Add declaration and look-up of stencil size
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       entity_decls=[stencil_size_name(arg)]))
+                    parent.add(AssignGen(parent, lhs=stencil_size_name(arg),
+                                         rhs=map_name + "%get_size()"))
 
 
 class DynInvoke(Invoke):
@@ -672,12 +921,24 @@ class DynInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         if False:
             self._schedule = DynSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+        reserved_names_list = []
+        reserved_names_list.extend(STENCIL_MAPPING.values())
+        reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        Invoke.__init__(self, alg_invocation, idx, DynSchedule,
+                        reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
         # list and stores it in the self._alg_unique_args
-        # list. However, the base class currently ignores any qr
+        # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
+
+        # initialise our invoke stencil information
+        self.stencil = DynInvokeStencil(self.schedule)
+
+        # extend arg list
+        self._alg_unique_args.extend(self.stencil.unique_alg_vars)
+
+        # adding in qr arguments
         self._alg_unique_qr_args = []
         for call in self.schedule.calls():
             if call.qr_required:
@@ -876,6 +1137,7 @@ class DynInvoke(Invoke):
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
+                                   self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
 
         # Add the subroutine argument declarations for real scalars
@@ -893,6 +1155,9 @@ class DynInvoke(Invoke):
                 invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                        entity_decls=scalar_args[intent],
                                        intent=intent))
+
+        # declare any stencil arguments
+        self.stencil.declare_unique_alg_vars(invoke_sub)
 
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
@@ -1026,6 +1291,9 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, pointer=True,
                                      lhs=mesh_obj_name, rhs=rhs))
+
+        # declare and initialise stencil maps
+        self.stencil.initialise_stencil_maps(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
@@ -1278,13 +1546,18 @@ class DynHaloExchange(HaloExchange):
         if field.descriptor.stencil:
             halo_type = field.descriptor.stencil['type']
             halo_depth = field.descriptor.stencil['extent']
+            if not halo_depth:
+                # halo_depth is provided by the algorithm layer
+                halo_depth = stencil_extent_value(field)
+            else:
+                halo_depth = str(halo_depth)
             if inc:
                 # there is an inc writer which needs redundant
                 # computation so our halo depth must be increased by 1
-                halo_depth += 1
+                halo_depth += "+1"
         else:
             halo_type = 'region'
-            halo_depth = 1
+            halo_depth = "1"
         HaloExchange.__init__(self, field, halo_type, halo_depth,
                               check_dirty, parent=parent)
 
@@ -1297,7 +1570,7 @@ class DynHaloExchange(HaloExchange):
             ref = ""
         if self._check_dirty:
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" + str(self._halo_depth) +
+                                "%is_dirty(depth=" + self._halo_depth +
                                 ")")
             parent.add(if_then)
             halo_parent = if_then
@@ -1306,7 +1579,7 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + str(self._halo_depth) + ")"))
+                "%halo_exchange(depth=" + self._halo_depth + ")"))
         parent.add(CommentGen(parent, ""))
 
 
@@ -1379,10 +1652,18 @@ class DynLoop(Loop):
             self.set_upper_bound("dofs")
         else:
             if config.DISTRIBUTED_MEMORY:
-                if self.field_space == "w3":  # discontinuous
+                if self.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
                     self.set_upper_bound("edge")
-                else:  # continuous
+                elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     self.set_upper_bound("halo", index=1)
+                elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
+                    self.set_upper_bound("halo", index=1)
+                else:
+                    raise GenerationError(
+                        "Unexpected function space found. Expecting one of "
+                        "{0} but found '{1}'".format(
+                            str(VALID_FUNCTION_SPACES),
+                            self.field_space.orig_name))
             else:  # sequential
                 self.set_upper_bound("cells")
 
@@ -1504,8 +1785,11 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            raise GenerationError(
-                "Stencils are not yet supported with halo exchange call logic")
+            if self._upper_bound_name not in ["halo", "edge"]:
+                raise GenerationError(
+                    "Loop bounds other than halo and edge are currently "
+                    "unsupported. Found '{0}'.".format(self._upper_bound_name))
+            return self._upper_bound_name in ["halo", "edge"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
@@ -1617,6 +1901,16 @@ class DynKern(Kern):
                     "found '{1}'".format(VALID_ARG_TYPE_NAMES,
                                          descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
+
+            if descriptor.stencil:
+                if not descriptor.stencil["extent"]:
+                    # stencil size (in cells) is passed in
+                    args.append(Arg("variable",
+                                    pre+str(idx+1)+"_stencil_size"))
+                if descriptor.stencil["type"] == "xory1d":
+                    # direction is passed in
+                    args.append(Arg("variable", pre+str(idx+1)+"_direction"))
+
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
         if self._qr_required:
@@ -1644,31 +1938,7 @@ class DynKern(Kern):
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
-        # perform some consistency checks as we have switched these
-        # off in the base class
-        if self._qr_required:
-            # check we have an extra argument in the algorithm call
-            if len(ktype.arg_descriptors)+1 != len(args):
-                raise GenerationError(
-                    "error: QR is required for kernel '{0}' which means that "
-                    "a QR argument must be passed by the algorithm layer. "
-                    "Therefore the number of arguments specified in the "
-                    "kernel metadata '{1}', must be one less than the number "
-                    "of arguments in the algorithm layer. However, I found "
-                    "'{2}'".format(ktype.procedure.name,
-                                   len(ktype.arg_descriptors),
-                                   len(args)))
-        else:
-            # check we have the same number of arguments in the
-            # algorithm call and the kernel metadata
-            if len(ktype.arg_descriptors) != len(args):
-                raise GenerationError(
-                    "error: QR is not required for kernel '{0}'. Therefore "
-                    "the number of arguments specified in the kernel "
-                    "metadata '{1}', must equal the number of arguments in "
-                    "the algorithm layer. However, I found '{2}'".
-                    format(ktype.procedure.name,
-                           len(ktype.arg_descriptors), len(args)))
+
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
@@ -1749,13 +2019,19 @@ class DynKern(Kern):
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=["cell"]))
         # 1: provide mesh height
-        arglist.append("nlayers")
         if my_type == "subroutine":
+            arglist.append("nlayers")
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                entity_decls=["nlayers"]))
+        else:
+            nlayers_name = self._name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
+            arglist.append(nlayers_name)
         # 2: Provide data associated with fields in the order
         #    specified in the metadata.  If we have a vector field
-        #    then generate the appropriate number of arguments.
+        #    then generate the appropriate number of arguments.  If
+        #    the field is accessed with a stencil operation then add
+        #    in any required additional arguments.
         first_arg = True
         first_arg_decl = None
         for arg in self._arguments.args:
@@ -1797,6 +2073,48 @@ class DynKern(Kern):
                     else:
                         text = arg.proxy_name + dataref
                     arglist.append(text)
+                # add in any required stencil arguments
+                if arg.descriptor.stencil:
+                    if not arg.descriptor.stencil['extent']:
+                        # the extent is not specified in the metadata
+                        # so pass the value in
+                        if my_type == "subroutine":
+                            name = arg.name + "_stencil_size"
+                            parent.add(DeclGen(parent, datatype="integer",
+                                               intent="in",
+                                               entity_decls=[name]))
+                        else:
+                            name = stencil_size_name(arg)
+                        arglist.append(name)
+                    if arg.descriptor.stencil['type'] == "xory1d":
+                        # the direction of the stencil is not known so
+                        # pass the value in
+                        if my_type == "subroutine":
+                            name = arg.name+"_direction"
+                            parent.add(DeclGen(parent, datatype="integer",
+                                               intent="in",
+                                               entity_decls=[name]))
+                        else:
+                            name = arg.stencil.direction_arg.varName
+                        arglist.append(name)
+                    if my_type == "subroutine":
+                        name = arg.name+"_stencil_map"
+                        ndf_name = get_fs_ndf_name(arg.function_space)
+                        parent.add(DeclGen(parent, datatype="integer",
+                                           intent="in",
+                                           dimension=ndf_name + "," +
+                                           arg.name + "_stencil_size",
+                                           entity_decls=[name]))
+                    else:
+                        # add in stencil dofmap
+                        var_name = stencil_dofmap_name(arg)
+                        name = var_name+"(:,:,"
+                        if self.is_coloured():
+                            name += "cmap(colour, cell)"
+                        else:
+                            name += "cell"
+                        name += ")"
+                    arglist.append(name)
 
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
@@ -1856,7 +2174,8 @@ class DynKern(Kern):
             if my_type == "subroutine":
                 parent.add(
                     DeclGen(parent, datatype="integer", intent="in",
-                            entity_decls=[ndf_name]))
+                            entity_decls=[ndf_name]),
+                    position=["before", first_arg_decl.root])
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if field_on_space(unique_fs, self.arguments):
@@ -2020,24 +2339,27 @@ class DynKern(Kern):
         return psy_module.root
 
     @property
-    def incremented_arg(self, mapping=None):
+    def incremented_arg(self):
         ''' Returns the argument corresponding to a field or operator that has
         INC access.  '''
-        if mapping is None:
-            my_mapping = FIELD_ACCESS_MAP
-        else:
-            my_mapping = mapping
-        return Kern.incremented_arg(self, my_mapping)
+        return Kern.incremented_arg(self, FIELD_ACCESS_MAP)
 
     @property
-    def written_arg(self, mapping=None):
+    def written_arg(self):
         ''' Returns the argument corresponding to a field or operator that has
         WRITE access '''
-        if mapping is None:
-            my_mapping = FIELD_ACCESS_MAP
-        else:
-            my_mapping = mapping
-        return Kern.written_arg(self, my_mapping)
+        return Kern.written_arg(self, FIELD_ACCESS_MAP)
+
+    @property
+    def updated_arg(self):
+        ''' Returns the kernel argument that is updated (incremented or
+        written to) '''
+        arg = None
+        try:
+            arg = self.incremented_arg
+        except FieldNotFoundError:
+            arg = self.written_arg
+        return arg
 
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
@@ -2051,14 +2373,11 @@ class DynKern(Kern):
         # loop then we have to look-up the colour map
         if self.is_coloured():
 
-            # Find which argument object has INC access in order to look-up
-            # the colour map
-            try:
-                arg = self.incremented_arg
-            except FieldNotFoundError:
-                # TODO Warn that we're colouring a kernel that has
-                # no field object with INC access
-                arg = self.written_arg
+            # Find which argument object the kernel writes to (either GH_INC
+            # or GH_WRITE) in order to look-up the colour map
+            arg = self.updated_arg
+            # TODO Check whether this arg is gh_inc and if not, Warn that
+            # we're colouring a kernel that has no field object with INC access
 
             new_parent, position = parent.start_parent_loop()
             # Add the look-up of the colouring map for this kernel
@@ -2160,18 +2479,19 @@ class DynKern(Kern):
                               only=True, funcnames=[self._name]))
         # 5: Fix for boundary_dofs array in matrix_vector_code
         if self.name == "matrix_vector_code":
-            # In matrix_vector_code, all fields are on the same
-            # (unknown) space. Therefore we can use any field to
-            # dereference. We choose the 2nd one as that is what is
-            # done in the manual implementation.
-            reference_arg = self.arguments.args[1]
-            enforce_bc_arg = self.arguments.args[0]
+            # Any call to this kernel must be followed by a call
+            # to update boundary conditions (if the updated field
+            # is not on W3 space).
+            # Rather than rely on knowledge of the interface to
+            # matrix_vector kernel, look-up the argument that is
+            # updated and then apply b.c.'s to that...
+            enforce_bc_arg = self.updated_arg
             space_names = ["w1", "w2"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
             map_name = get_fs_map_name(kern_func_space_name)
-            proxy_name = reference_arg.proxy_name
+            proxy_name = enforce_bc_arg.proxy_name
             self._name_space_manager = NameSpaceFactory().create()
             fs_name = self._name_space_manager.create_name(root_name="fs")
             boundary_dofs_name = self._name_space_manager.create_name(
@@ -2185,7 +2505,7 @@ class DynKern(Kern):
                                entity_decls=[fs_name]))
             new_parent, position = parent.start_parent_loop()
             new_parent.add(AssignGen(new_parent, lhs=fs_name,
-                                     rhs=reference_arg.name +
+                                     rhs=enforce_bc_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
             test_str = ""
@@ -2281,6 +2601,82 @@ class FSDescriptors(object):
             "function space {0}".format(fspace.orig_name))
 
 
+def check_args(call):
+    '''checks that the kernel arguments provided via the invoke call are
+    consistent with the information expected, as specified by the
+    kernel metadata '''
+
+    # stencil arguments
+    stencil_arg_count = 0
+    for arg_descriptor in call.ktype.arg_descriptors:
+        if arg_descriptor.stencil:
+            if not arg_descriptor.stencil['extent']:
+                # an extent argument must be provided
+                stencil_arg_count += 1
+            if arg_descriptor.stencil['type'] == 'xory1d':
+                # a direction argument must be provided
+                stencil_arg_count += 1
+
+    # qr_argument
+    qr_required = False
+    for descriptor in call.ktype.func_descriptors:
+        if len(descriptor.operator_names) > 0:
+            qr_required = True
+    if qr_required:
+        qr_arg_count = 1
+    else:
+        qr_arg_count = 0
+
+    expected_arg_count = len(call.ktype.arg_descriptors) + \
+        stencil_arg_count + qr_arg_count
+
+    if expected_arg_count != len(call.args):
+        raise GenerationError(
+            "error: expected '{0}' arguments in the algorithm layer but "
+            "found '{1}'. Expected '{2}' standard arguments, '{3}' "
+            "stencil arguments and '{4}' qr_arguments'".format(
+                expected_arg_count, len(call.args),
+                len(call.ktype.arg_descriptors), stencil_arg_count,
+                qr_arg_count))
+
+
+class DynStencil(object):
+    ''' Provides stencil information about a Dynamo argument '''
+    def __init__(self, name):
+        self._name = name
+        self._extent = None
+        self._extent_arg = None
+        self._direction_arg = None
+
+    @property
+    def extent(self):
+        '''Returns the extent of the stencil if it is known. It will be known
+        if it is specified in the metadata.'''
+        return self._extent
+
+    @property
+    def extent_arg(self):
+        '''Returns the algorithm argument associated with the extent value if
+        extent has not been provided in the metadata.'''
+        return self._extent_arg
+
+    @extent_arg.setter
+    def extent_arg(self, value):
+        ''' sets the extent_arg argument. '''
+        self._extent_arg = value
+
+    @property
+    def direction_arg(self):
+        '''returns the direction argument associated with the direction of
+        the stencil if the direction of the stencil is not known'''
+        return self._direction_arg
+
+    @direction_arg.setter
+    def direction_arg(self, value):
+        ''' sets the direction_arg argument. '''
+        self._direction_arg = value
+
+
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments
     collectively, as specified by the kernel argument metadata. '''
@@ -2289,12 +2685,62 @@ class DynKernelArguments(Arguments):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
 
+        self._name_space_manager = NameSpaceFactory().create()
+
         Arguments.__init__(self, parent_call)
 
+        # check that the arguments provided by the algorithm layer are
+        # consistent with those expected by the kernel(s)
+        check_args(call)
+
+        # create our arguments and add in stencil information where
+        # appropriate.
         self._args = []
-        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
-            self._args.append(DynKernelArgument(self, arg, call.args[idx],
-                                                parent_call))
+        idx = 0
+        for arg in call.ktype.arg_descriptors:
+
+            dyn_argument = DynKernelArgument(self, arg, call.args[idx],
+                                             parent_call)
+            idx += 1
+            if dyn_argument.descriptor.stencil:
+                stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
+                if dyn_argument.descriptor.stencil['extent']:
+                    raise GenerationError("extent metadata not yet supported")
+                    # if supported we would add the following
+                    # line. However, note there is currently no setter
+                    # for extent in DynStencil so this would need to
+                    # be added.  stencil.extent =
+                    # dyn_argument.descriptor.stencil['extent']
+                else:
+                    # an extent argument has been added
+                    stencil.extent_arg = call.args[idx]
+                    # extent_arg is not a standard dynamo argument, it is
+                    # an Arg object created by the parser. Therefore its
+                    # name may clash. We register and update the name here.
+                    unique_name = self._name_space_manager.create_name(
+                        root_name=stencil.extent_arg.varName,
+                        context="AlgArgs",
+                        label=stencil.extent_arg.text)
+                    stencil.extent_arg.varName = unique_name
+                    idx += 1
+                if dyn_argument.descriptor.stencil['type'] == 'xory1d':
+                    # a direction argument has been added
+                    stencil.direction_arg = call.args[idx]
+                    if stencil.direction_arg.varName not in \
+                       VALID_STENCIL_DIRECTIONS:
+                        # direction_arg is not a standard dynamo
+                        # argument, it is an Arg object created by the
+                        # parser. Therefore its name may clash. We
+                        # register and update the name here.
+                        unique_name = self._name_space_manager.create_name(
+                            root_name=stencil.direction_arg.varName,
+                            context="AlgArgs",
+                            label=stencil.direction_arg.text)
+                        stencil.direction_arg.varName = unique_name
+                    idx += 1
+                dyn_argument.stencil = stencil
+            self._args.append(dyn_argument)
+
         self._dofs = []
 
         # Generate a static list of unique function-space names used
@@ -2395,6 +2841,7 @@ class DynKernelArgument(KernelArgument):
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
+        self._stencil = None
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -2524,7 +2971,10 @@ class DynKernelArgument(KernelArgument):
     def function_space(self):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata. '''
-        return self._function_spaces[0]
+        if self._type == "gh_operator":
+            return self.function_spaces[1]
+        else:
+            return self._function_spaces[0]
 
     @property
     def function_space_to(self):
@@ -2582,6 +3032,18 @@ class DynKernelArgument(KernelArgument):
             return False
         else:  # must be a continuous function space
             return False
+
+    @property
+    def stencil(self):
+        '''Return stencil information about this kernel argument if it
+        exists. The information is returned as a DynStencil object.'''
+        return self._stencil
+
+    @stencil.setter
+    def stencil(self, value):
+        '''Set stencil information for this kernel argument. The information
+        should be provided as a DynStencil object. '''
+        self._stencil = value
 
 
 class DynKernCallFactory(object):
