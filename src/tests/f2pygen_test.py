@@ -819,6 +819,29 @@ def test_progunitgen_multiple_use2():
     assert count_lines(sub.root, "USE fred") == 2
 
 
+def test_progunit_multiple_use3():
+    '''Check that we correctly handle the case where the same module is
+    specified in two UseGen objects statements both of which are
+    specific and they have overlapping variable names.
+
+    '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    funcnames = ["a","b","c"]
+    sub.add(UseGen(sub, name="fred", only=True, funcnames=funcnames))
+    funcnames = ["c","d"]
+    sub.add(UseGen(sub, name="fred", only=True, funcnames=funcnames))
+    gen = str(sub.root)
+    expected = (
+        "      USE fred, ONLY: d\n"
+        "      USE fred, ONLY: a, b, c")
+    assert expected in gen
+    assert count_lines(sub.root, "USE fred") == 2
+    # ensure that the input list does not get modified
+    assert funcnames == ["c","d"]
+
+
 def test_adduse_empty_only():
     ''' Test that the adduse module method works correctly when we specify
     that we want it to be specific but then don't provide a list of
