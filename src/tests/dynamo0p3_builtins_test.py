@@ -77,19 +77,6 @@ def test_dynbuiltin_wrong_name():
             "expected one of '[" in str(excinfo.value))
 
 
-#def test_dynbuiltin_no_dm():
-#    ''' Check that we raise an error if we encounter a call to a built-in
-#    kernel when distributed memory is enabled '''
-#    _, invoke_info = parse(os.path.join(BASE_PATH,
-#                                        "15_single_pointwise_invoke.f90"),
-#                           api="dynamo0.3")
-#    with pytest.raises(ParseError) as excinfo:
-#        _ = PSyFactory("dynamo0.3",
-#                       distributed_memory=True).create(invoke_info)
-#    assert ("built-in kernels are not supported when generating "
-#            "distributed-memory code" in str(excinfo.value))
-
-
 def test_invalid_builtin_kernel():
     ''' Check that we raise an appropriate error if an unrecognised
     built-in is specified in the algorithm layer '''
