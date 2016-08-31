@@ -355,9 +355,11 @@ class ProgUnitGen(BaseGen):
                             if child.root.isonly and content.root.isonly:
                                 # see if the same names are specified.
                                 # We take a copy of the list ('[:]')
-                                # as we are deleting elements of the
-                                # original
-                                for new_name in content.root.items[:]:
+                                # as we are deleting elements and
+                                # don't want to delete the original
+                                local_list = content.root.items[:]
+                                content.root.items = local_list
+                                for new_name in content.root.items:
                                     for existing_name in child.root.items:
                                         if existing_name.lower() == \
                                            new_name.lower():
