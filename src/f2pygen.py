@@ -314,11 +314,10 @@ class ProgUnitGen(BaseGen):
                                            child_name.lower():
                                             content.root.entity_decls.\
                                                 remove(var_name)
-                                            if len(content.root.entity_decls) \
-                                               == 0:
+                                            if not content.root.entity_decls:
                                                 # return as all variables in
                                                 # this declaration already
-                                                # exists
+                                                # exist
                                                 return
                 if isinstance(content, TypeDeclGen):
                     # have I already been declared?
@@ -335,11 +334,10 @@ class ProgUnitGen(BaseGen):
                                            child_name.lower():
                                             content.root.entity_decls.\
                                                 remove(var_name)
-                                            if len(content.root.entity_decls) \
-                                               == 0:
+                                            if not content.root.entity_decls:
                                                 # return as all variables in
                                                 # this declaration already
-                                                # exists
+                                                # exist
                                                 return
 
                 index = 0
@@ -387,7 +385,7 @@ class ProgUnitGen(BaseGen):
                                         if existing_name.lower() == \
                                            new_name.lower():
                                             content.root.items.remove(new_name)
-                                            if len(content.root.items) == 0:
+                                            if not content.root.items:
                                                 return
                 index = 0
             elif isinstance(content, ImplicitNoneGen):
