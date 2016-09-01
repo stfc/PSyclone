@@ -828,9 +828,9 @@ def test_progunit_multiple_use3():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
-    funcnames = ["a","b","c"]
+    funcnames = ["a", "b", "c"]
     sub.add(UseGen(sub, name="fred", only=True, funcnames=funcnames))
-    funcnames = ["c","d"]
+    funcnames = ["c", "d"]
     sub.add(UseGen(sub, name="fred", only=True, funcnames=funcnames))
     gen = str(sub.root)
     expected = (
@@ -839,7 +839,7 @@ def test_progunit_multiple_use3():
     assert expected in gen
     assert count_lines(sub.root, "USE fred") == 2
     # ensure that the input list does not get modified
-    assert funcnames == ["c","d"]
+    assert funcnames == ["c", "d"]
 
 
 def test_adduse_empty_only():
@@ -991,7 +991,7 @@ def test_typedeclgen_multiple_use2():
 
 def test_declgen_multiple_use():
     '''Check that we correctly handle the case where data of the same type
-    has already been delared. '''
+    has already been delared.'''
 
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -999,23 +999,23 @@ def test_declgen_multiple_use():
     # first declaration
     datanames = ["i1"]
     sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=datanames))
+                    entity_decls=datanames))
     gen = str(sub.root)
     # second declaration
     datanames = ["i1", "i2"]
     sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=datanames))
+                    entity_decls=datanames))
     gen = str(sub.root)
     print gen
     expected = (
-        "      integer i2\n"
-        "      integer i1")
+        "      INTEGER i2\n"
+        "      INTEGER i1")
     assert expected in gen
     # check input data is not modified
     assert datanames == ["i1", "i2"]
 
 
-def test_declgen_multiple_use():
+def test_declgen_multiple_use2():
     '''Check that we don't correctly handle the case where data of a
     different type has already been delared. '''
 
@@ -1025,12 +1025,12 @@ def test_declgen_multiple_use():
     # first declaration
     datanames = ["data1"]
     sub.add(DeclGen(sub, datatype="real",
-                        entity_decls=datanames))
+                    entity_decls=datanames))
     gen = str(sub.root)
     # second declaration
     datanames = ["data1", "data2"]
     sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=datanames))
+                    entity_decls=datanames))
     gen = str(sub.root)
     print gen
     expected = (

@@ -1829,7 +1829,8 @@ def test_multi_kernel_specific():
     supported to get PSyclone to generate correct code for the current
     implementation of dynamo. Future API's will not support any
     hacks. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "12.3_multi_kernel_specific.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.3_multi_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
