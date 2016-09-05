@@ -1177,24 +1177,6 @@ def test_two_scalars():
     assert expected in generated_code
 
 
-@pytest.mark.xfail(reason="We currently only support scalars which are "
-                   "gh_read and so the kernel used for this test has no "
-                   "argument that is written to and that triggers a "
-                   "different exception. This test can be re-instated once "
-                   "we support gh_inc for scalars")
-def test_scalar_only():
-    ''' tests that we raise an error when a kernel erroneously
-    only has scalar arguments '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.8_single_invoke_no_fields.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert 'Cannot create an Invoke with no field/operator arg' in \
-        str(excinfo.value)
-
-
 def test_no_vector_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
     specifies a vector scalar '''
@@ -4078,13 +4060,14 @@ def test_intent_multi_kern():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    output = str(psy.gen)
-    print output
-    assert "TYPE(field_type), intent(inout) :: g, f\n" in output
-    assert "TYPE(field_type), intent(inout) :: b, h\n" in output
-    assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-    assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+    for dm in [False, True]:
+        psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+        output = str(psy.gen)
+        print output
+        assert "TYPE(field_type), intent(inout) :: g, f\n" in output
+        assert "TYPE(field_type), intent(inout) :: b, h\n" in output
+        assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
+        assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
 
 
 def test_field_gh_sum_invalid():
@@ -4160,6 +4143,26 @@ def test_single_real_scalar_sum():
 
 
 def test_multiple_scalar_sums():
+    '''Test that multiple real scalar (gh_sum) reductions generate
+    correct code '''
+    for dm in [False, True]:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "16.4.1_multiple_scalar_sums2.f90"),
+                               api="dynamo0.3", distributed_memory=dm)
+        psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type(rsum1, "
+                "rsum2, f1)") in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
+        assert (
+            "      rsum1 = 0.0_r_def\n"
+            "      rsum2 = 0.0_r_def")
+        assert ("CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, rsum2, "
+                "f1_proxy%data, ndf_w3, undf_w3, map_w3)") in gen
+
+
+def test_multiple_mixed_scalar_sums():
     '''Test that multiple mixed scalar (gh_sum) reductions generate
     correct code with dm=False (dm=True is not supported with
     gh_integer) '''
@@ -4180,6 +4183,19 @@ def test_multiple_scalar_sums():
         "      isum2 = 0")
     assert ("CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
         "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)") in gen
+
+
+def test_multiple_mixed_scalar_sums2():
+    '''Test that multiple mixed scalar (gh_sum) reductions raise an
+    exception with dm=False as dm=True is not supported with
+    gh_integer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.4_multiple_scalar_sums.f90"),
+                           api="dynamo0.3", distributed_memory=True)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    assert "Integer reductions are not currently supported" \
+        in str(excinfo.value)
 
 
 def test_multiple_kernels_scalar_sums():
