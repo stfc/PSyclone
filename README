@@ -8,9 +8,10 @@ Please see psyclone.pdf in this directory for more information. If you would
 prefer to build the documentation, please see the README file in the "doc"
 directory.
 
-There is a simple installer which creates a stand-alone tree containing the
-functional components. To make use of the result add the python package
-directories to PYTHONPATH and consider adding the "bin" directory to PATH.
+There is a simple installer (contributions/install) which creates a
+stand-alone tree containing the functional components. To make use of the
+result add the python package directories to PYTHONPATH and consider adding
+the "bin" directory to PATH.
 
 Structure
 =========
