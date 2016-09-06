@@ -990,7 +990,7 @@ class DynInvoke(Invoke):
                             "by the LFRic infrastructure. Error found in "
                             "Kernel '{0}', argument '{1}'".format(
                                 scalar._call.name, scalar.name))
-                    global_sum = DynGlobalSum(scalar, parent=loop)
+                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1,global_sum)
 
     @property
