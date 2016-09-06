@@ -16,15 +16,15 @@ the "bin" directory to PATH.
 Structure
 =========
 
-changelog     : information on changes between releases
-contribution/ : Unsupported additional material
-doc/          : documentation source using sphinx
-examples/     : simple examples
-psyclone.pdf  : generated documentation
-README        : this file
-README.gource : information on how to generate a gource video from the
-                repository
-README.uml    : information on how to create UML class diagrams from the source
-                using pyreverse
-src/          : the python source code
-src/tests/    : unit and functional tests using pytest
+changelog      : information on changes between releases
+contributions/ : Unsupported additional material
+doc/           : documentation source using sphinx
+examples/      : simple examples
+psyclone.pdf   : generated documentation
+README         : this file
+README.gource  : information on how to generate a gource video from the
+                 repository
+README.uml     : information on how to create UML class diagrams from the source
+                 using pyreverse
+src/           : the python source code
+src/tests/     : unit and functional tests using pytest
