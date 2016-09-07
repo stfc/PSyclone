@@ -1519,6 +1519,15 @@ class DynGlobalSum(GlobalSum):
     ''' Dynamo specific global sum class which can be added to and
     manipulated in, a schedule '''
     def __init__(self, scalar, parent=None):
+        if not config.DISTRIBUTED_MEMORY:
+            raise GenerationError("It makes no sense to create a DynGlobalSum "
+                                  "object when dm=False")
+        # a list of scalar types that this class supports
+        self._supported_scalars = ["gh_real"]
+        if scalar.type not in self._supported_scalars:
+            raise GenerationError("DynGlobalSum currently only supports "
+                                  "'{0}', but found '{1}'.".
+                                  format(self._supported_scalars, scalar.type))
         GlobalSum.__init__(self, scalar, parent=parent)
 
     def gen_code(self, parent):

@@ -16,7 +16,8 @@ from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange
+    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
+    DynGlobalSum
 from transformations import LoopFuseTrans
 from genkernelstub import generate
 
@@ -5542,3 +5543,43 @@ def test_unsupported_halo_read_access():
         _ = loop._halo_read_access(stencil_arg)
     assert ("Loop bounds other than halo and edge are currently unsupported. "
             "Found 'inner'." in str(err))
+
+
+def test_dynglobalsum_unsupported_scalar():
+    '''Check that an instance of the DynGlobalSum class raises an
+    exception if an unsupported scalar type is provided when
+    dm=True '''
+    # get an instance of an integer scalar
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.1_single_invoke_1_int_scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    argument = kernel.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        _ = DynGlobalSum(argument)
+    assert "DynGlobalSum currently only supports '['gh_real']'" in str(err)
+
+
+def test_dynglobalsum_nodm_error():
+    '''Check that an instance of the DynGlobalSum class raises an
+    exception if it is instantiated when dm=False'''
+    # get an instance of a real scalar
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    generated_code = str(psy.gen)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    kernel = loop.children[0]
+    argument = kernel.arguments.args[0]
+    with pytest.raises(GenerationError) as err:
+        _ = DynGlobalSum(argument)
+    assert ("It makes no sense to create a DynGlobalSum object when "
+            "dm=False") in str(err)
