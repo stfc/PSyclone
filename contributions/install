@@ -45,9 +45,9 @@ def install(workingcopy, installroot):
     shutil.copyfile(os.path.join(workingcopy, 'src', 'generator.py'),
                     os.path.join(installroot, 'bin', 'psyclone'))
     os.chmod(os.path.join(installroot, 'bin', 'psyclone'),
-             stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
-             | stat.S_IRGRP | stat.S_IXGRP
-             | stat.S_IROTH | stat.S_IXOTH)
+             stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
+             stat.S_IRGRP | stat.S_IXGRP |
+             stat.S_IROTH | stat.S_IXOTH)
 
     ignores = shutil.ignore_patterns('tests')
     shutil.copytree(os.path.join(workingcopy, 'f2py_93'),
@@ -56,6 +56,8 @@ def install(workingcopy, installroot):
 
 
 def _arguments():
+    ''' Obtain the install directory from the command-line arguments and
+    work out the location of the working copy from which to install '''
     parser = argparse.ArgumentParser(add_help=False,
                                      description='Install PSyclone to disc.')
     parser.add_argument('directory', help='Filename for installation root')
