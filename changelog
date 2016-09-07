@@ -8,6 +8,10 @@
 
 	3) #673 Fixed an xfailing built-in test
 
+        4) #721 Bug fix - generate correct variable declarations and
+        module use statements without modifying original arguments. Invokes
+        requiring multiple enforce-bc kernel calls are now handled correctly.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

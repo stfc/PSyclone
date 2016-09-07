@@ -300,21 +300,46 @@ class ProgUnitGen(BaseGen):
             if isinstance(content, DeclGen) or \
                isinstance(content, TypeDeclGen):
 
-                # have I already been declared?
-                for child in self._children:
-                    if isinstance(child, DeclGen) or \
-                       isinstance(child, TypeDeclGen):
-                        # take a copy of the list '[:]' as we are
-                        # deleting elements of the original
-                        for var_name in content.root.entity_decls[:]:
-                            for child_name in child.root.entity_decls:
-                                if var_name.lower() == child_name.lower():
-                                    content.root.entity_decls.remove(var_name)
-                                    if len(content.root.entity_decls) == 0:
-                                        # return as all variables in
-                                        # this declaration already
-                                        # exists
-                                        return
+                if isinstance(content, DeclGen):
+                    # have I already been declared?
+                    for child in self._children:
+                        if isinstance(child, DeclGen):
+                            # is this declaration the same type as me?
+                            if child.root.name == content.root.name:
+                                # we are modifying the list so we need
+                                # to iterate over a copy
+                                for var_name in content.root.entity_decls[:]:
+                                    for child_name in child.root.entity_decls:
+                                        if var_name.lower() == \
+                                           child_name.lower():
+                                            content.root.entity_decls.\
+                                                remove(var_name)
+                                            if not content.root.entity_decls:
+                                                # return as all variables in
+                                                # this declaration already
+                                                # exist
+                                                return
+                if isinstance(content, TypeDeclGen):
+                    # have I already been declared?
+                    for child in self._children:
+                        if isinstance(child, TypeDeclGen):
+                            # is this declaration the same type as me?
+                            if child.root.selector[1] == \
+                               content.root.selector[1]:
+                                # we are modifying the list so we need
+                                # to iterate over a copy
+                                for var_name in content.root.entity_decls[:]:
+                                    for child_name in child.root.entity_decls:
+                                        if var_name.lower() == \
+                                           child_name.lower():
+                                            content.root.entity_decls.\
+                                                remove(var_name)
+                                            if not content.root.entity_decls:
+                                                # return as all variables in
+                                                # this declaration already
+                                                # exist
+                                                return
+
                 index = 0
                 # skip over any use statements
                 index = self._skip_use_and_comments(index)
@@ -353,16 +378,14 @@ class ProgUnitGen(BaseGen):
                                 # declaration
                                 return
                             if child.root.isonly and content.root.isonly:
-                                # see if the same names are specified.
-                                # We take a copy of the list ('[:]')
-                                # as we are deleting elements of the
-                                # original
+                                # we are modifying the list so we need
+                                # to iterate over a copy
                                 for new_name in content.root.items[:]:
                                     for existing_name in child.root.items:
                                         if existing_name.lower() == \
                                            new_name.lower():
                                             content.root.items.remove(new_name)
-                                            if len(content.root.items) == 0:
+                                            if not content.root.items:
                                                 return
                 index = 0
             elif isinstance(content, ImplicitNoneGen):
@@ -576,7 +599,8 @@ class UseGen(BaseGen):
         if funcnames is None:
             funcnames = []
             use.isonly = False
-        use.items = funcnames
+        local_funcnames = funcnames[:]
+        use.items = local_funcnames
         BaseGen.__init__(self, parent, use)
 
 
@@ -671,7 +695,9 @@ class DeclGen(BaseGen):
             raise RuntimeError(
                 "f2pygen:DeclGen:init: Only integer and real are currently"
                 " supported and you specified '{0}'".format(datatype))
-        self._decl.entity_decls = entity_decls
+        # make a copy of entity_decls as we may modify it
+        local_entity_decls = entity_decls[:]
+        self._decl.entity_decls = local_entity_decls
         my_attrspec = []
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
@@ -695,6 +721,8 @@ class TypeDeclGen(BaseGen):
             raise RuntimeError(
                 "Cannot create a declaration of a derived-type variable "
                 "without specifying the name(s) of the variable(s)")
+        # make a copy of entity_decls as we may modify it
+        local_entity_decls = entity_decls[:]
         if attrspec is None:
             attrspec = []
         my_attrspec = [spec for spec in attrspec]
@@ -702,7 +730,7 @@ class TypeDeclGen(BaseGen):
             my_attrspec.append("intent({0})".format(intent))
         if pointer is not False:
             my_attrspec.append("pointer")
-        self._names = entity_decls
+        self._names = local_entity_decls
 
         reader = FortranStringReader("type(vanillatype) :: vanilla")
         reader.set_mode(True, False)  # free form, strict
@@ -712,7 +740,7 @@ class TypeDeclGen(BaseGen):
         self._typedecl = Type(parent.root, myline)
         self._typedecl.selector = ('', datatype)
         self._typedecl.attrspec = my_attrspec
-        self._typedecl.entity_decls = entity_decls
+        self._typedecl.entity_decls = local_entity_decls
         BaseGen.__init__(self, parent, self._typedecl)
 
     @property
