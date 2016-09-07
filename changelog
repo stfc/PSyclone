@@ -12,6 +12,9 @@
         module use statements without modifying original arguments. Invokes
         requiring multiple enforce-bc kernel calls are now handled correctly.
 
+        5) #727 Addition of install script (contributions/install) to
+	support Met Office modules environment.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
