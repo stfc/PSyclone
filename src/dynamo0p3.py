@@ -989,9 +989,9 @@ class DynInvoke(Invoke):
                             "Integer reductions are not currently supported "
                             "by the LFRic infrastructure. Error found in "
                             "Kernel '{0}', argument '{1}'".format(
-                                scalar._call.name, scalar.name))
+                                scalar.call.name, scalar.name))
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
-                    loop.parent.children.insert(loop.position+1,global_sum)
+                    loop.parent.children.insert(loop.position+1, global_sum)
 
     @property
     def qr_required(self):
@@ -1144,7 +1144,8 @@ class DynInvoke(Invoke):
         scalar_args = self.unique_declns_by_intent("gh_real")
         for intent in FORTRAN_INTENT_NAMES:
             if scalar_args[intent]:
-                invoke_sub.add(DeclGen(invoke_sub, datatype="real",kind="r_def",
+                invoke_sub.add(DeclGen(invoke_sub, datatype="real",
+                                       kind="r_def",
                                        entity_decls=scalar_args[intent],
                                        intent=intent))
 
@@ -1201,7 +1202,8 @@ class DynInvoke(Invoke):
 
         # Zero any scalar arguments that are GH_SUM
         zero_real_args = self.unique_declarations("gh_real", access="gh_sum")
-        zero_integer_args = self.unique_declarations("gh_integer", access="gh_sum")
+        zero_integer_args = self.unique_declarations("gh_integer",
+                                                     access="gh_sum")
         if zero_real_args or zero_integer_args:
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
@@ -1741,25 +1743,27 @@ class DynLoop(Loop):
             return "ncp_colour(colour)"
         elif self._upper_bound_name == "dofs":
             if config.DISTRIBUTED_MEMORY:
-                return self.field.proxy_name_indexed + "%" + \
+                result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_last_dof_owned()"
             else:
-                return self._kern.undf_name
+                result = self._kern.undf_name
+            return result
         elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
-                return self.field.proxy_name_indexed + "%" + \
+                result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             # keep ncolours and ncolour here as options as we will
             # need them again when the DM colouring API is implemented
             elif self._upper_bound_name == "ncolours":
-                return "ncolour"
+                result = "ncolour"
             elif self._upper_bound_name == "ncolour":
-                return "ncp_colour(colour)"
+                result = "ncp_colour(colour)"
             else:
                 raise GenerationError(
                     "For sequential/shared-memory code, the upper loop "
                     "bound must be one of ncolours, ncolour, cells or dofs "
                     "but got '{0}'".format(self._upper_bound_name))
+            return result
         else:
             if self._upper_bound_name in ["inner", "halo"]:
                 index = self._upper_bound_index

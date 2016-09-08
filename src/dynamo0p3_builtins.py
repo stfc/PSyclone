@@ -13,7 +13,6 @@
 from psyGen import BuiltIn, NameSpaceFactory
 from parse import ParseError
 from dynamo0p3 import DynLoop, DynKernelArguments
-import config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API

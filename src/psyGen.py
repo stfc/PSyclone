@@ -481,8 +481,8 @@ class Invoke(object):
                                               access=MAPPING_ACCESSES["write"])
         read_args = self.unique_declarations(datatype,
                                              access=MAPPING_ACCESSES["read"])
-        sum_args =  self.unique_declarations(datatype,
-                                             access=MAPPING_REDUCTIONS["sum"])
+        sum_args = self.unique_declarations(datatype,
+                                            access=MAPPING_REDUCTIONS["sum"])
         # sum_args behave as if they are write_args from the
         # PSy-layer's perspective
         write_args += sum_args
@@ -1558,7 +1558,7 @@ class Arguments(object):
             for argument in self._args:
                 if argument.access.lower() in arg_accesses:
                     arguments.append(argument)
-        else: # no conditions provided so return all args
+        else:  # no conditions provided so return all args
             return self._args
         return arguments
 
@@ -1622,6 +1622,11 @@ class Argument(object):
         baseclass version which just returns "field" in all
         cases. API's with this concept can override this method '''
         return "field"
+
+    @property
+    def call(self):
+        ''' Return the call that this argument is associated with '''
+        return self._call
 
     def set_dependencies(self):
         writers = ["WRITE", "INC", "SUM"]

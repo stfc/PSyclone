@@ -4120,7 +4120,8 @@ def test_intent_multi_kern():
                                         "4.8_multikernel_invokes.f90"),
                            api="dynamo0.3")
     for dm in [False, True]:
-        psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dm).create(invoke_info)
         output = str(psy.gen)
         print output
         assert "TYPE(field_type), intent(inout) :: g, f\n" in output
@@ -4182,11 +4183,11 @@ def test_single_real_scalar_sum():
         _, invoke_info = parse(os.path.join(BASE_PATH,
                                             "16.3_real_scalar_sum.f90"),
                                api="dynamo0.3", distributed_memory=dm)
-        psy = PSyFactory("dynamo0.3", distributed_memory=dm).\
-              create(invoke_info)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dm).create(invoke_info)
         gen = str(psy.gen)
         print gen
-        if dm==True:
+        if dm:
             assert "TYPE(scalar_type) global_sum" in gen
             assert "DO cell=1,mesh%get_last_edge_cell()" in gen
             assert (
@@ -4205,20 +4206,21 @@ def test_multiple_scalar_sums():
     '''Test that multiple real scalar (gh_sum) reductions generate
     correct code '''
     for dm in [False, True]:
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "16.4.1_multiple_scalar_sums2.f90"),
-                               api="dynamo0.3", distributed_memory=dm)
-        psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+            api="dynamo0.3", distributed_memory=dm)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dm).create(invoke_info)
         gen = str(psy.gen)
         print gen
-        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type(rsum1, "
-                "rsum2, f1)") in gen
+        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type("
+                "rsum1, rsum2, f1)") in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
         assert (
             "      rsum1 = 0.0_r_def\n"
             "      rsum2 = 0.0_r_def")
-        assert ("CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, rsum2, "
-                "f1_proxy%data, ndf_w3, undf_w3, map_w3)") in gen
+        assert ("CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, "
+                "rsum2, f1_proxy%data, ndf_w3, undf_w3, map_w3)") in gen
 
 
 def test_multiple_mixed_scalar_sums():
@@ -4232,7 +4234,7 @@ def test_multiple_mixed_scalar_sums():
     gen = str(psy.gen)
     print gen
     assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
-        "isum1, f1, rsum2, isum2)") in gen
+            "isum1, f1, rsum2, isum2)") in gen
     assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
     assert "INTEGER, intent(out) :: isum1, isum2" in gen
     assert (
@@ -4241,7 +4243,7 @@ def test_multiple_mixed_scalar_sums():
         "      isum1 = 0\n"
         "      isum2 = 0")
     assert ("CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
-        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)") in gen
+            "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)") in gen
 
 
 def test_multiple_mixed_scalar_sums2():
@@ -4252,7 +4254,8 @@ def test_multiple_mixed_scalar_sums2():
                                         "16.4_multiple_scalar_sums.f90"),
                            api="dynamo0.3", distributed_memory=True)
     with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
     assert "Integer reductions are not currently supported" \
         in str(excinfo.value)
 
@@ -4264,8 +4267,8 @@ def test_multiple_kernels_scalar_sums():
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
             api="dynamo0.3", distributed_memory=dm)
-        psy = PSyFactory("dynamo0.3", distributed_memory=dm). \
-              create(invoke_info)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dm).create(invoke_info)
         gen = str(psy.gen)
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
@@ -4345,7 +4348,7 @@ def test_scalar_real_sum_field_read():
         assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
         assert "rsum = 0.0_r_def" in gen
-        
+
         if dm:
             expected_output = (
                 "      DO cell=1,mesh%get_last_edge_cell()\n"
@@ -5614,6 +5617,7 @@ def test_dynglobalsum_unsupported_scalar():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+    print generated_code
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
     kernel = loop.children[0]
@@ -5633,6 +5637,7 @@ def test_dynglobalsum_nodm_error():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     generated_code = str(psy.gen)
+    print generated_code
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     kernel = loop.children[0]

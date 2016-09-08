@@ -569,6 +569,7 @@ def test_globalsum_view(capsys):
     expected_output = ("GlobalSum[scalar='rsum']")
     assert expected_output in output
 
+
 def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the
@@ -578,7 +579,8 @@ def test_args_filter():
     names. We choose dm=False to make it easier to fuse the loops.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info,)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
     # fuse our loops so we have more than one Kernel in a loop
     schedule = psy.invokes.invoke_list[0].schedule
     ftrans = DynamoLoopFuseTrans()
@@ -587,7 +589,7 @@ def test_args_filter():
     # get our loop and call our method ...
     loop = schedule.children[0]
     args = loop.args_filter(unique=True)
-    expected_output =  ["a", "f1", "f2", "m1", "m2", "f3"]
+    expected_output = ["a", "f1", "f2", "m1", "m2", "f3"]
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
