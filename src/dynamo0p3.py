@@ -1752,12 +1752,6 @@ class DynLoop(Loop):
             if self._upper_bound_name == "cells":
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
-            # keep ncolours and ncolour here as options as we will
-            # need them again when the DM colouring API is implemented
-            elif self._upper_bound_name == "ncolours":
-                result = "ncolour"
-            elif self._upper_bound_name == "ncolour":
-                result = "ncp_colour(colour)"
             else:
                 raise GenerationError(
                     "For sequential/shared-memory code, the upper loop "
