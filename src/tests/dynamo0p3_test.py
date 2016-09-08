@@ -4119,9 +4119,9 @@ def test_intent_multi_kern():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    for dm in [False, True]:
+    for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dm).create(invoke_info)
+                         distributed_memory=dist_mem).create(invoke_info)
         output = str(psy.gen)
         print output
         assert "TYPE(field_type), intent(inout) :: g, f\n" in output
@@ -4179,15 +4179,15 @@ def test_single_integer_scalar_sum():
 def test_single_real_scalar_sum():
     '''Test that a single real scalar generates correct code when it is
     specified with gh_sum'''
-    for dm in [False, True]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
                                             "16.3_real_scalar_sum.f90"),
-                               api="dynamo0.3", distributed_memory=dm)
+                               api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dm).create(invoke_info)
+                         distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print gen
-        if dm:
+        if dist_mem:
             assert "TYPE(scalar_type) global_sum" in gen
             assert "DO cell=1,mesh%get_last_edge_cell()" in gen
             assert (
@@ -4205,12 +4205,12 @@ def test_single_real_scalar_sum():
 def test_multiple_scalar_sums():
     '''Test that multiple real scalar (gh_sum) reductions generate
     correct code '''
-    for dm in [False, True]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3", distributed_memory=dm)
+            api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dm).create(invoke_info)
+                         distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print gen
         assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type("
@@ -4263,12 +4263,12 @@ def test_multiple_mixed_scalar_sums2():
 def test_multiple_kernels_scalar_sums():
     '''Test that multiple kernels within an invoke with the same real
     scalar (gh_sum) for each reduction generate correct code '''
-    for dm in [False, True]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
-            api="dynamo0.3", distributed_memory=dm)
+            api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dm).create(invoke_info)
+                         distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
@@ -4283,12 +4283,12 @@ def test_multiple_kernels_scalar_sums():
 def test_scalars_only_invalid():
     '''Test that a Kernel consisting of only scalars fails as it has
     nothing to iterate over '''
-    for dm in [False, True]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dm)
+            api="dynamo0.3", distributed_memory=dist_mem)
         with pytest.raises(GenerationError) as excinfo:
-            _ = PSyFactory("dynamo0.3", distributed_memory=dm).\
+            _ = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
                 create(invoke_info)
         assert "dynamo0.3 api must have a modified field" in \
             str(excinfo.value)
@@ -4337,19 +4337,19 @@ def test_scalar_int_sum_field_read_error():
 def test_scalar_real_sum_field_read():
     '''Test that a write to a single real scalar is valid if we have at
     least one field that is read '''
-    for dm in [False, True]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dm)
+            api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dm).create(invoke_info)
+                         distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print gen
         assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
         assert "rsum = 0.0_r_def" in gen
 
-        if dm:
+        if dist_mem:
             expected_output = (
                 "      DO cell=1,mesh%get_last_edge_cell()\n"
                 "        !\n"
