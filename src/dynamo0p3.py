@@ -1740,7 +1740,11 @@ class DynLoop(Loop):
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
         elif self._upper_bound_name == "dofs":
-            return self._kern.undf_name
+            if config.DISTRIBUTED_MEMORY:
+                return self.field.proxy_name_indexed + "%" + \
+                    self.field.ref_name() + "%get_last_dof_owned()"
+            else:
+                return self._kern.undf_name
         elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
                 return self.field.proxy_name_indexed + "%" + \
