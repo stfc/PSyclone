@@ -4363,9 +4363,9 @@ def test_scalar_real_sum_field_read():
         assert "rsum = 0.0_r_def" in gen
 
         if dist_mem:
-            assert("USE scalar_mod, ONLY: scalar_type") in gen
-            assert("TYPE(scalar_type) global_sum") in gen
-            assert("rsum = 0.0_r_def") in gen
+            assert "USE scalar_mod, ONLY: scalar_type" in gen
+            assert "TYPE(scalar_type) global_sum" in gen
+            assert "rsum = 0.0_r_def" in gen
             expected_output = (
                 "      DO cell=1,mesh%get_last_edge_cell()\n"
                 "        !\n"
