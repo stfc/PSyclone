@@ -15,6 +15,10 @@
         5) #727 Addition of install script (contributions/install) to
 	support Met Office modules environment.
 
+        6) #423 Add support for distributed-memory for built-ins.
+        Global sums are now generated for calls to inner_product and
+        sum_field built-in kernels.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

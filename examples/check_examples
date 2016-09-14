@@ -25,6 +25,7 @@ cd -
 echo "Running example dynamo/eg4"
 cd dynamo/eg4
 python ../../../src/generator.py -nodm solver_mod.x90
+python ../../../src/generator.py solver_mod.x90
 cd -
 
 echo "Running example dynamo/eg5"

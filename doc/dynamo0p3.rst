@@ -641,6 +641,10 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * real(r_def), intent(out) :: *sumval*
 
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
 inc_field
 +++++++++
 
@@ -739,6 +743,10 @@ where:
 
 * type(field_type), intent(in) :: field
 * real(r_def), intent(out) :: sumval
+
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
 
 Boundary Conditions
 -------------------

@@ -16,7 +16,8 @@ from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange
+    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
+    DynGlobalSum
 from transformations import LoopFuseTrans
 from genkernelstub import generate
 
@@ -68,17 +69,6 @@ end module testkern_qr
 '''
 
 # functions
-
-
-def test_scalar_sum_and_dm_unsupported():
-    '''Test that we fail if DM and global sums are specified. We do this
-    test here as at the end of the file the value of DM is set to
-    False and can't be changed for some reason.'''
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                     api="dynamo0.3")
-    assert "Scalar reductions are not yet supported with distributed " \
-        "memory" in str(excinfo.value)
 
 
 def test_arg_descriptor_wrong_type():
@@ -1186,24 +1176,6 @@ def test_two_scalars():
         " m1_proxy%data, m2_proxy%data, istep, ndf_w1, undf_w1, map_w1, "
         "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
-
-
-@pytest.mark.xfail(reason="We currently only support scalars which are "
-                   "gh_read and so the kernel used for this test has no "
-                   "argument that is written to and that triggers a "
-                   "different exception. This test can be re-instated once "
-                   "we support gh_inc for scalars")
-def test_scalar_only():
-    ''' tests that we raise an error when a kernel erroneously
-    only has scalar arguments '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.8_single_invoke_no_fields.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert 'Cannot create an Invoke with no field/operator arg' in \
-        str(excinfo.value)
 
 
 def test_no_vector_scalar():
@@ -4147,13 +4119,15 @@ def test_intent_multi_kern():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    output = str(psy.gen)
-    print output
-    assert "TYPE(field_type), intent(inout) :: g, f\n" in output
-    assert "TYPE(field_type), intent(inout) :: b, h\n" in output
-    assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-    assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        output = str(psy.gen)
+        print output
+        assert "TYPE(field_type), intent(inout) :: g, f\n" in output
+        assert "TYPE(field_type), intent(inout) :: b, h\n" in output
+        assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
+        assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
 
 
 def test_field_gh_sum_invalid():
@@ -4188,13 +4162,16 @@ def test_operator_gh_sum_invalid():
 
 def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
-    is specified with gh_sum'''
+    is specified with gh_sum with dm=False'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.2_integer_scalar_sum.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
+    assert "INTEGER, intent(out) :: isum" in gen
+    assert "isum = 0" in gen
     assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
         "undf_w3, map_w3)" in gen
 
@@ -4202,58 +4179,139 @@ def test_single_integer_scalar_sum():
 def test_single_real_scalar_sum():
     '''Test that a single real scalar generates correct code when it is
     specified with gh_sum'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                           api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-        "undf_w3, map_w3)" in gen
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "16.3_real_scalar_sum.f90"),
+                               api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        if dist_mem:
+            assert "USE scalar_mod, ONLY: scalar_type" in gen
+            assert "TYPE(scalar_type) global_sum" in gen
+            assert "DO cell=1,mesh%get_last_edge_cell()" in gen
+            assert (
+                "      global_sum%value = rsum\n"
+                "      rsum = global_sum%get_sum()") in gen
+        else:
+            assert "DO cell=1,f1_proxy%vspace%get_ncell()" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
+        assert "rsum = 0.0_r_def" in gen
+        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
+        assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+            "undf_w3, map_w3)" in gen
 
 
 def test_multiple_scalar_sums():
-    ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
+    '''Test that multiple real scalar (gh_sum) reductions generate
+    correct code '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type("
+                "rsum1, rsum2, f1)") in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
+        assert (
+            "      rsum1 = 0.0_r_def\n"
+            "      rsum2 = 0.0_r_def")
+        assert ("CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, "
+                "rsum2, f1_proxy%data, ndf_w3, undf_w3, map_w3)") in gen
+        if dist_mem:
+            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
+            assert gen.count("TYPE(scalar_type) global_sum") == 1
+            assert ("      global_sum%value = rsum2\n"
+                    "      rsum2 = global_sum%get_sum()\n"
+                    "      global_sum%value = rsum1\n"
+                    "      rsum1 = global_sum%get_sum()\n") in gen
+
+
+def test_multiple_mixed_scalar_sums():
+    '''Test that multiple mixed scalar (gh_sum) reductions generate
+    correct code with dm=False (dm=True is not supported with
+    gh_integer) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.4_multiple_scalar_sums.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, " \
-        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)" in gen
+    assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
+            "isum1, f1, rsum2, isum2)") in gen
+    assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
+    assert "INTEGER, intent(out) :: isum1, isum2" in gen
+    assert (
+        "      rsum1 = 0.0_r_def\n"
+        "      rsum2 = 0.0_r_def\n"
+        "      isum1 = 0\n"
+        "      isum2 = 0")
+    assert ("CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
+            "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)") in gen
+
+
+def test_multiple_mixed_scalar_sums2():
+    '''Test that multiple mixed scalar (gh_sum) reductions raise an
+    exception with dm=False as dm=True is not supported with
+    gh_integer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.4_multiple_scalar_sums.f90"),
+                           api="dynamo0.3", distributed_memory=True)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
+    assert "Integer reductions are not currently supported" \
+        in str(excinfo.value)
 
 
 def test_multiple_kernels_scalar_sums():
-    '''Add a test for multiple kernels within an invoke with scalar
-    (gh_sum) reductions'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-             "undf_w3, map_w3)"
-    assert output in gen
-    assert gen.count(output) == 2
+    '''Test that multiple kernels within an invoke with the same real
+    scalar (gh_sum) for each reduction generate correct code '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert "SUBROUTINE invoke_0(rsum, f1)" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
+        assert gen.count("rsum = 0.0_r_def") == 1
+        output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+                 "undf_w3, map_w3)"
+        assert output in gen
+        assert gen.count(output) == 2
+        if dist_mem:
+            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
+            assert gen.count("TYPE(scalar_type) global_sum") == 1
+            assert gen.count("      global_sum%value = rsum\n"
+                             "      rsum = global_sum%get_sum()") == 2
 
 
 def test_scalars_only_invalid():
     '''Test that a Kernel consisting of only scalars fails as it has
     nothing to iterate over '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
-            create(invoke_info)
-    assert "dynamo0.3 api must have a modified field" in str(excinfo.value)
-    assert "modified operator, or an unmodified field" in str(excinfo.value)
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
+                create(invoke_info)
+        assert "dynamo0.3 api must have a modified field" in \
+            str(excinfo.value)
+        assert "modified operator, or an unmodified field" in \
+            str(excinfo.value)
 
 
 def test_scalar_int_sum_field_read():
-    '''Test that a write to a single integer scalar is valid if we have at
-    least one field that is read '''
+    '''Test that a write to a single integer scalar is valid with dm=False
+    if we have at least one field that is read '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
@@ -4261,6 +4319,9 @@ def test_scalar_int_sum_field_read():
                      distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
+    assert "INTEGER, intent(out) :: isum" in gen
+    assert "isum = 0" in gen
     expected_output = (
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
@@ -4272,25 +4333,59 @@ def test_scalar_int_sum_field_read():
     assert expected_output in gen
 
 
+def test_scalar_int_sum_field_read_error():
+    '''Test that a sum of an integer scalar raises an exception if
+    distributed memory is set to True as the infrastructure does not
+    currently support this'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=True)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
+    assert "Integer reductions are not currently supported" \
+        in str(excinfo.value)
+
+
 def test_scalar_real_sum_field_read():
     '''Test that a write to a single real scalar is valid if we have at
     least one field that is read '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    expected_output = (
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
-        "ndf_w3, undf_w3, map_w3)\n"
-        "      END DO \n")
-    assert expected_output in gen
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
+        assert "rsum = 0.0_r_def" in gen
+
+        if dist_mem:
+            assert "USE scalar_mod, ONLY: scalar_type" in gen
+            assert "TYPE(scalar_type) global_sum" in gen
+            assert "rsum = 0.0_r_def" in gen
+            expected_output = (
+                "      DO cell=1,mesh%get_last_edge_cell()\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n"
+                "      global_sum%value = rsum\n"
+                "      rsum = global_sum%get_sum()")
+        else:
+            expected_output = (
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n")
+        assert expected_output in gen
 
 
 def test_single_stencil_extent():
@@ -5525,3 +5620,45 @@ def test_unsupported_halo_read_access():
         _ = loop._halo_read_access(stencil_arg)
     assert ("Loop bounds other than halo and edge are currently unsupported. "
             "Found 'inner'." in str(err))
+
+
+def test_dynglobalsum_unsupported_scalar():
+    '''Check that an instance of the DynGlobalSum class raises an
+    exception if an unsupported scalar type is provided when
+    dm=True '''
+    # get an instance of an integer scalar
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.1_single_invoke_1_int_scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    argument = kernel.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        _ = DynGlobalSum(argument)
+    assert "DynGlobalSum currently only supports '['gh_real']'" in str(err)
+
+
+def test_dynglobalsum_nodm_error():
+    '''Check that an instance of the DynGlobalSum class raises an
+    exception if it is instantiated when dm=False'''
+    # get an instance of a real scalar
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    kernel = loop.children[0]
+    argument = kernel.arguments.args[0]
+    with pytest.raises(GenerationError) as err:
+        _ = DynGlobalSum(argument)
+    assert ("It makes no sense to create a DynGlobalSum object when "
+            "dm=False") in str(err)

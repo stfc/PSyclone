@@ -24,7 +24,7 @@ from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
 from parse import parse
-from transformations import OMPParallelLoopTrans
+from transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
 from generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -555,3 +555,73 @@ def test_haloexchange_unknown_halo_depth():
     a halo depth'''
     halo_exchange = HaloExchange(None, None, None, None, None)
     assert halo_exchange._halo_depth == "unknown"
+
+
+def test_globalsum_view(capsys):
+    '''test the view method in the GlobalSum class. The simplest way to do
+    this is to use a dynamo0p3 example which contains a scalar and
+    then call view() on that.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy.invokes.invoke_list[0].schedule.view()
+    output, _ = capsys.readouterr()
+    expected_output = ("GlobalSum[scalar='rsum']")
+    assert expected_output in output
+
+
+def test_args_filter():
+    '''the args_filter() method is in both Loop() and Arguments() classes
+    with the former method calling the latter. This example tests the
+    case when unique is set to True and therefore any replicated names
+    are not returned. The simplest way to do this is to use a
+    dynamo0p3 example which includes two kernels which share argument
+    names. We choose dm=False to make it easier to fuse the loops.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    # fuse our loops so we have more than one Kernel in a loop
+    schedule = psy.invokes.invoke_list[0].schedule
+    ftrans = DynamoLoopFuseTrans()
+    schedule, _ = ftrans.apply(schedule.children[0],
+                               schedule.children[1])
+    # get our loop and call our method ...
+    loop = schedule.children[0]
+    args = loop.args_filter(unique=True)
+    expected_output = ["a", "f1", "f2", "m1", "m2", "f3"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+
+def test_args_filter2():
+    '''the args_filter() method is in both Loop() and Arguments() classes
+    with the former method calling the latter. This example tests the cases
+    when one or both of the intent and type arguments are not specified.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+
+    # arg_accesses
+    args = loop.args_filter(arg_accesses=["gh_read"])
+    expected_output = ["chi", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+    # arg_types
+    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    expected_output = ["mm_w0", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+    # neither
+    args = loop.args_filter()
+    expected_output = ["chi", "mm_w0", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
