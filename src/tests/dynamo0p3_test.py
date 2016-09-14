@@ -4188,6 +4188,7 @@ def test_single_real_scalar_sum():
         gen = str(psy.gen)
         print gen
         if dist_mem:
+            assert "USE scalar_mod, ONLY: scalar_type" in gen
             assert "TYPE(scalar_type) global_sum" in gen
             assert "DO cell=1,mesh%get_last_edge_cell()" in gen
             assert (
@@ -4221,6 +4222,13 @@ def test_multiple_scalar_sums():
             "      rsum2 = 0.0_r_def")
         assert ("CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, "
                 "rsum2, f1_proxy%data, ndf_w3, undf_w3, map_w3)") in gen
+        if dist_mem:
+            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
+            assert gen.count("TYPE(scalar_type) global_sum") == 1
+            assert ("      global_sum%value = rsum2\n"
+                    "      rsum2 = global_sum%get_sum()\n"
+                    "      global_sum%value = rsum1\n"
+                    "      rsum1 = global_sum%get_sum()\n") in gen
 
 
 def test_multiple_mixed_scalar_sums():
@@ -4273,11 +4281,16 @@ def test_multiple_kernels_scalar_sums():
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
-        assert "rsum = 0.0_r_def" in gen
+        assert gen.count("rsum = 0.0_r_def") == 1
         output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
                  "undf_w3, map_w3)"
         assert output in gen
         assert gen.count(output) == 2
+        if dist_mem:
+            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
+            assert gen.count("TYPE(scalar_type) global_sum") == 1
+            assert gen.count("      global_sum%value = rsum\n"
+                             "      rsum = global_sum%get_sum()") == 2
 
 
 def test_scalars_only_invalid():
@@ -4350,6 +4363,9 @@ def test_scalar_real_sum_field_read():
         assert "rsum = 0.0_r_def" in gen
 
         if dist_mem:
+            assert("USE scalar_mod, ONLY: scalar_type") in gen
+            assert("TYPE(scalar_type) global_sum") in gen
+            assert("rsum = 0.0_r_def") in gen
             expected_output = (
                 "      DO cell=1,mesh%get_last_edge_cell()\n"
                 "        !\n"

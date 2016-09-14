@@ -1629,6 +1629,7 @@ def test_innerprod():
                 "      asum = global_sum%get_sum()\n"
                 "      !\n")
             assert output_dm in code
+            assert "      USE scalar_mod, ONLY: scalar_type" in code
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
             assert "      TYPE(scalar_type) global_sum\n" in code
 

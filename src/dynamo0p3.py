@@ -1534,11 +1534,13 @@ class DynGlobalSum(GlobalSum):
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
-        from f2pygen import AssignGen, TypeDeclGen
+        from f2pygen import AssignGen, TypeDeclGen, UseGen
         name = self._scalar.name
         name_space_manager = NameSpaceFactory().create()
         sum_name = name_space_manager.create_name(
             root_name="global_sum", context="PSyVars", label="global_sum")
+        parent.add(UseGen(parent, name="scalar_mod", only=True,
+                          funcnames=["scalar_type"]))
         parent.add(TypeDeclGen(parent, datatype="scalar_type",
                                entity_decls=[sum_name]))
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
