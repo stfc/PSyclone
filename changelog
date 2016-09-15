@@ -8,6 +8,25 @@
 
 	3) #673 Fixed an xfailing built-in test
 
+        4) #721 Bug fix - generate correct variable declarations and
+        module use statements without modifying original arguments. Invokes
+        requiring multiple enforce-bc kernel calls are now handled correctly.
+
+        5) #727 Addition of install script (contributions/install) to
+	support Met Office modules environment.
+
+        6) #423 Add support for distributed-memory for built-ins.
+        Global sums are now generated for calls to inner_product and
+        sum_field built-in kernels.
+
+        7) #489 Support the dereferencing of an object/derived type in the
+	argument list of a kernel call within an invoke in the algorithm
+	layer e.g. call invoke(kern(a%b))
+
+	8) #669 Added support for named arguments to the expression
+	analyser. This is the first step towards supporting named invokes
+	in PSyclone.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

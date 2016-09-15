@@ -13,7 +13,6 @@
 from psyGen import BuiltIn, NameSpaceFactory
 from parse import ParseError
 from dynamo0p3 import DynLoop, DynKernelArguments
-import config
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -37,13 +36,6 @@ class DynBuiltInCallFactory(object):
                 "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
                                       BUILTIN_MAP.keys()))
-
-        # We do not currently support built-in kernel calls if we're
-        # generating code for distributed-memory parallelism
-        if config.DISTRIBUTED_MEMORY:
-            raise ParseError(
-                "Calls to built-in kernels are not supported when "
-                "generating distributed-memory code")
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
