@@ -170,8 +170,10 @@ def test_named_str_arg_spaces():
 def test_fn_call_named_arg():
     ''' Test parsing of an expression containing a function call with a
     named argument '''
-    my_test("Fn call with named arg", FORT_EXPRESSION,
-            "f(x, y=3, z='hello')", names=["f", "x", "y", "z"])
+    info = my_test("Fn call with named arg", FORT_EXPRESSION,
+                   "f(x, y=3, z='hello')", names=["f", "x", "y", "z"])
+    assert info.args[1].value == "3"
+    assert info.args[2].value == "hello"
 
 
 def test_named_arg_variable():
