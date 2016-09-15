@@ -19,6 +19,10 @@
         Global sums are now generated for calls to inner_product and
         sum_field built-in kernels.
 
+        7) #489 Support the dereferencing of an object/derived type in the
+	argument list of a kernel call within an invoke in the algorithm
+	layer e.g. call invoke(kern(a%b))
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

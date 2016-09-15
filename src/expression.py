@@ -140,21 +140,32 @@ class FunctionVar(ExpressionNode):
         self.names.update([self.name])
 
         if len(toks) > 1:
+            # No. of args is not sufficient to determine whether this
+            # is a function call since a function may have zero
+            # args.
+            self._is_fn = True
             self.args = toks[2:-1]
         else:
+            self._is_fn = False
             self.args = None
 
     def __repr__(self):
         _str = "FunctionVar(['" + self.name + "'"
-        if self.args is not None:
-            _str += ",'('," + ", ".join([repr(a) for a in self.args])+",')'"
+        if self._is_fn:
+            _str += ",'(',"
+            if self.args:
+                _str += ", ".join([repr(a) for a in self.args]) + ","
+            _str += "')'"
         _str += "])"
         return _str
 
     def __str__(self):
         _str = str(self.name)
-        if self.args is not None:
-            _str += '(' + ", ".join([str(a) for a in self.args]) + ')'
+        if self._is_fn:
+            _str += '('
+            if self.args is not None:
+                _str += ", ".join([str(a) for a in self.args])
+            _str += ')'
         return _str
 
 
@@ -192,6 +203,9 @@ class LiteralArray(ExpressionNode):
 VAR_NAME = pparse.Word(pparse.alphas, pparse.alphanums+"_")
 NAME = VAR_NAME | pparse.Literal(".false.") | pparse.Literal(".true.")
 
+# Reference to a component of a derived type
+DERIVED_TYPE_COMPONENT = pparse.Combine(VAR_NAME + "%" + VAR_NAME)
+
 # An unsigned integer
 UNSIGNED = pparse.Word(pparse.nums)
 
@@ -226,9 +240,8 @@ SLICING = pparse.Optional(EXPR) + COLON + pparse.Optional(EXPR) + \
     pparse.Optional(COLON+pparse.Optional(EXPR))
 SLICING.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
 
-VAR_OR_FUNCTION = NAME + pparse.Optional(LPAR +
-                                         pparse.delimitedList(SLICING | EXPR) +
-                                         RPAR)
+VAR_OR_FUNCTION = (DERIVED_TYPE_COMPONENT | NAME) + pparse.Optional(
+    LPAR + pparse.Optional(pparse.delimitedList(SLICING | EXPR)) + RPAR)
 VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 
 LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
@@ -237,7 +250,11 @@ LITERAL_ARRAY.setParseAction(lambda strg, loc, toks: [LiteralArray(toks)])
 GROUP = LPAR+EXPR+RPAR
 GROUP.setParseAction(lambda strg, loc, toks: [Grouping(toks)])
 
-OPERAND = (GROUP | VAR_OR_FUNCTION | REAL | INTEGER | LITERAL_ARRAY)
+# Parser will attempt to match with the expressions in the order they
+# are specified here. Therefore must list them in order of decreasing
+# generality
+OPERAND = (GROUP | VAR_OR_FUNCTION | REAL |
+           INTEGER | LITERAL_ARRAY)
 
 # Cause the binary operators to work.
 OPERATOR = pparse.operatorPrecedence(

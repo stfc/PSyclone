@@ -96,3 +96,23 @@ the name of the subroutine in the Kernel ...
     end subroutine integrate_one_code
     ...
   end module integrate_one_module
+
+Limitations
+-----------
+
+In order to re-write the Algorithm layer, as just described, PSyclone
+must obviously be able to parse the invoke calls. Since the Fortran
+expression parser used by PSyclone is relatively simple, this means
+there are limitations on what Fortran may be used when specifying
+kernel arguments in an invoke call. Since these limitations can have
+a direct impact on the natural science code, the PSyclone developers
+endeavour to keep them to a minimum.
+
+The current list of known limitations/restrictions on the form of
+kernel arguments within an invoke is:
+
+ * No arithmetic expressions (e.g. ``kernel_type(a+b)`` or ``kernel_type(-a)``)
+ * No named (optional) arguments (e.g. ``kernel_type(fn(my_arg=a))``)
+
+If you encounter any other limitations (or have a burning desire to use one
+of the above forms) then please contact the PSyclone developers.

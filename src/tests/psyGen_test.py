@@ -417,6 +417,28 @@ def test_same_name_invalid_array():
     assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
             "more than once") in str(excinfo.value)
 
+
+def test_derived_type_deref_naming():
+    ''' Test that we do not get a name clash for dummy arguments in the PSy
+    layer when the name generation for the component of a derived type
+    may lead to a name already taken by another argument. '''
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke)
+    generated_code = str(psy.gen)
+    print generated_code
+    output = (
+        "    SUBROUTINE invoke_0_testkern_type"
+        "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
+        "      USE testkern, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1_my_field\n"
+        "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
+    assert output in generated_code
+
+
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type

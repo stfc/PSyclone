@@ -1961,7 +1961,8 @@ class DynKern(Kern):
             self._qr_text = qr_arg.text
             # use our namespace manager to create a unique name unless
             # the context and label match and in this case return the
-            # previous name
+            # previous name. We use the full text of the original
+            # as a label.
             self._qr_name = self._name_space_manager.create_name(
                 root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
