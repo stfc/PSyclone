@@ -50,6 +50,13 @@ module solver_mod
 
   implicit none
 
+  ! This derived type is purely to illustrate the use of a component
+  ! of a derived type as a kernel argument
+  type :: example_type
+     real(r_def)    :: rflag
+     integer(i_def) :: iflag
+  end type example_type
+  
   private
   public :: solver_algorithm
 
@@ -80,9 +87,11 @@ contains
   real(kind=r_def), parameter :: MU = 0.9_r_def
 
   integer(i_def) :: iter
-
+  type(example_type)                 :: flag_obj
   type(function_space_type), pointer :: rhs_fs => null()
 
+  flag_obj%rflag = 0.0_r_def
+  
   rhs_fs => function_space_collection%get_fs( mesh, &
                                               element_order, &
                                               rhs%which_function_space() )
@@ -94,7 +103,9 @@ contains
                divide_fields( rhs, diagonal, lhs ))
 
   do iter = 1,n_iter
-    call invoke ( set_field_scalar(0.0, Ax),            &
+                  ! Scalar value is supplied by dereferencing
+                  ! a derived type
+    call invoke ( set_field_scalar(flag_obj%rflag, Ax), &
                   matrix_vector_kernel_type(Ax,lhs,mm), &
                   minus_fields( rhs, Ax, res ),         &
                   divide_fields( res, diagonal, res ),  &

@@ -6,18 +6,18 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_real,    gh_write   ), &
-             arg_type(gh_integer, gh_read    )  &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => testkern_code
-  end type testkern_type
-contains
+program single_invoke
 
-  subroutine testkern_code()
-  end subroutine testkern_code
-end module testkern
+  ! Description: single function specified in an invoke call where the
+  ! quadrature is supplied by dereferencing a derived type
+  use testkern_qr, only: testkern_qr_type
+  use inf,         only: field_type
+  implicit none
+  type(field_type) :: f1, f2, m1, m2
+  type(quadrature_rule) :: qr
+  real(r_def) :: a
+  integer :: istp
+
+  call invoke( testkern_qr_type(f1,f2,m1,a,m2,istp,qr%data) )
+
+end program single_invoke

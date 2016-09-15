@@ -26,15 +26,29 @@ or does not require a distributed memory solution.
 Performance
 -----------
 
-PSyclone adds **HaloExchange** objects to the generated PSy
-**Schedule** (see the :ref:`psy-layer-schedule` Section) at the
-required locations. The halo-exchange objects are exposed here for the
-purposes of optimisation. For example the halo-exchange objects may be
-moved in the schedule (via appropriate transformations) to enable
-overlap of computation with communication.
+PSyclone adds **HaloExchange** and **GlobalSum** objects to the
+generated PSy **Schedule** (see the :ref:`psy-layer-schedule` Section)
+at the required locations. The halo-exchange and global-sum objects
+are exposed here for the purposes of optimisation. For example the
+halo-exchange and/or global-sum objects may be moved in the schedule
+(via appropriate transformations) to enable overlap of computation
+with communication.
 
 .. note:: When these optimisations are implemented, add a reference to
    the :ref:`transformations` Section.
+
+A halo exchange is required with distributed memory when a processor
+requires data from its halo and the halo information is out of
+date. One example is where a field is written to and then read using a
+stencil access. Halo exchanges have performance implications so should
+only be used where necessary.
+
+A global sum is required with distributed memory when a scalar is
+written to. Global sums can have performance implications so should
+only be used where necessary. Global sums currently only occur in
+certain built-in kernels. The description of built-ins indicates when
+this is the case.
+
 
 Implementation
 --------------

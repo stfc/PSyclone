@@ -33,6 +33,13 @@ def test_function_calls():
             names=["foo", "bar", "baz", "bam", "wibble", "wub"])
 
 
+def test_no_args_function_call():
+    ''' Test parsing of a function call with no arguments '''
+    my_test("function call without args",
+            VAR_OR_FUNCTION, "get_something()",
+            names=["get_something"])
+
+
 def test_trivial_slice():
     ''' Test parsing of simplest possible array slice '''
     my_test("trivial slice", SLICING, ":")
@@ -173,3 +180,56 @@ def test_named_arg_variable():
     named_arg = my_test("named arg variable", FORT_EXPRESSION,
                         "name=this_invoke", names=["name"])
     assert named_arg.value == "this_invoke"
+
+
+def test_derived_type_deref():
+    ''' Test parsing of reference to a component of a derived type '''
+    my_test("ref. to derived-type component",
+            FORT_EXPRESSION,
+            "field%ndf")
+
+
+def test_type_bound_call_no_args():
+    ''' Test parsing of call to a type-bound routine '''
+    my_test("call to type-bound routine",
+            FORT_EXPRESSION,
+            "field%get_ndf()")
+
+
+def test_type_bound_call():
+    ''' Test parsing of call to a type-bound routine which takes arguments '''
+    my_test("call to type-bound routine",
+            FORT_EXPRESSION,
+            "field%get_ndf(a, b)")
+
+
+def test_type_bound_call_deref_arg():
+    ''' Test parsing of call to a type-bound routine which takes arguments,
+    one of which is specified as the component of a derived type. '''
+    my_test("call to type-bound routine with derived-type arg",
+            FORT_EXPRESSION,
+            "field%get_ndf(a, b%c)")
+
+
+def test_type_bound_call_type_bound_arg():
+    ''' Test parsing of call to a type-bound routine which takes arguments,
+    one of which is specified as the result of a type-bound procedure call '''
+    my_test("call to type-bound routine with type-bound arg",
+            FORT_EXPRESSION,
+            "field%get_ndf(a, b%c())")
+
+
+def test_derived_type_deref_arg():
+    ''' Test parsing of reference to a component of a derived type passed
+    as an argument to a function call '''
+    my_test("ref. to derived-type component",
+            FORT_EXPRESSION,
+            "get_colour_map(a, field%ndf)")
+
+
+def test_type_bound_call_as_arg():
+    ''' Test parsing of function call where one of the arguments is
+    obtained from a call to a type-bound procedure '''
+    my_test("ref. to derived-type component",
+            FORT_EXPRESSION,
+            "get_colour_map(a, field%get_ndf())")

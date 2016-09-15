@@ -819,6 +819,29 @@ def test_progunitgen_multiple_use2():
     assert count_lines(sub.root, "USE fred") == 2
 
 
+def test_progunit_multiple_use3():
+    '''Check that we correctly handle the case where the same module is
+    specified in two UseGen objects statements both of which are
+    specific and they have overlapping variable names.
+
+    '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    funcnames = ["a", "b", "c"]
+    sub.add(UseGen(sub, name="fred", only=True, funcnames=funcnames))
+    funcnames = ["c", "d"]
+    sub.add(UseGen(sub, name="fred", only=True, funcnames=funcnames))
+    gen = str(sub.root)
+    expected = (
+        "      USE fred, ONLY: d\n"
+        "      USE fred, ONLY: a, b, c")
+    assert expected in gen
+    assert count_lines(sub.root, "USE fred") == 2
+    # ensure that the input list does not get modified
+    assert funcnames == ["c", "d"]
+
+
 def test_adduse_empty_only():
     ''' Test that the adduse module method works correctly when we specify
     that we want it to be specific but then don't provide a list of
@@ -912,6 +935,110 @@ def test_typedeclgen_missing_names():
         _ = TypeDeclGen(sub, datatype="my_type")
     assert ("Cannot create a declaration of a derived-type variable "
             "without specifying" in str(err))
+
+
+def test_typedeclgen_multiple_use():
+    '''Check that we correctly handle the case where data of the same type
+    has already been declared. '''
+
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # first declaration
+    datanames = ["type1"]
+    sub.add(TypeDeclGen(sub, datatype="my_type",
+                        entity_decls=datanames))
+    gen = str(sub.root)
+    # second declaration
+    datanames = ["type1", "type2"]
+    sub.add(TypeDeclGen(sub, datatype="my_type",
+                        entity_decls=datanames))
+    gen = str(sub.root)
+    print gen
+    expected = (
+        "      TYPE(my_type) type2\n"
+        "      TYPE(my_type) type1")
+    assert expected in gen
+    # check input data is not modified
+    assert datanames == ["type1", "type2"]
+
+
+def test_typedeclgen_multiple_use2():
+    '''Check that we do not correctly handle the case where data of a
+    different type with the same name has already been declared.'''
+
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # first declaration
+    datanames = ["type1"]
+    sub.add(TypeDeclGen(sub, datatype="my_type",
+                        entity_decls=datanames))
+    gen = str(sub.root)
+    # second declaration
+    datanames = ["type1", "type2"]
+    sub.add(TypeDeclGen(sub, datatype="my_type2",
+                        entity_decls=datanames))
+    gen = str(sub.root)
+    print gen
+    expected = (
+        "      TYPE(my_type2) type1, type2\n"
+        "      TYPE(my_type) type1")
+    assert expected in gen
+    # check input data is not modified
+    assert datanames == ["type1", "type2"]
+
+
+def test_declgen_multiple_use():
+    '''Check that we correctly handle the case where data of the same type
+    has already been delared.'''
+
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # first declaration
+    datanames = ["i1"]
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=datanames))
+    gen = str(sub.root)
+    # second declaration
+    datanames = ["i1", "i2"]
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=datanames))
+    gen = str(sub.root)
+    print gen
+    expected = (
+        "      INTEGER i2\n"
+        "      INTEGER i1")
+    assert expected in gen
+    # check input data is not modified
+    assert datanames == ["i1", "i2"]
+
+
+def test_declgen_multiple_use2():
+    '''Check that we don't correctly handle the case where data of a
+    different type has already been delared. '''
+
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # first declaration
+    datanames = ["data1"]
+    sub.add(DeclGen(sub, datatype="real",
+                    entity_decls=datanames))
+    gen = str(sub.root)
+    # second declaration
+    datanames = ["data1", "data2"]
+    sub.add(DeclGen(sub, datatype="integer",
+                    entity_decls=datanames))
+    gen = str(sub.root)
+    print gen
+    expected = (
+        "      INTEGER data1, data2\n"
+        "      REAL data1")
+    assert expected in gen
+    # check input data is not modified
+    assert datanames == ["data1", "data2"]
 
 
 @pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
