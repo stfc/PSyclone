@@ -23,6 +23,10 @@
 	argument list of a kernel call within an invoke in the algorithm
 	layer e.g. call invoke(kern(a%b))
 
+	8) #669 Added support for named arguments to the expression
+	analyser. This is the first step towards supporting named invokes
+	in PSyclone.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
