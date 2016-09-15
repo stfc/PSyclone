@@ -1259,9 +1259,9 @@ class Loop(Node):
         return args
 
     def args_filter(self, arg_types=None, arg_accesses=None, unique=False):
-        '''Return all arguments of type arg_types and arg_accesses. If these are
-        not set then return all arguments. If unique is set to True then only
-        return uniquely named arguments'''
+        '''Return all arguments of type arg_types and arg_accesses. If these
+        are not set then return all arguments. If unique is set to
+        True then only return uniquely named arguments'''
         all_args = []
         all_arg_names = []
         for call in self.calls():
@@ -1542,8 +1542,8 @@ class Arguments(object):
                               "reader/writer, or increment as an argument")
 
     def args_filter(self, arg_types=None, arg_accesses=None):
-        '''Return all arguments of type arg_types and arg_accesses. If these are
-        not set then return all arguments.'''
+        '''Return all arguments of type arg_types and arg_accesses. If these
+        are not set then return all arguments.'''
         arguments = []
         if arg_types and arg_accesses:
             for argument in self._args:

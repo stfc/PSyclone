@@ -240,11 +240,8 @@ SLICING = pparse.Optional(EXPR) + COLON + pparse.Optional(EXPR) + \
     pparse.Optional(COLON+pparse.Optional(EXPR))
 SLICING.setParseAction(lambda strg, loc, toks: [Slicing(toks)])
 
-VAR_OR_FUNCTION = (DERIVED_TYPE_COMPONENT | NAME) + \
-                  pparse.Optional(LPAR +
-                                  pparse.Optional(
-                                      pparse.delimitedList(SLICING | EXPR)) +
-                                  RPAR)
+VAR_OR_FUNCTION = (DERIVED_TYPE_COMPONENT | NAME) + pparse.Optional(
+    LPAR + pparse.Optional(pparse.delimitedList(SLICING | EXPR)) + RPAR)
 VAR_OR_FUNCTION.setParseAction(lambda strg, loc, toks: [FunctionVar(toks)])
 
 LITERAL_ARRAY = LIT_ARRAY_START + pparse.delimitedList(EXPR) + LIT_ARRAY_END
