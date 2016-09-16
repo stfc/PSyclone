@@ -56,6 +56,21 @@ class TestAlgGenClassDynamo0p3(object):
         assert "USE psy_single_invoke, ONLY: invoke_important" in gen
         assert "CALL invoke_important(a, f1, f2, m1, m2)" in gen
 
+    def test_multi_kernel_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call that contains
+        more than one kernel '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "4.9_named_multikernel_invokes.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_some_name" in gen
+        assert (
+            "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a
         quadrature rule'''
