@@ -660,6 +660,7 @@ def test_invoke_name():
     print gen
     assert "SUBROUTINE invoke_important_invoke" in gen
 
+
 def test_multi_kern_named_invoke():
     ''' Check that specifying the name of an invoke containing multiple
     kernel invocations result in a correctly-named routine in the PSy layer '''
@@ -670,6 +671,7 @@ def test_multi_kern_named_invoke():
     gen = str(psy.gen)
     print gen
     assert "SUBROUTINE invoke_some_name" in gen
+
 
 def test_named_multi_invokes():
     ''' Check that we generate correct code when we have more than one
