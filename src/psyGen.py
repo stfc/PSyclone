@@ -481,6 +481,11 @@ class Invoke(object):
                                               access=MAPPING_ACCESSES["write"])
         read_args = self.unique_declarations(datatype,
                                              access=MAPPING_ACCESSES["read"])
+        sum_args = self.unique_declarations(datatype,
+                                            access=MAPPING_REDUCTIONS["sum"])
+        # sum_args behave as if they are write_args from the
+        # PSy-layer's perspective
+        write_args += sum_args
         # Rationalise our lists so that any fields that have inc
         # do not appear in the list of those that are written.
         for arg in write_args[:]:
@@ -1056,6 +1061,19 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                    position=["after", position])
 
 
+class GlobalSum(Node):
+    ''' Generic Global Sum class which can be added to and
+    manipulated in, a schedule. '''
+    def __init__(self, scalar, parent=None):
+        Node.__init__(self, children=[], parent=parent)
+        self._scalar = scalar
+
+    def view(self, indent):
+        ''' Class specific view  '''
+        print self.indent(indent) + (
+            "GlobalSum[scalar='{0}']".format(self._scalar.name))
+
+
 class HaloExchange(Node):
 
     ''' Generic Halo Exchange class which can be added to and
@@ -1065,7 +1083,10 @@ class HaloExchange(Node):
         Node.__init__(self, children=[], parent=parent)
         self._field = field
         self._halo_type = halo_type
-        self._halo_depth = halo_depth
+        if halo_depth:
+            self._halo_depth = halo_depth
+        else:
+            self._halo_depth = "unknown"
         self._check_dirty = check_dirty
 
     def view(self, indent):
@@ -1237,6 +1258,23 @@ class Loop(Node):
                             args.append(arg)
         return args
 
+    def args_filter(self, arg_types=None, arg_accesses=None, unique=False):
+        '''Return all arguments of type arg_types and arg_accesses. If these
+        are not set then return all arguments. If unique is set to
+        True then only return uniquely named arguments'''
+        all_args = []
+        all_arg_names = []
+        for call in self.calls():
+            call_args = call.arguments.args_filter(arg_types, arg_accesses)
+            if unique:
+                for arg in call_args:
+                    if arg.name not in all_arg_names:
+                        all_args.append(arg)
+                        all_arg_names.append(arg.name)
+            else:
+                all_args.extend(call_args)
+        return all_args
+
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
             for child in self.children:
@@ -1313,6 +1351,20 @@ class Call(Node):
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
+
+        # check algorithm arguments are unique for a kernel or
+        # built-in call
+        arg_names = []
+        for arg in self._arguments.args:
+            if arg.text:
+                text = arg.text.lower().replace(" ", "")
+                if text in arg_names:
+                    raise GenerationError(
+                        "Argument '{0}' is passed into kernel '{1}' code more "
+                        "than once from the algorithm layer. This is not "
+                        "allowed.".format(arg.text, self._name))
+                else:
+                    arg_names.append(text)
 
         # visual properties
         self._width = 250
@@ -1489,6 +1541,27 @@ class Arguments(object):
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
 
+    def args_filter(self, arg_types=None, arg_accesses=None):
+        '''Return all arguments of type arg_types and arg_accesses. If these
+        are not set then return all arguments.'''
+        arguments = []
+        if arg_types and arg_accesses:
+            for argument in self._args:
+                if argument.type.lower() in arg_types and \
+                   argument.access.lower() in arg_accesses:
+                    arguments.append(argument)
+        elif arg_types:
+            for argument in self._args:
+                if argument.type.lower() in arg_types:
+                    arguments.append(argument)
+        elif arg_accesses:
+            for argument in self._args:
+                if argument.access.lower() in arg_accesses:
+                    arguments.append(argument)
+        else:  # no conditions provided so return all args
+            return self._args
+        return arguments
+
     def set_dependencies(self):
         for argument in self._args:
             argument.set_dependencies()
@@ -1513,9 +1586,9 @@ class Argument(object):
             self._text = None
         else:
             self._name_space_manager = NameSpaceFactory().create()
-            # use our namespace manager to create a unique name unless
-            # the context and label match and in this case return the
-            # previous name
+            # Use our namespace manager to create a unique name unless
+            # the context and label match in which case return the
+            # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
 
@@ -1549,6 +1622,11 @@ class Argument(object):
         baseclass version which just returns "field" in all
         cases. API's with this concept can override this method '''
         return "field"
+
+    @property
+    def call(self):
+        ''' Return the call that this argument is associated with '''
+        return self._call
 
     def set_dependencies(self):
         writers = ["WRITE", "INC", "SUM"]

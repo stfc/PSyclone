@@ -15,7 +15,7 @@ program single_invoke
   type(field_type) :: f1, f2, f3
   
   call invoke(                          &
-              axpby(0.5, f1, 0.8, f2, f3)   &
+              axpby(0.5d0, f1, 0.8, f2, f3)   &
              )
 
 end program single_invoke

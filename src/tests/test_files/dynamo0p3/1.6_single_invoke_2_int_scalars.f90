@@ -8,7 +8,8 @@
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
+  ! Description: kernel that has two integer, scalar arguments
+  ! specified in an invoke call. One called by value.
   use testkern_two_int_scalars, only: testkern_type
   use inf,      only: field_type
   implicit none
@@ -16,8 +17,9 @@ program single_invoke
   real(r_def)      :: a
   integer(i_def)   :: iflag, istep
 
-  call invoke(                              &
-       testkern_type(iflag,f1,f2,m1,m2,istep)   &
+  call invoke(                                  &
+       testkern_type(iflag,f1,f2,m1,m2,istep),  &
+       testkern_type(1_i_def,f1,f2,m1,m2,istep) &
           )
 
 end program single_invoke

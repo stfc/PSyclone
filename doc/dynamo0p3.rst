@@ -68,31 +68,88 @@ Stencils
 ++++++++
 
 Kernel metadata may specify that a Kernel performs a stencil operation
-on a field. Any such metadata must provide a stencil type. This
-metadata may also optionally provide a stencil ``extent``. See
-the :ref:`dynamo0.3-api-meta-args` section for more details.
+on a field. Any such metadata must provide a stencil type. See the
+:ref:`dynamo0.3-api-meta-args` section for more details. The supported
+stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
 
-If a stencil operation is specified by the Kernel metadata but the
-stencil extent is not provided then it is the responsibility of the
-algorithm layer to provide the extent information. The dynamo0.3 API
-expects this information to be added as an additional integer argument
-immediately after the relevant field when specifying the Kernel via an
-``invoke``.
+If a stencil operation is specified by the Kernel metadata the
+algorithm layer must provide the ``extent`` of the stencil (the
+maximum distance from the central cell that the stencil extends). The
+dynamo0.3 API expects this information to be added as an additional
+``integer`` argument immediately after the relevant field when specifying
+the Kernel via an ``invoke``.
 
 For example::
 
-  TBD
+  integer :: extent = 2
+  call invoke(kernel(field1, field2, extent))
+
+where ``field2`` has kernel metadata specifying that it has a stencil
+access.
+
+``extent``  may also be passed as a literal. For example::
+
+  call invoke(kernel(field1, field2, 2))
+
+where, again, ``field2`` has kernel metadata specifying that it has a
+stencil access.
+
+.. note:: The stencil extent specified in the Algorithm layer is not the same as the stencil size passed in to the Kernel. The latter contains the number of cells in the stencil which is dependent on both the stencil type and extent.
 
 If the Kernel metadata specifies that the stencil is of type
-``xory1d`` then it is the responsibility of the algorithm layer to
-specify whether the particular case is ``x1d`` or ``y1d`` for that
-``invoke`` call. The dynamo0.3 API expects this information to be added
-as an additional argument of type **TBD** immediately after the
-relevant stencil extent argument.
+``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
+must specify whether the stencil is ``X1D`` or ``Y1D`` for that
+particular kernel call. The dynamo0.3 API expects this information to
+be added as an additional argument immediately after the relevant
+stencil extent argument. The argument should be an ``integer`` with
+valid values being ``x_direction`` or ``y_direction``, both being
+supplied by the ``LFRic`` infrastructure via the
+``flux_direction_mod`` fortran module
 
 For example::
 
-  TBD
+  use flux_direction_mod, only : x_direction
+  integer :: direction = x_direction
+  integer :: extent = 2
+  ! ...
+  call invoke(kernel(field1, field2, extent, direction))
+
+``direction`` may also be passed as a literal. For example::
+
+  use flux_direction_mod, only : x_direction
+  integer :: extent = 2
+  ! ...
+  call invoke(kernel(field1, field2, extent, x_direction))
+
+If certain fields use the same value of extent and/or direction then
+the same variable, or literal value can be provided.
+
+For example::
+
+  call invoke(kernel1(field1, field2, extent,  field3, extent, direction), &
+              kernel2(field1, field2, extent2, field4, extent, direction))
+
+In the above example ``field2`` and ``field3`` in ``kernel1`` and
+``field4`` in ``kernel2`` will have the same ``extent`` value but
+``field2`` in ``kernel2`` may have a different value. Similarly,
+``field3`` in ``kernel1`` and ``field4`` in ``kernel2`` will have the
+same ``direction`` value.
+
+An example of the use of stencils is available in ``examples/dynamo0p3/eg5``.
+
+There is currently no attempt to perform type checking in PSyclone so
+any errors in the type and/or position of arguments will not be picked
+up until compile time. However, PSyclone does check for the correct
+number of algorithm arguments. If the wrong number of arguments is
+provided then an exception is raised.
+
+For example, running test 19.2 from the dynamo0.3 api test suite gives::
+
+  cd <PSYCLONEHOME>/src/tests
+  python ../../src/generator.py test_files/dynamo0p3/19.2_single_stencil_broken.f90 
+  "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
+  Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
+
 
 Kernel
 -------
@@ -302,25 +359,25 @@ Stencil metadata is written in the following format:
 
 ::
 
-  STENCIL(type[,extent])
+  STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``
-or ``REGION`` and ``extent`` is an optional integer (indicated by the
-square brackets) which specifies the maximum distance from the central
-point that a stencil extends. If extent is specified in the metadata
-it means that the associated Kernel data can only be called with
-stencils of that size. If the extent is not specified it means that
-the Kernel is written to support different extents (for the particular
-field) and the algorithm writer is expected to provide the actual
-extent as part of ``invoke`` call (see Section
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D`` or
+``CROSS``.  As the stencil ``extent`` (the maximum distance from the
+central cell that the stencil extends) is not provided in the metadata,
+it is expected to be provided by the algorithm writer as part of the
+``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
+is currently no way to specify a fixed extent value for stencils in the
+Kernel metadata, Kernels must therefore be written to support
+different values of extent (i.e. stencils with a variable number of
+cells).
+
+The ``XORY1D`` stencil type indicates that the Kernel can accept
+either ``X1D`` or ``Y1D`` stencils. In this case it is up to the
+algorithm developer to specify which of these it is from the algorithm
+layer as part of the ``invoke`` call (see Section
 :ref:`dynamo0.3-alg-stencil`).
 
-The ``XORY1D`` type indicates that the Kernel can accept either ``X1D`` or
-``Y1D`` stencils. In this case it is up to the algorithm developer to
-specify which of these it is from the algorithm layer as part of the
-``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`).
-
-For example, the following stencil:
+For example, the following stencil (with ``extent=2``):
 
 ::
 
@@ -330,9 +387,9 @@ would be declared as
 
 ::
 
-  STENCIL(X1D,2)
+  STENCIL(X1D)
 
-the following stencil
+and the following stencil (with ``extent=2``)
 
 ::
 
@@ -346,21 +403,7 @@ would be declared as
 
 ::
 
-  STENCIL(CROSS,2)
-
-and the following stencil (all adjacent cells)
-
-::
-
-  | 9 | 5 | 8 |
-  | 2 | 1 | 3 |
-  | 6 | 4 | 7 |
-
-would be declared as
-
-::
-
-  STENCIL(REGION,1)
+  STENCIL(CROSS)
 
 Below is an example of stencil information within the full kernel metadata.
 
@@ -368,13 +411,12 @@ Below is an example of stencil information within the full kernel metadata.
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
-       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(REGION)),              &
+       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(CROSS)),               &
        arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
        /)
 
-.. note:: Kernels with explicit extents are not supported in the
-          current API and their use will result in an exception being
-          raised by PSyclone.
+There is a full example of this distributed with PSyclone. It may
+be found in ``examples/dynamo0p3/eg5``.
 
 meta_funcs
 ##########
@@ -421,6 +463,10 @@ rules, along with PSyclone's naming conventions, are:
 
     1) if the current entry is a scalar quantity then include the Fortran variable in the argument list. The intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
     2) if the current entry is a field then include the field array. The field array name is currently specified as being ``"field_"<argument_position>"_"<field_function_space>``. A field array is a real array of type ``r_def`` and dimensioned as the unique degrees of freedom for the space that the field operates on. This value is passed in separately. Again, the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+
+       1) If the field entry has a stencil access then add an integer stencil-size argument with intent ``in``. This will supply the number of cells in the stencil.
+       2) If the field entry stencil access is of type ``XORY1D`` then add an integer direction argument with intent ``in``.
+
     3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
     4) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
@@ -595,6 +641,10 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * real(r_def), intent(out) :: *sumval*
 
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
 inc_field
 +++++++++
 
@@ -679,8 +729,6 @@ The field may be on any function space.
 * type(field_type), intent(out) :: *field*
 * real(r_def), intent(in) :: *value*
 
-.. note:: The Fortran parser used by PSyclone cannot currently cope with numerical constants containing an explicit kind paramer (e.g. ``1.0_r_def``). This limitation may be worked around by passing the scalar quantity by argument instead of by value.
-
 sum_field
 +++++++++
 
@@ -695,6 +743,10 @@ where:
 
 * type(field_type), intent(in) :: field
 * real(r_def), intent(out) :: sumval
+
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
 
 Boundary Conditions
 -------------------

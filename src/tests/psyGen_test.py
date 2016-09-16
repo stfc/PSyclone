@@ -20,11 +20,12 @@ import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
-from psyGen import GenerationError, FieldNotFoundError
+from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
 from parse import parse
-from transformations import OMPParallelLoopTrans
+from transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
+from generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -389,6 +390,54 @@ def test_reset():
     ns2 = nsf.create()
     assert ns1 != ns2
 
+# tests for class Call
+
+
+def test_same_name_invalid():
+    '''test that we raise an error if the same name is passed into the
+    same kernel or built-in instance. We need to choose a particular
+    API to check this although the code is in psyGen.py '''
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "1.10_single_invoke_same_name.f90"),
+            api="dynamo0.3")
+    assert ("Argument 'f1' is passed into kernel 'testkern_code' code "
+            "more than once") in str(excinfo.value)
+
+
+def test_same_name_invalid_array():
+    '''test that we raise an error if the same name is passed into the
+    same kernel or built-in instance. In this case arguments have
+    array references and mixed case. We need to choose a particular
+    API to check this although the code is in psyGen.py. '''
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
+            api="dynamo0.3")
+    assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
+            "more than once") in str(excinfo.value)
+
+
+def test_derived_type_deref_naming():
+    ''' Test that we do not get a name clash for dummy arguments in the PSy
+    layer when the name generation for the component of a derived type
+    may lead to a name already taken by another argument. '''
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke)
+    generated_code = str(psy.gen)
+    print generated_code
+    output = (
+        "    SUBROUTINE invoke_0_testkern_type"
+        "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
+        "      USE testkern, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1_my_field\n"
+        "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
+    assert output in generated_code
+
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
@@ -510,7 +559,10 @@ def test_call_abstract_methods():
     fake_ktype.iterates_over = "something"
     fake_call.ktype = fake_ktype
     fake_call.module_name = "a_name"
-    my_call = Call(fake_call, fake_call, name="a_name", arguments=None)
+    fake_arguments = GenerationError("msg")
+    fake_arguments.args = []
+    my_call = Call(fake_call, fake_call, name="a_name",
+                   arguments=fake_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.__str__()
     assert "Call.__str__ should be implemented" in str(excinfo.value)
@@ -518,3 +570,80 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
     assert "Call.gen_code should be implemented" in str(excinfo.value)
+
+
+def test_haloexchange_unknown_halo_depth():
+    '''test the case when the halo exchange base class is called without
+    a halo depth'''
+    halo_exchange = HaloExchange(None, None, None, None, None)
+    assert halo_exchange._halo_depth == "unknown"
+
+
+def test_globalsum_view(capsys):
+    '''test the view method in the GlobalSum class. The simplest way to do
+    this is to use a dynamo0p3 example which contains a scalar and
+    then call view() on that.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy.invokes.invoke_list[0].schedule.view()
+    output, _ = capsys.readouterr()
+    expected_output = ("GlobalSum[scalar='rsum']")
+    assert expected_output in output
+
+
+def test_args_filter():
+    '''the args_filter() method is in both Loop() and Arguments() classes
+    with the former method calling the latter. This example tests the
+    case when unique is set to True and therefore any replicated names
+    are not returned. The simplest way to do this is to use a
+    dynamo0p3 example which includes two kernels which share argument
+    names. We choose dm=False to make it easier to fuse the loops.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    # fuse our loops so we have more than one Kernel in a loop
+    schedule = psy.invokes.invoke_list[0].schedule
+    ftrans = DynamoLoopFuseTrans()
+    schedule, _ = ftrans.apply(schedule.children[0],
+                               schedule.children[1])
+    # get our loop and call our method ...
+    loop = schedule.children[0]
+    args = loop.args_filter(unique=True)
+    expected_output = ["a", "f1", "f2", "m1", "m2", "f3"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+
+def test_args_filter2():
+    '''the args_filter() method is in both Loop() and Arguments() classes
+    with the former method calling the latter. This example tests the cases
+    when one or both of the intent and type arguments are not specified.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+
+    # arg_accesses
+    args = loop.args_filter(arg_accesses=["gh_read"])
+    expected_output = ["chi", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+    # arg_types
+    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    expected_output = ["mm_w0", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+    # neither
+    args = loop.args_filter()
+    expected_output = ["chi", "mm_w0", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)

@@ -16,7 +16,8 @@ from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES
+    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
+    DynGlobalSum
 from transformations import LoopFuseTrans
 from genkernelstub import generate
 
@@ -68,17 +69,6 @@ end module testkern_qr
 '''
 
 # functions
-
-
-def test_scalar_sum_and_dm_unsupported():
-    '''Test that we fail if DM and global sums are specified. We do this
-    test here as at the end of the file the value of DM is set to
-    False and can't be changed for some reason.'''
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                     api="dynamo0.3")
-    assert "Scalar reductions are not yet supported with distributed " \
-        "memory" in str(excinfo.value)
 
 
 def test_arg_descriptor_wrong_type():
@@ -516,6 +506,111 @@ def test_field():
     assert str(generated_code).find(output) != -1
 
 
+def test_field_deref():
+    ''' Tests that a call with a set of fields (some obtained by
+    de-referencing derived types) and no basis functions produces
+    correct code.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.13_single_invoke_field_deref.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [True, False]:
+
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = psy.gen
+        output = (
+            "    SUBROUTINE invoke_0_testkern_type(a, f1, est_f2, m1, "
+            "est_m2)\n"
+            "      USE testkern, ONLY: testkern_code\n")
+        if dist_mem:
+            output += "      USE mesh_mod, ONLY: mesh_type\n"
+        output += (
+            "      REAL(KIND=r_def), intent(in) :: a\n"
+            "      TYPE(field_type), intent(inout) :: f1\n"
+            "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
+            "      INTEGER, pointer :: map_w1(:) => null(), "
+            "map_w2(:) => null(), map_w3(:) => null()\n"
+            "      INTEGER cell\n"
+            "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
+            "undf_w3\n")
+        if dist_mem:
+            output += "      TYPE(mesh_type), pointer :: mesh => null()\n"
+        output += (
+            "      INTEGER nlayers\n"
+            "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
+            "est_m2_proxy\n"
+            "      !\n"
+            "      ! Initialise field proxies\n"
+            "      !\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      est_f2_proxy = est_f2%get_proxy()\n"
+            "      m1_proxy = m1%get_proxy()\n"
+            "      est_m2_proxy = est_m2%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of layers\n"
+            "      !\n"
+            "      nlayers = f1_proxy%vspace%get_nlayers()\n")
+        if dist_mem:
+            output += (
+                "      !\n"
+                "      ! Create a mesh object\n"
+                "      !\n"
+                "      mesh => f1%get_mesh()\n"
+            )
+        output += (
+            "      !\n"
+            "      ! Initialise sizes and allocate any basis arrays for w1\n"
+            "      !\n"
+            "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Initialise sizes and allocate any basis arrays for w2\n"
+            "      !\n"
+            "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
+            "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
+            "      !\n"
+            "      ! Initialise sizes and allocate any basis arrays for w3\n"
+            "      !\n"
+            "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
+            "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
+            "      !\n")
+        if dist_mem:
+            output += (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL m1_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        else:
+            output += (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+        output += (
+            "        !\n"
+            "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        map_w2 => est_f2_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        map_w3 => est_m2_proxy%vspace%get_cell_dofmap(cell)\n"
+            "        !\n"
+            "        CALL testkern_code(nlayers, a, f1_proxy%data, "
+            "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
+            "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, "
+            "map_w3)\n"
+            "      END DO \n")
+        print generated_code
+        assert str(generated_code).find(output) != -1
+
+
 def test_field_fs():
     ''' Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code.'''
@@ -779,6 +874,24 @@ def test_field_qr():
     assert output in generated_code
 
 
+def test_field_qr_deref():
+    ''' Tests that a call, with a set of fields requiring
+    quadrature, produces correct code when the quadrature is supplied as the
+    component of a derived type. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.1_single_invoke_qr_deref.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert (
+            "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
+            " qr_data)\n" in gen)
+        assert "TYPE(quadrature_type), intent(in) :: qr_data" in gen
+
+
 def test_real_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields)'''
@@ -1031,7 +1144,7 @@ def test_two_int_scalars():
     generated_code = str(psy.gen)
     print generated_code
     expected = (
-        "    SUBROUTINE invoke_0_testkern_type(iflag, f1, f2, m1, m2, istep)\n"
+        "    SUBROUTINE invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "      USE testkern_two_int_scalars, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      INTEGER, intent(in) :: iflag, istep\n"
@@ -1096,6 +1209,12 @@ def test_two_int_scalars():
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
         "        CALL testkern_code(nlayers, iflag, f1_proxy%data, "
+        "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
+    assert expected in generated_code
+    # Check that we pass iflag by value in the second kernel call
+    expected = (
+        "        CALL testkern_code(nlayers, 1_i_def, f1_proxy%data, "
         "f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, ndf_w1, "
         "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n")
     assert expected in generated_code
@@ -1182,24 +1301,6 @@ def test_two_scalars():
     assert expected in generated_code
 
 
-@pytest.mark.xfail(reason="We currently only support scalars which are "
-                   "gh_read and so the kernel used for this test has no "
-                   "argument that is written to and that triggers a "
-                   "different exception. This test can be re-instated once "
-                   "we support gh_inc for scalars")
-def test_scalar_only():
-    ''' tests that we raise an error when a kernel erroneously
-    only has scalar arguments '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.8_single_invoke_no_fields.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert 'Cannot create an Invoke with no field/operator arg' in \
-        str(excinfo.value)
-
-
 def test_no_vector_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
     specifies a vector scalar '''
@@ -1240,6 +1341,23 @@ def test_vector_field_2():
     # use each chi field individually in the kernel
     assert str(generated_code).find("chi_proxy(1)%data, chi_proxy(2)%data,"
                                     " chi_proxy(3)%data") != -1
+
+
+def test_vector_field_deref():
+    ''' tests that a vector field is declared correctly in the PSy
+    layer when it is obtained by de-referencing a derived type in the
+    Algorithm layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "8.1_vector_field_deref.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = psy.gen
+        assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
+                                        "type(f1, box_chi)") != -1
+        assert str(generated_code).find("TYPE(field_type), intent(inout)"
+                                        " :: f1, box_chi(3)") != -1
 
 
 def test_orientation():
@@ -1437,7 +1555,7 @@ def test_operator_nofield_different_space():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "DO cell=1,mesh%get_last_edge_cell" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -1458,6 +1576,36 @@ def test_operator_nofield_scalar():
     assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
         "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
+
+
+def test_operator_nofield_scalar_deref():
+    ''' Tests that an operator with no field and a
+    scalar argument is implemented correctly in the PSy layer when both
+    are obtained by dereferencing derived type objects '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "10.6.1_operator_no_field_scalar_deref.f90"),
+        api="dynamo0.3")
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        if dist_mem:
+            assert "mesh => opbox_my_mapping%get_mesh()" in gen
+        assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
+        assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
+        assert ("CALL opbox_my_mapping_proxy%fs_from%compute_basis_function("
+                "basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)" in gen)
+        if dist_mem:
+            assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+        else:
+            assert (
+                "DO cell=1,opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
+        assert (
+            "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
+            "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, basis_w2, "
+            "nqp_h, nqp_v, wh, wv)" in gen)
 
 
 def test_operator_orientation():
@@ -1516,6 +1664,32 @@ def test_operator_orientation_different_space():
         "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
         "ndf_w1, basis_w1, orientation_w1, ndf_w2, orientation_w2, ndf_w0, "
         "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)" in gen_str)
+
+
+def test_operator_deref():
+    ''' Tests that we generate correct names for an operator in the PSy
+    layer when obtained by de-referencing a derived type in the Algorithm
+    layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
+                                   "_type(mm_w0_op, chi, a, qr)") != -1
+        assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+                                   " mm_w0_op") != -1
+        assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
+                                   "proxy") != -1
+        assert (
+            generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
+        assert generated_code.find(
+            "CALL testkern_operator_code(cell, nlayers, "
+            "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
+            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
+            "ndf_w0, undf_w0, map_w0, basis_w0, "
+            "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
 def test_any_space_1():
@@ -1783,13 +1957,12 @@ def test_dyninvoke_arg_for_fs():
 
 
 def test_kernel_specific():
-    '''tests that kernel-specific code is added to the
-    matrix_vector_kernel_mm kernel. This code is required as the
-    dynamo0.3 api does not know about boundary conditions but this
+    ''' Test that a call to enforce boundary conditions is added following
+    a call to the matrix_vector_kernel_type kernel. This code is required
+    as the dynamo0.3 api does not know about boundary conditions but this
     kernel requires them. This "hack" is only supported to get
-    PSyclone to generate correct code for the current
-    implementation of dynamo. Future API's will not support any
-    hacks. '''
+    PSyclone to generate correct code for the current implementation
+    of dynamo. Future API's will not support any hacks. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -1802,10 +1975,10 @@ def test_kernel_specific():
     assert output2 in generated_code
     output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
     assert output3 in generated_code
-    output4 = "fs = f2%which_function_space()"
+    output4 = "fs = f1%which_function_space()"
     assert output4 in generated_code
     output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
-        boundary_dofs => f2_proxy%vspace%get_boundary_dofs()
+        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output5 in generated_code
     output6 = (
@@ -1814,6 +1987,64 @@ def test_kernel_specific():
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
         "boundary_dofs)")
     assert output6 in generated_code
+
+
+def test_multi_kernel_specific():
+    '''Test that a call to enforce boundary conditions is added following
+    multiple calls to the matrix_vector_kernel_type kernel. This code
+    is required as the dynamo0.3 api does not know about boundary
+    conditions but this kernel requires them. This "hack" is only
+    supported to get PSyclone to generate correct code for the current
+    implementation of dynamo. Future API's will not support any
+    hacks. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.3_multi_kernel_specific.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+
+    # should only be one of the following generated ...
+    output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
+    assert generated_code.count(output0) == 1
+    output1 = "USE function_space_mod, ONLY: w1, w2"
+    assert generated_code.count(output1) == 1
+
+    # first loop
+    output1 = "INTEGER fs\n"
+    assert output1 in generated_code
+    output2 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    assert output2 in generated_code
+    output3 = "fs = f1%which_function_space()"
+    assert output3 in generated_code
+    output4 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
+      END IF'''
+    assert output4 in generated_code
+    output5 = (
+        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
+        "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
+        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
+        "boundary_dofs)")
+    assert output5 in generated_code
+
+    # second loop
+    output6 = "INTEGER fs_1\n"
+    assert output6 in generated_code
+    output7 = "INTEGER, pointer :: boundary_dofs_1(:,:) => null()"
+    assert output7 in generated_code
+    output8 = "fs_1 = f1%which_function_space()"
+    assert output8 in generated_code
+    output9 = '''IF ((fs_1 .eq. w1) .or. (fs_1 .eq. w2)) THEN
+        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()
+      END IF'''
+    assert output9 in generated_code
+    output10 = (
+        "IF ((fs_1 .eq. w1) .or. (fs_1 .eq. w2)) THEN\n"
+        "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
+        "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
+        "boundary_dofs_1)")
+    assert output10 in generated_code
 
 
 def test_bc_kernel():
@@ -2124,10 +2355,10 @@ SIMPLE = (
     "      USE constants_mod, ONLY: r_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
     "      INTEGER, intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
     " field_1_w1\n"
-    "      INTEGER, intent(in) :: ndf_w1\n"
     "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
@@ -2158,11 +2389,11 @@ SIMPLE_WITH_SCALARS = (
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: nlayers\n"
     "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
     "      INTEGER, intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
     " field_2_w1\n"
     "      INTEGER, intent(in) :: iscalar_3\n"
-    "      INTEGER, intent(in) :: ndf_w1\n"
     "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "    END SUBROUTINE simple_with_scalars_code\n"
     "  END MODULE simple_with_scalars_mod")
@@ -2188,11 +2419,11 @@ SCALAR_SUMS = (
     "      INTEGER, intent(in) :: nlayers\n"
     "      REAL(KIND=r_def), intent(inout) :: rscalar_1\n"
     "      INTEGER, intent(inout) :: iscalar_2\n"
+    "      INTEGER, intent(in) :: ndf_w3\n"
     "      INTEGER, intent(in) :: undf_w3\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_3_w3\n"
     "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
     "      INTEGER, intent(inout) :: iscalar_5\n"
-    "      INTEGER, intent(in) :: ndf_w3\n"
     "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
     "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
     "  END MODULE testkern_multiple_scalar_sums_mod")
@@ -2260,6 +2491,7 @@ def test_intent():
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in) :: undf_w1\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
         "field_1_w1\n"
@@ -2267,7 +2499,6 @@ def test_intent():
         "field_2_w1\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: "
         "field_3_w1\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
@@ -2319,12 +2550,19 @@ def test_spaces():
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in) :: undf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in) :: undf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
         "      INTEGER, intent(in) :: undf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in) :: undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
@@ -2340,19 +2578,12 @@ def test_spaces():
         "field_6_w2h\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
         "      INTEGER, intent(in), dimension(ndf_w2h) :: map_w2h\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
@@ -2394,6 +2625,7 @@ def test_vectors():
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: undf_w0\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0_v1\n"
@@ -2401,7 +2633,6 @@ def test_vectors():
         "field_1_w0_v2\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0_v3\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
@@ -2468,6 +2699,11 @@ def test_operators():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_5\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
         "op_1_ncell_3d) :: op_1\n"
@@ -2483,11 +2719,6 @@ def test_operators():
         "      INTEGER, intent(in) :: op_5_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_5,"
         "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_op_5\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print output
@@ -2598,9 +2829,16 @@ def test_basis():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in) :: undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
@@ -2619,28 +2857,21 @@ def test_basis():
         "op_6_ncell_3d) :: op_6\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
         ":: basis_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
         ":: basis_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
         ":: basis_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
         ":: basis_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,nqp_h,"
         "nqp_v) :: basis_wtheta\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,nqp_h,nqp_v) "
         ":: basis_w2h\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,nqp_h,nqp_v) "
         ":: basis_w2v\n"
@@ -2741,9 +2972,16 @@ def test_diff_basis():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in) :: undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
@@ -2762,28 +3000,21 @@ def test_diff_basis():
         "op_6_ncell_3d) :: op_6\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
         ":: diff_basis_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
         ":: diff_basis_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
         ":: diff_basis_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
         ":: diff_basis_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
         "nqp_v) :: diff_basis_wtheta\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,nqp_h,nqp_v) "
         ":: diff_basis_w2h\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,nqp_h,nqp_v) "
         ":: diff_basis_w2v\n"
@@ -2840,8 +3071,12 @@ ORIENTATION_OUTPUT = (
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: cell\n"
     "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER, intent(in) :: ndf_w0\n"
     "      INTEGER, intent(in) :: undf_w0\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in) :: ndf_w2\n"
     "      INTEGER, intent(in) :: undf_w2\n"
+    "      INTEGER, intent(in) :: ndf_w3\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
     "field_1_w0\n"
     "      INTEGER, intent(in) :: op_2_ncell_3d\n"
@@ -2852,15 +3087,11 @@ ORIENTATION_OUTPUT = (
     "      INTEGER, intent(in) :: op_4_ncell_3d\n"
     "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
     "op_4_ncell_3d) :: op_4\n"
-    "      INTEGER, intent(in) :: ndf_w0\n"
     "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
     "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
-    "      INTEGER, intent(in) :: ndf_w1\n"
     "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
-    "      INTEGER, intent(in) :: ndf_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
-    "      INTEGER, intent(in) :: ndf_w3\n"
     "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
     "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
     "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
@@ -2907,11 +3138,11 @@ def test_enforce_bc_kernel_stub_gen():
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
         "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_any_space_1_field_1)"
         " :: field_1_any_space_1_field_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
         "map_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,2) :: "
@@ -2961,10 +3192,10 @@ def test_sub_name():
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in) :: undf_w1\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
         "field_1_w1\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
@@ -3003,6 +3234,116 @@ def test_kernel_stub_gen_cmd_line():
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
 
+
+def test_stub_stencil_extent():
+    ''' Check that correct stub code is produced when there is a stencil
+    access '''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_stencil_size, field_2_stencil_map, field_3_w2, "
+        "field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+        "ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = "INTEGER, intent(in) :: field_2_stencil_size"
+    assert result2 in generated_code
+    assert (
+        "INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) "
+        ":: field_2_stencil_map" in generated_code)
+
+
+def test_stub_stencil_direction():
+    '''Check that correct stub code is produced when there is a stencil
+    access which requires a direction argument '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_stencil_xory1d_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_xory1d_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_stencil_size, field_2_direction, "
+        "field_2_stencil_map, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = (
+        "      INTEGER, intent(in) :: field_2_stencil_size\n"
+        "      INTEGER, intent(in) :: field_2_direction\n"
+        "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
+        "field_2_stencil_map")
+    assert result2 in generated_code
+
+
+def test_stub_stencil_vector():
+    '''Check that correct stub code is produced when there is a stencil
+    access which is a vector '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_stencil_vector_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
+        "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
+        "field_2_w3_v3, field_2_w3_v4, field_2_stencil_size, "
+        "field_2_stencil_map, ndf_w0, undf_w0, map_w0, ndf_w3, undf_w3, "
+        "map_w3)")
+    assert result1 in generated_code
+    result2 = (
+        "      INTEGER, intent(in) :: field_2_stencil_size\n"
+        "      INTEGER, intent(in), dimension(ndf_w3,field_2_stencil_size) "
+        ":: field_2_stencil_map")
+    assert result2 in generated_code
+
+
+def test_stub_stencil_multi():
+    '''Check that correct stub code is produced when there are multiple
+    stencils'''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_stencil_multi_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    result1 = (
+        "    SUBROUTINE testkern_stencil_multi_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_stencil_size, field_2_stencil_map, field_3_w2, "
+        "field_3_stencil_size, field_3_direction, field_3_stencil_map, "
+        "field_4_w3, field_4_stencil_size, field_4_stencil_map, ndf_w1, "
+        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+    assert result1 in generated_code
+    result2 = (
+        "      INTEGER, intent(in) :: field_2_stencil_size\n"
+        "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
+        "field_2_stencil_map\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: field_3_stencil_size\n"
+        "      INTEGER, intent(in) :: field_3_direction\n"
+        "      INTEGER, intent(in), dimension(ndf_w2,field_3_stencil_size) :: "
+        "field_3_stencil_map\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
+        "field_4_w3\n"
+        "      INTEGER, intent(in) :: field_4_stencil_size\n"
+        "      INTEGER, intent(in), dimension(ndf_w3,field_4_stencil_size) :: "
+        "field_4_stencil_map")
+
+    assert result2 in generated_code
+
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
@@ -3021,7 +3362,6 @@ end module stencil_mod
 '''
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
@@ -3030,7 +3370,8 @@ def test_stencil_metadata():
     assert stencil_descriptor_0.stencil is None
     stencil_descriptor_1 = metadata.arg_descriptors[1]
     assert stencil_descriptor_1.stencil['type'] == 'cross'
-    assert stencil_descriptor_1.stencil['extent'] == 1
+    # stencil extent is not provided in the above metadata
+    assert stencil_descriptor_1.stencil['extent'] is None
 
 
 def test_field_metadata_too_many_arguments():
@@ -3089,8 +3430,7 @@ def test_invalid_stencil_form_4():
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert "kernel metadata has an invalid format" \
-        in str(excinfo.value)
+    assert "but found stencil()" in str(excinfo.value)
 
 
 def test_invalid_stencil_form_5():
@@ -3184,12 +3524,11 @@ def test_unsupported_second_argument():
         in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_valid_stencil_types():
     ''' Check that we successfully parse all valid stencil types '''
     for stencil_type in VALID_STENCIL_TYPES:
-        result = STENCIL_CODE.replace("stencil(cross,1)",
-                                      "stencil("+stencil_type+",1)", 1)
+        result = STENCIL_CODE.replace("stencil(cross)",
+                                      "stencil("+stencil_type+")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
         _ = DynKernMetadata(ast)
 
@@ -3617,7 +3956,6 @@ def test_no_halo_dirty():
     assert "! Set halos dirty" not in generated_code
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange():
     ''' test that a halo_exchange call is added for a loop with a
     stencil operation '''
@@ -3626,13 +3964,16 @@ def test_halo_exchange():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
-    output = (
-        "     IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+    output1 = (
+        "     IF (f2_proxy%is_dirty(depth=f2_extent)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
         "      END IF \n"
-        "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    assert output in generated_code
+        "      !\n")
+    print output1
+    assert output1 in generated_code
+    output2 = ("      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    print output2
+    assert output2 in generated_code
 
 
 def test_halo_exchange_inc():
@@ -3730,7 +4071,6 @@ def test_no_set_dirty_for_operator():
     assert "is_dirty" not in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_different_spaces():
     '''test that all of our different function spaces with a stencil
     access result in halo calls including any_space'''
@@ -3763,7 +4103,6 @@ def test_halo_exchange_vectors_1():
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_vectors():
     ''' test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with gh_inc '''
@@ -3776,18 +4115,18 @@ def test_halo_exchange_vectors():
     assert result.count("halo_exchange(") == 7
     for idx in range(1, 4):
         assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
-        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
-    expected = ("      IF (f2_proxy(4)%is_dirty(depth=2)) THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
+        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=f2_extent+1)" \
+            in result
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) THEN\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_depths():
-    ''' test that halo exchange (and gh_inc) includes the correct halo
+    ''' test that halo exchange includes the correct halo
     depth with gh_write '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.5_halo_depth.f90"),
@@ -3795,23 +4134,22 @@ def test_halo_exchange_depths():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+    expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=extent)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=2)\n"
+                "      IF (f3_proxy%is_dirty(depth=extent)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=extent)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f4_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL f4_proxy%halo_exchange(depth=3)\n"
+                "      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=extent)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_edge_cell()\n")
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_depths_gh_inc():
     ''' test that halo exchange includes the correct halo depth when
     we have a gh_inc as this increases the required depth by 1 (as
@@ -3826,39 +4164,32 @@ def test_halo_exchange_depths_gh_inc():
                 "        CALL f1_proxy%halo_exchange(depth=1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=3)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=3)\n"
+                "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f4_proxy%is_dirty(depth=4)) THEN\n"
-                "        CALL f4_proxy%halo_exchange(depth=4)\n"
+                "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_stencil_read_only():
     '''test that an error is raised if a field with a stencil is not
     accessed as gh_read'''
     fparser.logging.disable('CRITICAL')
-    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross,1)",
-                                "gh_write, w2, stencil(cross,1)", 1)
+    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross)",
+                                "gh_write, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
     assert "a stencil must be read only" in str(excinfo.value)
-
-
-# def test_halo_exchange_conflicting_stencil(): '''
-# two different stencils for same space in a kernel *** and gh_inc '''
-# only an issue when we have more than one kernel per loop i.e. we
-# need loop fusion. Therefore should go in dynamo0p3_transformations.py
 
 
 def test_w3_and_inc_error():
@@ -3874,7 +4205,6 @@ def test_w3_and_inc_error():
             "access") in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
@@ -3884,8 +4214,12 @@ def test_halo_exchange_view(capsys):
     schedule.view()
     result, _ = capsys.readouterr()
     expected = (
-        "Schedule[invoke='invoke_0_testkern_stencil_type']\n"
-        "    HaloExchange[field='f2', type='cross', depth=1, "
+        "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        "    HaloExchange[field='f2', type='cross', depth=f2_extent, "
+        "check_dirty=True]\n"
+        "    HaloExchange[field='f3', type='region', depth=1, "
+        "check_dirty=True]\n"
+        "    HaloExchange[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
         "    Loop[type='',field_space='w1',it_space='cells']\n"
         "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
@@ -3929,15 +4263,6 @@ def test_mesh_mod():
 
 # when we add build tests we should test that we can we get the mesh
 # object from an operator
-
-
-def test_no_stencil_support():
-    '''test that we raise an exception if we encounter a stencil kernel
-    as the infrastructure API for this is not yet decided '''
-    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = DynKernMetadata(ast)
-    assert 'not supported in PSyclone' in str(excinfo.value)
 
 
 def test_set_bounds_functions():
@@ -3989,13 +4314,15 @@ def test_intent_multi_kern():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    output = str(psy.gen)
-    print output
-    assert "TYPE(field_type), intent(inout) :: g, f\n" in output
-    assert "TYPE(field_type), intent(inout) :: b, h\n" in output
-    assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-    assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        output = str(psy.gen)
+        print output
+        assert "TYPE(field_type), intent(inout) :: g, f\n" in output
+        assert "TYPE(field_type), intent(inout) :: b, h\n" in output
+        assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
+        assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
 
 
 def test_field_gh_sum_invalid():
@@ -4030,13 +4357,16 @@ def test_operator_gh_sum_invalid():
 
 def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
-    is specified with gh_sum'''
+    is specified with gh_sum with dm=False'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.2_integer_scalar_sum.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
+    assert "INTEGER, intent(out) :: isum" in gen
+    assert "isum = 0" in gen
     assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
         "undf_w3, map_w3)" in gen
 
@@ -4044,58 +4374,139 @@ def test_single_integer_scalar_sum():
 def test_single_real_scalar_sum():
     '''Test that a single real scalar generates correct code when it is
     specified with gh_sum'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                           api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-        "undf_w3, map_w3)" in gen
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "16.3_real_scalar_sum.f90"),
+                               api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        if dist_mem:
+            assert "USE scalar_mod, ONLY: scalar_type" in gen
+            assert "TYPE(scalar_type) global_sum" in gen
+            assert "DO cell=1,mesh%get_last_edge_cell()" in gen
+            assert (
+                "      global_sum%value = rsum\n"
+                "      rsum = global_sum%get_sum()") in gen
+        else:
+            assert "DO cell=1,f1_proxy%vspace%get_ncell()" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
+        assert "rsum = 0.0_r_def" in gen
+        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
+        assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+            "undf_w3, map_w3)" in gen
 
 
 def test_multiple_scalar_sums():
-    ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
+    '''Test that multiple real scalar (gh_sum) reductions generate
+    correct code '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type("
+                "rsum1, rsum2, f1)") in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
+        assert (
+            "      rsum1 = 0.0_r_def\n"
+            "      rsum2 = 0.0_r_def")
+        assert ("CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, "
+                "rsum2, f1_proxy%data, ndf_w3, undf_w3, map_w3)") in gen
+        if dist_mem:
+            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
+            assert gen.count("TYPE(scalar_type) global_sum") == 1
+            assert ("      global_sum%value = rsum2\n"
+                    "      rsum2 = global_sum%get_sum()\n"
+                    "      global_sum%value = rsum1\n"
+                    "      rsum1 = global_sum%get_sum()\n") in gen
+
+
+def test_multiple_mixed_scalar_sums():
+    '''Test that multiple mixed scalar (gh_sum) reductions generate
+    correct code with dm=False (dm=True is not supported with
+    gh_integer) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.4_multiple_scalar_sums.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, " \
-        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)" in gen
+    assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
+            "isum1, f1, rsum2, isum2)") in gen
+    assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
+    assert "INTEGER, intent(out) :: isum1, isum2" in gen
+    assert (
+        "      rsum1 = 0.0_r_def\n"
+        "      rsum2 = 0.0_r_def\n"
+        "      isum1 = 0\n"
+        "      isum2 = 0")
+    assert ("CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
+            "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)") in gen
+
+
+def test_multiple_mixed_scalar_sums2():
+    '''Test that multiple mixed scalar (gh_sum) reductions raise an
+    exception with dm=False as dm=True is not supported with
+    gh_integer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.4_multiple_scalar_sums.f90"),
+                           api="dynamo0.3", distributed_memory=True)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
+    assert "Integer reductions are not currently supported" \
+        in str(excinfo.value)
 
 
 def test_multiple_kernels_scalar_sums():
-    '''Add a test for multiple kernels within an invoke with scalar
-    (gh_sum) reductions'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-             "undf_w3, map_w3)"
-    assert output in gen
-    assert gen.count(output) == 2
+    '''Test that multiple kernels within an invoke with the same real
+    scalar (gh_sum) for each reduction generate correct code '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert "SUBROUTINE invoke_0(rsum, f1)" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
+        assert gen.count("rsum = 0.0_r_def") == 1
+        output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+                 "undf_w3, map_w3)"
+        assert output in gen
+        assert gen.count(output) == 2
+        if dist_mem:
+            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
+            assert gen.count("TYPE(scalar_type) global_sum") == 1
+            assert gen.count("      global_sum%value = rsum\n"
+                             "      rsum = global_sum%get_sum()") == 2
 
 
 def test_scalars_only_invalid():
     '''Test that a Kernel consisting of only scalars fails as it has
     nothing to iterate over '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
-            create(invoke_info)
-    assert "dynamo0.3 api must have a modified field" in str(excinfo.value)
-    assert "modified operator, or an unmodified field" in str(excinfo.value)
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
+                create(invoke_info)
+        assert "dynamo0.3 api must have a modified field" in \
+            str(excinfo.value)
+        assert "modified operator, or an unmodified field" in \
+            str(excinfo.value)
 
 
 def test_scalar_int_sum_field_read():
-    '''Test that a write to a single integer scalar is valid if we have at
-    least one field that is read '''
+    '''Test that a write to a single integer scalar is valid with dm=False
+    if we have at least one field that is read '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
@@ -4103,6 +4514,9 @@ def test_scalar_int_sum_field_read():
                      distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
+    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
+    assert "INTEGER, intent(out) :: isum" in gen
+    assert "isum = 0" in gen
     expected_output = (
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
@@ -4114,22 +4528,1426 @@ def test_scalar_int_sum_field_read():
     assert expected_output in gen
 
 
+def test_scalar_int_sum_field_read_error():
+    '''Test that a sum of an integer scalar raises an exception if
+    distributed memory is set to True as the infrastructure does not
+    currently support this'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=True)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
+    assert "Integer reductions are not currently supported" \
+        in str(excinfo.value)
+
+
 def test_scalar_real_sum_field_read():
     '''Test that a write to a single real scalar is valid if we have at
     least one field that is read '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
+        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
+        assert "rsum = 0.0_r_def" in gen
+
+        if dist_mem:
+            assert "USE scalar_mod, ONLY: scalar_type" in gen
+            assert "TYPE(scalar_type) global_sum" in gen
+            assert "rsum = 0.0_r_def" in gen
+            expected_output = (
+                "      DO cell=1,mesh%get_last_edge_cell()\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n"
+                "      global_sum%value = rsum\n"
+                "      rsum = global_sum%get_sum()")
+        else:
+            expected_output = (
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+                "        !\n"
+                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+                "ndf_w3, undf_w3, map_w3)\n"
+                "      END DO \n")
+        assert expected_output in gen
+
+
+def test_derived_type_arg():
+    ''' Test that we generate a suitable name for a dummy variable
+    in the PSy layer when its value in the algorithm layer is
+    obtained from the component of a derived type or from a type-bound
+    procedure call. '''
+    for dist_mem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.6.2_single_invoke_1_int_from_derived_type.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        # Check the four integer variables are named and declared correctly
+        expected = (
+            "    SUBROUTINE invoke_0(f1, my_obj_iflag, f2, m1, m2, "
+            "my_obj_get_flag, my_obj_get_flag_1, my_obj_get_flag_2)\n")
+        assert expected in gen
+        expected = (
+            "      INTEGER, intent(in) :: my_obj_iflag, my_obj_get_flag, "
+            "my_obj_get_flag_1, my_obj_get_flag_2\n")
+        assert expected in gen
+        # Check that they are still named correctly when passed to the
+        # kernels
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_iflag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_1, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, my_obj_get_flag_2, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+
+
+def test_multiple_derived_type_args():
+    ''' Test that we generate correct code when kernel arguments are
+    supplied from the algorithm layer as different components of the
+    same derived type object '''
+    for dist_mem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.6.3_single_invoke_multiple_derived_types.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        gen = str(psy.gen)
+        print gen
+        # Check the four integer variables are named and declared correctly
+        expected = (
+            "    SUBROUTINE invoke_0(f1, obj_a_iflag, f2, m1, m2, "
+            "obj_b_iflag, obj_a_obj_b, obj_b_obj_a)\n")
+        assert expected in gen
+        expected = (
+            "      INTEGER, intent(in) :: obj_a_iflag, obj_b_iflag, "
+            "obj_a_obj_b, obj_b_obj_a\n")
+        assert expected in gen
+        # Check that they are still named correctly when passed to the
+        # kernels
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_a_iflag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_b_iflag, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_a_obj_b, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+        assert (
+            "CALL testkern_code(nlayers, f1_proxy%data, obj_b_obj_a, "
+            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in gen)
+
+
+def test_single_stencil_extent():
+    '''test a single stencil access with an extent value passed from the
+    algorithm layer is treated correctly in the PSy layer. Test both
+    sequential and distributed memory '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
+            "f2_extent)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = ("      INTEGER, intent(in) :: f2_extent\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output4 in result
+        output5 = (
+            "      !\n"
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f2_extent)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      !\n")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
+            " f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell),"
+            " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output6 in result
+
+
+def test_single_stencil_xory1d():
+    '''test a single stencil access with an extent and direction value
+    passed from the algorithm layer is treated correctly in the PSy
+    layer. Test both sequential and distributed memory '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, f2, f3, "
+            "f4, f2_extent, f2_direction)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, intent(in) :: f2_extent\n"
+            "      INTEGER, intent(in) :: f2_direction\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output4 in result
+        output5 = (
+            "      !\n"
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      IF (f2_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_extent)\n"
+            "      END IF \n"
+            "      IF (f2_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_extent)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      !\n")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output6 in result
+
+
+def test_single_stencil_literal():
+    '''test extent value is used correctly from the algorithm layer when
+    it is a literal value so is not passed by argument'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, "
+                   "f3, f4)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      !\n"
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,1)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      !\n")
+        assert output4 in result
+        if dist_mem:
+            output5 = (
+                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n")
+            assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output6 in result
+
+
+def test_stencil_region_unsupported():
+    '''Check that we raise an exception if the value of the stencil type
+    in stencil(<type>[,<extent>]) is region. This is not a parse error
+    as region is a valid value, it is just that the LFRic
+    infrastructure does not yet support it. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = str(psy.gen)
+        assert "Unsupported stencil type 'region' supplied" in \
+            str(excinfo.value)
+
+
+def test_single_stencil_xory1d_literal():
+    '''test extent value is used correctly from the algorithm layer when
+    it is a literal value so is not passed by argument'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.5_single_stencil_xory1d_literal.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
+                   "f1, f2, f3, f4)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      IF (x_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
+            "      END IF \n"
+            "      IF (x_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      !\n")
+        assert output4 in result
+        if dist_mem:
+            output5 = (
+                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      END IF \n")
+            assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output6 in result
+
+
+def test_single_stencil_xory1d_literal_mixed():
+    '''test extent value is used correctly from the algorithm layer when
+    it is a literal value so is not passed by argument and the case of the
+    literal is specified in mixed case'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.5.1_single_stencil_xory1d_literal.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type("
+                   "f1, f2, f3, f4)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      IF (x_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
+            "      END IF \n"
+            "      IF (x_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      !\n")
+        assert output4 in result
+        if dist_mem:
+            output5 = (
+                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      END IF \n")
+            assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output6 in result
+
+
+def test_multiple_stencils():
+    '''test for correct output when there is more than one stencil in a
+    kernel'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
+            "f4, f2_extent, f3_extent, f3_direction)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, intent(in) :: f2_extent, f3_extent\n"
+            "      INTEGER, intent(in) :: f3_direction\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER f4_stencil_size\n"
+            "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+            "null()\n"
+            "      INTEGER f3_stencil_size\n"
+            "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output4 in result
+        output5 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f2_extent)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      IF (f3_direction .eq. x_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f3_extent)\n"
+            "      END IF \n"
+            "      IF (f3_direction .eq. y_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f3_extent)\n"
+            "      END IF \n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+            "      f3_stencil_size = f3_stencil_map%get_size()\n"
+            "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,1)\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+            "      f4_stencil_size = f4_stencil_map%get_size()\n"
+            "      !\n")
+        assert output5 in result
+        if dist_mem:
+            output6 = (
+                "      IF (f2_proxy%is_dirty(depth=f2_extent)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
+                "      END IF \n")
+            assert output6 in result
+        output7 = (
+            "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f3_stencil_size, f3_direction, "
+            "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size, "
+            "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output7 in result
+
+
+def test_multiple_stencil_same_name():
+    '''test the case when there is more than one stencil in a kernel with
+    the same name for extent'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_stencil_multi_type(f1, f2, f3, "
+            "f4, extent, f3_direction)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, intent(in) :: extent\n"
+            "      INTEGER, intent(in) :: f3_direction\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f4_stencil_size\n"
+            "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+            "null()\n"
+            "      INTEGER f3_stencil_size\n"
+            "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      IF (f3_direction .eq. x_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      END IF \n"
+            "      IF (f3_direction .eq. y_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
+            "      END IF \n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+            "      f3_stencil_size = f3_stencil_map%get_size()\n"
+            "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+            "      f4_stencil_size = f4_stencil_map%get_size()\n"
+            "      !\n")
+        assert output4 in result
+        output5 = (
+            "        CALL testkern_stencil_multi_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f3_stencil_size, f3_direction, "
+            "f3_stencil_dofmap(:,:,cell), f4_proxy%data, f4_stencil_size, "
+            "f4_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output5 in result
+
+
+def test_multiple_stencil_same_name_direction():
+    '''test the case where there is more than one stencil in a kernel with
+    the same name for direction'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "SUBROUTINE invoke_0_testkern_stencil_multi_2_type(f1, f2, f3, "
+            "f4, extent, direction)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, intent(in) :: extent\n"
+            "      INTEGER, intent(in) :: direction\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f4_stencil_size\n"
+            "      INTEGER, pointer :: f4_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f4_stencil_map => "
+            "null()\n"
+            "      INTEGER f3_stencil_size\n"
+            "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      IF (direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      END IF \n"
+            "      IF (direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      IF (direction .eq. x_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      END IF \n"
+            "      IF (direction .eq. y_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
+            "      END IF \n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+            "      f3_stencil_size = f3_stencil_map%get_size()\n"
+            "      IF (direction .eq. x_direction) THEN\n"
+            "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      END IF \n"
+            "      IF (direction .eq. y_direction) THEN\n"
+            "        f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
+            "      END IF \n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+            "      f4_stencil_size = f4_stencil_map%get_size()\n"
+            "      !\n")
+        assert output4 in result
+        output5 = (
+            "     CALL testkern_stencil_multi_2_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, direction, "
+            "f2_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f3_stencil_size, direction, "
+            "f3_stencil_dofmap(:,:,cell), "
+            "f4_proxy%data, f4_stencil_size, direction, "
+            "f4_stencil_dofmap(:,:,cell), "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output5 in result
+
+
+def test_multiple_kernels_stencils_different_fields():
+    '''Test the case where we have multiple kernels with stencils and
+    different fields for each. We also test extent names by having both
+    shared and individual names.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.20_multiple_kernels_stencils.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0(f1, f2a, f3, f4, f2b, f2c, f2a_extent, "
+            "extent)")
+        assert output1 in result
+        output2 = (
+            "      USE testkern_stencil_mod, ONLY: testkern_stencil_code\n"
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, intent(in) :: f2a_extent, extent\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER f2b_stencil_size\n"
+            "      INTEGER, pointer :: f2b_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2b_stencil_map "
+            "=> null()\n"
+            "      INTEGER f2a_stencil_size\n"
+            "      INTEGER, pointer :: f2a_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2a_stencil_map "
+            "=> null()\n")
+        assert output4 in result
+        output5 = (
+            "      !\n"
+            "      f2a_stencil_map => f2a_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f2a_extent)\n"
+            "      f2a_stencil_dofmap => f2a_stencil_map%get_whole_dofmap()\n"
+            "      f2a_stencil_size = f2a_stencil_map%get_size()\n"
+            "      f2b_stencil_map => f2b_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f2b_stencil_dofmap => f2b_stencil_map%get_whole_dofmap()\n"
+            "      f2b_stencil_size = f2b_stencil_map%get_size()\n"
+            "      !\n")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2a_proxy%data, f2a_stencil_size, f2a_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output6 in result
+        output7 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2b_proxy%data, f2b_stencil_size, f2b_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output7 in result
+        output8 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2c_proxy%data, f2b_stencil_size, f2b_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output8 in result
+
+
+def test_extent_name_clash():
+    '''Test we can deal with name clashes for stencils. We have a single
+    kernel with argument names passed from the algorithm layer that
+    would clash with stencil-name, stencil-dofmap and stencil-size
+    variables.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
+            "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
+            "f2_extent, f3_stencil_size)")
+        assert output1 in result
+        output2 = (
+            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type")
+        assert output2 in result
+        output3 = (
+            "      INTEGER, intent(in) :: f2_extent, f3_stencil_size\n"
+            "      TYPE(field_type), intent(inout) :: f2_stencil_map, "
+            "f3_stencil_map\n"
+            "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
+            "stencil_cross_1, f3, f3_stencil_dofmap\n")
+        assert output3 in result
+        output4 = (
+            "      INTEGER f3_stencil_size_1\n"
+            "      INTEGER, pointer :: f3_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
+            "null()\n"
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
+            "null()\n")
+        assert output4 in result
+        output5 = (
+            "      TYPE(field_proxy_type) f2_stencil_map_proxy, f2_proxy, "
+            "f2_stencil_dofmap_proxy, stencil_cross_1_proxy, "
+            "f3_stencil_map_proxy, f3_proxy, f3_stencil_dofmap_proxy\n")
+        assert output5 in result
+        output6 = (
+            "      stencil_cross_1_proxy = stencil_cross_1%get_proxy()")
+        assert output6 in result
+        output7 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f2_extent)\n"
+            "      f2_stencil_dofmap_1 => "
+            "f2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map_1%get_size()\n"
+            "      f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,f3_stencil_size)\n"
+            "      f3_stencil_dofmap_1 => "
+            "f3_stencil_map_1%get_whole_dofmap()\n"
+            "      f3_stencil_size_1 = f3_stencil_map_1%get_size()\n"
+            "      !\n")
+        assert output7 in result
+        output8 = (
+            "        CALL testkern_stencil_code(nlayers, "
+            "f2_stencil_map_proxy%data, f2_proxy%data, f2_stencil_size, "
+            "f2_stencil_dofmap_1(:,:,cell), f2_stencil_dofmap_proxy%data, "
+            "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output8 in result
+        output9 = (
+            "        CALL testkern_stencil_code(nlayers, "
+            "f3_stencil_map_proxy%data, f3_proxy%data, f3_stencil_size_1, "
+            "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_proxy%data, "
+            "stencil_cross_1_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output9 in result
+
+
+def test_two_stencils_same_field():
+    '''Test two Kernels within an invoke, with the same field having a
+    stencil access in each kernel. f2_w2 is the field we care
+    about. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0(f1_w1, f2_w2, f3_w2, f4_w3, f1_w3, "
+            "f2_extent, extent)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER f2_w2_stencil_size_1\n"
+            "      INTEGER, pointer :: f2_w2_stencil_dofmap_1(:,:,:) => "
+            "null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map_1 "
+            "=> null()")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f2_w2_stencil_size\n"
+            "      INTEGER, pointer :: f2_w2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_w2_stencil_map "
+            "=> null()")
+        assert output3 in result
+        output4 = (
+            "      f2_w2_stencil_map => f2_w2_proxy%vspace%get_stencil_dofmap"
+            "(STENCIL_CROSS,f2_extent)\n"
+            "      f2_w2_stencil_dofmap => "
+            "f2_w2_stencil_map%get_whole_dofmap()\n"
+            "      f2_w2_stencil_size = f2_w2_stencil_map%get_size()\n")
+        assert output4 in result
+        output5 = (
+            "      f2_w2_stencil_map_1 => "
+            "f2_w2_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,extent)\n"
+            "      f2_w2_stencil_dofmap_1 => "
+            "f2_w2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_w2_stencil_size_1 = f2_w2_stencil_map_1%get_size()\n")
+        assert output5 in result
+        output6 = (
+            "        CALL testkern_stencil_code(nlayers, f1_w1_proxy%data, "
+            "f2_w2_proxy%data, f2_w2_stencil_size, "
+            "f2_w2_stencil_dofmap(:,:,cell), "
+            "f3_w2_proxy%data, f4_w3_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert output6 in result
+        output7 = (
+            "        CALL testkern_stencil_depth_code(nlayers, "
+            "f1_w3_proxy%data, f1_w1_proxy%data, f1_w1_stencil_size, "
+            "f1_w1_stencil_dofmap(:,:,cell), f2_w2_proxy%data, "
+            "f2_w2_stencil_size_1, "
+            "f2_w2_stencil_dofmap_1(:,:,cell), f4_w3_proxy%data, "
+            "f4_w3_stencil_size, "
+            "f4_w3_stencil_dofmap(:,:,cell), ndf_w3, undf_w3, map_w3, ndf_w1, "
+            "undf_w1, map_w1, ndf_w2, undf_w2, map_w2)")
+        assert output7 in result
+
+
+def test_stencils_same_field_literal_extent():
+    '''Test three Kernels within an invoke, with the same field having a
+    stencil access in each kernel and the extent being passed as a
+    literal value. Extent is the same in two kernels and different in
+    the third. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.15_stencils_same_field_literal_extent.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      INTEGER f2_stencil_size_1\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
+            "=> null()\n"
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
+            "=> null()")
+        assert output1 in result
+        output2 = (
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,1)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,2)\n"
+            "      f2_stencil_dofmap_1 => "
+            "f2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_stencil_size_1 = f2_stencil_map_1%get_size()\n"
+            "      !")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell), "
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert result.count(output3) == 2
+        output4 = (
+            "        CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size_1, f2_stencil_dofmap_1(:,:,cell), "
+            "f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+            "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
+        assert result.count(output4) == 1
+
+
+def test_stencils_same_field_literal_direction():
+    '''Test three Kernels within an invoke, with the same field having a
+    stencil access in each kernel and the direction being passed as a
+    literal value. In two kernels the direction value is the same and
+    in the third it is different. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.16_stencils_same_field_literal_direction.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      INTEGER f2_stencil_size_1\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap_1(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
+            "=> null()\n"
+            "      INTEGER f2_stencil_size\n"
+            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map "
+            "=> null()")
+        assert output1 in result
+        output2 = (
+            "      !\n"
+            "      IF (x_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
+            "      END IF \n"
+            "      IF (x_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      IF (y_direction .eq. x_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,2)\n"
+            "      END IF \n"
+            "      IF (y_direction .eq. y_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,2)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap_1 => "
+            "f2_stencil_map_1%get_whole_dofmap()\n"
+            "      f2_stencil_size_1 = f2_stencil_map_1%get_size()\n"
+            "      !")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size, x_direction, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert result.count(output3) == 2
+        output4 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, y_direction, "
+            "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert result.count(output4) == 1
+
+
+def test_stencil_extent_specified():
+    '''the function stencil_unique_str() raises an error if a stencil
+    with an extent provided in the metadata is passed in. This is because
+    this is not currently supported. This test checks that the appropriate
+    error is raised. '''
+    # load an example with an argument that has stencil metadata
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    expected_output = (
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
-        "ndf_w3, undf_w3, map_w3)\n"
-        "      END DO \n")
-    assert expected_output in gen
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # access the argument with stencil metadata
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[3].children[0]
+    stencil_arg = kernel.arguments.args[1]
+    # artificially add an extent to the stencil metadata info
+    stencil_arg.descriptor.stencil['extent'] = 1
+    from dynamo0p3 import stencil_unique_str
+    with pytest.raises(GenerationError) as err:
+        stencil_unique_str(stencil_arg, "")
+    assert ("found a stencil with an extent specified in the metadata. "
+            "This is not coded for." in str(err))
+
+
+def test_haloexchange_unknown_halo_depth():
+    '''If a stencil extent is provided in the kernel metadata then the
+    value is stored in an instance of the DynHaloExchange class. This test
+    checks that the value is stored as expected (although stencil extents
+    in metadata are not currently supported in PSyclone).'''
+    # load an example with an argument that has stencil metadata
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # access the argument with stencil metadata
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[3].children[0]
+    stencil_arg = kernel.arguments.args[1]
+    # artificially add an extent to the stencil metadata info
+    stencil_arg.descriptor.stencil['extent'] = 10
+    halo_exchange = DynHaloExchange(stencil_arg)
+    assert halo_exchange._halo_depth == '10'
+
+
+def test_single_kernel_multi_field_same_stencil():
+    '''This test checks for the case where we have the same stencil used
+    by more than one field in a kernel'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.17_single_kernel_multi_field_same_stencil.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "    SUBROUTINE invoke_0_testkern_multi_field_same_stencil_type("
+            "f0, f1, f2, f3, f4, extent, direction)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, intent(in) :: extent\n"
+            "      INTEGER, intent(in) :: direction\n")
+        assert output2 in result
+        output3 = (
+            "      INTEGER f3_stencil_size\n"
+            "      INTEGER, pointer :: f3_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f3_stencil_map => "
+            "null()\n"
+            "      INTEGER f1_stencil_size\n"
+            "      INTEGER, pointer :: f1_stencil_dofmap(:,:,:) => null()\n"
+            "      TYPE(stencil_dofmap_type), pointer :: f1_stencil_map => "
+            "null()\n")
+        assert output3 in result
+        output4 = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
+            "      f1_stencil_size = f1_stencil_map%get_size()\n"
+            "      IF (direction .eq. x_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,extent)\n"
+            "      END IF \n"
+            "      IF (direction .eq. y_direction) THEN\n"
+            "        f3_stencil_map => f3_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,extent)\n"
+            "      END IF \n"
+            "      f3_stencil_dofmap => f3_stencil_map%get_whole_dofmap()\n"
+            "      f3_stencil_size = f3_stencil_map%get_size()\n"
+            "      !\n")
+        assert output4 in result
+        output5 = (
+            "        CALL testkern_multi_field_same_stencil_code(nlayers, "
+            "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), f3_proxy%data, f3_stencil_size, "
+            "direction, f3_stencil_dofmap(:,:,cell), f4_proxy%data, "
+            "f3_stencil_size, direction, f3_stencil_dofmap(:,:,cell), "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2)")
+        assert output5 in result
+
+
+def test_single_kernel_any_space_stencil():
+    '''This is a test for stencils and any_space within a single kernel
+    and between kernels. We test when any_space is the same and when
+    it is different within kernels and between kernels for the case of
+    different fields. When it is the same we should have the same
+    stencil dofmap (as all other stencil information is the same) and
+    when it is different we should have a different stencil dofmap (as
+    we do not know whether they are on the same space). '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.18_anyspace_stencil_1.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
+            "      f1_stencil_size = f1_stencil_map%get_size()\n"
+            "      f4_stencil_map => f4_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f4_stencil_dofmap => f4_stencil_map%get_whole_dofmap()\n"
+            "      f4_stencil_size = f4_stencil_map%get_size()\n"
+            "      f5_stencil_map => f5_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f5_stencil_dofmap => f5_stencil_map%get_whole_dofmap()\n"
+            "      f5_stencil_size = f5_stencil_map%get_size()\n"
+            "      !\n")
+        assert output1 in result
+        # use the same stencil dofmap
+        output2 = (
+            "        CALL testkern_same_anyspace_stencil_code(nlayers, "
+            "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_different_anyspace_stencil_code(nlayers, "
+            "f3_proxy%data, f4_proxy%data, f4_stencil_size, "
+            "f4_stencil_dofmap(:,:,cell), f5_proxy%data, f5_stencil_size, "
+            "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f4, undf_any_space_1_f4, map_any_space_1_f4, "
+            "ndf_any_space_2_f5, undf_any_space_2_f5, map_any_space_2_f5)")
+        # use a different stencil dofmap
+        assert output3 in result
+
+
+@pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
+def test_multi_kernel_any_space_stencil_1():
+    '''This is a test for stencils and any_space with two kernels. We test
+    when any_space is the same and when it is different for the same
+    field. In our example we should have a single dofmap. However, at
+    the moment we produce two. This is valid but not optimal. It is
+    not a big deal at the moment as the Met Office do not plan to use
+    any_space but it should be able to be fixed when we get dependence
+    analysis within invokes working. Therefore making it xfail for the
+    moment. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.19_anyspace_stencil_2.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = (
+            "      f1_stencil_map => f1_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_CROSS,extent)\n"
+            "      f1_stencil_dofmap => f1_stencil_map%get_whole_dofmap()\n"
+            "      f1_stencil_size = f1_stencil_map%get_size()\n"
+            "      !\n")
+        assert output1 in result
+        output2 = (
+            "        CALL testkern_same_anyspace_stencil_code(nlayers, "
+            "f0_proxy%data, f1_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1)")
+        assert output2 in result
+        output3 = (
+            "        CALL testkern_different_anyspace_stencil_code(nlayers, "
+            "f3_proxy%data, f1_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), f2_proxy%data, f1_stencil_size, "
+            "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1, "
+            "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1, "
+            "ndf_any_space_2_f2, undf_any_space_2_f2, map_any_space_2_f2)")
+        assert output3 in result
+
+
+def test_stencil_args_unique_1():
+    '''This test checks that stencil extent and direction arguments do not
+    clash with internal names generated in the PSy-layer. f2_stencil_size
+    and nlayers are chosen as the names that would clash.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.21_stencil_names_clash.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        # we use f2_stencil_size for extent and nlayers for direction
+        # as arguments
+        output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
+                   "f2, f3, f4, f2_stencil_size, nlayers)")
+        assert output1 in result
+        output2 = ("      INTEGER, intent(in) :: f2_stencil_size\n"
+                   "      INTEGER, intent(in) :: nlayers")
+        assert output2 in result
+        output3 = "      INTEGER f2_stencil_size_1"
+        assert output3 in result
+        # therefore the local variable is now declared as nlayers_1"
+        output4 = "      INTEGER nlayers_1"
+        assert output4 in result
+        output5 = "      nlayers_1 = f1_proxy%vspace%get_nlayers()"
+        assert output5 in result
+        output6 = (
+            "      IF (nlayers .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_stencil_size)\n"
+            "      END IF \n"
+            "      IF (nlayers .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_stencil_size)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size_1 = f2_stencil_map%get_size()")
+        assert output6 in result
+        output7 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers_1, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, nlayers, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output7 in result
+
+
+def test_stencil_args_unique_2():
+    '''This test checks that stencil extent and direction arguments are
+    unique within the generated PSy-layer when they are accessed as
+    indexed arrays, with the same array name, from the algorithm
+    layer.'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.22_stencil_names_indexed.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        output1 = ("    SUBROUTINE invoke_0(f1, f2, f3, f4, f2_info, "
+                   "f2_info_2, f2_info_1, f2_info_3)")
+        assert output1 in result
+        output2 = (
+            "      INTEGER, intent(in) :: f2_info, f2_info_2\n"
+            "      INTEGER, intent(in) :: f2_info_1, f2_info_3")
+        assert output2 in result
+        output3 = (
+            "      IF (f2_info_1 .eq. x_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_info)\n"
+            "      END IF \n"
+            "      IF (f2_info_1 .eq. y_direction) THEN\n"
+            "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_info)\n"
+            "      END IF \n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      IF (f2_info_3 .eq. x_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DX,f2_info_2)\n"
+            "      END IF \n"
+            "      IF (f2_info_3 .eq. y_direction) THEN\n"
+            "        f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+            "STENCIL_1DY,f2_info_2)\n"
+            "      END IF ")
+        assert output3 in result
+        output4 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size, f2_info_1, "
+            "f2_stencil_dofmap(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output4 in result
+        output5 = (
+            "        CALL testkern_stencil_xory1d_code(nlayers, "
+            "f1_proxy%data, f2_proxy%data, f2_stencil_size_1, f2_info_3, "
+            "f2_stencil_dofmap_1(:,:,cell), f3_proxy%data, f4_proxy%data, "
+            "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, "
+            "undf_w3, map_w3)")
+        assert output5 in result
+
+
+def test_stencil_args_unique_3():
+    '''This test checks that stencil extent and direction arguments are
+    unique within the generated PSy-layer when they are dereferenced,
+    with the same type/class name, from the algorithm layer. '''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.23_stencil_names_deref.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        result = str(psy.gen)
+        print result
+        assert (
+            "      INTEGER, intent(in) :: my_info_f2_info, my_info_f2_info_2\n"
+            "      INTEGER, intent(in) :: my_info_f2_info_1, "
+            "my_info_f2_info_3\n"
+            in result)
+        assert (
+            "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
+            "my_info_f2_info)" in result)
+
+
+def test_dynloop_load_unexpected_function_space():
+    '''The load function of an instance of the dynloop class raises an
+    error if an unexpexted function space is found. This test makes
+    sure this error works correctly. It's a little tricky to raise
+    this error as it is unreachable. However, we can sabotage an
+    earlier function to make it return an invalid value. '''
+    # first create a working instance of the DynLoop class
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # now get access to the DynLoop class, the associated kernel class
+    # and the associated field.
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    field = kernel.arguments.iteration_space_arg()
+    # break the fields function space
+    field._function_spaces[0]._orig_name = "broken"
+    # create a function which always returns the broken field
+
+    def broken_func():
+        ''' returns the above field no matter what '''
+        return field
+    # replace the iteration_space_arg method with our broke
+    # function. This is required as iteration_space_arg currently
+    # never returns a field with an invalid function space.
+    kernel.arguments.iteration_space_arg = broken_func
+    # We can now raise the exception.
+    with pytest.raises(GenerationError) as err:
+        loop.load(kernel)
+    assert ("Generation Error: Unexpected function space found. Expecting "
+            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but "
+            "found 'broken'" in str(err))
+
+
+def test_dynkernelarguments_unexpected_stencil_extent():
+    '''This test checks that we raise an error in DynKernelArguments if
+    metadata is provided with an extent value. This is a litle tricky to
+    raise as the parser does not not allow this to happen. We therefore
+    modify the results from the parser to raise the error.'''
+    # parse some valid code with a stencil
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    # find the parsed code's call class
+    call = invoke_info.calls.values()[0].kcalls[0]
+    # add an extent to the stencil metadata
+    kernel_metadata = call.ktype
+    kernel_metadata._arg_descriptors[1].stencil['extent'] = 2
+    # remove the extra argument (as the extent value no longer needs
+    # to be passed so an associated error will be raised)
+    del call.args[2]
+    # finally call our object to raise the error
+    from dynamo0p3 import DynKernelArguments
+    with pytest.raises(GenerationError) as err:
+        _ = DynKernelArguments(call, None)
+    assert "extent metadata not yet supported" in str(err)
+
+
+def test_unsupported_halo_read_access():
+    '''This test checks that we raise an error if the halo_read_access
+    method finds an upper bound other than halo or edge. The
+    particular issue at the moment is that if inner is specified we do
+    not know whether the stencil accesses the halo or not. However,
+    this limitation is not going to affect anyone until we add in loop
+    iteration space splitting transformations.
+    '''
+    # create a valid loop with a stencil access
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    # get access to the DynLoop object
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    # access to the argument that has a stencil access in the kernel
+    kernel = loop.children[0]
+    stencil_arg = kernel.arguments.args[1]
+    loop.set_upper_bound("inner", 1)
+    # call our method
+    with pytest.raises(GenerationError) as err:
+        _ = loop._halo_read_access(stencil_arg)
+    assert ("Loop bounds other than halo and edge are currently unsupported. "
+            "Found 'inner'." in str(err))
+
+
+def test_dynglobalsum_unsupported_scalar():
+    '''Check that an instance of the DynGlobalSum class raises an
+    exception if an unsupported scalar type is provided when
+    dm=True '''
+    # get an instance of an integer scalar
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.6.1_single_invoke_1_int_scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    argument = kernel.arguments.args[1]
+    with pytest.raises(GenerationError) as err:
+        _ = DynGlobalSum(argument)
+    assert "DynGlobalSum currently only supports '['gh_real']'" in str(err)
+
+
+def test_dynglobalsum_nodm_error():
+    '''Check that an instance of the DynGlobalSum class raises an
+    exception if it is instantiated when dm=False'''
+    # get an instance of a real scalar
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.9_single_invoke_2_real_scalars.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    kernel = loop.children[0]
+    argument = kernel.arguments.args[0]
+    with pytest.raises(GenerationError) as err:
+        _ = DynGlobalSum(argument)
+    assert ("It makes no sense to create a DynGlobalSum object when "
+            "dm=False") in str(err)
