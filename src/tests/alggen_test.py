@@ -114,6 +114,64 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), "
                 "qr1(i, k(l)))" in gen)
 
+    def test_deref_derived_type_args(self):
+        ''' Test the case where a kernel argument is specified as both a
+        component of a derived type and as the result of a call to a
+        type-bound procedure '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.6.2_single_invoke_1_int_from_derived_type.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert (
+            "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag(), "
+            "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
+            in gen)
+
+    def test_multi_deref_derived_type_args(self):
+        ''' Test the case where a given kernel argument is specified using
+        different derived types in the same invoke. '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.6.3_single_invoke_multiple_derived_types.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert (
+            "CALL invoke_0(f1, obj_a%iflag, f2, m1, m2, obj_b%iflag, "
+            "obj_a%obj_b, obj_b%obj_a)"
+            in gen)
+
+    def test_op_and_scalar_and_qr_derived_type_args(self):
+        ''' Test the case where the operator, scalar and qr arguments to a
+        kernel are all supplied by de-referencing derived types '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "10.6.1_operator_no_field_scalar_deref.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert (
+            "CALL invoke_0_testkern_operator_nofield_scalar_type("
+            "opbox%my_mapping, box%b(1), qr%get_instance(qr3, 9, 3))" in gen)
+
+    def test_vector_field_arg_deref(self):
+        ''' Test that we generate a correct invoke call when a kernel
+        argument representing a field vector is obtained by de-referencing a
+        derived type '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "8.1_vector_field_deref.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "CALL invoke_0_testkern_chi_type(f1, box%chi)" in gen
+
     def test_single_stencil(self):
         ''' test extent value is passed correctly from the algorithm layer '''
         path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")

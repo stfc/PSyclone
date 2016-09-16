@@ -20,7 +20,7 @@ import expression as expr
 import fparser
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    FieldNotFoundError, HaloExchange, FORTRAN_INTENT_NAMES
+    FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 import psyGen
 import config
 
@@ -366,13 +366,6 @@ class DynArgDescriptor03(Descriptor):
                     "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
                                             self._access_descriptor.name,
                                             arg_type))
-        # Scalars with reductions do not work with Distributed Memory
-        if self._type in VALID_SCALAR_NAMES and \
-           self._access_descriptor.name in VALID_REDUCTION_NAMES and \
-           config.DISTRIBUTED_MEMORY:
-            raise ParseError(
-                "Scalar reductions are not yet supported with distributed "
-                "memory.")
         stencil = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
@@ -961,10 +954,13 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
-        # lastly, add in halo exchange calls if required. We only need to
-        # do this for fields since operators are assembled in place
-        # and scalars don't have halos.
+        # lastly, add in halo exchange calls and global sums if
+        # required. We only need to add halo exchange calls for fields
+        # since operators are assembled in place and scalars don't
+        # have halos. We only need to add global sum calls for scalars
+        # which have a gh_sum access.
         if config.DISTRIBUTED_MEMORY:
+            # halo exchange calls
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
                 inc = loop.has_inc_arg()
@@ -983,6 +979,19 @@ class DynInvoke(Invoke):
                         exchange = DynHaloExchange(halo_field, parent=loop,
                                                    inc=inc)
                         loop.parent.children.insert(loop.position, exchange)
+            # global sum calls
+            for loop in self.schedule.loops():
+                for scalar in loop.args_filter(
+                        arg_types=VALID_SCALAR_NAMES,
+                        arg_accesses=VALID_REDUCTION_NAMES, unique=True):
+                    if scalar.type.lower() == "gh_integer":
+                        raise GenerationError(
+                            "Integer reductions are not currently supported "
+                            "by the LFRic infrastructure. Error found in "
+                            "Kernel '{0}', argument '{1}'".format(
+                                scalar.call.name, scalar.name))
+                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
+                    loop.parent.children.insert(loop.position+1, global_sum)
 
     @property
     def qr_required(self):
@@ -1130,28 +1139,29 @@ class DynInvoke(Invoke):
                                    args=self.psy_unique_var_names +
                                    self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
-        # Add the subroutine argument declarations for real scalars that
-        # are read - we don't currently support any other access type
-        r_declarations = self.unique_declarations("gh_real",
-                                                  access="gh_read")
-        if r_declarations:
-            invoke_sub.add(DeclGen(invoke_sub, datatype="real",
-                                   kind="r_def", entity_decls=r_declarations,
-                                   intent="in"))
+
+        # Add the subroutine argument declarations for real scalars
+        scalar_args = self.unique_declns_by_intent("gh_real")
+        for intent in FORTRAN_INTENT_NAMES:
+            if scalar_args[intent]:
+                invoke_sub.add(DeclGen(invoke_sub, datatype="real",
+                                       kind="r_def",
+                                       entity_decls=scalar_args[intent],
+                                       intent=intent))
+
         # Add the subroutine argument declarations for integer scalars
-        # that are read - we don't currently support any other access type
-        i_declarations = self.unique_declarations("gh_integer",
-                                                  access="gh_read")
-        if i_declarations:
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=i_declarations,
-                                   intent="in"))
+        scalar_args = self.unique_declns_by_intent("gh_integer")
+        for intent in FORTRAN_INTENT_NAMES:
+            if scalar_args[intent]:
+                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                       entity_decls=scalar_args[intent],
+                                       intent=intent))
 
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
 
-        fld_args = self.unique_declns_by_intent("gh_field")
         # Add the subroutine argument declarations for fields
+        fld_args = self.unique_declns_by_intent("gh_field")
         for intent in FORTRAN_INTENT_NAMES:
             if fld_args[intent]:
                 if intent == "out":
@@ -1191,14 +1201,19 @@ class DynInvoke(Invoke):
                                        intent="in"))
 
         # Zero any scalar arguments that are GH_SUM
-        zero_args = self.unique_declarations("gh_real", access="gh_sum")
-        if zero_args:
+        zero_real_args = self.unique_declarations("gh_real", access="gh_sum")
+        zero_integer_args = self.unique_declarations("gh_integer",
+                                                     access="gh_sum")
+        if zero_real_args or zero_integer_args:
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            for arg in zero_args:
+            for arg in zero_real_args:
                 invoke_sub.add(AssignGen(invoke_sub,
                                          lhs=arg, rhs="0.0_r_def"))
+            for arg in zero_integer_args:
+                invoke_sub.add(AssignGen(invoke_sub,
+                                         lhs=arg, rhs="0"))
 
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
@@ -1502,6 +1517,36 @@ class DynSchedule(Schedule):
             entity.view(indent=indent + 1)
 
 
+class DynGlobalSum(GlobalSum):
+    ''' Dynamo specific global sum class which can be added to and
+    manipulated in, a schedule '''
+    def __init__(self, scalar, parent=None):
+        if not config.DISTRIBUTED_MEMORY:
+            raise GenerationError("It makes no sense to create a DynGlobalSum "
+                                  "object when dm=False")
+        # a list of scalar types that this class supports
+        self._supported_scalars = ["gh_real"]
+        if scalar.type not in self._supported_scalars:
+            raise GenerationError("DynGlobalSum currently only supports "
+                                  "'{0}', but found '{1}'.".
+                                  format(self._supported_scalars, scalar.type))
+        GlobalSum.__init__(self, scalar, parent=parent)
+
+    def gen_code(self, parent):
+        ''' Dynamo specific code generation for this class '''
+        from f2pygen import AssignGen, TypeDeclGen, UseGen
+        name = self._scalar.name
+        name_space_manager = NameSpaceFactory().create()
+        sum_name = name_space_manager.create_name(
+            root_name="global_sum", context="PSyVars", label="global_sum")
+        parent.add(UseGen(parent, name="scalar_mod", only=True,
+                          funcnames=["scalar_type"]))
+        parent.add(TypeDeclGen(parent, datatype="scalar_type",
+                               entity_decls=[sum_name]))
+        parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
+        parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
+
+
 class DynHaloExchange(HaloExchange):
 
     ''' Dynamo specific halo exchange class which can be added to and
@@ -1698,23 +1743,23 @@ class DynLoop(Loop):
             return "ncolour"
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
+        elif self._upper_bound_name == "dofs":
+            if config.DISTRIBUTED_MEMORY:
+                result = self.field.proxy_name_indexed + "%" + \
+                    self.field.ref_name() + "%get_last_dof_owned()"
+            else:
+                result = self._kern.undf_name
+            return result
         elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
-                return self.field.proxy_name_indexed + "%" + \
+                result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
-            # keep ncolours and ncolour here as options as we will
-            # need them again when the DM colouring API is implemented
-            elif self._upper_bound_name == "ncolours":
-                return "ncolour"
-            elif self._upper_bound_name == "ncolour":
-                return "ncp_colour(colour)"
-            elif self._upper_bound_name == "dofs":
-                return self._kern.undf_name
             else:
                 raise GenerationError(
                     "For sequential/shared-memory code, the upper loop "
                     "bound must be one of ncolours, ncolour, cells or dofs "
                     "but got '{0}'".format(self._upper_bound_name))
+            return result
         else:
             if self._upper_bound_name in ["inner", "halo"]:
                 index = self._upper_bound_index
@@ -1916,7 +1961,8 @@ class DynKern(Kern):
             self._qr_text = qr_arg.text
             # use our namespace manager to create a unique name unless
             # the context and label match and in this case return the
-            # previous name
+            # previous name. We use the full text of the original
+            # as a label.
             self._qr_name = self._name_space_manager.create_name(
                 root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
