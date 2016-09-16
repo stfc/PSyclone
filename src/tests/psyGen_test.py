@@ -647,3 +647,15 @@ def test_args_filter2():
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
+
+
+def test_invoke_name():
+    ''' Check that specifying the name of an invoke in the Algorithm
+    layer results in a correctly-named routine in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "SUBROUTINE invoke_important_invoke" in gen
