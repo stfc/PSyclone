@@ -670,3 +670,16 @@ def test_multi_kern_named_invoke():
     gen = str(psy.gen)
     print gen
     assert "SUBROUTINE invoke_some_name" in gen
+
+def test_named_multi_invokes():
+    ''' Check that we generate correct code when we have more than one
+    named invoke in an Algorithm file '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "3.2_multi_functions_multi_named_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "SUBROUTINE invoke_my_first(" in gen
+    assert "SUBROUTINE invoke_my_second(" in gen

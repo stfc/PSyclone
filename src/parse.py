@@ -845,7 +845,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     "OrderedDict not found which is unexpected as it is "
                     "meant to be part of the Python library from 2.7 onwards")
     invokecalls = OrderedDict()
-
+    # Keep a list of the named invokes so that we can check that the same
+    # name isn't used more than once
+    unique_invoke_labels = []
     container_name = None
     for child in ast.content:
         if isinstance(child, fparser.block_statements.Program) or \
@@ -892,6 +894,12 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                             format(str(parsed)))
                     # Store the supplied label. Remove any spaces.
                     invoke_label = parsed.value.replace(" ", "_")
+                    # Check that it's not already been used in this Algorithm
+                    if invoke_label in unique_invoke_labels:
+                        raise ParseError(
+                            "Found multiple named invoke()'s with the same "
+                            "name: ''".format(invoke_label))
+                    unique_invoke_labels.append(invoke_label)
                     # Continue parsing the other arguments to this invoke call
                     continue
 

@@ -101,6 +101,23 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
                 in gen)
 
+    def test_named_multi_invokes(self):
+        ''' Check that we generate correct code when we have more than one
+        named invoke in an Algorithm file '''
+        alg, _ = generate(
+            os.path.join(BASE_PATH,
+                         "3.2_multi_functions_multi_named_invokes.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        assert "USE testkern, ONLY: testkern_type" in gen
+        assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
+        assert ("USE psy_multi_functions_multi_invokes, ONLY: "
+                "invoke_my_first" in gen)
+        assert ("USE psy_multi_functions_multi_invokes, ONLY: "
+                "invoke_my_second" in gen)
+        assert "CALL invoke_my_first(a, f1, f2," in gen
+        assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
+
     def test_multi_function_multi_invokes(self):
         ''' two invokes, each containing multiple functions '''
         alg, _ = generate(
