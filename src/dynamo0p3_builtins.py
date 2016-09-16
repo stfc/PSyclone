@@ -78,10 +78,6 @@ class DynBuiltIn(BuiltIn):
                         context="PSyVars",
                         label="dof_loop_idx")
         BuiltIn.__init__(self)
-        # By default, built-in kernels do not require field dofmaps to
-        # be passed in. This info is used in DynInvokeDofmaps to determine
-        # which dofmaps to declare and initialise.
-        self.requires_fs_dofmap = False
 
     def load(self, call, parent=None):
         ''' Populate the state of this object using the supplied call
