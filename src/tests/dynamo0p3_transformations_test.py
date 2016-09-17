@@ -1167,22 +1167,70 @@ def test_module_inline():
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_scalar_sum_and_OpenMP_unsupported():
-    ''' Test that we fail if OpenMP and global sums are specified '''
-    _, info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                    api=TEST_API, distributed_memory=False)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
-    # Apply OpenMP parallelisation to the loop
-    schedule, _ = otrans.apply(schedule.children[0])
-    invoke.schedule = schedule
-    # We should get an error when we try to generate the code
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert "OpenMP reductions are not yet supported" in str(excinfo.value)
+def test_scalar_sum_and_OpenMP():
+    '''Test that we generate correct code if OpenMP and a single global
+    sum is specified for a Kernel. '''
+    # Note this will be disallowed in the near future as scalars will
+    # only be allowed to be read in a kernel.
+    for dist_mem in [False, True]:
+        _, info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                        api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        if dist_mem:
+            index = 1
+        else:
+            index = 0
+        schedule, _ = otrans.apply(schedule.children[index])
+        invoke.schedule = schedule
+        result = str(psy.gen)
+        assert ("!$omp parallel do default(shared), private(cell,map_w3), "
+                "schedule(static), reduction(+:rsum)") in result
 
+
+def test_builtin_single_OpenMP_pdo():
+    '''Test that we generate correct code if an OpenMP parallel do is
+    applied to a single builtin'''
+    for dist_mem in [False, True]:
+        _, info = parse(os.path.join(BASE_PATH, "15.2.0_copy_field_builtin.f90"),
+                        api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        if dist_mem:
+            index = 1
+            schedule.view()
+            exit(1)
+        else:
+            index = 0
+        schedule, _ = otrans.apply(schedule.children[index])
+        invoke.schedule = schedule
+        result = str(psy.gen)
+        print result
+        assert ("!$omp parallel do default(shared), private(cell,map_w3), "
+                "schedule(static), reduction(+:rsum)") in result
+        exit(1)
+
+
+
+# multi-builtins multi openmp parallel do : builtin_multi_omp_pdo
+# multi-builtins single openmp parallel do : builtin_loop_fuse_pdo
+
+# single builtin openmp do : builtin_single_omp_do
+# multi-builtins multi openmp do : builtin_multi_omp_do
+# multi-builtins single openmp do : builtin_loop_fuse_do
+
+# reduction in a builtin for openmp parallel do
+# reduction in a builtin for openmp do
+# more than 1 reduction in a builtin ** make an xfail test **
+# more than 1 reduction in different builtins with different names
+# more than 1 reduction in different kernels with the same name
+# repeat reductions for reproducible version
 
 def test_builtin_and_OpenMP_unsupported():
     ''' Test that we raise an error if we attempt to use OpenMP on

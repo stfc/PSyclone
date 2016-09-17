@@ -21,6 +21,7 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # (or support this mapping). This allows codes with no support to run.
 # Names of reduction operations
 MAPPING_REDUCTIONS = {"sum": "sum"}
+OMP_OPERATOR_MAPPING = {"sum": "+"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument
@@ -965,8 +966,9 @@ class OMPParallelDirective(OMPDirective):
 
 class OMPDoDirective(OMPDirective):
 
-    def __init__(self, children=[], parent=None, omp_schedule="static"):
+    def __init__(self, children=[], parent=None, omp_schedule="static", reprod=True):
         self._omp_schedule = omp_schedule
+        self._reprod = reprod
         # Call the init method of the base class once we've stored
         # the OpenMP schedule
         OMPDirective.__init__(self,
@@ -977,6 +979,21 @@ class OMPDoDirective(OMPDirective):
         print self.indent(indent) + "Directive[OMP do]"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def _reduction_string(self):
+        ''' Return the OMP reduction information as a string '''
+        reduction_str = ""
+        for reduction_type in MAPPING_REDUCTIONS.keys():
+            reductions = self._get_reductions_list(reduction_type)
+            if reductions:
+                variables_string = ""
+                for idx, reduction in enumerate(reductions):
+                    variables_string += reduction
+                    if (idx+1) < len(reductions):
+                        variables_string += ","
+                reduction_str += ", reduction({0}:{1})".format(
+                    OMP_OPERATOR_MAPPING[reduction_type], variables_string)
+        return reduction_str
 
     def gen_code(self, parent):
         from f2pygen import DirectiveGen
@@ -995,7 +1012,8 @@ class OMPDoDirective(OMPDirective):
         parent.add(DirectiveGen(parent,
                                 "omp", "begin", "do",
                                 "schedule({0})".
-                                format(self._omp_schedule)))
+                                format(self._omp_schedule) +
+                                self._reduction_string()))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1024,11 +1042,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         thread-parallel region) and OMPDoDirective (because it
         causes a loop to be parallelised). '''
 
-    def __init__(self, children=[], parent=None, omp_schedule="static"):
+    def __init__(self, children=[], parent=None, omp_schedule="static", reprod=True):
         OMPDoDirective.__init__(self,
                                 children=children,
                                 parent=parent,
-                                omp_schedule=omp_schedule)
+                                omp_schedule=omp_schedule,
+                                reprod=reprod)
 
     def view(self, indent=0):
         print self.indent(indent) + "Directive[OMP parallel do]"
@@ -1042,16 +1061,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
 
-        reductions = self._get_reductions_list("sum")
-        if reductions:
-            # reductions are not yet supported so raise an exception
-            raise GenerationError("OpenMP reductions are not yet supported")
-
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
                                 "schedule({1})".
-                                format(private_str, self._omp_schedule)))
+                                format(private_str, self._omp_schedule) +
+                                self._reduction_string()))
         for child in self.children:
             child.gen_code(parent)
 
