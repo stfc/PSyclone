@@ -1522,6 +1522,12 @@ class BuiltIn(Call):
         self._name = call.ktype.procedure.name
         self._iterates_over = call.ktype.iterates_over
 
+    def local_vars(self):
+        '''Variables that are local to this built-in and therefore need to be
+        made private when parallelising using OpenMP or similar. By default
+        builtin's do not have any local variables so set to nothing'''
+        return []
+
 
 class Arguments(object):
     ''' arguments abstract base class '''

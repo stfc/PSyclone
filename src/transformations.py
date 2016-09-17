@@ -437,11 +437,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:class:`base class <OMPParallelLoopTrans>`. '''
         OMPParallelLoopTrans._validate(self, node)
 
-        # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
-            raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".
-                                      format(self.name))
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is W3 then we don't need
         # to worry about colouring.
