@@ -1414,6 +1414,9 @@ class Call(Node):
     def iterates_over(self):
         return self._iterates_over
 
+    def local_vars(self):
+        raise NotImplementedError("Call.local_vars should be implemented")
+
     def __str__(self):
         raise NotImplementedError("Call.__str__ should be implemented")
 
@@ -1440,9 +1443,6 @@ class Kern(Call):
 
     def __str__(self):
         return "kern call: "+self._name
-
-    def local_vars(self):
-        raise NotImplementedError("Kern.local_vars should be implemented")
 
     @property
     def module_inline(self):

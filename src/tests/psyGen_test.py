@@ -472,17 +472,40 @@ def test_kern_class_view(capsys):
     assert expected_output in out
 
 
-def test_kern_local_vars():
-    ''' Check that calling the abstract local_vars() method of Kern raises
+def test_call_local_vars():
+    ''' Check that calling the abstract local_vars() method of Call raises
     the expected exception '''
-    from psyGen import Kern
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    with pytest.raises(NotImplementedError) as excinfo:
-        Kern.local_vars(my_kern)
-    assert "Kern.local_vars should be implemented" in str(excinfo.value)
+    from psyGen import Call
+    class arguments(object):
+        def __init__(self):
+            self.args = []
+    my_arguments = arguments()
+    class ktype(object):
+        def __init__(self):
+            self.iterates_over = "stuff"
+    my_ktype = ktype()
+    class dummy_class(object):
+        def __init__(self, ktype):
+            self.module_name = "dummy_module"
+            self.ktype = ktype
+    dummy_call = dummy_class(my_ktype)
+    my_call = Call(None, dummy_call, "dummy", my_arguments)
+    with pytest.raises(NotImplementedError) as excinfo:    
+        my_call.local_vars()
+    assert "Call.local_vars should be implemented" in str(excinfo.value)
+
+
+#def test_kern_local_vars():
+#    ''' Check that calling the abstract local_vars() method of Kern raises
+#    the expected exception '''
+#    from psyGen import Kern
+#    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+#    metadata = DynKernMetadata(ast)
+#    my_kern = DynKern()
+#    my_kern.load_meta(metadata)
+#    with pytest.raises(NotImplementedError) as excinfo:
+#        Kern.local_vars(my_kern)
+#    assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
 
 def test_written_arg():
