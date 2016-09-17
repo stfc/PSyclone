@@ -495,19 +495,6 @@ def test_call_local_vars():
     assert "Call.local_vars should be implemented" in str(excinfo.value)
 
 
-#def test_kern_local_vars():
-#    ''' Check that calling the abstract local_vars() method of Kern raises
-#    the expected exception '''
-#    from psyGen import Kern
-#    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-#    metadata = DynKernMetadata(ast)
-#    my_kern = DynKern()
-#    my_kern.load_meta(metadata)
-#    with pytest.raises(NotImplementedError) as excinfo:
-#        Kern.local_vars(my_kern)
-#    assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-
 def test_written_arg():
     ''' Check that we raise the expected exception when Kern.written_arg()
     is called for a kernel that doesn't have an argument that is written
