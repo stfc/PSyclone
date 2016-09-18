@@ -1851,6 +1851,11 @@ class DynLoop(Loop):
                                       " Set halos dirty for fields modified "
                                       "in the above loop"))
                 parent.add(CommentGen(parent, ""))
+                from psyGen import OMPParallelDoDirective
+                from f2pygen import DirectiveGen
+                if self.is_openmp_parallel():
+                    if not self.ancestor(OMPParallelDoDirective):
+                        parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
                 for field in fields:
                     if field.vector_size > 1:
                         # the range function below returns values from
@@ -1863,6 +1868,9 @@ class DynLoop(Loop):
                     else:
                         parent.add(CallGen(parent, name=field.proxy_name +
                                            "%set_dirty()"))
+                if self.is_openmp_parallel():
+                    if not self.ancestor(OMPParallelDoDirective):
+                        parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
                 parent.add(CommentGen(parent, ""))
 
 

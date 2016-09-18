@@ -44,7 +44,7 @@ class OMPDirective(Comment):
     ''' Subclass f2py comment for OpenMP directives so we can
         reason about them when walking the tree '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel do", "parallel", "do"]
+        self._types = ["parallel do", "parallel", "do", "master"]
         self._positions = ["begin", "end"]
         if dir_type not in self._types:
             raise RuntimeError("Error, unrecognised directive type '{0}'. "

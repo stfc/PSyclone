@@ -254,32 +254,6 @@ def test_omp_not_a_loop():
         assert "The node is not a loop" in str(excinfo.value)
 
 
-def test_omp_do_not_over_cells():
-    '''Test that we raise an appropriate error if we attempt to apply an
-    OpenMP DO transformation to a loop that is not over cells. We test
-    when distributed memory is on or off '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.4_single_invoke.f90"),
-                    api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
-
-        with pytest.raises(TransformationError) as excinfo:
-            _, _ = otrans.apply(schedule.children[index])
-        assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
-        assert "The iteration space (dofs) is not 'cells'" in \
-            str(excinfo.value)
-
-
 def test_omp_parallel_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to apply an
     OpenMP PARALLEL DO transformation to something that is not a
@@ -1325,9 +1299,194 @@ def test_builtin_loop_fuse_pdo():
                 "      !$omp end parallel do") in result
 
 
-# single builtin openmp do : builtin_single_omp_do
-# multi-builtins multi openmp do : builtin_multi_omp_do
+def test_builtin_single_OpenMP_do():
+    '''Test that we generate correct code if an OpenMP do (with an outer
+    OpenMP parallel) is applied to a single builtin '''
+    for dist_mem in [False, True]:
+        _, info = parse(os.path.join(BASE_PATH, "15.2.0_copy_field_builtin.f90"),
+                        api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        olooptrans = Dynamo0p3OMPLoopTrans()
+        ptrans = OMPParallelTrans()
+
+        # Put an OMP PARALLEL around this loop
+        child = schedule.children[0]
+        schedule, _ = ptrans.apply(child)
+        # Put an OMP DO around this loop
+        schedule, _ = olooptrans.apply(schedule.children[0].children[0])
+        result = str(psy.gen)
+        print result
+        if dist_mem:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f2_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp end parallel") in result
+        else:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n") in result
+
+
+def test_builtin_multiple_OpenMP_do():
+    '''Test that we generate correct code if OpenMP do's are
+    applied to multiple builtins'''
+    for dist_mem in [False, True]:
+        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+                        api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        olooptrans = Dynamo0p3OMPLoopTrans()
+        ptrans = OMPParallelTrans()
+
+        # Put an OMP PARALLEL around the loops
+        children = schedule.children
+        schedule, _ = ptrans.apply(children)
+        # Put an OMP DO around the loops
+        for child in schedule.children[0].children:
+            schedule, _ = olooptrans.apply(child)
+        result = str(psy.gen)
+        print result
+        if dist_mem:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = fred\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "        f2_proxy%data(df) = 3.0\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f2_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = ginger\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp end parallel") in result
+        else:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = fred\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f2\n"
+                "        f2_proxy%data(df) = 3.0\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = ginger\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel") in result
+
 # multi-builtins single openmp do : builtin_loop_fuse_do
+def test_builtin_loop_fuse_do():
+    '''Test that we generate correct code if an OpenMP do is
+    applied to multiple loop fused builtins'''
+    for dist_mem in [False, True]:
+        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+                        api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        ftrans = DynamoLoopFuseTrans()
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+
+        olooptrans = Dynamo0p3OMPLoopTrans()
+        ptrans = OMPParallelTrans()
+
+        # Put an OMP PARALLEL around the loop
+        children = schedule.children[0]
+        schedule, _ = ptrans.apply(children)
+        # Put an OMP DO around the loop
+        schedule, _ = olooptrans.apply(schedule.children[0].children[0])
+        result = str(psy.gen)
+        print result
+        if dist_mem:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = fred\n"
+                "        f2_proxy%data(df) = 3.0\n"
+                "        f3_proxy%data(df) = ginger\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      CALL f2_proxy%set_dirty()\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp end parallel") in result
+        else:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = fred\n"
+                "        f2_proxy%data(df) = 3.0\n"
+                "        f3_proxy%data(df) = ginger\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel") in result
+
 
 # reduction in a builtin for openmp parallel do
 # reduction in a builtin for openmp do

@@ -508,11 +508,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The node is not a loop.")
-        # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
-            raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space ({1}) is not 'cells'.".
-                                      format(self.name, node.iteration_space))
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
