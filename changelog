@@ -27,6 +27,10 @@
 	analyser. This is the first step towards supporting named invokes
 	in PSyclone.
 
+        9) #628 dofmap lookups are now outside loops in the
+	PSy-layer. This makes no functional difference but should give a
+	performance benefit.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
