@@ -9,9 +9,9 @@
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
 
-from parse import parse, ParseError
 import os
 import pytest
+from parse import parse, ParseError
 
 
 def test_continuators_kernel():
