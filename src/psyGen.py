@@ -337,7 +337,8 @@ class Invoke(object):
     def __str__(self):
         return self._name+"("+str(self.unique_args)+")"
 
-    def __init__(self, alg_invocation, idx, Schedule, reserved_names=None):
+    def __init__(self, alg_invocation, idx, schedule_class,
+                 reserved_names=None):
 
         if alg_invocation is None and idx is None:
             return
@@ -370,7 +371,7 @@ class Invoke(object):
         self._name_space_manager.add_reserved_names(reserved_names)
 
         # create the schedule
-        self._schedule = Schedule(alg_invocation.kcalls)
+        self._schedule = schedule_class(alg_invocation.kcalls)
 
         # let the schedule have access to me
         self._schedule.invoke = self
