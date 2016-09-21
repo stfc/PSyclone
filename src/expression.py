@@ -202,8 +202,8 @@ class NamedArg(ExpressionNode):
         ExpressionNode.__init__(self, toks)
 
         # First token is the name of the argument
-        self.name = toks[0]
-        self.names.update([self.name])
+        self._name = toks[0]
+        self.names.update([self._name])
 
         # The second token is the '=' so we ignore that and skip to
         # the third token which contains the value assigned to the
@@ -225,23 +225,29 @@ class NamedArg(ExpressionNode):
     def __repr__(self):
         if self._quote:
             if self._quote == "'":
-                _str = "NamedArg(['{0}', '=', \"'{1}'\"])".format(self.name,
+                _str = "NamedArg(['{0}', '=', \"'{1}'\"])".format(self._name,
                                                                   self._value)
             else:
-                _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self.name,
+                _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self._name,
                                                                   self._value)
         else:
-            _str = "NamedArg(['{0}', '=', '{1}'])".format(self.name,
+            _str = "NamedArg(['{0}', '=', '{1}'])".format(self._name,
                                                           self._value)
         return _str
 
     def __str__(self):
-        _str = str(self.name) + "="
+        _str = str(self._name) + "="
         if self._quote:
             _str += self._quote + str(self._value) + self._quote
         else:
             _str += str(self._value)
         return _str
+
+    @property
+    def name(self):
+        ''' Returns the name of the variable (LHS) involved in a
+        named argument. '''
+        return self._name
 
     @property
     def value(self):
