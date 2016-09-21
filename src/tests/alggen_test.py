@@ -71,6 +71,30 @@ class TestAlgGenClassDynamo0p3(object):
             "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
             in gen)
 
+    def test_multi_position_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call that contains
+        more than one kernel when the name= clause appears at different
+        points in the Invoke argument list '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "4.10_multi_position_named_invokes.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_first" in gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_middle" in gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_last" in gen
+        assert (
+            "CALL invoke_name_first(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+        assert (
+            "CALL invoke_name_middle(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+        assert (
+            "CALL invoke_name_last(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a
         quadrature rule'''
