@@ -53,6 +53,40 @@ def test_dynbuiltin_not_over_dofs():
             "Built-in: Set field " in str(excinfo.value))
 
 
+def test_builtin_multiple_writes():
+    ''' Check that we raise an appropriate error if we encounter a built-in
+    that writes to more than one argument '''
+    import dynamo0p3_builtins
+    # The file containing broken meta-data for the built-ins
+    defs_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3", "invalid_multi_write_builtins_mod.f90")
+    from parse import BuiltInKernelTypeFactory
+    factory = BuiltInKernelTypeFactory(api="dynamo0.3")
+    with pytest.raises(ParseError) as excinfo:
+        _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
+                           defs_file, name="axpy")
+    assert ("A built-in kernel in the Dynamo 0.3 API must write to one and "
+            "only one field argument but xxx writes to 2" in str(excinfo))
+
+
+def test_builtin_zero_writes():
+    ''' Check that we raise an appropriate error if we encounter a built-in
+    that does not write to any field '''
+    import dynamo0p3_builtins
+    # The file containing broken meta-data for the built-ins
+    defs_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3", "invalid_multi_write_builtins_mod.f90")
+    from parse import BuiltInKernelTypeFactory
+    factory = BuiltInKernelTypeFactory(api="dynamo0.3")
+    with pytest.raises(ParseError) as excinfo:
+        _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
+                           defs_file, name="axpby")
+    assert ("A built-in kernel in the Dynamo 0.3 API must write to one and "
+            "only one field argument but xxx writes to 0" in str(excinfo))
+
+    
 def test_dynbuiltincallfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected '''
