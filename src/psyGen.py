@@ -1006,6 +1006,16 @@ class OMPDoDirective(OMPDirective):
         # back up the tree.
         self._within_omp_region()
 
+        if self._reduction_string():
+            # We have a reduction. Currently the zero'ing of the
+            # reduction is incorrectly placed if we are not the first
+            # loop within the parallel region
+            if self.position != 0:
+                raise GenerationError(
+                    "Reductions are only valid within an OMP DO loop if the "
+                    "loop is the first computation in the surrounding OMP "
+                    "PARALLEL loop")
+
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables

@@ -639,7 +639,7 @@ def test_omp_region_omp_do():
 def test_multi_kernel_single_omp_region():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
-    within a single OMP region for a single node (no MPI)'''
+    within a single OMP region'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1645,8 +1645,45 @@ def test_multi_reduction_real_pdo():
 
 # add multi-reductions in builtins tests. Can be the same as above but without OpenMP
 
-# 2 reductions 1 invoke, same builtin, do
-# 2 reductions 1 invoke, same builtin, fused, parallel do
+# 2 reductions 1 invoke, same builtin, do *THIS SHOULD RAISE AN EXCEPTION
+def test_multi_reduction_real_do():
+    '''test that we raise an exception when we have a reduction in an OMP DO and it
+    is not the first loop as this will cause the zero-ing of the value to occur within the parallel region.'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.11.0_two_same_builtin_reductions.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child)
+        if distmem:
+            # we have to move/delete a global sum to get to the stage
+            # where we can raise an error. This makes incorrect code in
+            # this example but in general it could be valid to move
+            # the global sum
+            del schedule.children[1]
+        schedule, _ = rtrans.apply(schedule.children[0:2])
+        invoke.schedule = schedule
+        with pytest.raises(GenerationError) as excinfo:
+            code = str(psy.gen)
+        assert (
+            "Reductions are only valid within an OMP DO loop if the loop "
+            "is the first computation in the surrounding OMP PARALLEL "
+            "loop") in str(excinfo.value)
+
+
+
+# 2 reductions 1 invoke, same builtin, fused, parallel do *THIS SHOULD RAISE AN EXCEPTION*
 
 # 2 reductions 1 invoke, different builtin, parallel do
 # 2 reductions 1 invoke, different builtin, do
