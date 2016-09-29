@@ -1643,12 +1643,11 @@ def test_multi_reduction_real_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
 
-# add multi-reductions in builtins tests. Can be the same as above but without OpenMP
 
-# 2 reductions 1 invoke, same builtin, do *THIS SHOULD RAISE AN EXCEPTION
 def test_multi_reduction_real_do():
-    '''test that we raise an exception when we have a reduction in an OMP DO and it
-    is not the first loop as this will cause the zero-ing of the value to occur within the parallel region.'''
+    '''test that we raise an exception when we have a reduction in an OMP
+    DO and it is not the first loop as this will cause the zero-ing of
+    the value to occur within the parallel region. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1684,6 +1683,32 @@ def test_multi_reduction_real_do():
 
 
 # 2 reductions 1 invoke, same builtin, fused, parallel do *THIS SHOULD RAISE AN EXCEPTION*
+def test_multi_reduction_real_do():
+    '''test that we raise an exception when we loop fuse two kernels with
+    reductions'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.11.0_two_same_builtin_reductions.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        ftrans = DynamoLoopFuseTrans()
+        if distmem:
+            # we need to remove the global sum. This makes the code
+            # invalid in this particular case but allows us to perform
+            # our check
+            del schedule.children[1]
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1])
+        assert (
+            "Error in DynamoLoopFuse transformation. Cannot fuse loops when "
+            "each loop already contains a reduction") in str(excinfo.value)
 
 # 2 reductions 1 invoke, different builtin, parallel do
 # 2 reductions 1 invoke, different builtin, do
@@ -1699,6 +1724,8 @@ def test_multi_reduction_real_do():
 
 # integer reduction - there is no example
 # more than 1 reduction in a builtin - there is no example
+
+# add multi-reductions in builtins tests. Can be the same as above but without OpenMP
 
 
 # repeat reductions for reproducible version

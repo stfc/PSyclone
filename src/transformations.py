@@ -171,12 +171,25 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     "Cannot fuse loops that are over different spaces: "
                     "{0} {1}".format(node1.field_space.orig_name,
                                      node2.field_space.orig_name))
+            arg_types = ["gh_integer", "gh_real"]
+            arg_accesses = ["gh_sum"]
+            if node1.args_filter(arg_types=arg_types,
+                                 arg_accesses=arg_accesses):
+                if node2.args_filter(arg_types=arg_types,
+                                     arg_accesses=arg_accesses):
+                    raise TransformationError(
+                        "Error in DynamoLoopFuse transformation. "
+                        "Cannot fuse loops when each loop already "
+                        "contains a reduction")
+                    exit(1)
+
             return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
         except Exception as err:
             raise TransformationError("Unexpected exception: {0}".
                                       format(err))
+
 
 
 class OMPLoopTrans(Transformation):
