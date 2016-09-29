@@ -6052,7 +6052,7 @@ def test_no_updated_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 0 for testkern_qr_code" in
+            "updated (written to) but found 0 for kernel testkern_qr_type" in
             str(excinfo))
 
 
@@ -6067,7 +6067,7 @@ def test_multiple_updated_field_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for testkern_qr_code" in
+            "updated (written to) but found 2 for kernel testkern_qr_type" in
             str(excinfo))
 
 
@@ -6082,7 +6082,7 @@ def test_multiple_updated_op_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for testkern_qr_code" in
+            "updated (written to) but found 2 for kernel testkern_qr_type" in
             str(excinfo))
 
 
@@ -6097,7 +6097,7 @@ def test_multiple_updated_scalar_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for testkern_qr_code" in
+            "updated (written to) but found 2 for kernel testkern_qr_type" in
             str(excinfo))
 
 
@@ -6117,5 +6117,5 @@ def test_multiple_updated_scalar_op_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for testkern_qr_code" in
+            "updated (written to) but found 2 for kernel testkern_qr_type" in
             str(excinfo))

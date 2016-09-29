@@ -606,6 +606,23 @@ class DynKernMetadata(KernelType):
                     "meta_funcs must be unique, but '{0}' is replicated."
                     .format(fs_name))
             self._func_descriptors.append(descriptor)
+        # Check that the meta-data we've parsed conforms to the rules
+        # for this API
+        self._validate()
+
+    def _validate(self):
+        ''' Check that the meta-data conforms to Dynamo 0.3 rules for
+        user-provided kernels '''
+        # 1. We must have one and only one argument that is written to
+        write_count = 0
+        for arg in self._arg_descriptors:
+            if arg.access != "gh_read":
+                write_count += 1
+        if write_count != 1:
+            raise ParseError("A Dynamo 0.3 kernel must have one and only one "
+                             "argument that is updated (written to) but "
+                             "found {0} for kernel {1}".format(write_count,
+                                                               self.name))
 
     @property
     def func_descriptors(self):
