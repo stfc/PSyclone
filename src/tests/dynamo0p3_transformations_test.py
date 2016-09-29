@@ -1648,10 +1648,219 @@ def test_multi_reduction_real_do():
     '''test that we raise an exception when we have a reduction in an OMP
     DO and it is not the first loop as this will cause the zero-ing of
     the value to occur within the parallel region. '''
+    for file_name in ["15.11.0_two_same_builtin_reductions.f90",
+                      "15.12.0_two_different_builtin_reductions.f90"]:
+        for distmem in [False, True]:
+            _, invoke_info = parse(
+                os.path.join(BASE_PATH, file_name),
+                distributed_memory=distmem,
+                api="dynamo0.3")
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=distmem).create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+            otrans = Dynamo0p3OMPLoopTrans()
+            rtrans = OMPParallelTrans()
+            # Apply an OpenMP do to the loop
+            from psyGen import Loop
+            for child in schedule.children:
+                if isinstance(child, Loop):
+                    schedule, _ = otrans.apply(child)
+            if distmem:
+                # we have to move/delete a global sum to get to the stage
+                # where we can raise an error. This makes incorrect code in
+                # this example but in general it could be valid to move
+                # the global sum
+                del schedule.children[1]
+            schedule, _ = rtrans.apply(schedule.children[0:2])
+            invoke.schedule = schedule
+            with pytest.raises(GenerationError) as excinfo:
+                code = str(psy.gen)
+            assert (
+                "Reductions are only valid within an OMP DO loop if the loop "
+                "is the first computation in the surrounding OMP PARALLEL "
+                "loop") in str(excinfo.value)
+
+
+def test_multi_reduction_real_fuse():
+    '''test that we raise an exception when we loop fuse two kernels with
+    reductions'''
+    for file_name in ["15.11.0_two_same_builtin_reductions.f90",
+                      "15.12.0_two_different_builtin_reductions.f90"]:
+        for distmem in [False, True]:
+            _, invoke_info = parse(
+                os.path.join(BASE_PATH, file_name),
+                distributed_memory=distmem,
+                api="dynamo0.3")
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=distmem).create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+
+            ftrans = DynamoLoopFuseTrans()
+            if distmem:
+                # we need to remove the global sum. This makes the code
+                # invalid in this particular case but allows us to perform
+                # our check
+                del schedule.children[1]
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1])
+            assert (
+                "Error in DynamoLoopFuse transformation. Cannot fuse loops when "
+                "each loop already contains a reduction") in str(excinfo.value)
+
+# 2 reductions 1 invoke, different builtin, parallel do
+def test_multi_different_reduction_real_pdo():
+    '''test that we generate a correct OpenMP parallel do reduction for
+    two different builtins. We use inner product and sum_field'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.11.0_two_same_builtin_reductions.f90"),
+                         "15.12.0_two_different_builtin_reductions.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child)
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      bsum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:bsum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        bsum = bsum+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = bsum\n"
+                "      bsum = global_sum%get_sum()\n") in code
+        else:
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      bsum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:bsum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        bsum = bsum+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n") in code
+
+
+# 1 reduction then 1 "standard" builtin in 1 invoke, parallel do
+def test_multi_builtins_reduction_then_standard_pdo():
+    '''test that we generate a correct OpenMP parallel do reduction for
+    two different builtins, first a reduction then not'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child)
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static)\n"
+                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
+                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL bsum_proxy%set_dirty()\n") in code
+        else:
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static)\n"
+                "      DO df=1,undf_any_space_1_bsum\n"
+                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n") in code
+
+
+# 1 reduction then 1 "standard" builtin in 1 invoke, do
+def test_multi_builtins_reduction_then_standard_do():
+    '''test that we generate a correct OpenMP do reduction for
+    two different builtins, first a reduction then not'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.13.0_two_builtins_reduction_then_standard.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1666,56 +1875,59 @@ def test_multi_reduction_real_do():
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child)
         if distmem:
-            # we have to move/delete a global sum to get to the stage
-            # where we can raise an error. This makes incorrect code in
-            # this example but in general it could be valid to move
-            # the global sum
-            del schedule.children[1]
+            glob_sum = schedule.children.pop(1)
+            schedule.children.insert(2, glob_sum)
+        schedule.view()
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
-        with pytest.raises(GenerationError) as excinfo:
-            code = str(psy.gen)
-        assert (
-            "Reductions are only valid within an OMP DO loop if the loop "
-            "is the first computation in the surrounding OMP PARALLEL "
-            "loop") in str(excinfo.value)
-
-
-
-# 2 reductions 1 invoke, same builtin, fused, parallel do *THIS SHOULD RAISE AN EXCEPTION*
-def test_multi_reduction_real_do():
-    '''test that we raise an exception when we loop fuse two kernels with
-    reductions'''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.11.0_two_same_builtin_reductions.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-
-        ftrans = DynamoLoopFuseTrans()
+        code = str(psy.gen)
+        print code
         if distmem:
-            # we need to remove the global sum. This makes the code
-            # invalid in this particular case but allows us to perform
-            # our check
-            del schedule.children[1]
-        with pytest.raises(TransformationError) as excinfo:
-            schedule, _ = ftrans.apply(schedule.children[0],
-                                       schedule.children[1])
-        assert (
-            "Error in DynamoLoopFuse transformation. Cannot fuse loops when "
-            "each loop already contains a reduction") in str(excinfo.value)
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
+                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL bsum_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp end parallel\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n") in code
+        else:
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_bsum\n"
+                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n") in code
 
-# 2 reductions 1 invoke, different builtin, parallel do
-# 2 reductions 1 invoke, different builtin, do
-# 2 reductions 1 invoke, different builtin, fused, parallel do
-
-# 1 reduction then 1 "standard" builtin in 1 invoke, parallel do
-# 1 reduction then 1 "standard" builtin in 1 invoke, do
 # 1 reduction then 1 "standard" builtin in 1 invoke, fused, parallel do
 
 # 1 "standard" builtin then 1 reduction in 1 invoke, parallel do
