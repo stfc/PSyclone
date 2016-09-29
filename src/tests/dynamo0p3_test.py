@@ -4476,7 +4476,7 @@ def test_multiple_kernels_scalar_sums():
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
-        assert gen.count("rsum = 0.0_r_def") == 1
+        assert gen.count("rsum = 0.0_r_def") == 2
         output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
                  "undf_w3, map_w3)"
         assert output in gen

@@ -1200,21 +1200,6 @@ class DynInvoke(Invoke):
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
 
-        # Zero any scalar arguments that are GH_SUM
-        zero_real_args = self.unique_declarations("gh_real", access="gh_sum")
-        zero_integer_args = self.unique_declarations("gh_integer",
-                                                     access="gh_sum")
-        if zero_real_args or zero_integer_args:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            for arg in zero_real_args:
-                invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0.0_r_def"))
-            for arg in zero_integer_args:
-                invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0"))
-
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -1840,6 +1825,29 @@ class DynLoop(Loop):
         self._start = self._lower_bound_fortran()
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
+
+        # zero any reductions associated with this loop
+        from f2pygen import CommentGen, AssignGen, before_directives
+        zero_real_args = self.args_filter(
+            arg_types=["gh_real"], arg_accesses=["gh_sum"], unique=True)
+        zero_integer_args = self.args_filter(
+            arg_types=["gh_integer"], arg_accesses=["gh_sum"], unique=True)
+        position = parent.previous_loop()
+        position = before_directives(position)
+        if zero_real_args or zero_integer_args:
+            parent.add(CommentGen(parent, ""), position=["before", position])
+            parent.add(CommentGen(parent, " Zero summation variables"), position=["before", position])
+            parent.add(CommentGen(parent, ""), position=["before", position])
+        for arg in zero_real_args:
+            parent.add(AssignGen(parent,
+                                 lhs=arg, rhs="0.0_r_def"),
+                           position=["before", position])
+        for arg in zero_integer_args:
+            parent.add(AssignGen(parent,
+                                 lhs=arg, rhs="0"),
+                           position=["before", position])
+        if zero_real_args or zero_integer_args:
+            parent.add(CommentGen(parent, ""), position=["before", position])
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
             # Set halo dirty for all fields that are modified

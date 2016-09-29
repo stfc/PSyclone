@@ -72,6 +72,18 @@ class OMPDirective(Comment):
 # This section provides new classes which provide a relatively high
 # level interface to creating code and adding code to an existing ast
 
+def before_directives(do):
+    ''' skip any directives before the specified loop '''
+    from fparser.block_statements import Do
+    if not(isinstance(do, Do)):
+        raise RuntimeError("Error, expecting a loop as an argument")
+    index = do.parent.content.index(do)
+    while (index > 0) and \
+          isinstance(do.parent.content[index-1], OMPDirective) and \
+          do.parent.content[index-1].position == "begin":
+            index -= 1
+    return do.parent.content[index]
+
 
 class BaseGen(object):
     ''' The base class for all classes that are responsible for generating
@@ -160,7 +172,6 @@ class BaseGen(object):
         for sibling in reversed(self.root.content):
             if isinstance(sibling, Do):
                 return sibling
-
         raise RuntimeError("Error, no loop found - there is no previous loop")
 
     def last_declaration(self):

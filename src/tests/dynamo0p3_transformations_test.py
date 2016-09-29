@@ -1488,9 +1488,180 @@ def test_builtin_loop_fuse_do():
                 "      !$omp end parallel") in result
 
 
-# reduction in a builtin for openmp parallel do
-# reduction in a builtin for openmp do
-# more than 1 reduction in a builtin ** make an xfail test **
-# more than 1 reduction in different builtins with different names
-# more than 1 reduction in different kernels with the same name
+def test_reduction_real_pdo():
+    '''test that we generate a correct OpenMP parallel do reduction for a
+    real scalar summed in a builtin. We use inner product in this case'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        schedule, _ = otrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert (
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n") in code
+
+        else:
+            assert (
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n") in code
+
+
+def test_reduction_real_do():
+    '''test that we generate a correct OpenMP do reduction for a real
+    scalar summed in a builtin. We use inner product in this case '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do directive to the loop
+        schedule, _ = otrans.apply(schedule.children[0])
+        # Apply an OpenMP Parallel directive around the OpenMP do directive
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n") in code
+        else:
+            assert (
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n") in code
+
+# 2 reductions 1 invoke, same builtin, parallel do
+def test_multi_reduction_real_pdo():
+    '''test that we generate a correct OpenMP parallel do reduction for a
+    real scalar summed in a builtin. We use inner product in this case'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.11.0_two_same_builtin_reductions.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child)
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n") in code
+        else:
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n") in code
+
+# add multi-reductions in builtins tests. Can be the same as above but without OpenMP
+
+# 2 reductions 1 invoke, same builtin, do
+# 2 reductions 1 invoke, same builtin, fused, parallel do
+
+# 2 reductions 1 invoke, different builtin, parallel do
+# 2 reductions 1 invoke, different builtin, do
+# 2 reductions 1 invoke, different builtin, fused, parallel do
+
+# 1 reduction then 1 "standard" builtin in 1 invoke, parallel do
+# 1 reduction then 1 "standard" builtin in 1 invoke, do
+# 1 reduction then 1 "standard" builtin in 1 invoke, fused, parallel do
+
+# 1 "standard" builtin then 1 reduction in 1 invoke, parallel do
+# 1 "standard" builtin then 1 reduction in 1 invoke, do
+# 1 "standard" builtin then 1 reduction in 1 invoke, fused, parallel do
+
+# integer reduction - there is no example
+# more than 1 reduction in a builtin - there is no example
+
+
 # repeat reductions for reproducible version
