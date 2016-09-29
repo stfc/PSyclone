@@ -6039,3 +6039,83 @@ def test_dynglobalsum_nodm_error():
         _ = DynGlobalSum(argument)
     assert ("It makes no sense to create a DynGlobalSum object when "
             "dm=False") in str(err)
+
+
+def test_no_updated_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that does not write to any of its arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
+                        "arg_type(gh_field,gh_read,w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
+            "updated (written to) but found 0 for testkern_qr_code" in
+            str(excinfo))
+
+
+def test_multiple_updated_field_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that writes to more than one of its field arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                        "arg_type(gh_field,gh_write, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
+            "updated (written to) but found 2 for testkern_qr_code" in
+            str(excinfo))
+
+
+def test_multiple_updated_op_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that writes to more than one of its field and operator arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_write, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
+            "updated (written to) but found 2 for testkern_qr_code" in
+            str(excinfo))
+
+
+def test_multiple_updated_scalar_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that writes to more than one of its field and scalar arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_sum)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
+            "updated (written to) but found 2 for testkern_qr_code" in
+            str(excinfo))
+
+
+def test_multiple_updated_scalar_op_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that writes to more than one of its operator and scalar arguments '''
+    fparser.logging.disable('CRITICAL')
+    code2 = CODE.replace("arg_type(gh_real, gh_read)",
+                         "arg_type(gh_real, gh_sum)", 1)
+    code1 = code2.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                          "arg_type(gh_operator,gh_write, w2, w2)", 1)
+    code = code1.replace("arg_type(gh_field,gh_write,w1)",
+                         "arg_type(gh_field,gh_read,w1)", 1)
+
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
+            "updated (written to) but found 2 for testkern_qr_code" in
+            str(excinfo))
