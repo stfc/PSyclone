@@ -2026,12 +2026,12 @@ def test_kernel_specific():
     assert output3 in generated_code
     output4 = "fs = f1%which_function_space()"
     assert output4 in generated_code
-    output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+    output5 = '''IF (fs /= w3) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output5 in generated_code
     output6 = (
-        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
+        "IF (fs /= w3) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2066,12 +2066,12 @@ def test_multi_kernel_specific():
     assert output2 in generated_code
     output3 = "fs = f1%which_function_space()"
     assert output3 in generated_code
-    output4 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+    output4 = '''IF (fs /= w3) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output4 in generated_code
     output5 = (
-        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
+        "IF (fs /= w3) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2084,12 +2084,12 @@ def test_multi_kernel_specific():
     assert output7 in generated_code
     output8 = "fs_1 = f1%which_function_space()"
     assert output8 in generated_code
-    output9 = '''IF ((fs_1 .eq. w1) .or. (fs_1 .eq. w2)) THEN
+    output9 = '''IF (fs_1 /= w3) THEN
         boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output9 in generated_code
     output10 = (
-        "IF ((fs_1 .eq. w1) .or. (fs_1 .eq. w2)) THEN\n"
+        "IF (fs_1 /= w3) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
@@ -4258,8 +4258,10 @@ def test_w3_and_inc_error():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="testkern_qr_type")
-    assert ("it does not make sense for a 'w3' space to have a 'gh_inc' "
-            "access") in str(excinfo.value)
+    assert (
+        "it does not make sense for a quantity on a discontinuous space "
+        "(w3) to have a 'gh_inc' access - should be 'gh_readwrite'" in
+        str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):

@@ -44,8 +44,8 @@ VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
-    VALID_REDUCTION_NAMES
+VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_readwrite", \
+                                 "gh_inc"] + VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -66,7 +66,7 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 # The mapping from meta-data strings to field-access types
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "readwrite": "gh_rw", "inc": "gh_inc"}
+                    "readwrite": "gh_readwrite", "inc": "gh_inc"}
 
 # Valid Dynamo loop types. The default is "" which is over cells (in the
 # horizontal plane).
@@ -402,13 +402,13 @@ class DynArgDescriptor03(Descriptor):
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
 
-            if self._function_space1.lower() == "w3" and \
-               self._access_descriptor.name.lower() == "gh_inc":
+            if (self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES
+                and self._access_descriptor.name.lower() == "gh_inc"):
                 raise ParseError(
-                    "it does not make sense for a 'w3' space to have a "
-                    "'gh_inc' access")
-            if stencil and self._access_descriptor.name.lower() != \
-                    "gh_read":
+                    "it does not make sense for a quantity on a discontinuous "
+                    "space ({0}) to have a 'gh_inc' access - should be "
+                    "'gh_readwrite'".format(self._function_space1.lower()))
+            if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
 
@@ -2550,7 +2550,7 @@ class DynKern(Kern):
         if self.name == "matrix_vector_code":
             # Any call to this kernel must be followed by a call
             # to update boundary conditions (if the updated field
-            # is not on W3 space).
+            # is not on a discontinuous space).
             # Rather than rely on knowledge of the interface to
             # matrix_vector kernel, look-up the argument that is
             # updated and then apply b.c.'s to that...
@@ -2577,11 +2577,9 @@ class DynKern(Kern):
                                      rhs=enforce_bc_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
-            test_str = ""
-            for idx, space_name in enumerate(space_names):
-                test_str += "("+fs_name+" .eq. "+space_name+")"
-                if idx < (len(space_names)-1):
-                    test_str += " .or. "
+            test_str = " .and. ".join(
+                [fs_name + " /= " + space_name for space_name in
+                 DISCONTINUOUS_FUNCTION_SPACES])
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,
