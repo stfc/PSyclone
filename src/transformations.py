@@ -181,7 +181,18 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                         "Error in DynamoLoopFuse transformation. "
                         "Cannot fuse loops when each loop already "
                         "contains a reduction")
-                    exit(1)
+
+                reduction_args = node1.args_filter(arg_types=arg_types,
+                                                   arg_accesses=arg_accesses)
+                for reduction_arg in reduction_args:
+                    other_args = node2.args_filter()
+                    for arg in other_args:
+                        if reduction_arg.name == arg.name:
+                            raise TransformationError(
+                                "Error in DynamoLoopFuse transformation. "
+                                "Cannot fuse loops as the first loop "
+                                "has a reduction and the second loop "
+                                "reads the result of the reduction")
 
             return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:

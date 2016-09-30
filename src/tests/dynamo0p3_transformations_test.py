@@ -2077,9 +2077,6 @@ def test_multi_builtins_standard_then_reduction_fuse():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
-        #if distmem:
-        #    glob_sum = schedule.children.pop(1)
-        #    schedule.children.insert(2, glob_sum)
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
@@ -2124,6 +2121,30 @@ def test_multi_builtins_standard_then_reduction_fuse():
 
 # there are no tests requires for integer reduction as we have no examples
 # there are no tests required for a builtin with more than 1 reduction as we have no examples
+
+def test_multi_builtins_fuse_error():
+    '''test that we raise an exception when we try to loop fuse a
+    reduction with another builtin that uses the value of the reduction as
+    it will give us incorrect results. Only required for distmem=False as
+    the global sum stops the loop fusion for distmem=True. '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.15.0_builtins_reduction_fuse_error.f90"),
+        distributed_memory=False,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    schedule.view()
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])        
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+    assert ( "Cannot fuse loops as the first loop has a reduction and "
+             "the second loop reads the result of the "
+             "reduction") in str(excinfo.value)
 
 # add multi-reductions in builtins tests. Can be the same as above but without OpenMP
 
