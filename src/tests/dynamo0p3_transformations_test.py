@@ -2162,6 +2162,23 @@ def test_multi_builtins_fuse_error():
              "the second loop reads the result of the "
              "reduction") in str(excinfo.value)
 
-# add multi-reductions in builtins tests. Can be the same as above but without OpenMP
+
+def test_loop_fuse_error():
+    '''Test that we raise an exception in loop fusion if one or more of
+    the loops has an any_space iteration space'''
+    for dist_mem in [False, True]:
+        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+                        api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        ftrans = DynamoLoopFuseTrans()
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1])
+        assert ("One or more of the iteration spaces is unknown "
+                "('any_space') so loop fusion might be "
+                "invalid") in str(excinfo.value)
+
 
 # repeat reductions for reproducible version
