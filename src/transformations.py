@@ -15,6 +15,7 @@
     transformation. '''
 
 from psyGen import Transformation
+from dynamo0p3 import VALID_ANY_SPACE_NAMES
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -158,9 +159,12 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         ''' Returns the name of this transformation as a string '''
         return "DynamoLoopFuse"
 
-    def apply(self, node1, node2):
-        ''' Fuse the two Dynamo loops represented by :py:obj:`node1`
-        and :py:obj:`node2` '''
+    def apply(self, node1, node2, same_space=False):
+        '''Fuse the two Dynamo loops represented by :py:obj:`node1` and
+        :py:obj:`node2`. The optional same_space flag asserts that an
+        unknown iteration space (i.e. any_space) matches the other
+        iteration space. It is up to the user to specify that this is
+        correct '''
 
         LoopFuseTrans._validate(self, node1, node2)
 
@@ -171,6 +175,15 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     "Cannot fuse loops that are over different spaces: "
                     "{0} {1}".format(node1.field_space.orig_name,
                                      node2.field_space.orig_name))
+            if node1.field_space.orig_name in VALID_ANY_SPACE_NAMES or \
+               node1.field_space.orig_name in VALID_ANY_SPACE_NAMES:
+                if not same_space:
+                    raise TransformationError(
+                        "DynamoLoopFuseTrans. One or more of the iteration "
+                        "spaces is unknown ('any_space') so loop fusion might "
+                        "be invalid. If you know the spaces are the same then "
+                        "please set the 'same_space' optional argument to "
+                        "True.")
             arg_types = ["gh_integer", "gh_real"]
             arg_accesses = ["gh_sum"]
             if node1.args_filter(arg_types=arg_types,

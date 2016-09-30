@@ -1254,7 +1254,8 @@ def test_builtin_multiple_OpenMP_pdo():
 
 def test_builtin_loop_fuse_pdo():
     '''Test that we generate correct code if an OpenMP parallel do is
-    applied to multiple loop fused builtins'''
+    applied to multiple loop fused builtins. We have to assert that it
+    is safe to loop fuse. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
@@ -1262,8 +1263,10 @@ def test_builtin_loop_fuse_pdo():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
         schedule, _ = otrans.apply(schedule.children[0])
@@ -1432,8 +1435,9 @@ def test_builtin_multiple_OpenMP_do():
 
 # multi-builtins single openmp do : builtin_loop_fuse_do
 def test_builtin_loop_fuse_do():
-    '''Test that we generate correct code if an OpenMP do is
-    applied to multiple loop fused builtins'''
+    '''Test that we generate correct code if an OpenMP do is applied to
+    multiple loop fused builtins. We need to assert it is safe to
+    perform loop fusion. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
@@ -1441,8 +1445,10 @@ def test_builtin_loop_fuse_do():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
 
         olooptrans = Dynamo0p3OMPLoopTrans()
         ptrans = OMPParallelTrans()
@@ -1686,7 +1692,8 @@ def test_multi_reduction_real_do():
 
 def test_multi_reduction_real_fuse():
     '''test that we raise an exception when we loop fuse two kernels with
-    reductions'''
+    reductions. We need to specify that the loop-fuse is valid in terms of
+    iteration spaces.'''
     for file_name in ["15.11.0_two_same_builtin_reductions.f90",
                       "15.12.0_two_different_builtin_reductions.f90"]:
 
@@ -1702,13 +1709,14 @@ def test_multi_reduction_real_fuse():
 
             ftrans = DynamoLoopFuseTrans()
             if distmem:
-                # "e need to remove the global sum. This makes the
+                # We need to remove the global sum. This makes the
                 # code invalid in this particular case but allows us
                 # to perform our check
                 del schedule.children[1]
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
-                                           schedule.children[1])
+                                           schedule.children[1],
+                                           same_space=True)
             assert (
                 "Error in DynamoLoopFuse transformation. Cannot fuse loops when "
                 "each loop already contains a reduction") in str(excinfo.value)
@@ -1935,7 +1943,9 @@ def test_multi_builtins_reduction_then_standard_do():
 # 1 reduction then 1 "standard" builtin in 1 invoke, do
 def test_multi_builtins_reduction_then_standard_fuse():
     '''test that we generate a correct OpenMP parallel do reduction for
-    two different loop-fused builtins, first a reduction then not'''
+    two different loop-fused builtins, first a reduction then not. We
+    need to specify that the fused loops are on the same iteration
+    space.'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1951,7 +1961,8 @@ def test_multi_builtins_reduction_then_standard_fuse():
             schedule.children.insert(2, glob_sum)
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
         schedeule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2066,7 +2077,8 @@ def test_multi_builtins_standard_then_reduction_pdo():
 def test_multi_builtins_standard_then_reduction_fuse():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
-    reduction'''
+    reduction. We need to specify that the fused loops iterate over
+    the same space'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2079,7 +2091,8 @@ def test_multi_builtins_standard_then_reduction_fuse():
         schedule = invoke.schedule
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
         schedeule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2124,9 +2137,11 @@ def test_multi_builtins_standard_then_reduction_fuse():
 
 def test_multi_builtins_fuse_error():
     '''test that we raise an exception when we try to loop fuse a
-    reduction with another builtin that uses the value of the reduction as
-    it will give us incorrect results. Only required for distmem=False as
-    the global sum stops the loop fusion for distmem=True. '''
+    reduction with another builtin that uses the value of the
+    reduction as it will give us incorrect results. Only required for
+    distmem=False as the global sum stops the loop fusion for
+    distmem=True. We need to assert that the loop fusion is valid as
+    if we don't we get a different error. '''
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -2138,10 +2153,11 @@ def test_multi_builtins_fuse_error():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule.view()
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])        
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                               same_space=True)
     with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1])
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
     assert ( "Cannot fuse loops as the first loop has a reduction and "
              "the second loop reads the result of the "
              "reduction") in str(excinfo.value)
