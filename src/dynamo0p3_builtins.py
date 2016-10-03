@@ -41,9 +41,13 @@ class DynBuiltInCallFactory(object):
         # this built-in.
         builtin = BUILTIN_MAP[call.func_name]()
 
+        # Create the loop over DoFs
+        dofloop = DynLoop(parent=parent,
+                          loop_type="dofs")
+
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
-        builtin.load(call)
+        builtin.load(call, parent=dofloop)
 
         # Check that our assumption that we're looping over DOFS is valid
         if builtin.iterates_over != "dofs":
@@ -52,9 +56,6 @@ class DynBuiltInCallFactory(object):
                 "DoFs but found {0} for {1}".format(builtin.iterates_over,
                                                     str(builtin)))
 
-        # Create the loop over DoFs
-        dofloop = DynLoop(parent=parent,
-                          loop_type="dofs")
         # Set-up its state
         dofloop.load(builtin)
         # As it is the innermost loop it has the kernel as a child
@@ -92,6 +93,35 @@ class DynBuiltIn(BuiltIn):
         ''' Returns a string containing the array reference for a
         proxy with the supplied name '''
         return fld_name + "%data(" + self._idx_name + ")"
+
+    @property
+    def _reproducible_omp(self):
+        '''Determine whether this builtin is enclosed within an OpenMP do or
+        parallel do loop. If so report whether any of the enclosing do or
+        parallel do constructs have the reproducible flag set.'''
+        from psyGen import OMPDoDirective
+        myancestor = self.parent
+        while myancestor is not None:
+            if isinstance(myancestor, OMPDoDirective):
+                if myancestor._reprod:
+                    return True
+            myancestor = myancestor.parent
+        return False
+
+    def reduction_ref(self, name):
+        '''Return the name unchanged if OpenMP is set to be unreproducible, as
+        we will be using the OpenMP reduction clause. Otherwise we
+        will be computing the reduction ourselves and therefore need
+        to store values into a (padded) array separately for each
+        thread.'''
+        if self._reproducible_omp:
+            idx_name = self._name_space_manager.\
+                  create_name(root_name="th_idx",
+                              context="PSyVars",
+                              label="thread_index")
+            return name + "(1," + idx_name + ")"
+        else:
+            return name
 
     @property
     def undf_name(self):
@@ -387,7 +417,7 @@ class DynInnerProductKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We sum the dof-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sum_name = self._arguments.args[2].name
+        sum_name = self.reduction_ref(self._arguments.args[2].name)
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2

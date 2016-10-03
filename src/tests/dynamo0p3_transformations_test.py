@@ -1509,7 +1509,7 @@ def test_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        schedule, _ = otrans.apply(schedule.children[0])
+        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1550,7 +1550,7 @@ def test_reduction_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0])
+        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
         # Apply an OpenMP Parallel directive around the OpenMP do directive
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
@@ -1596,7 +1596,7 @@ def test_multi_reduction_real_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child)
+                schedule, _ = otrans.apply(child, reprod=False)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1740,7 +1740,7 @@ def test_multi_different_reduction_real_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child)
+                schedule, _ = otrans.apply(child, reprod=False)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1815,7 +1815,7 @@ def test_multi_builtins_reduction_then_standard_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child)
+                schedule, _ = otrans.apply(child, reprod=False)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1884,7 +1884,7 @@ def test_multi_builtins_reduction_then_standard_do():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child)
+                schedule, _ = otrans.apply(child, reprod=False)
         if distmem:
             glob_sum = schedule.children.pop(1)
             schedule.children.insert(2, glob_sum)
@@ -2022,7 +2022,7 @@ def test_multi_builtins_standard_then_reduction_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child)
+                schedule, _ = otrans.apply(child, reprod=False)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -2182,3 +2182,48 @@ def test_loop_fuse_error():
 
 
 # repeat reductions for reproducible version
+
+def test_reprod_reduction_real_pdo():
+    '''test that we generate a correct reproducible OpenMP parallel do
+    reduction for a real scalar summed in a builtin. We use inner
+    product in this case
+    '''
+
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP parallelisation to the loop
+        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        exit(1)
+        if distmem:
+            assert (
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n") in code
+
+        else:
+            assert (
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end parallel do\n") in code
+
+

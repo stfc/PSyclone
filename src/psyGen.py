@@ -976,7 +976,9 @@ class OMPDoDirective(OMPDirective):
                               parent=parent)
 
     def view(self, indent=0):
-        print self.indent(indent) + "Directive[OMP do]"
+        print self.indent(indent) + \
+            "Directive[OMP do][reprod={0}]".format(self._reprod)
+
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1060,7 +1062,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 reprod=reprod)
 
     def view(self, indent=0):
-        print self.indent(indent) + "Directive[OMP parallel do]"
+        print self.indent(indent) + \
+            "Directive[OMP parallel do][reprod={0}]".format(self._reprod)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
