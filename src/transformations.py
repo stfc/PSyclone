@@ -302,7 +302,7 @@ class OMPLoopTrans(Transformation):
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
 
-    def apply(self, node, reprod=True):
+    def apply(self, node, reprod=False):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -406,7 +406,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                                       "The requested loop is over colours and "
                                       "must be computed serially.")
 
-    def apply(self, node, reprod=True):
+    def apply(self, node):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -438,8 +438,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         from psyGen import OMPParallelDoDirective
         directive = OMPParallelDoDirective(parent=node_parent,
                                            children=[node],
-                                           omp_schedule=self.omp_schedule,
-                                           reprod=reprod)
+                                           omp_schedule=self.omp_schedule)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
@@ -469,7 +468,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self, node, reprod=True):
+    def apply(self, node):
 
         ''' Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
@@ -486,7 +485,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                     "argument with INC access. Colouring is required.".
                     format(self.name))
 
-        return OMPParallelLoopTrans.apply(self, node, reprod=reprod)
+        return OMPParallelLoopTrans.apply(self, node)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):

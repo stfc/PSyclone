@@ -523,7 +523,7 @@ def test_OMPDoDirective_class_view(capsys):
     cases = [
         {"current_class": OMPParallelDoDirective,
          "current_string": "[OMP parallel do]"},
-        {"current_class": OMPDoDirective, "current_string": "[OMP do]"},
+        {"current_class": OMPDoDirective, "current_string": "[OMP do][reprod=False]"},
         {"current_class": OMPParallelDirective,
          "current_string": "[OMP parallel]"},
         {"current_class": OMPDirective, "current_string": "[OMP]"},

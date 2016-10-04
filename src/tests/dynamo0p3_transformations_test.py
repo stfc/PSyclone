@@ -1509,7 +1509,7 @@ def test_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+        schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1596,7 +1596,7 @@ def test_multi_reduction_real_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1740,7 +1740,7 @@ def test_multi_different_reduction_real_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -1815,7 +1815,7 @@ def test_multi_builtins_reduction_then_standard_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -2022,7 +2022,7 @@ def test_multi_builtins_standard_then_reduction_pdo():
         from psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
-                schedule, _ = otrans.apply(child, reprod=False)
+                schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
@@ -2201,29 +2201,10 @@ def test_reprod_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print code
-        exit(1)
-        if distmem:
-            assert (
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end parallel do\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+        with pytest.raises(TypeError) as excinfo:
+            schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+        assert "apply() got an unexpected keyword argument 'reprod'" \
+            in str(excinfo.value)
 
-        else:
-            assert (
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end parallel do\n") in code
 
 

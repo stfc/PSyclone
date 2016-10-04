@@ -96,17 +96,16 @@ class DynBuiltIn(BuiltIn):
 
     @property
     def _reproducible_omp(self):
-        '''Determine whether this builtin is enclosed within an OpenMP do or
-        parallel do loop. If so report whether any of the enclosing do or
-        parallel do constructs have the reproducible flag set.'''
+        '''Determine whether this builtin is enclosed within an OpenMP do
+        loop. If so report whether it has the reproducible flag
+        set. Note, this also catches OMPParallelDo Directives but they
+        have reprod set to False so it is OK.'''
         from psyGen import OMPDoDirective
-        myancestor = self.parent
-        while myancestor is not None:
-            if isinstance(myancestor, OMPDoDirective):
-                if myancestor._reprod:
-                    return True
-            myancestor = myancestor.parent
-        return False
+        ancestor = self.ancestor(OMPDoDirective)
+        if ancestor:
+            return ancestor._reprod
+        else:
+            return False
 
     def reduction_ref(self, name):
         '''Return the name unchanged if OpenMP is set to be unreproducible, as

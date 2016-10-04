@@ -966,7 +966,7 @@ class OMPParallelDirective(OMPDirective):
 
 class OMPDoDirective(OMPDirective):
 
-    def __init__(self, children=[], parent=None, omp_schedule="static", reprod=True):
+    def __init__(self, children=[], parent=None, omp_schedule="static", reprod=False):
         self._omp_schedule = omp_schedule
         self._reprod = reprod
         # Call the init method of the base class once we've stored
@@ -1054,16 +1054,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         thread-parallel region) and OMPDoDirective (because it
         causes a loop to be parallelised). '''
 
-    def __init__(self, children=[], parent=None, omp_schedule="static", reprod=True):
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
         OMPDoDirective.__init__(self,
                                 children=children,
                                 parent=parent,
-                                omp_schedule=omp_schedule,
-                                reprod=reprod)
+                                omp_schedule=omp_schedule)
 
     def view(self, indent=0):
         print self.indent(indent) + \
-            "Directive[OMP parallel do][reprod={0}]".format(self._reprod)
+            "Directive[OMP parallel do]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
