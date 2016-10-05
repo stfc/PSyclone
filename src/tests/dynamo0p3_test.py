@@ -434,12 +434,60 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo)
 
 
-def test_missing_evaluator_shape():
+def test_missing_evaluator_shape_both():
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
     # Remove the line specifying the shape of the evaluator
     code = CODE.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data" in str(excinfo))
+
+
+def test_missing_evaluator_shape_basis_only():
+    ''' Check that we raise the correct error if a kernel specifying
+    that it needs gh_basis fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Alter meta-data so only requires gh_basis
+    code1 = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n", 
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis)                &\n", 1)
+    # Remove the line specifying the shape of the evaluator
+    code = code1.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data" in str(excinfo))
+
+
+def test_missing_evaluator_shape_diff_basis_only():
+    ''' Check that we raise the correct error if a kernel specifying
+    that it needs gh_diff_basis fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Alter meta-data so only requires gh_diff_basis
+    code1 = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n", 
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
+    # Remove the line specifying the shape of the evaluator
+    code = code1.replace(
         "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
