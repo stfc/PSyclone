@@ -582,9 +582,9 @@ class DynKernMetadata(KernelType):
         KernelType.__init__(self, ast, name=name)
 
         # Query the meta-data for the evaluator shape (only required if
-        # kernel uses quadrature or an evaluator)
-        self._evaluator_shape = \
-            self._ktype.get_variable('evaluator_shape').init
+        # kernel uses quadrature or an evaluator). If it is not
+        # present then eval_shape will be None.
+        eval_shape = self._ktype.get_variable('evaluator_shape').init
 
         # parse the arg_type metadata
         self._arg_descriptors = []
@@ -614,8 +614,7 @@ class DynKernMetadata(KernelType):
             arg_fs_names.extend(descriptor.function_spaces)
         used_fs_names = []
         for func_type in func_types:
-            descriptor = DynFuncDescriptor03(func_type,
-                                             self._evaluator_shape)
+            descriptor = DynFuncDescriptor03(func_type, eval_shape)
             fs_name = descriptor.function_space_name
             # check that function space names in meta_funcs are specified in
             # meta_args
