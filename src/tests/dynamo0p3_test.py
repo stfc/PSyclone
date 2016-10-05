@@ -434,6 +434,39 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo)
 
 
+def test_missing_evaluator_shape():
+    ''' Check that we raise the correct error if a kernel requiring
+    quadrature/evaluator fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove the line specifying the shape of the evaluator
+    code = CODE.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data" in str(excinfo))
+
+
+def test_invalid_evaluator_shape():
+    ''' Check that we raise the correct error if a kernel requiring
+    quadrature/evaluator specifies an unrecognised shape for the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Specify an invalid shape for the evaluator
+    code = CODE.replace(
+        "evaluator_shape = quadrature_XYoZ",
+        "evaluator_shape = quadrature_wrong", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("request a valid evaluator shape (one of ['quadrature_xyoz', "
+            "'evaluator_xyz']) but got 'quadrature_wrong'" in str(excinfo))
+
+
 def test_field():
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''

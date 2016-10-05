@@ -263,7 +263,7 @@ class DynFuncDescriptor03(object):
                     raise ParseError(
                         "In the dynamo0.3 API a kernel requiring either "
                         "quadrature or an evaluator must request a valid "
-                        "evaluator shape (one of {0}) but got {1}".
+                        "evaluator shape (one of {0}) but got '{1}'".
                         format(VALID_EVALUATOR_SHAPES, shape))
         self._shape = shape
 
