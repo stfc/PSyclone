@@ -2207,4 +2207,29 @@ def test_reprod_reduction_real_pdo():
             in str(excinfo.value)
 
 
-
+def test_reprod_reduction_real_do():
+    '''test that we generate a correct OpenMP do reduction for a real
+    scalar summed in a builtin. We use inner product in this case '''
+    for distmem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do directive to the loop
+        schedule, _ = otrans.apply(schedule.children[0])
+        # Apply an OpenMP Parallel directive around the OpenMP do directive
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        code = str(psy.gen)
+        print code
+        if distmem:
+            exit(1)
+        else:
+            exit(1)

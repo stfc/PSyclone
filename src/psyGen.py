@@ -916,6 +916,38 @@ class OMPParallelDirective(OMPDirective):
 
         parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
 
+        call_list = self._reprod_reductions
+        if call_list:
+            from f2pygen import DoGen, CommentGen, AssignGen
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " sum the partial results sequentially"))
+            parent.add(CommentGen(parent, ""))
+            for call in call_list:
+                self._name_space_manager = NameSpaceFactory().create()
+                thread_idx = self._name_space_manager.create_name(
+                    root_name="th_idx", context="PSyVars", label="thread_index")
+                nthreads = self._name_space_manager.create_name(
+                    root_name="nthreads", context="PSyVars", label="nthreads")
+                do = DoGen(parent, thread_idx, "1", nthreads)
+                var_name = call.reduction_var_name
+                local_var_ref = call.reduction_ref(var_name)
+                reduction_type = "+" # look this up
+                do.add(AssignGen(do, lhs=var_name, rhs=var_name + reduction_type + local_var_ref))
+                parent.add(do)
+
+    @property
+    def _reprod_reductions(self):
+        '''Return any builtins within this parallel region which require
+        reproducible reductions. At the moment we do not allow kernels
+        with reductions'''
+        builtin_reprod_reduction_list = []
+        for builtin in self.walk(self.children, BuiltIn):
+            if builtin.is_reduction:
+                # only reductions guarantee to have the reprod flag
+                if builtin.reprod_reduction:
+                    builtin_reprod_reduction_list.append(builtin)
+        return builtin_reprod_reduction_list
+
     def _get_private_list(self):
         '''Returns the variable names used for any loops within a directive
         and any variables that have been declared private by a Call
@@ -1018,6 +1050,11 @@ class OMPDoDirective(OMPDirective):
                     "loop is the first computation in the surrounding OMP "
                     "PARALLEL loop")
 
+        if self._reprod:
+            local_reduction_string = ""
+        else:
+            local_reduction_string = self._reduction_string()
+
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
@@ -1025,7 +1062,7 @@ class OMPDoDirective(OMPDirective):
                                 "omp", "begin", "do",
                                 "schedule({0})".
                                 format(self._omp_schedule) +
-                                self._reduction_string()))
+                                local_reduction_string))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1526,6 +1563,7 @@ class BuiltIn(Call):
         self._arg_descriptors = None
         self._func_descriptors = None
         self._fs_descriptors = None
+        self._reduction = None
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
@@ -1533,6 +1571,39 @@ class BuiltIn(Call):
         self._arguments = arguments
         self._name = call.ktype.procedure.name
         self._iterates_over = call.ktype.iterates_over
+        # set up static reduction info
+        args = arguments.args_filter(
+                arg_types=MAPPING_SCALARS.values(),
+                arg_accesses=MAPPING_REDUCTIONS.values())
+        if args:
+            self._reduction = True
+            assert (len(args) == 1, "We should have at most one reduction "
+                    "argument for a builtin")
+            self._reduction_arg = args[0]
+        else:
+            self._reduction = False
+            self._reduction_arg = None
+
+    @property
+    def is_reduction(self):
+        return self._reduction
+
+    @property
+    def reprod_reduction(self):
+        '''Determine whether this builtin is enclosed within an OpenMP do
+        loop. If so report whether it has the reproducible flag
+        set. Note, this also catches OMPParallelDo Directives but they
+        have reprod set to False so it is OK.'''
+        from psyGen import OMPDoDirective
+        ancestor = self.ancestor(OMPDoDirective)
+        if ancestor:
+            return ancestor._reprod
+        else:
+            return False
+
+    @reprod_reduction.setter
+    def reprod_reduction(self, value):
+        self._reprod_reduction = value
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be

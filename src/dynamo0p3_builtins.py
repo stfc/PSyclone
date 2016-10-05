@@ -95,17 +95,12 @@ class DynBuiltIn(BuiltIn):
         return fld_name + "%data(" + self._idx_name + ")"
 
     @property
-    def _reproducible_omp(self):
-        '''Determine whether this builtin is enclosed within an OpenMP do
-        loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.'''
-        from psyGen import OMPDoDirective
-        ancestor = self.ancestor(OMPDoDirective)
-        if ancestor:
-            return ancestor._reprod
+    def reduction_var_name(self):
+        
+        if self.is_reduction:
+            return self._reduction_arg.name
         else:
-            return False
+            raise GenerationError("Reduction_var_name() called when there is no reduction")
 
     def reduction_ref(self, name):
         '''Return the name unchanged if OpenMP is set to be unreproducible, as
@@ -113,12 +108,16 @@ class DynBuiltIn(BuiltIn):
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
         thread.'''
-        if self._reproducible_omp:
+        if self.reprod_reduction:
             idx_name = self._name_space_manager.\
                   create_name(root_name="th_idx",
                               context="PSyVars",
                               label="thread_index")
-            return name + "(1," + idx_name + ")"
+            local_name = self._name_space_manager.\
+                  create_name(root_name="l_"+name,
+                              context="PSyVars",
+                              label=name)
+            return local_name + "(1," + idx_name + ")"
         else:
             return name
 
