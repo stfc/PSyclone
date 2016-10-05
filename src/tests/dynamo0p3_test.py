@@ -459,7 +459,7 @@ def test_missing_evaluator_shape_basis_only():
         "     type(func_type), dimension(3) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis),               &\n"
         "             func_type(w2, gh_diff_basis),          &\n"
-        "             func_type(w3, gh_basis, gh_diff_basis) &\n", 
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
         "     type(func_type), dimension(1) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis)                &\n", 1)
     # Remove the line specifying the shape of the evaluator
@@ -483,7 +483,7 @@ def test_missing_evaluator_shape_diff_basis_only():
         "     type(func_type), dimension(3) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis),               &\n"
         "             func_type(w2, gh_diff_basis),          &\n"
-        "             func_type(w3, gh_basis, gh_diff_basis) &\n", 
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
         "     type(func_type), dimension(1) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
     # Remove the line specifying the shape of the evaluator
