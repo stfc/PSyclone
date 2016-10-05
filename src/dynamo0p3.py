@@ -38,7 +38,10 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
-VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
+VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
+VALID_OPERATOR_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
+
+VALID_EVALUATOR_SHAPES = ["quadrature_xyoz", "evaluator_xyz"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
@@ -210,7 +213,7 @@ class DynFuncDescriptor03(object):
     classes. This class captures the information specified in a
     function-space descriptor. '''
 
-    def __init__(self, func_type):
+    def __init__(self, func_type, shape):
         self._func_type = func_type
         if func_type.name != 'func_type':
             raise ParseError(
@@ -246,6 +249,23 @@ class DynFuncDescriptor03(object):
                                                                  func_type))
                 self._operator_names.append(arg.name)
         self._name = func_type.name
+        # If we require a basis or differential basis then check that a
+        # valid shape for the evaluator has been specified in the meta-data
+        for name in self._operator_names:
+            if name in VALID_EVALUATOR_NAMES:
+                if not shape:
+                    raise ParseError(
+                        "In the dynamo0.3 API any kernel requiring quadrature "
+                        "or an evaluator ({0}) must also supply the shape of "
+                        "that evaluator by setting 'evaluator_shape' in the "
+                        "kernel meta-data".format(VALID_EVALUATOR_NAMES))
+                if shape not in VALID_EVALUATOR_SHAPES:
+                    raise ParseError(
+                        "In the dynamo0.3 API a kernel requiring either "
+                        "quadrature or an evaluator must request a valid "
+                        "evaluator shape (one of {0}) but got {1}".
+                        format(VALID_EVALUATOR_SHAPES, shape))
+        self._shape = shape
 
     @property
     def function_space_name(self):
@@ -560,6 +580,12 @@ class DynKernMetadata(KernelType):
 
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
+
+        # Query the meta-data for the evaluator shape (only required if
+        # kernel uses quadrature or an evaluator)
+        self._evaluator_shape = \
+            self._ktype.get_variable('evaluator_shape').init
+
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
@@ -588,7 +614,8 @@ class DynKernMetadata(KernelType):
             arg_fs_names.extend(descriptor.function_spaces)
         used_fs_names = []
         for func_type in func_types:
-            descriptor = DynFuncDescriptor03(func_type)
+            descriptor = DynFuncDescriptor03(func_type,
+                                             self._evaluator_shape)
             fs_name = descriptor.function_space_name
             # check that function space names in meta_funcs are specified in
             # meta_args
