@@ -95,14 +95,57 @@ class DynBuiltIn(BuiltIn):
         return fld_name + "%data(" + self._idx_name + ")"
 
     @property
-    def reduction_var_name(self):
-        
-        if self.is_reduction:
-            return self._reduction_arg.name
-        else:
-            raise GenerationError("Reduction_var_name() called when there is no reduction")
+    def local_reduction_name(self):
+        ''' xxx '''
+        var_name = self._reduction_arg.name
+        return self._name_space_manager.\
+            create_name(root_name="l_"+var_name,
+                        context="PSyVars",
+                        label=var_name)
 
-    def reduction_ref(self, name):
+    def zero_reduction_variable(self, parent, position):
+        ''' xxx '''
+        from f2pygen import AssignGen, DeclGen, AllocateGen
+        var_name = self._reduction_arg.name
+        local_var_name = self.local_reduction_name
+        parent.add(AssignGen(parent, lhs=var_name, rhs="0.0_r_def"),
+                   position=position)
+        if self.reprod_reduction:
+            parent.add(DeclGen(parent, datatype="real",
+                               entity_decls=[local_var_name],
+                               allocatable=True, kind="r_def",
+                               dimension=":,:"))
+            nthreads = self._name_space_manager.create_name(
+                root_name="nthreads", context="PSyVars", label="nthreads")
+            pad_size = self._name_space_manager.create_name(
+                root_name="pad_size", context="PSyVars", label="pad_size")
+
+            parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
+                                   "," + nthreads + ")"), position=position)
+            parent.add(AssignGen(parent, lhs=local_var_name,
+                                 rhs="0.0_r_def"), position=position)
+
+    def reduction_sum_loop(self, parent):
+        '''generate the appropriate code to place after the end parallel
+        region'''
+        from f2pygen import DoGen, AssignGen, DeallocateGen
+        self._name_space_manager = NameSpaceFactory().create()
+        thread_idx = self._name_space_manager.create_name(
+            root_name="th_idx", context="PSyVars", label="thread_index")
+        nthreads = self._name_space_manager.create_name(
+            root_name="nthreads", context="PSyVars", label="nthreads")
+        do = DoGen(parent, thread_idx, "1", nthreads)
+        var_name = self._reduction_arg.name
+        local_var_name = self.local_reduction_name
+        local_var_ref = self._reduction_ref(var_name)
+        reduction_type = "+" # look this up
+        do.add(AssignGen(do, lhs=var_name, rhs=var_name + reduction_type +
+                         local_var_ref))
+        parent.add(do)
+        parent.add(DeallocateGen(parent, local_var_name))
+
+
+    def _reduction_ref(self, name):
         '''Return the name unchanged if OpenMP is set to be unreproducible, as
         we will be using the OpenMP reduction clause. Otherwise we
         will be computing the reduction ourselves and therefore need
@@ -415,7 +458,7 @@ class DynInnerProductKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We sum the dof-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sum_name = self.reduction_ref(self._arguments.args[2].name)
+        sum_name = self._reduction_ref(self._arguments.args[2].name)
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2

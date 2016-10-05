@@ -769,6 +769,27 @@ class Node(object):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children, Loop)
 
+    def reductions(self, reprod=None):
+        '''Return all calls that have reductions are are decendents of this
+        node. The assumption is that only builtins can contain reductions. If
+        reprod is not provided all builtin reductions are returned. If reprod
+        is False, all builtin reductions that are not set to reproducible are
+        returned. If reprod is True, all builtins that are set to reproducible
+        are returned.'''
+
+        builtin_reduction_list = []
+        for builtin in self.walk(self.children, BuiltIn):
+            if builtin.is_reduction:
+                if reprod is None:
+                    builtin_reduction_list.append(builtin)
+                elif reprod:
+                    if builtin.reprod_reduction:
+                        builtin_reduction_list.append(builtin)
+                else:
+                    if not builtin.reprod_reduction:
+                        builtin_reduction_list.append(builtin)
+        return builtin_reduction_list
+
     def is_openmp_parallel(self):
         '''Returns true if this Node is within an OpenMP parallel region
 
@@ -888,7 +909,7 @@ class OMPParallelDirective(OMPDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen
+        from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen
 
         private_str = self.list_to_string(self._get_private_list())
 
@@ -905,6 +926,17 @@ class OMPParallelDirective(OMPDirective):
                                 "default(shared), private({0})".
                                 format(private_str)))
 
+        call_list = self.reductions(reprod=True)
+        if call_list:
+            self._name_space_manager = NameSpaceFactory().create()
+            thread_idx = self._name_space_manager.create_name(
+                root_name="th_idx", context="PSyVars", label="thread_index")
+            parent.add(UseGen(parent, name="omp_lib", only=True,
+                              funcnames=["omp_get_thread_num"]))
+            parent.add(CommentGen(parent, ""))
+            parent.add(AssignGen(parent, lhs=thread_idx,
+                                 rhs="omp_get_thread_num()"))
+
         first_type = type(self.children[0])
         for child in self.children:
             if first_type != type(child):
@@ -916,37 +948,13 @@ class OMPParallelDirective(OMPDirective):
 
         parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
 
-        call_list = self._reprod_reductions
         if call_list:
-            from f2pygen import DoGen, CommentGen, AssignGen
+            from f2pygen import CommentGen
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " sum the partial results sequentially"))
             parent.add(CommentGen(parent, ""))
             for call in call_list:
-                self._name_space_manager = NameSpaceFactory().create()
-                thread_idx = self._name_space_manager.create_name(
-                    root_name="th_idx", context="PSyVars", label="thread_index")
-                nthreads = self._name_space_manager.create_name(
-                    root_name="nthreads", context="PSyVars", label="nthreads")
-                do = DoGen(parent, thread_idx, "1", nthreads)
-                var_name = call.reduction_var_name
-                local_var_ref = call.reduction_ref(var_name)
-                reduction_type = "+" # look this up
-                do.add(AssignGen(do, lhs=var_name, rhs=var_name + reduction_type + local_var_ref))
-                parent.add(do)
-
-    @property
-    def _reprod_reductions(self):
-        '''Return any builtins within this parallel region which require
-        reproducible reductions. At the moment we do not allow kernels
-        with reductions'''
-        builtin_reprod_reduction_list = []
-        for builtin in self.walk(self.children, BuiltIn):
-            if builtin.is_reduction:
-                # only reductions guarantee to have the reprod flag
-                if builtin.reprod_reduction:
-                    builtin_reprod_reduction_list.append(builtin)
-        return builtin_reprod_reduction_list
+                call.reduction_sum_loop(parent)
 
     def _get_private_list(self):
         '''Returns the variable names used for any loops within a directive
