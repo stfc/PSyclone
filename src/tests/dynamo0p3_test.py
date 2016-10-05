@@ -2954,6 +2954,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -2998,6 +2999,7 @@ module dummy_mod
              func_type(w2v, gh_diff_basis)     &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3096,6 +3098,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
