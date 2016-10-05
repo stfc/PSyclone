@@ -22,6 +22,7 @@ module testkern_qr_mod
              func_type(w3, gh_basis, gh_diff_basis)  &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_qr_code
   end type testkern_qr_type
