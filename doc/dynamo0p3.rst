@@ -162,20 +162,21 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the dynamo0.3 API kernel
-metadata, 1) 'meta_args', 2) 'meta_funcs', 3)
-'iterates_over' and 4) 'procedure'.
+metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'evaluator_shape', 4)
+'iterates_over' and 5) 'procedure'.
 
 ::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
+    integer :: evaluator_shape = quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure :: my_kernel_code
   end type
 
-These 4 metadata elements are discussed in order in the following
+These 5 metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -418,15 +419,38 @@ Below is an example of stencil information within the full kernel metadata.
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
 
-meta_funcs
-##########
+meta_funcs and evaluator_shape
+##############################
 
-.. note:: To be written.
+The (optional) second and third components of kernel meta-data specify
+whether any quadrature or evaluator data is required for a given function
+space. For instance, consider the following kernel meta-data:
+
+::
+   
+    type, extends(kernel_type) :: testkern_operator_type
+      type(arg_type), dimension(3) :: meta_args =   &
+          (/ arg_type(gh_operator,gh_write,w0,w0),  &
+             arg_type(gh_field*3,gh_read,w0),       &
+             arg_type(gh_integer,gh_read)           &
+          /)
+      type(func_type) :: meta_funcs(1) =            &
+          (/ func_type(w0, gh_basis, gh_diff_basis) &
+          /)
+      integer, parameter :: evaluator_shape = quadrature_XYoZ
+      integer, parameter :: iterates_over = cells
+    contains
+      procedure() :: code => testkern_operator_code
+    end type testkern_operator_type
+
+The arg_type component of this meta-data describes a kernel that takes
+three arguments (an operator, a field and an integer scalar). Following
+the ``meta_args`` array we now have a ``meta_funcs`` array.
 
 iterates over
 #############
 
-The 3rd type of metadata provided is ``ITERATES_OVER``. This specifies
+The fourth type of metadata provided is ``ITERATES_OVER``. This specifies
 that the Kernel has been written with the assumption that it is
 iterating over the specified entity. Currently this only has one valid
 value which is ``CELLS``.
@@ -434,7 +458,7 @@ value which is ``CELLS``.
 Procedure
 #########
 
-The 4th and final type of metadata is ``procedure`` metadata. This
+The fifth and final type of metadata is ``procedure`` metadata. This
 specifies the name of the Kernel subroutine that this metadata
 describes.
 
