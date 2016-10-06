@@ -1174,6 +1174,8 @@ def test_module_inline():
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
+@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_scalar_sum_and_OpenMP_unsupported():
     ''' Test that we fail if OpenMP and global sums are specified '''
     _, info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
