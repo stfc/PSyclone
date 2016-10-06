@@ -1434,6 +1434,10 @@ class Kern(Call):
     def dump(self):
         return self._dump
 
+    @dump.setter
+    def dump(self, value):
+        self._dump = value
+
     @property
     def module_inline(self):
         return self._module_inline
