@@ -2485,7 +2485,8 @@ SCALAR_SUMS = (
     "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
     "  END MODULE testkern_multiple_scalar_sums_mod")
 
-
+@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_stub_generate_with_scalar_sums():
     ''' check that the stub generate produces the expected output when
     the kernel has scalar arguments with a reduction operation (gh_sum) '''
@@ -4414,6 +4415,8 @@ def test_operator_gh_sum_invalid():
     assert "but 'gh_operator' was found" in str(excinfo.value)
 
 
+@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
     is specified with gh_sum with dm=False'''
@@ -4429,7 +4432,8 @@ def test_single_integer_scalar_sum():
     assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
         "undf_w3, map_w3(:,cell))" in gen
 
-
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before altering test")
 def test_single_real_scalar_sum():
     '''Test that a single real scalar generates correct code when it is
     specified with gh_sum'''
@@ -4457,6 +4461,8 @@ def test_single_real_scalar_sum():
             "undf_w3, map_w3(:,cell))" in gen
 
 
+@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_multiple_scalar_sums():
     '''Test that multiple real scalar (gh_sum) reductions generate
     correct code '''
@@ -4486,6 +4492,8 @@ def test_multiple_scalar_sums():
                     "      rsum1 = global_sum%get_sum()\n") in gen
 
 
+@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_multiple_mixed_scalar_sums():
     '''Test that multiple mixed scalar (gh_sum) reductions generate
     correct code with dm=False (dm=True is not supported with
@@ -4510,6 +4518,8 @@ def test_multiple_mixed_scalar_sums():
         "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3(:,cell))") in gen
 
 
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_multiple_mixed_scalar_sums2():
     '''Test that multiple mixed scalar (gh_sum) reductions raise an
     exception with dm=False as dm=True is not supported with
@@ -4524,6 +4534,8 @@ def test_multiple_mixed_scalar_sums2():
         in str(excinfo.value)
 
 
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_multiple_kernels_scalar_sums():
 
     '''Add a test for multiple kernels within an invoke with scalar
@@ -4563,6 +4575,8 @@ def test_multiple_kernels_scalar_sums():
                              "      rsum = global_sum%get_sum()") == 2
 
 
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_scalars_only_invalid():
     '''Test that a Kernel consisting of only scalars fails as it has
     nothing to iterate over '''
@@ -4579,6 +4593,8 @@ def test_scalars_only_invalid():
             str(excinfo.value)
 
 
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_scalar_int_sum_field_read():
     '''Test that a write to a single integer scalar is valid with dm=False
     if we have at least one field that is read '''
@@ -4601,6 +4617,8 @@ def test_scalar_int_sum_field_read():
     assert expected_output in gen
 
 
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_scalar_int_sum_field_read_error():
     '''Test that a sum of an integer scalar raises an exception if
     distributed memory is set to True as the infrastructure does not
@@ -4615,6 +4633,8 @@ def test_scalar_int_sum_field_read_error():
         in str(excinfo.value)
 
 
+@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
+                   "is now forbidden but waiting on #484 before removing test")
 def test_scalar_real_sum_field_read():
     '''Test that a write to a single real scalar is valid if we have at
     least one field that is read '''
@@ -6053,39 +6073,43 @@ def test_no_updated_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 0 for kernel testkern_qr_type" in
-            str(excinfo))
+    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+            "updated (written to) but found none for kernel "
+            "testkern_qr_type" in str(excinfo))
 
 
 def test_multiple_updated_field_args():
-    ''' Check that we raise the expected exception when we encounter a
-    kernel that writes to more than one of its field arguments '''
+    ''' Check that we successfully parse a kernel that writes to more
+    than one of its field arguments '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                        "arg_type(gh_field,gh_write, w2)", 1)
+                        "arg_type(gh_field,gh_write, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for kernel testkern_qr_type" in
-            str(excinfo))
+    metadata = DynKernMetadata(ast, name=name)
+    count = 0
+    for descriptor in metadata.arg_descriptors:
+        if descriptor.type == "gh_field" and  descriptor.access != "gh_read":
+            count += 1
+    assert count == 2
 
 
 def test_multiple_updated_op_args():
-    ''' Check that we raise the expected exception when we encounter a
-    kernel that writes to more than one of its field and operator arguments '''
+    ''' Check that we successfully parse the metadata for a kernel that
+    writes to more than one of its field and operator arguments '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator,gh_write, w2, w2)", 1)
+                        "arg_type(gh_operator,gh_write, w1, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for kernel testkern_qr_type" in
-            str(excinfo))
+    metadata = DynKernMetadata(ast, name=name)
+    count = 0
+    for descriptor in metadata.arg_descriptors:
+        if ((descriptor.type == "gh_field" or
+             descriptor.type == "gh_operator") and
+            descriptor.access != "gh_read"):
+            count += 1
+    assert count == 2
 
 
 def test_multiple_updated_scalar_args():
@@ -6098,26 +6122,6 @@ def test_multiple_updated_scalar_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for kernel testkern_qr_type" in
-            str(excinfo))
-
-
-def test_multiple_updated_scalar_op_args():
-    ''' Check that we raise the expected exception when we encounter a
-    kernel that writes to more than one of its operator and scalar arguments '''
-    fparser.logging.disable('CRITICAL')
-    code2 = CODE.replace("arg_type(gh_real, gh_read)",
-                         "arg_type(gh_real, gh_sum)", 1)
-    code1 = code2.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                          "arg_type(gh_operator,gh_write, w2, w2)", 1)
-    code = code1.replace("arg_type(gh_field,gh_write,w1)",
-                         "arg_type(gh_field,gh_read,w1)", 1)
-
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel must have one and only one argument that is "
-            "updated (written to) but found 2 for kernel testkern_qr_type" in
+    assert ("A user-supplied Dynamo 0.3 kernel must not write/update a scalar "
+            "argument but kernel testkern_qr_type has" in
             str(excinfo))

@@ -492,9 +492,17 @@ def test_written_arg():
     from psyGen import Kern
     # Change the kernel metadata so that the only kernel argument has
     # read access
-    kernel_metadata = FAKE_KERNEL_METADATA.replace("gh_write", "gh_read", 1)
-    ast = fpapi.parse(kernel_metadata, ignore_comments=False)
+    import fparser
+    fparser.logging.disable('CRITICAL')
+    # If we change the meta-data then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the meta-data
+    # instead
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
+    for descriptor in metadata.arg_descriptors:
+        print type(descriptor)
+        if descriptor.access == "gh_write":
+            descriptor._access = "gh_read"
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
