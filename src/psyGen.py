@@ -911,7 +911,16 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen
 
-        private_str = self.list_to_string(self._get_private_list())
+        private_list = self._get_private_list()
+
+        call_list = self.reductions(reprod=True)
+        if call_list:
+            self._name_space_manager = NameSpaceFactory().create()
+            thread_idx = self._name_space_manager.create_name(
+                root_name="th_idx", context="PSyVars", label="thread_index")
+            private_list.append(thread_idx)
+
+        private_str = self.list_to_string(private_list)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -922,20 +931,27 @@ class OMPParallelDirective(OMPDirective):
         # this almost certainly indicates a user error.
         self._encloses_omp_directive()
 
+        call_list_2 = self.reductions()
+        if call_list_2:
+            from f2pygen import before_directives, CommentGen
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Zero summation variables"))
+            #parent.add(CommentGen(parent, " Initialise summation variables"),
+            #           position=["before", position])
+            parent.add(CommentGen(parent, ""))
+            for call in call_list_2:
+                call.zero_reduction_variable(parent)
+            parent.add(CommentGen(parent, ""))
+
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 "default(shared), private({0})".
                                 format(private_str)))
 
-        call_list = self.reductions(reprod=True)
         if call_list:
-            self._name_space_manager = NameSpaceFactory().create()
-            thread_idx = self._name_space_manager.create_name(
-                root_name="th_idx", context="PSyVars", label="thread_index")
             parent.add(UseGen(parent, name="omp_lib", only=True,
                               funcnames=["omp_get_thread_num"]))
-            parent.add(CommentGen(parent, ""))
             parent.add(AssignGen(parent, lhs=thread_idx,
-                                 rhs="omp_get_thread_num()"))
+                                 rhs="omp_get_thread_num()+1"))
 
         first_type = type(self.children[0])
         for child in self.children:
@@ -1117,6 +1133,19 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
+
+        call_list_2 = self.reductions()
+        if call_list_2:
+            from f2pygen import before_directives, CommentGen
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Zero summation variables"))
+            #parent.add(CommentGen(parent, " Initialise summation variables"),
+            #           position=["before", position])
+            parent.add(CommentGen(parent, ""))
+            for call in call_list_2:
+                call.zero_reduction_variable(parent)
+            parent.add(CommentGen(parent, ""))
+
 
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",

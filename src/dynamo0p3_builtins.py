@@ -103,9 +103,11 @@ class DynBuiltIn(BuiltIn):
                         context="PSyVars",
                         label=var_name)
 
-    def zero_reduction_variable(self, parent, position):
+    def zero_reduction_variable(self, parent, position=None):
         ''' xxx '''
-        from f2pygen import AssignGen, DeclGen, AllocateGen
+        from f2pygen import AssignGen, DeclGen, AllocateGen, UseGen
+        if not position:
+            position = ["auto"]
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         parent.add(AssignGen(parent, lhs=var_name, rhs="0.0_r_def"),
@@ -117,9 +119,9 @@ class DynBuiltIn(BuiltIn):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            pad_size = self._name_space_manager.create_name(
-                root_name="pad_size", context="PSyVars", label="pad_size")
-
+            pad_size = "pad_size"
+            parent.add(UseGen(parent, name="constants_mod", only=True,
+                              funcnames=[pad_size]))
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,

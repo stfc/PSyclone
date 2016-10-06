@@ -924,6 +924,8 @@ class DynInvoke(Invoke):
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        reserved_names_list.extend(["pad_size", "omp_get_thread_num",
+                                    "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynSchedule,
                         reserved_names=reserved_names_list)
 
@@ -1278,6 +1280,22 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, pointer=True,
                                      lhs=mesh_obj_name, rhs=rhs))
+
+        # declare and initialise the number of openmp threads if required
+        if self.schedule.reductions(reprod=True):
+            from f2pygen import UseGen, AssignGen
+            omp_function_name = "omp_get_max_threads"
+            nthreads_name = self._name_space_manager.create_name(
+                root_name="nthreads", context="PSyVars", label="nthreads")
+            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
+                                  funcnames=[omp_function_name]))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[nthreads_name]))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Determine the number of OpenMP threads"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
+                                   rhs=omp_function_name+"()"))
 
         # declare and initialise stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)
@@ -1825,21 +1843,6 @@ class DynLoop(Loop):
         self._start = self._lower_bound_fortran()
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
-
-        call_list = self.reductions()
-        if call_list:
-            from f2pygen import before_directives, CommentGen
-            position = parent.previous_loop()
-            position = before_directives(position)
-            parent.add(CommentGen(parent, ""), position=["before", position])
-            parent.add(CommentGen(parent, " Zero summation variables"),
-                       position=["before", position])
-            #parent.add(CommentGen(parent, " Initialise summation variables"),
-            #           position=["before", position])
-            parent.add(CommentGen(parent, ""), position=["before", position])
-            for call in call_list:
-                call.zero_reduction_variable(parent, position=["before", position])
-            parent.add(CommentGen(parent, ""), position=["before", position])
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
             # Set halo dirty for all fields that are modified
