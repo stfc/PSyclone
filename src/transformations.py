@@ -638,15 +638,17 @@ class ColourTrans(Transformation):
         return schedule, keep
 
 class KernelDumpTrans(Transformation):
+    ''' *** Add Description Here *** '''
     def __str__(self):
         return("Dump out a kernel")
 
-@property
-def name(self):
-    ''' Returns the name of this transformation as a string '''
-    return "KernelDumpTrans"
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "KernelDumpTrans"
 
-def apply(self, node, dump=True):
+    def apply(self, node, dump=True):
+        ''' *** Add Description Here *** '''
         # check node is a kernel
         from psyGen import Kern
         if not isinstance(node, Kern):
