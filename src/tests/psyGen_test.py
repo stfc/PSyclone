@@ -589,14 +589,16 @@ def test_haloexchange_unknown_halo_depth():
 
 def test_globalsum_view(capsys):
     '''test the view method in the GlobalSum class. The simplest way to do
-    this is to use a dynamo0p3 example which contains a scalar and
+    this is to use a dynamo0p3 builtin example which contains a scalar and
     then call view() on that.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.0_inner_prod_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
-    expected_output = ("GlobalSum[scalar='rsum']")
+    print output
+    expected_output = ("GlobalSum[scalar='asum']")
     assert expected_output in output
 
 
