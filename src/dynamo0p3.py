@@ -613,16 +613,25 @@ class DynKernMetadata(KernelType):
     def _validate(self):
         ''' Check that the meta-data conforms to Dynamo 0.3 rules for
         user-provided kernels '''
-        # 1. We must have one and only one argument that is written to
+        from dynamo0p3_builtins import BUILTIN_MAP
+        # 1. We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
             if arg.access != "gh_read":
                 write_count += 1
-        if write_count != 1:
-            raise ParseError("A Dynamo 0.3 kernel must have one and only one "
+                # 2. We must not write to scalar arguments if it's not a
+                # built-in
+                if self.name not in BUILTIN_MAP and \
+                   arg.type in VALID_SCALAR_NAMES:
+                    raise ParseError(
+                        "A user-supplied Dynamo 0.3 kernel must not "
+                        "write/update a scalar argument but kernel {0} has "
+                        "{1} with {2} access".format(self.name,
+                                                     arg.type, arg.access))
+        if write_count == 0:
+            raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
-                             "found {0} for kernel {1}".format(write_count,
-                                                               self.name))
+                             "found none for kernel {0}".format(self.name))
 
     @property
     def func_descriptors(self):
