@@ -778,7 +778,7 @@ class Node(object):
         are returned.'''
 
         builtin_reduction_list = []
-        for builtin in self.walk(self.children, BuiltIn):
+        for builtin in self.walk(self.children, Call):
             if builtin.is_reduction:
                 if reprod is None:
                     builtin_reduction_list.append(builtin)
@@ -1377,11 +1377,24 @@ class Loop(Node):
         return all_args
 
     def gen_code(self, parent):
+
+        if not self.is_openmp_parallel():
+            call_list = self.reductions()
+            if call_list:
+                from f2pygen import before_directives, CommentGen
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent, " Zero summation variables"))
+                parent.add(CommentGen(parent, ""))
+                for call in call_list:
+                    call.zero_reduction_variable(parent)
+                    parent.add(CommentGen(parent, ""))
+
         if self._start == "1" and self._stop == "1":  # no need for a loop
             for child in self.children:
                 child.gen_code(parent)
         else:
             from f2pygen import DoGen, DeclGen
+ 
             do = DoGen(parent, self._variable_name, self._start, self._stop)
             # need to add do loop before children as children may want to add
             # info outside of do loop
@@ -1448,7 +1461,6 @@ class Call(Node):
 
     def __init__(self, parent, call, name, arguments):
         Node.__init__(self, children=[], parent=parent)
-        self._module_name = call.module_name
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -1474,6 +1486,128 @@ class Call(Node):
         self._text = None
         self._canvas = None
         self._arg_descriptors = None
+
+        # initialise any reduction information
+        args = arguments.args_filter(
+                arg_types=MAPPING_SCALARS.values(),
+                arg_accesses=MAPPING_REDUCTIONS.values())
+        if args:
+            self._reduction = True
+            assert (len(args) == 1, "PSyclone currently only supports a "
+                    "single reduction in a kernel or builtin")
+            self._reduction_arg = args[0]
+        else:
+            self._reduction = False
+            self._reduction_arg = None
+
+    @property
+    def is_reduction(self):
+        '''if this kernel/builtin contains a reduction variable then return
+        True, otherwise return False'''
+        return self._reduction
+
+    @property
+    def reprod_reduction(self):
+        '''Determine whether this kernel/builtin is enclosed within an OpenMP
+        do loop. If so report whether it has the reproducible flag
+        set. Note, this also catches OMPParallelDo Directives but they
+        have reprod set to False so it is OK.'''
+        from psyGen import OMPDoDirective
+        ancestor = self.ancestor(OMPDoDirective)
+        if ancestor:
+            return ancestor._reprod
+        else:
+            return False
+
+    @property
+    def local_reduction_name(self):
+        ''' xxx '''
+        var_name = self._reduction_arg.name
+        return self._name_space_manager.\
+            create_name(root_name="l_"+var_name,
+                        context="PSyVars",
+                        label=var_name)
+
+    def zero_reduction_variable(self, parent, position=None):
+        ''' xxx '''
+        from f2pygen import AssignGen, DeclGen, AllocateGen, UseGen
+        if not position:
+            position = ["auto"]
+        var_name = self._reduction_arg.name
+        local_var_name = self.local_reduction_name
+        var_type = self._reduction_arg.type
+        if var_type == "gh_real":
+            zero = "0.0_r_def"
+            kind_type = "r_def"
+            data_type = "real"
+        elif var_type == "gh_integer":
+            zero = "0"
+            kind_type = None
+            data_type = "integer"
+        else:
+            raise GenerationError("zero_reduction variable should be one of ['gh_real', 'gh_integer'] but found '{0}'".format(var_type))
+
+        parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
+                   position=position)
+        if self.reprod_reduction:
+            parent.add(DeclGen(parent, datatype=data_type,
+                               entity_decls=[local_var_name],
+                               allocatable=True, kind=kind_type,
+                               dimension=":,:"))
+            nthreads = self._name_space_manager.create_name(
+                root_name="nthreads", context="PSyVars", label="nthreads")
+            pad_size = "pad_size"
+            parent.add(UseGen(parent, name="constants_mod", only=True,
+                              funcnames=[pad_size]))
+            parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
+                                   "," + nthreads + ")"), position=position)
+            parent.add(AssignGen(parent, lhs=local_var_name,
+                                 rhs="0.0_r_def"), position=position)
+
+    def reduction_sum_loop(self, parent):
+        '''generate the appropriate code to place after the end parallel
+        region'''
+        from f2pygen import DoGen, AssignGen, DeallocateGen
+        self._name_space_manager = NameSpaceFactory().create()
+        thread_idx = self._name_space_manager.create_name(
+            root_name="th_idx", context="PSyVars", label="thread_index")
+        nthreads = self._name_space_manager.create_name(
+            root_name="nthreads", context="PSyVars", label="nthreads")
+        do = DoGen(parent, thread_idx, "1", nthreads)
+        var_name = self._reduction_arg.name
+        local_var_name = self.local_reduction_name
+        local_var_ref = self._reduction_ref(var_name)
+        MAPPING_REDUCTIONS = {"gh_sum": "+"}
+        reduction_access =  self._reduction_arg._access
+        try:
+            reduction_type = MAPPING_REDUCTIONS[reduction_access]
+        except KeyError:
+            raise GenerationError("unsupported reduction access '{0}' found in DynBuiltin:reduction_sum_loop(). Expected one of '{1}'".format(reduction_access, MAPPING_REDUCTIONS.keys()))
+        do.add(AssignGen(do, lhs=var_name, rhs=var_name + reduction_type +
+                         local_var_ref))
+        parent.add(do)
+        parent.add(DeallocateGen(parent, local_var_name))
+
+
+    def _reduction_ref(self, name):
+        '''Return the name unchanged if OpenMP is set to be unreproducible, as
+        we will be using the OpenMP reduction clause. Otherwise we
+        will be computing the reduction ourselves and therefore need
+        to store values into a (padded) array separately for each
+        thread.'''
+        if self.reprod_reduction:
+            idx_name = self._name_space_manager.\
+                  create_name(root_name="th_idx",
+                              context="PSyVars",
+                              label="thread_index")
+            local_name = self._name_space_manager.\
+                  create_name(root_name="l_"+name,
+                              context="PSyVars",
+                              label=name)
+            return local_name + "(1," + idx_name + ")"
+        else:
+            return name
+
 
     @property
     def arg_descriptors(self):
@@ -1514,6 +1648,7 @@ class Kern(Call):
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
+        self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._module_inline = False
@@ -1604,43 +1739,8 @@ class BuiltIn(Call):
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
-        Node.__init__(self, children=[], parent=parent)
-        self._arguments = arguments
-        self._name = call.ktype.procedure.name
-        self._iterates_over = call.ktype.iterates_over
-        # set up static reduction info
-        args = arguments.args_filter(
-                arg_types=MAPPING_SCALARS.values(),
-                arg_accesses=MAPPING_REDUCTIONS.values())
-        if args:
-            self._reduction = True
-            assert (len(args) == 1, "We should have at most one reduction "
-                    "argument for a builtin")
-            self._reduction_arg = args[0]
-        else:
-            self._reduction = False
-            self._reduction_arg = None
-
-    @property
-    def is_reduction(self):
-        return self._reduction
-
-    @property
-    def reprod_reduction(self):
-        '''Determine whether this builtin is enclosed within an OpenMP do
-        loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.'''
-        from psyGen import OMPDoDirective
-        ancestor = self.ancestor(OMPDoDirective)
-        if ancestor:
-            return ancestor._reprod
-        else:
-            return False
-
-    @reprod_reduction.setter
-    def reprod_reduction(self, value):
-        self._reprod_reduction = value
+        name = call.ktype.procedure.name
+        Call.__init__(self, parent, call, name, arguments)
 
     def local_vars(self):
         '''Variables that are local to this built-in and therefore need to be
