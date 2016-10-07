@@ -2345,13 +2345,13 @@ class DynKern(Kern):
                         # the size of the first dimension for a
                         # differential basis array depends on the
                         # function space. The values are
-                        # w0=3, w1=3, w2=1, w3=1, wtheta=3, w2h=1, w2v=1
+                        # w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1
                         first_dim = None
                         if unique_fs.orig_name.lower() in \
-                           ["w2", "w3", "w2h", "w2v"]:
+                           ["w2", "w2h", "w2v"]:
                             first_dim = "1"
                         elif (unique_fs.orig_name.lower() in
-                              ["w0", "w1", "wtheta"]):
+                              ["w0", "w1", "w3", "wtheta"]):
                             first_dim = "3"
                         else:
                             raise GenerationError(

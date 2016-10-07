@@ -3150,7 +3150,7 @@ def test_diff_basis():
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
         ":: diff_basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,nqp_h,nqp_v) "
         ":: diff_basis_w3\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
