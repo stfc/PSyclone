@@ -324,29 +324,51 @@ need not be on the same space.
           discontinuous in the vertical), or continuous in both. In
           each case the code is the same. However, if a field is
           discontinuous in the horizontal then it will not need
-          colouring and there is currently no way to determine this
-          from the metadata (unless we can statically determine the
-          space of the field being passed in). At the moment this type
-          of Kernel is always treated as if it is continuous in the
-          horizontal, even if it is not.
+          colouring and, if is described as being on any space, there
+          is currently no way to determine this from the metadata
+          (unless we can statically determine the space of the field
+          being passed in). At the moment this type of Kernel is
+          always treated as if it is continuous in the horizontal,
+          even if it is not.
 
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
 (``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
 be read within a Kernel and this is specified in metadata using
-``GH_READ``. If data is *modified* in a Kernel then the permitted access
+``GH_READ``. At least one kernel argument must be listed as being
+modified. When data is *modified* in a Kernel then the permitted access
 modes depend on the type of data it is and the function
 space it is on. Valid values are given in the table below.
 
-=============     ============================    ============
+=============     ============================    ======================
 Argument Type     Function space                  Access type
-=============     ============================    ============
+=============     ============================    ======================
 GH_INTEGER        n/a                             GH_SUM
 GH_REAL           n/a                             GH_SUM
-GH_FIELD          Discontinuous (w3)              GH_WRITE
+GH_FIELD          Discontinuous (w3)              GH_WRITE, GH_READWRITE
 GH_FIELD          Continuous (not w3)             GH_INC
 GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
-=============     ============================    ============
+=============     ============================    ======================
+
+Note that only Built-ins may modify scalar arguments. There is no
+restriction on the number and function-spaces of other quantities that
+a kernel can modify other than that it must modify at least one. If a
+kernel writes to quantities on different function spaces then PSyclone
+generates loop bounds appropriate to the largest iteration space. This
+means that if a single kernel updates one quantity on a continuous function
+space and one on a discontinuous space then the resulting loop will
+include cells in the level 1 halo since they are required for a
+quantity on a continuous space. As a consequence, any quantities on a
+discontinuous space will then be computed redundantly in the level 1
+halo. Currently PSyclone makes no attempt to take advantage of this
+(by e.g. setting the appropriate level-1 halo to 'clean').
+
+PSyclone ensures that operators are computed (redundantly) out to the
+level-1 halo cells. This permits subsequent redundant computation of
+other quantities which make use of operators. In conjunction with
+this, PSyclone also checks (when generating the PSy layer) that any
+kernels which read operator values do not do so beyond the level-1
+halo. If any such accesses are found then PSyclone aborts.
 
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
