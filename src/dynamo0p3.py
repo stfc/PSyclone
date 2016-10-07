@@ -2876,8 +2876,13 @@ class DynKernelArguments(Arguments):
         alternatively a field that is read if one or more scalars
         are modified. '''
 
-        # first look for known function spaces then try any_space
-        for spaces in [VALID_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES]:
+        # First look for any modified arg on a continuous function space,
+        # failing that try discontinuous function spaces and finally try
+        # any_space. We do this because if a quantity on a continuous FS is
+        # modified then our iteration space must be larger (include L1
+        # halo cells)
+        for spaces in [CONTINUOUS_FUNCTION_SPACES,
+                       DISCONTINUOUS_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES]:
 
             # do we have a field or operator that is modified?
             for arg in self._args:

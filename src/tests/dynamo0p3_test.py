@@ -6125,3 +6125,28 @@ def test_multiple_updated_scalar_args():
     assert ("A user-supplied Dynamo 0.3 kernel must not write/update a scalar "
             "argument but kernel testkern_qr_type has" in
             str(excinfo))
+
+
+def test_correct_iteration_space_multiple_writers():
+    ''' Check that generated loop over cells in the psy layer has the correct
+    upper bound when a kernel writes to fields on different spaces, one of
+    which is continuous '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+            assert output in generated_code
