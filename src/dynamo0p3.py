@@ -1759,11 +1759,20 @@ class DynLoop(Loop):
             self.set_upper_bound("dofs")
         else:
             if config.DISTRIBUTED_MEMORY:
-                if self.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+                if self._field.type == "gh_operator":
+                    # We always compute operators redundantly out to the L1
+                    # halo
+                    self.set_upper_bound("halo", index=1)
+                elif self.field_space.orig_name in \
+                     DISCONTINUOUS_FUNCTION_SPACES:
                     self.set_upper_bound("edge")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
+                    # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("halo", index=1)
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
+                    # We don't know whether any-space is continuous or not
+                    # so we have to err on the side of caution and assume that
+                    # it is.
                     self.set_upper_bound("halo", index=1)
                 else:
                     raise GenerationError(
@@ -1799,6 +1808,17 @@ class DynLoop(Loop):
                 "invalid".format(str(index)))
         self._upper_bound_name = name
         self._upper_bound_index = index
+
+    @property
+    def upper_bound_name(self):
+        ''' Returns the name of the upper loop bound '''
+        return self._upper_bound_name
+
+    @property
+    def upper_bound_index(self):
+        ''' Returns the index of the upper loop bound. Is None if upper
+        bound name is not "inner" or "halo" '''
+        return self._upper_bound_index
 
     def _lower_bound_fortran(self):
         ''' Create the associated fortran code for the type of lower bound '''
@@ -2475,6 +2495,19 @@ class DynKern(Kern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        # Check whether this kernel reads from an operator
+        for arg in self._arguments.args:
+            if arg.type == "gh_operator" and arg.access == "gh_read":
+                # It does. We must check that our parent loop does not
+                # go beyond the L1 halo.
+                if self.parent.upper_bound_name == "halo" and \
+                   self.parent.upper_bound_index > 1:
+                    raise GenerationError(
+                        "Kernel '{0}' reads from an operator and therefore "
+                        "cannot be used for cells beyond the level 1 halo. "
+                        "However the containing loop goes out to level {1}".
+                        format(self._name, self.parent.upper_bound_index))
+
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the colour map
         if self.is_coloured():
@@ -2874,7 +2907,9 @@ class DynKernelArguments(Arguments):
         '''Returns the first argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
         alternatively a field that is read if one or more scalars
-        are modified. '''
+        are modified. If an operator or a field on a continuous space is
+        modified then they are chosen since either of those cases implies
+        that we must compute out to the L1 halo. '''
 
         # First look for any modified arg on a continuous function space,
         # failing that try discontinuous function spaces and finally try
@@ -2886,7 +2921,9 @@ class DynKernelArguments(Arguments):
 
             # do we have a field or operator that is modified?
             for arg in self._args:
-                if arg.type in ["gh_field", "gh_operator"] and \
+                # Operators take precedence over fields because we must always
+                # compute them redundantly (out to L1 halo)
+                if arg.type in ["gh_operator", "gh_field"] and \
                    arg.access in ["gh_write", "gh_inc"] \
                    and arg.function_space.orig_name in spaces:
                     return arg

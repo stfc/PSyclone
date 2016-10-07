@@ -1603,7 +1603,8 @@ def test_operator_nofield_different_space():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_edge_cell" in gen
+    # We compute operators redundantly (out to the L1 halo)
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -1739,6 +1740,26 @@ def test_operator_deref():
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
             "ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
             "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+
+
+def test_operator_read_level1_halo():
+    ''' Check that we raise an error if a kernel attempts to read from an
+    operator beyond the level-1 halo '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.7_operator_read.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    # Modify the loop bound so that we attempt to read from the L2 halo
+    # (of the operator)
+    loop.set_upper_bound("halo", index=2)
+    # Attempt to generate the code
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("Kernel 'testkern_operator_code' reads from an operator and "
+            "therefore cannot be used for cells beyond the level 1 halo. "
+            "However the containing loop goes out to level 2" in str(excinfo))
 
 
 def test_any_space_1():
