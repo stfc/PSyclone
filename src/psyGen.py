@@ -11,6 +11,7 @@
     particular API and implementation. '''
 
 import abc
+import config
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -77,7 +78,6 @@ class PSyFactory(object):
         distributed_memory to the same default as the value found in
         config.DISTRIBUTED_MEMORY. If we set it to None and then test
         the value, it then fails. I've no idea why. '''
-    import config
 
     def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
         import config
@@ -1022,7 +1022,10 @@ class OMPParallelDirective(OMPDirective):
 
 class OMPDoDirective(OMPDirective):
 
-    def __init__(self, children=[], parent=None, omp_schedule="static", reprod=False):
+    import config
+
+    def __init__(self, children=[], parent=None, omp_schedule="static",
+                 reprod=config.REPRODUCIBLE_REDUCTIONS):
         self._omp_schedule = omp_schedule
         self._reprod = reprod
         # Call the init method of the base class once we've stored
@@ -1556,9 +1559,9 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            pad_size = "pad_size"
-            parent.add(UseGen(parent, name="constants_mod", only=True,
-                              funcnames=[pad_size]))
+            pad_size = str(config.REPROD_PAD_SIZE)
+            #parent.add(UseGen(parent, name="constants_mod", only=True,
+            #                  funcnames=[pad_size]))
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,

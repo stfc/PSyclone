@@ -16,6 +16,7 @@
 
 from psyGen import Transformation
 from dynamo0p3 import VALID_ANY_SPACE_NAMES
+import config
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -302,7 +303,7 @@ class OMPLoopTrans(Transformation):
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
 
-    def apply(self, node, reprod=False):
+    def apply(self, node, reprod=config.REPRODUCIBLE_REDUCTIONS):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
