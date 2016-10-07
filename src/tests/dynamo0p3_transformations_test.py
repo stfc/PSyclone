@@ -111,7 +111,12 @@ def test_colour_trans():
         assert cell_loop_idx - col_loop_idx == 1
 
         # Check that we're using the colour map when getting the cell dof maps
-        assert "get_cell_dofmap(cmap(colour, cell))" in gen
+        assert (
+            "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+            "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
+            "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
+            "map_w3(:,cmap(colour, cell)))" in gen)
 
         if dist_mem:
             # Check that we get the right number of set_dirty halo calls in
@@ -190,11 +195,13 @@ def test_colour_trans_stencil():
         print gen
 
         # Check that we index the stencil dofmap appropriately
-        assert ("          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-                "f2_proxy%data, f2_stencil_size, "
-                "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
-                "f4_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, "
-                "map_w2, ndf_w3, undf_w3, map_w3)") in gen
+        assert (
+            "          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, "
+            "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
+            "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
+            "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
+            "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
 
 
 def test_colouring_not_a_loop():
@@ -318,6 +325,7 @@ def test_omp_colour_trans():
 
         invoke.schedule = schedule
         code = str(psy.gen)
+        print code
 
         col_loop_idx = -1
         omp_idx = -1
@@ -334,7 +342,7 @@ def test_omp_colour_trans():
         assert omp_idx - col_loop_idx == 1
 
         # Check that the list of private variables is correct
-        assert "private(cell,map_w1,map_w2,map_w3)" in code
+        assert "private(cell)" in code
 
 
 def test_omp_colour_orient_trans():
@@ -371,7 +379,7 @@ def test_omp_colour_orient_trans():
         assert "get_cell_orientation(cmap(colour, cell))" in code
 
         # Check that the list of private variables is correct
-        assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
+        assert "private(cell,orientation_w2)" in code
 
 
 def test_omp_parallel_colouring_needed():
@@ -571,8 +579,8 @@ def test_colouring_multi_kernel():
         assert "a_proxy%vspace%get_colours(" in gen
         assert "f_proxy%vspace%get_colours(" in gen
         assert gen.count("_proxy%vspace%get_colours(") == 2
-        assert "private(cell,map_w2,map_w3,map_w0)" in gen
-        assert gen.count("private(cell,map_w2,map_w3,map_w0)") == 2
+        assert "private(cell)" in gen
+        assert gen.count("private(cell)") == 2
 
 
 def test_omp_region_omp_do():
@@ -690,7 +698,7 @@ def test_multi_kernel_single_omp_region():
             if "!$omp end do" in line:
                 omp_end_do_idx = idx
             if "!$omp parallel default(shared), " +\
-               "private(cell,map_w1,map_w2,map_w3)" in line:
+               "private(cell)" in line:
                 omp_para_idx = idx
             if "END DO" in line:
                 end_do_idx = idx
@@ -738,8 +746,7 @@ def test_multi_different_kernel_omp():
         code = str(psy.gen)
         print code
 
-        assert "private(cell,map_w2,map_w3,map_w0)" in code
-        assert "private(cell,map_w1,map_w2,map_w3)" in code
+        assert "private(cell)" in code
 
 
 def test_loop_fuse_different_spaces():
@@ -933,7 +940,7 @@ def test_loop_fuse_omp():
             if loop_str in line:
                 cell_do_idx = idx
             if "!$omp parallel do default(shared), " +\
-               "private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
+               "private(cell), schedule(static)" in line:
                 omp_para_idx = idx
             if "CALL testkern_code" in line:
                 if call1_idx == -1:
@@ -1034,7 +1041,7 @@ def test_fuse_colour_loops():
                 else:
                     call_idx2 = idx
             if "!$omp parallel default(shared), " +\
-               "private(cell,map_w2,map_w3,map_w0)" in line:
+               "private(cell)" in line:
                 omp_para_idx = idx
             if "!$omp do schedule(static)" in line:
                 if omp_do_idx1 == -1:
@@ -1136,7 +1143,8 @@ def test_scalar_sum_and_OpenMP():
         schedule, _ = otrans.apply(schedule.children[index])
         invoke.schedule = schedule
         result = str(psy.gen)
-        assert ("!$omp parallel do default(shared), private(cell,map_w3), "
+        print result
+        assert ("!$omp parallel do default(shared), private(cell), "
                 "schedule(static), reduction(+:rsum)") in result
 
 
