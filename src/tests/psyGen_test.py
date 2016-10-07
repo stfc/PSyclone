@@ -475,11 +475,8 @@ def test_kern_class_view(capsys):
 def test_call_local_vars():
     ''' Check that calling the abstract local_vars() method of Call raises
     the expected exception '''
-    from psyGen import Call
-    class arguments(object):
-        def __init__(self):
-            self.args = []
-    my_arguments = arguments()
+    from psyGen import Call, Arguments
+    my_arguments = Arguments(None)
     class ktype(object):
         def __init__(self):
             self.iterates_over = "stuff"
@@ -569,8 +566,8 @@ def test_call_abstract_methods():
     fake_ktype.iterates_over = "something"
     fake_call.ktype = fake_ktype
     fake_call.module_name = "a_name"
-    fake_arguments = GenerationError("msg")
-    fake_arguments.args = []
+    from psyGen import Arguments
+    fake_arguments = Arguments(None)
     my_call = Call(fake_call, fake_call, name="a_name",
                    arguments=fake_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
