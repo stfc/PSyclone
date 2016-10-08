@@ -981,7 +981,7 @@ class DynInvoke(Invoke):
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
-        reserved_names_list.extend(["pad_size", "omp_get_thread_num",
+        reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynSchedule,
                         reserved_names=reserved_names_list)
@@ -1345,9 +1345,10 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, pointer=True,
                                      lhs=mesh_obj_name, rhs=rhs))
 
-        # declare and initialise the number of openmp threads if required
         if self.schedule.reductions(reprod=True):
-            from f2pygen import UseGen, AssignGen
+            # we have at least one reproducible reduction so we need
+            # to know the number of OpenMP threads
+            from f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
             nthreads_name = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
@@ -1356,10 +1357,11 @@ class DynInvoke(Invoke):
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[nthreads_name]))
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Determine the number of OpenMP threads"))
+            invoke_sub.add(CommentGen(
+                invoke_sub, " Determine the number of OpenMP threads"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
-                                   rhs=omp_function_name+"()"))
+                                     rhs=omp_function_name+"()"))
 
         # Initialise any stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)
@@ -1926,7 +1928,10 @@ class DynLoop(Loop):
                 from f2pygen import DirectiveGen
                 if self.is_openmp_parallel():
                     if not self.ancestor(OMPParallelDoDirective):
-                        parent.add(DirectiveGen(parent, "omp", "begin", "master", ""))
+                        # I am within an OpenMP Do directive so protect
+                        # set_dirty() with OpenMP Master
+                        parent.add(DirectiveGen(parent, "omp", "begin",
+                                                "master", ""))
                 for field in fields:
                     if field.vector_size > 1:
                         # the range function below returns values from
@@ -1941,7 +1946,10 @@ class DynLoop(Loop):
                                            "%set_dirty()"))
                 if self.is_openmp_parallel():
                     if not self.ancestor(OMPParallelDoDirective):
-                        parent.add(DirectiveGen(parent, "omp", "end", "master", ""))
+                        # I am within an OpenMP Do directive so protect
+                        # set_dirty() with OpenMP Master
+                        parent.add(DirectiveGen(parent, "omp", "end",
+                                                "master", ""))
                 parent.add(CommentGen(parent, ""))
 
 

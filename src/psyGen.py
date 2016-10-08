@@ -1560,8 +1560,6 @@ class Call(Node):
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
             pad_size = str(config.REPROD_PAD_SIZE)
-            #parent.add(UseGen(parent, name="constants_mod", only=True,
-            #                  funcnames=[pad_size]))
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,

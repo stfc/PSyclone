@@ -12,9 +12,9 @@ program single_invoke
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2
-  real(r_def) :: asum, bsum
+  real(r_def) :: asum, bvalue
 
-  call invoke( scale_field(f1, bsum), &
-               inner_product(f1, f2, asum) )
+  call invoke( scale_field(f1, bvalue), &
+               sum_field(f1, asum) )
 
 end program single_invoke

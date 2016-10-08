@@ -12,7 +12,7 @@
 
 from psyGen import BuiltIn, NameSpaceFactory
 from parse import ParseError
-from dynamo0p3 import DynLoop, DynKernelArguments, GenerationError
+from dynamo0p3 import DynLoop, DynKernelArguments
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -152,7 +152,7 @@ class DynSumFieldKern(DynBuiltIn):
         from f2pygen import AssignGen
         # Sum all the elements of a field
         fld_name = self.array_ref(self._arguments.args[0].proxy_name)
-        sum_name = self._arguments.args[1].name
+        sum_name = self._reduction_ref(self._arguments.args[1].name)
         rhs_expr = sum_name + "+" + fld_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
