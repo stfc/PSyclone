@@ -933,7 +933,7 @@ class OMPParallelDirective(OMPDirective):
 
         call_list_2 = self.reductions()
         if call_list_2:
-            from f2pygen import before_directives, CommentGen
+            from f2pygen import CommentGen
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Zero summation variables"))
             #parent.add(CommentGen(parent, " Initialise summation variables"),
@@ -1035,8 +1035,12 @@ class OMPDoDirective(OMPDirective):
                               parent=parent)
 
     def view(self, indent=0):
+        if self.reductions():
+            reprod = "[reprod={0}]".format(self._reprod)
+        else:
+            reprod = ""
         print self.indent(indent) + \
-            "Directive[OMP do][reprod={0}]".format(self._reprod)
+            "Directive[OMP do]{0}".format(reprod)
 
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1139,7 +1143,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         call_list_2 = self.reductions()
         if call_list_2:
-            from f2pygen import before_directives, CommentGen
+            from f2pygen import CommentGen
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Zero summation variables"))
             #parent.add(CommentGen(parent, " Initialise summation variables"),
@@ -1384,7 +1388,7 @@ class Loop(Node):
         if not self.is_openmp_parallel():
             call_list = self.reductions()
             if call_list:
-                from f2pygen import before_directives, CommentGen
+                from f2pygen import CommentGen
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Zero summation variables"))
                 parent.add(CommentGen(parent, ""))
@@ -1410,23 +1414,6 @@ class Loop(Node):
 
 
 class Call(Node):
-
-    # added this functionality to the f2pycodegen
-    # def before_parent_loop(self,node):
-    #    ''' A call may want to add some content immediately before its parent
-    #        loop(s). However the number of loops and whether the top loop has
-    #        a directive before it is not known. This routine recurses up to
-    #        the top loop and returns a position before any directives.
-    #    '''
-    #    return node
-    # def after_parent_loop(self,node):
-    #    ''' A call may want to add some content immediately after its parent
-    #        loop(s). However the number of loops and whether the top loop has
-    #        a directive after it is not known by the call. This routine
-    #        recurses up to the top loop and returns a position after any
-    #        directives that follow the top loop.
-    #    '''
-    #    return node
 
     def view(self, indent=0):
         print self.indent(indent)+"Call", \
