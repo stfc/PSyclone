@@ -1722,7 +1722,7 @@ def test_sumfield():
             assert output in code
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
 
-# test multiple builtins in an invoke
+
 def test_multi_builtin_single_invoke():
     '''Test that multiple builtins, including one with reductions,
     produce correct code'''

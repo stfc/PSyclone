@@ -10,6 +10,7 @@
     The DynBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+import psyGen
 from psyGen import BuiltIn, NameSpaceFactory
 from parse import ParseError
 from dynamo0p3 import DynLoop, DynKernelArguments
@@ -18,6 +19,9 @@ from dynamo0p3 import DynLoop, DynKernelArguments
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
+# overide the default reduction operator mapping. This is used for
+# reproducible reductions.
+psyGen.REDUCTION_OPERATOR_MAPPING = {"gh_sum": "+"}
 
 class DynBuiltInCallFactory(object):
     ''' Creates the necessary framework for a call to a Dynamo built-in,

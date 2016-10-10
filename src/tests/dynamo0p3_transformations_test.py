@@ -1152,7 +1152,8 @@ def test_builtin_single_OpenMP_pdo():
     '''Test that we generate correct code if an OpenMP parallel do is
     applied to a single builtin'''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.2.0_copy_field_builtin.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.2.0_copy_field_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1165,13 +1166,15 @@ def test_builtin_single_OpenMP_pdo():
         print result
         if dist_mem:
             assert (
-                "      !$omp parallel do default(shared), private(df), schedule(static)\n"
+                "      !$omp parallel do default(shared), private(df), "
+                "schedule(static)\n"
                 "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()") in result
 
@@ -1189,7 +1192,8 @@ def test_builtin_multiple_OpenMP_pdo():
     '''Test that we generate correct code if OpenMP parallel do's are
     applied to multiple builtins'''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1265,7 +1269,8 @@ def test_builtin_loop_fuse_pdo():
     applied to multiple loop fused builtins. We have to assert that it
     is safe to loop fuse. '''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1314,7 +1319,8 @@ def test_builtin_single_OpenMP_do():
     '''Test that we generate correct code if an OpenMP do (with an outer
     OpenMP parallel) is applied to a single builtin '''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.2.0_copy_field_builtin.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.2.0_copy_field_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1339,7 +1345,8 @@ def test_builtin_single_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f2_proxy%set_dirty()\n"
@@ -1361,7 +1368,8 @@ def test_builtin_multiple_OpenMP_do():
     '''Test that we generate correct code if OpenMP do's are
     applied to multiple builtins'''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1441,13 +1449,14 @@ def test_builtin_multiple_OpenMP_do():
                 "      !$omp end do\n"
                 "      !$omp end parallel") in result
 
-# multi-builtins single openmp do : builtin_loop_fuse_do
+
 def test_builtin_loop_fuse_do():
     '''Test that we generate correct code if an OpenMP do is applied to
     multiple loop fused builtins. We need to assert it is safe to
     perform loop fusion. '''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1585,7 +1594,7 @@ def test_reduction_real_do():
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
 
-# 2 reductions 1 invoke, same builtin, parallel do
+
 def test_multi_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for a
     real scalar summed in a builtin. We use inner product in this case'''
@@ -1671,8 +1680,9 @@ def test_multi_reduction_real_do():
                     os.path.join(BASE_PATH, file_name),
                     distributed_memory=distmem,
                     api="dynamo0.3")
-                psy = PSyFactory("dynamo0.3",
-                             distributed_memory=distmem).create(invoke_info)
+                psy = PSyFactory(
+                    "dynamo0.3",
+                    distributed_memory=distmem).create(invoke_info)
                 invoke = psy.invokes.invoke_list[0]
                 schedule = invoke.schedule
                 otrans = Dynamo0p3OMPLoopTrans()
@@ -1692,11 +1702,11 @@ def test_multi_reduction_real_do():
                 schedule, _ = rtrans.apply(schedule.children[0:2])
                 invoke.schedule = schedule
                 with pytest.raises(GenerationError) as excinfo:
-                    code = str(psy.gen)
+                    _ = str(psy.gen)
                 assert (
-                    "Reductions are only valid within an OMP DO loop if the loop "
-                    "is the first computation in the surrounding OMP PARALLEL "
-                    "loop") in str(excinfo.value)
+                    "Reductions are only valid within an OMP DO loop if "
+                    "the loop is the first computation in the surrounding "
+                    "OMP PARALLEL loop") in str(excinfo.value)
 
 
 def test_multi_reduction_real_fuse():
@@ -1727,10 +1737,11 @@ def test_multi_reduction_real_fuse():
                                            schedule.children[1],
                                            same_space=True)
             assert (
-                "Error in DynamoLoopFuse transformation. Cannot fuse loops when "
-                "each loop already contains a reduction") in str(excinfo.value)
+                "Error in DynamoLoopFuse transformation. Cannot fuse loops "
+                "when each loop already contains a "
+                "reduction") in str(excinfo.value)
 
-# 2 reductions 1 invoke, different builtin, parallel do
+
 def test_multi_different_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins. We use inner product and sum_field'''
@@ -1920,7 +1931,8 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL bsum_proxy%set_dirty()\n"
@@ -1948,8 +1960,7 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
 
-# 1 reduction then 1 "standard" builtin in 1 invoke, fused, parallel do
-# 1 reduction then 1 "standard" builtin in 1 invoke, do
+
 def test_multi_builtins_reduction_then_standard_fuse_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a reduction then not. We
@@ -2010,6 +2021,7 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
                 "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
+
 
 def test_multi_builtins_reduction_then_standard_fuse_do():
     '''test that we generate a correct OpenMP do reduction for
@@ -2144,8 +2156,8 @@ def test_multi_builtins_standard_then_reduction_pdo():
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
-            
-# 1 "standard" builtin then 1 reduction in 1 invoke, fused, parallel do
+
+
 def test_multi_builtins_standard_then_reduction_fuse_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
@@ -2204,6 +2216,7 @@ def test_multi_builtins_standard_then_reduction_fuse_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
 
+
 def test_multi_builtins_standard_then_reduction_fuse_do():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
@@ -2241,7 +2254,8 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL bvalue_proxy%set_dirty()\n"
@@ -2263,8 +2277,10 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
 
-# there are no tests requires for integer reduction as we have no examples
-# there are no tests required for a builtin with more than 1 reduction as we have no examples
+# There are no tests requires for integer reduction and no tests
+# required for a builtin with more than 1 reduction as we have no
+# examples in either case
+
 
 def test_multi_builtins_fuse_error():
     '''test that we raise an exception when we try to loop fuse a
@@ -2289,16 +2305,17 @@ def test_multi_builtins_fuse_error():
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
                                    same_space=True)
-    assert ( "Cannot fuse loops as the first loop has a reduction and "
-             "the second loop reads the result of the "
-             "reduction") in str(excinfo.value)
+    assert ("Cannot fuse loops as the first loop has a reduction and "
+            "the second loop reads the result of the "
+            "reduction") in str(excinfo.value)
 
 
 def test_loop_fuse_error():
     '''Test that we raise an exception in loop fusion if one or more of
     the loops has an any_space iteration space'''
     for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "15.0.2_multiple_set_kernels.f90"),
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "15.0.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -2311,8 +2328,8 @@ def test_loop_fuse_error():
                 "('any_space') so loop fusion might be "
                 "invalid") in str(excinfo.value)
 
+# Repeat the reduction tests for the reproducible version
 
-# repeat reductions for reproducible version
 
 def test_reprod_reduction_real_pdo():
     '''Test that we raise an exception if we try to use the reprod flag
@@ -2420,6 +2437,7 @@ def test_reprod_reduction_real_do():
                 "      END DO \n"
                 "      DEALLOCATE (l_asum)\n") in code
 
+
 def test_reprod_multi_builtins_reduction_then_standard_do():
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different builtins, first a reduction then not when we
@@ -2526,6 +2544,7 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      DEALLOCATE (l_asum)\n") in code
 
+
 def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different loop-fused builtins, first a reduction then
@@ -2624,6 +2643,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      END DO \n"
                 "      DEALLOCATE (l_asum)\n") in code
 
+
 def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
     '''test that we generate a correct OpenMP do reduction for
     two different loop-fused builtins, first a normal builtin then a
@@ -2706,6 +2726,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
                 "      END DO \n"
                 "      DEALLOCATE (l_asum)\n") in code
 
+
 def test_reprod_three_builtins_two_reductions_do():
     '''test that we generate a correct OpenMP do reductions for three
     different loop-fused builtins, first a reduction, then a normal
@@ -2744,7 +2765,7 @@ def test_reprod_three_builtins_two_reductions_do():
                 assert (
                     "      " + names["var"] + " = 0.0_r_def\n"
                     "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
-                    "      " + names["lvar"] +" = 0.0_r_def\n"
+                    "      " + names["lvar"] + " = 0.0_r_def\n"
                     "      !\n"
                     "      !$omp parallel default(shared), "
                     "private(df,th_idx)\n"
@@ -2760,11 +2781,13 @@ def test_reprod_three_builtins_two_reductions_do():
                     "      ! sum the partial results sequentially\n"
                     "      !\n"
                     "      DO th_idx=1,nthreads\n"
-                    "        " + names["var"] + " = " + names["var"] + "+" + names["lvar"] + "(1,th_idx)\n"
+                    "        " + names["var"] + " = " + names["var"] + "+" +
+                    names["lvar"] + "(1,th_idx)\n"
                     "      END DO \n"
                     "      DEALLOCATE (" + names["lvar"] + ")\n"
                     "      global_sum%value = " + names["var"] + "\n"
-                    "      " + names["var"] + " = global_sum%get_sum()\n") in code
+                    "      " + names["var"] + " = "
+                    "global_sum%get_sum()\n") in code
         else:
             for names in [
                     {"var": "asum", "lvar": "l_asum",
@@ -2776,7 +2799,7 @@ def test_reprod_three_builtins_two_reductions_do():
                 assert (
                     "      " + names["var"] + " = 0.0_r_def\n"
                     "      ALLOCATE (" + names["lvar"] + "(8,nthreads))\n"
-                    "      " + names["lvar"] +" = 0.0_r_def\n"
+                    "      " + names["lvar"] + " = 0.0_r_def\n"
                     "      !\n"
                     "      !$omp parallel default(shared), "
                     "private(df,th_idx)\n"
@@ -2792,7 +2815,8 @@ def test_reprod_three_builtins_two_reductions_do():
                     "      ! sum the partial results sequentially\n"
                     "      !\n"
                     "      DO th_idx=1,nthreads\n"
-                    "        " + names["var"] + " = " + names["var"] + "+" + names["lvar"] + "(1,th_idx)\n"
+                    "        " + names["var"] + " = " + names["var"] + "+" +
+                    names["lvar"] + "(1,th_idx)\n"
                     "      END DO \n"
                     "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 

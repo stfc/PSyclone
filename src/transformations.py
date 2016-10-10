@@ -164,8 +164,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         '''Fuse the two Dynamo loops represented by :py:obj:`node1` and
         :py:obj:`node2`. The optional same_space flag asserts that an
         unknown iteration space (i.e. any_space) matches the other
-        iteration space. It is up to the user to specify that this is
-        correct '''
+        iteration space. This is set at the users own risk. '''
 
         LoopFuseTrans._validate(self, node1, node2)
 
@@ -185,20 +184,22 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                         "be invalid. If you know the spaces are the same then "
                         "please set the 'same_space' optional argument to "
                         "True.")
-            arg_types = ["gh_integer", "gh_real"]
-            arg_accesses = ["gh_sum"]
-            if node1.args_filter(arg_types=arg_types,
-                                 arg_accesses=arg_accesses):
-                if node2.args_filter(arg_types=arg_types,
-                                     arg_accesses=arg_accesses):
-                    raise TransformationError(
-                        "Error in DynamoLoopFuse transformation. "
-                        "Cannot fuse loops when each loop already "
-                        "contains a reduction")
+            from psyGen import MAPPING_SCALARS, MAPPING_REDUCTIONS
+            arg_types = MAPPING_SCALARS.values()
+            arg_accesses = MAPPING_REDUCTIONS.values()
+            node1_red_args = node1.args_filter(arg_types=arg_types,
+                                               arg_accesses=arg_accesses)
+            node2_red_args = node2.args_filter(arg_types=arg_types,
+                                               arg_accesses=arg_accesses)
 
-                reduction_args = node1.args_filter(arg_types=arg_types,
-                                                   arg_accesses=arg_accesses)
-                for reduction_arg in reduction_args:
+            if node1_red_args and node2_red_args:
+                raise TransformationError(
+                    "Error in DynamoLoopFuse transformation. "
+                    "Cannot fuse loops when each loop already "
+                    "contains a reduction")
+
+            if node1_red_args:
+                for reduction_arg in node1_red_args:
                     other_args = node2.args_filter()
                     for arg in other_args:
                         if reduction_arg.name == arg.name:
@@ -214,7 +215,6 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         except Exception as err:
             raise TransformationError("Unexpected exception: {0}".
                                       format(err))
-
 
 
 class OMPLoopTrans(Transformation):
