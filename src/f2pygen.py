@@ -72,6 +72,7 @@ class OMPDirective(Comment):
 # This section provides new classes which provide a relatively high
 # level interface to creating code and adding code to an existing ast
 
+
 class BaseGen(object):
     ''' The base class for all classes that are responsible for generating
     distinct code elements (modules, subroutines, do loops etc.) '''

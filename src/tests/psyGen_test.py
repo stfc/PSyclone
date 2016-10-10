@@ -477,17 +477,19 @@ def test_call_local_vars():
     the expected exception '''
     from psyGen import Call, Arguments
     my_arguments = Arguments(None)
-    class ktype(object):
+    class KernType(object):
+        ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
-    my_ktype = ktype()
-    class dummy_class(object):
+    my_ktype = KernType()
+    class DummyClass(object):
+        ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
             self.ktype = ktype
-    dummy_call = dummy_class(my_ktype)
+    dummy_call = DummyClass(my_ktype)
     my_call = Call(None, dummy_call, "dummy", my_arguments)
-    with pytest.raises(NotImplementedError) as excinfo:    
+    with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Call.local_vars should be implemented" in str(excinfo.value)
 

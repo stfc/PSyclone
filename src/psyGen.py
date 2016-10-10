@@ -909,6 +909,8 @@ class OMPParallelDirective(OMPDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
+        '''Generate the fortran OMP Parallel Directive and any associated
+        code'''
         from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen
 
         private_list = self._get_private_list()
@@ -1033,6 +1035,7 @@ class OMPDoDirective(OMPDirective):
                               parent=parent)
 
     def view(self, indent=0):
+        ''' Write out a textual summary of the OpenMP Do Directive '''
         if self.reductions():
             reprod = "[reprod={0}]".format(self._reprod)
         else:
@@ -1127,6 +1130,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 omp_schedule=omp_schedule)
 
     def view(self, indent=0):
+        ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
         print self.indent(indent) + \
             "Directive[OMP parallel do]"
         for entity in self._children:
@@ -1291,7 +1295,7 @@ class Loop(Node):
             outline="red", fill="green", width=2,
             activeoutline="blue", joinstyle=ROUND)
         self._text = canvas.create_text(x+(self._width+max_calls_width)/2,
-                                        y+self._height/2,  text=name)
+                                        y+self._height/2, text=name)
 
         call_height = 0
         for child in self.children:
@@ -1379,7 +1383,7 @@ class Loop(Node):
         return all_args
 
     def gen_code(self, parent):
-
+        '''Generate the fortran Loop and any associated code '''
         if not self.is_openmp_parallel():
             red_call_list = self.reductions()
             if red_call_list:
@@ -1505,7 +1509,9 @@ class Call(Node):
 
     @property
     def local_reduction_name(self):
-        ''' xxx '''
+        '''Generate a local variable name that is unique for the current
+        reduction argument name. This is used for thread-local
+        reductions with reproducible reductions '''
         var_name = self._reduction_arg.name
         return self._name_space_manager.\
             create_name(root_name="l_"+var_name,
@@ -1513,7 +1519,9 @@ class Call(Node):
                         label=var_name)
 
     def zero_reduction_variable(self, parent, position=None):
-        ''' xxx '''
+        '''Generate code to zero the reduction variable and to zero the local
+        reduction variable if one exists. The latter is used for reproducible
+        reductions, if specified.'''
         from f2pygen import AssignGen, DeclGen, AllocateGen
         if not position:
             position = ["auto"]
@@ -1961,7 +1969,7 @@ class TransInfo(object):
             result = "There is 1 transformation available:"
         else:
             result = "There are {0} transformations available:".format(
-                     len(self._objects))
+                len(self._objects))
         result += os.linesep
         for idx, my_object in enumerate(self._objects):
             result += "  " + str(idx+1) + ": " + my_object.name + ": " + \
@@ -1996,8 +2004,7 @@ class TransInfo(object):
         import inspect
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and
-                issubclass(cls, base_class) and cls is not base_class
-                ]
+                issubclass(cls, base_class) and cls is not base_class]
 
 
 class Transformation(object):
