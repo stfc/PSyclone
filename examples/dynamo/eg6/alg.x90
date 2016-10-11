@@ -1,0 +1,20 @@
+module alg
+
+contains
+
+  subroutine example(precond_option, mmd)
+
+    use precondition_mod, only : precondition
+
+    integer(i_def),   intent(in)           :: precond_option
+    type(field_type), intent(in), optional :: mmd
+    real(kind=r_def)                       :: rs_old
+    type(field_type)                       :: res, p, z
+
+    call precondition( z, res, precond_option, diagonal=mmd )
+    call invoke( copy_field( z, p ),                          &
+                 inner_product( res, z, rs_old ) )
+
+  end subroutine example
+
+end module alg

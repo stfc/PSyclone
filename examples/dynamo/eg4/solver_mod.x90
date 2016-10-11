@@ -98,6 +98,7 @@ contains
 
   diagonal = field_type( vector_space = rhs_fs )
   res      = field_type( vector_space = rhs_fs )
+  res2     = field_type( vector_space = rhs_fs )
 
   call invoke( mm_diagonal_kernel_type(diagonal, mm), &
                divide_fields( rhs, diagonal, lhs ))
@@ -108,8 +109,8 @@ contains
     call invoke ( set_field_scalar(flag_obj%rflag, Ax), &
                   matrix_vector_kernel_type(Ax,lhs,mm), &
                   minus_fields( rhs, Ax, res ),         &
-                  divide_fields( res, diagonal, res ),  &
-                  axpy( MU, res, lhs, lhs ) )
+                  divide_field( res, diagonal ),  &
+                  inc_axpy( MU, lhs, res ) )
 
 ! Ready for next iteration
   end do
