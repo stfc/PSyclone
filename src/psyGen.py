@@ -771,11 +771,10 @@ class Node(object):
 
     def reductions(self, reprod=None):
         '''Return all calls that have reductions and are decendents of this
-        node. The assumption is that only builtins can contain reductions. If
-        reprod is not provided all builtin reductions are returned. If reprod
-        is False, all builtin reductions that are not set to reproducible are
-        returned. If reprod is True, all builtins that are set to reproducible
-        are returned.'''
+        node. If reprod is not provided, all reductions are
+        returned. If reprod is False, all builtin reductions that are
+        not set to reproducible are returned. If reprod is True, all
+        builtins that are set to reproducible are returned.'''
 
         call_reduction_list = []
         for call in self.walk(self.children, Call):

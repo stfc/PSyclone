@@ -2873,3 +2873,29 @@ def test_reprod_view(capsys):
         print "Found ..."
         print result
         assert expected in result
+
+
+def test_reductions_reprod_false():
+    '''Check that the reductions() method works when the reprod option is
+    set to False '''
+    for distmem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do directive to the loop
+        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+        # Apply an OpenMP Parallel directive around the OpenMP do directive
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        assert len(schedule.reductions(reprod=False)) == 1
+        from dynamo0p3_builtins import DynInnerProductKern
+        assert (isinstance(schedule.reductions(reprod=False)[0],
+                           DynInnerProductKern))
