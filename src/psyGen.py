@@ -1050,14 +1050,9 @@ class OMPDoDirective(OMPDirective):
         reduction_str = ""
         for reduction_type in MAPPING_REDUCTIONS.keys():
             reductions = self._get_reductions_list(reduction_type)
-            if reductions:
-                variables_string = ""
-                for idx, reduction in enumerate(reductions):
-                    variables_string += reduction
-                    if (idx+1) < len(reductions):
-                        variables_string += ","
+            for reduction in reductions:
                 reduction_str += ", reduction({0}:{1})".format(
-                    OMP_OPERATOR_MAPPING[reduction_type], variables_string)
+                    OMP_OPERATOR_MAPPING[reduction_type], reduction)
         return reduction_str
 
     def gen_code(self, parent):
@@ -1564,7 +1559,6 @@ class Call(Node):
             root_name="th_idx", context="PSyVars", label="thread_index")
         nthreads = self._name_space_manager.create_name(
             root_name="nthreads", context="PSyVars", label="nthreads")
-        do = DoGen(parent, thread_idx, "1", nthreads)
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         local_var_ref = self._reduction_ref(var_name)
@@ -1576,6 +1570,7 @@ class Call(Node):
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
                 format(reduction_access, REDUCTION_OPERATOR_MAPPING.keys()))
+        do = DoGen(parent, thread_idx, "1", nthreads)
         do.add(AssignGen(do, lhs=var_name, rhs=var_name + reduction_operator +
                          local_var_ref))
         parent.add(do)
