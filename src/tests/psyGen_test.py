@@ -656,3 +656,38 @@ def test_args_filter2():
     for arg in args:
         assert arg.name in expected_output
     assert len(args) == len(expected_output)
+
+
+def test_reduction_var_error():
+    '''Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect type of argument'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).create(invoke_info)
+        schedule =  psy.invokes.invoke_list[0].schedule
+        call = schedule.calls()[0]
+        # args[1] is of type gh_field
+        call._reduction_arg = call.arguments.args[1]
+        with pytest.raises(GenerationError) as err:
+            call.zero_reduction_variable(None)
+        assert ("zero_reduction variable should be one of ['gh_real', "
+                "'gh_integer']") in str(err)
+
+
+def test_reduction_sum_error():
+    '''Check that we raise an exception if the reduction_sum_loop()
+    method is provided with an incorrect type of argument'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).create(invoke_info)
+        schedule =  psy.invokes.invoke_list[0].schedule
+        call = schedule.calls()[0]
+        # args[1] is of type gh_field
+        call._reduction_arg = call.arguments.args[1]
+        with pytest.raises(GenerationError) as err:
+            call.reduction_sum_loop(None)
+        assert (
+            "unsupported reduction access 'gh_write' found in DynBuiltin:"
+            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)

@@ -2899,3 +2899,31 @@ def test_reductions_reprod_false():
         from dynamo0p3_builtins import DynInnerProductKern
         assert (isinstance(schedule.reductions(reprod=False)[0],
                            DynInnerProductKern))
+
+
+def test_list_multiple_reductions():
+    '''test that we ... '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do directive to the loop
+        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+        # Apply an OpenMP Parallel directive around the OpenMP do directive
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        omp_loop_directive = schedule.children[0].children[0]
+        call = omp_loop_directive.children[0].children[0]
+        arg = call.arguments.args[1]
+        arg._type = "gh_real"
+        arg.descriptor._access = "gh_sum"
+        result = omp_loop_directive._reduction_string()
+        assert ", reduction(+:f2), reduction(+:asum)" in omp_loop_directive._reduction_string()
