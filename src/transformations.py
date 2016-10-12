@@ -219,9 +219,13 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
 class OMPLoopTrans(Transformation):
 
-    ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
-        must be inside the scope of some other OMP Parallel REGION. This
-        condition is tested at code-generation time.
+    '''Adds an orphaned OpenMP directive to a loop. i.e. the directive
+        must be inside the scope of some other OMP Parallel
+        REGION. This condition is tested at code-generation time. The
+        optional 'reprod' argument decides whether standard OpenMP
+        reduction support is to be used (which is not reproducible) or
+        whether a manual reproducible reproduction is to be used.
+
         For example:
 
         >>> from parse import parse,ParseError
@@ -244,7 +248,7 @@ class OMPLoopTrans(Transformation):
         # Apply the OpenMP Loop transformation to *every* loop
         # in the schedule
         >>> for child in schedule.children:
-        >>>     newschedule,memento=ltrans.apply(child)
+        >>>     newschedule,memento=ltrans.apply(child, reprod=True)
         >>>     schedule = newschedule
         >>>
         # Enclose all of these loops within a single OpenMP

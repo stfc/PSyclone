@@ -19,6 +19,7 @@ provided to show the available transformations
 .. autoclass:: psyGen.TransInfo
     :members:
 
+
 Available
 ---------
 
@@ -211,3 +212,55 @@ An example of the use of transformations scripts can be found in the
 examples/dynamo/eg3 directory. Please read the examples/dynamo/README
 file first as it explains how to run the example.
 
+OpenMP
+------
+
+OpenMP is added to a code by using transformations. The three
+transformations currently supported allow the addition of an **OpenMP
+Parallel** directive, an **OpenMP Do** directive and an **OpenMP
+Parallel Do** directive, respectively, to a code.
+
+The generic versions of these three transformations (i.e. ones that
+theoretically work for all API's) were given in Section
+:ref:`sec_transformations_script`. The API-specific versions of these
+codes are described in the API-specific sections of this document.
+
+Reductions
+++++++++++
+
+PSyclone supports parallel scalar reductions.  If a scalar reduction is
+specified in the Kernel metadata (see the API-specific sections for
+details) then the appropriate reduction is performed.
+
+In the case of distributed memory, PSyclone will add **GlobalSum** 's
+to the appropriate locations. As can be inferred by the name, only
+"summation" reductions are currently supported for distributed memory.
+
+In the case of an OpenMP parallel loop the standard reduction support
+will be used by default. For example
+::
+
+    !$omp parallel do, reduction(+:x)
+    !loop
+    !$omp end parallel do
+
+OpenMP reductions do not guarantee to give bit reproducible results
+for different runs of the same problem even if the same problem is run
+using the same resources. The reason for this is that the order in
+which data is reduced is not mandated.
+
+Therefore, an additional **reprod** option has been added to the
+**OpenMP Do** transformation. If the reprod option is set to "True"
+then the OpenMP reduction support is replaced with local per-thread
+reductions which are reduced serially after the loop has
+finished. This implementation guarantees to give bit-wise reproducible
+results for different runs of the same problem using the same
+resources, but will not bit-wise compare if the code is rerun with a
+different numbers of OpenMP threads.
+
+Limitations
++++++++++++
+
+Currently only one reduction is supported within a loop. The loop fuse
+transformation will raise an exception if loop fusion is attempted on
+two loops which both contain a reduction.
