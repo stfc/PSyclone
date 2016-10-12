@@ -31,6 +31,70 @@ class TestAlgGenClassDynamo0p3(object):
         assert "USE psy_single_invoke, ONLY: invoke_0_testkern_type" in gen
         assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
 
+    def test_single_function_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_single_invoke, ONLY: invoke_important_invoke" in gen
+        assert "CALL invoke_important_invoke(a, f1, f2, m1, m2)" in gen
+
+    def test_invoke_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call where the
+        naming string already begins with "invoke_" '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.5_invoke_named_invoke.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_single_invoke, ONLY: invoke_important" in gen
+        assert "CALL invoke_important(a, f1, f2, m1, m2)" in gen
+
+    def test_multi_kernel_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call that contains
+        more than one kernel '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "4.9_named_multikernel_invokes.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_some_name" in gen
+        assert (
+            "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+
+    def test_multi_position_named_invoke(self):
+        ''' Test that we correctly handle a named invoke call that contains
+        more than one kernel when the name= clause appears at different
+        points in the Invoke argument list '''
+        alg, _ = generate(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "4.10_multi_position_named_invokes.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_first" in gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_middle" in gen
+        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_last" in gen
+        assert (
+            "CALL invoke_name_first(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+        assert (
+            "CALL invoke_name_middle(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+        assert (
+            "CALL invoke_name_last(a, b, c, istp, rdt, d, ascalar, f, g, e)"
+            in gen)
+
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a
         quadrature rule'''
@@ -60,6 +124,23 @@ class TestAlgGenClassDynamo0p3(object):
         assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
         assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
                 in gen)
+
+    def test_named_multi_invokes(self):
+        ''' Check that we generate correct code when we have more than one
+        named invoke in an Algorithm file '''
+        alg, _ = generate(
+            os.path.join(BASE_PATH,
+                         "3.2_multi_functions_multi_named_invokes.f90"),
+            api="dynamo0.3")
+        gen = str(alg)
+        assert "USE testkern, ONLY: testkern_type" in gen
+        assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
+        assert ("USE psy_multi_functions_multi_invokes, ONLY: "
+                "invoke_my_first" in gen)
+        assert ("USE psy_multi_functions_multi_invokes, ONLY: "
+                "invoke_my_second" in gen)
+        assert "CALL invoke_my_first(a, f1, f2," in gen
+        assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
 
     def test_multi_function_multi_invokes(self):
         ''' two invokes, each containing multiple functions '''

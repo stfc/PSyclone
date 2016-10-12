@@ -31,6 +31,8 @@
 	PSy-layer. This makes no functional difference but should give a
 	performance benefit.
 
+        10) #304 Added support for named invokes in PSyclone.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
