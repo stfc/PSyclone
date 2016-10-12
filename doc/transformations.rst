@@ -221,19 +221,20 @@ Parallel** directive, an **OpenMP Do** directive and an **OpenMP
 Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
-theoretically work for all API's) were given in Section
-:ref:`sec_transformations_script`. The API-specific versions of these
-codes are described in the API-specific sections of this document.
+theoretically work for all API's) were given in the
+:ref:`sec_transformations_script` section. The API-specific versions
+of these codes are described in the API-specific sections of this
+document.
 
 Reductions
 ++++++++++
 
 PSyclone supports parallel scalar reductions.  If a scalar reduction is
 specified in the Kernel metadata (see the API-specific sections for
-details) then the appropriate reduction is performed.
+details) then PSyclone ensures the appropriate reduction is performed.
 
-In the case of distributed memory, PSyclone will add **GlobalSum** 's
-to the appropriate locations. As can be inferred by the name, only
+In the case of distributed memory, PSyclone will add **GlobalSum's**
+at the appropriate locations. As can be inferred by the name, only
 "summation" reductions are currently supported for distributed memory.
 
 In the case of an OpenMP parallel loop the standard reduction support

@@ -813,19 +813,19 @@ these perform dynamo-api-specific checks to make sure the
 transformations are valid. In practice these transformations perform
 the required checks then call the generic ones internally.
 
-The use of the dynamo api-specific transformations is exactly the same
+The use of the dynamo-api-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
 **DynamoLoopFuseTrans**. In this case an additional optional argument
 **same_space** has been added to the **apply** method. The reason for
 this is to allow loop fusion when one or more of the iteration-spaces
 is determined by a function space that is unknown by PSyclone at
-compile time. this is the case when the **ANY_SPACE** function space
+compile time. This is the case when the **ANY_SPACE** function space
 is specified in the Kernel metadata. By default PSyclone will not
-allow loop fusion if it does not know the spaces are the same. this
-option allows the user to specify to the system that they are the
-same. This options should clearly be used with caution. Note, if
-PSyclone knows the spaces are different this option has no effect and
-the transformation will always raise an exception.
+allow loop fusion if it does not know the spaces are the same. The
+**same_space** option allows the user to specify that
+the spaces are the same. This option should therefore be used with
+caution. Note, if PSyclone knows the spaces are different this option
+has no effect and the transformation will always raise an exception.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means

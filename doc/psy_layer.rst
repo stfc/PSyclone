@@ -118,15 +118,14 @@ supported and is switched on; see the :ref:`distributed_memory`
 section). The order of the tree (depth first) indicates the order of
 the associated Fortran code.
 
-PSyclone will initially create a "vanilla" (functionally correct
-but not optimised) schedule.
-
-This "vanilla" schedule can be modified by changing the objects within
-it. For example, the order that two Kernel calls appear in the
-generated code can be changed by changing their order in the tree. The
-ability to modify this high level view of a schedule allows the PSy
-layer to be optimised for a particular architecture (by applying
-optimisations such as blocking, loop merging, inlining, OpenMP
-parallelisation etc.). The tree could be manipulated directly,
-however, to simplify optimisation, a set of transformations are
-supplied. These transformations are discussed in the next section.
+PSyclone will initially create a "vanilla" (functionally correct but
+not optimised) schedule.  This "vanilla" schedule can be modified by
+changing the objects within it. For example, the order that two Kernel
+calls appear in the generated code can be changed by changing their
+order in the tree. The ability to modify this high level view of a
+schedule allows the PSy layer to be optimised for a particular
+architecture (by applying optimisations such as blocking, loop
+merging, inlining, OpenMP parallelisation etc.). The tree could be
+manipulated directly, however, to simplify optimisation, a set of
+transformations are supplied. These transformations are discussed in
+the next section.
