@@ -2487,16 +2487,15 @@ SCALAR_SUMS = (
 
 
 def test_stub_generate_with_scalar_sums():
-    ''' check that the stub generate produces the expected output when
-    the kernel has scalar arguments with a reduction operation (gh_sum) '''
-    # hack while DM does not support reductions
-    import config
-    config.DISTRIBUTED_MEMORY = False
-    # end hack
-    result = generate("test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
-                      api="dynamo0.3")
-    print result
-    assert SCALAR_SUMS in str(result)
+    ''' check that the stub generate raises an exception when a kernel has multiple reductions '''
+    with pytest.raises(GenerationError) as err:
+        result = generate(
+            "test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+            api="dynamo0.3")
+    assert (
+            "PSyclone currently only supports a single reduction in a kernel "
+            "or builtin" in str(err))
+
 
 # fields : intent
 INTENT = '''
@@ -4455,6 +4454,7 @@ def test_single_real_scalar_sum():
             "undf_w3, map_w3(:,cell))" in gen
 
 
+@pytest.mark.xfail(reason="Only one reduction per kernel is supported")
 def test_multiple_scalar_sums():
     '''Test that multiple real scalar (gh_sum) reductions generate
     correct code '''
@@ -4484,6 +4484,7 @@ def test_multiple_scalar_sums():
                     "      rsum1 = global_sum%get_sum()\n") in gen
 
 
+@pytest.mark.xfail(reason="Only one reduction per kernel is supported")
 def test_multiple_mixed_scalar_sums():
     '''Test that multiple mixed scalar (gh_sum) reductions generate
     correct code with dm=False (dm=True is not supported with
@@ -4508,6 +4509,7 @@ def test_multiple_mixed_scalar_sums():
         "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3(:,cell))") in gen
 
 
+@pytest.mark.xfail(reason="Only one reduction per kernel is supported")
 def test_multiple_mixed_scalar_sums2():
     '''Test that multiple mixed scalar (gh_sum) reductions raise an
     exception with dm=False as dm=True is not supported with

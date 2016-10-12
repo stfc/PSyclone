@@ -691,3 +691,18 @@ def test_reduction_sum_error():
         assert (
             "unsupported reduction access 'gh_write' found in DynBuiltin:"
             "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)
+
+
+def test_call_multi_reduction_error():
+    '''Check that we raise an exception if we try to create a Call (a
+    Kernel or a Builtin) with more than one reduction in it'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as err:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=dist_mem).create(invoke_info)
+        assert (
+            "PSyclone currently only supports a single reduction in a kernel "
+            "or builtin" in str(err))

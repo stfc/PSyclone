@@ -1475,8 +1475,10 @@ class Call(Node):
             arg_accesses=MAPPING_REDUCTIONS.values())
         if args:
             self._reduction = True
-            assert (len(args) == 1, "PSyclone currently only supports a "
-                    "single reduction in a kernel or builtin")
+            if len(args) != 1:
+                raise GenerationError(
+                    "PSyclone currently only supports a single reduction "
+                    "in a kernel or builtin")
             self._reduction_arg = args[0]
         else:
             self._reduction = False
