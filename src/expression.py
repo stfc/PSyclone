@@ -244,10 +244,20 @@ class NamedArg(ExpressionNode):
         return _str
 
     @property
+    def name(self):
+        ''' Returns the name of the variable (LHS) involved in a
+        named argument. '''
+        return self._name
+
+    @property
     def value(self):
         ''' Returns the value (RHS) of the named argument '''
         return self._value
 
+    @property
+    def is_string(self):
+        ''' Returns True if the RHS of the named argument is a string '''
+        return self._quote is not None
 
 # Construct a grammar using PyParsing
 
