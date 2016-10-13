@@ -43,13 +43,12 @@ def test_dynbuiltin_not_over_dofs():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
+    # Restore the original file name before doing the assert in case
+    # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(NotImplementedError) as excinfo:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
-    # Restore the original file name before doing the assert in case
-    # it fails
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     assert ("built-in calls must iterate over DoFs but found cells for "
             "Built-in: Set field " in str(excinfo.value))
 
