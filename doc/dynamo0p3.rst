@@ -502,9 +502,22 @@ Built-ins
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
 built-ins generally follow a convention that the field/scalar written
-to comes last in the argument list. Although field arguments to all currently
-supported built-ins may be on any space, the arguments to any given
-call must all be on the same space.
+to comes last in the argument list. Dynamo 0.3 built-ins must conform to the
+following four rules:
+
+ 1) Built-in kernels must have one and only one modified (i.e. written
+    to) argument.
+
+ 2) There must be at least one field in the argument list. This is so
+    that we know the number of dofs to iterate over.
+
+ 3) Kernel arguments must be either fields or scalars.
+
+ 4) All field arguments to a given built-in must be on the same
+    function space. This is because all current built-ins iterate over
+    dofs and therefore all fields should have the same number. It also
+    means that we can determine the number of dofs uniquely when a
+    scalar is written to.
 
 The built-ins supported for the Dynamo 0.3 API are
 listed in alphabetical order below. For clarity, the calculation
