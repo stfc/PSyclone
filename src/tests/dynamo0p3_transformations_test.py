@@ -2381,6 +2381,7 @@ def test_reprod_reduction_real_do():
         assert (
             "      REAL(KIND=r_def), allocatable, dimension(:,:) "
             ":: l_asum\n") in code
+        assert "      INTEGER th_idx\n" in code
         assert "      INTEGER nthreads\n" in code
         assert (
             "      !\n"
@@ -2472,6 +2473,7 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
         assert (
             "      REAL(KIND=r_def), allocatable, dimension(:,:) "
             ":: l_asum\n") in code
+        assert "      INTEGER th_idx\n" in code
         assert "      INTEGER nthreads\n" in code
         assert (
             "      !\n"
@@ -2579,6 +2581,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
         assert (
             "      REAL(KIND=r_def), allocatable, dimension(:,:) "
             ":: l_asum\n") in code
+        assert "      INTEGER th_idx\n" in code
         assert "      INTEGER nthreads\n" in code
         assert (
             "      !\n"
@@ -2669,6 +2672,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
+        assert "      INTEGER th_idx\n" in code
         if distmem:
             assert (
                 "      asum = 0.0_r_def\n"
@@ -2754,6 +2758,7 @@ def test_reprod_three_builtins_two_reductions_do():
         invoke.schedule = schedule
         code = str(psy.gen)
         print code
+        assert "INTEGER th_idx\n" in code
         if distmem:
             for names in [
                     {"var": "asum", "lvar": "l_asum",
@@ -2926,4 +2931,4 @@ def test_list_multiple_reductions():
         arg._type = "gh_real"
         arg.descriptor._access = "gh_sum"
         result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:f2), reduction(+:asum)" in omp_loop_directive._reduction_string()
+        assert ", reduction(+:f2), reduction(+:asum)" in result

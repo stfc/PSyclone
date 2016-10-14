@@ -910,7 +910,8 @@ class OMPParallelDirective(OMPDirective):
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen
+        from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen, \
+            DeclGen
 
         private_list = self._get_private_list()
 
@@ -921,7 +922,9 @@ class OMPParallelDirective(OMPDirective):
             thread_idx = self._name_space_manager.create_name(
                 root_name="th_idx", context="PSyVars", label="thread_index")
             private_list.append(thread_idx)
-
+            # declare the variable
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[thread_idx]))
         private_str = self.list_to_string(private_list)
 
         # We're not doing nested parallelism so make sure that this
