@@ -447,7 +447,8 @@ def test_missing_evaluator_shape_both():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'evaluator_shape' in the kernel meta-data" in str(excinfo))
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
 def test_missing_evaluator_shape_basis_only():
@@ -471,7 +472,8 @@ def test_missing_evaluator_shape_basis_only():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'evaluator_shape' in the kernel meta-data" in str(excinfo))
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
 def test_missing_evaluator_shape_diff_basis_only():
@@ -495,7 +497,8 @@ def test_missing_evaluator_shape_diff_basis_only():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'evaluator_shape' in the kernel meta-data" in str(excinfo))
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
 def test_invalid_evaluator_shape():
@@ -512,7 +515,31 @@ def test_invalid_evaluator_shape():
         _ = DynKernMetadata(ast, name=name)
     print str(excinfo)
     assert ("request a valid evaluator shape (one of ['quadrature_xyoz', "
-            "'evaluator_xyz']) but got 'quadrature_wrong'" in str(excinfo))
+            "'evaluator_xyz']) but got 'quadrature_wrong' for kernel "
+            "'testkern_qr_type'" in str(excinfo))
+
+
+def test_unecessary_eval_shape():
+    ''' Check that we raise the correct error if a kernel meta-data specifies
+    an evaluator shape but does not require quadrature or an evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove the need for basis or diff-basis functions
+    code = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n"
+        "           /)\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("Kernel 'testkern_qr_type' specifies an evaluator shape "
+            "(quadrature_xyoz) but does not need an evaluator because no "
+            "basis or differential basis functions are required"
+            in str(excinfo))
 
 
 def test_field():

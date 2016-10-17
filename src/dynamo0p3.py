@@ -213,7 +213,7 @@ class DynFuncDescriptor03(object):
     classes. This class captures the information specified in a
     function-space descriptor. '''
 
-    def __init__(self, func_type, shape):
+    def __init__(self, func_type):
         self._func_type = func_type
         if func_type.name != 'func_type':
             raise ParseError(
@@ -249,23 +249,6 @@ class DynFuncDescriptor03(object):
                                                                  func_type))
                 self._operator_names.append(arg.name)
         self._name = func_type.name
-        # If we require a basis or differential basis then check that a
-        # valid shape for the evaluator has been specified in the meta-data
-        for name in self._operator_names:
-            if name in VALID_EVALUATOR_NAMES:
-                if not shape:
-                    raise ParseError(
-                        "In the dynamo0.3 API any kernel requiring quadrature "
-                        "or an evaluator ({0}) must also supply the shape of "
-                        "that evaluator by setting 'evaluator_shape' in the "
-                        "kernel meta-data".format(VALID_EVALUATOR_NAMES))
-                if shape not in VALID_EVALUATOR_SHAPES:
-                    raise ParseError(
-                        "In the dynamo0.3 API a kernel requiring either "
-                        "quadrature or an evaluator must request a valid "
-                        "evaluator shape (one of {0}) but got '{1}'".
-                        format(VALID_EVALUATOR_SHAPES, shape))
-        self._shape = shape
 
     @property
     def function_space_name(self):
@@ -584,7 +567,7 @@ class DynKernMetadata(KernelType):
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
-        eval_shape = self._ktype.get_variable('evaluator_shape').init
+        self._eval_shape = self._ktype.get_variable('evaluator_shape').init
 
         # parse the arg_type metadata
         self._arg_descriptors = []
@@ -613,8 +596,9 @@ class DynKernMetadata(KernelType):
         for descriptor in self._arg_descriptors:
             arg_fs_names.extend(descriptor.function_spaces)
         used_fs_names = []
+        need_evaluator = False
         for func_type in func_types:
-            descriptor = DynFuncDescriptor03(func_type, eval_shape)
+            descriptor = DynFuncDescriptor03(func_type)
             fs_name = descriptor.function_space_name
             # check that function space names in meta_funcs are specified in
             # meta_args
@@ -631,7 +615,36 @@ class DynKernMetadata(KernelType):
                     "In the dynamo0.3 API function spaces specified in "
                     "meta_funcs must be unique, but '{0}' is replicated."
                     .format(fs_name))
+
+            # Check that a valid evaluator shape has been specified if
+            # this function space requires a basis or differential basis
+            for name in descriptor.operator_names:
+                if name in VALID_EVALUATOR_NAMES:
+                    need_evaluator = True
+                    if not self._eval_shape:
+                        raise ParseError(
+                            "In the dynamo0.3 API any kernel requiring "
+                            "quadrature or an evaluator ({0}) must also supply "
+                            "the shape of that evaluator by setting "
+                            "'evaluator_shape' in the kernel meta-data but "
+                            "this is missing for kernel '{1}'".
+                            format(VALID_EVALUATOR_NAMES, self.name))
+                    if self._eval_shape not in VALID_EVALUATOR_SHAPES:
+                        raise ParseError(
+                            "In the dynamo0.3 API a kernel requiring either "
+                            "quadrature or an evaluator must request a valid "
+                            "evaluator shape (one of {0}) but got '{1}' for "
+                            "kernel '{2}'".
+                            format(VALID_EVALUATOR_SHAPES, self._eval_shape,
+                                   self.name))
             self._func_descriptors.append(descriptor)
+        # Check that no evaluator shape has been supplied if no basis or
+        # differential basis functions are required for the kernel
+        if not need_evaluator and self._eval_shape:
+            raise ParseError(
+                "Kernel '{0}' specifies an evaluator shape ({1}) but does not "
+                "need an evaluator because no basis or differential basis "
+                "functions are required".format(self.name, self._eval_shape))
 
     @property
     def func_descriptors(self):
