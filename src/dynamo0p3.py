@@ -2503,6 +2503,9 @@ class DynKern(Kern):
         parent.add(CommentGen(parent, ""))
 
         if self.dump:
+            new_parent, position = parent.start_parent_loop()
+            new_parent.add(CommentGen(parent, "Eat this"),
+                          position=["before", position])
             parent.add(CommentGen(parent, "Gonna dump mi load"))
 
         # orientation arrays initialisation and their declarations
