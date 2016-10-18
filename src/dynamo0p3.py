@@ -1402,6 +1402,7 @@ class DynInvoke(Invoke):
         var_dim_list = []
         # loop over all unique function spaces used by the kernels in this
         # invoke
+
         for function_space in self.unique_fss():
             # Initialise information associated with this function space
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -2500,6 +2501,9 @@ class DynKern(Kern):
             cell_index = "cell"
 
         parent.add(CommentGen(parent, ""))
+
+        if self.dump:
+            parent.add(CommentGen(parent, "Gonna dump mi load"))
 
         # orientation arrays initialisation and their declarations
         orientation_decl_names = []
