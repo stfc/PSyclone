@@ -717,7 +717,15 @@ class Arg(object):
 class InvokeCall(object):
     def __init__(self, kcalls, name=None, myid=1, invoke_name="invoke"):
         self._kcalls = kcalls
-        self._name = name
+        if name:
+            # Prefix the name with "invoke_" unless it already starts
+            # with that...
+            if not name.lower().startswith("invoke_"):
+                self._name = "invoke_" + name.lower()
+            else:
+                self._name = name.lower()
+        else:
+            self._name = None
 
     @property
     def name(self):
@@ -837,7 +845,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     "OrderedDict not found which is unexpected as it is "
                     "meant to be part of the Python library from 2.7 onwards")
     invokecalls = OrderedDict()
-
+    # Keep a list of the named invokes so that we can check that the same
+    # name isn't used more than once
+    unique_invoke_labels = []
     container_name = None
     for child in ast.content:
         if isinstance(child, fparser.block_statements.Program) or \
@@ -856,11 +866,42 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         if isinstance(statement, fparser.statements.Call) \
            and statement.designator == invoke_name:
             statement_kcalls = []
+            invoke_label = None
             for arg in statement.items:
+                # We expect each item in an invoke call to be either a
+                # call to a kernel or the name of the invoke (specifed
+                # as name="my_name")
                 try:
                     parsed = expr.FORT_EXPRESSION.parseString(arg)[0]
                 except ParseException:
                     raise ParseError("Failed to parse string: {0}".format(arg))
+
+                if isinstance(parsed, expr.NamedArg):
+                    if parsed.name.lower() != "name":
+                        raise ParseError(
+                            "The arguments to an invoke() must be either "
+                            "kernel calls or an (optional) name='invoke-name' "
+                            "but got '{0}'".format(str(parsed)))
+                    if invoke_label:
+                        raise ParseError(
+                            "An invoke must contain one or zero 'name=xxx' "
+                            "arguments but found more than one in: {0}".
+                            format(str(statement)))
+                    if not parsed.is_string:
+                        raise ParseError(
+                            "The (optional) name of an invoke must be "
+                            "specified as a string but got {0}.".
+                            format(str(parsed)))
+                    # Store the supplied label. Remove any spaces.
+                    invoke_label = parsed.value.replace(" ", "_")
+                    # Check that it's not already been used in this Algorithm
+                    if invoke_label in unique_invoke_labels:
+                        raise ParseError(
+                            "Found multiple named invoke()'s with the same "
+                            "name: ''".format(invoke_label))
+                    unique_invoke_labels.append(invoke_label)
+                    # Continue parsing the other arguments to this invoke call
+                    continue
 
                 argname = parsed.name
                 argargs = []
@@ -986,5 +1027,6 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                         KernelCall(modulename, KernelTypeFactory(api=api).
                                    create(modast, name=argname),
                                    argargs))
-            invokecalls[statement] = InvokeCall(statement_kcalls)
+            invokecalls[statement] = InvokeCall(statement_kcalls,
+                                                name=invoke_label)
     return ast, FileInfo(container_name, invokecalls)

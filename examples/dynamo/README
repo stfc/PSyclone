@@ -43,8 +43,8 @@ or without distributed memory parallel code
     cd eg3/
     python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90
 
-The fourth example illustrates the use of (multiple) calls to built-in operations
-within an invoke.
+The fourth example illustrates the use of (multiple) calls to built-in
+operations within an invoke as well as the use of the name="..." argument.
 ::
     cd eg4/
     python ../../../src/generator.py solver_mod.x90

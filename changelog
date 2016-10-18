@@ -31,6 +31,12 @@
 	PSy-layer. This makes no functional difference but should give a
 	performance benefit.
 
+        10) #304 Added support for named invokes in PSyclone.
+
+	11) #580 Implemented tests for the agreed dynamo0.3 builtin
+	rules. For example, all fields must be on the same function space
+	within a builtin.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with

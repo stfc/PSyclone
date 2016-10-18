@@ -18,10 +18,13 @@ from dynamo0p3 import DynLoop, DynKernelArguments
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
-
 # overide the default reduction operator mapping. This is used for
 # reproducible reductions.
 psyGen.REDUCTION_OPERATOR_MAPPING = {"gh_sum": "+"}
+# The types of argument that are valid for built-in kernels in the
+# Dynamo 0.3 API
+VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
+
 
 class DynBuiltInCallFactory(object):
     ''' Creates the necessary framework for a call to a Dynamo built-in,
@@ -59,7 +62,6 @@ class DynBuiltInCallFactory(object):
                 "In the Dynamo 0.3 API built-in calls must iterate over "
                 "DoFs but found {0} for {1}".format(builtin.iterates_over,
                                                     str(builtin)))
-
         # Set-up its state
         dofloop.load(builtin)
         # As it is the innermost loop it has the kernel as a child
@@ -92,6 +94,40 @@ class DynBuiltIn(BuiltIn):
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
+        # Check that this built-in kernel is valid
+        self._validate()
+
+    def _validate(self):
+        ''' Check that this built-in conforms to the Dynamo 0.3 API '''
+        write_count = 0  # Only one argument must be written to
+        field_count = 0  # We must have one or more fields as arguments
+        spaces = set()   # All field arguments must be on the same space
+        for arg in self.arg_descriptors:
+            if arg.access in ["gh_write", "gh_sum", "gh_inc"]:
+                write_count += 1
+            if arg.type == "gh_field":
+                field_count += 1
+                spaces.add(arg.function_space)
+            if arg.type not in VALID_BUILTIN_ARG_TYPES:
+                raise ParseError(
+                    "In the Dynamo 0.3 API an argument to a built-in kernel "
+                    "must be one of {0} but kernel {1} has an argument of "
+                    "type {2}".format(VALID_BUILTIN_ARG_TYPES, self.name,
+                                      arg.type))
+        if write_count != 1:
+            raise ParseError("A built-in kernel in the Dynamo 0.3 API must "
+                             "have one and only one argument that is written "
+                             "to but found {0} for kernel {1}".
+                             format(write_count, self.name))
+        if field_count == 0:
+            raise ParseError("A built-in kernel in the Dynamo 0.3 API "
+                             "must have at least one field as an argument but "
+                             "kernel {0} has none.".format(self.name))
+        if len(spaces) != 1:
+            raise ParseError(
+                "All field arguments to a built-in in the Dynamo 0.3 API "
+                "must be on the same space. However, found spaces {0} for "
+                "arguments to {1}".format([x for x in spaces], self.name))
 
     def array_ref(self, fld_name):
         ''' Returns a string containing the array reference for a

@@ -9,9 +9,9 @@
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
 
-from parse import parse, ParseError
 import os
 import pytest
+from parse import parse, ParseError
 
 
 def test_continuators_kernel():
@@ -126,3 +126,56 @@ def test_element_unpack():
     ele = Element()
     output = ele.unpack("andy")
     assert str(output) == "andy"
+
+
+def test_too_many_names_invoke():
+    ''' Test that we raise the expected error when the invoke contains
+    more than one name=xxx argument. '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.2_many_named_invoke.f90"),
+            api="dynamo0.3")
+    print str(err)
+    assert "An invoke must contain one or zero " in str(err)
+
+
+def test_wrong_named_invoke():
+    ''' Test that we raise the expected error when the invoke contains
+    a named argument where the argument is not called 'name' '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.3_wrong_named_arg_invoke.f90"),
+            api="dynamo0.3")
+    print str(err)
+    assert (
+        "The arguments to an invoke() must be either kernel calls or an "
+        "(optional) name=" in str(err))
+
+
+def test_wrong_type_named_invoke():
+    ''' Test that we raise the expected error when the invoke contains
+    a named argument but its value is not a string '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.4_wrong_type_named_arg_invoke.f90"),
+            api="dynamo0.3")
+    assert ("The (optional) name of an invoke must be specified as a "
+            "string" in str(err))
+
+
+def test_duplicate_named_invoke():
+    ''' Test that we raise the expected error when an algorithm file
+    contains two invokes that are given the same name '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "3.3_multi_functions_multi_invokes_name_clash.f90"),
+            api="dynamo0.3")
+    assert "Found multiple named invoke()'s with the same name" in str(err)

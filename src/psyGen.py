@@ -338,26 +338,11 @@ class Invoke(object):
     def __str__(self):
         return self._name+"("+str(self.unique_args)+")"
 
-    def __init__(self, alg_invocation, idx, Schedule, reserved_names=[]):
+    def __init__(self, alg_invocation, idx, schedule_class,
+                 reserved_names=None):
 
         if alg_invocation is None and idx is None:
             return
-
-        # create our namespace manager - must be done before creating the
-        # schedule
-        self._name_space_manager = NameSpaceFactory(reset=True).create()
-        self._name_space_manager.add_reserved_names(reserved_names)
-
-        # create the schedule
-        self._schedule = Schedule(alg_invocation.kcalls)
-
-        # let the schedule have access to me
-        self._schedule.invoke = self
-
-        # Set up the ordering constraints between the calls in the schedule
-        # Obviously the schedule must be created first
-        for call in self._schedule.calls():
-            call.set_constraints()
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
@@ -372,6 +357,30 @@ class Invoke(object):
         else:
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
+
+        # create our namespace manager - must be done before creating the
+        # schedule
+        self._name_space_manager = NameSpaceFactory(reset=True).create()
+
+        # Add the name for the call to the list of reserved names. This
+        # ensures we don't get a name clash with any variables we subsequently
+        # generate.
+        if reserved_names:
+            reserved_names.append(self._name)
+        else:
+            reserved_names = [self._name]
+        self._name_space_manager.add_reserved_names(reserved_names)
+
+        # create the schedule
+        self._schedule = schedule_class(alg_invocation.kcalls)
+
+        # let the schedule have access to me
+        self._schedule.invoke = self
+
+        # Set up the ordering constraints between the calls in the schedule
+        # Obviously the schedule must be created first
+        for call in self._schedule.calls():
+            call.set_constraints()
 
         # extract the argument list for the algorithm call and psy
         # layer subroutine.
