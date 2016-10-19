@@ -2446,7 +2446,7 @@ class DynKern(Kern):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
         from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen, \
-            IfThenGen
+            IfThenGen, TypeDeclGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
@@ -2503,9 +2503,19 @@ class DynKern(Kern):
         parent.add(CommentGen(parent, ""))
 
         if self.dump:
+            parent.add(UseGen(parent, name="proflib_io_mod", only=True,
+                                  funcnames=["dino_type"]))  
+            parent.add(TypeDeclGen(parent, pointer=False,
+                                    datatype="dino_type",
+                                    entity_decls=[":: dino"]))
             new_parent, position = parent.start_parent_loop()
-            new_parent.add(CommentGen(parent, "Eat this"),
-                          position=["before", position])
+            new_parent.add(AssignGen(parent, pointer=False,
+                                     lhs="dino",
+                                     rhs="dino_type()"),
+                           position=["before", position])
+            new_parent.add(CallGen(parent, name="dino%output_scalar",args="banana"),
+                           position=["before", position])
+
             parent.add(CommentGen(parent, "Gonna dump mi load"))
 
         # orientation arrays initialisation and their declarations
