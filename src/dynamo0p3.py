@@ -2513,7 +2513,10 @@ class DynKern(Kern):
                                      lhs="dino",
                                      rhs="dino_type()"),
                            position=["before", position])
-            new_parent.add(CallGen(parent, name="dino%output_scalar",args="banana"),
+            arglist = self._create_arg_list(parent)
+            args=[]
+            args.append(arglist[0])            
+            new_parent.add(CallGen(parent, name="dino%output_scalar",args=args),
                            position=["before", position])
 
             parent.add(CommentGen(parent, "Gonna dump mi load"))
