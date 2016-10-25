@@ -2073,6 +2073,177 @@ class DynKern(Kern):
                     lvars.append(get_fs_orientation_name(unique_fs))
         return lvars
 
+    def _create_scalar_arg_list(self, parent, my_type="call"):
+        ''' creates the scalar arguments of a kernel call or kernel stub
+        subroutine argument
+        list. For kernel stubs it also creates the data
+        declarations. '''
+        from f2pygen import DeclGen, AssignGen, UseGen
+        if my_type == "subroutine":
+            # add in any required USE associations
+            parent.add(UseGen(parent, name="constants_mod", only=True,
+                              funcnames=["r_def"]))
+        # Store the expression used to get the current cell index when
+        # the kernel is called. If the parent loop has been coloured
+        # then this requires a look-up from the colour map.
+        cell_ref_name = "cell"
+        if my_type == "call" and self.is_coloured():
+            cell_ref_name = "cmap(colour, cell)"
+
+        # create the argument list
+        arglist = []
+        if self._arguments.has_operator:
+            # 0.5: provide cell position
+            if my_type == "call":
+                arglist.append(cell_ref_name)
+            else:
+                arglist.append("cell")
+            if my_type == "subroutine":
+                parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                   entity_decls=["cell"]))
+        # 1: provide mesh height
+        if my_type == "subroutine":
+            arglist.append("nlayers")
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=["nlayers"]))
+        else:
+            nlayers_name = self._name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
+            arglist.append(nlayers_name)
+        # 3: For each function space (in the order they appear in the
+        # metadata arguments)
+        for unique_fs in self.arguments.unique_fss:
+            # 3.1 Provide compulsory arguments common to operators and
+            # fields on a space. There is one: "ndf".
+            ndf_name = get_fs_ndf_name(unique_fs)
+            arglist.append(ndf_name)
+            if my_type == "subroutine":
+                parent.add(
+                    DeclGen(parent, datatype="integer", intent="in",
+                            entity_decls=[ndf_name]),
+                    position=["before", first_arg_decl.root])
+            # 3.1.1 Provide additional compulsory arguments if there
+            # is a field on this space
+            if field_on_space(unique_fs, self.arguments):
+                undf_name = get_fs_undf_name(unique_fs)
+                arglist.append(undf_name)
+                map_name = get_fs_map_name(unique_fs)
+                if my_type == "subroutine":
+                    arglist.append(map_name)
+                    # ndf* declarations need to be before argument
+                    # declarations as some compilers don't like
+                    # declarations after they have been used. We place
+                    # ndf* before the first argument declaration
+                    # (field or operator) (rather than after nlayers)
+                    # as this keeps the declarations in the order
+                    # specified in the metadata and first used by
+                    # fields/operators.
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       entity_decls=[undf_name]),
+                               position=["before", first_arg_decl.root])
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       dimension=ndf_name,
+                                       entity_decls=[map_name]))
+                else:
+                    arglist.append(map_name+"(:,"+cell_ref_name+")")
+
+            # 3.2 Provide any optional arguments. These arguments are
+            # associated with the keyword arguments (basis function,
+            # differential basis function and orientation) for a
+            # function space.
+            if self._fs_descriptors.exists(unique_fs):
+                descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                if descriptor.requires_basis:
+                    basis_name = get_fs_basis_name(unique_fs)
+                    arglist.append(basis_name)
+                    if my_type == "subroutine":
+                        # the size of the first dimension for a
+                        # basis array depends on the
+                        # function space. The values are
+                        # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
+                        first_dim = None
+                        if unique_fs.orig_name.lower() in \
+                           ["w0", "w3", "wtheta"]:
+                            first_dim = "1"
+                        elif (unique_fs.orig_name.lower() in
+                              ["w1", "w2", "w2h", "w2v"]):
+                            first_dim = "3"
+                        else:
+                            raise GenerationError(
+                                "Unsupported space for basis function, "
+                                "expecting one of {0} but found "
+                                "'{1}'".format(VALID_FUNCTION_SPACES,
+                                               unique_fs.orig_name))
+                        parent.add(DeclGen(parent, datatype="real",
+                                           kind="r_def", intent="in",
+                                           dimension=first_dim + "," +
+                                           ndf_name + "," +
+                                           self._qr_args["nh"] + "," +
+                                           self._qr_args["nv"],
+                                           entity_decls=[basis_name]))
+                if descriptor.requires_diff_basis:
+                    diff_basis_name = get_fs_diff_basis_name(unique_fs)
+                    arglist.append(diff_basis_name)
+                    if my_type == "subroutine":
+                        # the size of the first dimension for a
+                        # differential basis array depends on the
+                        # function space. The values are
+                        # w0=3, w1=3, w2=1, w3=1, wtheta=3, w2h=1, w2v=1
+                        first_dim = None
+                        if unique_fs.orig_name.lower() in \
+                           ["w2", "w3", "w2h", "w2v"]:
+                            first_dim = "1"
+                        elif (unique_fs.orig_name.lower() in
+                              ["w0", "w1", "wtheta"]):
+                            first_dim = "3"
+                        else:
+                            raise GenerationError(
+                                "Unsupported space for differential basis "
+                                "function, expecting one of {0} but found "
+                                "'{1}'".format(VALID_FUNCTION_SPACES,
+                                               unique_fs.orig_name))
+                        parent.add(DeclGen(parent, datatype="real",
+                                           kind="r_def", intent="in",
+                                           dimension=first_dim + "," +
+                                           ndf_name + "," +
+                                           self._qr_args["nh"] + "," +
+                                           self._qr_args["nv"],
+                                           entity_decls=[diff_basis_name]))
+                if descriptor.requires_orientation:
+                    orientation_name = get_fs_orientation_name(unique_fs)
+                    arglist.append(orientation_name)
+                    if my_type == "subroutine":
+                        parent.add(DeclGen(parent, datatype="integer",
+                                           intent="in", dimension=ndf_name,
+                                           entity_decls=[orientation_name]))
+            # 3.3 Fix for boundary_dofs array to the boundary
+            # condition kernel (enforce_bc_kernel) arguments
+            if self.name.lower() == "enforce_bc_code" and \
+               unique_fs.orig_name.lower() == "any_space_1":
+                arglist.append("boundary_dofs")
+                if my_type == "subroutine":
+                    ndf_name = get_fs_ndf_name(unique_fs)
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       dimension=ndf_name+",2",
+                                       entity_decls=["boundary_dofs"]))
+                if my_type == "call":
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       pointer=True, entity_decls=[
+                                           "boundary_dofs(:,:) => null()"]))
+                    fspace = None
+                    for fspace in self._arguments.unique_fss:
+                        if fspace.orig_name == "any_space_1":
+                            break
+                    proxy_name = (self._arguments.get_arg_on_space(fspace).
+                                  proxy_name)
+                    new_parent, position = parent.start_parent_loop()
+                    new_parent.add(AssignGen(new_parent, pointer=True,
+                                             lhs="boundary_dofs",
+                                             rhs=proxy_name +
+                                             "%vspace%get_boundary_dofs()"),
+                                   position=["before", position])
+        return arglist
+        
     def _create_arg_list(self, parent, my_type="call"):
         ''' creates the kernel call or kernel stub subroutine argument
         list. For kernel stubs it also creates the data
@@ -2513,9 +2684,10 @@ class DynKern(Kern):
                                      lhs="dino",
                                      rhs="dino_type()"),
                            position=["before", position])
-            arglist = self._create_arg_list(parent)
+            arglist = self._create_scalar_arg_list(parent)
+
             args=[]
-            args.append(arglist[0])            
+            args.append(arglist)
             new_parent.add(CallGen(parent, name="dino%output_scalar",args=args),
                            position=["before", position])
 
