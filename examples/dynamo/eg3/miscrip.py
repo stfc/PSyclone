@@ -8,7 +8,7 @@ ast,invokeInfo=parse("solver_mod.x90",api=api)
 psy=PSyFactory(api).create(invokeInfo)
 
 schedule=psy.invokes.get('invoke_2_matrix_vector_kernel_mm_type').schedule
-schedule.view()
+#schedule.view()
 
 from psyGen import TransInfo, Kern
 t=TransInfo()
@@ -21,6 +21,6 @@ for kernel in schedule.walk(schedule.children, Kern):
 
 
 schedule=psy.invokes.get('invoke_2_matrix_vector_kernel_mm_type').schedule
-schedule.view()
+#schedule.view()
 
 print psy.gen

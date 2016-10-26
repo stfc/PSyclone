@@ -2110,6 +2110,30 @@ class DynKern(Kern):
             nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
             arglist.append(nlayers_name)
+
+        if arg.type == "gh_operator":
+            if my_type == "subroutine":
+                size = arg.name + "_ncell_3d"
+                arglist.append(size)
+                decl = DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[size])
+                parent.add(decl)
+                if first_arg:
+                    first_arg = False
+                    first_arg_decl = decl
+                    text = arg.name
+                    arglist.append(text)
+                    
+                    intent = arg.intent
+                    ndf_name_to = get_fs_ndf_name(arg.function_space_to)
+                    ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+                    parent.add(DeclGen(parent, datatype="real",
+                                       kind="r_def",
+                                       dimension=ndf_name_to + "," +
+                                       ndf_name_from + "," + size,
+                                       intent=intent, entity_decls=[text]))
+                else:
+                    arglist.append(arg.proxy_name_indexed+"%ncell_3d")
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
@@ -2127,25 +2151,25 @@ class DynKern(Kern):
             if field_on_space(unique_fs, self.arguments):
                 undf_name = get_fs_undf_name(unique_fs)
                 arglist.append(undf_name)
-                map_name = get_fs_map_name(unique_fs)
+#                map_name = get_fs_map_name(unique_fs)
                 if my_type == "subroutine":
-                    arglist.append(map_name)
-                    # ndf* declarations need to be before argument
-                    # declarations as some compilers don't like
-                    # declarations after they have been used. We place
-                    # ndf* before the first argument declaration
-                    # (field or operator) (rather than after nlayers)
-                    # as this keeps the declarations in the order
-                    # specified in the metadata and first used by
-                    # fields/operators.
+#                    arglist.append(map_name)
+#                    # ndf* declarations need to be before argument
+#                    # declarations as some compilers don't like
+#                    # declarations after they have been used. We place
+#                    # ndf* before the first argument declaration
+#                    # (field or operator) (rather than after nlayers)
+#                    # as this keeps the declarations in the order
+#                    # specified in the metadata and first used by
+#                    # fields/operators.
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                        entity_decls=[undf_name]),
                                position=["before", first_arg_decl.root])
-                    parent.add(DeclGen(parent, datatype="integer", intent="in",
-                                       dimension=ndf_name,
-                                       entity_decls=[map_name]))
-                else:
-                    arglist.append(map_name+"(:,"+cell_ref_name+")")
+#                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+#                                       dimension=ndf_name,
+#                                       entity_decls=[map_name]))
+#                else:
+#                    arglist.append(map_name+"(:,"+cell_ref_name+")")
 
             # 3.2 Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function,
@@ -2687,8 +2711,11 @@ class DynKern(Kern):
             arglist = self._create_scalar_arg_list(parent)
 
             args=[]
-            args.append(arglist)
-            new_parent.add(CallGen(parent, name="dino%output_scalar",args=args),
+            for sc in range(len(arglist)):
+                args=[]
+                args.append(arglist[sc])
+                new_parent.add(CallGen(parent, name="dino%output_scalar",
+                           args=args),
                            position=["before", position])
 
             parent.add(CommentGen(parent, "Gonna dump mi load"))
