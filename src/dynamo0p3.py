@@ -2073,6 +2073,41 @@ class DynKern(Kern):
                     lvars.append(get_fs_orientation_name(unique_fs))
         return lvars
 
+    def _create_integer_array_arglist(self, parent, my_type="call"):
+        ''' creates the integer array arguments of a kernel call or kernel stub
+        subroutine argument
+        list. For kernel stubs it also creates the data
+        declarations. '''
+        cell_ref_name = "cell"
+        if my_type == "call" and self.is_coloured():
+            cell_ref_name = "cmap(colour, cell)"
+        
+        arglist=[]
+        for unique_fs in self.arguments.unique_fss:
+            # 3.1.1 Provide additional compulsory arguments if there
+            # is a field on this space
+            if field_on_space(unique_fs, self.arguments):
+                map_name = get_fs_map_name(unique_fs)
+                if my_type == "subroutine":
+                    arglist.append(map_name)
+                    # ndf* declarations need to be before argument
+                    # declarations as some compilers don't like
+                    # declarations after they have been used. We place
+                    # ndf* before the first argument declaration
+                    # (field or operator) (rather than after nlayers)
+                    # as this keeps the declarations in the order
+                    # specified in the metadata and first used by
+                    # fields/operators.
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       entity_decls=[undf_name]),
+                               position=["before", first_arg_decl.root])
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       dimension=ndf_name,
+                                       entity_decls=[map_name]))
+                else:
+                    arglist.append(map_name+"(:,"+cell_ref_name+")")
+        return arglist
+
     def _create_scalar_arg_list(self, parent, my_type="call"):
         ''' creates the scalar arguments of a kernel call or kernel stub
         subroutine argument
@@ -2720,7 +2755,14 @@ class DynKern(Kern):
                            args=args),
                            position=["before", position])
 
-            parent.add(CommentGen(parent, "Gonna dump mi load"))
+            arglist = self._create_integer_array_arglist(parent)
+            for iarg in range(len(arglist)):
+                args=[]
+                args.append(arglist[iarg])
+                new_parent.add(CallGen(parent, name="dino%output_array",
+                           args=args),
+                           position=["before", position])
+
 
         # orientation arrays initialisation and their declarations
         orientation_decl_names = []
