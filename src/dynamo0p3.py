@@ -2110,30 +2110,32 @@ class DynKern(Kern):
             nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
             arglist.append(nlayers_name)
-
-        if arg.type == "gh_operator":
-            if my_type == "subroutine":
-                size = arg.name + "_ncell_3d"
-                arglist.append(size)
-                decl = DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=[size])
-                parent.add(decl)
-                if first_arg:
-                    first_arg = False
-                    first_arg_decl = decl
-                    text = arg.name
-                    arglist.append(text)
-                    
-                    intent = arg.intent
-                    ndf_name_to = get_fs_ndf_name(arg.function_space_to)
-                    ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-                    parent.add(DeclGen(parent, datatype="real",
-                                       kind="r_def",
-                                       dimension=ndf_name_to + "," +
-                                       ndf_name_from + "," + size,
-                                       intent=intent, entity_decls=[text]))
+        
+        for arg in self._arguments.args:
+            if arg.type == "gh_operator":
+                if my_type == "subroutine":
+                    size = arg.name + "_ncell_3d"
+                    arglist.append(size)
+                    decl = DeclGen(parent, datatype="integer", intent="in",
+                                   entity_decls=[size])
+                    parent.add(decl)
+                    if first_arg:
+                        first_arg = False
+                        first_arg_decl = decl
+                        text = arg.name
+                        arglist.append(text)
+                        
+                        intent = arg.intent
+                        ndf_name_to = get_fs_ndf_name(arg.function_space_to)
+                        ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+                        parent.add(DeclGen(parent, datatype="real",
+                                           kind="r_def",
+                                           dimension=ndf_name_to + "," +
+                                           ndf_name_from + "," + size,
+                                           intent=intent, entity_decls=[text]))
                 else:
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
