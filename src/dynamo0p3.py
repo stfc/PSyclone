@@ -2086,6 +2086,7 @@ class DynKern(Kern):
         for unique_fs in self.arguments.unique_fss:
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
+            ndf_name = get_fs_ndf_name(unique_fs)            
             if field_on_space(unique_fs, self.arguments):
                 map_name = get_fs_map_name(unique_fs)
                 if my_type == "subroutine":
@@ -2105,7 +2106,8 @@ class DynKern(Kern):
                                        dimension=ndf_name,
                                        entity_decls=[map_name]))
                 else:
-                    arglist.append(map_name+"(:,"+cell_ref_name+")")
+#                    arglist.append(map_name+"(:,"+cell_ref_name+")")
+                    arglist.append(map_name+","+ndf_name+","+"mesh%get_last_halo_cell(1)")
         return arglist
 
     def _create_scalar_arg_list(self, parent, my_type="call"):
@@ -2781,9 +2783,9 @@ class DynKern(Kern):
                                   "%get_cell_orientation(" +
                                   cell_index + ")"))
         if orientation_decl_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+           parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=orientation_decl_names))
-            parent.add(CommentGen(parent, ""))
+           parent.add(CommentGen(parent, ""))
 
         arglist = self._create_arg_list(parent)
 
