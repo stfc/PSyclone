@@ -423,13 +423,13 @@ Below is an example of stencil information within the full kernel metadata.
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
 
-meta_funcs and evaluator_shape
-##############################
+meta_funcs
+##########
 
-The (optional) second and third components of kernel meta-data specify
+The (optional) second component of kernel meta-data specifies
 whether any quadrature or evaluator data is required for a given
 function space. (If no quadrature or evaluator data is required then
-these meta-data components may be omitted.) Consider the
+this meta-data should be omitted.) Consider the
 following kernel meta-data:
 
 ::
@@ -458,11 +458,21 @@ requires basis functions (``gh_basis``) and/or the differential of the
 basis functions (``gh_diff_basis``) on one or more of the function
 spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
-functions for W1. The set of points on which these quantities should
-be supplied is then specified by the ``evaluator_shape`` component of
-the meta-data.  Currently PSyclone supports two shapes;
+functions for W1.
+
+evaluator_shape
+###############
+
+If a kernel requires basis or differential-basis functions then the
+meta-data must also specify the set of points on which these functions
+are required. This information is provided by the ``evaluator_shape``
+component of the meta-data.  Currently PSyclone supports two shapes;
 ``quadrature_XYoZ`` for Gaussian quadrature points and
 ``evaluator_XYZ`` for evaluation at nodal points.
+
+Note that it is an error for kernel meta-data to specify an
+``evaluator_shape`` if no basis or differential-basis functions are
+required.
 
 iterates over
 #############
