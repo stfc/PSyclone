@@ -567,7 +567,7 @@ class DynKernMetadata(KernelType):
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
-        self._eval_shape = self._ktype.get_variable('evaluator_shape').init
+        self._eval_shape = self.get_integer_variable('evaluator_shape')
 
         # parse the arg_type metadata
         self._arg_descriptors = []
