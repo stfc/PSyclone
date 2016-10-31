@@ -624,8 +624,8 @@ class DynKernMetadata(KernelType):
                     if not self._eval_shape:
                         raise ParseError(
                             "In the dynamo0.3 API any kernel requiring "
-                            "quadrature or an evaluator ({0}) must also supply "
-                            "the shape of that evaluator by setting "
+                            "quadrature or an evaluator ({0}) must also "
+                            "supply the shape of that evaluator by setting "
                             "'evaluator_shape' in the kernel meta-data but "
                             "this is missing for kernel '{1}'".
                             format(VALID_EVALUATOR_NAMES, self.name))

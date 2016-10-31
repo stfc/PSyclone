@@ -544,15 +544,17 @@ class KernelType(object):
 
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the
-        integer variable with the supplied name. '''
+        integer variable with the supplied name. Return None if no
+        matching variable is found.'''
         for statement, _ in fpapi.walk(self._ktype, -1):
             if isinstance(statement, fparser.typedecl_statements.Integer):
                 # fparser only goes down to the statement level. We use
                 # the expression parser (expression.py) to parse the
                 # statement itself.
-                p = expr.FORT_EXPRESSION.parseString(statement.entity_decls[0])
-                if p[0].name == name:
-                    return p[0].value
+                assign = expr.FORT_EXPRESSION.parseString(
+                    statement.entity_decls[0])
+                if assign[0].name == name:
+                    return assign[0].value
         return None
 
 
