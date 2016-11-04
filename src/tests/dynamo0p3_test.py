@@ -59,6 +59,7 @@ module testkern_qr
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_qr_code
   end type testkern_qr_type
@@ -431,6 +432,114 @@ def test_fsdesc_fs_not_in_argdesc():
         _ = DynKernMetadata(ast, name=name)
     assert 'function spaces specified in meta_funcs must exist in ' + \
         'meta_args' in str(excinfo)
+
+
+def test_missing_evaluator_shape_both():
+    ''' Check that we raise the correct error if a kernel requiring
+    quadrature/evaluator fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove the line specifying the shape of the evaluator
+    code = CODE.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
+
+
+def test_missing_evaluator_shape_basis_only():
+    ''' Check that we raise the correct error if a kernel specifying
+    that it needs gh_basis fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Alter meta-data so only requires gh_basis
+    code1 = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis)                &\n", 1)
+    # Remove the line specifying the shape of the evaluator
+    code = code1.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
+
+
+def test_missing_evaluator_shape_diff_basis_only():
+    ''' Check that we raise the correct error if a kernel specifying
+    that it needs gh_diff_basis fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Alter meta-data so only requires gh_diff_basis
+    code1 = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
+    # Remove the line specifying the shape of the evaluator
+    code = code1.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
+
+
+def test_invalid_evaluator_shape():
+    ''' Check that we raise the correct error if a kernel requiring
+    quadrature/evaluator specifies an unrecognised shape for the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Specify an invalid shape for the evaluator
+    code = CODE.replace(
+        "evaluator_shape = quadrature_XYoZ",
+        "evaluator_shape = quadrature_wrong", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("request a valid evaluator shape (one of ['quadrature_xyoz', "
+            "'evaluator_xyz']) but got 'quadrature_wrong' for kernel "
+            "'testkern_qr_type'" in str(excinfo))
+
+
+def test_unecessary_eval_shape():
+    ''' Check that we raise the correct error if a kernel meta-data specifies
+    an evaluator shape but does not require quadrature or an evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove the need for basis or diff-basis functions
+    code = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n"
+        "           /)\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("Kernel 'testkern_qr_type' specifies an evaluator shape "
+            "(quadrature_xyoz) but does not need an evaluator because no "
+            "basis or differential basis functions are required"
+            in str(excinfo))
 
 
 def test_field():
@@ -2854,6 +2963,7 @@ module dummy_mod
              func_type(w2v, gh_basis)     &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_xyoz
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -2952,6 +3062,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -2996,6 +3107,7 @@ module dummy_mod
              func_type(w2v, gh_diff_basis)     &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3065,7 +3177,7 @@ def test_diff_basis():
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
         ":: diff_basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,nqp_h,nqp_v) "
         ":: diff_basis_w3\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
@@ -3094,6 +3206,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
