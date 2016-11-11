@@ -2123,7 +2123,7 @@ class DynKern(Kern):
         # Store the expression used to get the current cell index when
         # the kernel is called. If the parent loop has been coloured
         # then this requires a look-up from the colour map.
-        cell_ref_name = "cell"
+        cell_ref_name = "mesh%get_last_halo_cell(1)"
         if my_type == "call" and self.is_coloured():
             cell_ref_name = "cmap(colour, cell)"
 
