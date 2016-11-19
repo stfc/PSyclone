@@ -33,12 +33,12 @@ The third example can be used to demonstrate PSyclone
     # look for %set_dirty and %halo_exchange in the generated code
 
 2) using a transformation script to perform loop colouring and OpenMP
-parallelisation either with distributed memory parallel code
+parallelisation, either with distributed memory parallel code:
 ::
     cd eg3/
     python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
 
-or without distributed memory parallel code
+or without distributed memory parallel code:
 ::
     cd eg3/
     python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90

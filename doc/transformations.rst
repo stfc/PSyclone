@@ -223,8 +223,8 @@ Parallel Do** directive, respectively, to a code.
 The generic versions of these three transformations (i.e. ones that
 theoretically work for all API's) were given in the
 :ref:`sec_transformations_script` section. The API-specific versions
-of these codes are described in the API-specific sections of this
-document.
+of these transformations are described in the API-specific sections of
+this document.
 
 Reductions
 ++++++++++
@@ -256,7 +256,7 @@ then the OpenMP reduction support is replaced with local per-thread
 reductions which are reduced serially after the loop has
 finished. This implementation guarantees to give bit-wise reproducible
 results for different runs of the same problem using the same
-resources, but will not bit-wise compare if the code is rerun with a
+resources, but will not bit-wise compare if the code is rerun with
 different numbers of OpenMP threads.
 
 Limitations
