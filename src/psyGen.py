@@ -59,6 +59,19 @@ def get_api(api):
     return api
 
 
+def zero_reduction_variables(red_call_list, parent):
+    '''zero all reduction variables associated with the calls in the call
+    list'''
+    if red_call_list:
+        from f2pygen import CommentGen
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Zero summation variables"))
+        parent.add(CommentGen(parent, ""))
+        for call in red_call_list:
+            call.zero_reduction_variable(parent)
+        parent.add(CommentGen(parent, ""))
+
+
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
         code generation. '''
@@ -954,14 +967,8 @@ class OMPParallelDirective(OMPDirective):
         # this almost certainly indicates a user error.
         self._encloses_omp_directive()
 
-        red_call_list = self.reductions()
-        if red_call_list:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Zero summation variables"))
-            parent.add(CommentGen(parent, ""))
-            for call in red_call_list:
-                call.zero_reduction_variable(parent)
-            parent.add(CommentGen(parent, ""))
+        calls = self.reductions()
+        zero_reduction_variables(calls, parent)
 
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 "default(shared), private({0})".
@@ -1158,15 +1165,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
 
-        red_call_list = self.reductions()
-        if red_call_list:
-            from f2pygen import CommentGen
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Zero summation variables"))
-            parent.add(CommentGen(parent, ""))
-            for call in red_call_list:
-                call.zero_reduction_variable(parent)
-            parent.add(CommentGen(parent, ""))
+        calls = self.reductions()
+        zero_reduction_variables(calls, parent)
 
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
@@ -1400,15 +1400,8 @@ class Loop(Node):
     def gen_code(self, parent):
         '''Generate the fortran Loop and any associated code '''
         if not self.is_openmp_parallel():
-            red_call_list = self.reductions()
-            if red_call_list:
-                from f2pygen import CommentGen
-                parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent, " Zero summation variables"))
-                parent.add(CommentGen(parent, ""))
-                for call in red_call_list:
-                    call.zero_reduction_variable(parent)
-                    parent.add(CommentGen(parent, ""))
+            calls = self.reductions()
+            zero_reduction_variables(calls, parent)
 
         if self._start == "1" and self._stop == "1":  # no need for a loop
             for child in self.children:
