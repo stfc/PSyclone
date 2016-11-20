@@ -1926,8 +1926,10 @@ class DynLoop(Loop):
                 parent.add(CommentGen(parent, ""))
                 from psyGen import OMPParallelDoDirective
                 from f2pygen import DirectiveGen
+                use_omp_master = False
                 if self.is_openmp_parallel():
                     if not self.ancestor(OMPParallelDoDirective):
+                        use_omp_master = True
                         # I am within an OpenMP Do directive so protect
                         # set_dirty() with OpenMP Master
                         parent.add(DirectiveGen(parent, "omp", "begin",
@@ -1944,12 +1946,11 @@ class DynLoop(Loop):
                     else:
                         parent.add(CallGen(parent, name=field.proxy_name +
                                            "%set_dirty()"))
-                if self.is_openmp_parallel():
-                    if not self.ancestor(OMPParallelDoDirective):
-                        # I am within an OpenMP Do directive so protect
-                        # set_dirty() with OpenMP Master
-                        parent.add(DirectiveGen(parent, "omp", "end",
-                                                "master", ""))
+                if use_omp_master:
+                    # I am within an OpenMP Do directive so protect
+                    # set_dirty() with OpenMP Master
+                    parent.add(DirectiveGen(parent, "omp", "end",
+                                            "master", ""))
                 parent.add(CommentGen(parent, ""))
 
 

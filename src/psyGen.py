@@ -17,12 +17,21 @@ import config
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
-# The following mappings will be set by a particular API if supported. We
-# provide a default here for API's which do not have their own mapping
-# (or support this mapping). This allows codes with no support to run.
-# Names of reduction operations
+# The following mappings will be set by a particular API if supported
+# and required. We provide a default here for API's which do not have
+# their own mapping (or support this mapping). This allows codes with
+# no support to run.
+# MAPPING_REDUCTIONS gives the names of reduction operations
 MAPPING_REDUCTIONS = {"sum": "sum"}
+# OMP_OPERATOR_MAPPING is used to determine the operator to use in the
+# reduction clause of an OpenMP directive. All code for OpenMP
+# directives exists in psyGen.py so this mapping should not be
+# overidden.
 OMP_OPERATOR_MAPPING = {"sum": "+"}
+# REDUCTION_OPERATOR_MAPPING is used to determine the operator to use
+# when creating a loop to sum partial sums sequentially, in order to
+# get reproducible results. The LHS is the datatype of the field in
+# question so needs to be overidden by the particular API.
 REDUCTION_OPERATOR_MAPPING = {"sum": "+"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
