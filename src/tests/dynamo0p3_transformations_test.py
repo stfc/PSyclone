@@ -2378,7 +2378,7 @@ def test_reprod_reduction_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0])
+        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
         # Apply an OpenMP Parallel directive around the OpenMP do directive
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule

@@ -15,7 +15,6 @@
     transformation. '''
 
 from psyGen import Transformation
-import config
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -229,9 +228,10 @@ class OMPLoopTrans(Transformation):
     '''Adds an orphaned OpenMP directive to a loop. i.e. the directive
         must be inside the scope of some other OMP Parallel
         REGION. This condition is tested at code-generation time. The
-        optional 'reprod' argument decides whether standard OpenMP
-        reduction support is to be used (which is not reproducible) or
-        whether a manual reproducible reproduction is to be used.
+        optional 'reprod' argument in the apply method decides whether
+        standard OpenMP reduction support is to be used (which is not
+        reproducible) or whether a manual reproducible reproduction is
+        to be used.
 
         For example:
 
@@ -314,7 +314,7 @@ class OMPLoopTrans(Transformation):
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
 
-    def apply(self, node, reprod=config.REPRODUCIBLE_REDUCTIONS):
+    def apply(self, node, reprod=None):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -331,7 +331,19 @@ class OMPLoopTrans(Transformation):
         :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP PARALLEL region.
 
+        The optional reprod argument will cause a reproducible
+        reduction to be generated if it is set to True, otherwise the
+        default, non-reproducible OpenMP reduction will used. Note,
+        reproducible in this case means obtaining the same results
+        with the same number of OpenMP threads, not for different
+        numbers of OpenMP threads.
+
         '''
+
+        if reprod is None:
+            import config
+            reprod = config.REPRODUCIBLE_REDUCTIONS
+
         # Check that the supplied node is a Loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -548,11 +560,16 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def apply(self, node, reprod=True):
+    def apply(self, node, reprod=None):
         '''Perform Dynamo 0.3 specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
         '''
+
+        if reprod is None:
+            import config
+            reprod = config.REPRODUCIBLE_REDUCTIONS
+
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
