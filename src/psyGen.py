@@ -1560,11 +1560,16 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
+            if config.REPROD_PAD_SIZE < 1:
+                raise GenerationError(
+                    "REPROD_PAD_SIZE in config.py should be a positive "
+                    "integer, but it is set to '{0}'.".format(
+                        config.REPROD_PAD_SIZE))
             pad_size = str(config.REPROD_PAD_SIZE)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
-                                 rhs="0.0_r_def"), position=position)
+                                 rhs=zero), position=position)
 
     def reduction_sum_loop(self, parent):
         '''generate the appropriate code to place after the end parallel

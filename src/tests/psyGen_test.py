@@ -758,3 +758,35 @@ def test_named_invoke_name_clash():
     print gen
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
+
+
+def test_invalid_reprod_pad_size():
+    '''Check that we raise an exception if the pad size in config.py is
+    set to an invalid value '''
+    import config
+    keep = config.REPROD_PAD_SIZE
+    config.REPROD_PAD_SIZE = 0
+    for distmem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        from transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do directive to the loop
+        schedule, _ = otrans.apply(schedule.children[0])
+        # Apply an OpenMP Parallel directive around the OpenMP do directive
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        with pytest.raises(GenerationError) as excinfo:
+            code = str(psy.gen)
+        assert (
+            "REPROD_PAD_SIZE in config.py should be a positive "
+            "integer") in str(excinfo.value)
+    config.REPROD_PAD_SIZE = keep
