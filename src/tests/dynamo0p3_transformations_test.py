@@ -756,31 +756,40 @@ def test_loop_fuse_different_spaces():
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0')
-        schedule = invoke.schedule
+    for same_space in [False, True]:
+        for dist_mem in [False, True]:
+            psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+            invoke = psy.invokes.get('invoke_0')
+            schedule = invoke.schedule
 
-        ftrans = DynamoLoopFuseTrans()
-        if dist_mem:
-            # b halo exchange between loops can be removed as access
-            # in both loops is read and it is already covered by the
-            # first loop
-            del schedule.children[7]
-            # c and g halo exchange between loops can be moved before
-            # 1st loop as they are not accessed in first loop
-            schedule.children.insert(6, schedule.children.pop(7))
-            schedule.children.insert(7, schedule.children.pop(8))
-            index = 8
-        else:
-            index = 0
+            ftrans = DynamoLoopFuseTrans()
+            if dist_mem:
+                # b halo exchange between loops can be removed as access
+                # in both loops is read and it is already covered by the
+                # first loop
+                del schedule.children[7]
+                # c and g halo exchange between loops can be moved before
+                # 1st loop as they are not accessed in first loop
+                schedule.children.insert(6, schedule.children.pop(7))
+                schedule.children.insert(7, schedule.children.pop(8))
+                index = 8
+            else:
+                index = 0
 
-        with pytest.raises(TransformationError) as excinfo:
-            _, _ = ftrans.apply(schedule.children[index],
-                                schedule.children[index+1])
-        assert "Error in DynamoLoopFuse transformation" in str(excinfo.value)
-        assert "Cannot fuse loops that are over different spaces" in \
-            str(excinfo.value)
+            with pytest.raises(TransformationError) as excinfo:
+                _, _ = ftrans.apply(schedule.children[index],
+                                    schedule.children[index+1],
+                                    same_space=same_space)
+            assert "Error in DynamoLoopFuse transformation" in \
+                str(excinfo.value)
+            assert "Cannot fuse loops that are over different spaces" in \
+                str(excinfo.value)
+            same_space_warning = ("Note, the same_space flag was set but "
+                                  "this has been ignored")
+            if same_space:
+                assert same_space_warning in str(excinfo.value)
+            else:
+                assert same_space_warning not in str(excinfo.value)
 
 
 def test_loop_fuse_unexpected_error():

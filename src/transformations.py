@@ -15,7 +15,6 @@
     transformation. '''
 
 from psyGen import Transformation
-from dynamo0p3 import VALID_ANY_SPACE_NAMES
 import config
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
@@ -168,15 +167,23 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
         LoopFuseTrans._validate(self, node1, node2)
 
+        from dynamo0p3 import VALID_FUNCTION_SPACES
         try:
-            if node1.field_space.orig_name != node2.field_space.orig_name:
-                raise TransformationError(
-                    "Error in DynamoLoopFuse transformation. "
-                    "Cannot fuse loops that are over different spaces: "
-                    "{0} {1}".format(node1.field_space.orig_name,
-                                     node2.field_space.orig_name))
-            if node1.field_space.orig_name in VALID_ANY_SPACE_NAMES or \
-               node1.field_space.orig_name in VALID_ANY_SPACE_NAMES:
+            if node1.field_space.orig_name in VALID_FUNCTION_SPACES and \
+               node2.field_space.orig_name in VALID_FUNCTION_SPACES:
+                if node1.field_space.orig_name != node2.field_space.orig_name:
+                    if same_space:
+                        info = (" Note, the same_space flag was set but this "
+                                "has been ignored.")
+                    else:
+                        info = ""
+                    raise TransformationError(
+                        "Error in DynamoLoopFuse transformation. "
+                        "Cannot fuse loops that are over different spaces: "
+                        "{0} {1}.{2}".format(node1.field_space.orig_name,
+                                             node2.field_space.orig_name,
+                                             info))
+            else: # one or more of the function spaces is any_space
                 if not same_space:
                     raise TransformationError(
                         "DynamoLoopFuseTrans. One or more of the iteration "
