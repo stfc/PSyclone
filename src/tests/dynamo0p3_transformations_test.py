@@ -1676,46 +1676,158 @@ def test_multi_reduction_real_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_reduction_real_do():
-    '''test that we raise an exception when we have a reduction in an OMP
-    DO and it is not the first loop as this will cause the zero-ing of
-    the value to occur within the parallel region. '''
-    for file_name in ["15.11.0_two_same_builtin_reductions.f90",
-                      "15.12.0_two_different_builtin_reductions.f90",
-                      "15.14.0_two_builtins_standard_then_reduction.f90"]:
-        for reprod in [False, True]:
-            for distmem in [False, True]:
-                _, invoke_info = parse(
-                    os.path.join(BASE_PATH, file_name),
-                    distributed_memory=distmem,
-                    api="dynamo0.3")
-                psy = PSyFactory(
-                    "dynamo0.3",
-                    distributed_memory=distmem).create(invoke_info)
-                invoke = psy.invokes.invoke_list[0]
-                schedule = invoke.schedule
-                otrans = Dynamo0p3OMPLoopTrans()
-                rtrans = OMPParallelTrans()
-                # Apply an OpenMP do to the loop
-                from psyGen import Loop
-                for child in schedule.children:
-                    if isinstance(child, Loop):
-                        schedule, _ = otrans.apply(child, reprod=reprod)
-                if distmem:
-                    # for our first two files we have to move/delete a
-                    # global sum to get to the stage where we can raise an
-                    # error. This makes incorrect code in this example but
-                    # in general it could be valid to move the global sum
-                    if not "15.14" in file_name:
-                        del schedule.children[1]
-                schedule, _ = rtrans.apply(schedule.children[0:2])
-                invoke.schedule = schedule
-                with pytest.raises(GenerationError) as excinfo:
-                    _ = str(psy.gen)
-                assert (
-                    "Reductions are only valid within an OMP DO loop if "
-                    "the loop is the first computation in the surrounding "
-                    "OMP PARALLEL loop") in str(excinfo.value)
+def test_reduction_after_normal_real_do():
+    '''test that we produce correct code when we have a reduction after
+    a "normal" builtin and we use OpenMP DO loops for parallelisation
+    with a single parallel region over all calls'''
+    file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, file_name),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory(
+            "dynamo0.3",
+            distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child, reprod=False)
+        # Apply an OpenMP Parallel for all loops
+        schedule, _ = rtrans.apply(schedule.children[0:2])
+        invoke.schedule = schedule
+        result = str(psy.gen)
+        print str(psy.gen)
+        if distmem:
+            expected_output = (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,bvalue_proxy%vspace%get_last_dof_owned()\n"
+                "        bvalue_proxy%data(df) = f1*bvalue_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL bvalue_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()")
+        else:
+            expected_output = (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df)\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_bvalue\n"
+                "        bvalue_proxy%data(df) = f1*bvalue_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp do schedule(static), reduction(+:asum)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel")
+        assert expected_output in result
+
+
+def test_reduction_after_normal_real_do():
+    '''test that we produce correct code when we have a reproducible
+    reduction after a "normal" builtin and we use OpenMP DO loops for
+    parallelisation with a single parallel region over all calls'''
+
+    file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
+    for reprod in [True]:
+        for distmem in [False, True]:
+            _, invoke_info = parse(
+                os.path.join(BASE_PATH, file_name),
+                distributed_memory=distmem,
+                api="dynamo0.3")
+            psy = PSyFactory(
+                "dynamo0.3",
+                distributed_memory=distmem).create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+            otrans = Dynamo0p3OMPLoopTrans()
+            rtrans = OMPParallelTrans()
+            # Apply an OpenMP do to the loop
+            from psyGen import Loop
+            for child in schedule.children:
+                if isinstance(child, Loop):
+                    schedule, _ = otrans.apply(child, reprod=reprod)
+            # Apply an OpenMP Parallel for all loops
+            schedule, _ = rtrans.apply(schedule.children[0:2])
+            invoke.schedule = schedule
+            result = str(psy.gen)
+            print str(psy.gen)
+            if distmem:
+                exit(1)
+            else:
+                exit(1)
+
+
+# TBD add tests with and without reprod, this example should (and does) work
+#    for file_name in ["15.12.0_two_different_builtin_reductions.f90"]:
+
+
+def test_multi_reduction_same_name_real_do():
+    '''test that we raise an exception when we have multiple reductions in
+    with the same name as this is not supported (it would cause
+    incorrect code to be created in certain cases).'''
+    file_name = "15.11.0_two_same_builtin_reductions.f90"
+    for reprod in [True, False]:
+        for distmem in [False, True]:
+            _, invoke_info = parse(
+                os.path.join(BASE_PATH, file_name),
+                distributed_memory=distmem,
+                api="dynamo0.3")
+            psy = PSyFactory(
+                "dynamo0.3",
+                distributed_memory=distmem).create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+            otrans = Dynamo0p3OMPLoopTrans()
+            rtrans = OMPParallelTrans()
+            # Apply an OpenMP do to the loop
+            from psyGen import Loop
+            for child in schedule.children:
+                if isinstance(child, Loop):
+                    schedule, _ = otrans.apply(child, reprod=reprod)
+            if distmem:
+                # We have to move/delete a
+                # global sum to get to the stage where we can raise an
+                # error. This makes incorrect code in this example but
+                # in general it could be valid to move the global sum
+                del schedule.children[1]
+            schedule, _ = rtrans.apply(schedule.children[0:2])
+            invoke.schedule = schedule
+            print str(psy.gen)
+            with pytest.raises(GenerationError) as excinfo:
+                _ = str(psy.gen)
+            assert (
+                "Reductions are only valid within an OMP DO loop if "
+                "the loop is the first computation in the surrounding "
+                "OMP PARALLEL loop") in str(excinfo.value)
 
 
 def test_multi_reduction_real_fuse():

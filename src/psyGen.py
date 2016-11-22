@@ -1052,7 +1052,11 @@ class OMPParallelDirective(OMPDirective):
 class OMPDoDirective(OMPDirective):
 
     def __init__(self, children=[], parent=None, omp_schedule="static",
-                 reprod=config.REPRODUCIBLE_REDUCTIONS):
+                 reprod=None):
+
+        if reprod is None:
+            reprod = config.REPRODUCIBLE_REDUCTIONS
+
         self._omp_schedule = omp_schedule
         self._reprod = reprod
         # Call the init method of the base class once we've stored
@@ -1093,16 +1097,6 @@ class OMPDoDirective(OMPDirective):
         # have an OMPRegionDirective as a parent somewhere
         # back up the tree.
         self._within_omp_region()
-
-        if self._reduction_string():
-            # We have a reduction. Currently the zero'ing of the
-            # reduction is incorrectly placed if we are not the first
-            # loop within the parallel region
-            if self.position != 0:
-                raise GenerationError(
-                    "Reductions are only valid within an OMP DO loop if the "
-                    "loop is the first computation in the surrounding OMP "
-                    "PARALLEL loop")
 
         if self._reprod:
             local_reduction_string = ""
