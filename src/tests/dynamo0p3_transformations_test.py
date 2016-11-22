@@ -2770,9 +2770,9 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
 
 
 def test_reprod_three_builtins_two_reductions_do():
-    '''test that we generate a correct OpenMP do reductions for three
-    different loop-fused builtins, first a reduction, then a normal
-    builtin then a reduction.'''
+    '''test that we generate correct reproducible OpenMP do reductions
+    when we have three different builtins, first a reduction, then a
+    normal builtin then a reduction. '''
     from dynamo0p3 import DynLoop
     from psyGen import OMPDoDirective
     for distmem in [False, True]:
@@ -2865,12 +2865,10 @@ def test_reprod_three_builtins_two_reductions_do():
 
 
 def test_reprod_view(capsys):
-    '''test that we generate a correct OpenMP do reductions for three
-    different loop-fused builtins, first a reduction, then a normal
-    builtin then a reduction.'''
+    '''test that we generate a correct view() for OpenMP do reductions '''
     from dynamo0p3 import DynLoop
     from psyGen import OMPDoDirective
-    for distmem in [True]:
+    for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.16.0_three_builtins_two_reductions.f90"),
@@ -2892,25 +2890,45 @@ def test_reprod_view(capsys):
         schedule.view()
         # only display reprod in schedule view if a reduction
         result, _ = capsys.readouterr()
-        expected = (
-            "Schedule[invoke='invoke_0' dm=True]\n"
-            "    Directive[OMP parallel]\n"
-            "        Directive[OMP do][reprod=True]\n"
-            "            Loop[type='dofs',field_space='any_space_1',"
-            "it_space='dofs']\n"
-            "                Call inner_product_code(f1,f2,asum)\n"
-            "    GlobalSum[scalar='asum']\n"
-            "    Directive[OMP parallel]\n"
-            "        Directive[OMP do]\n"
-            "            Loop[type='dofs',field_space='any_space_1',"
-            "it_space='dofs']\n"
-            "                Call scale_field_code(f1,asum)\n"
-            "    Directive[OMP parallel]\n"
-            "        Directive[OMP do][reprod=True]\n"
-            "            Loop[type='dofs',field_space='any_space_1',"
-            "it_space='dofs']\n"
-            "                Call sum_field_code(f2,bsum)\n"
-            "    GlobalSum[scalar='bsum']\n")
+        if distmem:
+            expected = (
+                "Schedule[invoke='invoke_0' dm=True]\n"
+                "    Directive[OMP parallel]\n"
+                "        Directive[OMP do][reprod=True]\n"
+                "            Loop[type='dofs',field_space='any_space_1',"
+                "it_space='dofs']\n"
+                "                Call inner_product_code(f1,f2,asum)\n"
+                "    GlobalSum[scalar='asum']\n"
+                "    Directive[OMP parallel]\n"
+                "        Directive[OMP do]\n"
+                "            Loop[type='dofs',field_space='any_space_1',"
+                "it_space='dofs']\n"
+                "                Call scale_field_code(f1,asum)\n"
+                "    Directive[OMP parallel]\n"
+                "        Directive[OMP do][reprod=True]\n"
+                "            Loop[type='dofs',field_space='any_space_1',"
+                "it_space='dofs']\n"
+                "                Call sum_field_code(f2,bsum)\n"
+                "    GlobalSum[scalar='bsum']\n")
+        else:
+            expected = (
+                "Schedule[invoke='invoke_0' dm=False]\n"
+                "    Directive[OMP parallel]\n"
+                "        Directive[OMP do][reprod=True]\n"
+                "            Loop[type='dofs',field_space='any_space_1',"
+                "it_space='dofs']\n"
+                "                Call inner_product_code(f1,f2,asum)\n"
+                "    Directive[OMP parallel]\n"
+                "        Directive[OMP do]\n"
+                "            Loop[type='dofs',field_space='any_space_1',"
+                "it_space='dofs']\n"
+                "                Call scale_field_code(f1,asum)\n"
+                "    Directive[OMP parallel]\n"
+                "        Directive[OMP do][reprod=True]\n"
+                "            Loop[type='dofs',field_space='any_space_1',"
+                "it_space='dofs']\n"
+                "                Call sum_field_code(f2,bsum)\n")
+
         print "Expected ..."
         print expected
         print "Found ..."
@@ -2918,34 +2936,41 @@ def test_reprod_view(capsys):
         assert expected in result
 
 
-def test_reductions_reprod_false():
-    '''Check that the reductions() method works when the reprod option is
-    set to False '''
-    for distmem in [True, False]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        assert len(schedule.reductions(reprod=False)) == 1
-        from dynamo0p3_builtins import DynInnerProductKern
-        assert (isinstance(schedule.reductions(reprod=False)[0],
-                           DynInnerProductKern))
+def test_reductions_reprod():
+    '''Check that the optional reprod argument to reductions() method
+    works as expected'''
+    for reprod in [False, True]:
+        for distmem in [True, False]:
+            _, invoke_info = parse(
+                os.path.join(BASE_PATH,
+                             "15.9.0_inner_prod_builtin.f90"),
+                distributed_memory=distmem,
+                api="dynamo0.3")
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=distmem).create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+            otrans = Dynamo0p3OMPLoopTrans()
+            rtrans = OMPParallelTrans()
+            # Apply an OpenMP do directive to the loop
+            schedule, _ = otrans.apply(schedule.children[0], reprod=reprod)
+            # Apply an OpenMP Parallel directive around the OpenMP do directive
+            schedule, _ = rtrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            assert len(schedule.reductions(reprod=reprod)) == 1
+            assert len(schedule.reductions(reprod=not(reprod))) == 0
+            assert len(schedule.reductions()) == 1
+            from dynamo0p3_builtins import DynInnerProductKern
+            assert (isinstance(schedule.reductions(reprod=reprod)[0],
+                               DynInnerProductKern))
 
 
 def test_list_multiple_reductions():
-    '''test that we ... '''
+    '''test that we produce correct reduction lists when there is more
+    than one reduction in a OpenMP parallel directive. As only one
+    reduction per OpenMP parallel region is currently supported we
+    need to modify the internal representation after the
+    transformations have been performed to enable this test'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
