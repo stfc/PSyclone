@@ -2448,6 +2448,35 @@ def test_reprod_reduction_real_do():
                 "      DEALLOCATE (l_asum)\n") in code
 
 
+def test_no_global_sum_in_parallel_region():
+    '''test that we raise an error if we try to put a parallel region
+    around loops with a global sum'''
+    for distmem in [True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child, reprod=True)
+        schedule, _ = rtrans.apply(schedule.children)
+        invoke.schedule = schedule
+        with pytest.raises(NotImplementedError) as excinfo:
+            code = str(psy.gen)
+        assert(
+            "Cannot correctly generate code for an OpenMP parallel region "
+            "containing children of different types") in str(excinfo.value)
+
+
 def test_reprod_multi_builtins_reduction_then_standard_do():
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different builtins, first a reduction then not when we
