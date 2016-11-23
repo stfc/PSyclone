@@ -19,6 +19,7 @@ provided to show the available transformations
 .. autoclass:: psyGen.TransInfo
     :members:
 
+.. _sec_transformations_available:
 
 Available
 ---------
@@ -58,13 +59,17 @@ API-specific sections).
     :members:
     :noindex:
 
-.. note:: PSyclone does not currently support
-          (distributed-memory) halo swaps within OpenMP parallel regions.
-	  Attempting to create a parallel region for a set of nodes that
-	  includes halo swaps will produce an error. (In such cases it may
-	  be possible to re-order the nodes in the Schedule such that the
-	  halo swaps are performed outside the parallel region.) This
-	  limitation will be removed in version 1.3 of PSyclone.
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP parallel regions.  Attempting to
+          create a parallel region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the parallel region. At the moment any
+          such reordering would have to be performed by directly
+          modifying the schedule and would be at the users own
+          risk. In the future a transformation will be added to
+          support the re-ordering of nodes.
 
    
 Applying
@@ -222,7 +227,7 @@ Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
 theoretically work for all API's) were given in the
-:ref:`sec_transformations_script` section. The API-specific versions
+:ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
 this document.
 
@@ -259,9 +264,20 @@ results for different runs of the same problem using the same
 resources, but will not bit-wise compare if the code is rerun with
 different numbers of OpenMP threads.
 
-Limitations
-+++++++++++
+Restrictions
+++++++++++++
 
-Currently only one reduction is supported within a loop. The loop fuse
-transformation will raise an exception if loop fusion is attempted on
-two loops which both contain a reduction.
+If two reductions are used within an OpenMP region and the same
+variable is used for both reductions then PSyclone will raise an
+exception. In this case the solution is to use a different variable
+for each reduction.
+
+PSyclone does not support (distributed-memory) halo swaps or global
+sums within OpenMP parallel regions.  Attempting to create a parallel
+region for a set of nodes that includes halo swaps or global sums will
+produce an error.  In such cases it may be possible to re-order the
+nodes in the Schedule such that the halo swaps or global sums are
+performed outside the parallel region. At the moment any such
+reordering would have to be performed by directly modifying the
+schedule and would be at the users own risk. In the future a
+transformation will be added to support the re-ordering of nodes.
