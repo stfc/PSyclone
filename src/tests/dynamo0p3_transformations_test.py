@@ -1711,15 +1711,15 @@ def test_reduction_after_normal_real_do():
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,bvalue_proxy%vspace%get_last_dof_owned()\n"
-                "        bvalue_proxy%data(df) = f1*bvalue_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
                 "      ! Set halos dirty for fields modified in the above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bvalue_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
@@ -1738,8 +1738,8 @@ def test_reduction_after_normal_real_do():
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bvalue\n"
-                "        bvalue_proxy%data(df) = f1*bvalue_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
@@ -1751,45 +1751,105 @@ def test_reduction_after_normal_real_do():
         assert expected_output in result
 
 
-def test_reduction_after_normal_real_do():
+def test_reprod_reduction_after_normal_real_do():
     '''test that we produce correct code when we have a reproducible
     reduction after a "normal" builtin and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls'''
 
     file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
-    for reprod in [True]:
-        for distmem in [False, True]:
-            _, invoke_info = parse(
-                os.path.join(BASE_PATH, file_name),
-                distributed_memory=distmem,
-                api="dynamo0.3")
-            psy = PSyFactory(
-                "dynamo0.3",
-                distributed_memory=distmem).create(invoke_info)
-            invoke = psy.invokes.invoke_list[0]
-            schedule = invoke.schedule
-            otrans = Dynamo0p3OMPLoopTrans()
-            rtrans = OMPParallelTrans()
-            # Apply an OpenMP do to the loop
-            from psyGen import Loop
-            for child in schedule.children:
-                if isinstance(child, Loop):
-                    schedule, _ = otrans.apply(child, reprod=reprod)
-            # Apply an OpenMP Parallel for all loops
-            schedule, _ = rtrans.apply(schedule.children[0:2])
-            invoke.schedule = schedule
-            result = str(psy.gen)
-            print str(psy.gen)
-            if distmem:
-                exit(1)
-            else:
-                exit(1)
-
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, file_name),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory(
+            "dynamo0.3",
+            distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do to the loop
+        from psyGen import Loop
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                schedule, _ = otrans.apply(child, reprod=True)
+        # Apply an OpenMP Parallel for all loops
+        schedule, _ = rtrans.apply(schedule.children[0:2])
+        invoke.schedule = schedule
+        result = str(psy.gen)
+        print result
+        if distmem:
+            expected_output = (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      ALLOCATE (l_asum(8,nthreads))\n"
+                "      l_asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df,th_idx)\n"
+                "      th_idx = omp_get_thread_num()+1\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      !\n"
+                "      !$omp master\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !$omp end master\n"
+                "      !\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      !\n"
+                "      ! sum the partial results sequentially\n"
+                "      !\n"
+                "      DO th_idx=1,nthreads\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
+                "      END DO \n"
+                "      DEALLOCATE (l_asum)\n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()")
+        else:
+            expected_output = (
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      ALLOCATE (l_asum(8,nthreads))\n"
+                "      l_asum = 0.0_r_def\n"
+                "      !\n"
+                "      !$omp parallel default(shared), private(df,th_idx)\n"
+                "      th_idx = omp_get_thread_num()+1\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp do schedule(static)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !$omp end do\n"
+                "      !$omp end parallel\n"
+                "      !\n"
+                "      ! sum the partial results sequentially\n"
+                "      !\n"
+                "      DO th_idx=1,nthreads\n"
+                "        asum = asum+l_asum(1,th_idx)\n"
+                "      END DO \n"
+                "      DEALLOCATE (l_asum)\n")
+        assert expected_output in result 
 
 # TBD add tests with and without reprod, this example should (and does) work
 #    for file_name in ["15.12.0_two_different_builtin_reductions.f90"]:
 
-
+# does not raise at the moment
 def test_multi_reduction_same_name_real_do():
     '''test that we raise an exception when we have multiple reductions in
     with the same name as this is not supported (it would cause
@@ -1937,7 +1997,6 @@ def test_multi_different_reduction_real_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-# 1 reduction then 1 "standard" builtin in 1 invoke, parallel do
 def test_multi_builtins_reduction_then_standard_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins, first a reduction then not'''
@@ -2005,7 +2064,6 @@ def test_multi_builtins_reduction_then_standard_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-# 1 reduction then 1 "standard" builtin in 1 invoke, do
 def test_multi_builtins_reduction_then_standard_do():
     '''test that we generate a correct OpenMP do reduction for
     two different builtins, first a reduction then not'''
@@ -2208,7 +2266,6 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "      !$omp end parallel\n") in code
 
 
-# 1 "standard" builtin then 1 reduction in 1 invoke, parallel do
 def test_multi_builtins_standard_then_reduction_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins, first a standard builtin then a reduction'''

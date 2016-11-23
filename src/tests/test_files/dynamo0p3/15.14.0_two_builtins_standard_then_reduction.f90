@@ -11,10 +11,10 @@ program single_invoke
   ! Description: two different builtin reductions specified in an invoke call
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2
+  type(field_type) :: f1
   real(r_def) :: asum, bvalue
 
-  call invoke( scale_field(f1, bvalue), &
+  call invoke( scale_field(bvalue, f1), &
                sum_field(f1, asum) )
 
 end program single_invoke
