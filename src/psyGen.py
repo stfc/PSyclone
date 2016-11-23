@@ -968,6 +968,21 @@ class OMPParallelDirective(OMPDirective):
         self._encloses_omp_directive()
 
         calls = self.reductions()
+
+        # first check whether we have more than one reduction with the same
+        # name in this Schedule. If so, raise an error as this is not
+        # supported for a parallel region.
+        names = []
+        for call in calls:
+            name = call._reduction_arg.name
+            if name in names:
+                raise GenerationError(
+                    "Reduction variables can only be used once in an invoke. "
+                    "'{0}' is used multiple times, please use a different "
+                    "reduction variable".format(name))
+            else:
+                names.append(name)
+
         zero_reduction_variables(calls, parent)
 
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
