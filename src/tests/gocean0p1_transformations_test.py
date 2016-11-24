@@ -13,9 +13,9 @@ from psyGen import PSyFactory
 import os
 import pytest
 from transformations import TransformationError,\
-                            LoopFuseTrans,\
-                            GOceanLoopFuseTrans,\
-                            GOceanOMPParallelLoopTrans
+    LoopFuseTrans,\
+    GOceanLoopFuseTrans,\
+    GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"
 

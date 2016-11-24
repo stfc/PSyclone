@@ -758,7 +758,8 @@ def test_loop_fuse_different_spaces():
                     api=TEST_API)
     for same_space in [False, True]:
         for dist_mem in [False, True]:
-            psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+            psy = PSyFactory(TEST_API,
+                             distributed_memory=dist_mem).create(info)
             invoke = psy.invokes.get('invoke_0')
             schedule = invoke.schedule
 
@@ -1716,7 +1717,8 @@ def test_reduction_after_normal_real_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1795,7 +1797,8 @@ def test_reprod_reduction_after_normal_real_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1803,7 +1806,8 @@ def test_reprod_reduction_after_normal_real_do():
                 "      !\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -1833,7 +1837,8 @@ def test_reprod_reduction_after_normal_real_do():
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -1844,7 +1849,8 @@ def test_reprod_reduction_after_normal_real_do():
                 "        asum = asum+l_asum(1,th_idx)\n"
                 "      END DO \n"
                 "      DEALLOCATE (l_asum)\n")
-        assert expected_output in result 
+        assert expected_output in result
+
 
 def test_two_reductions_real_do():
     '''test that we produce correct code when we have more than one
@@ -1968,12 +1974,14 @@ def test_two_reprod_reductions_real_do():
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+f1_proxy%data(df)\n"
+                "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
+                "f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -2007,12 +2015,14 @@ def test_two_reprod_reductions_real_do():
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
+                "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
-                "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+f1_proxy%data(df)\n"
+                "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
+                "f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -2818,7 +2828,7 @@ def test_no_global_sum_in_parallel_region():
         schedule, _ = rtrans.apply(schedule.children)
         invoke.schedule = schedule
         with pytest.raises(NotImplementedError) as excinfo:
-            code = str(psy.gen)
+            _ = str(psy.gen)
         assert(
             "Cannot correctly generate code for an OpenMP parallel region "
             "containing children of different types") in str(excinfo.value)
@@ -3305,7 +3315,7 @@ def test_reductions_reprod():
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             assert len(schedule.reductions(reprod=reprod)) == 1
-            assert len(schedule.reductions(reprod=not(reprod))) == 0
+            assert len(schedule.reductions(reprod=not reprod)) == 0
             assert len(schedule.reductions()) == 1
             from dynamo0p3_builtins import DynInnerProductKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],

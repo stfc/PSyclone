@@ -949,8 +949,8 @@ class OMPParallelDirective(OMPDirective):
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
             # we will use a private thread index variable
-            self._name_space_manager = NameSpaceFactory().create()
-            thread_idx = self._name_space_manager.create_name(
+            name_space_manager = NameSpaceFactory().create()
+            thread_idx = name_space_manager.create_name(
                 root_name="th_idx", context="PSyVars", label="thread_index")
             private_list.append(thread_idx)
             # declare the variable
@@ -1008,7 +1008,6 @@ class OMPParallelDirective(OMPDirective):
         parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
 
         if reprod_red_call_list:
-            from f2pygen import CommentGen
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " sum the partial results "
                                   "sequentially"))
@@ -1066,9 +1065,11 @@ class OMPParallelDirective(OMPDirective):
 
 class OMPDoDirective(OMPDirective):
 
-    def __init__(self, children=[], parent=None, omp_schedule="static",
+    def __init__(self, children=None, parent=None, omp_schedule="static",
                  reprod=None):
 
+        if children is None:
+            children = []
         if reprod is None:
             reprod = config.REPRODUCIBLE_REDUCTIONS
 
@@ -1101,6 +1102,11 @@ class OMPDoDirective(OMPDirective):
                 reduction_str += ", reduction({0}:{1})".format(
                     OMP_OPERATOR_MAPPING[reduction_type], reduction)
         return reduction_str
+
+    @property
+    def reprod(self):
+        ''' returns whether reprod has been set for this object or not '''
+        return self._reprod
 
     def gen_code(self, parent):
         from f2pygen import DirectiveGen
@@ -1519,10 +1525,9 @@ class Call(Node):
         do loop. If so report whether it has the reproducible flag
         set. Note, this also catches OMPParallelDo Directives but they
         have reprod set to False so it is OK.'''
-        from psyGen import OMPDoDirective
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
-            return ancestor._reprod
+            return ancestor.reprod
         else:
             return False
 
@@ -1592,7 +1597,7 @@ class Call(Node):
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         local_var_ref = self._reduction_ref(var_name)
-        reduction_access = self._reduction_arg._access
+        reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
         except KeyError:
@@ -1600,10 +1605,10 @@ class Call(Node):
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
                 format(reduction_access, REDUCTION_OPERATOR_MAPPING.keys()))
-        do = DoGen(parent, thread_idx, "1", nthreads)
-        do.add(AssignGen(do, lhs=var_name, rhs=var_name + reduction_operator +
-                         local_var_ref))
-        parent.add(do)
+        do_loop = DoGen(parent, thread_idx, "1", nthreads)
+        do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
+                              reduction_operator + local_var_ref))
+        parent.add(do_loop)
         parent.add(DeallocateGen(parent, local_var_name))
 
     def _reduction_ref(self, name):

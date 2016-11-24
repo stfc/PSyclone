@@ -2487,14 +2487,15 @@ SCALAR_SUMS = (
 
 
 def test_stub_generate_with_scalar_sums():
-    ''' check that the stub generate raises an exception when a kernel has multiple reductions '''
+    '''check that the stub generate raises an exception when a kernel has
+    multiple reductions'''
     with pytest.raises(GenerationError) as err:
-        result = generate(
+        _ = generate(
             "test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
             api="dynamo0.3")
     assert (
-            "PSyclone currently only supports a single reduction in a kernel "
-            "or builtin" in str(err))
+        "PSyclone currently only supports a single reduction in a kernel "
+        "or builtin" in str(err))
 
 
 # fields : intent

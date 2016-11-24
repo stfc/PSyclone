@@ -182,7 +182,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                         "{0} {1}.{2}".format(node1.field_space.orig_name,
                                              node2.field_space.orig_name,
                                              info))
-            else: # one or more of the function spaces is any_space
+            else:  # one or more of the function spaces is any_space
                 if not same_space:
                     raise TransformationError(
                         "DynamoLoopFuseTrans. One or more of the iteration "

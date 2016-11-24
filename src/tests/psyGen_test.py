@@ -477,16 +477,19 @@ def test_call_local_vars():
     the expected exception '''
     from psyGen import Call, Arguments
     my_arguments = Arguments(None)
+
     class KernType(object):
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
+
     class DummyClass(object):
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
             self.ktype = ktype
+
     dummy_call = DummyClass(my_ktype)
     my_call = Call(None, dummy_call, "dummy", my_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
@@ -664,8 +667,9 @@ def test_reduction_var_error():
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).create(invoke_info)
-        schedule =  psy.invokes.invoke_list[0].schedule
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.calls()[0]
         # args[1] is of type gh_field
         call._reduction_arg = call.arguments.args[1]
@@ -681,8 +685,9 @@ def test_reduction_sum_error():
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).create(invoke_info)
-        schedule =  psy.invokes.invoke_list[0].schedule
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.calls()[0]
         # args[1] is of type gh_field
         call._reduction_arg = call.arguments.args[1]
@@ -701,8 +706,8 @@ def test_call_multi_reduction_error():
             os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
         with pytest.raises(GenerationError) as err:
-            psy = PSyFactory("dynamo0.3",
-                             distributed_memory=dist_mem).create(invoke_info)
+            _ = PSyFactory("dynamo0.3",
+                           distributed_memory=dist_mem).create(invoke_info)
         assert (
             "PSyclone currently only supports a single reduction in a kernel "
             "or builtin" in str(err))
@@ -785,7 +790,7 @@ def test_invalid_reprod_pad_size():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         with pytest.raises(GenerationError) as excinfo:
-            code = str(psy.gen)
+            _ = str(psy.gen)
         assert (
             "REPROD_PAD_SIZE in config.py should be a positive "
             "integer") in str(excinfo.value)
