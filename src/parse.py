@@ -450,7 +450,7 @@ class KernelType(object):
         self._ast = ast
         self.checkMetadataPublic(name, ast)
         self._ktype = self.getKernelMetadata(name, ast)
-        self._iterates_over = self._ktype.get_variable('iterates_over').init
+        self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
         self._arg_descriptors = None  # this is set up by the subclasses
@@ -541,6 +541,21 @@ class KernelType(object):
         if ktype is None:
             raise RuntimeError("Kernel type %s does not exist" % name)
         return ktype
+
+    def get_integer_variable(self, name):
+        ''' Parse the kernel meta-data and find the value of the
+        integer variable with the supplied name. Return None if no
+        matching variable is found.'''
+        for statement, _ in fpapi.walk(self._ktype, -1):
+            if isinstance(statement, fparser.typedecl_statements.Integer):
+                # fparser only goes down to the statement level. We use
+                # the expression parser (expression.py) to parse the
+                # statement itself.
+                assign = expr.FORT_EXPRESSION.parseString(
+                    statement.entity_decls[0])
+                if assign[0].name == name:
+                    return assign[0].value
+        return None
 
 
 class DynKernelType(KernelType):

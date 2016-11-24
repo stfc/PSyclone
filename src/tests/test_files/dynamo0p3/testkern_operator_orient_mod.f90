@@ -17,6 +17,7 @@ module testkern_operator_orient_mod
              func_type(W1, gh_basis, gh_orientation) &
           /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_operator_orient_code
   end type testkern_operator_orient_type

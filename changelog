@@ -37,6 +37,8 @@
 	rules. For example, all fields must be on the same function space
 	within a builtin.
 
+	12) #761 Added support for parsing evaluator metadata.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
