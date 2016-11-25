@@ -172,8 +172,10 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                node2.field_space.orig_name in VALID_FUNCTION_SPACES:
                 if node1.field_space.orig_name != node2.field_space.orig_name:
                     if same_space:
-                        info = (" Note, the same_space flag was set but this "
-                                "has been ignored.")
+                        info = (
+                            " Note, the same_space flag was set, but "
+                            "does not apply because neither field is "
+                            "ANY_SPACE.")
                     else:
                         info = ""
                     raise TransformationError(

@@ -974,7 +974,7 @@ class OMPParallelDirective(OMPDirective):
         # supported for a parallel region.
         names = []
         for call in calls:
-            name = call._reduction_arg.name
+            name = call.reduction_arg.name
             if name in names:
                 raise GenerationError(
                     "Reduction variables can only be used once in an invoke. "
@@ -1518,6 +1518,12 @@ class Call(Node):
         '''if this kernel/builtin contains a reduction variable then return
         True, otherwise return False'''
         return self._reduction
+
+    @property
+    def reduction_arg(self):
+        ''' if this kernel/builtin contains a reduction variable then return
+        the variable, otherwise return None'''
+        return self._reduction_arg
 
     @property
     def reprod_reduction(self):

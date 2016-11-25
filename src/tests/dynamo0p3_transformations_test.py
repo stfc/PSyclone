@@ -785,8 +785,10 @@ def test_loop_fuse_different_spaces():
                 str(excinfo.value)
             assert "Cannot fuse loops that are over different spaces" in \
                 str(excinfo.value)
-            same_space_warning = ("Note, the same_space flag was set but "
-                                  "this has been ignored")
+            same_space_warning = ("Note, the same_space flag was set, but "
+                                  "does not apply because neither field "
+                                  "is ANY_SPACE.")
+
             if same_space:
                 assert same_space_warning in str(excinfo.value)
             else:
