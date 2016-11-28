@@ -2562,6 +2562,19 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
 
         arglist = self._create_arg_list(parent)
+        create_arg_list = KernCallArgList(self)
+        create_arg_list.arg_list_order()
+        if len(arglist) != len(create_arg_list._arglist):
+            print "lengths differ"
+            print arglist
+            print create_arg_list._arglist
+            exit(1)
+        for index, arg in enumerate(arglist):
+            if arg != create_arg_list._arglist[index]:
+                print "difference at index ", index
+                print arglist
+                print create_arg_list._arglist
+                exit(1)
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
@@ -2624,6 +2637,270 @@ class DynKern(Kern):
                                  map_name+"(:,"+cell_index+")",
                                  boundary_dofs_name]))
             parent.add(CommentGen(parent, ""))
+
+
+class ArgOrdering(object):
+    '''Base class capturing the arguments, type and ordering of data into
+    a Kernel call'''
+    def __init__(self, kern):
+        self._kern = kern
+
+    def arg_list_order(self):
+        '''specifies which arguments appear in an argument list, their type
+        and their ordering. Calls methods for each type of argument
+        that can be specialised by a child class for its particular need'''
+        self.cell_position()
+        self.mesh_height()
+        for arg in self._kern._arguments.args:
+            if arg.type == "gh_field":
+                if arg.vector_size > 1:
+                    self.field_vector(arg)
+                else:
+                    self.field(arg)
+                if arg.descriptor.stencil:
+                    if not arg.descriptor.stencil['extent']:
+                        self.stencil(arg)
+            elif arg.type == "gh_operator":
+                self.operator(arg)
+            elif arg.type in VALID_SCALAR_NAMES:
+                self.scalar(arg)
+            else:
+                raise GenerationError(
+                    "Unexpected arg type found in "
+                    "dynamo0p3.py:DynKern:gen_code(). Expected one of '{0}' "
+                    "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
+        # 3: For each function space (in the order they appear in the
+        # metadata arguments)
+        for unique_fs in self._kern.arguments.unique_fss:
+            # 3.1 Provide compulsory arguments common to operators and
+            # fields on a space. There is one: "ndf".
+            self.fs_compulsory(unique_fs)
+            # 3.1.1 Provide additional compulsory arguments if there
+            # is a field on this space
+            if field_on_space(unique_fs, self._kern.arguments):
+                self.fs_compulsory_field(unique_fs)
+            # 3.2 Provide any optional arguments. These arguments are
+            # associated with the keyword arguments (basis function,
+            # differential basis function and orientation) for a
+            # function space.
+            if self._kern._fs_descriptors.exists(unique_fs):
+                descriptor = self._kern._fs_descriptors.get_descriptor(unique_fs)
+                if descriptor.requires_basis:
+                    self.basis(unique_fs)
+                if descriptor.requires_diff_basis:
+                    self.diff_basis(unique_fs)
+                if descriptor.requires_orientation:
+                    self.orientation(unique_fs)
+            # 3.3 Fix for boundary_dofs array to the boundary
+            # condition kernel (enforce_bc_kernel) arguments
+            if self._kern.name.lower() == "enforce_bc_code" and \
+               unique_fs.orig_name.lower() == "any_space_1":
+                self.bc_kernel()
+        # 4: Provide qr arguments if required
+        if self._kern._qr_required:
+            self.qr()
+
+    def cell_position(self):
+        raise NotImplementedError("Error: ArgOrdering.cell_position() must be implemented "
+                                  "by subclass")
+
+    def mesh_height(self):
+        raise NotImplementedError("Error: ArgOrdering.mesh_height() must be implemented "
+                                  "by subclass")
+
+    def field(self, arg):
+        raise NotImplementedError("Error: ArgOrdering.field() must be implemented "
+                                  "by subclass")
+
+    def stencil(self, arg):
+        raise NotImplementedError("Error: ArgOrdering.stencil() must be implemented "
+                                  "by subclass")
+
+    def operator(self, arg):
+        raise NotImplementedError("Error: ArgOrdering.operator() must be implemented "
+                                  "by subclass")
+
+    def scalar(self, arg):
+        raise NotImplementedError("Error: ArgOrdering.scalar() must be implemented "
+                                  "by subclass")
+
+    def fs_compulsory(self, function_space):
+        '''Compulsory arguments common to operators and fields on a function space '''
+        raise NotImplementedError("Error: ArgOrdering.fs_compulsory() must be implemented "
+                                  "by subclass")
+
+    def fs_compulsory_field(self, function_space):
+        '''Compulsory arguments if there is a field on this function space '''
+        raise NotImplementedError("Error: ArgOrdering.fs_compulsory_field() must be implemented "
+                                  "by subclass")
+
+    def basis(self, function_space):
+        '''arguments if there a basis function is required for this function space '''
+        raise NotImplementedError("Error: ArgOrdering.basis() must be implemented "
+                                  "by subclass")
+
+    def diff_basis(self, function_space):
+        '''arguments if there a differential basis function is required for this function space '''
+        raise NotImplementedError("Error: ArgOrdering.diff_basis() must be implemented "
+                                  "by subclass")
+
+    def orientation(self, function_space):
+        '''arguments if orientation information is required for this function space '''
+        raise NotImplementedError("Error: ArgOrdering.orientation() must be implemented "
+                                  "by subclass")
+
+    def bc_kernel(self):
+        '''add boundary condition information if required '''
+        raise NotImplementedError("Error: ArgOrdering.bc_kernel() must be implemented "
+                                  "by subclass")
+
+    def qr(self):
+        '''add qr arguments if required '''
+        raise NotImplementedError("Error: ArgOrdering.qr() must be implemented "
+                                  "by subclass")
+
+
+class KernCallArgList(ArgOrdering):
+    '''Creates the argument list required to call kernel "kern" from the
+    PSy-layer. The ordering of the arguments is captured by the base
+    class '''
+    def __init__(self, kern):
+        ArgOrdering.__init__(self, kern)
+        self._arglist = []
+        self._name_space_manager = NameSpaceFactory().create()
+
+    def cell_position(self):
+        ''' Add cell position to the argument list if required '''
+        if self._kern._arguments.has_operator:
+            self._arglist.append(self._cell_ref_name)
+
+    def mesh_height(self):
+        ''' add mesh height (nlayers) to the argument list if required '''
+        nlayers_name = self._name_space_manager.create_name(
+            root_name="nlayers", context="PSyVars", label="nlayers")
+        self._arglist.append(nlayers_name)
+
+    def field_vector(self, argvect):
+        '''add the field vector associated with the argument 'argvect' to the
+        argument list '''
+        # the range function below returns values from
+        # 1 to the vector size which is what we
+        # require in our Fortran code
+        for idx in range(1, argvect.vector_size+1):
+            text = argvect.proxy_name + "(" + str(idx) + ")%data"
+            self._arglist.append(text)
+
+    def field(self, arg):
+        '''add the field associated with the argument 'arg' to the argument
+        list'''
+        text = arg.proxy_name + "%data"
+        self._arglist.append(text)
+
+    def stencil(self, arg):
+        '''add stencil information associated with the argument 'arg' '''
+        if not arg.descriptor.stencil['extent']:
+            # the extent is not specified in the metadata
+            # so pass the value in
+            name = stencil_size_name(arg)
+            self._arglist.append(name)
+        if arg.descriptor.stencil['type'] == "xory1d":
+            # the direction of the stencil is not known so
+            # pass the value in
+            name = arg.stencil.direction_arg.varName
+            self._arglist.append(name)
+        # add in stencil dofmap
+        var_name = stencil_dofmap_name(arg)
+        name = var_name + "(:,:," + self._cell_ref_name + ")"
+        self._arglist.append(name)
+
+    def operator(self, arg):
+        ''' add the operator arguments to the argument list '''
+        self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+        self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
+
+    def scalar(self, scalar_arg):
+        '''add the name associated with the scalar argument'''
+        self._arglist.append(scalar_arg.name)
+
+    def fs_compulsory(self, function_space):
+        ''' Provide compulsory arguments common to operators and
+        fields on a space. There is one: "ndf".'''
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(ndf_name)
+
+    def fs_compulsory_field(self, function_space):
+        ''' Provide compulsory arguments if there is a field on this
+        function space'''
+        undf_name = get_fs_undf_name(function_space)
+        self._arglist.append(undf_name)
+        map_name = get_fs_map_name(function_space)
+        self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
+
+    def basis(self, function_space):
+        ''' provide basis function information for the function space '''
+        basis_name = get_fs_basis_name(function_space)
+        self._arglist.append(basis_name)
+
+    def diff_basis(self, function_space):
+        ''' provide differential basis function information for the function space '''
+        diff_basis_name = get_fs_diff_basis_name(function_space)
+        self._arglist.append(diff_basis_name)
+
+    def orientation(self, function_space):
+        ''' provide orientation information for the function space '''
+        orientation_name = get_fs_orientation_name(function_space)
+        self._arglist.append(orientation_name)
+
+    def bc_kernel(self):
+        ''' implement the boundary_dofs array fix '''
+        self._arglist.append("boundary_dofs")
+        parent.add(DeclGen(parent, datatype="integer",
+                           pointer=True, entity_decls=[
+                               "boundary_dofs(:,:) => null()"]))
+        fspace = None
+        for fspace in self._arguments.unique_fss:
+            if fspace.orig_name == "any_space_1":
+                break
+        proxy_name = (self._arguments.get_arg_on_space(fspace).
+                      proxy_name)
+        new_parent, position = parent.start_parent_loop()
+        new_parent.add(AssignGen(new_parent, pointer=True,
+                                 lhs="boundary_dofs",
+                                 rhs=proxy_name +
+                                 "%vspace%get_boundary_dofs()"),
+                       position=["before", position])
+
+    def qr(self):
+        ''' provide qr information '''
+        self._arglist.extend([self._kern._qr_args["nh"], self._kern._qr_args["nv"],
+                            self._kern._qr_args["h"], self._kern._qr_args["v"]])
+
+    @property
+    def _cell_ref_name(self):
+        '''utility routine which determines whether to return the cell value
+        or the colourmap lookup value '''
+        if self._kern.is_coloured():
+            return "cmap(colour, cell)"
+        else:
+            return "cell"
+
+
+class DinoWriteGen(ArgOrdering):
+    ''' xxx '''
+    def __init__(self, kern, parent):
+        ArgOrdering.__init__(self, kern)
+        self._scalar_list = []
+        self._parent = parent
+
+    def cell_position(self):
+        ''' xxx '''
+        pass
+
+    def mesh_height(self):
+        ''' xxx '''
+        nlayers_name = self._name_space_manager.create_name(
+            root_name="nlayers", context="PSyVars", label="nlayers")
+        write_scalar(nlayers_name)
 
 
 class FSDescriptor(object):
