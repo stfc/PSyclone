@@ -2534,6 +2534,7 @@ def test_stub_generate_working():
     ''' check that the stub generate produces the expected output '''
     result = generate("test_files/dynamo0p3/simple.f90",
                       api="dynamo0.3")
+    print SIMPLE
     print result
     assert str(result).find(SIMPLE) != -1
 
