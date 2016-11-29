@@ -1734,10 +1734,6 @@ def test_innerprod():
         print code
         output = (
             "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
             "      ! Initialise field proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
@@ -1759,6 +1755,11 @@ def test_innerprod():
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1775,6 +1776,11 @@ def test_innerprod():
                 "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
@@ -1817,10 +1823,6 @@ def test_sumfield():
         print code
         output = (
             "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
             "      ! Initialise field proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
@@ -1837,6 +1839,11 @@ def test_sumfield():
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO ")
@@ -1852,6 +1859,11 @@ def test_sumfield():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO \n"
@@ -1859,3 +1871,113 @@ def test_sumfield():
                 "      asum = global_sum%get_sum()")
             assert output in code
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+
+
+def test_multi_builtin_single_invoke():
+    '''Test that multiple builtins, including one with reductions,
+    produce correct code'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.15.0_builtins_reduction_fuse_error.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert(
+                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "      USE scalar_mod, ONLY: scalar_type\n"
+                "      USE mesh_mod, ONLY: mesh_type\n"
+                "      REAL(KIND=r_def), intent(out) :: asum\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      TYPE(scalar_type) global_sum\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      TYPE(mesh_type), pointer :: mesh => null()\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
+            assert (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Create a mesh object\n"
+                "      !\n"
+                "      mesh => f1%get_mesh()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = "
+                "f1_proxy%vspace%get_undf()\n") in code
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n") in code
+        else:
+            assert (
+                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "      REAL(KIND=r_def), intent(out) :: asum\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
+            assert (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = "
+                "f1_proxy%vspace%get_undf()\n") in code
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+                "      END DO \n") in code

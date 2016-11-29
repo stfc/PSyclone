@@ -2596,16 +2596,16 @@ SCALAR_SUMS = (
 
 
 def test_stub_generate_with_scalar_sums():
-    ''' check that the stub generate produces the expected output when
-    the kernel has scalar arguments with a reduction operation (gh_sum) '''
-    # hack while DM does not support reductions
-    import config
-    config.DISTRIBUTED_MEMORY = False
-    # end hack
-    result = generate("test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
-                      api="dynamo0.3")
-    print result
-    assert SCALAR_SUMS in str(result)
+    '''check that the stub generate raises an exception when a kernel has
+    multiple reductions'''
+    with pytest.raises(GenerationError) as err:
+        _ = generate(
+            "test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+            api="dynamo0.3")
+    assert (
+        "PSyclone currently only supports a single reduction in a kernel "
+        "or builtin" in str(err))
+
 
 # fields : intent
 INTENT = '''
@@ -4568,73 +4568,6 @@ def test_single_real_scalar_sum():
             "undf_w3, map_w3(:,cell))" in gen
 
 
-def test_multiple_scalar_sums():
-    '''Test that multiple real scalar (gh_sum) reductions generate
-    correct code '''
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print gen
-        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type("
-                "rsum1, rsum2, f1)") in gen
-        assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
-        assert (
-            "      rsum1 = 0.0_r_def\n"
-            "      rsum2 = 0.0_r_def")
-        assert (
-            "CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, "
-            "rsum2, f1_proxy%data, ndf_w3, undf_w3, map_w3(:,cell))") in gen
-        if dist_mem:
-            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
-            assert gen.count("TYPE(scalar_type) global_sum") == 1
-            assert ("      global_sum%value = rsum2\n"
-                    "      rsum2 = global_sum%get_sum()\n"
-                    "      global_sum%value = rsum1\n"
-                    "      rsum1 = global_sum%get_sum()\n") in gen
-
-
-def test_multiple_mixed_scalar_sums():
-    '''Test that multiple mixed scalar (gh_sum) reductions generate
-    correct code with dm=False (dm=True is not supported with
-    gh_integer) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "16.4_multiple_scalar_sums.f90"),
-                           api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
-            "isum1, f1, rsum2, isum2)") in gen
-    assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
-    assert "INTEGER, intent(out) :: isum1, isum2" in gen
-    assert (
-        "      rsum1 = 0.0_r_def\n"
-        "      rsum2 = 0.0_r_def\n"
-        "      isum1 = 0\n"
-        "      isum2 = 0")
-    assert (
-        "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
-        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3(:,cell))") in gen
-
-
-def test_multiple_mixed_scalar_sums2():
-    '''Test that multiple mixed scalar (gh_sum) reductions raise an
-    exception with dm=False as dm=True is not supported with
-    gh_integer '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "16.4_multiple_scalar_sums.f90"),
-                           api="dynamo0.3", distributed_memory=True)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=True).create(invoke_info)
-    assert "Integer reductions are not currently supported" \
-        in str(excinfo.value)
-
-
 def test_multiple_kernels_scalar_sums():
 
     '''Add a test for multiple kernels within an invoke with scalar
@@ -4662,7 +4595,7 @@ def test_multiple_kernels_scalar_sums():
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
-        assert gen.count("rsum = 0.0_r_def") == 1
+        assert gen.count("rsum = 0.0_r_def") == 2
         output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
                  "undf_w3, map_w3(:,cell))"
         assert output in gen

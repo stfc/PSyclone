@@ -1020,6 +1020,8 @@ class DynInvoke(Invoke):
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        reserved_names_list.extend(["omp_get_thread_num",
+                                    "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynSchedule,
                         reserved_names=reserved_names_list)
 
@@ -1303,21 +1305,6 @@ class DynInvoke(Invoke):
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
 
-        # Zero any scalar arguments that are GH_SUM
-        zero_real_args = self.unique_declarations("gh_real", access="gh_sum")
-        zero_integer_args = self.unique_declarations("gh_integer",
-                                                     access="gh_sum")
-        if zero_real_args or zero_integer_args:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            for arg in zero_real_args:
-                invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0.0_r_def"))
-            for arg in zero_integer_args:
-                invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0"))
-
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -1396,6 +1383,24 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, pointer=True,
                                      lhs=mesh_obj_name, rhs=rhs))
+
+        if self.schedule.reductions(reprod=True):
+            # we have at least one reproducible reduction so we need
+            # to know the number of OpenMP threads
+            from f2pygen import UseGen
+            omp_function_name = "omp_get_max_threads"
+            nthreads_name = self._name_space_manager.create_name(
+                root_name="nthreads", context="PSyVars", label="nthreads")
+            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
+                                  funcnames=[omp_function_name]))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[nthreads_name]))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(
+                invoke_sub, " Determine the number of OpenMP threads"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
+                                     rhs=omp_function_name+"()"))
 
         # Initialise any stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)
@@ -1958,6 +1963,16 @@ class DynLoop(Loop):
                                       " Set halos dirty for fields modified "
                                       "in the above loop"))
                 parent.add(CommentGen(parent, ""))
+                from psyGen import OMPParallelDoDirective
+                from f2pygen import DirectiveGen
+                use_omp_master = False
+                if self.is_openmp_parallel():
+                    if not self.ancestor(OMPParallelDoDirective):
+                        use_omp_master = True
+                        # I am within an OpenMP Do directive so protect
+                        # set_dirty() with OpenMP Master
+                        parent.add(DirectiveGen(parent, "omp", "begin",
+                                                "master", ""))
                 for field in fields:
                     if field.vector_size > 1:
                         # the range function below returns values from
@@ -1970,6 +1985,11 @@ class DynLoop(Loop):
                     else:
                         parent.add(CallGen(parent, name=field.proxy_name +
                                            "%set_dirty()"))
+                if use_omp_master:
+                    # I am within an OpenMP Do directive so protect
+                    # set_dirty() with OpenMP Master
+                    parent.add(DirectiveGen(parent, "omp", "end",
+                                            "master", ""))
                 parent.add(CommentGen(parent, ""))
 
 

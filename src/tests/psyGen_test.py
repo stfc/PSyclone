@@ -472,17 +472,29 @@ def test_kern_class_view(capsys):
     assert expected_output in out
 
 
-def test_kern_local_vars():
-    ''' Check that calling the abstract local_vars() method of Kern raises
+def test_call_local_vars():
+    ''' Check that calling the abstract local_vars() method of Call raises
     the expected exception '''
-    from psyGen import Kern
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
+    from psyGen import Call, Arguments
+    my_arguments = Arguments(None)
+
+    class KernType(object):
+        ''' temporary dummy class '''
+        def __init__(self):
+            self.iterates_over = "stuff"
+    my_ktype = KernType()
+
+    class DummyClass(object):
+        ''' temporary dummy class '''
+        def __init__(self, ktype):
+            self.module_name = "dummy_module"
+            self.ktype = ktype
+
+    dummy_call = DummyClass(my_ktype)
+    my_call = Call(None, dummy_call, "dummy", my_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
-        Kern.local_vars(my_kern)
-    assert "Kern.local_vars should be implemented" in str(excinfo.value)
+        my_call.local_vars()
+    assert "Call.local_vars should be implemented" in str(excinfo.value)
 
 
 def test_written_arg():
@@ -559,8 +571,8 @@ def test_call_abstract_methods():
     fake_ktype.iterates_over = "something"
     fake_call.ktype = fake_ktype
     fake_call.module_name = "a_name"
-    fake_arguments = GenerationError("msg")
-    fake_arguments.args = []
+    from psyGen import Arguments
+    fake_arguments = Arguments(None)
     my_call = Call(fake_call, fake_call, name="a_name",
                    arguments=fake_arguments)
     with pytest.raises(NotImplementedError) as excinfo:
@@ -649,6 +661,58 @@ def test_args_filter2():
     assert len(args) == len(expected_output)
 
 
+def test_reduction_var_error():
+    '''Check that we raise an exception if the zero_reduction_variable()
+    method is provided with an incorrect type of argument'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        call = schedule.calls()[0]
+        # args[1] is of type gh_field
+        call._reduction_arg = call.arguments.args[1]
+        with pytest.raises(GenerationError) as err:
+            call.zero_reduction_variable(None)
+        assert ("zero_reduction variable should be one of ['gh_real', "
+                "'gh_integer']") in str(err)
+
+
+def test_reduction_sum_error():
+    '''Check that we raise an exception if the reduction_sum_loop()
+    method is provided with an incorrect type of argument'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        call = schedule.calls()[0]
+        # args[1] is of type gh_field
+        call._reduction_arg = call.arguments.args[1]
+        with pytest.raises(GenerationError) as err:
+            call.reduction_sum_loop(None)
+        assert (
+            "unsupported reduction access 'gh_write' found in DynBuiltin:"
+            "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)
+
+
+def test_call_multi_reduction_error():
+    '''Check that we raise an exception if we try to create a Call (a
+    Kernel or a Builtin) with more than one reduction in it'''
+    for dist_mem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as err:
+            _ = PSyFactory("dynamo0.3",
+                           distributed_memory=dist_mem).create(invoke_info)
+        assert (
+            "PSyclone currently only supports a single reduction in a kernel "
+            "or builtin" in str(err))
+
+
 def test_invoke_name():
     ''' Check that specifying the name of an invoke in the Algorithm
     layer results in a correctly-named routine in the PSy layer '''
@@ -699,3 +763,35 @@ def test_named_invoke_name_clash():
     print gen
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
+
+
+def test_invalid_reprod_pad_size():
+    '''Check that we raise an exception if the pad size in config.py is
+    set to an invalid value '''
+    import config
+    keep = config.REPROD_PAD_SIZE
+    config.REPROD_PAD_SIZE = 0
+    for distmem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.0_inner_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        from transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        # Apply an OpenMP do directive to the loop
+        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+        # Apply an OpenMP Parallel directive around the OpenMP do directive
+        schedule, _ = rtrans.apply(schedule.children[0])
+        invoke.schedule = schedule
+        with pytest.raises(GenerationError) as excinfo:
+            _ = str(psy.gen)
+        assert (
+            "REPROD_PAD_SIZE in config.py should be a positive "
+            "integer") in str(excinfo.value)
+    config.REPROD_PAD_SIZE = keep

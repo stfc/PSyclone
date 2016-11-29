@@ -881,4 +881,46 @@ by PSyclone.
 Transformations
 ---------------
 
-.. note:: To be written.
+This section describes the dynamo-api-specific transformations. In all
+cases these transformations are specialisations of generic
+transformations described in the :ref:`transformations` section. The
+difference between these transformations and the generic ones are that
+these perform dynamo-api-specific checks to make sure the
+transformations are valid. In practice these transformations perform
+the required checks then call the generic ones internally.
+
+The use of the dynamo-api-specific transformations is exactly the same
+as the equivalent generic ones in all cases excepting
+**DynamoLoopFuseTrans**. In this case an additional optional argument
+**same_space** has been added to the **apply** method. The reason for
+this is to allow loop fusion when one or more of the iteration-spaces
+is determined by a function space that is unknown by PSyclone at
+compile time. This is the case when the **ANY_SPACE** function space
+is specified in the Kernel metadata. By default PSyclone will not
+allow loop fusion if it does not know the spaces are the same. The
+**same_space** option allows the user to specify that
+the spaces are the same. This option should therefore be used with
+caution. Note, if PSyclone knows the spaces are different this option
+has no effect and the transformation will always raise an exception.
+
+The Dynamo-specific transformations currently available are given
+below. If the name of a transformation includes "Dynamo0p3" it means
+that the transformation is only valid for this particular API. If the
+name of the transformation includes "Dynamo" then it should work with
+all versions of the Dynamo API.
+
+.. autoclass:: transformations.DynamoLoopFuseTrans
+    :members:
+    :noindex:
+
+.. autoclass:: transformations.DynamoOMPParallelLoopTrans
+    :members:
+    :noindex:
+
+.. autoclass:: transformations.Dynamo0p3OMPLoopTrans
+    :members:
+    :noindex:
+
+.. autoclass:: transformations.Dynamo0p3ColourTrans
+    :members:
+    :noindex:

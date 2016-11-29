@@ -158,19 +158,65 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         ''' Returns the name of this transformation as a string '''
         return "DynamoLoopFuse"
 
-    def apply(self, node1, node2):
-        ''' Fuse the two Dynamo loops represented by :py:obj:`node1`
-        and :py:obj:`node2` '''
+    def apply(self, node1, node2, same_space=False):
+        '''Fuse the two Dynamo loops represented by :py:obj:`node1` and
+        :py:obj:`node2`. The optional same_space flag asserts that an
+        unknown iteration space (i.e. any_space) matches the other
+        iteration space. This is set at the users own risk. '''
 
         LoopFuseTrans._validate(self, node1, node2)
 
+        from dynamo0p3 import VALID_FUNCTION_SPACES
         try:
-            if node1.field_space.orig_name != node2.field_space.orig_name:
+            if node1.field_space.orig_name in VALID_FUNCTION_SPACES and \
+               node2.field_space.orig_name in VALID_FUNCTION_SPACES:
+                if node1.field_space.orig_name != node2.field_space.orig_name:
+                    if same_space:
+                        info = (
+                            " Note, the same_space flag was set, but "
+                            "does not apply because neither field is "
+                            "ANY_SPACE.")
+                    else:
+                        info = ""
+                    raise TransformationError(
+                        "Error in DynamoLoopFuse transformation. "
+                        "Cannot fuse loops that are over different spaces: "
+                        "{0} {1}.{2}".format(node1.field_space.orig_name,
+                                             node2.field_space.orig_name,
+                                             info))
+            else:  # one or more of the function spaces is any_space
+                if not same_space:
+                    raise TransformationError(
+                        "DynamoLoopFuseTrans. One or more of the iteration "
+                        "spaces is unknown ('any_space') so loop fusion might "
+                        "be invalid. If you know the spaces are the same then "
+                        "please set the 'same_space' optional argument to "
+                        "True.")
+            from psyGen import MAPPING_SCALARS, MAPPING_REDUCTIONS
+            arg_types = MAPPING_SCALARS.values()
+            arg_accesses = MAPPING_REDUCTIONS.values()
+            node1_red_args = node1.args_filter(arg_types=arg_types,
+                                               arg_accesses=arg_accesses)
+            node2_red_args = node2.args_filter(arg_types=arg_types,
+                                               arg_accesses=arg_accesses)
+
+            if node1_red_args and node2_red_args:
                 raise TransformationError(
                     "Error in DynamoLoopFuse transformation. "
-                    "Cannot fuse loops that are over different spaces: "
-                    "{0} {1}".format(node1.field_space.orig_name,
-                                     node2.field_space.orig_name))
+                    "Cannot fuse loops when each loop already "
+                    "contains a reduction")
+
+            if node1_red_args:
+                for reduction_arg in node1_red_args:
+                    other_args = node2.args_filter()
+                    for arg in other_args:
+                        if reduction_arg.name == arg.name:
+                            raise TransformationError(
+                                "Error in DynamoLoopFuse transformation. "
+                                "Cannot fuse loops as the first loop "
+                                "has a reduction and the second loop "
+                                "reads the result of the reduction")
+
             return LoopFuseTrans.apply(self, node1, node2)
         except TransformationError as err:
             raise err
@@ -181,9 +227,14 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
 class OMPLoopTrans(Transformation):
 
-    ''' Adds an orphaned OpenMP directive to a loop. i.e. the directive
-        must be inside the scope of some other OMP Parallel REGION. This
-        condition is tested at code-generation time.
+    '''Adds an orphaned OpenMP directive to a loop. i.e. the directive
+        must be inside the scope of some other OMP Parallel
+        REGION. This condition is tested at code-generation time. The
+        optional 'reprod' argument in the apply method decides whether
+        standard OpenMP reduction support is to be used (which is not
+        reproducible) or whether a manual reproducible reproduction is
+        to be used.
+
         For example:
 
         >>> from parse import parse,ParseError
@@ -206,7 +257,7 @@ class OMPLoopTrans(Transformation):
         # Apply the OpenMP Loop transformation to *every* loop
         # in the schedule
         >>> for child in schedule.children:
-        >>>     newschedule,memento=ltrans.apply(child)
+        >>>     newschedule,memento=ltrans.apply(child, reprod=True)
         >>>     schedule = newschedule
         >>>
         # Enclose all of these loops within a single OpenMP
@@ -265,7 +316,7 @@ class OMPLoopTrans(Transformation):
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
 
-    def apply(self, node):
+    def apply(self, node, reprod=None):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -282,7 +333,19 @@ class OMPLoopTrans(Transformation):
         :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP PARALLEL region.
 
+        The optional reprod argument will cause a reproducible
+        reduction to be generated if it is set to True, otherwise the
+        default, non-reproducible OpenMP reduction will used. Note,
+        reproducible in this case means obtaining the same results
+        with the same number of OpenMP threads, not for different
+        numbers of OpenMP threads.
+
         '''
+
+        if reprod is None:
+            import config
+            reprod = config.REPRODUCIBLE_REDUCTIONS
+
         # Check that the supplied node is a Loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -312,7 +375,8 @@ class OMPLoopTrans(Transformation):
         from psyGen import OMPDoDirective
         directive = OMPDoDirective(parent=node_parent,
                                    children=[node],
-                                   omp_schedule=self.omp_schedule)
+                                   omp_schedule=self.omp_schedule,
+                                   reprod=reprod)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
@@ -437,11 +501,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:class:`base class <OMPParallelLoopTrans>`. '''
         OMPParallelLoopTrans._validate(self, node)
 
-        # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
-            raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".
-                                      format(self.name))
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is W3 then we don't need
         # to worry about colouring.
@@ -503,21 +562,21 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an OpenMP DO directive to a Dynamo 0.3 loop"
 
-    def apply(self, node):
+    def apply(self, node, reprod=None):
         '''Perform Dynamo 0.3 specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
         '''
+
+        if reprod is None:
+            import config
+            reprod = config.REPRODUCIBLE_REDUCTIONS
+
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Error in "+self.name+" transformation."
                                       " The node is not a loop.")
-        # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
-            raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space ({1}) is not 'cells'.".
-                                      format(self.name, node.iteration_space))
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
@@ -525,7 +584,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
                 format(self.name))
-        return OMPLoopTrans.apply(self, node)
+        return OMPLoopTrans.apply(self, node, reprod=reprod)
 
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
