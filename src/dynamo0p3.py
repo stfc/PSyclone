@@ -2451,6 +2451,20 @@ class DynKern(Kern):
                                  implicitnone=True)
         # create the arglist and declarations
         arglist = self._create_arg_list(sub_stub, my_type="subroutine")
+        create_arg_list = KernStubArgList(self, sub_stub)
+        create_arg_list.generate()
+        if len(arglist) != len(create_arg_list._arglist):
+            print "lengths differ"
+            print arglist
+            print create_arg_list._arglist
+            exit(1)
+        for index, arg in enumerate(arglist):
+            if arg != create_arg_list._arglist[index]:
+                print "difference at index ", index
+                print arglist
+                print create_arg_list._arglist
+                exit(1)
+        arglist = create_arg_list.arglist
         # add the arglist
         sub_stub.args = arglist
         # add the subroutine to the parent module
@@ -2561,20 +2575,9 @@ class DynKern(Kern):
                                entity_decls=orientation_decl_names))
             parent.add(CommentGen(parent, ""))
 
-        arglist = self._create_arg_list(parent)
-        create_arg_list = KernCallArgList(self)
-        create_arg_list.arg_list_order()
-        if len(arglist) != len(create_arg_list._arglist):
-            print "lengths differ"
-            print arglist
-            print create_arg_list._arglist
-            exit(1)
-        for index, arg in enumerate(arglist):
-            if arg != create_arg_list._arglist[index]:
-                print "difference at index ", index
-                print arglist
-                print create_arg_list._arglist
-                exit(1)
+        create_arg_list = KernCallArgList(self, parent)
+        create_arg_list.generate()
+        arglist = create_arg_list.arglist
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
@@ -2640,16 +2643,17 @@ class DynKern(Kern):
 
 
 class ArgOrdering(object):
-    '''Base class capturing the arguments, type and ordering of data into
+    '''Base class capturing the arguments, type and ordering of data in
     a Kernel call'''
     def __init__(self, kern):
         self._kern = kern
 
-    def arg_list_order(self):
+    def generate(self):
         '''specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
         that can be specialised by a child class for its particular need'''
-        self.cell_position()
+        if self._kern._arguments.has_operator:
+            self.cell_position()
         self.mesh_height()
         for arg in self._kern._arguments.args:
             if arg.type == "gh_field":
@@ -2659,7 +2663,10 @@ class ArgOrdering(object):
                     self.field(arg)
                 if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
-                        self.stencil(arg)
+                        self.stencil_unknown_extent(arg)
+                    if arg.descriptor.stencil['type'] == "xory1d":
+                        self.stencil_unknown_direction(arg)
+                    self.stencil(arg)
             elif arg.type == "gh_operator":
                 self.operator(arg)
             elif arg.type in VALID_SCALAR_NAMES:
@@ -2673,7 +2680,7 @@ class ArgOrdering(object):
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
             # 3.1 Provide compulsory arguments common to operators and
-            # fields on a space. There is one: "ndf".
+            # fields on a space.
             self.fs_compulsory(unique_fs)
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
@@ -2695,7 +2702,7 @@ class ArgOrdering(object):
             # condition kernel (enforce_bc_kernel) arguments
             if self._kern.name.lower() == "enforce_bc_code" and \
                unique_fs.orig_name.lower() == "any_space_1":
-                self.bc_kernel()
+                self.bc_kernel(unique_fs)
         # 4: Provide qr arguments if required
         if self._kern._qr_required:
             self.qr()
@@ -2712,6 +2719,12 @@ class ArgOrdering(object):
         raise NotImplementedError("Error: ArgOrdering.field() must be implemented "
                                   "by subclass")
 
+    def stencil_unknown_extent(self, arg):
+        raise NotImplementedError("Error: ArgOrdering.stencil_unknown_extent() must be implemented "
+                                  "by subclass")
+    def stencil_unknown_direction(self, arg):
+        raise NotImplementedError("Error: ArgOrdering.stencil_unknown_direction() must be implemented "
+                                  "by subclass")
     def stencil(self, arg):
         raise NotImplementedError("Error: ArgOrdering.stencil() must be implemented "
                                   "by subclass")
@@ -2749,7 +2762,7 @@ class ArgOrdering(object):
         raise NotImplementedError("Error: ArgOrdering.orientation() must be implemented "
                                   "by subclass")
 
-    def bc_kernel(self):
+    def bc_kernel(self, function_space):
         '''add boundary condition information if required '''
         raise NotImplementedError("Error: ArgOrdering.bc_kernel() must be implemented "
                                   "by subclass")
@@ -2764,10 +2777,15 @@ class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
     PSy-layer. The ordering of the arguments is captured by the base
     class '''
-    def __init__(self, kern):
+    def __init__(self, kern, parent=None):
         ArgOrdering.__init__(self, kern)
+        self._parent = parent
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
+
+    @property
+    def arglist(self):
+        return self._arglist
 
     def cell_position(self):
         ''' Add cell position to the argument list if required '''
@@ -2796,18 +2814,22 @@ class KernCallArgList(ArgOrdering):
         text = arg.proxy_name + "%data"
         self._arglist.append(text)
 
+    def stencil_unknown_extent(self, arg):
+        '''add stencil information associated with the argument 'arg' if the extent is unknown'''
+        # the extent is not specified in the metadata
+        # so pass the value in
+        name = stencil_size_name(arg)
+        self._arglist.append(name)
+
+    def stencil_unknown_direction(self, arg):
+        '''add stencil information associated with the argument 'arg' if the direction is unknown'''
+        # the direction of the stencil is not known so
+        # pass the value in
+        name = arg.stencil.direction_arg.varName
+        self._arglist.append(name)
+
     def stencil(self, arg):
-        '''add stencil information associated with the argument 'arg' '''
-        if not arg.descriptor.stencil['extent']:
-            # the extent is not specified in the metadata
-            # so pass the value in
-            name = stencil_size_name(arg)
-            self._arglist.append(name)
-        if arg.descriptor.stencil['type'] == "xory1d":
-            # the direction of the stencil is not known so
-            # pass the value in
-            name = arg.stencil.direction_arg.varName
-            self._arglist.append(name)
+        '''add general stencil information associated with the argument 'arg' '''
         # add in stencil dofmap
         var_name = stencil_dofmap_name(arg)
         name = var_name + "(:,:," + self._cell_ref_name + ")"
@@ -2851,17 +2873,19 @@ class KernCallArgList(ArgOrdering):
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
 
-    def bc_kernel(self):
+    def bc_kernel(self, function_space):
         ''' implement the boundary_dofs array fix '''
+        from f2pygen import DeclGen, AssignGen
         self._arglist.append("boundary_dofs")
+        parent = self._parent
         parent.add(DeclGen(parent, datatype="integer",
                            pointer=True, entity_decls=[
                                "boundary_dofs(:,:) => null()"]))
         fspace = None
-        for fspace in self._arguments.unique_fss:
+        for fspace in self._kern._arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
                 break
-        proxy_name = (self._arguments.get_arg_on_space(fspace).
+        proxy_name = (self._kern._arguments.get_arg_on_space(fspace).
                       proxy_name)
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
@@ -2883,6 +2907,284 @@ class KernCallArgList(ArgOrdering):
             return "cmap(colour, cell)"
         else:
             return "cell"
+
+
+class KernStubArgList(ArgOrdering):
+    '''Creates the argument list required to call kernel "kern" from the
+    PSy-layer. The ordering of the arguments is captured by the base
+    class '''
+    def __init__(self, kern, parent):
+
+        from f2pygen import UseGen
+        parent.add(UseGen(parent, name="constants_mod", only=True,
+                          funcnames=["r_def"]))
+        self._first_arg = True
+        self._first_arg_decl = None
+        ArgOrdering.__init__(self, kern)
+        self._parent = parent
+        self._arglist = []
+        self._name_space_manager = NameSpaceFactory().create()
+
+    @property
+    def arglist(self):
+        return self._arglist
+
+    def cell_position(self):
+        ''' Add cell position to the argument list if required '''
+        from f2pygen import DeclGen
+        self._arglist.append("cell")
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                           entity_decls=["cell"]))
+
+    def mesh_height(self):
+        ''' add mesh height (nlayers) to the argument list if required '''
+        from f2pygen import DeclGen
+        self._arglist.append("nlayers")
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                           entity_decls=["nlayers"]))
+
+    def field_vector(self, argvect):
+        '''add the field vector associated with the argument 'argvect' to the
+        argument list '''
+        undf_name = get_fs_undf_name(argvect.function_space)
+        from f2pygen import DeclGen
+        # the range function below returns values from
+        # 1 to the vector size which is what we
+        # require in our Fortran code
+        for idx in range(1, argvect.vector_size+1):
+            text = (argvect.name + "_" +
+                    argvect.function_space.mangled_name +
+                    "_v" + str(idx))
+            intent = argvect.intent
+            decl = DeclGen(self._parent, datatype="real",
+                           kind="r_def", dimension=undf_name,
+                           intent=intent, entity_decls=[text])
+            self._parent.add(decl)
+            if self._first_arg:
+                self._first_arg = False
+                self._first_arg_decl = decl
+            self._arglist.append(text)
+
+    def field(self, arg):
+        '''add the field associated with the argument 'arg' to the argument
+        list'''
+        from f2pygen import DeclGen
+        undf_name = get_fs_undf_name(arg.function_space)
+        text = arg.name + "_" + arg.function_space.mangled_name
+        intent = arg.intent
+        decl = DeclGen(self._parent, datatype="real",
+                       kind="r_def", dimension=undf_name,
+                       intent=intent, entity_decls=[text])
+        self._parent.add(decl)
+        if self._first_arg:
+            self._first_arg = False
+            self._first_arg_decl = decl
+        self._arglist.append(text)
+
+    def stencil_unknown_extent(self, arg):
+        '''add stencil information associated with the argument 'arg' if the extent is unknown'''
+        from f2pygen import DeclGen
+        name = arg.name + "_stencil_size"
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                           intent="in",
+                           entity_decls=[name]))
+        self._arglist.append(name)
+
+    def stencil_unknown_direction(self, arg):
+        '''add stencil information associated with the argument 'arg' if the direction is unknown'''
+        from f2pygen import DeclGen
+        name = arg.name+"_direction"
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                           intent="in",
+                           entity_decls=[name]))
+        self._arglist.append(name)
+
+    def stencil(self, arg):
+        '''add general stencil information associated with the argument 'arg' '''
+        from f2pygen import DeclGen
+        name = arg.name+"_stencil_map"
+        ndf_name = get_fs_ndf_name(arg.function_space)
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                           intent="in",
+                           dimension=ndf_name + "," +
+                           arg.name + "_stencil_size",
+                           entity_decls=[name]))
+        self._arglist.append(name)
+
+    def operator(self, arg):
+        ''' add the operator arguments to the argument list '''
+        from f2pygen import DeclGen
+        size = arg.name + "_ncell_3d"
+        self._arglist.append(size)
+        decl = DeclGen(self._parent, datatype="integer", intent="in",
+                       entity_decls=[size])
+        self._parent.add(decl)
+        if self._first_arg:
+            self._first_arg = False
+            self._first_arg_decl = decl
+        text = arg.name
+        self._arglist.append(text)
+
+        intent = arg.intent
+        ndf_name_to = get_fs_ndf_name(arg.function_space_to)
+        ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+        self._parent.add(DeclGen(self._parent, datatype="real",
+                           kind="r_def",
+                           dimension=ndf_name_to + "," +
+                           ndf_name_from + "," + size,
+                           intent=intent, entity_decls=[text]))
+
+    def scalar(self, arg):
+        '''add the name associated with the scalar argument'''
+        from f2pygen import DeclGen
+        if arg.type == "gh_real":
+            decl = DeclGen(self._parent, datatype="real", kind="r_def",
+                           intent=arg.intent,
+                           entity_decls=[arg.name])
+        elif arg.type == "gh_integer":
+            decl = DeclGen(self._parent, datatype="integer",
+                           intent=arg.intent,
+                           entity_decls=[arg.name])
+        else:
+            raise GenerationError(
+                "Internal error: expected arg type to be one "
+                "of '{0}' but got '{1}'".format(VALID_SCALAR_NAMES,
+                                                arg.type))
+        self._parent.add(decl)
+        self._arglist.append(arg.name)
+
+    def fs_compulsory(self, function_space):
+        ''' Provide compulsory arguments common to operators and
+        fields on a space. There is one: "ndf".'''
+        from f2pygen import DeclGen
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(ndf_name)
+        # NOT WORKING FOR SOME REASON
+        #self._parent.add(
+        #    DeclGen(self._parent, datatype="integer", intent="in",
+        #            entity_decls=[ndf_name]),
+        #    position=["before", self._first_arg_decl.root])
+
+    def fs_compulsory_field(self, function_space):
+        ''' Provide compulsory arguments if there is a field on this
+        function space'''
+        from f2pygen import DeclGen
+        ndf_name = get_fs_ndf_name(function_space)
+        undf_name = get_fs_undf_name(function_space)
+        self._arglist.append(undf_name)
+        map_name = get_fs_map_name(function_space)
+        self._arglist.append(map_name)
+        # ndf* declarations need to be before argument
+        # declarations as some compilers don't like
+        # declarations after they have been used. We place
+        # ndf* before the first argument declaration
+        # (field or operator) (rather than after nlayers)
+        # as this keeps the declarations in the order
+        # specified in the metadata and first used by
+        # fields/operators.
+        # NOT WORKING FOR SOME REASON
+        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+        #                   entity_decls=[undf_name]),
+        #           position=["before", self._first_arg_decl.root])
+        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+        #                   dimension=ndf_name,
+        #                   entity_decls=[map_name]))
+
+    def basis(self, function_space):
+        ''' provide basis function information for the function space '''
+        from f2pygen import DeclGen
+        basis_name = get_fs_basis_name(function_space)
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(basis_name)
+        # the size of the first dimension for a
+        # basis array depends on the
+        # function space. The values are
+        # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
+        first_dim = None
+        if function_space.orig_name.lower() in \
+           ["w0", "w3", "wtheta"]:
+            first_dim = "1"
+        elif (function_space.orig_name.lower() in
+              ["w1", "w2", "w2h", "w2v"]):
+            first_dim = "3"
+        else:
+            raise GenerationError(
+                "Unsupported space for basis function, "
+                "expecting one of {0} but found "
+                "'{1}'".format(VALID_FUNCTION_SPACES,
+                               function_space.orig_name))
+        self._parent.add(DeclGen(self._parent, datatype="real",
+                           kind="r_def", intent="in",
+                           dimension=first_dim + "," +
+                           ndf_name + "," +
+                           self._kern._qr_args["nh"] + "," +
+                           self._kern._qr_args["nv"],
+                           entity_decls=[basis_name]))
+
+    def diff_basis(self, function_space):
+        ''' provide differential basis function information for the function space '''
+        from f2pygen import DeclGen
+        ndf_name = get_fs_ndf_name(function_space)
+        diff_basis_name = get_fs_diff_basis_name(function_space)
+        self._arglist.append(diff_basis_name)
+        # the size of the first dimension for a
+        # differential basis array depends on the
+        # function space. The values are
+        # w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1
+        first_dim = None
+        if function_space.orig_name.lower() in \
+           ["w2", "w2h", "w2v"]:
+            first_dim = "1"
+        elif (function_space.orig_name.lower() in
+              ["w0", "w1", "w3", "wtheta"]):
+            first_dim = "3"
+        else:
+            raise GenerationError(
+                "Unsupported space for differential basis "
+                "function, expecting one of {0} but found "
+                "'{1}'".format(VALID_FUNCTION_SPACES,
+                               function_space.orig_name))
+        self._parent.add(DeclGen(self._parent, datatype="real",
+                           kind="r_def", intent="in",
+                           dimension=first_dim + "," +
+                           ndf_name + "," +
+                           self._kern._qr_args["nh"] + "," +
+                           self._kern._qr_args["nv"],
+                           entity_decls=[diff_basis_name]))
+
+    def orientation(self, function_space):
+        ''' provide orientation information for the function space '''
+        from f2pygen import DeclGen
+        ndf_name = get_fs_ndf_name(function_space)
+        orientation_name = get_fs_orientation_name(function_space)
+        self._arglist.append(orientation_name)
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                           intent="in", dimension=ndf_name,
+                           entity_decls=[orientation_name]))
+
+    def bc_kernel(self, function_space):
+        ''' implement the boundary_dofs array fix '''
+        from f2pygen import DeclGen
+        self._arglist.append("boundary_dofs")
+        ndf_name = get_fs_ndf_name(function_space)
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                           dimension=ndf_name+",2",
+                           entity_decls=["boundary_dofs"]))
+
+    def qr(self):
+        ''' provide qr information '''
+        from f2pygen import DeclGen
+        self._arglist.extend([self._kern._qr_args["nh"], self._kern._qr_args["nv"],
+                              self._kern._qr_args["h"], self._kern._qr_args["v"]])
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                           entity_decls=[self._kern._qr_args["nh"],
+                                         self._kern._qr_args["nv"]]))
+        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
+                           intent="in", dimension=self._kern._qr_args["nh"],
+                           entity_decls=[self._kern._qr_args["h"]]))
+        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
+                           intent="in", dimension=self._kern._qr_args["nv"],
+                           entity_decls=[self._kern._qr_args["v"]]))
 
 
 class DinoWriteGen(ArgOrdering):
