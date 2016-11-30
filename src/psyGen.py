@@ -11,16 +11,28 @@
     particular API and implementation. '''
 
 import abc
+import config
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
-# The following mappings will be set by a particular API if supported. We
-# provide a default here for API's which do not have their own mapping
-# (or support this mapping). This allows codes with no support to run.
-# Names of reduction operations
+# The following mappings will be set by a particular API if supported
+# and required. We provide a default here for API's which do not have
+# their own mapping (or support this mapping). This allows codes with
+# no support to run.
+# MAPPING_REDUCTIONS gives the names of reduction operations
 MAPPING_REDUCTIONS = {"sum": "sum"}
+# OMP_OPERATOR_MAPPING is used to determine the operator to use in the
+# reduction clause of an OpenMP directive. All code for OpenMP
+# directives exists in psyGen.py so this mapping should not be
+# overidden.
+OMP_OPERATOR_MAPPING = {"sum": "+"}
+# REDUCTION_OPERATOR_MAPPING is used to determine the operator to use
+# when creating a loop to sum partial sums sequentially, in order to
+# get reproducible results. The LHS is the datatype of the field in
+# question so needs to be overidden by the particular API.
+REDUCTION_OPERATOR_MAPPING = {"sum": "+"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument
@@ -45,6 +57,19 @@ def get_api(api):
                                   "{1}.".format(api,
                                                 supported_types))
     return api
+
+
+def zero_reduction_variables(red_call_list, parent):
+    '''zero all reduction variables associated with the calls in the call
+    list'''
+    if red_call_list:
+        from f2pygen import CommentGen
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Zero summation variables"))
+        parent.add(CommentGen(parent, ""))
+        for call in red_call_list:
+            call.zero_reduction_variable(parent)
+        parent.add(CommentGen(parent, ""))
 
 
 class GenerationError(Exception):
@@ -76,10 +101,8 @@ class PSyFactory(object):
         distributed_memory to the same default as the value found in
         config.DISTRIBUTED_MEMORY. If we set it to None and then test
         the value, it then fails. I've no idea why. '''
-    import config
 
     def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
-        import config
         if distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
@@ -337,26 +360,11 @@ class Invoke(object):
     def __str__(self):
         return self._name+"("+str(self.unique_args)+")"
 
-    def __init__(self, alg_invocation, idx, Schedule, reserved_names=[]):
+    def __init__(self, alg_invocation, idx, schedule_class,
+                 reserved_names=None):
 
         if alg_invocation is None and idx is None:
             return
-
-        # create our namespace manager - must be done before creating the
-        # schedule
-        self._name_space_manager = NameSpaceFactory(reset=True).create()
-        self._name_space_manager.add_reserved_names(reserved_names)
-
-        # create the schedule
-        self._schedule = Schedule(alg_invocation.kcalls)
-
-        # let the schedule have access to me
-        self._schedule.invoke = self
-
-        # Set up the ordering constraints between the calls in the schedule
-        # Obviously the schedule must be created first
-        for call in self._schedule.calls():
-            call.set_constraints()
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
@@ -371,6 +379,30 @@ class Invoke(object):
         else:
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
+
+        # create our namespace manager - must be done before creating the
+        # schedule
+        self._name_space_manager = NameSpaceFactory(reset=True).create()
+
+        # Add the name for the call to the list of reserved names. This
+        # ensures we don't get a name clash with any variables we subsequently
+        # generate.
+        if reserved_names:
+            reserved_names.append(self._name)
+        else:
+            reserved_names = [self._name]
+        self._name_space_manager.add_reserved_names(reserved_names)
+
+        # create the schedule
+        self._schedule = schedule_class(alg_invocation.kcalls)
+
+        # let the schedule have access to me
+        self._schedule.invoke = self
+
+        # Set up the ordering constraints between the calls in the schedule
+        # Obviously the schedule must be created first
+        for call in self._schedule.calls():
+            call.set_constraints()
 
         # extract the argument list for the algorithm call and psy
         # layer subroutine.
@@ -768,6 +800,26 @@ class Node(object):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children, Loop)
 
+    def reductions(self, reprod=None):
+        '''Return all calls that have reductions and are decendents of this
+        node. If reprod is not provided, all reductions are
+        returned. If reprod is False, all builtin reductions that are
+        not set to reproducible are returned. If reprod is True, all
+        builtins that are set to reproducible are returned.'''
+
+        call_reduction_list = []
+        for call in self.walk(self.children, Call):
+            if call.is_reduction:
+                if reprod is None:
+                    call_reduction_list.append(call)
+                elif reprod:
+                    if call.reprod_reduction:
+                        call_reduction_list.append(call)
+                else:
+                    if not call.reprod_reduction:
+                        call_reduction_list.append(call)
+        return call_reduction_list
+
     def is_openmp_parallel(self):
         '''Returns true if this Node is within an OpenMP parallel region
 
@@ -887,9 +939,24 @@ class OMPParallelDirective(OMPDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen
+        '''Generate the fortran OMP Parallel Directive and any associated
+        code'''
+        from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen, \
+            DeclGen
 
-        private_str = self.list_to_string(self._get_private_list())
+        private_list = self._get_private_list()
+
+        reprod_red_call_list = self.reductions(reprod=True)
+        if reprod_red_call_list:
+            # we will use a private thread index variable
+            name_space_manager = NameSpaceFactory().create()
+            thread_idx = name_space_manager.create_name(
+                root_name="th_idx", context="PSyVars", label="thread_index")
+            private_list.append(thread_idx)
+            # declare the variable
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[thread_idx]))
+        private_str = self.list_to_string(private_list)
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -900,9 +967,34 @@ class OMPParallelDirective(OMPDirective):
         # this almost certainly indicates a user error.
         self._encloses_omp_directive()
 
+        calls = self.reductions()
+
+        # first check whether we have more than one reduction with the same
+        # name in this Schedule. If so, raise an error as this is not
+        # supported for a parallel region.
+        names = []
+        for call in calls:
+            name = call.reduction_arg.name
+            if name in names:
+                raise GenerationError(
+                    "Reduction variables can only be used once in an invoke. "
+                    "'{0}' is used multiple times, please use a different "
+                    "reduction variable".format(name))
+            else:
+                names.append(name)
+
+        zero_reduction_variables(calls, parent)
+
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
                                 "default(shared), private({0})".
                                 format(private_str)))
+
+        if reprod_red_call_list:
+            # add in a local thread index
+            parent.add(UseGen(parent, name="omp_lib", only=True,
+                              funcnames=["omp_get_thread_num"]))
+            parent.add(AssignGen(parent, lhs=thread_idx,
+                                 rhs="omp_get_thread_num()+1"))
 
         first_type = type(self.children[0])
         for child in self.children:
@@ -914,6 +1006,14 @@ class OMPParallelDirective(OMPDirective):
             child.gen_code(parent)
 
         parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
+
+        if reprod_red_call_list:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " sum the partial results "
+                                  "sequentially"))
+            parent.add(CommentGen(parent, ""))
+            for call in reprod_red_call_list:
+                call.reduction_sum_loop(parent)
 
     def _get_private_list(self):
         '''Returns the variable names used for any loops within a directive
@@ -965,8 +1065,16 @@ class OMPParallelDirective(OMPDirective):
 
 class OMPDoDirective(OMPDirective):
 
-    def __init__(self, children=[], parent=None, omp_schedule="static"):
+    def __init__(self, children=None, parent=None, omp_schedule="static",
+                 reprod=None):
+
+        if children is None:
+            children = []
+        if reprod is None:
+            reprod = config.REPRODUCIBLE_REDUCTIONS
+
         self._omp_schedule = omp_schedule
+        self._reprod = reprod
         # Call the init method of the base class once we've stored
         # the OpenMP schedule
         OMPDirective.__init__(self,
@@ -974,9 +1082,31 @@ class OMPDoDirective(OMPDirective):
                               parent=parent)
 
     def view(self, indent=0):
-        print self.indent(indent) + "Directive[OMP do]"
+        ''' Write out a textual summary of the OpenMP Do Directive '''
+        if self.reductions():
+            reprod = "[reprod={0}]".format(self._reprod)
+        else:
+            reprod = ""
+        print self.indent(indent) + \
+            "Directive[OMP do]{0}".format(reprod)
+
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def _reduction_string(self):
+        ''' Return the OMP reduction information as a string '''
+        reduction_str = ""
+        for reduction_type in MAPPING_REDUCTIONS.keys():
+            reductions = self._get_reductions_list(reduction_type)
+            for reduction in reductions:
+                reduction_str += ", reduction({0}:{1})".format(
+                    OMP_OPERATOR_MAPPING[reduction_type], reduction)
+        return reduction_str
+
+    @property
+    def reprod(self):
+        ''' returns whether reprod has been set for this object or not '''
+        return self._reprod
 
     def gen_code(self, parent):
         from f2pygen import DirectiveGen
@@ -989,13 +1119,19 @@ class OMPDoDirective(OMPDirective):
         # back up the tree.
         self._within_omp_region()
 
+        if self._reprod:
+            local_reduction_string = ""
+        else:
+            local_reduction_string = self._reduction_string()
+
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
         parent.add(DirectiveGen(parent,
                                 "omp", "begin", "do",
                                 "schedule({0})".
-                                format(self._omp_schedule)))
+                                format(self._omp_schedule) +
+                                local_reduction_string))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1031,7 +1167,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 omp_schedule=omp_schedule)
 
     def view(self, indent=0):
-        print self.indent(indent) + "Directive[OMP parallel do]"
+        ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
+        print self.indent(indent) + \
+            "Directive[OMP parallel do]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1042,16 +1180,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
 
-        reductions = self._get_reductions_list("sum")
-        if reductions:
-            # reductions are not yet supported so raise an exception
-            raise GenerationError("OpenMP reductions are not yet supported")
+        calls = self.reductions()
+        zero_reduction_variables(calls, parent)
 
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
                                 "schedule({1})".
-                                format(private_str, self._omp_schedule)))
+                                format(private_str, self._omp_schedule) +
+                                self._reduction_string()))
         for child in self.children:
             child.gen_code(parent)
 
@@ -1188,7 +1325,7 @@ class Loop(Node):
             outline="red", fill="green", width=2,
             activeoutline="blue", joinstyle=ROUND)
         self._text = canvas.create_text(x+(self._width+max_calls_width)/2,
-                                        y+self._height/2,  text=name)
+                                        y+self._height/2, text=name)
 
         call_height = 0
         for child in self.children:
@@ -1276,6 +1413,11 @@ class Loop(Node):
         return all_args
 
     def gen_code(self, parent):
+        '''Generate the fortran Loop and any associated code '''
+        if not self.is_openmp_parallel():
+            calls = self.reductions()
+            zero_reduction_variables(calls, parent)
+
         if self._start == "1" and self._stop == "1":  # no need for a loop
             for child in self.children:
                 child.gen_code(parent)
@@ -1293,23 +1435,6 @@ class Loop(Node):
 
 
 class Call(Node):
-
-    # added this functionality to the f2pycodegen
-    # def before_parent_loop(self,node):
-    #    ''' A call may want to add some content immediately before its parent
-    #        loop(s). However the number of loops and whether the top loop has
-    #        a directive before it is not known. This routine recurses up to
-    #        the top loop and returns a position before any directives.
-    #    '''
-    #    return node
-    # def after_parent_loop(self,node):
-    #    ''' A call may want to add some content immediately after its parent
-    #        loop(s). However the number of loops and whether the top loop has
-    #        a directive after it is not known by the call. This routine
-    #        recurses up to the top loop and returns a position after any
-    #        directives that follow the top loop.
-    #    '''
-    #    return node
 
     def view(self, indent=0):
         print self.indent(indent)+"Call", \
@@ -1347,7 +1472,6 @@ class Call(Node):
 
     def __init__(self, parent, call, name, arguments):
         Node.__init__(self, children=[], parent=parent)
-        self._module_name = call.module_name
         self._arguments = arguments
         self._name = name
         self._iterates_over = call.ktype.iterates_over
@@ -1374,6 +1498,144 @@ class Call(Node):
         self._canvas = None
         self._arg_descriptors = None
 
+        # initialise any reduction information
+        args = arguments.args_filter(
+            arg_types=MAPPING_SCALARS.values(),
+            arg_accesses=MAPPING_REDUCTIONS.values())
+        if args:
+            self._reduction = True
+            if len(args) != 1:
+                raise GenerationError(
+                    "PSyclone currently only supports a single reduction "
+                    "in a kernel or builtin")
+            self._reduction_arg = args[0]
+        else:
+            self._reduction = False
+            self._reduction_arg = None
+
+    @property
+    def is_reduction(self):
+        '''if this kernel/builtin contains a reduction variable then return
+        True, otherwise return False'''
+        return self._reduction
+
+    @property
+    def reduction_arg(self):
+        ''' if this kernel/builtin contains a reduction variable then return
+        the variable, otherwise return None'''
+        return self._reduction_arg
+
+    @property
+    def reprod_reduction(self):
+        '''Determine whether this kernel/builtin is enclosed within an OpenMP
+        do loop. If so report whether it has the reproducible flag
+        set. Note, this also catches OMPParallelDo Directives but they
+        have reprod set to False so it is OK.'''
+        ancestor = self.ancestor(OMPDoDirective)
+        if ancestor:
+            return ancestor.reprod
+        else:
+            return False
+
+    @property
+    def local_reduction_name(self):
+        '''Generate a local variable name that is unique for the current
+        reduction argument name. This is used for thread-local
+        reductions with reproducible reductions '''
+        var_name = self._reduction_arg.name
+        return self._name_space_manager.\
+            create_name(root_name="l_"+var_name,
+                        context="PSyVars",
+                        label=var_name)
+
+    def zero_reduction_variable(self, parent, position=None):
+        '''Generate code to zero the reduction variable and to zero the local
+        reduction variable if one exists. The latter is used for reproducible
+        reductions, if specified.'''
+        from f2pygen import AssignGen, DeclGen, AllocateGen
+        if not position:
+            position = ["auto"]
+        var_name = self._reduction_arg.name
+        local_var_name = self.local_reduction_name
+        var_type = self._reduction_arg.type
+        if var_type == "gh_real":
+            zero = "0.0_r_def"
+            kind_type = "r_def"
+            data_type = "real"
+        elif var_type == "gh_integer":
+            zero = "0"
+            kind_type = None
+            data_type = "integer"
+        else:
+            raise GenerationError(
+                "zero_reduction variable should be one of ['gh_real', "
+                "'gh_integer'] but found '{0}'".format(var_type))
+
+        parent.add(AssignGen(parent, lhs=var_name, rhs=zero),
+                   position=position)
+        if self.reprod_reduction:
+            parent.add(DeclGen(parent, datatype=data_type,
+                               entity_decls=[local_var_name],
+                               allocatable=True, kind=kind_type,
+                               dimension=":,:"))
+            nthreads = self._name_space_manager.create_name(
+                root_name="nthreads", context="PSyVars", label="nthreads")
+            if config.REPROD_PAD_SIZE < 1:
+                raise GenerationError(
+                    "REPROD_PAD_SIZE in config.py should be a positive "
+                    "integer, but it is set to '{0}'.".format(
+                        config.REPROD_PAD_SIZE))
+            pad_size = str(config.REPROD_PAD_SIZE)
+            parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
+                                   "," + nthreads + ")"), position=position)
+            parent.add(AssignGen(parent, lhs=local_var_name,
+                                 rhs=zero), position=position)
+
+    def reduction_sum_loop(self, parent):
+        '''generate the appropriate code to place after the end parallel
+        region'''
+        from f2pygen import DoGen, AssignGen, DeallocateGen
+        self._name_space_manager = NameSpaceFactory().create()
+        thread_idx = self._name_space_manager.create_name(
+            root_name="th_idx", context="PSyVars", label="thread_index")
+        nthreads = self._name_space_manager.create_name(
+            root_name="nthreads", context="PSyVars", label="nthreads")
+        var_name = self._reduction_arg.name
+        local_var_name = self.local_reduction_name
+        local_var_ref = self._reduction_ref(var_name)
+        reduction_access = self._reduction_arg.access
+        try:
+            reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
+        except KeyError:
+            raise GenerationError(
+                "unsupported reduction access '{0}' found in DynBuiltin:"
+                "reduction_sum_loop(). Expected one of '{1}'".
+                format(reduction_access, REDUCTION_OPERATOR_MAPPING.keys()))
+        do_loop = DoGen(parent, thread_idx, "1", nthreads)
+        do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
+                              reduction_operator + local_var_ref))
+        parent.add(do_loop)
+        parent.add(DeallocateGen(parent, local_var_name))
+
+    def _reduction_ref(self, name):
+        '''Return the name unchanged if OpenMP is set to be unreproducible, as
+        we will be using the OpenMP reduction clause. Otherwise we
+        will be computing the reduction ourselves and therefore need
+        to store values into a (padded) array separately for each
+        thread.'''
+        if self.reprod_reduction:
+            idx_name = self._name_space_manager.create_name(
+                root_name="th_idx",
+                context="PSyVars",
+                label="thread_index")
+            local_name = self._name_space_manager.create_name(
+                root_name="l_"+name,
+                context="PSyVars",
+                label=name)
+            return local_name + "(1," + idx_name + ")"
+        else:
+            return name
+
     @property
     def arg_descriptors(self):
         return self._arg_descriptors
@@ -1399,6 +1661,9 @@ class Call(Node):
     def iterates_over(self):
         return self._iterates_over
 
+    def local_vars(self):
+        raise NotImplementedError("Call.local_vars should be implemented")
+
     def __str__(self):
         raise NotImplementedError("Call.__str__ should be implemented")
 
@@ -1410,6 +1675,7 @@ class Kern(Call):
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
+        self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._module_inline = False
@@ -1425,9 +1691,6 @@ class Kern(Call):
 
     def __str__(self):
         return "kern call: "+self._name
-
-    def local_vars(self):
-        raise NotImplementedError("Kern.local_vars should be implemented")
 
     @property
     def module_inline(self):
@@ -1499,13 +1762,18 @@ class BuiltIn(Call):
         self._arg_descriptors = None
         self._func_descriptors = None
         self._fs_descriptors = None
+        self._reduction = None
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
-        Node.__init__(self, children=[], parent=parent)
-        self._arguments = arguments
-        self._name = call.ktype.procedure.name
-        self._iterates_over = call.ktype.iterates_over
+        name = call.ktype.procedure.name
+        Call.__init__(self, parent, call, name, arguments)
+
+    def local_vars(self):
+        '''Variables that are local to this built-in and therefore need to be
+        made private when parallelising using OpenMP or similar. By default
+        builtin's do not have any local variables so set to nothing'''
+        return []
 
 
 class Arguments(object):
@@ -1736,7 +2004,7 @@ class TransInfo(object):
             result = "There is 1 transformation available:"
         else:
             result = "There are {0} transformations available:".format(
-                     len(self._objects))
+                len(self._objects))
         result += os.linesep
         for idx, my_object in enumerate(self._objects):
             result += "  " + str(idx+1) + ": " + my_object.name + ": " + \
@@ -1771,8 +2039,7 @@ class TransInfo(object):
         import inspect
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and
-                issubclass(cls, base_class) and cls is not base_class
-                ]
+                issubclass(cls, base_class) and cls is not base_class]
 
 
 class Transformation(object):

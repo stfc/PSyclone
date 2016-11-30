@@ -15,3 +15,6 @@ DEFAULTAPI = "dynamo0.3"
 SUPPORTEDSTUBAPIS = ["dynamo0.3"]
 DEFAULTSTUBAPI = "dynamo0.3"
 DISTRIBUTED_MEMORY = True
+REPRODUCIBLE_REDUCTIONS = False
+# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is True
+REPROD_PAD_SIZE = 8

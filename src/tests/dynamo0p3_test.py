@@ -59,6 +59,7 @@ module testkern_qr
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_qr_code
   end type testkern_qr_type
@@ -431,6 +432,114 @@ def test_fsdesc_fs_not_in_argdesc():
         _ = DynKernMetadata(ast, name=name)
     assert 'function spaces specified in meta_funcs must exist in ' + \
         'meta_args' in str(excinfo)
+
+
+def test_missing_evaluator_shape_both():
+    ''' Check that we raise the correct error if a kernel requiring
+    quadrature/evaluator fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove the line specifying the shape of the evaluator
+    code = CODE.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
+
+
+def test_missing_evaluator_shape_basis_only():
+    ''' Check that we raise the correct error if a kernel specifying
+    that it needs gh_basis fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Alter meta-data so only requires gh_basis
+    code1 = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis)                &\n", 1)
+    # Remove the line specifying the shape of the evaluator
+    code = code1.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
+
+
+def test_missing_evaluator_shape_diff_basis_only():
+    ''' Check that we raise the correct error if a kernel specifying
+    that it needs gh_diff_basis fails to specify the shape of the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Alter meta-data so only requires gh_diff_basis
+    code1 = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n",
+        "     type(func_type), dimension(1) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
+    # Remove the line specifying the shape of the evaluator
+    code = code1.replace(
+        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("must also supply the shape of that evaluator by setting "
+            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "for kernel 'testkern_qr_type'" in str(excinfo))
+
+
+def test_invalid_evaluator_shape():
+    ''' Check that we raise the correct error if a kernel requiring
+    quadrature/evaluator specifies an unrecognised shape for the evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Specify an invalid shape for the evaluator
+    code = CODE.replace(
+        "evaluator_shape = quadrature_XYoZ",
+        "evaluator_shape = quadrature_wrong", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("request a valid evaluator shape (one of ['quadrature_xyoz', "
+            "'evaluator_xyz']) but got 'quadrature_wrong' for kernel "
+            "'testkern_qr_type'" in str(excinfo))
+
+
+def test_unecessary_eval_shape():
+    ''' Check that we raise the correct error if a kernel meta-data specifies
+    an evaluator shape but does not require quadrature or an evaluator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove the need for basis or diff-basis functions
+    code = CODE.replace(
+        "     type(func_type), dimension(3) :: meta_funcs =  &\n"
+        "          (/ func_type(w1, gh_basis),               &\n"
+        "             func_type(w2, gh_diff_basis),          &\n"
+        "             func_type(w3, gh_basis, gh_diff_basis) &\n"
+        "           /)\n",
+        "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("Kernel 'testkern_qr_type' specifies an evaluator shape "
+            "(quadrature_xyoz) but does not need an evaluator because no "
+            "basis or differential basis functions are required"
+            in str(excinfo))
 
 
 def test_field():
@@ -2509,16 +2618,16 @@ SCALAR_SUMS = (
 @pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
                    "is now forbidden but waiting on #484 before removing test")
 def test_stub_generate_with_scalar_sums():
-    ''' check that the stub generate produces the expected output when
-    the kernel has scalar arguments with a reduction operation (gh_sum) '''
-    # hack while DM does not support reductions
-    import config
-    config.DISTRIBUTED_MEMORY = False
-    # end hack
-    result = generate("test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
-                      api="dynamo0.3")
-    print result
-    assert SCALAR_SUMS in str(result)
+    '''check that the stub generate raises an exception when a kernel has
+    multiple reductions'''
+    with pytest.raises(GenerationError) as err:
+        _ = generate(
+            "test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+            api="dynamo0.3")
+    assert (
+        "PSyclone currently only supports a single reduction in a kernel "
+        "or builtin" in str(err))
+
 
 # fields : intent
 INTENT = '''
@@ -2876,6 +2985,7 @@ module dummy_mod
              func_type(w2v, gh_basis)     &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_xyoz
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -2974,6 +3084,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3018,6 +3129,7 @@ module dummy_mod
              func_type(w2v, gh_diff_basis)     &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3087,7 +3199,7 @@ def test_diff_basis():
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
         ":: diff_basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,nqp_h,nqp_v) "
         ":: diff_basis_w3\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
@@ -3116,6 +3228,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -4482,79 +4595,6 @@ def test_single_real_scalar_sum():
             "undf_w3, map_w3(:,cell))" in gen
 
 
-@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
-                   "is now forbidden but waiting on #484 before removing test")
-def test_multiple_scalar_sums():
-    '''Test that multiple real scalar (gh_sum) reductions generate
-    correct code '''
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print gen
-        assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums2_type("
-                "rsum1, rsum2, f1)") in gen
-        assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
-        assert (
-            "      rsum1 = 0.0_r_def\n"
-            "      rsum2 = 0.0_r_def")
-        assert (
-            "CALL testkern_multiple_scalar_sums2_code(nlayers, rsum1, "
-            "rsum2, f1_proxy%data, ndf_w3, undf_w3, map_w3(:,cell))") in gen
-        if dist_mem:
-            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
-            assert gen.count("TYPE(scalar_type) global_sum") == 1
-            assert ("      global_sum%value = rsum2\n"
-                    "      rsum2 = global_sum%get_sum()\n"
-                    "      global_sum%value = rsum1\n"
-                    "      rsum1 = global_sum%get_sum()\n") in gen
-
-
-@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
-                   "is now forbidden but waiting on #484 before removing test")
-def test_multiple_mixed_scalar_sums():
-    '''Test that multiple mixed scalar (gh_sum) reductions generate
-    correct code with dm=False (dm=True is not supported with
-    gh_integer) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "16.4_multiple_scalar_sums.f90"),
-                           api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert ("SUBROUTINE invoke_0_testkern_multiple_scalar_sums_type(rsum1, "
-            "isum1, f1, rsum2, isum2)") in gen
-    assert "REAL(KIND=r_def), intent(out) :: rsum1, rsum2" in gen
-    assert "INTEGER, intent(out) :: isum1, isum2" in gen
-    assert (
-        "      rsum1 = 0.0_r_def\n"
-        "      rsum2 = 0.0_r_def\n"
-        "      isum1 = 0\n"
-        "      isum2 = 0")
-    assert (
-        "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, "
-        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3(:,cell))") in gen
-
-
-@pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
-                   "is now forbidden but waiting on #484 before removing test")
-def test_multiple_mixed_scalar_sums2():
-    '''Test that multiple mixed scalar (gh_sum) reductions raise an
-    exception with dm=False as dm=True is not supported with
-    gh_integer '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "16.4_multiple_scalar_sums.f90"),
-                           api="dynamo0.3", distributed_memory=True)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=True).create(invoke_info)
-    assert "Integer reductions are not currently supported" \
-        in str(excinfo.value)
-
-
 @pytest.mark.xfail(reason="Writing to scalar args in user-level kernels "
                    "is now forbidden but waiting on #484 before removing test")
 def test_multiple_kernels_scalar_sums():
@@ -4584,7 +4624,7 @@ def test_multiple_kernels_scalar_sums():
         print gen
         assert "SUBROUTINE invoke_0(rsum, f1)" in gen
         assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
-        assert gen.count("rsum = 0.0_r_def") == 1
+        assert gen.count("rsum = 0.0_r_def") == 2
         output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
                  "undf_w3, map_w3(:,cell))"
         assert output in gen

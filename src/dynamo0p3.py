@@ -38,7 +38,10 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
-VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
+VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
+VALID_OPERATOR_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
+
+VALID_EVALUATOR_SHAPES = ["quadrature_xyoz", "evaluator_xyz"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
@@ -560,6 +563,12 @@ class DynKernMetadata(KernelType):
 
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
+
+        # Query the meta-data for the evaluator shape (only required if
+        # kernel uses quadrature or an evaluator). If it is not
+        # present then eval_shape will be None.
+        self._eval_shape = self.get_integer_variable('evaluator_shape')
+
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
@@ -587,6 +596,7 @@ class DynKernMetadata(KernelType):
         for descriptor in self._arg_descriptors:
             arg_fs_names.extend(descriptor.function_spaces)
         used_fs_names = []
+        need_evaluator = False
         for func_type in func_types:
             descriptor = DynFuncDescriptor03(func_type)
             fs_name = descriptor.function_space_name
@@ -605,12 +615,34 @@ class DynKernMetadata(KernelType):
                     "In the dynamo0.3 API function spaces specified in "
                     "meta_funcs must be unique, but '{0}' is replicated."
                     .format(fs_name))
+
+            # Check that a valid evaluator shape has been specified if
+            # this function space requires a basis or differential basis
+            for name in descriptor.operator_names:
+                if name in VALID_EVALUATOR_NAMES:
+                    need_evaluator = True
+                    if not self._eval_shape:
+                        raise ParseError(
+                            "In the dynamo0.3 API any kernel requiring "
+                            "quadrature or an evaluator ({0}) must also "
+                            "supply the shape of that evaluator by setting "
+                            "'evaluator_shape' in the kernel meta-data but "
+                            "this is missing for kernel '{1}'".
+                            format(VALID_EVALUATOR_NAMES, self.name))
+                    if self._eval_shape not in VALID_EVALUATOR_SHAPES:
+                        raise ParseError(
+                            "In the dynamo0.3 API a kernel requiring either "
+                            "quadrature or an evaluator must request a valid "
+                            "evaluator shape (one of {0}) but got '{1}' for "
+                            "kernel '{2}'".
+                            format(VALID_EVALUATOR_SHAPES, self._eval_shape,
+                                   self.name))
             self._func_descriptors.append(descriptor)
         # Check that the meta-data we've parsed conforms to the rules
         # for this API
-        self._validate()
+        self._validate(need_evaluator)
 
-    def _validate(self):
+    def _validate(self, need_evaluator):
         ''' Check that the meta-data conforms to Dynamo 0.3 rules for
         user-provided kernels '''
         from dynamo0p3_builtins import BUILTIN_MAP
@@ -632,6 +664,14 @@ class DynKernMetadata(KernelType):
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
                              "found none for kernel {0}".format(self.name))
+
+        # Check that no evaluator shape has been supplied if no basis or
+        # differential basis functions are required for the kernel
+        if not need_evaluator and self._eval_shape:
+            raise ParseError(
+                "Kernel '{0}' specifies an evaluator shape ({1}) but does not "
+                "need an evaluator because no basis or differential basis "
+                "functions are required".format(self.name, self._eval_shape))
 
     @property
     def func_descriptors(self):
@@ -1007,6 +1047,8 @@ class DynInvoke(Invoke):
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
+        reserved_names_list.extend(["omp_get_thread_num",
+                                    "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynSchedule,
                         reserved_names=reserved_names_list)
 
@@ -1290,21 +1332,6 @@ class DynInvoke(Invoke):
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
 
-        # Zero any scalar arguments that are GH_SUM
-        zero_real_args = self.unique_declarations("gh_real", access="gh_sum")
-        zero_integer_args = self.unique_declarations("gh_integer",
-                                                     access="gh_sum")
-        if zero_real_args or zero_integer_args:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            for arg in zero_real_args:
-                invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0.0_r_def"))
-            for arg in zero_integer_args:
-                invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0"))
-
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -1383,6 +1410,24 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(AssignGen(invoke_sub, pointer=True,
                                      lhs=mesh_obj_name, rhs=rhs))
+
+        if self.schedule.reductions(reprod=True):
+            # we have at least one reproducible reduction so we need
+            # to know the number of OpenMP threads
+            from f2pygen import UseGen
+            omp_function_name = "omp_get_max_threads"
+            nthreads_name = self._name_space_manager.create_name(
+                root_name="nthreads", context="PSyVars", label="nthreads")
+            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
+                                  funcnames=[omp_function_name]))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[nthreads_name]))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(
+                invoke_sub, " Determine the number of OpenMP threads"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
+                                     rhs=omp_function_name+"()"))
 
         # Initialise any stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)
@@ -1965,6 +2010,16 @@ class DynLoop(Loop):
                                       " Set halos dirty for fields modified "
                                       "in the above loop"))
                 parent.add(CommentGen(parent, ""))
+                from psyGen import OMPParallelDoDirective
+                from f2pygen import DirectiveGen
+                use_omp_master = False
+                if self.is_openmp_parallel():
+                    if not self.ancestor(OMPParallelDoDirective):
+                        use_omp_master = True
+                        # I am within an OpenMP Do directive so protect
+                        # set_dirty() with OpenMP Master
+                        parent.add(DirectiveGen(parent, "omp", "begin",
+                                                "master", ""))
                 for field in fields:
                     if field.vector_size > 1:
                         # the range function below returns values from
@@ -1977,6 +2032,11 @@ class DynLoop(Loop):
                     else:
                         parent.add(CallGen(parent, name=field.proxy_name +
                                            "%set_dirty()"))
+                if use_omp_master:
+                    # I am within an OpenMP Do directive so protect
+                    # set_dirty() with OpenMP Master
+                    parent.add(DirectiveGen(parent, "omp", "end",
+                                            "master", ""))
                 parent.add(CommentGen(parent, ""))
 
 
@@ -2365,13 +2425,13 @@ class DynKern(Kern):
                         # the size of the first dimension for a
                         # differential basis array depends on the
                         # function space. The values are
-                        # w0=3, w1=3, w2=1, w3=1, wtheta=3, w2h=1, w2v=1
+                        # w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1
                         first_dim = None
                         if unique_fs.orig_name.lower() in \
-                           ["w2", "w3", "w2h", "w2v"]:
+                           ["w2", "w2h", "w2v"]:
                             first_dim = "1"
                         elif (unique_fs.orig_name.lower() in
-                              ["w0", "w1", "wtheta"]):
+                              ["w0", "w1", "w3", "wtheta"]):
                             first_dim = "3"
                         else:
                             raise GenerationError(
