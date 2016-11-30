@@ -2377,7 +2377,7 @@ class ArgOrdering(object):
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "
-                    "dynamo0p3.py:DynKern:gen_code(). Expected one of '{0}' "
+                    "dynamo0p3.py:ArgOrdering:generate(). Expected one of '{0}' "
                     "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
@@ -2647,9 +2647,9 @@ class KernCallArgList(ArgOrdering):
 
 
 class KernStubArgList(ArgOrdering):
-    '''Creates the argument list required to call kernel "kern" from the
-    PSy-layer. The ordering of the arguments is captured by the base
-    class '''
+    '''Creates the argument list required to create and declare the
+    required arguments for a kernel subroutine.  The ordering and type
+    of the arguments is captured by the base class '''
     def __init__(self, kern, parent):
 
         from f2pygen import UseGen

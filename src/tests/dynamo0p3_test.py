@@ -6086,3 +6086,96 @@ def test_dynglobalsum_nodm_error():
         _ = DynGlobalSum(argument)
     assert ("It makes no sense to create a DynGlobalSum object when "
             "dm=False") in str(err)
+
+def test_unexpected_type_error():
+    '''Check that we raise an exception if an unexpected datatype is found
+    when running the ArgOrdering generate method. As it is abstract we use
+    the KernCallArgList sub class'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        if distmem:
+            index = 3
+        else:
+            index = 0
+        loop = schedule.children[index]
+        kernel = loop.children[0]
+        # sabotage one of the arguments to make it have an invalid type.
+        kernel.arguments.args[0]._type = "invalid"
+        # Now call KernCallArgList to raise an exception
+        from dynamo0p3 import KernCallArgList
+        create_arg_list = KernCallArgList(kernel)
+        with pytest.raises(GenerationError) as excinfo:
+            create_arg_list.generate()
+        assert (
+            "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
+            "generate()") in str(excinfo.value)
+
+def test_argordering_exceptions():
+    '''Check that we raise an exception if the abstract methods are called
+    in an instance of the ArgOrdering class '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        if distmem:
+            index = 3
+        else:
+            index = 0
+        loop = schedule.children[index]
+        kernel = loop.children[0]
+        from dynamo0p3 import ArgOrdering
+        create_arg_list = ArgOrdering(kernel)
+        for method in [create_arg_list.cell_position,
+                       create_arg_list.mesh_height,
+                       create_arg_list.quad_rule]:
+            with pytest.raises(NotImplementedError):
+                method()
+        for method in [create_arg_list.field_vector,
+                       create_arg_list.field,
+                       create_arg_list.stencil_unknown_extent,
+                       create_arg_list.stencil_unknown_direction,
+                       create_arg_list.stencil,
+                       create_arg_list.operator,
+                       create_arg_list.scalar,
+                       create_arg_list.fs_compulsory,
+                       create_arg_list.fs_compulsory_field,
+                       create_arg_list.basis,
+                       create_arg_list.diff_basis,
+                       create_arg_list.orientation,
+                       create_arg_list.bc_kernel]:
+            with pytest.raises(NotImplementedError):
+                method(None)
+
+def test_kernel_stub_invalid_scalar_argument():
+    '''Check that we raise an exception if an unexpected datatype is found
+    when using the KernStubArgList scalar method'''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_one_int_scalar.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # sabotage the scalar argument to make it have an invalid type.
+    arg = kernel.arguments.args[1]
+    arg._type = "invalid"
+    # create a temporary module to add code into
+    from f2pygen import ModuleGen
+    module = ModuleGen("module_name")
+    # Now call KernStubArgList to raise an exception
+    from dynamo0p3 import KernStubArgList
+    create_arg_list = KernStubArgList(kernel, module)
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.scalar(arg)
+    assert (
+        "Internal error: expected arg type to be one of '['gh_real', "
+        "'gh_integer']' but got 'invalid'") in str(excinfo.value)
