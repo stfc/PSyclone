@@ -115,26 +115,24 @@ def test_builtin_sum_and_inc():
             "inc_axpy_code" in str(excinfo))
 
 
-def test_builtin_zero_writes():
+def test_builtin_zero_writes(monkeypatch):
     ''' Check that we raise an appropriate error if we encounter a built-in
     that does not write to any field '''
     import dynamo0p3_builtins
-    # The file containing broken meta-data for the built-ins. The definition
-    # for axpby that it contains erroneously has no argument that is written
-    # to.
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_axpby_invoke.f90"),
-                           api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    # Use pytest's monkeypatch support to change our configuration to
+    # point to a file containing broken meta-data for the
+    # built-ins. The definition for axpby that it contains erroneously
+    # has no argument that is written to.
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "invalid_builtins_mod.f90"))
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 0 for kernel "
-            "axpby_code" in str(excinfo))
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "15.8.0_axpby_invoke.f90"),
+                     api="dynamo0.3")
+    assert ("A Dynamo 0.3 kernel must have at least one "
+            "argument that is updated (written to) but "
+            "found none for kernel axpby" in str(excinfo))
 
 
 def test_builtin_no_field_args():
