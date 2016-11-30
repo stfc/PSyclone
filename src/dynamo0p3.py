@@ -2246,6 +2246,12 @@ class DynKern(Kern):
                                entity_decls=orientation_decl_names))
             parent.add(CommentGen(parent, ""))
 
+        dump = True
+        if dump:
+            new_parent, position = parent.start_parent_loop()
+            create_dump = DinoWriters(self, new_parent, position)
+            create_dump.generate()
+
         create_arg_list = KernCallArgList(self, parent)
         create_arg_list.generate()
         arglist = create_arg_list.arglist
@@ -2315,7 +2321,7 @@ class DynKern(Kern):
 
 class ArgOrdering(object):
     '''Base class capturing the arguments, type and ordering of data in
-    a Kernel call'''
+    a Kernel call.'''
     def __init__(self, kern):
         self._kern = kern
 
@@ -2362,7 +2368,8 @@ class ArgOrdering(object):
             # differential basis function and orientation) for a
             # function space.
             if self._kern._fs_descriptors.exists(unique_fs):
-                descriptor = self._kern._fs_descriptors.get_descriptor(unique_fs)
+                descriptors = self._kern._fs_descriptors
+                descriptor = descriptors.get_descriptor(unique_fs)
                 if descriptor.requires_basis:
                     self.basis(unique_fs)
                 if descriptor.requires_diff_basis:
@@ -2379,74 +2386,97 @@ class ArgOrdering(object):
             self.qr()
 
     def cell_position(self):
-        raise NotImplementedError("Error: ArgOrdering.cell_position() must be implemented "
-                                  "by subclass")
+        ''' add cell position information'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.cell_position() must be implemented by "
+            "subclass")
 
     def mesh_height(self):
-        raise NotImplementedError("Error: ArgOrdering.mesh_height() must be implemented "
-                                  "by subclass")
+        ''' add height information'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.mesh_height() must be implemented by subclass")
+
+    def field_vector(self, arg):
+        ''' add field-vector information for this field-vector argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.field_vector() must be implemented by "
+            "subclass")
 
     def field(self, arg):
-        raise NotImplementedError("Error: ArgOrdering.field() must be implemented "
-                                  "by subclass")
+        ''' add field information for this field argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.field() must be implemented by subclass")
 
     def stencil_unknown_extent(self, arg):
-        raise NotImplementedError("Error: ArgOrdering.stencil_unknown_extent() must be implemented "
-                                  "by subclass")
+        ''' add stencil extent information for this stencil argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.stencil_unknown_extent() must be implemented "
+            "by subclass")
+
     def stencil_unknown_direction(self, arg):
-        raise NotImplementedError("Error: ArgOrdering.stencil_unknown_direction() must be implemented "
-                                  "by subclass")
+        ''' add stencil direction information for this stencil argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.stencil_unknown_direction() must be "
+            "implemented by subclass")
+
     def stencil(self, arg):
-        raise NotImplementedError("Error: ArgOrdering.stencil() must be implemented "
-                                  "by subclass")
+        ''' add stencil information for this stencil argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.stencil() must be implemented by subclass")
 
     def operator(self, arg):
-        raise NotImplementedError("Error: ArgOrdering.operator() must be implemented "
-                                  "by subclass")
+        ''' add operator information for this operator argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.operator() must be implemented by subclass")
 
     def scalar(self, arg):
-        raise NotImplementedError("Error: ArgOrdering.scalar() must be implemented "
-                                  "by subclass")
+        ''' add scalar information for this scalar argument '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.scalar() must be implemented by subclass")
 
     def fs_compulsory(self, function_space):
-        '''Compulsory arguments common to operators and fields on a function space '''
-        raise NotImplementedError("Error: ArgOrdering.fs_compulsory() must be implemented "
-                                  "by subclass")
+        '''add compulsory information common to operators and fieldsfor this
+        function space'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.fs_compulsory() must be implemented by "
+            "subclass")
 
     def fs_compulsory_field(self, function_space):
-        '''Compulsory arguments if there is a field on this function space '''
-        raise NotImplementedError("Error: ArgOrdering.fs_compulsory_field() must be implemented "
-                                  "by subclass")
+        '''add compulsory information for this function space'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.fs_compulsory_field() must be implemented "
+            "by subclass")
 
     def basis(self, function_space):
-        '''arguments if there a basis function is required for this function space '''
-        raise NotImplementedError("Error: ArgOrdering.basis() must be implemented "
-                                  "by subclass")
+        '''add basis function information for this function space '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.basis() must be implemented by subclass")
 
     def diff_basis(self, function_space):
-        '''arguments if there a differential basis function is required for this function space '''
-        raise NotImplementedError("Error: ArgOrdering.diff_basis() must be implemented "
-                                  "by subclass")
+        '''add differential basis function information for this function
+        space'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.diff_basis() must be implemented by subclass")
 
     def orientation(self, function_space):
-        '''arguments if orientation information is required for this function space '''
-        raise NotImplementedError("Error: ArgOrdering.orientation() must be implemented "
-                                  "by subclass")
+        '''add orientation information for this function space'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.orientation() must be implemented by subclass")
 
     def bc_kernel(self, function_space):
-        '''add boundary condition information if required '''
-        raise NotImplementedError("Error: ArgOrdering.bc_kernel() must be implemented "
-                                  "by subclass")
+        '''add boundary condition information for this function space'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.bc_kernel() must be implemented by subclass")
 
     def qr(self):
-        '''add qr arguments if required '''
-        raise NotImplementedError("Error: ArgOrdering.qr() must be implemented "
-                                  "by subclass")
+        '''add qr information'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.qr() must be implemented by subclass")
 
 
 class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
-    PSy-layer. The ordering of the arguments is captured by the base
+    PSy-layer. The ordering and type of arguments is captured by the base
     class '''
     def __init__(self, kern, parent=None):
         ArgOrdering.__init__(self, kern)
@@ -2454,17 +2484,12 @@ class KernCallArgList(ArgOrdering):
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
 
-    @property
-    def arglist(self):
-        return self._arglist
-
     def cell_position(self):
-        ''' Add cell position to the argument list if required '''
-        if self._kern._arguments.has_operator:
-            self._arglist.append(self._cell_ref_name)
+        ''' add a cell argument to the argument list'''
+        self._arglist.append(self._cell_ref_name)
 
     def mesh_height(self):
-        ''' add mesh height (nlayers) to the argument list if required '''
+        ''' add mesh height (nlayers) to the argument list'''
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
@@ -2480,27 +2505,29 @@ class KernCallArgList(ArgOrdering):
             self._arglist.append(text)
 
     def field(self, arg):
-        '''add the field associated with the argument 'arg' to the argument
-        list'''
+        '''add the field array associated with the argument 'arg' to the
+        argument list'''
         text = arg.proxy_name + "%data"
         self._arglist.append(text)
 
     def stencil_unknown_extent(self, arg):
-        '''add stencil information associated with the argument 'arg' if the extent is unknown'''
+        '''add stencil information to the argument list associated with the
+        argument 'arg' if the extent is unknown'''
         # the extent is not specified in the metadata
         # so pass the value in
         name = stencil_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
-        '''add stencil information associated with the argument 'arg' if the direction is unknown'''
-        # the direction of the stencil is not known so
-        # pass the value in
+        '''add stencil information to the argument list associated with the
+        argument 'arg' if the direction is unknown'''
+        # the direction of the stencil is not known so pass the value in
         name = arg.stencil.direction_arg.varName
         self._arglist.append(name)
 
     def stencil(self, arg):
-        '''add general stencil information associated with the argument 'arg' '''
+        '''add general stencil information associated with the argument 'arg'
+        to the argument list'''
         # add in stencil dofmap
         var_name = stencil_dofmap_name(arg)
         name = var_name + "(:,:," + self._cell_ref_name + ")"
@@ -2512,35 +2539,40 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
 
     def scalar(self, scalar_arg):
-        '''add the name associated with the scalar argument'''
+        '''add the name associated with the scalar argument to the argument
+        list'''
         self._arglist.append(scalar_arg.name)
 
     def fs_compulsory(self, function_space):
-        ''' Provide compulsory arguments common to operators and
-        fields on a space. There is one: "ndf".'''
+        '''add compulsory arguments common to operators and
+        fields on a space.'''
+        # There is currently one compulsory argument: "ndf".
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
 
     def fs_compulsory_field(self, function_space):
-        ''' Provide compulsory arguments if there is a field on this
-        function space'''
+        '''add compulsory arguments to the argument list, when there is a
+        field on this function space'''
         undf_name = get_fs_undf_name(function_space)
         self._arglist.append(undf_name)
         map_name = get_fs_map_name(function_space)
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
 
     def basis(self, function_space):
-        ''' provide basis function information for the function space '''
+        '''add basis function information for this function space to the
+        argument list'''
         basis_name = get_fs_basis_name(function_space)
         self._arglist.append(basis_name)
 
     def diff_basis(self, function_space):
-        ''' provide differential basis function information for the function space '''
+        '''add differential basis information for the function space to the
+        argument list'''
         diff_basis_name = get_fs_diff_basis_name(function_space)
         self._arglist.append(diff_basis_name)
 
     def orientation(self, function_space):
-        ''' provide orientation information for the function space '''
+        '''add orientation information for this function space to the
+        argument list'''
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
 
@@ -2566,9 +2598,17 @@ class KernCallArgList(ArgOrdering):
                        position=["before", position])
 
     def qr(self):
-        ''' provide qr information '''
-        self._arglist.extend([self._kern._qr_args["nh"], self._kern._qr_args["nv"],
-                            self._kern._qr_args["h"], self._kern._qr_args["v"]])
+        ''' add qr information to the argument list'''
+        self._arglist.extend([self._kern._qr_args["nh"],
+                              self._kern._qr_args["nv"],
+                              self._kern._qr_args["h"],
+                              self._kern._qr_args["v"]])
+
+    @property
+    def arglist(self):
+        '''return the kernel argument list. The generate function must be
+        called first'''
+        return self._arglist
 
     @property
     def _cell_ref_name(self):
@@ -2605,14 +2645,14 @@ class KernStubArgList(ArgOrdering):
         from f2pygen import DeclGen
         self._arglist.append("cell")
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                           entity_decls=["cell"]))
+                                 entity_decls=["cell"]))
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list if required '''
         from f2pygen import DeclGen
         self._arglist.append("nlayers")
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                           entity_decls=["nlayers"]))
+                                 entity_decls=["nlayers"]))
 
     def field_vector(self, argvect):
         '''add the field vector associated with the argument 'argvect' to the
@@ -2653,33 +2693,32 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append(text)
 
     def stencil_unknown_extent(self, arg):
-        '''add stencil information associated with the argument 'arg' if the extent is unknown'''
+        '''add stencil information associated with the argument 'arg' if the
+        extent is unknown'''
         from f2pygen import DeclGen
         name = arg.name + "_stencil_size"
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                           intent="in",
-                           entity_decls=[name]))
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                                 entity_decls=[name]))
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
-        '''add stencil information associated with the argument 'arg' if the direction is unknown'''
+        '''add stencil information associated with the argument 'arg' if the
+        direction is unknown'''
         from f2pygen import DeclGen
         name = arg.name+"_direction"
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                           intent="in",
-                           entity_decls=[name]))
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                                 entity_decls=[name]))
         self._arglist.append(name)
 
     def stencil(self, arg):
-        '''add general stencil information associated with the argument 'arg' '''
+        '''add general stencil information associated with the argument
+        'arg' '''
         from f2pygen import DeclGen
         name = arg.name+"_stencil_map"
         ndf_name = get_fs_ndf_name(arg.function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                           intent="in",
-                           dimension=ndf_name + "," +
-                           arg.name + "_stencil_size",
-                           entity_decls=[name]))
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                                 dimension=ndf_name + "," + arg.name +
+                                 "_stencil_size", entity_decls=[name]))
         self._arglist.append(name)
 
     def operator(self, arg):
@@ -2699,11 +2738,10 @@ class KernStubArgList(ArgOrdering):
         intent = arg.intent
         ndf_name_to = get_fs_ndf_name(arg.function_space_to)
         ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-        self._parent.add(DeclGen(self._parent, datatype="real",
-                           kind="r_def",
-                           dimension=ndf_name_to + "," +
-                           ndf_name_from + "," + size,
-                           intent=intent, entity_decls=[text]))
+        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
+                                 dimension=ndf_name_to + "," +
+                                 ndf_name_from + "," + size,
+                                 intent=intent, entity_decls=[text]))
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
@@ -2753,11 +2791,11 @@ class KernStubArgList(ArgOrdering):
         # specified in the metadata and first used by
         # fields/operators.
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                           entity_decls=[undf_name]),
-                   position=["before", self._first_arg_decl.root])
+                                 entity_decls=[undf_name]),
+                         position=["before", self._first_arg_decl.root])
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                           dimension=ndf_name,
-                           entity_decls=[map_name]))
+                                 dimension=ndf_name,
+                                 entity_decls=[map_name]))
 
     def basis(self, function_space):
         ''' provide basis function information for the function space '''
@@ -2783,15 +2821,16 @@ class KernStubArgList(ArgOrdering):
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         self._parent.add(DeclGen(self._parent, datatype="real",
-                           kind="r_def", intent="in",
-                           dimension=first_dim + "," +
-                           ndf_name + "," +
-                           self._kern._qr_args["nh"] + "," +
-                           self._kern._qr_args["nv"],
-                           entity_decls=[basis_name]))
+                                 kind="r_def", intent="in",
+                                 dimension=first_dim + "," +
+                                 ndf_name + "," +
+                                 self._kern._qr_args["nh"] + "," +
+                                 self._kern._qr_args["nv"],
+                                 entity_decls=[basis_name]))
 
     def diff_basis(self, function_space):
-        ''' provide differential basis function information for the function space '''
+        '''provide differential basis function information for the function
+        space'''
         from f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         diff_basis_name = get_fs_diff_basis_name(function_space)
@@ -2814,12 +2853,12 @@ class KernStubArgList(ArgOrdering):
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         self._parent.add(DeclGen(self._parent, datatype="real",
-                           kind="r_def", intent="in",
-                           dimension=first_dim + "," +
-                           ndf_name + "," +
-                           self._kern._qr_args["nh"] + "," +
-                           self._kern._qr_args["nv"],
-                           entity_decls=[diff_basis_name]))
+                                 kind="r_def", intent="in",
+                                 dimension=first_dim + "," +
+                                 ndf_name + "," +
+                                 self._kern._qr_args["nh"] + "," +
+                                 self._kern._qr_args["nv"],
+                                 entity_decls=[diff_basis_name]))
 
     def orientation(self, function_space):
         ''' provide orientation information for the function space '''
@@ -2828,8 +2867,8 @@ class KernStubArgList(ArgOrdering):
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
         self._parent.add(DeclGen(self._parent, datatype="integer",
-                           intent="in", dimension=ndf_name,
-                           entity_decls=[orientation_name]))
+                                 intent="in", dimension=ndf_name,
+                                 entity_decls=[orientation_name]))
 
     def bc_kernel(self, function_space):
         ''' implement the boundary_dofs array fix '''
@@ -2837,41 +2876,166 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append("boundary_dofs")
         ndf_name = get_fs_ndf_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                           dimension=ndf_name+",2",
-                           entity_decls=["boundary_dofs"]))
+                                 dimension=ndf_name+",2",
+                                 entity_decls=["boundary_dofs"]))
 
     def qr(self):
         ''' provide qr information '''
         from f2pygen import DeclGen
-        self._arglist.extend([self._kern._qr_args["nh"], self._kern._qr_args["nv"],
-                              self._kern._qr_args["h"], self._kern._qr_args["v"]])
+        self._arglist.extend([self._kern._qr_args["nh"],
+                              self._kern._qr_args["nv"],
+                              self._kern._qr_args["h"],
+                              self._kern._qr_args["v"]])
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                           entity_decls=[self._kern._qr_args["nh"],
-                                         self._kern._qr_args["nv"]]))
+                                 entity_decls=[self._kern._qr_args["nh"],
+                                               self._kern._qr_args["nv"]]))
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                           intent="in", dimension=self._kern._qr_args["nh"],
-                           entity_decls=[self._kern._qr_args["h"]]))
+                                 intent="in",
+                                 dimension=self._kern._qr_args["nh"],
+                                 entity_decls=[self._kern._qr_args["h"]]))
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                           intent="in", dimension=self._kern._qr_args["nv"],
-                           entity_decls=[self._kern._qr_args["v"]]))
+                                 intent="in",
+                                 dimension=self._kern._qr_args["nv"],
+                                 entity_decls=[self._kern._qr_args["v"]]))
 
 
-class DinoWriteGen(ArgOrdering):
-    ''' xxx '''
-    def __init__(self, kern, parent):
+class DinoWriters(ArgOrdering):
+    '''Creates the required writers to dump the state of a Kernel call
+    using dino. The integers are output first, followed by the fields,
+    arrays etc'''
+    def __init__(self, kern, parent=None, position=None):
         ArgOrdering.__init__(self, kern)
-        self._scalar_list = []
         self._parent = parent
+        self._position = position
+        self._name_space_manager = NameSpaceFactory().create()
+        self._scalar_position = None
+        self._array_position = None
 
     def cell_position(self):
-        ''' xxx '''
+        ''' get dino to output cell position information '''
+        # dino outputs a full field so we do not need cell index information
         pass
 
     def mesh_height(self):
-        ''' xxx '''
+        ''' get dino to output the height of the mesh (nlayers)'''
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
-        write_scalar(nlayers_name)
+        self._add_dino_scalar(nlayers_name)
+
+    def field_vector(self, argvect):
+        '''get dino to output field vector data associated with the argument
+        'argvect' '''
+        # TBD
+        pass
+
+    def field(self, arg):
+        '''get dino to output field datat associated with the argument
+        'arg' '''
+        if arg.intent in ["in", "inout"]:
+            text = arg.proxy_name + "%data"
+            self._add_dino_array(text)
+
+    def stencil_unknown_extent(self, arg):
+        '''get dino to output stencil information associated with the argument
+        'arg' if the extent is unknown '''
+        # TBD
+        pass
+
+    def stencil_unknown_direction(self, arg):
+        '''get dino to output stencil information associated with the argument
+        'arg' if the direction is unknown '''
+        # TBD
+        pass
+
+    def stencil(self, arg):
+        '''get dino to output general stencil information associated with the
+        argument 'arg' '''
+        # TBD
+        pass
+
+    def operator(self, arg):
+        ''' get dino to output the operator arguments '''
+        # TBD
+        pass
+
+    def scalar(self, scalar_arg):
+        '''get dino to output the value of the scalar argument'''
+        if scalar_arg in ["in", "inout"]:
+            self._add_dino_scalar(scalar_arg.name)
+
+    def fs_compulsory(self, function_space):
+        '''get dino to output any compulsory arguments common to operators and
+        fields on a space. '''
+        # There is currently one: "ndf".
+        ndf_name = get_fs_ndf_name(function_space)
+        self._add_dino_scalar(ndf_name)
+
+    def fs_compulsory_field(self, function_space):
+        '''get dino to output compulsory arguments if there is a field on this
+        function space'''
+        undf_name = get_fs_undf_name(function_space)
+        self._add_dino_scalar(undf_name)
+
+    def basis(self, function_space):
+        '''get dino to output basis function information for the function
+        space'''
+        # TBD
+        pass
+
+    def diff_basis(self, function_space):
+        '''get dino to output differential basis function information for the
+        function space'''
+        # TBD
+        pass
+
+    def orientation(self, function_space):
+        '''get dino to output orientation information for the function space'''
+        # TBD
+        pass
+
+    def bc_kernel(self, function_space):
+        '''get dino to output any boundary_dofs information for bc_kernel'''
+        # TBD
+        pass
+
+    def qr(self):
+        '''get dino to output qr information '''
+        # TBD
+        pass
+
+    def generate(self):
+        '''perform any additional actions before and after kernel
+        argument-list based generation'''
+        from f2pygen import CommentGen
+        self._parent.add(CommentGen(self._parent, " dino output start"),
+                         position=["before", self._position])
+        scalar_comment = CommentGen(self._parent, " dino scalars")
+        self._parent.add(scalar_comment,
+                         position=["before", self._position])
+        array_comment = CommentGen(self._parent, " dino arrays")
+        self._parent.add(array_comment,
+                         position=["before", self._position])
+        self._scalar_position = scalar_comment.root
+        self._array_position = array_comment.root
+        self._parent.add(CommentGen(self._parent, " dino output end"),
+                         position=["before", self._position])
+        self._parent.add(CommentGen(self._parent, ""),
+                         position=["before", self._position])
+        ArgOrdering.generate(self)
+
+    def _add_dino_scalar(self, name):
+        ''' add a dino output call for a scalar variable '''
+        from f2pygen import CallGen
+        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
+                                 args=[name]),
+                         position=["after", self._scalar_position])
+
+    def _add_dino_array(self, name):
+        ''' add a dino output call for an array variable '''
+        from f2pygen import CallGen
+        self._parent.add(CallGen(self._parent, name="dino%output_array",
+                                 args=[name]),
+                         position=["after", self._array_position])
 
 
 class FSDescriptor(object):
