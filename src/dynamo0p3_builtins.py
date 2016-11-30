@@ -10,6 +10,7 @@
     The DynBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+import psyGen
 from psyGen import BuiltIn, NameSpaceFactory
 from parse import ParseError
 from dynamo0p3 import DynLoop, DynKernelArguments
@@ -17,7 +18,9 @@ from dynamo0p3 import DynLoop, DynKernelArguments
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
-
+# overide the default reduction operator mapping. This is used for
+# reproducible reductions.
+psyGen.REDUCTION_OPERATOR_MAPPING = {"gh_sum": "+"}
 # The types of argument that are valid for built-in kernels in the
 # Dynamo 0.3 API
 VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
@@ -45,9 +48,13 @@ class DynBuiltInCallFactory(object):
         # this built-in.
         builtin = BUILTIN_MAP[call.func_name]()
 
+        # Create the loop over DoFs
+        dofloop = DynLoop(parent=parent,
+                          loop_type="dofs")
+
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
-        builtin.load(call)
+        builtin.load(call, parent=dofloop)
 
         # Check that our assumption that we're looping over DOFS is valid
         if builtin.iterates_over != "dofs":
@@ -55,9 +62,6 @@ class DynBuiltInCallFactory(object):
                 "In the Dynamo 0.3 API built-in calls must iterate over "
                 "DoFs but found {0} for {1}".format(builtin.iterates_over,
                                                     str(builtin)))
-        # Create the loop over DoFs
-        dofloop = DynLoop(parent=parent,
-                          loop_type="dofs")
         # Set-up its state
         dofloop.load(builtin)
         # As it is the innermost loop it has the kernel as a child
@@ -188,7 +192,7 @@ class DynSumFieldKern(DynBuiltIn):
         from f2pygen import AssignGen
         # Sum all the elements of a field
         fld_name = self.array_ref(self._arguments.args[0].proxy_name)
-        sum_name = self._arguments.args[1].name
+        sum_name = self._reduction_ref(self._arguments.args[1].name)
         rhs_expr = sum_name + "+" + fld_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
@@ -424,7 +428,7 @@ class DynInnerProductKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We sum the dof-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sum_name = self._arguments.args[2].name
+        sum_name = self._reduction_ref(self._arguments.args[2].name)
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2

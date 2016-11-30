@@ -39,6 +39,9 @@
 
 	12) #761 Added support for parsing evaluator metadata.
 
+        13) #484 Add support for the use of OpenMP (including reductions)
+        with builtins.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
