@@ -2098,6 +2098,12 @@ class DynKern(Kern):
         ''' Returns a Quadrature-rule name for this Kernel. '''
         return self._qr_name
 
+    @property
+    def qr_args(self):
+        '''Returns a dictionary of generic qr names mapped to specific
+        dynamo0.3 names'''
+        return self._qr_args
+
     def local_vars(self):
         ''' Returns the names used by the Kernel that vary from one
         invocation to the next and therefore require privatisation
@@ -2246,7 +2252,7 @@ class DynKern(Kern):
                                entity_decls=orientation_decl_names))
             parent.add(CommentGen(parent, ""))
 
-        dump = True
+        dump = False
         if dump:
             new_parent, position = parent.start_parent_loop()
             create_dump = DinoWriters(self, new_parent, position)
@@ -2329,10 +2335,10 @@ class ArgOrdering(object):
         '''specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
         that can be specialised by a child class for its particular need'''
-        if self._kern._arguments.has_operator:
+        if self._kern.arguments.has_operator:
             self.cell_position()
         self.mesh_height()
-        for arg in self._kern._arguments.args:
+        for arg in self._kern.arguments.args:
             if arg.type == "gh_field":
                 if arg.vector_size > 1:
                     self.field_vector(arg)
@@ -2367,8 +2373,8 @@ class ArgOrdering(object):
             # associated with the keyword arguments (basis function,
             # differential basis function and orientation) for a
             # function space.
-            if self._kern._fs_descriptors.exists(unique_fs):
-                descriptors = self._kern._fs_descriptors
+            if self._kern.fs_descriptors.exists(unique_fs):
+                descriptors = self._kern.fs_descriptors
                 descriptor = descriptors.get_descriptor(unique_fs)
                 if descriptor.requires_basis:
                     self.basis(unique_fs)
@@ -2382,8 +2388,8 @@ class ArgOrdering(object):
                unique_fs.orig_name.lower() == "any_space_1":
                 self.bc_kernel(unique_fs)
         # 4: Provide qr arguments if required
-        if self._kern._qr_required:
-            self.qr()
+        if self._kern.qr_required:
+            self.quad_rule()
 
     def cell_position(self):
         ''' add cell position information'''
@@ -2468,10 +2474,10 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.bc_kernel() must be implemented by subclass")
 
-    def qr(self):
+    def quad_rule(self):
         '''add qr information'''
         raise NotImplementedError(
-            "Error: ArgOrdering.qr() must be implemented by subclass")
+            "Error: ArgOrdering.quad_rule() must be implemented by subclass")
 
 
 class KernCallArgList(ArgOrdering):
@@ -2585,10 +2591,10 @@ class KernCallArgList(ArgOrdering):
                            pointer=True, entity_decls=[
                                "boundary_dofs(:,:) => null()"]))
         fspace = None
-        for fspace in self._kern._arguments.unique_fss:
+        for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
                 break
-        proxy_name = (self._kern._arguments.get_arg_on_space(fspace).
+        proxy_name = (self._kern.arguments.get_arg_on_space(fspace).
                       proxy_name)
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
@@ -2597,12 +2603,12 @@ class KernCallArgList(ArgOrdering):
                                  "%vspace%get_boundary_dofs()"),
                        position=["before", position])
 
-    def qr(self):
+    def quad_rule(self):
         ''' add qr information to the argument list'''
-        self._arglist.extend([self._kern._qr_args["nh"],
-                              self._kern._qr_args["nv"],
-                              self._kern._qr_args["h"],
-                              self._kern._qr_args["v"]])
+        self._arglist.extend([self._kern.qr_args["nh"],
+                              self._kern.qr_args["nv"],
+                              self._kern.qr_args["h"],
+                              self._kern.qr_args["v"]])
 
     @property
     def arglist(self):
@@ -2635,10 +2641,6 @@ class KernStubArgList(ArgOrdering):
         self._parent = parent
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
-
-    @property
-    def arglist(self):
-        return self._arglist
 
     def cell_position(self):
         ''' Add cell position to the argument list if required '''
@@ -2824,8 +2826,8 @@ class KernStubArgList(ArgOrdering):
                                  kind="r_def", intent="in",
                                  dimension=first_dim + "," +
                                  ndf_name + "," +
-                                 self._kern._qr_args["nh"] + "," +
-                                 self._kern._qr_args["nv"],
+                                 self._kern.qr_args["nh"] + "," +
+                                 self._kern.qr_args["nv"],
                                  entity_decls=[basis_name]))
 
     def diff_basis(self, function_space):
@@ -2856,8 +2858,8 @@ class KernStubArgList(ArgOrdering):
                                  kind="r_def", intent="in",
                                  dimension=first_dim + "," +
                                  ndf_name + "," +
-                                 self._kern._qr_args["nh"] + "," +
-                                 self._kern._qr_args["nv"],
+                                 self._kern.qr_args["nh"] + "," +
+                                 self._kern.qr_args["nv"],
                                  entity_decls=[diff_basis_name]))
 
     def orientation(self, function_space):
@@ -2879,24 +2881,30 @@ class KernStubArgList(ArgOrdering):
                                  dimension=ndf_name+",2",
                                  entity_decls=["boundary_dofs"]))
 
-    def qr(self):
+    def quad_rule(self):
         ''' provide qr information '''
         from f2pygen import DeclGen
-        self._arglist.extend([self._kern._qr_args["nh"],
-                              self._kern._qr_args["nv"],
-                              self._kern._qr_args["h"],
-                              self._kern._qr_args["v"]])
+        self._arglist.extend([self._kern.qr_args["nh"],
+                              self._kern.qr_args["nv"],
+                              self._kern.qr_args["h"],
+                              self._kern.qr_args["v"]])
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[self._kern._qr_args["nh"],
-                                               self._kern._qr_args["nv"]]))
+                                 entity_decls=[self._kern.qr_args["nh"],
+                                               self._kern.qr_args["nv"]]))
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
                                  intent="in",
-                                 dimension=self._kern._qr_args["nh"],
-                                 entity_decls=[self._kern._qr_args["h"]]))
+                                 dimension=self._kern.qr_args["nh"],
+                                 entity_decls=[self._kern.qr_args["h"]]))
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
                                  intent="in",
-                                 dimension=self._kern._qr_args["nv"],
-                                 entity_decls=[self._kern._qr_args["v"]]))
+                                 dimension=self._kern.qr_args["nv"],
+                                 entity_decls=[self._kern.qr_args["v"]]))
+
+    @property
+    def arglist(self):
+        '''return the kernel argument list. The generate function must be
+        called first'''
+        return self._arglist
 
 
 class DinoWriters(ArgOrdering):
@@ -2998,7 +3006,7 @@ class DinoWriters(ArgOrdering):
         # TBD
         pass
 
-    def qr(self):
+    def quad_rule(self):
         '''get dino to output qr information '''
         # TBD
         pass
