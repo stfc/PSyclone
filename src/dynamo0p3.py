@@ -643,8 +643,8 @@ class DynKernMetadata(KernelType):
         self._validate(need_evaluator)
 
     def _validate(self, need_evaluator):
-        ''' Check that the meta-data conforms to Dynamo 0.3 rules for
-        user-provided kernels '''
+        ''' Check that the meta-data conforms to Dynamo 0.3 rules for a
+        user-provided kernel or a built-in '''
         from dynamo0p3_builtins import BUILTIN_MAP
         # 1. We must have at least one argument that is written to
         write_count = 0
