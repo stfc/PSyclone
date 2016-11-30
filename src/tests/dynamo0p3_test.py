@@ -2615,18 +2615,17 @@ SCALAR_SUMS = (
     "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
     "  END MODULE testkern_multiple_scalar_sums_mod")
 
-@pytest.mark.xfail(reason="Writting to scalar args in user-level kernels "
-                   "is now forbidden but waiting on #484 before removing test")
 def test_stub_generate_with_scalar_sums():
-    '''check that the stub generate raises an exception when a kernel has
-    multiple reductions'''
-    with pytest.raises(GenerationError) as err:
+    '''check that the stub generator raises an exception when a kernel has
+    a reduction (since these are not permitted for user-supplied kernels)'''
+    with pytest.raises(ParseError) as err:
         _ = generate(
-            "test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+            "test_files/dynamo0p3/simple_with_reduction.f90",
             api="dynamo0.3")
     assert (
-        "PSyclone currently only supports a single reduction in a kernel "
-        "or builtin" in str(err))
+        "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
+        "argument but kernel simple_with_reduction_type has gh_real with "
+        "gh_sum access" in str(err))
 
 
 # fields : intent
