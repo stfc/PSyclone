@@ -1979,3 +1979,22 @@ def test_multi_builtin_single_invoke():
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
                 "      END DO \n") in code
+
+
+def test_scalar_int_builtin_error(monkeypatch):
+    ''' Test that specifying that a built-in has an integer scalar
+    argument raises the expected error '''
+    import dynamo0p3_builtins
+    # Point to fake built-in kernel metadata
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                         value=os.path.join(BASE_PATH,
+                                            "int_reduction_builtins_mod.f90"))
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                         distributed_memory=False).create(invoke_info)
+    assert ("an argument to a built-in kernel must be one of ['gh_field', "
+            "'gh_real'] but kernel set_field_scalar_code has an argument of "
+            "type gh_integer" in str(excinfo))
