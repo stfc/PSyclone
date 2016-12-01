@@ -47,7 +47,7 @@ VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_readwrite", \
+VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_readwrite",
                                  "gh_inc"] + VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -405,8 +405,8 @@ class DynArgDescriptor03(Descriptor):
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
 
-            if (self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES
-                and self._access_descriptor.name.lower() == "gh_inc"):
+            if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
                     "it does not make sense for a quantity on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access - should be "
@@ -1808,8 +1808,8 @@ class DynLoop(Loop):
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("halo", index=1)
-                elif self.field_space.orig_name in \
-                     DISCONTINUOUS_FUNCTION_SPACES:
+                elif (self.field_space.orig_name in
+                      DISCONTINUOUS_FUNCTION_SPACES):
                     self.set_upper_bound("edge")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
