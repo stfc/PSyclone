@@ -4,6 +4,11 @@
     using pytest. Currently all built-in operations are 'pointwise' in that
     they iterate over DOFs. However this may change in the future. '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # imports
 import os
 import pytest
@@ -177,7 +182,7 @@ def test_builtin_operator_arg():
             "type gh_operator" in str(excinfo))
 
 
-def test_builtin_args_not_same_space():
+def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if we encounter a built-in
     that has arguments on different function spaces '''
     import dynamo0p3_builtins
@@ -1498,7 +1503,7 @@ def test_inc_axpby():
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
     "spaces of the fields passed to the built-in kernel")
-def test_multiply_fields_on_different_spaces():
+def test_multiply_fields_on_different_spaces():  # pylint: disable=invalid-name
     ''' Test that we raise an error if multiply_fields() is called for
     two fields that are on different spaces '''
     _, invoke_info = parse(
@@ -1514,7 +1519,7 @@ def test_multiply_fields_on_different_spaces():
 @pytest.mark.xfail(
     reason="Dependency analysis of kernel arguments within an invoke is "
     "not yet implemented")
-def test_multiply_fields_deduce_space():
+def test_multiply_fields_deduce_space():  # pylint: disable=invalid-name
     ''' Test that we generate correct code if multiply_fields() is called
     in an invoke containing another kernel that allows the space of the
     fields to be deduced '''
@@ -1871,7 +1876,7 @@ def test_sumfield():
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
 
 
-def test_multi_builtin_single_invoke():
+def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
     '''Test that multiple builtins, including one with reductions,
     produce correct code'''
     for distmem in [False, True]:
@@ -1987,14 +1992,14 @@ def test_scalar_int_builtin_error(monkeypatch):
     import dynamo0p3_builtins
     # Point to fake built-in kernel metadata
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
-                         value=os.path.join(BASE_PATH,
-                                            "int_reduction_builtins_mod.f90"))
+                        value=os.path.join(BASE_PATH,
+                                           "int_reduction_builtins_mod.f90"))
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory("dynamo0.3",
-                         distributed_memory=False).create(invoke_info)
+                       distributed_memory=False).create(invoke_info)
     assert ("an argument to a built-in kernel must be one of ['gh_field', "
             "'gh_real'] but kernel set_field_scalar_code has an argument of "
             "type gh_integer" in str(excinfo))
