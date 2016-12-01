@@ -180,7 +180,7 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'evaluator_shape', 4)
     procedure :: my_kernel_code
   end type
 
-These 5 metadata elements are discussed in order in the following
+These five metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -260,11 +260,13 @@ For example:
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_REAL,  GH_sum),                                     &
+       arg_type(GH_REAL,  GH_SUM),                                     &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
        /)
+
+.. note:: In the Dynamo 0.3 API only :ref:`dynamo_built-ins` are permitted to write to scalar arguments (and hence perform reductions).
 
 For a scalar the argument metadata contains only these two entries.
 However, fields and operators require further entries specifying
@@ -345,15 +347,15 @@ modified. When data is *modified* in a Kernel then the permitted access
 modes depend on the type of data it is and the function
 space it is on. Valid values are given in the table below.
 
-=============     ============================    ======================
+=============     ============================    =======================
 Argument Type     Function space                  Access type
-=============     ============================    ======================
-GH_INTEGER        n/a                             GH_SUM
-GH_REAL           n/a                             GH_SUM
+=============     ============================    =======================
+GH_INTEGER        n/a                             GH_SUM (Built-ins only)
+GH_REAL           n/a                             GH_SUM (Built-ins only)
 GH_FIELD          Discontinuous (w3)              GH_WRITE, GH_READWRITE
 GH_FIELD          Continuous (not w3)             GH_INC
 GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
-=============     ============================    ======================
+=============     ============================    =======================
 
 Note that only Built-ins may modify scalar arguments. There is no
 restriction on the number and function-spaces of other quantities that
@@ -576,6 +578,8 @@ rules, along with PSyclone's naming conventions, are:
        1) If ``quadrature_type_XYZ`` pass in ``w_XZY(n_xyz)``
        2) If ``quadrature_type_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_z(n_z)``
        3) If ``quadrature_type_XoYoZ`` pass in ``w_X(n_x)``, ``w_Y(n_y)`` and ``w_z(n_z)``
+
+.. _dynamo_built-ins:
 
 Built-ins
 ---------
