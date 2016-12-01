@@ -19,6 +19,8 @@ provided to show the available transformations
 .. autoclass:: psyGen.TransInfo
     :members:
 
+.. _sec_transformations_available:
+
 Available
 ---------
 
@@ -57,13 +59,17 @@ API-specific sections).
     :members:
     :noindex:
 
-.. note:: PSyclone does not currently support
-          (distributed-memory) halo swaps within OpenMP parallel regions.
-	  Attempting to create a parallel region for a set of nodes that
-	  includes halo swaps will produce an error. (In such cases it may
-	  be possible to re-order the nodes in the Schedule such that the
-	  halo swaps are performed outside the parallel region.) This
-	  limitation will be removed in version 1.3 of PSyclone.
+.. note:: PSyclone does not support (distributed-memory) halo swaps or
+          global sums within OpenMP parallel regions.  Attempting to
+          create a parallel region for a set of nodes that includes
+          halo swaps or global sums will produce an error. In such
+          cases it may be possible to re-order the nodes in the
+          Schedule such that the halo swaps or global sums are
+          performed outside the parallel region. At the moment any
+          such reordering would have to be performed by directly
+          modifying the schedule and would be at the users own
+          risk. In the future a transformation will be added to
+          support the re-ordering of nodes.
 
    
 Applying
@@ -211,3 +217,67 @@ An example of the use of transformations scripts can be found in the
 examples/dynamo/eg3 directory. Please read the examples/dynamo/README
 file first as it explains how to run the example.
 
+OpenMP
+------
+
+OpenMP is added to a code by using transformations. The three
+transformations currently supported allow the addition of an **OpenMP
+Parallel** directive, an **OpenMP Do** directive and an **OpenMP
+Parallel Do** directive, respectively, to a code.
+
+The generic versions of these three transformations (i.e. ones that
+theoretically work for all API's) were given in the
+:ref:`sec_transformations_available` section. The API-specific versions
+of these transformations are described in the API-specific sections of
+this document.
+
+Reductions
+++++++++++
+
+PSyclone supports parallel scalar reductions.  If a scalar reduction is
+specified in the Kernel metadata (see the API-specific sections for
+details) then PSyclone ensures the appropriate reduction is performed.
+
+In the case of distributed memory, PSyclone will add **GlobalSum's**
+at the appropriate locations. As can be inferred by the name, only
+"summation" reductions are currently supported for distributed memory.
+
+In the case of an OpenMP parallel loop the standard reduction support
+will be used by default. For example
+::
+
+    !$omp parallel do, reduction(+:x)
+    !loop
+    !$omp end parallel do
+
+OpenMP reductions do not guarantee to give bit reproducible results
+for different runs of the same problem even if the same problem is run
+using the same resources. The reason for this is that the order in
+which data is reduced is not mandated.
+
+Therefore, an additional **reprod** option has been added to the
+**OpenMP Do** transformation. If the reprod option is set to "True"
+then the OpenMP reduction support is replaced with local per-thread
+reductions which are reduced serially after the loop has
+finished. This implementation guarantees to give bit-wise reproducible
+results for different runs of the same problem using the same
+resources, but will not bit-wise compare if the code is rerun with
+different numbers of OpenMP threads.
+
+Restrictions
+++++++++++++
+
+If two reductions are used within an OpenMP region and the same
+variable is used for both reductions then PSyclone will raise an
+exception. In this case the solution is to use a different variable
+for each reduction.
+
+PSyclone does not support (distributed-memory) halo swaps or global
+sums within OpenMP parallel regions.  Attempting to create a parallel
+region for a set of nodes that includes halo swaps or global sums will
+produce an error.  In such cases it may be possible to re-order the
+nodes in the Schedule such that the halo swaps or global sums are
+performed outside the parallel region. At the moment any such
+reordering would have to be performed by directly modifying the
+schedule and would be at the users own risk. In the future a
+transformation will be added to support the re-ordering of nodes.
