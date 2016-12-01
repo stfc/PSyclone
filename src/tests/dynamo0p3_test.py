@@ -8,6 +8,11 @@
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # imports
 import os
 import pytest
@@ -26,7 +31,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_get_op_wrong_name():
+def test_get_op_wrong_name():  # pylint: disable=invalid-name
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
     from dynamo0p3 import get_fs_operator_name
@@ -35,7 +40,7 @@ def test_get_op_wrong_name():
     assert "Unsupported name 'not_an_op' found" in str(err)
 
 
-def test_get_op_orientation_name():
+def test_get_op_orientation_name():  # pylint: disable=invalid-name
     ''' Test that get_operator_name() works for the orientation operator '''
     from dynamo0p3 import get_fs_operator_name
     name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
@@ -72,7 +77,7 @@ end module testkern_qr
 # functions
 
 
-def test_arg_descriptor_wrong_type():
+def test_arg_descriptor_wrong_type():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
     fparser.logging.disable('CRITICAL')
@@ -86,7 +91,7 @@ def test_arg_descriptor_wrong_type():
         in str(excinfo.value)
 
 
-def test_arg_descriptor_vector_str():
+def test_arg_descriptor_vector_str():  # pylint: disable=invalid-name
     ''' Test the str method of an argument descriptor containing a vector '''
     fparser.logging.disable('CRITICAL')
     # Change the meta-data so that the second argument is a vector
@@ -103,7 +108,7 @@ def test_arg_descriptor_vector_str():
     assert expected in dkm_str
 
 
-def test_ad_scalar_type_too_few_args():
+def test_ad_scalar_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has fewer than 2 args. '''
     fparser.logging.disable('CRITICAL')
@@ -117,7 +122,7 @@ def test_ad_scalar_type_too_few_args():
         in str(excinfo.value)
 
 
-def test_ad_scalar_type_too_many_args():
+def test_ad_scalar_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has more than 2 args. '''
     fparser.logging.disable('CRITICAL')
@@ -131,7 +136,7 @@ def test_ad_scalar_type_too_many_args():
         in str(excinfo.value)
 
 
-def test_ad_scalar_type_no_write():
+def test_ad_scalar_type_no_write():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_WRITE '''
     fparser.logging.disable('CRITICAL')
@@ -145,7 +150,7 @@ def test_ad_scalar_type_no_write():
             "(['gh_sum']) but found 'gh_write'" in str(excinfo.value))
 
 
-def test_ad_scalar_type_no_inc():
+def test_ad_scalar_type_no_inc():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_INC '''
     fparser.logging.disable('CRITICAL')
@@ -159,7 +164,7 @@ def test_ad_scalar_type_no_inc():
             "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
 
 
-def test_ad_field_type_too_few_args():
+def test_ad_field_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable('CRITICAL')
@@ -173,7 +178,7 @@ def test_ad_field_type_too_few_args():
         in str(excinfo.value)
 
 
-def test_ad_fld_type_too_many_args():
+def test_ad_fld_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
@@ -187,7 +192,7 @@ def test_ad_fld_type_too_many_args():
         in str(excinfo.value)
 
 
-def test_ad_fld_type_1st_arg():
+def test_ad_fld_type_1st_arg():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the 1st argument is
     invalid'''
     fparser.logging.disable('CRITICAL')
@@ -201,7 +206,7 @@ def test_ad_fld_type_1st_arg():
         'argument type' in str(excinfo.value)
 
 
-def test_ad_op_type_too_few_args():
+def test_ad_op_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
     fparser.logging.disable('CRITICAL')
@@ -214,7 +219,7 @@ def test_ad_op_type_too_few_args():
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
-def test_ad_op_type_too_many_args():
+def test_ad_op_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
@@ -227,7 +232,7 @@ def test_ad_op_type_too_many_args():
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
-def test_ad_op_type_wrong_3rd_arg():
+def test_ad_op_type_wrong_3rd_arg():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the 3rd entry in the operator
     descriptor metadata is invalid. '''
     fparser.logging.disable('CRITICAL')
@@ -241,7 +246,7 @@ def test_ad_op_type_wrong_3rd_arg():
             "a valid function space name" in str(excinfo.value))
 
 
-def test_ad_op_type_1st_arg_not_space():
+def test_ad_op_type_1st_arg_not_space():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the operator descriptor
     metadata contains something that is not a valid space. '''
     fparser.logging.disable('CRITICAL')
@@ -255,7 +260,7 @@ def test_ad_op_type_1st_arg_not_space():
         str(excinfo.value)
 
 
-def test_ad_invalid_type():
+def test_ad_invalid_type():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when an invalid descriptor type
     name is provided as the first argument. '''
     fparser.logging.disable('CRITICAL')
@@ -268,7 +273,7 @@ def test_ad_invalid_type():
         in str(excinfo.value)
 
 
-def test_ad_invalid_access_type():
+def test_ad_invalid_access_type():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when an invalid access
     name is provided as the second argument. '''
     fparser.logging.disable('CRITICAL')
@@ -434,7 +439,7 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo)
 
 
-def test_missing_evaluator_shape_both():
+def test_missing_evaluator_shape_both():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -451,7 +456,7 @@ def test_missing_evaluator_shape_both():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def test_missing_evaluator_shape_basis_only():
+def test_missing_evaluator_shape_basis_only():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -476,7 +481,7 @@ def test_missing_evaluator_shape_basis_only():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def test_missing_evaluator_shape_diff_basis_only():
+def test_missing_eval_shape_diff_basis_only():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_diff_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -1698,7 +1703,7 @@ def test_operator_nofield():
         "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
-def test_operator_nofield_different_space():
+def test_operator_nofield_different_space():  # pylint: disable=invalid-name
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1736,7 +1741,7 @@ def test_operator_nofield_scalar():
         "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
 
 
-def test_operator_nofield_scalar_deref():
+def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -1792,7 +1797,7 @@ def test_operator_orientation():
         "0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
-def test_operator_orientation_different_space():
+def test_op_orient_different_space():  # pylint: disable=invalid-name
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1935,7 +1940,7 @@ def test_any_space_2():
         "ace_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell))") != -1
 
 
-def test_operator_any_space_different_space_1():
+def test_op_any_space_different_space_1():  # pylint: disable=invalid-name
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
@@ -1950,7 +1955,7 @@ def test_operator_any_space_different_space_1():
         "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
-def test_operator_any_space_different_space_2():
+def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
@@ -2001,7 +2006,7 @@ def test_invoke_uniq_declns():
         in str(excinfo.value)
 
 
-def test_invoke_uniq_declns_invalid_access():
+def test_invoke_uniq_declns_invalid_access():  # pylint: disable=invalid-name
     ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2028,7 +2033,7 @@ def test_invoke_uniq_proxy_declns():
         in str(excinfo.value)
 
 
-def test_invoke_uniq_proxy_declns_invalid_access():
+def test_uniq_proxy_declns_invalid_access():  # pylint: disable=invalid-name
     ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2614,6 +2619,7 @@ SCALAR_SUMS = (
     "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
     "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
     "  END MODULE testkern_multiple_scalar_sums_mod")
+
 
 def test_stub_generate_with_scalar_sums():
     '''check that the stub generator raises an exception when a kernel has
@@ -5984,7 +5990,7 @@ end module testkern
     assert ("A Dynamo 0.3 kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
             "testkern_type" in str(excinfo))
-    
+
 
 def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
@@ -5997,7 +6003,7 @@ def test_multiple_updated_field_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if descriptor.type == "gh_field" and  descriptor.access != "gh_read":
+        if descriptor.type == "gh_field" and descriptor.access != "gh_read":
             count += 1
     assert count == 2
 
@@ -6015,7 +6021,7 @@ def test_multiple_updated_op_args():
     for descriptor in metadata.arg_descriptors:
         if ((descriptor.type == "gh_field" or
              descriptor.type == "gh_operator") and
-            descriptor.access != "gh_read"):
+                descriptor.access != "gh_read"):
             count += 1
     assert count == 2
 
