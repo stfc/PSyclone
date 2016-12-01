@@ -5957,6 +5957,35 @@ def test_no_updated_args():
             "testkern_qr_type" in str(excinfo))
 
 
+def test_scalars_only_invalid():
+    ''' Check that we raise the expected exception if we encounter a
+    kernel that only has (read-only) scalar arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = '''
+module testkern
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), meta_args(2) =                 &
+          (/ arg_type(gh_real, gh_read),            &
+             arg_type(gh_integer, gh_read)          &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_code
+  end type testkern_type
+contains
+  subroutine testkern_code(a,b)
+  end subroutine testkern_code
+end module testkern
+'''
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+            "updated (written to) but found none for kernel "
+            "testkern_type" in str(excinfo))
+    
+
 def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
