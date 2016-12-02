@@ -6182,3 +6182,53 @@ def test_kernel_stub_invalid_scalar_argument():
     assert (
         "Internal error: expected arg type to be one of '['gh_real', "
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+
+
+def test_kerncallarglist_arglist_error():
+    '''Check that we raise an exception if we call the arglist method in
+    kerncallarglist without first calling the generate method'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        if distmem:
+            index = 3
+        else:
+            index = 0
+        loop = schedule.children[index]
+        kernel = loop.children[0]
+        from dynamo0p3 import KernCallArgList
+        create_arg_list = KernCallArgList(kernel)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = create_arg_list.arglist
+        assert (
+            "Internal error. The argument list in KernCallArgList:arglist() "
+            "is empty. Has the generate() method been "
+            "called?") in str(excinfo.value)
+
+
+def test_kerncallarglist_arglist_error():
+    '''Check that we raise an exception if we call the arglist method in
+    kernstubarglist without first calling the generate method'''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_one_int_scalar.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # create a temporary module to add code into
+    from f2pygen import ModuleGen
+    module = ModuleGen("module_name")
+    # Now call KernStubArgList to raise an exception
+    from dynamo0p3 import KernStubArgList
+    create_arg_list = KernStubArgList(kernel, module)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = create_arg_list.arglist
+    assert (
+        "Internal error. The argument list in KernStubArgList:arglist() is "
+        "empty. Has the generate() method been "
+        "called?") in str(excinfo.value)
