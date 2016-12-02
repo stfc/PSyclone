@@ -2647,6 +2647,10 @@ class KernCallArgList(ArgOrdering):
     def arglist(self):
         '''return the kernel argument list. The generate function must be
         called first'''
+        if not self._arglist:
+            raise GenerationError(
+                "Internal error. The argument list in KernCallArgList:"
+                "arglist() is empty. Has the generate() method been called?")
         return self._arglist
 
     @property
@@ -2752,8 +2756,9 @@ class KernStubArgList(ArgOrdering):
         name = arg.name+"_stencil_map"
         ndf_name = get_fs_ndf_name(arg.function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=ndf_name + "," + arg.name +
-                                 "_stencil_size", entity_decls=[name]))
+                                 dimension=",".join(
+                                     [ndf_name, arg.name + "_stencil_size"]),
+                                 entity_decls=[name]))
         self._arglist.append(name)
 
     def operator(self, arg):
@@ -2774,8 +2779,8 @@ class KernStubArgList(ArgOrdering):
         ndf_name_to = get_fs_ndf_name(arg.function_space_to)
         ndf_name_from = get_fs_ndf_name(arg.function_space_from)
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 dimension=ndf_name_to + "," +
-                                 ndf_name_from + "," + size,
+                                 dimension=",".join([ndf_name_to,
+                                                     ndf_name_from, size]),
                                  intent=intent, entity_decls=[text]))
 
     def scalar(self, arg):
@@ -2857,10 +2862,10 @@ class KernStubArgList(ArgOrdering):
                                function_space.orig_name))
         self._parent.add(DeclGen(self._parent, datatype="real",
                                  kind="r_def", intent="in",
-                                 dimension=first_dim + "," +
-                                 ndf_name + "," +
-                                 self._kern.qr_args["nh"] + "," +
-                                 self._kern.qr_args["nv"],
+                                 dimension=",".join(
+                                     [first_dim, ndf_name,
+                                      self._kern.qr_args["nh"],
+                                      self._kern.qr_args["nv"]]),
                                  entity_decls=[basis_name]))
 
     def diff_basis(self, function_space):
@@ -2889,10 +2894,10 @@ class KernStubArgList(ArgOrdering):
                                function_space.orig_name))
         self._parent.add(DeclGen(self._parent, datatype="real",
                                  kind="r_def", intent="in",
-                                 dimension=first_dim + "," +
-                                 ndf_name + "," +
-                                 self._kern.qr_args["nh"] + "," +
-                                 self._kern.qr_args["nv"],
+                                 dimension=",".join(
+                                     [first_dim, ndf_name,
+                                      self._kern.qr_args["nh"],
+                                      self._kern.qr_args["nv"]]),
                                  entity_decls=[diff_basis_name]))
 
     def orientation(self, function_space):
@@ -2911,7 +2916,7 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append("boundary_dofs")
         ndf_name = get_fs_ndf_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=ndf_name+",2",
+                                 dimension=",".join([ndf_name, "2"]),
                                  entity_decls=["boundary_dofs"]))
 
     def quad_rule(self):
@@ -2937,6 +2942,10 @@ class KernStubArgList(ArgOrdering):
     def arglist(self):
         '''return the kernel argument list. The generate function must be
         called first'''
+        if not self._arglist:
+            raise GenerationError(
+                "Internal error. The argument list in KernStubArgList:"
+                "arglist() is empty. Has the generate() method been called?")
         return self._arglist
 
 
