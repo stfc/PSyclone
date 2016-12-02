@@ -2356,8 +2356,16 @@ class ArgOrdering(object):
         and their ordering. Calls methods for each type of argument
         that can be specialised by a child class for its particular need'''
         if self._kern.arguments.has_operator:
+            # operators require the cell index to be provided
             self.cell_position()
+        # always pass the number of layers in the mesh
         self.mesh_height()
+        # for each argument in the order they are specified in the
+        # kernel metadata, call particular methods depending on what
+        # type of argument we find (field, field vector, operator or
+        # scalar). If the argument is a field or field vector and also
+        # has a stencil access then also call appropriate stencil
+        # methods.
         for arg in self._kern.arguments.args:
             if arg.type == "gh_field":
                 if arg.vector_size > 1:
@@ -2366,9 +2374,14 @@ class ArgOrdering(object):
                     self.field(arg)
                 if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
+                        # stencil extent is not provided in the
+                        # metadata so must be passed
                         self.stencil_unknown_extent(arg)
                     if arg.descriptor.stencil['type'] == "xory1d":
+                        # if "xory1d is specified then the actual
+                        # direction must be passed
                         self.stencil_unknown_direction(arg)
+                    # stencil information that is always passed
                     self.stencil(arg)
             elif arg.type == "gh_operator":
                 self.operator(arg)
@@ -2379,17 +2392,17 @@ class ArgOrdering(object):
                     "Unexpected arg type found in dynamo0p3.py:"
                     "ArgOrdering:generate(). Expected one of '{0}' "
                     "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
-        # 3: For each function space (in the order they appear in the
+        # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
-            # 3.1 Provide compulsory arguments common to operators and
+            # Provide compulsory arguments common to operators and
             # fields on a space.
             self.fs_compulsory(unique_fs)
-            # 3.1.1 Provide additional compulsory arguments if there
-            # is a field on this space
+            # Provide additional compulsory arguments if there is a
+            # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
                 self.fs_compulsory_field(unique_fs)
-            # 3.2 Provide any optional arguments. These arguments are
+            # Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function,
             # differential basis function and orientation) for a
             # function space.
@@ -2402,12 +2415,12 @@ class ArgOrdering(object):
                     self.diff_basis(unique_fs)
                 if descriptor.requires_orientation:
                     self.orientation(unique_fs)
-            # 3.3 Fix for boundary_dofs array to the boundary
-            # condition kernel (enforce_bc_kernel) arguments
+            # Fix for boundary_dofs array to the boundary condition
+            # kernel (enforce_bc_kernel) arguments
             if self._kern.name.lower() == "enforce_bc_code" and \
                unique_fs.orig_name.lower() == "any_space_1":
                 self.bc_kernel(unique_fs)
-        # 4: Provide qr arguments if required
+        # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
 
