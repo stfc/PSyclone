@@ -2272,8 +2272,8 @@ class DynKern(Kern):
                                entity_decls=orientation_decl_names))
             parent.add(CommentGen(parent, ""))
 
-        #dump = True
-        #if dump:
+        # dump = True
+        # if dump:
         #    new_parent, position = parent.start_parent_loop()
         #    create_dump = DinoWriters(self, new_parent, position)
         #    create_dump.generate()
@@ -2949,7 +2949,7 @@ class KernStubArgList(ArgOrdering):
         return self._arglist
 
 
-#class DinoWriters(ArgOrdering):
+# class DinoWriters(ArgOrdering):
 #    '''Creates the required writers to dump the state of a Kernel call
 #    using dino. The integers are output first, followed by the fields,
 #    arrays etc'''
@@ -3036,7 +3036,7 @@ class KernStubArgList(ArgOrdering):
 #        '''get dino to output differential basis function information for the
 #        function space'''
 #        # TBD
-#        pass
+#         pass
 #
 #    def orientation(self, function_space):
 #        '''get dino to output orientation information for the function

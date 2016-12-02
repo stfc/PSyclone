@@ -6087,6 +6087,7 @@ def test_dynglobalsum_nodm_error():
     assert ("It makes no sense to create a DynGlobalSum object when "
             "dm=False") in str(err)
 
+
 def test_unexpected_type_error():
     '''Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
@@ -6115,6 +6116,7 @@ def test_unexpected_type_error():
         assert (
             "Unexpected arg type found in dynamo0p3.py:ArgOrdering:"
             "generate()") in str(excinfo.value)
+
 
 def test_argordering_exceptions():
     '''Check that we raise an exception if the abstract methods are called
@@ -6155,6 +6157,7 @@ def test_argordering_exceptions():
                        create_arg_list.bc_kernel]:
             with pytest.raises(NotImplementedError):
                 method(None)
+
 
 def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
