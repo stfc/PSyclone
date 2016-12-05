@@ -2981,16 +2981,17 @@ class DynKernelArguments(Arguments):
         # This kernel does not write to an operator. We now check for
         # fields that are written to. We check first for any modified
         # field on a continuous function space, failing that we try
-        # discontinuous function spaces and finally we try
-        # any_space. We do this because if a quantity on a continuous
-        # FS is modified then our iteration space must be larger
-        # (include L1 halo cells)
+        # any_space function spaces (because we must assume such a
+        # space is continuous) and finally we try discontinuous
+        # function spaces. We do this because if a quantity on a
+        # continuous FS is modified then our iteration space must be
+        # larger (include L1 halo cells)
         fld_args = self.args_filter(arg_types=["gh_field"],
                                     arg_accesses=["gh_write", "gh_inc"])
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
-                           DISCONTINUOUS_FUNCTION_SPACES,
-                           VALID_ANY_SPACE_NAMES]:
+                           VALID_ANY_SPACE_NAMES,
+                           DISCONTINUOUS_FUNCTION_SPACES]:
                 for arg in fld_args:
                     if arg.function_space.orig_name in spaces:
                         return arg

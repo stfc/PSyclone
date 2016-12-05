@@ -6040,10 +6040,12 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_iteration_space_multiple_writers():  # pylint: disable=invalid-name
+def test_itn_space_write_w3_w1():  # pylint: disable=invalid-name
     ''' Check that generated loop over cells in the psy layer has the correct
-    upper bound when a kernel writes to fields on different spaces, one of
-    which is continuous '''
+    upper bound when a kernel writes to two fields, the first on a
+    discontinuous space and the second on a continuous space. The resulting
+    loop (when dm=True) must include the L1 halo because of the second
+    field argument which is continuous '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api="dynamo0.3")
@@ -6065,11 +6067,12 @@ def test_iteration_space_multiple_writers():  # pylint: disable=invalid-name
             assert output in generated_code
 
 
-def test_iteration_space_fld_and_op_writers():  # pylint: disable=invalid-name
-    ''' Check that generated loop over cells in the psy layer has the correct
-    upper bound when a kernel writes to both an operator and a field, the
-    latter on a discontinuous space. (Loop must include L1 halo because
-    we're writing to an operator.) '''
+def test_itn_space_fld_and_op_writers():  # pylint: disable=invalid-name
+    ''' Check that generated loop over cells in the psy layer has the
+    correct upper bound when a kernel writes to both an operator and a
+    field, the latter on a discontinuous space and first in the list
+    of args. (Loop must include L1 halo because we're writing to an
+    operator.) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.2_single_invoke_write_fld_op.f90"),
         api="dynamo0.3")
@@ -6088,4 +6091,55 @@ def test_iteration_space_fld_and_op_writers():  # pylint: disable=invalid-name
                 "      ! Call our kernels\n"
                 "      !\n"
                 "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
+            assert output in generated_code
+
+
+def test_itn_space_any_w3():
+    ''' Check generated loop over cells has correct upper bound when
+    a kernel writes to fields on any-space and W3 '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+            assert output in generated_code
+
+
+def test_itn_space_any_w1():
+    ''' Check generated loop over cells has correct upper bound when
+    a kernel writes to fields on any-space and W1 '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            # Loop upper bound should use f2 as that field is *definitely*
+            # on a continuous space (as opposed to the one on any_space
+            # that might be).
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
             assert output in generated_code
