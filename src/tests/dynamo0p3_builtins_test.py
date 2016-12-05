@@ -1994,12 +1994,13 @@ def test_scalar_int_builtin_error(monkeypatch):
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("an argument to a built-in kernel must be one of ['gh_field', "
-            "'gh_real'] but kernel set_field_scalar_code has an argument of "
-            "type gh_integer" in str(excinfo))
+    for dm in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dm)
+        with pytest.raises(ParseError) as excinfo:
+            _ = PSyFactory("dynamo0.3",
+                           distributed_memory=dm).create(invoke_info)
+        assert ("an argument to a built-in kernel must be one of ['gh_field', "
+                "'gh_real'] but kernel set_field_scalar_code has an argument "
+                "of type gh_integer" in str(excinfo))
