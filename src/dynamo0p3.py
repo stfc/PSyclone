@@ -47,7 +47,7 @@ VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_readwrite",
+VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write",
                                  "gh_inc"] + VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -69,7 +69,7 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 # The mapping from meta-data strings to field-access types
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "readwrite": "gh_readwrite", "inc": "gh_inc"}
+                    "inc": "gh_inc"}
 
 # Valid Dynamo loop types. The default is "" which is over cells (in the
 # horizontal plane).
