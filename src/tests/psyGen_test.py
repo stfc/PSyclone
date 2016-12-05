@@ -512,7 +512,6 @@ def test_written_arg():
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
-        print type(descriptor)
         if descriptor.access == "gh_write":
             descriptor._access = "gh_read"
     my_kern = DynKern()
