@@ -408,9 +408,9 @@ class DynArgDescriptor03(Descriptor):
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
-                    "it does not make sense for a quantity on a discontinuous "
-                    "space ({0}) to have a 'gh_inc' access - should be "
-                    "'gh_readwrite'".format(self._function_space1.lower()))
+                    "It does not make sense for a quantity on a discontinuous "
+                    "space ({0}) to have a 'gh_inc' access".
+                    format(self._function_space1.lower()))
             if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
@@ -638,20 +638,20 @@ class DynKernMetadata(KernelType):
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
             self._func_descriptors.append(descriptor)
-        # Check that the meta-data we've parsed conforms to the rules
-        # for this API
+        # Perform further checks that the meta-data we've parsed
+        # conforms to the rules for this API
         self._validate(need_evaluator)
 
     def _validate(self, need_evaluator):
         ''' Check that the meta-data conforms to Dynamo 0.3 rules for a
         user-provided kernel or a built-in '''
         from dynamo0p3_builtins import BUILTIN_MAP
-        # 1. We must have at least one argument that is written to
+        # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
             if arg.access != "gh_read":
                 write_count += 1
-                # 2. We must not write to scalar arguments if it's not a
+                # We must not write to scalar arguments if it's not a
                 # built-in
                 if self.name not in BUILTIN_MAP and \
                    arg.type in VALID_SCALAR_NAMES:

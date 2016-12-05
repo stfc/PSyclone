@@ -4399,9 +4399,8 @@ def test_w3_and_inc_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="testkern_qr_type")
     assert (
-        "it does not make sense for a quantity on a discontinuous space "
-        "(w3) to have a 'gh_inc' access - should be 'gh_readwrite'" in
-        str(excinfo.value))
+        "It does not make sense for a quantity on a discontinuous space "
+        "(w3) to have a 'gh_inc' access" in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
