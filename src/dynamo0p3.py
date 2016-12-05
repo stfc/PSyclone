@@ -2965,35 +2965,40 @@ class DynKernelArguments(Arguments):
         return self._unique_fs_names
 
     def iteration_space_arg(self, mapping=None):
-        '''Returns the first argument we can use to dereference the iteration
+        '''Returns an argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
         alternatively a field that is read if one or more scalars
-        are modified. If an operator or a field on a continuous space is
-        modified then they are chosen since either of those cases implies
-        that we must compute out to the L1 halo. '''
+        are modified. If a kernel writes to more than one argument then
+        that requiring the largest iteration space is selected.'''
 
-        # First look for any modified arg on a continuous function space,
-        # failing that try discontinuous function spaces and finally try
-        # any_space. We do this because if a quantity on a continuous FS is
-        # modified then our iteration space must be larger (include L1
-        # halo cells)
-        for spaces in [CONTINUOUS_FUNCTION_SPACES,
-                       DISCONTINUOUS_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES]:
+        # Since we always compute operators out to the L1 halo we first
+        # check whether this kernel writes to an operator
+        op_args = self.args_filter(arg_types=["gh_operator"],
+                                   arg_accesses=["gh_write", "gh_inc"])
+        if op_args:
+            return op_args[0]
 
-            # do we have a field or operator that is modified?
-            for arg in self._args:
-                # Operators take precedence over fields because we must always
-                # compute them redundantly (out to L1 halo)
-                if arg.type in ["gh_operator", "gh_field"] and \
-                   arg.access in ["gh_write", "gh_inc"] \
-                   and arg.function_space.orig_name in spaces:
-                    return arg
+        # This kernel does not write to an operator. We now check for
+        # fields that are written to. We check first for any modified
+        # field on a continuous function space, failing that we try
+        # discontinuous function spaces and finally we try
+        # any_space. We do this because if a quantity on a continuous
+        # FS is modified then our iteration space must be larger
+        # (include L1 halo cells)
+        fld_args = self.args_filter(arg_types=["gh_field"],
+                                    arg_accesses=["gh_write", "gh_inc"])
+        if fld_args:
+            for spaces in [CONTINUOUS_FUNCTION_SPACES,
+                           DISCONTINUOUS_FUNCTION_SPACES,
+                           VALID_ANY_SPACE_NAMES]:
+                for arg in fld_args:
+                    if arg.function_space.orig_name in spaces:
+                        return arg
 
-        # no modified fields or operators. Check for unmodified fields
-        for arg in self._args:
-            if arg.type == "gh_field" and \
-               arg.access == "gh_read":
-                return arg
+        # No modified fields or operators. Check for unmodified fields...
+        fld_args = self.args_filter(arg_types=["gh_field"])
+        if fld_args:
+            return fld_args[0]
 
         # it is an error if we get to here
         raise GenerationError(

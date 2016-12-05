@@ -6040,7 +6040,7 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_correct_iteration_space_multiple_writers():
+def test_iteration_space_multiple_writers():  # pylint: disable=invalid-name
     ''' Check that generated loop over cells in the psy layer has the correct
     upper bound when a kernel writes to fields on different spaces, one of
     which is continuous '''
@@ -6062,4 +6062,30 @@ def test_correct_iteration_space_multiple_writers():
                 "      ! Call our kernels\n"
                 "      !\n"
                 "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+            assert output in generated_code
+
+
+def test_iteration_space_fld_and_op_writers():  # pylint: disable=invalid-name
+    ''' Check that generated loop over cells in the psy layer has the correct
+    upper bound when a kernel writes to both an operator and a field, the
+    latter on a discontinuous space. (Loop must include L1 halo because
+    we're writing to an operator.) '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.2_single_invoke_write_fld_op.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
             assert output in generated_code
