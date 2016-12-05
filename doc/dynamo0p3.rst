@@ -160,7 +160,56 @@ Kernel
 
 The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. This section explains the
-dynamo0.3-specific metadata and subroutine arguments.
+dynamo0.3-specific rules for kernels and then goes on to describe
+their metadata and subroutine arguments.
+
+Rules
++++++
+
+ 1) Kernels accept arguments of any of the supported types (field,
+    field vector, operator, scalar integer, scalar real).
+
+ 2) A Kernel must have at least one argument that is a field, field
+    vector, or operator. This rule reflects the fact that a Kernel
+    iterates over a space and therefore must have some representation
+    over that space.
+
+ 3) A Kernel is permitted to write to more than one
+    quantity (field or operator) and these quantities may be on the
+    same or different function spaces.
+
+ 4) A Kernel may not write to a scalar argument. (Only
+    :ref:`dynamo_built-ins` are permitted to do this.) Any scalar
+    aguments must therefore be declared in the meta-data as
+    "GH_READ" - see below.
+
+ 5) The continuity of the iteration space of the Kernel is determined
+    from the function space of the modified argument. If more than one
+    argument is modified then the iteration space is taken to be the
+    largest required by any of those arguments. e.g. if a Kernel
+    writes to two fields, the first on W3 (discontinuous) and the
+    second on W1 (continuous), then the iteration space of that Kernel
+    will be determined by the field on the continuous space.
+
+ 6) If the function space of the modified argument(s) cannot be
+    determined then they are assumed to be continuous. This is
+    the case if any of the modified arguments are declared as ANY_SPACE and
+    their actual space cannot be determined statically. This assumption is
+    always safe but leads to additional computation if the quantities being
+    updated are actually on discontinuous function spaces.
+
+ 7) Operators do not have halo operations operating on them as they
+    are local matrix assembly and therefore act like discontinous
+    fields.
+
+ 8) Any Kernel that writes to an operator will have its iteration
+    space expanded such that valid values for the operator are
+    computed in the level-1 halo.
+
+ 9) Any Kernel that reads from an operator must not access halos
+    beyond level 1. In this case PSyclone will check that the Kernel
+    does not require values beyond the level-1 halo. If it does then
+    PSyclone will abort.
 
 Metadata
 ++++++++
@@ -371,11 +420,13 @@ halo. Currently PSyclone makes no attempt to take advantage of this
 (by e.g. setting the appropriate level-1 halo to 'clean').
 
 PSyclone ensures that operators are computed (redundantly) out to the
-level-1 halo cells. This permits subsequent redundant computation of
-other quantities which make use of operators. In conjunction with
-this, PSyclone also checks (when generating the PSy layer) that any
-kernels which read operator values do not do so beyond the level-1
-halo. If any such accesses are found then PSyclone aborts.
+level-1 halo cells. This permits their use in kernels which modify
+quantities on continuous function spaces and also in subsequent
+redundant computation of other quantities on discontinuous function
+spaces. In conjunction with this, PSyclone also checks (when
+generating the PSy layer) that any kernels which read operator values
+do not do so beyond the level-1 halo. If any such accesses are found
+then PSyclone aborts.
 
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
