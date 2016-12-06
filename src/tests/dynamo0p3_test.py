@@ -6211,7 +6211,7 @@ def test_kerncallarglist_arglist_error():
             "called?") in str(excinfo.value)
 
 
-def test_kerncallarglist_arglist_error():
+def test_kernstubarglist_arglist_error():
     '''Check that we raise an exception if we call the arglist method in
     kernstubarglist without first calling the generate method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
