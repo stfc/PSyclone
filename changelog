@@ -42,6 +42,10 @@
         13) #484 Add support for the use of OpenMP (including reductions)
         with builtins.
 
+        14) #819 Re-structuring of DynKern._create_arg_list. Replaced with
+	new ArgList base class which is then sub-classed to KernCallArgList
+	and KernStubArgList.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
