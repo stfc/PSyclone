@@ -6,7 +6,7 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern
+module testkern_mod
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(5) :: meta_args = &
           (/ arg_type(gh_field,   gh_write,w1), &
@@ -25,4 +25,4 @@ contains
     integer, intent(in) :: iflag
     real(wp), dimension(:,:)  :: afield1, afield2, afield3, afield4
   end subroutine testkern_code
-end module testkern
+end module testkern_mod
