@@ -401,7 +401,7 @@ Argument Type     Function space                  Access type
 =============     ============================    =======================
 GH_INTEGER        n/a                             GH_SUM (Built-ins only)
 GH_REAL           n/a                             GH_SUM (Built-ins only)
-GH_FIELD          Discontinuous (w3)              GH_WRITE, GH_READWRITE
+GH_FIELD          Discontinuous (w3)              GH_WRITE
 GH_FIELD          Continuous (not w3)             GH_INC
 GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
 =============     ============================    =======================
@@ -579,9 +579,10 @@ Rules
 #####
 
 Kernel arguments follow a set of rules which have been specified for
-the dynamo0.3 API. These rules are encoded in the ``_create_arg_list()``
-method within the ``DynKern`` class in the ``dynamo0p3.py`` file. The
-rules, along with PSyclone's naming conventions, are:
+the dynamo0.3 API. These rules are encoded in the ``generate()``
+method within the ``ArgOrdering`` abstract class in the
+``dynamo0p3.py`` file. The rules, along with PSyclone's naming
+conventions, are:
 
 1) If an operator is passed then include the ``cells`` argument. ``cells`` is an integer and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers`` is an integer and has intent ``in``.
