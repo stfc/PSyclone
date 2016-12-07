@@ -1135,31 +1135,6 @@ def test_module_inline():
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_scalar_sum_and_OpenMP():
-    '''Test that we generate correct code if OpenMP and a single global
-    sum is specified for a Kernel. '''
-    # Note this will be disallowed in the near future as scalars will
-    # only be allowed to be read in a kernel.
-    for dist_mem in [False, True]:
-        _, info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
-        # Apply OpenMP parallelisation to the loop
-        if dist_mem:
-            index = 1
-        else:
-            index = 0
-        schedule, _ = otrans.apply(schedule.children[index])
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        print result
-        assert ("!$omp parallel do default(shared), private(cell), "
-                "schedule(static), reduction(+:rsum)") in result
-
-
 def test_builtin_single_OpenMP_pdo():
     '''Test that we generate correct code if an OpenMP parallel do is
     applied to a single builtin'''

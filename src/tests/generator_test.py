@@ -412,21 +412,19 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
-def test_main_unexpected_fatal_error(capsys):
+def test_main_unexpected_fatal_error(capsys, monkeypatch):
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function.'''
     # sabotage the code so one of our constant lists is now an int
     import dynamo0p3
-    keep = dynamo0p3.VALID_FUNCTION_SPACES
-    dynamo0p3.VALID_FUNCTION_SPACES = 1
+    monkeypatch.setattr(dynamo0p3, "CONTINUOUS_FUNCTION_SPACES",
+                        value=1)
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as excinfo:
         main([filename])
-    # reset our code sabotage to avoid affecting future tests
-    dynamo0p3.VALID_FUNCTION_SPACES = keep
     # the error code should be 1
     assert str(excinfo.value) == "1"
     output, _ = capsys.readouterr()

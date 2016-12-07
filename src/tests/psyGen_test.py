@@ -504,9 +504,16 @@ def test_written_arg():
     from psyGen import Kern
     # Change the kernel metadata so that the only kernel argument has
     # read access
-    kernel_metadata = FAKE_KERNEL_METADATA.replace("gh_write", "gh_read", 1)
-    ast = fpapi.parse(kernel_metadata, ignore_comments=False)
+    import fparser
+    fparser.logging.disable('CRITICAL')
+    # If we change the meta-data then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the meta-data
+    # instead
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
+    for descriptor in metadata.arg_descriptors:
+        if descriptor.access == "gh_write":
+            descriptor._access = "gh_read"
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
@@ -593,14 +600,16 @@ def test_haloexchange_unknown_halo_depth():
 
 def test_globalsum_view(capsys):
     '''test the view method in the GlobalSum class. The simplest way to do
-    this is to use a dynamo0p3 example which contains a scalar and
+    this is to use a dynamo0p3 builtin example which contains a scalar and
     then call view() on that.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.0_inner_prod_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
-    expected_output = ("GlobalSum[scalar='rsum']")
+    print output
+    expected_output = ("GlobalSum[scalar='asum']")
     assert expected_output in output
 
 
@@ -698,9 +707,15 @@ def test_reduction_sum_error():
             "reduction_sum_loop(). Expected one of '['gh_sum']") in str(err)
 
 
-def test_call_multi_reduction_error():
+def test_call_multi_reduction_error(monkeypatch):
     '''Check that we raise an exception if we try to create a Call (a
-    Kernel or a Builtin) with more than one reduction in it'''
+    Kernel or a Builtin) with more than one reduction in it. Since we have
+    a rule that only Builtins can write to scalars we need a built-in that
+    attempts to perform two reductions. '''
+    import dynamo0p3_builtins
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "multi_reduction_builtins_mod.f90"))
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),

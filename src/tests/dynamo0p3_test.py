@@ -8,6 +8,11 @@
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # imports
 import os
 import pytest
@@ -26,7 +31,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_get_op_wrong_name():
+def test_get_op_wrong_name():  # pylint: disable=invalid-name
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
     from dynamo0p3 import get_fs_operator_name
@@ -35,7 +40,7 @@ def test_get_op_wrong_name():
     assert "Unsupported name 'not_an_op' found" in str(err)
 
 
-def test_get_op_orientation_name():
+def test_get_op_orientation_name():  # pylint: disable=invalid-name
     ''' Test that get_operator_name() works for the orientation operator '''
     from dynamo0p3 import get_fs_operator_name
     name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
@@ -72,7 +77,7 @@ end module testkern_qr
 # functions
 
 
-def test_arg_descriptor_wrong_type():
+def test_arg_descriptor_wrong_type():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
     fparser.logging.disable('CRITICAL')
@@ -86,7 +91,7 @@ def test_arg_descriptor_wrong_type():
         in str(excinfo.value)
 
 
-def test_arg_descriptor_vector_str():
+def test_arg_descriptor_vector_str():  # pylint: disable=invalid-name
     ''' Test the str method of an argument descriptor containing a vector '''
     fparser.logging.disable('CRITICAL')
     # Change the meta-data so that the second argument is a vector
@@ -103,7 +108,7 @@ def test_arg_descriptor_vector_str():
     assert expected in dkm_str
 
 
-def test_ad_scalar_type_too_few_args():
+def test_ad_scalar_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has fewer than 2 args. '''
     fparser.logging.disable('CRITICAL')
@@ -117,7 +122,7 @@ def test_ad_scalar_type_too_few_args():
         in str(excinfo.value)
 
 
-def test_ad_scalar_type_too_many_args():
+def test_ad_scalar_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has more than 2 args. '''
     fparser.logging.disable('CRITICAL')
@@ -131,7 +136,7 @@ def test_ad_scalar_type_too_many_args():
         in str(excinfo.value)
 
 
-def test_ad_scalar_type_no_write():
+def test_ad_scalar_type_no_write():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_WRITE '''
     fparser.logging.disable('CRITICAL')
@@ -145,7 +150,7 @@ def test_ad_scalar_type_no_write():
             "(['gh_sum']) but found 'gh_write'" in str(excinfo.value))
 
 
-def test_ad_scalar_type_no_inc():
+def test_ad_scalar_type_no_inc():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies GH_INC '''
     fparser.logging.disable('CRITICAL')
@@ -159,7 +164,7 @@ def test_ad_scalar_type_no_inc():
             "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
 
 
-def test_ad_field_type_too_few_args():
+def test_ad_field_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable('CRITICAL')
@@ -173,7 +178,7 @@ def test_ad_field_type_too_few_args():
         in str(excinfo.value)
 
 
-def test_ad_fld_type_too_many_args():
+def test_ad_fld_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
@@ -187,7 +192,7 @@ def test_ad_fld_type_too_many_args():
         in str(excinfo.value)
 
 
-def test_ad_fld_type_1st_arg():
+def test_ad_fld_type_1st_arg():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the 1st argument is
     invalid'''
     fparser.logging.disable('CRITICAL')
@@ -201,7 +206,7 @@ def test_ad_fld_type_1st_arg():
         'argument type' in str(excinfo.value)
 
 
-def test_ad_op_type_too_few_args():
+def test_ad_op_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
     fparser.logging.disable('CRITICAL')
@@ -214,7 +219,7 @@ def test_ad_op_type_too_few_args():
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
-def test_ad_op_type_too_many_args():
+def test_ad_op_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
@@ -227,7 +232,7 @@ def test_ad_op_type_too_many_args():
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
-def test_ad_op_type_wrong_3rd_arg():
+def test_ad_op_type_wrong_3rd_arg():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the 3rd entry in the operator
     descriptor metadata is invalid. '''
     fparser.logging.disable('CRITICAL')
@@ -241,7 +246,7 @@ def test_ad_op_type_wrong_3rd_arg():
             "a valid function space name" in str(excinfo.value))
 
 
-def test_ad_op_type_1st_arg_not_space():
+def test_ad_op_type_1st_arg_not_space():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the operator descriptor
     metadata contains something that is not a valid space. '''
     fparser.logging.disable('CRITICAL')
@@ -255,7 +260,7 @@ def test_ad_op_type_1st_arg_not_space():
         str(excinfo.value)
 
 
-def test_ad_invalid_type():
+def test_ad_invalid_type():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when an invalid descriptor type
     name is provided as the first argument. '''
     fparser.logging.disable('CRITICAL')
@@ -268,7 +273,7 @@ def test_ad_invalid_type():
         in str(excinfo.value)
 
 
-def test_ad_invalid_access_type():
+def test_ad_invalid_access_type():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when an invalid access
     name is provided as the second argument. '''
     fparser.logging.disable('CRITICAL')
@@ -434,7 +439,7 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo)
 
 
-def test_missing_evaluator_shape_both():
+def test_missing_evaluator_shape_both():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -451,7 +456,7 @@ def test_missing_evaluator_shape_both():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def test_missing_evaluator_shape_basis_only():
+def test_missing_evaluator_shape_basis_only():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -476,7 +481,7 @@ def test_missing_evaluator_shape_basis_only():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def test_missing_evaluator_shape_diff_basis_only():
+def test_missing_eval_shape_diff_basis_only():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_diff_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -1698,7 +1703,7 @@ def test_operator_nofield():
         "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
-def test_operator_nofield_different_space():
+def test_operator_nofield_different_space():  # pylint: disable=invalid-name
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1712,7 +1717,8 @@ def test_operator_nofield_different_space():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_edge_cell" in gen
+    # We compute operators redundantly (out to the L1 halo)
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -1735,7 +1741,7 @@ def test_operator_nofield_scalar():
         "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
 
 
-def test_operator_nofield_scalar_deref():
+def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -1791,7 +1797,7 @@ def test_operator_orientation():
         "0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
-def test_operator_orientation_different_space():
+def test_op_orient_different_space():  # pylint: disable=invalid-name
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1848,6 +1854,26 @@ def test_operator_deref():
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
             "ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
             "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+
+
+def test_operator_read_level1_halo():
+    ''' Check that we raise an error if a kernel attempts to read from an
+    operator beyond the level-1 halo '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.7_operator_read.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    # Modify the loop bound so that we attempt to read from the L2 halo
+    # (of the operator)
+    loop.set_upper_bound("halo", index=2)
+    # Attempt to generate the code
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("Kernel 'testkern_operator_code' reads from an operator and "
+            "therefore cannot be used for cells beyond the level 1 halo. "
+            "However the containing loop goes out to level 2" in str(excinfo))
 
 
 def test_any_space_1():
@@ -1914,7 +1940,7 @@ def test_any_space_2():
         "ace_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell))") != -1
 
 
-def test_operator_any_space_different_space_1():
+def test_op_any_space_different_space_1():  # pylint: disable=invalid-name
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
@@ -1929,7 +1955,7 @@ def test_operator_any_space_different_space_1():
         "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
-def test_operator_any_space_different_space_2():
+def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
@@ -1980,7 +2006,7 @@ def test_invoke_uniq_declns():
         in str(excinfo.value)
 
 
-def test_invoke_uniq_declns_invalid_access():
+def test_invoke_uniq_declns_invalid_access():  # pylint: disable=invalid-name
     ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2007,7 +2033,7 @@ def test_invoke_uniq_proxy_declns():
         in str(excinfo.value)
 
 
-def test_invoke_uniq_proxy_declns_invalid_access():
+def test_uniq_proxy_declns_invalid_access():  # pylint: disable=invalid-name
     ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2135,12 +2161,12 @@ def test_kernel_specific():
     assert output3 in generated_code
     output4 = "fs = f1%which_function_space()"
     assert output4 in generated_code
-    output5 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+    output5 = '''IF (fs /= w3) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output5 in generated_code
     output6 = (
-        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
+        "IF (fs /= w3) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2175,12 +2201,12 @@ def test_multi_kernel_specific():
     assert output2 in generated_code
     output3 = "fs = f1%which_function_space()"
     assert output3 in generated_code
-    output4 = '''IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN
+    output4 = '''IF (fs /= w3) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output4 in generated_code
     output5 = (
-        "IF ((fs .eq. w1) .or. (fs .eq. w2)) THEN\n"
+        "IF (fs /= w3) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2193,12 +2219,12 @@ def test_multi_kernel_specific():
     assert output7 in generated_code
     output8 = "fs_1 = f1%which_function_space()"
     assert output8 in generated_code
-    output9 = '''IF ((fs_1 .eq. w1) .or. (fs_1 .eq. w2)) THEN
+    output9 = '''IF (fs_1 /= w3) THEN
         boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output9 in generated_code
     output10 = (
-        "IF ((fs_1 .eq. w1) .or. (fs_1 .eq. w2)) THEN\n"
+        "IF (fs_1 /= w3) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
@@ -2597,15 +2623,16 @@ SCALAR_SUMS = (
 
 
 def test_stub_generate_with_scalar_sums():
-    '''check that the stub generate raises an exception when a kernel has
-    multiple reductions'''
-    with pytest.raises(GenerationError) as err:
+    '''check that the stub generator raises an exception when a kernel has
+    a reduction (since these are not permitted for user-supplied kernels)'''
+    with pytest.raises(ParseError) as err:
         _ = generate(
-            "test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+            "test_files/dynamo0p3/simple_with_reduction.f90",
             api="dynamo0.3")
     assert (
-        "PSyclone currently only supports a single reduction in a kernel "
-        "or builtin" in str(err))
+        "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
+        "argument but kernel simple_with_reduction_type has gh_real with "
+        "gh_sum access" in str(err))
 
 
 # fields : intent
@@ -4372,8 +4399,9 @@ def test_w3_and_inc_error():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="testkern_qr_type")
-    assert ("it does not make sense for a 'w3' space to have a 'gh_inc' "
-            "access") in str(excinfo.value)
+    assert (
+        "It does not make sense for a quantity on a discontinuous space "
+        "(w3) to have a 'gh_inc' access" in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
@@ -4524,174 +4552,6 @@ def test_operator_gh_sum_invalid():
     assert "reduction access 'gh_sum' is only valid with a scalar argument" \
         in str(excinfo.value)
     assert "but 'gh_operator' was found" in str(excinfo.value)
-
-
-def test_single_integer_scalar_sum():
-    '''Test that a single integer scalar generates correct code when it
-    is specified with gh_sum with dm=False'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "16.2_integer_scalar_sum.f90"),
-                           api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
-    assert "INTEGER, intent(out) :: isum" in gen
-    assert "isum = 0" in gen
-    assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
-        "undf_w3, map_w3(:,cell))" in gen
-
-
-def test_single_real_scalar_sum():
-    '''Test that a single real scalar generates correct code when it is
-    specified with gh_sum'''
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "16.3_real_scalar_sum.f90"),
-                               api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print gen
-        if dist_mem:
-            assert "USE scalar_mod, ONLY: scalar_type" in gen
-            assert "TYPE(scalar_type) global_sum" in gen
-            assert "DO cell=1,mesh%get_last_edge_cell()" in gen
-            assert (
-                "      global_sum%value = rsum\n"
-                "      rsum = global_sum%get_sum()") in gen
-        else:
-            assert "DO cell=1,f1_proxy%vspace%get_ncell()" in gen
-        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
-        assert "rsum = 0.0_r_def" in gen
-        assert "SUBROUTINE invoke_0_testkern_type(rsum, f1)" in gen
-        assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-            "undf_w3, map_w3(:,cell))" in gen
-
-
-def test_multiple_kernels_scalar_sums():
-
-    '''Add a test for multiple kernels within an invoke with scalar
-    (gh_sum) reductions'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-             "undf_w3, map_w3(:,cell))"
-    assert output in gen
-    assert gen.count(output) == 2
-
-    # Test that multiple kernels within an invoke with the same real
-    # scalar (gh_sum) for each reduction generate correct code
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print gen
-        assert "SUBROUTINE invoke_0(rsum, f1)" in gen
-        assert "REAL(KIND=r_def), intent(out) :: rsum" in gen
-        assert gen.count("rsum = 0.0_r_def") == 2
-        output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
-                 "undf_w3, map_w3(:,cell))"
-        assert output in gen
-        assert gen.count(output) == 2
-        if dist_mem:
-            assert gen.count("USE scalar_mod, ONLY: scalar_type") == 1
-            assert gen.count("TYPE(scalar_type) global_sum") == 1
-            assert gen.count("      global_sum%value = rsum\n"
-                             "      rsum = global_sum%get_sum()") == 2
-
-
-def test_scalars_only_invalid():
-    '''Test that a Kernel consisting of only scalars fails as it has
-    nothing to iterate over '''
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(GenerationError) as excinfo:
-            _ = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
-                create(invoke_info)
-        assert "dynamo0.3 api must have a modified field" in \
-            str(excinfo.value)
-        assert "modified operator, or an unmodified field" in \
-            str(excinfo.value)
-
-
-def test_scalar_int_sum_field_read():
-    '''Test that a write to a single integer scalar is valid with dm=False
-    if we have at least one field that is read '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3",
-                     distributed_memory=False).create(invoke_info)
-    gen = str(psy.gen)
-    print gen
-    assert "SUBROUTINE invoke_0_testkern_type(isum, f1)" in gen
-    assert "INTEGER, intent(out) :: isum" in gen
-    assert "isum = 0" in gen
-    expected_output = (
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, "
-        "undf_w3, map_w3(:,cell))\n"
-        "      END DO \n")
-    assert expected_output in gen
-
-
-def test_scalar_int_sum_field_read_error():
-    '''Test that a sum of an integer scalar raises an exception if
-    distributed memory is set to True as the infrastructure does not
-    currently support this'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=True)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=True).create(invoke_info)
-    assert "Integer reductions are not currently supported" \
-        in str(excinfo.value)
-
-
-def test_scalar_real_sum_field_read():
-    '''Test that a write to a single real scalar is valid if we have at
-    least one field that is read '''
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print gen
-
-        if dist_mem:
-            assert "USE scalar_mod, ONLY: scalar_type" in gen
-            assert "TYPE(scalar_type) global_sum" in gen
-            assert "rsum = 0.0_r_def" in gen
-            expected_output = (
-                "      DO cell=1,mesh%get_last_edge_cell()\n"
-                "        !\n"
-                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
-                "ndf_w3, undf_w3, map_w3(:,cell))\n"
-                "      END DO \n"
-                "      global_sum%value = rsum\n"
-                "      rsum = global_sum%get_sum()")
-        else:
-            expected_output = (
-                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
-                "ndf_w3, undf_w3, map_w3(:,cell))\n"
-                "      END DO \n")
-        assert expected_output in gen
 
 
 def test_derived_type_arg():
@@ -6086,6 +5946,204 @@ def test_dynglobalsum_nodm_error():
         _ = DynGlobalSum(argument)
     assert ("It makes no sense to create a DynGlobalSum object when "
             "dm=False") in str(err)
+
+
+def test_no_updated_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that does not write to any of its arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
+                        "arg_type(gh_field,gh_read,w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+            "updated (written to) but found none for kernel "
+            "testkern_qr_type" in str(excinfo))
+
+
+def test_scalars_only_invalid():
+    ''' Check that we raise the expected exception if we encounter a
+    kernel that only has (read-only) scalar arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = '''
+module testkern
+  type, extends(kernel_type) :: testkern_type
+     type(arg_type), meta_args(2) =                 &
+          (/ arg_type(gh_real, gh_read),            &
+             arg_type(gh_integer, gh_read)          &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_code
+  end type testkern_type
+contains
+  subroutine testkern_code(a,b)
+  end subroutine testkern_code
+end module testkern
+'''
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel must have at least one argument that is "
+            "updated (written to) but found none for kernel "
+            "testkern_type" in str(excinfo))
+
+
+def test_multiple_updated_field_args():
+    ''' Check that we successfully parse a kernel that writes to more
+    than one of its field arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                        "arg_type(gh_field,gh_write, w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    count = 0
+    for descriptor in metadata.arg_descriptors:
+        if descriptor.type == "gh_field" and descriptor.access != "gh_read":
+            count += 1
+    assert count == 2
+
+
+def test_multiple_updated_op_args():
+    ''' Check that we successfully parse the metadata for a kernel that
+    writes to more than one of its field and operator arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_write, w1, w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    count = 0
+    for descriptor in metadata.arg_descriptors:
+        if ((descriptor.type == "gh_field" or
+             descriptor.type == "gh_operator") and
+                descriptor.access != "gh_read"):
+            count += 1
+    assert count == 2
+
+
+def test_multiple_updated_scalar_args():
+    ''' Check that we raise the expected exception when we encounter a
+    kernel that writes to more than one of its field and scalar arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_real, gh_read)",
+                        "arg_type(gh_real, gh_sum)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A user-supplied Dynamo 0.3 kernel must not write/update a scalar "
+            "argument but kernel testkern_qr_type has" in
+            str(excinfo))
+
+
+def test_itn_space_write_w3_w1():  # pylint: disable=invalid-name
+    ''' Check that generated loop over cells in the psy layer has the correct
+    upper bound when a kernel writes to two fields, the first on a
+    discontinuous space and the second on a continuous space. The resulting
+    loop (when dm=True) must include the L1 halo because of the second
+    field argument which is continuous '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
+            assert output in generated_code
+
+
+def test_itn_space_fld_and_op_writers():  # pylint: disable=invalid-name
+    ''' Check that generated loop over cells in the psy layer has the
+    correct upper bound when a kernel writes to both an operator and a
+    field, the latter on a discontinuous space and first in the list
+    of args. (Loop must include L1 halo because we're writing to an
+    operator.) '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.2_single_invoke_write_fld_op.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
+            assert output in generated_code
+
+
+def test_itn_space_any_w3():
+    ''' Check generated loop over cells has correct upper bound when
+    a kernel writes to fields on any-space and W3 '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+            assert output in generated_code
+
+
+def test_itn_space_any_w1():
+    ''' Check generated loop over cells has correct upper bound when
+    a kernel writes to fields on any-space and W1 '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+            assert output in generated_code
+        else:
+            # Loop upper bound should use f2 as that field is *definitely*
+            # on a continuous space (as opposed to the one on any_space
+            # that might be).
+            output = (
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f2_proxy%vspace%get_ncell()\n")
+            assert output in generated_code
 
 
 def test_unexpected_type_error():

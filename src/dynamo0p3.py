@@ -47,8 +47,8 @@ VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
-    VALID_REDUCTION_NAMES
+VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write",
+                                 "gh_inc"] + VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -69,7 +69,7 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 # The mapping from meta-data strings to field-access types
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "readwrite": "gh_rw", "inc": "gh_inc"}
+                    "inc": "gh_inc"}
 
 # Valid Dynamo loop types. The default is "" which is over cells (in the
 # horizontal plane).
@@ -405,13 +405,13 @@ class DynArgDescriptor03(Descriptor):
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
 
-            if self._function_space1.lower() == "w3" and \
-               self._access_descriptor.name.lower() == "gh_inc":
+            if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
-                    "it does not make sense for a 'w3' space to have a "
-                    "'gh_inc' access")
-            if stencil and self._access_descriptor.name.lower() != \
-                    "gh_read":
+                    "It does not make sense for a quantity on a discontinuous "
+                    "space ({0}) to have a 'gh_inc' access".
+                    format(self._function_space1.lower()))
+            if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
 
@@ -638,6 +638,33 @@ class DynKernMetadata(KernelType):
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
             self._func_descriptors.append(descriptor)
+        # Perform further checks that the meta-data we've parsed
+        # conforms to the rules for this API
+        self._validate(need_evaluator)
+
+    def _validate(self, need_evaluator):
+        ''' Check that the meta-data conforms to Dynamo 0.3 rules for a
+        user-provided kernel or a built-in '''
+        from dynamo0p3_builtins import BUILTIN_MAP
+        # We must have at least one argument that is written to
+        write_count = 0
+        for arg in self._arg_descriptors:
+            if arg.access != "gh_read":
+                write_count += 1
+                # We must not write to scalar arguments if it's not a
+                # built-in
+                if self.name not in BUILTIN_MAP and \
+                   arg.type in VALID_SCALAR_NAMES:
+                    raise ParseError(
+                        "A user-supplied Dynamo 0.3 kernel must not "
+                        "write/update a scalar argument but kernel {0} has "
+                        "{1} with {2} access".format(self.name,
+                                                     arg.type, arg.access))
+        if write_count == 0:
+            raise ParseError("A Dynamo 0.3 kernel must have at least one "
+                             "argument that is updated (written to) but "
+                             "found none for kernel {0}".format(self.name))
+
         # Check that no evaluator shape has been supplied if no basis or
         # differential basis functions are required for the kernel
         if not need_evaluator and self._eval_shape:
@@ -1777,11 +1804,20 @@ class DynLoop(Loop):
             self.set_upper_bound("dofs")
         else:
             if config.DISTRIBUTED_MEMORY:
-                if self.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+                if self._field.type == "gh_operator":
+                    # We always compute operators redundantly out to the L1
+                    # halo
+                    self.set_upper_bound("halo", index=1)
+                elif (self.field_space.orig_name in
+                      DISCONTINUOUS_FUNCTION_SPACES):
                     self.set_upper_bound("edge")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
+                    # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("halo", index=1)
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
+                    # We don't know whether any-space is continuous or not
+                    # so we have to err on the side of caution and assume that
+                    # it is.
                     self.set_upper_bound("halo", index=1)
                 else:
                     raise GenerationError(
@@ -1817,6 +1853,17 @@ class DynLoop(Loop):
                 "invalid".format(str(index)))
         self._upper_bound_name = name
         self._upper_bound_index = index
+
+    @property
+    def upper_bound_name(self):
+        ''' Returns the name of the upper loop bound '''
+        return self._upper_bound_name
+
+    @property
+    def upper_bound_index(self):
+        ''' Returns the index of the upper loop bound. Is None if upper
+        bound name is not "inner" or "halo" '''
+        return self._upper_bound_index
 
     def _lower_bound_fortran(self):
         ''' Create the associated fortran code for the type of lower bound '''
@@ -2199,6 +2246,20 @@ class DynKern(Kern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        # Check whether this kernel reads from an operator
+        op_args = self.parent.args_filter(arg_types=["gh_operator"],
+                                          arg_accesses=["gh_read"])
+        if op_args:
+            # It does. We must check that our parent loop does not
+            # go beyond the L1 halo.
+            if self.parent.upper_bound_name == "halo" and \
+               self.parent.upper_bound_index > 1:
+                raise GenerationError(
+                    "Kernel '{0}' reads from an operator and therefore "
+                    "cannot be used for cells beyond the level 1 halo. "
+                    "However the containing loop goes out to level {1}".
+                    format(self._name, self.parent.upper_bound_index))
+
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the colour map
         if self.is_coloured():
@@ -2291,7 +2352,7 @@ class DynKern(Kern):
         if self.name == "matrix_vector_code":
             # Any call to this kernel must be followed by a call
             # to update boundary conditions (if the updated field
-            # is not on W3 space).
+            # is not on a discontinuous space).
             # Rather than rely on knowledge of the interface to
             # matrix_vector kernel, look-up the argument that is
             # updated and then apply b.c.'s to that...
@@ -2318,11 +2379,9 @@ class DynKern(Kern):
                                      rhs=enforce_bc_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
-            test_str = ""
-            for idx, space_name in enumerate(space_names):
-                test_str += "("+fs_name+" .eq. "+space_name+")"
-                if idx < (len(space_names)-1):
-                    test_str += " .or. "
+            test_str = " .and. ".join(
+                [fs_name + " /= " + space_name for space_name in
+                 DISCONTINUOUS_FUNCTION_SPACES])
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,
@@ -3349,26 +3408,41 @@ class DynKernelArguments(Arguments):
         return self._unique_fs_names
 
     def iteration_space_arg(self, mapping=None):
-        '''Returns the first argument we can use to dereference the iteration
+        '''Returns an argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
         alternatively a field that is read if one or more scalars
-        are modified. '''
+        are modified. If a kernel writes to more than one argument then
+        that requiring the largest iteration space is selected.'''
 
-        # first look for known function spaces then try any_space
-        for spaces in [VALID_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES]:
+        # Since we always compute operators out to the L1 halo we first
+        # check whether this kernel writes to an operator
+        op_args = self.args_filter(arg_types=["gh_operator"],
+                                   arg_accesses=["gh_write", "gh_inc"])
+        if op_args:
+            return op_args[0]
 
-            # do we have a field or operator that is modified?
-            for arg in self._args:
-                if arg.type in ["gh_field", "gh_operator"] and \
-                   arg.access in ["gh_write", "gh_inc"] \
-                   and arg.function_space.orig_name in spaces:
-                    return arg
+        # This kernel does not write to an operator. We now check for
+        # fields that are written to. We check first for any modified
+        # field on a continuous function space, failing that we try
+        # any_space function spaces (because we must assume such a
+        # space is continuous) and finally we try discontinuous
+        # function spaces. We do this because if a quantity on a
+        # continuous FS is modified then our iteration space must be
+        # larger (include L1 halo cells)
+        fld_args = self.args_filter(arg_types=["gh_field"],
+                                    arg_accesses=["gh_write", "gh_inc"])
+        if fld_args:
+            for spaces in [CONTINUOUS_FUNCTION_SPACES,
+                           VALID_ANY_SPACE_NAMES,
+                           DISCONTINUOUS_FUNCTION_SPACES]:
+                for arg in fld_args:
+                    if arg.function_space.orig_name in spaces:
+                        return arg
 
-        # no modified fields or operators. Check for unmodified fields
-        for arg in self._args:
-            if arg.type == "gh_field" and \
-               arg.access == "gh_read":
-                return arg
+        # No modified fields or operators. Check for unmodified fields...
+        fld_args = self.args_filter(arg_types=["gh_field"])
+        if fld_args:
+            return fld_args[0]
 
         # it is an error if we get to here
         raise GenerationError(
