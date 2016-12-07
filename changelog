@@ -46,6 +46,9 @@
 	new ArgList base class which is then sub-classed to KernCallArgList
 	and KernStubArgList.
 
+	15) #576 Added tests and documentation to check and describe the
+	dynamo0.3 api kernel and builtin rules.
+
 release 1.2.4
 
         1) #658 Adds support for the use of real and integer literals with
