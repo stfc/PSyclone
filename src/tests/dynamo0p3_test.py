@@ -2153,7 +2153,7 @@ def test_kernel_specific():
     generated_code = str(psy.gen)
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert output0 in generated_code
-    output1 = "USE function_space_mod, ONLY: w1, w2"
+    output1 = "USE function_space_mod, ONLY: w1, w2, w3"
     assert output1 in generated_code
     output2 = "INTEGER fs"
     assert output2 in generated_code
@@ -2191,7 +2191,7 @@ def test_multi_kernel_specific():
     # should only be one of the following generated ...
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert generated_code.count(output0) == 1
-    output1 = "USE function_space_mod, ONLY: w1, w2"
+    output1 = "USE function_space_mod, ONLY: w1, w2, w3"
     assert generated_code.count(output1) == 1
 
     # first loop
