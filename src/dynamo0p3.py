@@ -2357,7 +2357,6 @@ class DynKern(Kern):
             # matrix_vector kernel, look-up the argument that is
             # updated and then apply b.c.'s to that...
             enforce_bc_arg = self.updated_arg
-            space_names = ["w1", "w2"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
@@ -2368,7 +2367,8 @@ class DynKern(Kern):
             boundary_dofs_name = self._name_space_manager.create_name(
                 root_name="boundary_dofs")
             parent.add(UseGen(parent, name="function_space_mod",
-                              only=True, funcnames=space_names))
+                              only=True,
+                              funcnames=DISCONTINUOUS_FUNCTION_SPACES))
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=[boundary_dofs_name +
                                              "(:,:) => null()"]))
