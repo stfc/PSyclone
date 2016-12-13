@@ -27,8 +27,8 @@ import config
 # first section : Parser specialisations and classes
 
 # constants
-DISCONTINUOUS_FUNCTION_SPACES = ["w3"]  # W3 is also a scalar space
-CONTINUOUS_FUNCTION_SPACES =["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -2357,6 +2357,9 @@ class DynKern(Kern):
             # matrix_vector kernel, look-up the argument that is
             # updated and then apply b.c.'s to that...
             enforce_bc_arg = self.updated_arg
+            # We only need to call the enforce_bc kernel if the field is on
+            # a vector function space
+            space_names = ["w1", "w2", "w2h", "w2v"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
@@ -2366,12 +2369,8 @@ class DynKern(Kern):
             fs_name = self._name_space_manager.create_name(root_name="fs")
             boundary_dofs_name = self._name_space_manager.create_name(
                 root_name="boundary_dofs")
-            # We only need to call the enforce_bc kernel if the field is on
-            # a vector function space
-            vec_func_spaces = ["w1", "w2", "w2h", "w2v"]
             parent.add(UseGen(parent, name="function_space_mod",
-                              only=True,
-                              funcnames=vec_func_spaces))
+                              only=True, funcnames=space_names))
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=[boundary_dofs_name +
                                              "(:,:) => null()"]))
@@ -2384,7 +2383,7 @@ class DynKern(Kern):
                            position=["before", position])
             test_str = " .or. ".join(
                 [fs_name + " == " + space_name for space_name in
-                 vec_func_spaces])
+                 space_names])
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,
