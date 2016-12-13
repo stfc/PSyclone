@@ -28,9 +28,7 @@ import config
 
 # constants
 DISCONTINUOUS_FUNCTION_SPACES = ["w3"]  # W3 is also a scalar space
-SCALAR_FUNCTION_SPACES = ["w0", "wtheta"]
-VECTOR_FUNCTION_SPACES = ["w1", "w2", "w2h", "w2v"]
-CONTINUOUS_FUNCTION_SPACES = SCALAR_FUNCTION_SPACES + VECTOR_FUNCTION_SPACES
+CONTINUOUS_FUNCTION_SPACES =["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -2368,9 +2366,12 @@ class DynKern(Kern):
             fs_name = self._name_space_manager.create_name(root_name="fs")
             boundary_dofs_name = self._name_space_manager.create_name(
                 root_name="boundary_dofs")
+            # We only need to call the enforce_bc kernel if the field is on
+            # a vector function space
+            vec_func_spaces = ["w1", "w2", "w2h", "w2v"]
             parent.add(UseGen(parent, name="function_space_mod",
                               only=True,
-                              funcnames=VECTOR_FUNCTION_SPACES))
+                              funcnames=vec_func_spaces))
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=[boundary_dofs_name +
                                              "(:,:) => null()"]))
@@ -2383,7 +2384,7 @@ class DynKern(Kern):
                            position=["before", position])
             test_str = " .or. ".join(
                 [fs_name + " == " + space_name for space_name in
-                 VECTOR_FUNCTION_SPACES])
+                 vec_func_spaces])
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,

@@ -5856,7 +5856,7 @@ def test_dynloop_load_unexpected_function_space():
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'w0', 'wtheta', 'w1', 'w2', 'w2h', 'w2v'] but "
+            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but "
             "found 'broken'" in str(err))
 
 
