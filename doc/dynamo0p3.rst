@@ -925,12 +925,12 @@ infrastructure.
 There is one situation where boundary conditions are applied without
 the algorithm developer having to specify them explicitly. Boundary
 conditions are added automatically after a call to
-``matrix_vector_type`` if the function space of the fields being
-passed into the call are either ``w1`` or ``w2``. This functionality
-was requested by the scientists to avoid having to write a large
-number of ``enforce_bc_type`` calls in the algorithm layer as
-``matrix_vector_type`` may be used a large number of times in an
-algorithm.
+``matrix_vector_type`` if the fields being passed into the call are on
+a vector function space (one of ``w1``, ``w2``, ``w2h`` or
+``w2v``). This functionality was requested by the scientists to avoid
+having to write a large number of ``enforce_bc_type`` calls in the
+algorithm layer as ``matrix_vector_type`` may be used a large number
+of times in an algorithm.
 
 Example ``eg4`` in the ``examples/dynamo`` directory includes a call
 to ``matrix_vector_type`` so can be used to see the boundary condition
