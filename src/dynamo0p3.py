@@ -27,8 +27,10 @@ import config
 # first section : Parser specialisations and classes
 
 # constants
-DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3"] # W3 is also a scalar space
+SCALAR_FUNCTION_SPACES = ["w0", "wtheta"]
+VECTOR_FUNCTION_SPACES = ["w1", "w2", "w2h", "w2v"]
+CONTINUOUS_FUNCTION_SPACES = SCALAR_FUNCTION_SPACES + VECTOR_FUNCTION_SPACES
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -2368,7 +2370,7 @@ class DynKern(Kern):
                 root_name="boundary_dofs")
             parent.add(UseGen(parent, name="function_space_mod",
                               only=True,
-                              funcnames=DISCONTINUOUS_FUNCTION_SPACES))
+                              funcnames=VECTOR_FUNCTION_SPACES))
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=[boundary_dofs_name +
                                              "(:,:) => null()"]))
@@ -2379,9 +2381,9 @@ class DynKern(Kern):
                                      rhs=enforce_bc_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
-            test_str = " .and. ".join(
-                [fs_name + " /= " + space_name for space_name in
-                 DISCONTINUOUS_FUNCTION_SPACES])
+            test_str = " .or. ".join(
+                [fs_name + " == " + space_name for space_name in
+                 VECTOR_FUNCTION_SPACES])
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,
