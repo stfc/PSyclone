@@ -27,7 +27,7 @@ import config
 # first section : Parser specialisations and classes
 
 # constants
-DISCONTINUOUS_FUNCTION_SPACES = ["w3"] # W3 is also a scalar space
+DISCONTINUOUS_FUNCTION_SPACES = ["w3"]  # W3 is also a scalar space
 SCALAR_FUNCTION_SPACES = ["w0", "wtheta"]
 VECTOR_FUNCTION_SPACES = ["w1", "w2", "w2h", "w2v"]
 CONTINUOUS_FUNCTION_SPACES = SCALAR_FUNCTION_SPACES + VECTOR_FUNCTION_SPACES

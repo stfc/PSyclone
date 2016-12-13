@@ -2221,12 +2221,15 @@ def test_multi_kernel_specific():
     assert output7 in generated_code
     output8 = "fs_1 = f1%which_function_space()"
     assert output8 in generated_code
-    output9 = '''IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) THEN
-        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()
-      END IF'''
+    output9 = (
+        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
+        "THEN\n"
+        "        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()\n"
+        "      END IF")
     assert output9 in generated_code
     output10 = (
-        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) THEN\n"
+        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
+        "THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
