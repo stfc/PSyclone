@@ -153,16 +153,17 @@ def mangle_fs_name(args, fs_name):
 
 
 def field_on_space(function_space, arguments):
-    ''' Returns True if the supplied list of arguments contains a field
-    that exists on the specified space. '''
+    ''' Returns the corresponding argument if the supplied list of arguments
+    contains a field that exists on the specified space. Otherwise
+    returns None.'''
     if function_space.mangled_name in arguments.unique_fs_names:
         for arg in arguments.args:
             # First, test that arg is a field as some argument objects won't
             # have function spaces, e.g. scalars
             if arg.type == "gh_field" and \
                arg.function_space.orig_name == function_space.orig_name:
-                return True
-    return False
+                return arg
+    return None
 
 # Classes
 
@@ -993,11 +994,14 @@ class DynInvokeDofmaps(object):
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
                 for unique_fs in call.arguments.unique_fss:
-                    if field_on_space(unique_fs, call.arguments):
+                    # We only need a dofmap if there is a *field* on this
+                    # function space. If there is then we use it to look
+                    # up the dofmap.
+                    fld_arg = field_on_space(unique_fs, call.arguments)
+                    if fld_arg:
                         map_name = get_fs_map_name(unique_fs)
                         if map_name not in self._unique_fs_maps:
-                            field = call.arguments.get_arg_on_space(unique_fs)
-                            self._unique_fs_maps[map_name] = field
+                            self._unique_fs_maps[map_name] = fld_arg
 
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that

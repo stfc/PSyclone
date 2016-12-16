@@ -2005,7 +2005,7 @@ def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
     assert str(generated_code).find(
         "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()") != -1
     assert str(generated_code).find(
-        "map_any_space_4_d => d_proxy%fs_from%get_whole_dofmap()") != -1
+        "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()") != -1
 
 
 def test_invoke_uniq_declns():
