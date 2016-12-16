@@ -1856,6 +1856,21 @@ def test_operator_deref():
             "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
+def test_operator_no_dofmap_lookup():
+    ''' Check that we use a field rather than an operator to look-up
+    a dofmap, even when the operator precedes the field in the argument
+    list. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.9_operator_first.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+    # Check that we use the field and not the operator to look-up the dofmap
+    assert "theta_proxy%vspace%get_whole_dofmap()" in gen_code
+    assert gen_code.count("get_whole_dofmap") == 1
+
+
 def test_operator_read_level1_halo():
     ''' Check that we raise an error if a kernel attempts to read from an
     operator beyond the level-1 halo '''
