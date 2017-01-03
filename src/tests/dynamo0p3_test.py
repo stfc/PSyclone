@@ -2153,7 +2153,7 @@ def test_kernel_specific():
     generated_code = str(psy.gen)
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert output0 in generated_code
-    output1 = "USE function_space_mod, ONLY: w1, w2"
+    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
     assert output1 in generated_code
     output2 = "INTEGER fs"
     assert output2 in generated_code
@@ -2161,12 +2161,13 @@ def test_kernel_specific():
     assert output3 in generated_code
     output4 = "fs = f1%which_function_space()"
     assert output4 in generated_code
-    output5 = '''IF (fs /= w3) THEN
+    # We only call enforce_bc if the field is on a vector space
+    output5 = '''IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output5 in generated_code
     output6 = (
-        "IF (fs /= w3) THEN\n"
+        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2191,7 +2192,7 @@ def test_multi_kernel_specific():
     # should only be one of the following generated ...
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert generated_code.count(output0) == 1
-    output1 = "USE function_space_mod, ONLY: w1, w2"
+    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
     assert generated_code.count(output1) == 1
 
     # first loop
@@ -2201,12 +2202,13 @@ def test_multi_kernel_specific():
     assert output2 in generated_code
     output3 = "fs = f1%which_function_space()"
     assert output3 in generated_code
-    output4 = '''IF (fs /= w3) THEN
+    # We only call enforce_bc if the field is on a vector space
+    output4 = '''IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
     assert output4 in generated_code
     output5 = (
-        "IF (fs /= w3) THEN\n"
+        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2219,12 +2221,15 @@ def test_multi_kernel_specific():
     assert output7 in generated_code
     output8 = "fs_1 = f1%which_function_space()"
     assert output8 in generated_code
-    output9 = '''IF (fs_1 /= w3) THEN
-        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()
-      END IF'''
+    output9 = (
+        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
+        "THEN\n"
+        "        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()\n"
+        "      END IF")
     assert output9 in generated_code
     output10 = (
-        "IF (fs_1 /= w3) THEN\n"
+        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
+        "THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
