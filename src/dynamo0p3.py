@@ -3021,6 +3021,7 @@ class DinoWriters(ArgOrdering):
         self._scalar_position = None
         self._array_position = None
 
+
     def cell_position(self):
         ''' get dino to output cell position information '''
         # dino outputs a full field so we do not need cell index information
@@ -3117,7 +3118,17 @@ class DinoWriters(ArgOrdering):
     def generate(self):
         '''perform any additional actions before and after kernel
         argument-list based generation'''
-        from f2pygen import CommentGen
+        from f2pygen import CommentGen, UseGen, TypeDeclGen, AssignGen
+        self._parent.add(UseGen(self._parent, name="proflib_io_mod",
+                              only=True,
+                              funcnames=["dino_type"]))
+        self._parent.add(TypeDeclGen(self._parent, pointer=False,
+                                    datatype="dino_type",
+                                    entity_decls=[":: dino"]))
+        self._parent.add(AssignGen(self._parent, pointer=False,
+                                   lhs="dino",
+                                   rhs="dino_type()"),
+                                   position=["before", self._position]) 
         self._parent.add(CommentGen(self._parent, " dino output start"),
                          position=["before", self._position])
         scalar_comment = CommentGen(self._parent, " dino scalars")
