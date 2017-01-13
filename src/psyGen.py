@@ -1679,6 +1679,7 @@ class Kern(Call):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._module_inline = False
+        self._dump = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
                 "error: In kernel '{0}' the number of arguments specified "
@@ -1691,6 +1692,14 @@ class Kern(Call):
 
     def __str__(self):
         return "kern call: "+self._name
+
+    @property
+    def dump(self):
+        return self._dump
+
+    @dump.setter
+    def dump(self, value):
+        self._dump = value
 
     @property
     def module_inline(self):
@@ -1711,7 +1720,8 @@ class Kern(Call):
     def view(self, indent=0):
         print self.indent(indent) + "KernCall", \
             self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
-            "[module_inline=" + str(self._module_inline) + "]"
+            "[module_inline=" + str(self._module_inline) + "]" \
+            "[dump=" + str(self._dump) + "]"            
         for entity in self._children:
             entity.view(indent=indent + 1)
 

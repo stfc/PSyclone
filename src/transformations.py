@@ -696,6 +696,40 @@ class ColourTrans(Transformation):
 
         return schedule, keep
 
+class KernelDumpTrans(Transformation):
+    ''' *** Add Description Here *** '''
+    def __str__(self):
+        return("Dump out a kernel")
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "KernelDumpTrans"
+
+    def apply(self, node, dump=True):
+        ''' *** Add Description Here *** '''
+        # check node is a kernel
+        from psyGen import Kern
+        if not isinstance(node, Kern):
+            raise TransformationError(
+                "Error in KernelDump transformation. The node is not "
+                "a Kernel")
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        # set kernel's dump status
+        if node.dump == dump:
+            # issue a warning here when we implement logging
+            # print "Warning, Kernel dump is already set to "+str(dump)
+            pass
+        else:
+            node.dump = dump
+
+        return schedule, keep  
 
 class KernelModuleInlineTrans(Transformation):
     '''Switches on, or switches off, the inlining of a Kernel subroutine
