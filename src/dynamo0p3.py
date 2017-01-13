@@ -2361,7 +2361,9 @@ class DynKern(Kern):
             # matrix_vector kernel, look-up the argument that is
             # updated and then apply b.c.'s to that...
             enforce_bc_arg = self.updated_arg
-            space_names = ["w1", "w2"]
+            # We only need to call the enforce_bc kernel if the field is on
+            # a vector function space
+            space_names = ["w1", "w2", "w2h", "w2v"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
@@ -2383,9 +2385,9 @@ class DynKern(Kern):
                                      rhs=enforce_bc_arg.name +
                                      "%which_function_space()"),
                            position=["before", position])
-            test_str = " .and. ".join(
-                [fs_name + " /= " + space_name for space_name in
-                 DISCONTINUOUS_FUNCTION_SPACES])
+            test_str = " .or. ".join(
+                [fs_name + " == " + space_name for space_name in
+                 space_names])
             if_then = IfThenGen(new_parent, test_str)
             new_parent.add(if_then, position=["before", position])
             if_then.add(AssignGen(if_then, pointer=True,
