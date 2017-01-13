@@ -2333,11 +2333,10 @@ class DynKern(Kern):
                                entity_decls=orientation_decl_names))
             parent.add(CommentGen(parent, ""))
 
-        # dump = True
-        # if dump:
-        #    new_parent, position = parent.start_parent_loop()
-        #    create_dump = DinoWriters(self, new_parent, position)
-        #    create_dump.generate()
+        if self.dump:
+            new_parent, position = parent.start_parent_loop()
+            create_dump = DinoWriters(self, new_parent, position)
+            create_dump.generate()
 
         create_arg_list = KernCallArgList(self, parent)
         create_arg_list.generate()
@@ -3010,144 +3009,144 @@ class KernStubArgList(ArgOrdering):
         return self._arglist
 
 
-# class DinoWriters(ArgOrdering):
-#    '''Creates the required writers to dump the state of a Kernel call
-#    using dino. The integers are output first, followed by the fields,
-#    arrays etc'''
-#    def __init__(self, kern, parent=None, position=None):
-#        ArgOrdering.__init__(self, kern)
-#        self._parent = parent
-#        self._position = position
-#        self._name_space_manager = NameSpaceFactory().create()
-#        self._scalar_position = None
-#        self._array_position = None
-#
-#    def cell_position(self):
-#        ''' get dino to output cell position information '''
-#        # dino outputs a full field so we do not need cell index information
-#        pass
-#
-#    def mesh_height(self):
-#        ''' get dino to output the height of the mesh (nlayers)'''
-#        nlayers_name = self._name_space_manager.create_name(
-#            root_name="nlayers", context="PSyVars", label="nlayers")
-#        self._add_dino_scalar(nlayers_name)
-#
-#    def field_vector(self, argvect):
-#        '''get dino to output field vector data associated with the argument
-#        'argvect' '''
-#        # TBD
-#        pass
-#
-#    def field(self, arg):
-#        '''get dino to output field datat associated with the argument
-#        'arg' '''
-#        if arg.intent in ["in", "inout"]:
-#            text = arg.proxy_name + "%data"
-#            self._add_dino_array(text)
-#
-#    def stencil_unknown_extent(self, arg):
-#        '''get dino to output stencil information associated with the argument
-#        'arg' if the extent is unknown '''
-#        # TBD
-#        pass
-#
-#    def stencil_unknown_direction(self, arg):
-#        '''get dino to output stencil information associated with the argument
-#        'arg' if the direction is unknown '''
-#        # TBD
-#        pass
-#
-#    def stencil(self, arg):
-#        '''get dino to output general stencil information associated with the
-#        argument 'arg' '''
-#        # TBD
-#        pass
-#
-#    def operator(self, arg):
-#        ''' get dino to output the operator arguments '''
-#        # TBD
-#        pass
-#
-#    def scalar(self, scalar_arg):
-#        '''get dino to output the value of the scalar argument'''
-#        if scalar_arg in ["in", "inout"]:
-#            self._add_dino_scalar(scalar_arg.name)
-#
-#    def fs_compulsory(self, function_space):
-#        '''get dino to output any compulsory arguments common to operators and
-#        fields on a space. '''
-#        # There is currently one: "ndf".
-#        ndf_name = get_fs_ndf_name(function_space)
-#        self._add_dino_scalar(ndf_name)
-#
-#    def fs_compulsory_field(self, function_space):
-#        '''get dino to output compulsory arguments if there is a field on this
-#        function space'''
-#        undf_name = get_fs_undf_name(function_space)
-#        self._add_dino_scalar(undf_name)
-#
-#    def basis(self, function_space):
-#        '''get dino to output basis function information for the function
-#        space'''
-#        # TBD
-#        pass
-#
-#    def diff_basis(self, function_space):
-#        '''get dino to output differential basis function information for the
-#        function space'''
-#        # TBD
-#         pass
-#
-#    def orientation(self, function_space):
-#        '''get dino to output orientation information for the function
-#        space'''
-#        # TBD
-#        pass
-#
-#    def bc_kernel(self, function_space):
-#        '''get dino to output any boundary_dofs information for bc_kernel'''
-#        # TBD
-#        pass
-#
-#    def quad_rule(self):
-#        '''get dino to output qr information '''
-#        # TBD
-#        pass
-#
-#    def generate(self):
-#        '''perform any additional actions before and after kernel
-#        argument-list based generation'''
-#        from f2pygen import CommentGen
-#        self._parent.add(CommentGen(self._parent, " dino output start"),
-#                         position=["before", self._position])
-#        scalar_comment = CommentGen(self._parent, " dino scalars")
-#        self._parent.add(scalar_comment,
-#                         position=["before", self._position])
-#        array_comment = CommentGen(self._parent, " dino arrays")
-#        self._parent.add(array_comment,
-#                         position=["before", self._position])
-#        self._scalar_position = scalar_comment.root
-#        self._array_position = array_comment.root
-#        self._parent.add(CommentGen(self._parent, " dino output end"),
-#                         position=["before", self._position])
-#        self._parent.add(CommentGen(self._parent, ""),
-#                         position=["before", self._position])
-#        ArgOrdering.generate(self)
-#
-#    def _add_dino_scalar(self, name):
-#        ''' add a dino output call for a scalar variable '''
-#        from f2pygen import CallGen
-#        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
-#                                 args=[name]),
-#                         position=["after", self._scalar_position])
-#
-#    def _add_dino_array(self, name):
-#        ''' add a dino output call for an array variable '''
-#        from f2pygen import CallGen
-#        self._parent.add(CallGen(self._parent, name="dino%output_array",
-#                                 args=[name]),
-#                         position=["after", self._array_position])
+class DinoWriters(ArgOrdering):
+    '''Creates the required writers to dump the state of a Kernel call
+    using dino. The integers are output first, followed by the fields,
+    arrays etc'''
+    def __init__(self, kern, parent=None, position=None):
+        ArgOrdering.__init__(self, kern)
+        self._parent = parent
+        self._position = position
+        self._name_space_manager = NameSpaceFactory().create()
+        self._scalar_position = None
+        self._array_position = None
+
+    def cell_position(self):
+        ''' get dino to output cell position information '''
+        # dino outputs a full field so we do not need cell index information
+        pass
+
+    def mesh_height(self):
+        ''' get dino to output the height of the mesh (nlayers)'''
+        nlayers_name = self._name_space_manager.create_name(
+            root_name="nlayers", context="PSyVars", label="nlayers")
+        self._add_dino_scalar(nlayers_name)
+
+    def field_vector(self, argvect):
+        '''get dino to output field vector data associated with the argument
+        'argvect' '''
+        # TBD
+        pass
+
+    def field(self, arg):
+        '''get dino to output field datat associated with the argument
+        'arg' '''
+        if arg.intent in ["in", "inout"]:
+            text = arg.proxy_name + "%data"
+            self._add_dino_array(text)
+
+    def stencil_unknown_extent(self, arg):
+        '''get dino to output stencil information associated with the argument
+        'arg' if the extent is unknown '''
+        # TBD
+        pass
+
+    def stencil_unknown_direction(self, arg):
+        '''get dino to output stencil information associated with the argument
+        'arg' if the direction is unknown '''
+        # TBD
+        pass
+
+    def stencil(self, arg):
+        '''get dino to output general stencil information associated with the
+        argument 'arg' '''
+        # TBD
+        pass
+
+    def operator(self, arg):
+        ''' get dino to output the operator arguments '''
+        # TBD
+        pass
+
+    def scalar(self, scalar_arg):
+        '''get dino to output the value of the scalar argument'''
+        if scalar_arg in ["in", "inout"]:
+            self._add_dino_scalar(scalar_arg.name)
+
+    def fs_compulsory(self, function_space):
+        '''get dino to output any compulsory arguments common to operators and
+        fields on a space. '''
+        # There is currently one: "ndf".
+        ndf_name = get_fs_ndf_name(function_space)
+        self._add_dino_scalar(ndf_name)
+
+    def fs_compulsory_field(self, function_space):
+        '''get dino to output compulsory arguments if there is a field on this
+        function space'''
+        undf_name = get_fs_undf_name(function_space)
+        self._add_dino_scalar(undf_name)
+
+    def basis(self, function_space):
+        '''get dino to output basis function information for the function
+        space'''
+        # TBD
+        pass
+
+    def diff_basis(self, function_space):
+        '''get dino to output differential basis function information for the
+        function space'''
+        # TBD
+        pass
+
+    def orientation(self, function_space):
+        '''get dino to output orientation information for the function
+        space'''
+        # TBD
+        pass
+
+    def bc_kernel(self, function_space):
+        '''get dino to output any boundary_dofs information for bc_kernel'''
+        # TBD
+        pass
+
+    def quad_rule(self):
+        '''get dino to output qr information '''
+        # TBD
+        pass
+
+    def generate(self):
+        '''perform any additional actions before and after kernel
+        argument-list based generation'''
+        from f2pygen import CommentGen
+        self._parent.add(CommentGen(self._parent, " dino output start"),
+                         position=["before", self._position])
+        scalar_comment = CommentGen(self._parent, " dino scalars")
+        self._parent.add(scalar_comment,
+                         position=["before", self._position])
+        array_comment = CommentGen(self._parent, " dino arrays")
+        self._parent.add(array_comment,
+                         position=["before", self._position])
+        self._scalar_position = scalar_comment.root
+        self._array_position = array_comment.root
+        self._parent.add(CommentGen(self._parent, " dino output end"),
+                         position=["before", self._position])
+        self._parent.add(CommentGen(self._parent, ""),
+                         position=["before", self._position])
+        ArgOrdering.generate(self)
+
+    def _add_dino_scalar(self, name):
+        ''' add a dino output call for a scalar variable '''
+        from f2pygen import CallGen
+        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
+                                 args=[name]),
+                         position=["after", self._scalar_position])
+
+    def _add_dino_array(self, name):
+        ''' add a dino output call for an array variable '''
+        from f2pygen import CallGen
+        self._parent.add(CallGen(self._parent, name="dino%output_array",
+                                 args=[name]),
+                         position=["after", self._array_position])
 
 
 class FSDescriptor(object):
