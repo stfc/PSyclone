@@ -1251,12 +1251,13 @@ class DynInvoke(Invoke):
                                                     operator_name))
 
     def field_on_space(self, func_space):
-        ''' Returns true if a field exists on this space for any
-        kernel in this invoke. '''
+        ''' If a field exists on this space for any kernel in this
+        invoke then return that field. Otherwise return None. '''
         for kern_call in self.schedule.calls():
-            if field_on_space(func_space, kern_call.arguments):
-                return True
-        return False
+            field = field_on_space(func_space, kern_call.arguments)
+            if field:
+                return field
+        return None
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine
