@@ -1856,6 +1856,21 @@ def test_operator_deref():
             "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
+def test_operator_no_dofmap_lookup():
+    ''' Check that we use a field rather than an operator to look-up
+    a dofmap, even when the operator precedes the field in the argument
+    list. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.9_operator_first.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+    # Check that we use the field and not the operator to look-up the dofmap
+    assert "theta_proxy%vspace%get_whole_dofmap()" in gen_code
+    assert gen_code.count("get_whole_dofmap") == 1
+
+
 def test_operator_read_level1_halo():
     ''' Check that we raise an error if a kernel attempts to read from an
     operator beyond the level-1 halo '''
@@ -1990,7 +2005,7 @@ def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
     assert str(generated_code).find(
         "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()") != -1
     assert str(generated_code).find(
-        "map_any_space_4_d => d_proxy%fs_from%get_whole_dofmap()") != -1
+        "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()") != -1
 
 
 def test_invoke_uniq_declns():
@@ -2257,6 +2272,38 @@ def test_bc_kernel():
         "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
         "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs)")
     assert str(generated_code).find(output3) != -1
+
+
+def test_bc_kernel_field_only(monkeypatch):
+    '''tests that the recognised boundary-condition kernel is rejected
+    if it has an operator as argument instead of a field.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.2_enforce_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        if dist_mem:
+            idx = 1
+        else:
+            idx = 0
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[idx]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        # Monkeypatch the argument object so that it thinks it is an
+        # operator rather than a field
+        monkeypatch.setattr(arg, "_type", value="gh_operator")
+        # We have to monkey-patch the arg.ref_name() function too as
+        # otherwise the first monkey-patch causes it to break. Since
+        # it is a function we have to patch it with a temporary
+        # function which we create using lambda.
+        monkeypatch.setattr(arg, "ref_name", lambda fs=None: "vspace")
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Expected a gh_field from which to look-up boundary dofs "
+                "for kernel enforce_bc_code but got gh_operator"
+                in str(excinfo))
 
 
 def test_multikernel_invoke_1():

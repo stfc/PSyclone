@@ -153,16 +153,17 @@ def mangle_fs_name(args, fs_name):
 
 
 def field_on_space(function_space, arguments):
-    ''' Returns True if the supplied list of arguments contains a field
-    that exists on the specified space. '''
+    ''' Returns the corresponding argument if the supplied list of arguments
+    contains a field that exists on the specified space. Otherwise
+    returns None.'''
     if function_space.mangled_name in arguments.unique_fs_names:
         for arg in arguments.args:
             # First, test that arg is a field as some argument objects won't
             # have function spaces, e.g. scalars
             if arg.type == "gh_field" and \
                arg.function_space.orig_name == function_space.orig_name:
-                return True
-    return False
+                return arg
+    return None
 
 # Classes
 
@@ -993,11 +994,14 @@ class DynInvokeDofmaps(object):
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
                 for unique_fs in call.arguments.unique_fss:
-                    if field_on_space(unique_fs, call.arguments):
+                    # We only need a dofmap if there is a *field* on this
+                    # function space. If there is then we use it to look
+                    # up the dofmap.
+                    fld_arg = field_on_space(unique_fs, call.arguments)
+                    if fld_arg:
                         map_name = get_fs_map_name(unique_fs)
                         if map_name not in self._unique_fs_maps:
-                            field = call.arguments.get_arg_on_space(unique_fs)
-                            self._unique_fs_maps[map_name] = field
+                            self._unique_fs_maps[map_name] = fld_arg
 
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
@@ -1247,12 +1251,13 @@ class DynInvoke(Invoke):
                                                     operator_name))
 
     def field_on_space(self, func_space):
-        ''' Returns true if a field exists on this space for any
-        kernel in this invoke. '''
+        ''' If a field exists on this space for any kernel in this
+        invoke then return that field. Otherwise return None. '''
         for kern_call in self.schedule.calls():
-            if field_on_space(func_space, kern_call.arguments):
-                return True
-        return False
+            field = field_on_space(func_space, kern_call.arguments)
+            if field:
+                return field
+        return None
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine
@@ -2688,12 +2693,18 @@ class KernCallArgList(ArgOrdering):
         for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
                 break
-        proxy_name = (self._kern.arguments.get_arg_on_space(fspace).
-                      proxy_name)
+        farg = self._kern.arguments.get_arg_on_space(fspace)
+        # Sanity check - expect the enforce_bc_code kernel to only have
+        # a field argument.
+        if farg.type != "gh_field":
+            raise GenerationError(
+                "Expected a gh_field from which to look-up boundary dofs "
+                "for kernel {0} but got {1}".format(self._kern.name,
+                                                    farg.type))
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
                                  lhs="boundary_dofs",
-                                 rhs=proxy_name +
+                                 rhs=farg.proxy_name +
                                  "%vspace%get_boundary_dofs()"),
                        position=["before", position])
 
