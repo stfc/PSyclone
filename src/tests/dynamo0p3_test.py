@@ -2274,6 +2274,38 @@ def test_bc_kernel():
     assert str(generated_code).find(output3) != -1
 
 
+def test_bc_kernel_field_only(monkeypatch):
+    '''tests that the recognised boundary-condition kernel is rejected
+    if it has an operator as argument instead of a field.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.2_enforce_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        if dist_mem:
+            idx = 1
+        else:
+            idx = 0
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[idx]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        # Monkeypatch the argument object so that it thinks it is an
+        # operator rather than a field
+        monkeypatch.setattr(arg, "_type", value="gh_operator")
+        # We have to monkey-patch the arg.ref_name() function too as
+        # otherwise the first monkey-patch causes it to break. Since
+        # it is a function we have to patch it with a temporary
+        # function which we create using lambda.
+        monkeypatch.setattr(arg, "ref_name", lambda fs=None: "vspace")
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Expected a gh_field from which to look-up boundary dofs "
+                "for kernel enforce_bc_code but got gh_operator"
+                in str(excinfo))
+
+
 def test_multikernel_invoke_1():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke. We test the parts of the code that

@@ -2693,12 +2693,18 @@ class KernCallArgList(ArgOrdering):
         for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
                 break
-        proxy_name = (self._kern.arguments.get_arg_on_space(fspace).
-                      proxy_name)
+        farg = self._kern.arguments.get_arg_on_space(fspace)
+        # Sanity check - expect the enforce_bc_code kernel to only have
+        # a field argument.
+        if farg.type != "gh_field":
+            raise GenerationError(
+                "Expected a gh_field from which to look-up boundary dofs "
+                "for kernel {0} but got {1}".format(self._kern.name,
+                                                    farg.type))
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
                                  lhs="boundary_dofs",
-                                 rhs=proxy_name +
+                                 rhs=farg.proxy_name +
                                  "%vspace%get_boundary_dofs()"),
                        position=["before", position])
 
