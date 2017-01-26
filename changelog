@@ -3,6 +3,11 @@
 	w2h and w2v as spaces that cause enforce_bc_kernel to be called in
 	addition to W1 and W2.
 
+	2) #853 Bug fix - make sure that an operator object is only used
+	as a lookup for values in the PSy layer when it is correct to do
+	so. In particular, make sure that the dofmap lookup is always from
+	a field, as this fixes the known bug.
+
 release 1.3.0
 
         1) #686 Stencil extents (depth of the stencil) are now changed to
