@@ -225,6 +225,31 @@ def test_colouring_not_a_loop():
         assert "The supplied node is not a loop" in str(excinfo.value)
 
 
+def test_no_colour_dofs():
+    ''' Test that we raise the correct exception when attempting to apply
+    the loop-colouring tranformation to a loop that is over dofs rather than
+    cells. '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "15_single_pointwise_invoke.f90"),
+                    api=TEST_API)
+    ctrans = Dynamo0p3ColourTrans()
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
+        if dist_mem:
+            index = 3
+        else:
+            index = 0
+        schedule.view()
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = ctrans.apply(schedule.children[index])
+        val = str(excinfo.value)
+        assert "Error in DynamoColour transformation" in val
+        assert "Colouring is unecessary if a loop is over DoFs" in val
+
+
 def test_omp_name():
     ''' Test the name property of the Dynamo0p3OMPLoopTrans class '''
     olooptrans = Dynamo0p3OMPLoopTrans()
