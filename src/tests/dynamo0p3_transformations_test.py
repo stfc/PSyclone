@@ -238,16 +238,12 @@ def test_no_colour_dofs():
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
-        schedule.view()
         with pytest.raises(TransformationError) as excinfo:
-            _, _ = ctrans.apply(schedule.children[index])
+            _, _ = ctrans.apply(schedule.children[0])
         val = str(excinfo.value)
         assert "Error in DynamoColour transformation" in val
-        assert "Colouring is unecessary if a loop is over DoFs" in val
+        assert ("Only loops over cells may be coloured but this loop is over "
+                "dofs" in val)
 
 
 def test_omp_name():
@@ -319,7 +315,7 @@ def test_colour_str():
     ''' Test the str method of the Dynamo0p3ColourTrans class '''
     ctrans = Dynamo0p3ColourTrans()
     cstr = str(ctrans)
-    assert cstr == "Split a Dynamo 0.3 loop into colours"
+    assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
 
 
 def test_omp_colour_trans():
