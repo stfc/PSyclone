@@ -1,3 +1,7 @@
+	1) #908 Bug fix - ensure that the dynamo0p3 loop colour
+	transformation raises an exception if the loop it is applied to
+	does not iterate over cells.
+
 release 1.3.1
 
 	1) #846 Bug fix - generate correct logic and code for the call to

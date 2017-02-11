@@ -764,7 +764,7 @@ class KernelModuleInlineTrans(Transformation):
 
 class Dynamo0p3ColourTrans(ColourTrans):
 
-    ''' Split a Dynamo 0.3 loop into colours so that it can be
+    ''' Split a Dynamo 0.3 loop over cells into colours so that it can be
     parallelised. For example:
 
     >>> from parse import parse
@@ -798,8 +798,10 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     Colouring in the Dynamo 0.3 API is subject to the following rules:
 
+    * Only kernels with an iteration space of CELLS require colouring. Any
+      other loop type will be rejected by this transformation.
     * Any kernel which has a field with 'INC' access must be coloured UNLESS
-      that field is on w3
+      that field is on w3 (or another discontinuous space)
     * A kernel may have at most one field with 'INC' access
     * Attempting to colour a kernel that updates a field on w3 (with INC
       access) should result in PSyclone issuing a warning
@@ -811,7 +813,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     '''
 
     def __str__(self):
-        return "Split a Dynamo 0.3 loop into colours"
+        return "Split a Dynamo 0.3 loop over cells into colours"
 
     @property
     def name(self):
@@ -835,6 +837,15 @@ class Dynamo0p3ColourTrans(ColourTrans):
             pass
             # TODO generate a warning here as we don't need to colour
             # a loop that updates a field on W3.
+
+        # Colouring is only necessary (and permitted) if the loop is
+        # over cells. Since this is the default it is represented by
+        # an empty string.
+        if node.loop_type != "":
+            raise TransformationError(
+                "Error in DynamoColour transformation. Only loops over cells "
+                "may be coloured but this loop is over {0}".
+                format(node.loop_type))
 
         # Check whether we have a field that has INC access
         if not node.has_inc_arg():
