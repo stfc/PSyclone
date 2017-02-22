@@ -698,6 +698,13 @@ class DynamoPSy(PSy):
         self._invokes = DynamoInvokes(invoke_info.calls)
 
     @property
+    def name(self):
+        '''Returns a name for the psy layer. This is used as the psy module
+        name. We override the default value as the Met Office prefer
+        _psy to be appended, rather than prepended'''
+        return self._name + "_psy"
+
+    @property
     def gen(self):
         '''
         Generate PSy code for the Dynamo0.3 api.

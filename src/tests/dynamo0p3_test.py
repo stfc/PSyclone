@@ -555,7 +555,7 @@ def test_field():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     generated_code = psy.gen
     output = (
-        "  MODULE psy_single_invoke\n"
+        "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
         "    USE quadrature_mod, ONLY: quadrature_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
@@ -616,7 +616,7 @@ def test_field():
         "      END DO \n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
-        "  END MODULE psy_single_invoke")
+        "  END MODULE single_invoke_psy")
     print output
     print generated_code
     assert str(generated_code).find(output) != -1
@@ -755,7 +755,7 @@ def test_field_fs():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     output = (
-        "  MODULE psy_single_invoke_fs\n"
+        "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
         "    USE quadrature_mod, ONLY: quadrature_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
@@ -876,7 +876,7 @@ def test_field_fs():
         "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
-        "  END MODULE psy_single_invoke_fs")
+        "  END MODULE single_invoke_fs_psy")
     print str(generated_code)
     print output
     assert str(generated_code).find(output) != -1

@@ -28,7 +28,7 @@ class TestAlgGenClassDynamo0p3(object):
         alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                           api="dynamo0.3")
         gen = str(alg)
-        assert "USE psy_single_invoke, ONLY: invoke_0_testkern_type" in gen
+        assert "USE single_invoke_psy, ONLY: invoke_0_testkern_type" in gen
         assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
 
     def test_single_function_named_invoke(self):
@@ -40,7 +40,7 @@ class TestAlgGenClassDynamo0p3(object):
             api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "USE psy_single_invoke, ONLY: invoke_important_invoke" in gen
+        assert "USE single_invoke_psy, ONLY: invoke_important_invoke" in gen
         assert "CALL invoke_important_invoke(a, f1, f2, m1, m2)" in gen
 
     def test_invoke_named_invoke(self):
@@ -53,7 +53,7 @@ class TestAlgGenClassDynamo0p3(object):
             api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "USE psy_single_invoke, ONLY: invoke_important" in gen
+        assert "USE single_invoke_psy, ONLY: invoke_important" in gen
         assert "CALL invoke_important(a, f1, f2, m1, m2)" in gen
 
     def test_multi_kernel_named_invoke(self):
@@ -66,7 +66,7 @@ class TestAlgGenClassDynamo0p3(object):
             api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "USE psy_multikernel_invokes_7, ONLY: invoke_some_name" in gen
+        assert "USE multikernel_invokes_7_psy, ONLY: invoke_some_name" in gen
         assert (
             "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
             in gen)
@@ -82,9 +82,9 @@ class TestAlgGenClassDynamo0p3(object):
             api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_first" in gen
-        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_middle" in gen
-        assert "USE psy_multikernel_invokes_7, ONLY: invoke_name_last" in gen
+        assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_first" in gen
+        assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_middle" in gen
+        assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_last" in gen
         assert (
             "CALL invoke_name_first(a, b, c, istp, rdt, d, ascalar, f, g, e)"
             in gen)
@@ -110,7 +110,7 @@ class TestAlgGenClassDynamo0p3(object):
         alg, _ = generate(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                           api="dynamo0.3")
         gen = str(alg)
-        assert "USE psy_multi_invoke, ONLY: invoke_0" in gen
+        assert "USE multi_invoke_psy, ONLY: invoke_0" in gen
         assert "CALL invoke_0(a, f1, f2, m1, m2, f3)" in gen
 
     def test_single_function_multi_invokes(self):
@@ -135,9 +135,9 @@ class TestAlgGenClassDynamo0p3(object):
         gen = str(alg)
         assert "USE testkern, ONLY: testkern_type" in gen
         assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-        assert ("USE psy_multi_functions_multi_invokes, ONLY: "
+        assert ("USE multi_functions_multi_invokes_psy, ONLY: "
                 "invoke_my_first" in gen)
-        assert ("USE psy_multi_functions_multi_invokes, ONLY: "
+        assert ("USE multi_functions_multi_invokes_psy, ONLY: "
                 "invoke_my_second" in gen)
         assert "CALL invoke_my_first(a, f1, f2," in gen
         assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
@@ -149,8 +149,8 @@ class TestAlgGenClassDynamo0p3(object):
             api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "USE psy_multi_functions_multi_invokes, ONLY: invoke_1" in gen
-        assert "USE psy_multi_functions_multi_invokes, ONLY: invoke_0" in gen
+        assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_1" in gen
+        assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_0" in gen
         assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
         assert "CALL invoke_1(f1, f2, m1, a, m2, istp, qr)" in gen
 
@@ -171,7 +171,7 @@ class TestAlgGenClassDynamo0p3(object):
             BASE_PATH, "5_alg_field_array.f90"), api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "USE psy_single_function, ONLY: invoke_0" in gen
+        assert "USE single_function_psy, ONLY: invoke_0" in gen
         assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
                 "f1(index, index2(index3)), iflag(2), a(index1), "
                 "iflag(index2(index3)), qr)" in gen)
@@ -182,7 +182,7 @@ class TestAlgGenClassDynamo0p3(object):
         alg, _ = generate(os.path.join(
             BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="dynamo0.3")
         gen = str(alg)
-        assert "USE psy_multi_qr_per_invoke, ONLY: invoke_0" in gen
+        assert "USE multi_qr_per_invoke_psy, ONLY: invoke_0" in gen
         assert "CALL invoke_0(f1, f2, f3, f4, f0, qr0, qr1)" in gen
 
     @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
@@ -191,7 +191,7 @@ class TestAlgGenClassDynamo0p3(object):
         alg, _ = generate(os.path.join(BASE_PATH, "7_QR_field_array.f90"),
                           api="dynamo0.3")
         gen = str(alg)
-        assert "USE psy_qr_field_array, ONLY: invoke_0" in gen
+        assert "USE qr_field_array_psy, ONLY: invoke_0" in gen
         assert ("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), "
                 "qr1(i, k(l)))" in gen)
 
@@ -324,7 +324,7 @@ class TestAlgGenClassDynamo0p3(object):
         alg, _ = generate(path, api="dynamo0.3")
         output = str(alg)
         print output
-        assert "USE psy_multiple_stencil, ONLY: invoke_0" in output
+        assert "USE multiple_stencil_psy, ONLY: invoke_0" in output
         assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
                 "f3_direction, direction)") in output
 
@@ -372,7 +372,7 @@ class TestAlgGenClassDynamo0p1(object):
                          "test_files", "dynamo0p1", "algorithm",
                          "1_single_function.f90"), api="dynamo0.1")
         gen = str(alg)
-        assert "USE psy_single_function, ONLY: invoke_testkern_type" in gen
+        assert "USE single_function_psy, ONLY: invoke_testkern_type" in gen
         assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
 
     def test_zero_invoke_dynamo0p1(self):

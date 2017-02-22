@@ -1,3 +1,5 @@
+.. _PSy-layer:
+
 PSy layer
 =========
 

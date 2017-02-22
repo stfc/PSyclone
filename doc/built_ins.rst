@@ -102,8 +102,8 @@ The existance of a call to a built-in has made no difference at this point:
 ::
 
     SUBROUTINE jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
-      USE psy_solver_mod, ONLY: invoke_5_matrix_vector_kernel_mm_type
-      USE psy_solver_mod, ONLY: invoke_4
+      USE solver_mod_psy, ONLY: invoke_5_matrix_vector_kernel_mm_type
+      USE solver_mod_psy, ONLY: invoke_4
       INTEGER, intent(in) :: n_iter
       TYPE(field_type), intent(inout) :: lhs, rhs
       TYPE(operator_type), intent(inout) :: mm
@@ -131,7 +131,7 @@ setting `ax_proxy%data(df) = 0.0`). This example illustrates that
 built-ins may be implemented in whatever way the generator
 sees fit with no change to the algorithm and kernel layers.  ::
 
-  MODULE psy_solver_mod
+  MODULE solver_mod_psy
     ...
     SUBROUTINE invoke_4(ax)
       USE mesh_mod, ONLY: mesh_type
@@ -197,7 +197,7 @@ sees fit with no change to the algorithm and kernel layers.  ::
       !
     END SUBROUTINE invoke_5_matrix_vector_kernel_mm_type
     ...
-  END MODULE psy_solver_mod
+  END MODULE solver_mod_psy
 
 This example is distributed with PSyclone and can be found in
 ``<PSYCLONEHOME>/examples/dynamo/eg4``.
