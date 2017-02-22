@@ -164,14 +164,14 @@ issues.
 Module name
 +++++++++++
 
-The PSy-layer code is contained within a fortran module. The name of
-the module is determined from the algorithm layer name with "_psy"
-added. The algorithm-layer name is the algorithm's module name if it
-is a module, it subroutine name if it is a subroutine that is not
+The PSy-layer code is contained within a Fortran module. The name of
+the module is determined from the algorithm-layer name with "_psy"
+appended. The algorithm-layer name is the algorithm's module name if it
+is a module, its subroutine name if it is a subroutine that is not
 within a module, or the program name if it is a program.
 
-So, for example. If the algorithm code is contained within a module
-called 'fred' then the PSy-layer module name will be 'fred_psy'.
+So, for example, if the algorithm code is contained within a module
+called "fred" then the PSy-layer module name will be "fred_psy".
 
 
 Kernel
