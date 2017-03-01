@@ -61,6 +61,36 @@ Operator
 
 .. note:: To be written.
 
+Column-wise Operator
+++++++++++++++++++++
+
+The Dynamo 0.3 API has support for the construction, application and
+inverse-application of column-wise operators. Such operators may also
+be used by matrix-matrix kernels. 
+
+Assembly
+^^^^^^^^
+
+Column-wise operators are themselves constructed from cell-wise
+operators. Therefore, any kernel which assembles a column-wise
+operator must have one or more cell-wise operators as read-only inputs
+and exactly one column-wise operator which must have write access.
+
+Application and Inverse Application
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Column-wise operators can only be applied to fields. Therefore, a
+kernel which applies such an operator (or its inverse) must have it as
+a read-only argument. Such a kernel must also have exactly two field
+arguments, one read-only and one that is written to.
+
+Matrix-Matrix
+^^^^^^^^^^^^^
+
+A kernel that has only column-wise operators as arguments is identified
+as performing a matrix-matrix operation. In this case, exactly one of the
+arguments must be written to while the others must be read-only.
+
 Quadrature rule
 +++++++++++++++
 
@@ -285,8 +315,9 @@ Argument-metadata (metadata contained within the brackets of an
 
 The first argument-metadata entry describes whether the data that is
 being passed is for a real scalar (``GH_REAL``), an integer scalar
-(``GH_INTEGER``), a field (``GH_FIELD``) or an operator
-(``GH_OPERATOR``). This information is mandatory.
+(``GH_INTEGER``), a field (``GH_FIELD``) or an operator (either
+``GH_OPERATOR`` or ``GH_COLUMNWISE_OPERATOR``). This information is
+mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
 fields (see the :ref:`dynamo0.3-api-algorithm` section for more
@@ -359,12 +390,12 @@ For example:
        /)
 
 It may be that a Kernel is written such that a field and/or operators
-may be on any function space. In this case the metadata should be
-specified as being one of ``any_space_1``, ``any_space_2``, ...,
-``any_space_9``. The reason for having different names is that a
-Kernel might be written to allow 2 or more arguments to be able to support any
-function space but for a particular call the function spaces may have
-to be the same as each other.
+may be on/map-between any function space. In this case the metadata
+should be specified as being one of ``any_space_1``, ``any_space_2``,
+..., ``any_space_9``. The reason for having different names is that a
+Kernel might be written to allow 2 or more arguments to be able to
+support any function space but for a particular call the function
+spaces may have to be the same as each other.
 
 In the example below, the first field entry supports any function space but
 it must be the same as the operator's ``to`` function space. Similarly,
@@ -408,22 +439,24 @@ need not be on the same space.
 
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
-(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
-be read within a Kernel and this is specified in metadata using
-``GH_READ``. At least one kernel argument must be listed as being
-modified. When data is *modified* in a Kernel then the permitted access
-modes depend on the type of data it is and the function
-space it is on. Valid values are given in the table below.
+(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
+``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this is
+specified in metadata using ``GH_READ``. At least one kernel argument
+must be listed as being modified. When data is *modified* in a Kernel
+then the permitted access modes depend on the type of data it is and
+the function space it is on. Valid values are given in the table
+below.
 
-=============     ============================    =======================
-Argument Type     Function space                  Access type
-=============     ============================    =======================
-GH_INTEGER        n/a                             GH_SUM (Built-ins only)
-GH_REAL           n/a                             GH_SUM (Built-ins only)
-GH_FIELD          Discontinuous (w3)              GH_WRITE
-GH_FIELD          Continuous (not w3)             GH_INC
-GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
-=============     ============================    =======================
+======================	============================    =======================
+Argument Type     	Function space                  Access type
+======================	============================    =======================
+GH_INTEGER        	n/a                             GH_SUM (Built-ins only)
+GH_REAL           	n/a                             GH_SUM (Built-ins only)
+GH_FIELD                Discontinuous (w3)              GH_WRITE
+GH_FIELD                Continuous (not w3)             GH_INC
+GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE
+GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
+======================  ============================    =======================
 
 Note that only Built-ins may modify scalar arguments. There is no
 restriction on the number and function-spaces of other quantities that
