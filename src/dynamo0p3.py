@@ -1,8 +1,39 @@
 # -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
@@ -39,12 +70,15 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
-VALID_OPERATOR_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
+VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + \
+                       ["gh_column_banded_dofmap", "gh_orientation"]
 
 VALID_EVALUATOR_SHAPES = ["quadrature_xyoz", "evaluator_xyz"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
+VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
+VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
+                       VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write",
@@ -134,7 +168,7 @@ def get_fs_operator_name(operator_name, function_space):
     else:
         raise GenerationError(
             "Unsupported name '{0}' found. Expected one of {1}".
-            format(operator_name, VALID_OPERATOR_NAMES))
+            format(operator_name, VALID_METAFUNC_NAMES))
 
 
 def mangle_fs_name(args, fs_name):
@@ -235,12 +269,12 @@ class DynFuncDescriptor03(object):
                             VALID_FUNCTION_SPACE_NAMES, arg.name, func_type))
                 self._function_space_name = arg.name
             else:  # subsequent func_type args
-                if arg.name not in VALID_OPERATOR_NAMES:
+                if arg.name not in VALID_METAFUNC_NAMES:
                     raise ParseError(
                         "In the dynamo0.3 API, the 2nd argument and all "
                         "subsequent arguments of a meta_func entry should "
-                        "be a valid operator name (one of {0}), but found "
-                        "'{1}' in '{2}".format(VALID_OPERATOR_NAMES,
+                        "be one of {0}, but found "
+                        "'{1}' in '{2}".format(VALID_METAFUNC_NAMES,
                                                arg.name, func_type))
                 if arg.name in self._operator_names:
                     raise ParseError(
@@ -416,13 +450,15 @@ class DynArgDescriptor03(Descriptor):
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
 
-        elif self._type == "gh_operator":
+        elif (self._type == "gh_operator" or
+              self._type == "gh_columnwise_operator"):
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
             if len(arg_type.args) != 4:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 4 "
-                    "arguments if its first argument is gh_operator, but "
+                    "arguments if its first argument is gh_operator or "
+                    "gh_columnwise_operator, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
@@ -439,7 +475,7 @@ class DynArgDescriptor03(Descriptor):
                     "but found '{1}' in '{2}".
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
-            self._function_space2 = arg_type.args[3].name
+            self._function_space2 = arg_type.args[3].name            
         elif self._type in VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
@@ -460,33 +496,33 @@ class DynArgDescriptor03(Descriptor):
         ''' Return the "to" function space for a gh_operator. This is
         the first function space specified in the metadata. Raise an
         error if this is not an operator. '''
-        if self._type == "gh_operator":
+        if self._type in VALID_OPERATOR_NAMES:
             return self._function_space1
         else:
             raise RuntimeError(
-                "function_space_to only makes sense for a gh_operator, but "
-                "this is a '{0}'".format(self._type))
+                "function_space_to only makes sense for one of {0}, but "
+                "this is a '{1}'".format(VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space_from(self):
         ''' Return the "from" function space for a gh_operator. This is
         the second function space specified in the metadata. Raise an
         error if this is not an operator. '''
-        if self._type == "gh_operator":
+        if self._type in VALID_OPERATOR_NAMES:
             return self._function_space2
         else:
             raise RuntimeError(
-                "function_space_from only makes sense for a gh_operator, but "
-                "this is a '{0}'".format(self._type))
+                "function_space_from only makes sense for one of {0}, but this"
+                " is a '{1}'".format(VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space(self):
         ''' Return the function space name that this instance operates
-        on. In the case of a gh_operator, where there are 2 function
-        spaces, return function_space_from. '''
+        on. In the case of a gh_operator/gh_columnwise_operator, where there
+        are 2 function spaces, return function_space_from. '''
         if self._type == "gh_field":
             return self._function_space1
-        elif self._type == "gh_operator":
+        elif self._type in VALID_OPERATOR_NAMES:
             return self._function_space2
         elif self._type in VALID_SCALAR_NAMES:
             return None
@@ -502,7 +538,7 @@ class DynArgDescriptor03(Descriptor):
         spaces, we return both. '''
         if self._type == "gh_field":
             return [self.function_space]
-        elif self._type == "gh_operator":
+        elif self._type in VALID_OPERATOR_NAMES:
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
         elif self._type in VALID_SCALAR_NAMES:
@@ -543,7 +579,7 @@ class DynArgDescriptor03(Descriptor):
         if self._type == "gh_field":
             res += "  function_space[2]='{0}'".format(self._function_space1) \
                    + os.linesep
-        elif self._type == "gh_operator":
+        elif self._type in VALID_OPERATOR_NAMES:
             res += "  function_space_to[2]='{0}'".\
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[3]='{0}'".\
