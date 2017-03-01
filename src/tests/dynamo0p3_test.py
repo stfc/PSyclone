@@ -6375,7 +6375,7 @@ def test_kernstubarglist_arglist_error():
         "called?") in str(excinfo.value)
 
 
-CMA = '''
+CMA_ASSEMBLE = '''
 module testkern_cma
   type, extends(kernel_type) :: testkern_cma_type
      type(arg_type), meta_args(3) =                 &
@@ -6403,7 +6403,7 @@ def test_cma_mdata_assembly():
     ''' Check that we can parse meta-data entries relating to Column-Matrix
     Assembly '''
     fparser.logging.disable('CRITICAL')
-    code = CMA
+    code = CMA_ASSEMBLE
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     dkm = DynKernMetadata(ast, name=name)
@@ -6412,6 +6412,67 @@ def test_cma_mdata_assembly():
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_write'\n"
+        "  function_space_to[2]='any_space_1'\n"
+        "  function_space_from[3]='any_space_2'\n")
+    print dkm_str
+    assert expected in dkm_str
+
+
+def test_cma_mdata_assembly_missing_dmap():
+    ''' Check that we can parse meta-data entries relating to Column-Matrix
+    Assembly '''
+    fparser.logging.disable('CRITICAL')
+    # Remove one of the (required) column-banded dofmaps
+    code = CMA_ASSEMBLE.replace(
+        "func_type(any_space_1, gh_column_banded_dofmap),", "", 1)
+    code = code.replace("dimension(2) :: meta_funcs",
+                        "dimension(1) :: meta_funcs", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("meta-data must contain a gh_column_banded_dofmap for every "
+            "function space (whether to or from) associated with a "
+            "gh_columnwise_operator but did not find one for space "
+            "any_space_1") in str(excinfo)
+
+
+CMA_APPLY = '''
+module testkern_cma_apply
+  type, extends(kernel_type) :: testkern_cma_type
+  type(arg_type) :: meta_args(3) = (/                                      &
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
+       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+       /)
+  type(func_type) :: meta_funcs(2) = (/                                    &
+       func_type(ANY_SPACE_1, GH_COLUMN_INDIRECTION_DOFMAP),               &
+       func_type(ANY_SPACE_2, GH_COLUMN_INDIRECTION_DOFMAP)                &
+       /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_cma_code
+  end type testkern_cma_type
+contains
+  subroutine testkern_cma_code(a,b,c,d)
+  end subroutine testkern_cma_code
+end module testkern_cma_apply
+'''
+
+
+def test_cma_mdata_apply():
+    ''' Check that we can parse meta-data entries relating to the
+    application of Column-Matrix operators '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_APPLY
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[1])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[2]='gh_columnwise_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"
         "  function_space_from[3]='any_space_2'\n")
     print dkm_str
