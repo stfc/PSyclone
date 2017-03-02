@@ -795,8 +795,8 @@ class DynKernMetadata(KernelType):
                     if not lma_ops:
                         raise ParseError(
                             "Kernel {0} assembles a column-wise operator but "
-                            "does not have any read-only CMA operators".
-                            format(self.name))
+                            "does not have any LMA operators as read-only "
+                            "arguments".format(self.name))
                     # The to/from spaces for each LMA operator must
                     # match that of the CMA operator being assembled
                     for op in lma_ops:
@@ -822,7 +822,7 @@ class DynKernMetadata(KernelType):
             else:
                 raise ParseError(
                     "A Dynamo 0.3 kernel cannot update more than one CMA "
-                    "(columnwise) operator but kernel {0} updates {1}".
+                    "(column-wise) operator but kernel {0} updates {1}".
                     format(self.name, write_count))
 
     @property
