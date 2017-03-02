@@ -6437,6 +6437,97 @@ def test_cma_mdata_assembly_missing_dmap():
             "any_space_1") in str(excinfo)
 
 
+def test_cma_mdata_assembly_missing_op():
+    ''' Check that we raise the expected error if the supplied meta-data
+    is assembling a gh_columnwise_operator but doesn't have a read-only
+    gh_operator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove  the (required) LMA operator
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_operator,gh_read, any_space_1, any_space_2),", "", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A kernel that assembles a columnwise operator must have "
+            "at least one cell-wise operator as a read-only argument but "
+            "did not find one for kernel ") in str(excinfo)
+
+
+def test_cma_mdata_multi_writes():
+    ''' Check that we raise the expected error if the supplied meta-data
+    is specifies more than one CMA operator that is written to '''
+    fparser.logging.disable('CRITICAL')
+    # Replace the field arg with another CMA operator that is written to
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_field,gh_read, any_space_1)",
+        "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2),",
+        1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel may only have a single CMA operator "
+            "argument that is written to but ") in str(excinfo)
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_field,gh_read, any_space_1)",
+        "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2), &"
+        "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2),",
+        1)
+    code = code.replace("meta_args(3) = ", "meta_args(4) = ", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel may only have a single CMA operator "
+            "argument that is written to but ") in str(excinfo)
+
+
+def test_cma_mdata_mutable_op():
+    ''' Check that we raise the expected error if the supplied meta-data
+    is assembling a gh_columnwise_operator but doesn't have a read-only
+    gh_operator '''
+    fparser.logging.disable('CRITICAL')
+    # Make the LMA operator gh_write instead of gh_read
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
+        "arg_type(gh_operator,gh_write, any_space_1, any_space_2),", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A kernel that assembles a columnwise operator must have "
+            "at least one cell-wise operator as a read-only argument but "
+            "did not find one for kernel ") in str(excinfo)
+
+
+def test_cma_mdata_assembly_wrong_spaces():
+    ''' Check that we raise the expected error if the supplied meta-data
+    is assembling a gh_columnwise_operator but the to/from spaces don't
+    match those of the supplied gh_operator '''
+    fparser.logging.disable('CRITICAL')
+    # Remove  the (required) LMA operator
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
+        "arg_type(gh_operator,gh_read, any_space_3, any_space_2),", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A kernel that assembles a columnwise operator must use "
+            "at least one CMA operator with the same to/from function "
+            "spaces") in str(excinfo)
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
+        "arg_type(gh_operator,gh_read, any_space_1, any_space_3),", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A kernel that assembles a columnwise operator must use "
+            "at least one CMA operator with the same to/from function "
+            "spaces") in str(excinfo)
+
+
 CMA_APPLY = '''
 module testkern_cma_apply
   type, extends(kernel_type) :: testkern_cma_type

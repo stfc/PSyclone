@@ -601,6 +601,10 @@ class DynKernMetadata(KernelType):
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
 
+        # The type of CMA operation this kernel performs (empty string
+        # signifies that no CMA operators are involved)
+        self._cma_operation = ""
+
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
@@ -709,6 +713,112 @@ class DynKernMetadata(KernelType):
                 "Kernel '{0}' specifies an evaluator shape ({1}) but does not "
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
+
+        # If we have a columnwise operator as argument then we need to
+        # identify the operation that this kernel performs (one of
+        # assemble, apply/apply-inverse and matrix-matrix)
+        cwise_ops = self.args_filter(arg_types=["gh_columnwise_operator"])
+        if cwise_ops:
+            mutable_cma_op = None
+            write_count = 0
+            for op in cwise_ops:
+                if op.access != "gh_read":
+                    mutable_cma_op = op
+                    write_count += 1
+            if write_count == 0:
+                # This kernel only reads from CMA operators and must
+                # therefore be an apply (or apply-inverse). It must
+                # have one CMA operator, one read-only field and one
+                # written field as arguments
+                if len(cwise_ops) != 1:
+                    raise ParseError(
+                        "In the Dynamo 0.3 API a kernel that applies a CMA "
+                        "operator must only have one such operator in its "
+                        "list of arguments but found {0} for kernel {1}".
+                        format(len(cwise_ops), self.name))
+                cma_op = cwise_ops[0]
+                if len(self._arg_descriptors) != 3:
+                    raise ParseError(
+                        "In the Dynamo 0.3 API a kernel that applies a CMA "
+                        "operator must have 3 arguments (the operator and "
+                        "two fields) but kernel {0} has {1} arguments".
+                        format(self.name, len(self._arg_descriptors)))
+                # Check that the other two arguments are fields
+                farg_read = self.args_filter(arg_types=["gh_field"],
+                                             arg_accesses=["gh_read"])
+                farg_write = self.args_filter(arg_types=["gh_field"],
+                                              arg_accesses=["gh_write",
+                                                               "gh_inc"])
+                if len(farg_read) != 1:
+                    raise ParseError(
+                        "Kernel {0} has a read-only CMA operator. In order "
+                        "to apply it the kernel must have a read-only field "
+                        "argument.".format(self.name))
+                if len(farg_write) != 1:
+                    raise ParseError(
+                        "Kernel {0} has a read-only CMA operator. In order "
+                        "to apply it the kernel must write to a field "
+                        "argument.".format(self.name))
+                # Check that the function spaces match up
+                if farg_read[0].function_space != cma_op.function_space_from:
+                    raise ParseError(
+                        "Kernel {0} applies a CMA operator but the function "
+                        "space of the field argument it reads from ({1}) "
+                        "does not match the 'from' space of the operator "
+                        "({2})".format(self.name, farg_read[0].function_space,
+                                       cma_op.function_space_from))
+                if farg_write[0].function_space != cma_op.function_space_to:
+                    raise ParseError(
+                        "Kernel {0} applies a CMA operator but the function "
+                        "space of the field argument it writes to ({1}) "
+                        "does not match the 'to' space of the operator "
+                        "({2})".format(self.name, farg_write[0].function_space,
+                                       cma_op.function_space_to))
+                # This is a valid CMA-apply or CMA-apply-inverse kernel
+                self._cma_operation = "apply"
+            elif write_count == 1:
+                # This kernel must either be assembling a CMA operator
+                # or performing a matrix-matrix operation
+                if len(cwise_ops) == len(self._arg_descriptors):
+                    # All of the arguments are CMA operators so
+                    # this must be a matrix-matrix operation.
+                    self._cma_operation = "matrix-matrix"
+                else:
+                    # In order to assemble a CMA operator we need at
+                    # least one read-only LMA operator
+                    lma_ops = self.args_filter(arg_types=["gh_operator"],
+                                               arg_accesses=["gh_read"])
+                    if not lma_ops:
+                        raise ParseError(
+                            "Kernel {0} assembles a column-wise operator but "
+                            "does not have any read-only CMA operators".
+                            format(self.name))
+                    # The to/from spaces for each LMA operator must
+                    # match that of the CMA operator being assembled
+                    for op in lma_ops:
+                        if (op.function_space_to != 
+                            mutable_cma_op.function_space_to or
+                            op.function_space_from !=
+                            mutable_cma_op.function_space_from):
+                            raise ParseError(
+                                "When assembling a column-wise operator from "
+                                "LMA operators the to and from function "
+                                "spaces must match but this is not the case "
+                                "for kernel {0}".format(self.name))
+                    # The kernel must not write to any CMA operators
+                    lma_ops = self.args_filter(arg_types=["gh_operator"],
+                                               arg_accesses=["gh_inc",
+                                                             "gh_write"])
+                    if lma_ops:
+                        raise ParseError(
+                            "Kernel {0} assembles a column-wise operator but "
+                            "also writes to a LMA operator. This is not "
+                            "allowed.".format(self.name))
+            else:
+                raise ParseError(
+                    "A Dynamo 0.3 kernel cannot update more than one CMA "
+                    "(columnwise) operator but kernel {0} updates {1}".
+                    format(self.name, write_count))
 
     @property
     def func_descriptors(self):
