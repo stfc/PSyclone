@@ -6567,10 +6567,66 @@ def test_cma_mdata_apply():
     dkm_str = str(dkm.arg_descriptors[1])
     expected = (
         "DynArgDescriptor03 object\n"
-        "  argument_type[2]='gh_columnwise_operator'\n"
+        "  argument_type[0]='gh_columnwise_operator'\n"
         "  access_descriptor[1]='gh_read'\n"
         "  function_space_to[2]='any_space_1'\n"
         "  function_space_from[3]='any_space_2'\n")
     print dkm_str
     assert expected in dkm_str
 
+
+CMA_MATRIX = '''
+module testkern_cma_apply
+  type, extends(kernel_type) :: testkern_cma_type
+  type(arg_type) :: meta_args(3) = (/                                      &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),&
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),&
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2) &
+       /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_cma_code
+  end type testkern_cma_type
+contains
+  subroutine testkern_cma_code(a,b,c,d)
+  end subroutine testkern_cma_code
+end module testkern_cma_apply
+'''
+
+
+def test_cma_mdata_matrix_prod():
+    ''' Check that we can parse meta-data entries relating to a kernel
+    that performs a product of two CMA operators '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[1])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_columnwise_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='any_space_1'\n"
+        "  function_space_from[3]='any_space_2'\n")
+    print dkm_str
+    assert expected in dkm_str
+
+
+def test_cma_mdata_matrix_prod_no_write():
+    ''' Check that we raise the correct error when we encounter a
+    kernel with only read-only CMA operators as arguments '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace('GH_WRITE', 'GH_READ', 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[1])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_columnwise_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='any_space_1'\n"
+        "  function_space_from[3]='any_space_2'\n")
+    print dkm_str
+    assert expected in dkm_str
