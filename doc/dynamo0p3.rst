@@ -65,16 +65,20 @@ Column-wise Operator
 ++++++++++++++++++++
 
 The Dynamo 0.3 API has support for the construction, application and
-inverse-application of column-wise operators. Such operators may also
-be used by matrix-matrix kernels. 
+inverse-application of column-wise/Column Matrix Assembly (CMA)
+operators. Such operators may also be used by matrix-matrix kernels.
 
 Assembly
 ^^^^^^^^
 
-Column-wise operators are themselves constructed from cell-wise
-operators. Therefore, any kernel which assembles a column-wise
-operator must have one or more cell-wise operators as read-only inputs
-and exactly one column-wise operator which must have write access.
+CMA operators are themselves constructed from Local-Matrix-Assembly
+(LMA) operators. Therefore, any kernel which assembles a CMA
+operator must obey the following rules:
+
+* Have one or more LMA operators as read-only arguments;
+* Have exactly one CMA operator argument which must have write access;
+* The to/from function spaces of the input LMA operators
+  must match those of the CMA operator being assembled.
 
 Application and Inverse Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -82,7 +86,9 @@ Application and Inverse Application
 Column-wise operators can only be applied to fields. Therefore, a
 kernel which applies such an operator (or its inverse) must have it as
 a read-only argument. Such a kernel must also have exactly two field
-arguments, one read-only and one that is written to.
+arguments, one read-only and one that is written to. The function spaces
+of these fields must match the from and to spaces, respectively, of the
+supplied CMA operator.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
