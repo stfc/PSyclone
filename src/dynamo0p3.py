@@ -17,7 +17,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -717,7 +717,8 @@ class DynKernMetadata(KernelType):
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
-        cwise_ops = self.args_filter(arg_types=["gh_columnwise_operator"])
+        cwise_ops = psyGen.args_filter(self._arg_descriptors,
+                                       arg_types=["gh_columnwise_operator"])
         if cwise_ops:
             mutable_cma_op = None
             write_count = 0
@@ -744,11 +745,13 @@ class DynKernMetadata(KernelType):
                         "two fields) but kernel {0} has {1} arguments".
                         format(self.name, len(self._arg_descriptors)))
                 # Check that the other two arguments are fields
-                farg_read = self.args_filter(arg_types=["gh_field"],
-                                             arg_accesses=["gh_read"])
-                farg_write = self.args_filter(arg_types=["gh_field"],
-                                              arg_accesses=["gh_write",
-                                                               "gh_inc"])
+                farg_read = psyGen.args_filter(self._arg_descriptors,
+                                               arg_types=["gh_field"],
+                                               arg_accesses=["gh_read"])
+                farg_write = psyGen.args_filter(self._arg_descriptors,
+                                                arg_types=["gh_field"],
+                                                arg_accesses=["gh_write",
+                                                              "gh_inc"])
                 if len(farg_read) != 1:
                     raise ParseError(
                         "Kernel {0} has a read-only CMA operator. In order "
@@ -786,8 +789,9 @@ class DynKernMetadata(KernelType):
                 else:
                     # In order to assemble a CMA operator we need at
                     # least one read-only LMA operator
-                    lma_ops = self.args_filter(arg_types=["gh_operator"],
-                                               arg_accesses=["gh_read"])
+                    lma_ops = psyGen.args_filter(self._arg_descriptors,
+                                                 arg_types=["gh_operator"],
+                                                 arg_accesses=["gh_read"])
                     if not lma_ops:
                         raise ParseError(
                             "Kernel {0} assembles a column-wise operator but "
@@ -806,9 +810,10 @@ class DynKernMetadata(KernelType):
                                 "spaces must match but this is not the case "
                                 "for kernel {0}".format(self.name))
                     # The kernel must not write to any CMA operators
-                    lma_ops = self.args_filter(arg_types=["gh_operator"],
-                                               arg_accesses=["gh_inc",
-                                                             "gh_write"])
+                    lma_ops = psyGen.args_filter(self._arg_descriptors,
+                                                 arg_types=["gh_operator"],
+                                                 arg_accesses=["gh_inc",
+                                                               "gh_write"])
                     if lma_ops:
                         raise ParseError(
                             "Kernel {0} assembles a column-wise operator but "
@@ -3582,8 +3587,9 @@ class DynKernelArguments(Arguments):
 
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
-        op_args = self.args_filter(arg_types=["gh_operator"],
-                                   arg_accesses=["gh_write", "gh_inc"])
+        op_args = psyGen.args_filter(self._args,
+                                     arg_types=["gh_operator"],
+                                     arg_accesses=["gh_write", "gh_inc"])
         if op_args:
             return op_args[0]
 
@@ -3595,8 +3601,9 @@ class DynKernelArguments(Arguments):
         # function spaces. We do this because if a quantity on a
         # continuous FS is modified then our iteration space must be
         # larger (include L1 halo cells)
-        fld_args = self.args_filter(arg_types=["gh_field"],
-                                    arg_accesses=["gh_write", "gh_inc"])
+        fld_args = psyGen.args_filter(self._args,
+                                      arg_types=["gh_field"],
+                                      arg_accesses=["gh_write", "gh_inc"])
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
@@ -3606,7 +3613,7 @@ class DynKernelArguments(Arguments):
                         return arg
 
         # No modified fields or operators. Check for unmodified fields...
-        fld_args = self.args_filter(arg_types=["gh_field"])
+        fld_args = psyGen.args_filter(self._args, arg_types=["gh_field"])
         if fld_args:
             return fld_args[0]
 
