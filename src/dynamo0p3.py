@@ -70,8 +70,7 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
-VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + \
-                       ["gh_column_banded_dofmap", "gh_orientation"]
+VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
 VALID_EVALUATOR_SHAPES = ["quadrature_xyoz", "evaluator_xyz"]
 
@@ -723,6 +722,7 @@ class DynKernMetadata(KernelType):
             mutable_cma_op = None
             write_count = 0
             for op in cwise_ops:
+                # Identify which, if any, CMA operator is written to
                 if op.access != "gh_read":
                     mutable_cma_op = op
                     write_count += 1
@@ -755,12 +755,12 @@ class DynKernMetadata(KernelType):
                 if len(farg_read) != 1:
                     raise ParseError(
                         "Kernel {0} has a read-only CMA operator. In order "
-                        "to apply it the kernel must have a read-only field "
+                        "to apply it the kernel must have one read-only field "
                         "argument.".format(self.name))
                 if len(farg_write) != 1:
                     raise ParseError(
                         "Kernel {0} has a read-only CMA operator. In order "
-                        "to apply it the kernel must write to a field "
+                        "to apply it the kernel must write to one field "
                         "argument.".format(self.name))
                 # Check that the function spaces match up
                 if farg_read[0].function_space != cma_op.function_space_from:
@@ -819,6 +819,8 @@ class DynKernMetadata(KernelType):
                             "Kernel {0} assembles a column-wise operator but "
                             "also writes to a LMA operator. This is not "
                             "allowed.".format(self.name))
+
+                    self._cma_operation = "assembly"
             else:
                 raise ParseError(
                     "A Dynamo 0.3 kernel cannot update more than one CMA "
