@@ -66,36 +66,8 @@ Column-wise Operator
 
 The Dynamo 0.3 API has support for the construction, application and
 inverse-application of column-wise/Column Matrix Assembly (CMA)
-operators. Such operators may also be used by matrix-matrix kernels.
-
-Assembly
-^^^^^^^^
-
-CMA operators are themselves constructed from Local-Matrix-Assembly
-(LMA) operators. Therefore, any kernel which assembles a CMA
-operator must obey the following rules:
-
-* Have one or more LMA operators as read-only arguments;
-* Have exactly one CMA operator argument which must have write access;
-* The to/from function spaces of the input LMA operators
-  must match those of the CMA operator being assembled.
-
-Application and Inverse Application
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Column-wise operators can only be applied to fields. Therefore, a
-kernel which applies such an operator (or its inverse) must have it as
-a read-only argument. Such a kernel must also have exactly two field
-arguments, one read-only and one that is written to. The function spaces
-of these fields must match the from and to spaces, respectively, of the
-supplied CMA operator.
-
-Matrix-Matrix
-^^^^^^^^^^^^^
-
-A kernel that has only column-wise operators as arguments is identified
-as performing a matrix-matrix operation. In this case, exactly one of the
-arguments must be written to while the others must be read-only.
+operators. These are themselves constructed from Local Matrix Assembly
+(LMA) operators.
 
 Quadrature rule
 +++++++++++++++
@@ -218,8 +190,11 @@ in the :ref:`kernel-layer` section. This section explains the
 dynamo0.3-specific rules for kernels and then goes on to describe
 their metadata and subroutine arguments.
 
-Rules
-+++++
+General Rules
++++++++++++++
+
+In the following, 'operator' refers to both LMA and CMA operator
+types.
 
  1) Kernels accept arguments of any of the supported types (field,
     field vector, operator, scalar integer, scalar real).
@@ -265,6 +240,44 @@ Rules
     beyond level 1. In this case PSyclone will check that the Kernel
     does not require values beyond the level-1 halo. If it does then
     PSyclone will abort.
+
+Rules for Kernels that work with CMA Operators
+++++++++++++++++++++++++++++++++++++++++++++++
+
+The Dynamo 0.3 API has support for kernels that assemble, apply (or
+inverse-apply) column-wise/Column Matrix Assembly (CMA) operators.
+Such operators may also be used by matrix-matrix kernels. There are
+thus three types of CMA-related kernels. The rules for each of
+these are described below.
+
+Assembly
+^^^^^^^^
+
+CMA operators are themselves constructed from Local-Matrix-Assembly
+(LMA) operators. Therefore, any kernel which assembles a CMA
+operator must obey the following rules:
+
+* Have one or more LMA operators as read-only arguments;
+* Have exactly one CMA operator argument which must have write access;
+* The to/from function spaces of the input LMA operators
+  must match the respective spaces of the CMA operator being assembled.
+
+Application and Inverse Application
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Column-wise operators can only be applied to fields. Therefore, a
+kernel which applies such an operator (or its inverse) must have it as
+a read-only argument. Such a kernel must also have exactly two field
+arguments, one read-only and one that is written to. The function spaces
+of these fields must match the from and to spaces, respectively, of the
+supplied CMA operator.
+
+Matrix-Matrix
+^^^^^^^^^^^^^
+
+A kernel that has only column-wise operators as arguments is identified
+as performing a matrix-matrix operation. In this case, exactly one of the
+arguments must be written to while the others must be read-only.
 
 Metadata
 ++++++++
