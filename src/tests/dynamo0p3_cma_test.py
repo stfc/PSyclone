@@ -85,7 +85,7 @@ def test_cma_mdata_assembly():
     assert expected in dkm_str
 
 
-def test_cma_mdata_assembly_missing_op():
+def test_cma_mdata_assembly_missing_op():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if the supplied meta-data
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
@@ -171,7 +171,7 @@ def test_cma_mdata_writes_lma_op():
         str(excinfo)
 
 
-def test_cma_mdata_assembly_wrong_spaces():
+def test_cma_mdata_assembly_wrong_spaces():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if the supplied meta-data
     is assembling a gh_columnwise_operator but the to/from spaces don't
     match those of the supplied gh_operator '''
@@ -242,7 +242,7 @@ def test_cma_mdata_apply():
     assert expected in dkm_str
 
 
-def test_cma_mdata_apply_too_many_ops():
+def test_cma_mdata_apply_too_many_ops():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if there are too-many
     CMA operators '''
     fparser.logging.disable('CRITICAL')
@@ -261,7 +261,7 @@ def test_cma_mdata_apply_too_many_ops():
             "operator in its list of arguments but found 2") in str(excinfo)
 
 
-def test_cma_mdata_apply_too_many_flds():
+def test_cma_mdata_apply_too_many_flds():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if there are too-many
     field args to a kernel that applies a CMA operator '''
     fparser.logging.disable('CRITICAL')
@@ -280,7 +280,7 @@ def test_cma_mdata_apply_too_many_flds():
             "has 4") in str(excinfo)
 
 
-def test_cma_mdata_apply_no_read_fld():
+def test_cma_mdata_apply_no_read_fld():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if there is no read-only
     field arg to a kernel that applies a CMA operator '''
     fparser.logging.disable('CRITICAL')
@@ -296,7 +296,7 @@ def test_cma_mdata_apply_no_read_fld():
             "must have one read-only field argument") in str(excinfo)
 
 
-def test_cma_mdata_apply_no_write_fld():
+def test_cma_mdata_apply_no_write_fld():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if there is no written
     field arg to a kernel that applies a CMA operator '''
     fparser.logging.disable('CRITICAL')
@@ -312,7 +312,7 @@ def test_cma_mdata_apply_no_write_fld():
             "must write to one field argument") in str(excinfo)
 
 
-def test_cma_mdata_apply_wrong_spaces():
+def test_cma_mdata_apply_wrong_spaces():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if the function spaces of the
     read and write fields do not match the from and to function spaces of the
     CMA operator '''

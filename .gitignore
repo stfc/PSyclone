@@ -1,3 +1,7 @@
 *.pyc
 *~
 fparser.log
+htmlcov
+.cache
+.coverage
+doc/_build
