@@ -59,7 +59,8 @@ Scalar
 Operator
 ++++++++
 
-.. note:: To be written.
+Represents a matrix constructed on a cell-by-cell basis using Local
+Matrix Assembly (LMA).
 
 Column-wise Operator
 ++++++++++++++++++++
@@ -67,7 +68,40 @@ Column-wise Operator
 The Dynamo 0.3 API has support for the construction, application and
 inverse-application of column-wise/Column Matrix Assembly (CMA)
 operators. These are themselves constructed from Local Matrix Assembly
-(LMA) operators.
+(LMA) operators. The rules governing Kernels that have CMA operators
+as arguments are given in the :ref:`dynamo0.3-kernel` section below.
+
+There are three recognised Kernel types involving CMA operations;
+construction, application (including inverse application) and
+matrix-matrix. The following example sketches-out what the use
+of such kernels might look like in the Algorithm layer:
+::
+
+  use operator_mod, only : operator_type, columnwise_operator_type
+  type(operator_type) :: lma_op1, lma_op2
+  type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
+  ...
+  call invoke(assembly_kernel(cma_op1, lma_op1, lma_op2),      &
+              assembly_kernel(cma_op2, lma_op1, lma_op2),      &
+              apply_kernel(field1, field2, cma_op1),           &
+	      matrix_matrix_kernel(cma_op3, cma_op1, cma_op2), &
+              apply_kernel(field3, field1, cma_op3),           &
+              name="cma_example")
+
+The above invoke uses two LMA operators to construct two separate CMA
+operators (``cma_op1`` and ``cma_op2``). The first of these is applied
+to ``field2`` and the result stored in ``field1`` (assuming that
+the meta-data for ``apply_kernel`` specifies that it is the first
+field argument that is written to). The two CMA operators are then
+multiplied together to produce a third, ``cma_op3``. This is then
+applied to ``field1`` and the result stored in ``field3``.
+
+Note that PSyclone identifies the type of kernels performing
+Column-Wise operations based on their arguments as described in
+meta-data. The names of the kernels in the above example are purely
+illustrative and are not used by PSyclone when determining kernel
+type.
+
 
 Quadrature rule
 +++++++++++++++
@@ -181,39 +215,30 @@ within a module, or the program name if it is a program.
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
 
+.. _dynamo0.3-kernel
 
 Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. This section explains the
-dynamo0.3-specific rules for kernels and then goes on to describe
-their metadata and subroutine arguments.
+in the :ref:`kernel-layer` section. In the Dynamo API there are three
+different Kernel types; general purpose (user-supplied), CMA
+(user-supplied) and :ref:`dynamo_built-ins`. This section explains the
+the rules for the two user-supplied kernel types and then goes on to
+describe their metadata and subroutine arguments.
 
-General Rules
-+++++++++++++
+Rules for all User-Supplied Kernels
++++++++++++++++++++++++++++++++++++
 
 In the following, 'operator' refers to both LMA and CMA operator
 types.
 
- 1) Kernels accept arguments of any of the supported types (field,
-    field vector, operator, scalar integer, scalar real).
-
- 2) A Kernel must have at least one argument that is a field, field
+ 1) A Kernel must have at least one argument that is a field, field
     vector, or operator. This rule reflects the fact that a Kernel
     iterates over a space and therefore must have some representation
     over that space.
 
- 3) A Kernel is permitted to write to more than one
-    quantity (field or operator) and these quantities may be on the
-    same or different function spaces.
-
- 4) A Kernel may not write to a scalar argument. (Only
-    :ref:`dynamo_built-ins` are permitted to do this.) Any scalar
-    aguments must therefore be declared in the meta-data as
-    "GH_READ" - see below.
-
- 5) The continuity of the iteration space of the Kernel is determined
+ 2) The continuity of the iteration space of the Kernel is determined
     from the function space of the modified argument. If more than one
     argument is modified then the iteration space is taken to be the
     largest required by any of those arguments. e.g. if a Kernel
@@ -221,25 +246,41 @@ types.
     second on W1 (continuous), then the iteration space of that Kernel
     will be determined by the field on the continuous space.
 
- 6) If the function space of the modified argument(s) cannot be
+ 3) If the function space of the modified argument(s) cannot be
     determined then they are assumed to be continuous. This is
     the case if any of the modified arguments are declared as ANY_SPACE and
     their actual space cannot be determined statically. This assumption is
     always safe but leads to additional computation if the quantities being
     updated are actually on discontinuous function spaces.
 
- 7) Operators do not have halo operations operating on them as they
-    are local matrix assembly and therefore act like discontinous
-    fields.
+ 4) Operators do not have halo operations operating on them as they
+    are either cell- (LMA) or column-based (CMA) and therefore act
+    like discontinous fields.
 
- 8) Any Kernel that writes to an operator will have its iteration
+ 5) Any Kernel that writes to an operator will have its iteration
     space expanded such that valid values for the operator are
     computed in the level-1 halo.
 
- 9) Any Kernel that reads from an operator must not access halos
+ 6) Any Kernel that reads from an operator must not access halos
     beyond level 1. In this case PSyclone will check that the Kernel
     does not require values beyond the level-1 halo. If it does then
     PSyclone will abort.
+
+Rules specific to General-Purpose Kernels without CMA Operators
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+ 1) General-purpose kernels accept arguments of any of the following
+    types: field, field vector, LMA operator, scalar integer, scalar
+    real.
+
+ 2) A Kernel is permitted to write to more than one
+    quantity (field or operator) and these quantities may be on the
+    same or different function spaces.
+
+ 3) A Kernel may not write to a scalar argument. (Only
+    :ref:`dynamo_built-ins` are permitted to do this.) Any scalar
+    aguments must therefore be declared in the meta-data as
+    "GH_READ" - see below.
 
 Rules for Kernels that work with CMA Operators
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -257,27 +298,36 @@ CMA operators are themselves constructed from Local-Matrix-Assembly
 (LMA) operators. Therefore, any kernel which assembles a CMA
 operator must obey the following rules:
 
-* Have one or more LMA operators as read-only arguments;
-* Have exactly one CMA operator argument which must have write access;
-* The to/from function spaces of the input LMA operators
-  must match the respective spaces of the CMA operator being assembled.
+1) Have one or more LMA operators as read-only arguments;
+
+2) Have exactly one CMA operator argument which must have write access;
+
+3) The to/from function spaces of the input LMA operators
+   must match the respective spaces of the CMA operator being assembled.
 
 Application and Inverse Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Column-wise operators can only be applied to fields. Therefore, a
-kernel which applies such an operator (or its inverse) must have it as
-a read-only argument. Such a kernel must also have exactly two field
-arguments, one read-only and one that is written to. The function spaces
-of these fields must match the from and to spaces, respectively, of the
-supplied CMA operator.
+Column-wise operators can only be applied to fields. CMA-Application
+kernels must therefore:
+
+1) Have a single CMA operator as a read-only argument;
+
+2) Have exactly two field arguments, one read-only and one that is written to.
+
+3) The function spaces of the read and written fields must match the
+   from and to spaces, respectively, of the supplied CMA operator.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
 
 A kernel that has only column-wise operators as arguments is identified
-as performing a matrix-matrix operation. In this case, exactly one of the
-arguments must be written to while the others must be read-only.
+as performing a matrix-matrix operation. In this case:
+
+1) all arguments must be CMA operators;
+
+2) Exactly one of the arguments must be written to while the others
+   must be read-only.
 
 Metadata
 ++++++++
