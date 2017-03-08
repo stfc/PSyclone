@@ -59,17 +59,19 @@ Scalar
 Operator
 ++++++++
 
-Represents a matrix constructed on a cell-by-cell basis using Local
+Represents a matrix constructed on a per-cell basis using Local
 Matrix Assembly (LMA).
 
-Column-wise Operator
+Column-Wise Operator
 ++++++++++++++++++++
 
-The Dynamo 0.3 API has support for the construction, application and
-inverse-application of column-wise/Column Matrix Assembly (CMA)
-operators. These are themselves constructed from Local Matrix Assembly
-(LMA) operators. The rules governing Kernels that have CMA operators
-as arguments are given in the :ref:`dynamo0.3-kernel` section below.
+The Dynamo 0.3 API has support for the construction and use of
+column-wise/Column Matrix Assembly (CMA) operators. As the name
+suggests, these are operators constructed for a whole column of the
+mesh. These are themselves constructed from the Local Matrix Assembly
+(LMA) operators of each cell in the column. The rules governing
+Kernels that have CMA operators as arguments are given in the
+:ref:`dynamo0.3-kernel` section below.
 
 There are three recognised Kernel types involving CMA operations;
 construction, application (including inverse application) and
@@ -324,7 +326,7 @@ Matrix-Matrix
 A kernel that has only column-wise operators as arguments is identified
 as performing a matrix-matrix operation. In this case:
 
-1) all arguments must be CMA operators;
+1) All arguments must be CMA operators;
 
 2) Exactly one of the arguments must be written to while the others
    must be read-only.
