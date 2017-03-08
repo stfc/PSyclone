@@ -332,7 +332,7 @@ as performing a matrix-matrix operation. In this case:
    must be read-only.
 
 Metadata
-########
+++++++++
 
 The code below outlines the elements of the dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'evaluator_shape', 4)
@@ -355,7 +355,7 @@ sections.
 .. _dynamo0.3-api-meta-args:
 
 meta_args
-+++++++++
+#########
 
 The ``meta_args`` array specifies information about data that the
 kernel code expects to be passed to it via its argument list. There is
@@ -626,7 +626,7 @@ There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
 
 meta_funcs
-++++++++++
+##########
 
 The (optional) second component of kernel meta-data specifies
 whether any quadrature or evaluator data is required for a given
@@ -774,19 +774,46 @@ Rules for CMA Kernels
 #####################
 
 Kernels involving CMA operators are restricted to just three types;
-assembly, application/inverse-application and matrix-matrix. The rules
-for the corresponding subroutine arguments for each type are given
-below.
+assembly, application/inverse-application and matrix-matrix.
+For all of these types, the rules are:
+
+    1) Include the ``cells`` argument. ``cells`` is an integer and has
+       intent ``in``.
+All three of these require the following scalar arguments: ``nrow``,
+``ncol``, ``bandwidth``, ``alpha``, ``beta``, ``gamma_m`` and
+``gamma_p``.
 
 Assembly
 ^^^^^^^^
 
+An assembly kernel requires the column-banded dofmap for both the to-
+and from-function spaces of the CMA operator being assembled as well
+as the number of dofs for each of the dofmaps.
+
+    2) Include ``nlayers``, the number of layers in a column. ``nlayers``
+       is an integer and has intent ``in``.
+    3) Include the dimension size, ``ncell_3d``, which is an integer with
+       intent ``in``.
+    4) Include the number of columns ``ncell_2d``, which is an integer with
+       intent ``in``.
+    5) For each input LMA operator, include a real, 3-dimensional
+       array of type ``r_def``. The first two dimensions are the local
+       degrees of freedom for the ``to`` and ``from`` spaces,
+       respectively. The third dimension is ``ncell_3d``.
+
 Application/Inverse-Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A kernel applying a CMA operator requires the column-indirection
+dofmap for both the to- and from-function spaces of the CMA
+operator. Such a kernel does not require the ``nlayers`` and
+``ncell_3d`` scalar arguments.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
 
+Does not require any dofmaps and also does not require the ``nlayers``
+and ``ncell_3d`` scalar arguments.
 
 .. _dynamo_built-ins:
 
