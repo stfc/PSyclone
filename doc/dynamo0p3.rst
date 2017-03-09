@@ -417,13 +417,20 @@ values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
 valid and PSyclone will raise an exception if an invalid combination
 is specified. Valid combinations are specified later in this section.
 
-* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
+* ``GH_WRITE`` indicates the data is modified in the Kernel before
+  (optionally) being read.
 
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
-* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
+* ``GH_INC`` indicates that different iterations of a Kernel make
+  contributions to shared values. For example, values at cell faces
+  may receive contributions from cells on either side of the
+  face. This means that such a Kernel needs appropriate
+  synchronisation (or colouring) to run in parallel.
 
-* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
+* ``GH_SUM`` is an example of a reduction and is the only reduction
+  currently supported in PSyclone. This metadata indicates that values
+  are summed over calls to Kernel code.
 
 For example:
 
@@ -450,7 +457,8 @@ field the 3rd argument specifies the function space that the field
 lives on. Supported function spaces are ``w0``, ``w1``, ``w2``, ``w3``,
 ``wtheta``, ``w2h`` and ``w2v``.
 
-For example:
+For example, the meta-data for a kernel that applies a Column-wise
+operator to a field might look like:
 
 ::
 
@@ -508,6 +516,9 @@ need not be on the same space.
           always treated as if it is continuous in the horizontal,
           even if it is not.
 
+Valid Access Modes
+^^^^^^^^^^^^^^^^^^
+
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
 (``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
@@ -555,10 +566,13 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
-Finally, field metadata supports an optional 4th argument which
-specifies that the field is accessed as a stencil operation within the
-Kernel. Stencil metadata only makes sense if the associated field
-is read within a Kernel i.e. it only makes sense to specify stencil
+Stencil Metadata
+^^^^^^^^^^^^^^^^
+
+Field metadata supports an optional 4th argument which specifies that
+the field is accessed as a stencil operation within the
+Kernel. Stencil metadata only makes sense if the associated field is
+read within a Kernel i.e. it only makes sense to specify stencil
 metadata if the first entry is ``GH_FIELD`` and the second entry is
 ``GH_READ``.
 
@@ -624,6 +638,42 @@ Below is an example of stencil information within the full kernel metadata.
 
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
+
+Column-wise Operators (CMA)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In this section we provide example metadata for each of the three
+recognised kernel types involving CMA operators.
+
+Column-wise operators are constructed from cell-wise (local) operators.
+Therefore, in order to **assemble** a CMA operator, a kernel must have at
+least one read-only LMA operator, e.g.:
+::
+  type(arg_type) :: meta_args(2) = (/                                       &
+       arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
+       /)
+
+CMA operators (and their inverse) are **applied** to fields. Therefore any
+kernel of this type must have one read-only CMA operator, one read-only
+field and a field that is updated, e.g.:
+::
+  type(arg_type) :: meta_args(3) = (/                                      &
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
+       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+       /)
+
+**Matrix-matrix** kernels compute the product of CMA operators. They must
+therefore have one such operator that is updated while the rest are
+read-only, e.g.:
+::
+   type(arg_type) :: meta_args(3) = (/ &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)   & /)
+
+.. note:: The order with which arguments are specified in meta-data for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
 
 meta_funcs
 ##########
