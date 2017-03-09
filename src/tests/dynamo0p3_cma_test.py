@@ -375,3 +375,37 @@ def test_cma_mdata_matrix_prod():
         "  function_space_from[3]='any_space_2'\n")
     print dkm_str
     assert expected in dkm_str
+
+
+def test_cma_mdata_matrix_too_few_args():
+    ''' Check that we raise the expected error when there are too few
+    arguments specified in meta-data '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
+        "ANY_SPACE_2),&\n","",2)
+    code = code.replace("meta_args(3)", "meta_args(1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("updates a column-wise operator but does not read from a LMA "
+            "operator (assembly kernel) or any other CMA operators "
+            "(matrix-matrix kernel)") in str(excinfo)
+
+
+def test_cma_mdata_matrix_field_arg():
+    ''' Check that we raise the expected error when a matrix-matrix kernel
+    reads from a field argument '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
+        "ANY_SPACE_2)","arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)",1)
+    print code
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("updates a column-wise operator but also reads from a field. "
+            "This is not permitted for either assembly or matrix-matrix "
+            "kernels") in str(excinfo)
