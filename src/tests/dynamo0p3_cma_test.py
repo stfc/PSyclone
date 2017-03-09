@@ -98,8 +98,10 @@ def test_cma_mdata_assembly_missing_op():  # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type assembles a column-wise operator but "
-            "does not have any LMA operators as read-only arguments") in \
+    assert ("Kernel testkern_cma_type writes to a column-wise operator but "
+            "does not conform to the rules for matrix-matrix (it has "
+            "arguments other than CMA operators) or for assembly (it does "
+            "not have any read-only LMA operator arguments) kernels") in \
         str(excinfo)
 
 
@@ -146,8 +148,10 @@ def test_cma_mdata_mutable_op():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type assembles a column-wise operator but "
-            "does not have any LMA operators as read-only arguments") in \
+    assert ("Kernel testkern_cma_type writes to a column-wise operator but "
+            "does not conform to the rules for matrix-matrix (it has arguments"
+            " other than CMA operators) or for assembly (it does not have any "
+            "read-only LMA operator arguments) kernels") in \
         str(excinfo)
 
 
@@ -401,11 +405,32 @@ def test_cma_mdata_matrix_field_arg():
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
         "ANY_SPACE_2)","arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)",1)
-    print code
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("updates a column-wise operator but also reads from a field. "
-            "This is not permitted for either assembly or matrix-matrix "
-            "kernels") in str(excinfo)
+    assert ("writes to a column-wise operator but does not conform to the "
+            "rules for matrix-matrix (it has arguments other than CMA "
+            "operators) or for assembly (it does not have any read-only LMA "
+            "operator arguments) kernels") in str(excinfo)
+
+
+def test_cma_mdata_matrix_2_writes():
+    ''' Check that we raise the expected error when a matrix-matrix kernel
+    writes to more than one CMA operator '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
+        "ANY_SPACE_2),&\n",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
+        "ANY_SPACE_2),&\n"
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, "
+        "ANY_SPACE_2),&\n", 1)
+    code = code.replace("meta_args(3)", "meta_args(4)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
+            "(column-wise) operator but kernel testkern_cma_type "
+            "updates 2") in str(excinfo)

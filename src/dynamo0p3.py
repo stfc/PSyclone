@@ -798,9 +798,11 @@ class DynKernMetadata(KernelType):
                                                   arg_accesses=["gh_read"])
                 if not lma_read_ops:
                     raise ParseError(
-                        "Kernel {0} assembles a column-wise operator but "
-                        "does not have any LMA operators as read-only "
-                        "arguments".format(self.name))
+                        "Kernel {0} writes to a column-wise operator but "
+                        "does not conform to the rules for matrix-matrix (it "
+                        "has arguments other than CMA operators) or for "
+                        "assembly (it does not have any read-only LMA "
+                        "operator arguments) kernels".format(self.name))
                 # The to/from spaces for each LMA operator must
                 # match that of the CMA operator being assembled
                 for lop in lma_read_ops:
