@@ -42,8 +42,8 @@ the Dynamo 0.3 API using pytest. '''
 
 import pytest
 import fparser
-from parse import ParseError
 from fparser import api as fpapi
+from parse import ParseError
 from dynamo0p3 import DynKernMetadata
 
 CMA_ASSEMBLE = '''

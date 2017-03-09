@@ -793,20 +793,20 @@ class DynKernMetadata(KernelType):
             else:
                 # In order to assemble a CMA operator we need at
                 # least one read-only LMA operator
-                lma_ops = psyGen.args_filter(self._arg_descriptors,
-                                             arg_types=["gh_operator"],
-                                             arg_accesses=["gh_read"])
-                if not lma_ops:
+                lma_read_ops = psyGen.args_filter(self._arg_descriptors,
+                                                  arg_types=["gh_operator"],
+                                                  arg_accesses=["gh_read"])
+                if not lma_read_ops:
                     raise ParseError(
                         "Kernel {0} assembles a column-wise operator but "
                         "does not have any LMA operators as read-only "
                         "arguments".format(self.name))
                 # The to/from spaces for each LMA operator must
                 # match that of the CMA operator being assembled
-                for lop in lma_ops:
+                for lop in lma_read_ops:
                     if (lop.function_space_to !=
                             mutable_cma_op.function_space_to or
-                        lop.function_space_from !=
+                            lop.function_space_from !=
                             mutable_cma_op.function_space_from):
                         raise ParseError(
                             "When assembling a column-wise operator from "
@@ -814,11 +814,11 @@ class DynKernMetadata(KernelType):
                             "spaces must match but this is not the case "
                             "for kernel {0}".format(self.name))
                 # The kernel must not write to any CMA operators
-                lma_ops = psyGen.args_filter(self._arg_descriptors,
-                                             arg_types=["gh_operator"],
-                                             arg_accesses=["gh_inc",
-                                                           "gh_write"])
-                if lma_ops:
+                lma_write_ops = psyGen.args_filter(self._arg_descriptors,
+                                                   arg_types=["gh_operator"],
+                                                   arg_accesses=["gh_inc",
+                                                                 "gh_write"])
+                if lma_write_ops:
                     raise ParseError(
                         "Kernel {0} assembles a column-wise operator but "
                         "also writes to a LMA operator. This is not "
