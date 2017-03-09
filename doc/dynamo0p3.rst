@@ -217,7 +217,7 @@ within a module, or the program name if it is a program.
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
 
-.. _dynamo0.3-kernel
+.. _dynamo0.3-kernel:
 
 Kernel
 -------
@@ -300,9 +300,9 @@ CMA operators are themselves constructed from Local-Matrix-Assembly
 (LMA) operators. Therefore, any kernel which assembles a CMA
 operator must obey the following rules:
 
-1) Have one or more LMA operators as read-only arguments;
+1) Have one or more LMA operators as read-only arguments.
 
-2) Have exactly one CMA operator argument which must have write access;
+2) Have exactly one CMA operator argument which must have write access.
 
 3) The to/from function spaces of the input LMA operators
    must match the respective spaces of the CMA operator being assembled.
@@ -313,7 +313,7 @@ Application and Inverse Application
 Column-wise operators can only be applied to fields. CMA-Application
 kernels must therefore:
 
-1) Have a single CMA operator as a read-only argument;
+1) Have a single CMA operator as a read-only argument.
 
 2) Have exactly two field arguments, one read-only and one that is written to.
 
@@ -326,7 +326,7 @@ Matrix-Matrix
 A kernel that has only column-wise operators as arguments is identified
 as performing a matrix-matrix operation. In this case:
 
-1) All arguments must be CMA operators;
+1) All arguments must be CMA operators.
 
 2) Exactly one of the arguments must be written to while the others
    must be read-only.
@@ -775,45 +775,130 @@ Rules for CMA Kernels
 
 Kernels involving CMA operators are restricted to just three types;
 assembly, application/inverse-application and matrix-matrix.
-For all of these types, the rules are:
-
-    1) Include the ``cells`` argument. ``cells`` is an integer and has
-       intent ``in``.
-All three of these require the following scalar arguments: ``nrow``,
-``ncol``, ``bandwidth``, ``alpha``, ``beta``, ``gamma_m`` and
-``gamma_p``.
+We give the rules for each of these in the sections below.
 
 Assembly
 ^^^^^^^^
 
 An assembly kernel requires the column-banded dofmap for both the to-
 and from-function spaces of the CMA operator being assembled as well
-as the number of dofs for each of the dofmaps.
+as the number of dofs for each of the dofmaps. The full set of rules is:
 
+    1) Include the ``cell`` argument. ``cell`` is an integer and has
+       intent ``in``.
     2) Include ``nlayers``, the number of layers in a column. ``nlayers``
        is an integer and has intent ``in``.
-    3) Include the dimension size, ``ncell_3d``, which is an integer with
-       intent ``in``.
-    4) Include the number of columns ``ncell_2d``, which is an integer with
-       intent ``in``.
-    5) For each input LMA operator, include a real, 3-dimensional
-       array of type ``r_def``. The first two dimensions are the local
-       degrees of freedom for the ``to`` and ``from`` spaces,
-       respectively. The third dimension is ``ncell_3d``.
+    3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+       an integer with intent ``in``.
+    4) Include the total number of cells, ``ncell_3d``, which is an integer
+       with intent ``in``.
+    5) For each argument in the ``meta_args`` meta-data array:
+       
+       1) If it is a LMA operator, include a real, 3-dimensional
+          array of type ``r_def``. The first two dimensions are the local
+          degrees of freedom for the ``to`` and ``from`` spaces,
+          respectively. The third dimension is ``ncell_3d``.
+	  
+       2) If it is a CMA operator, include a real, 3-dimensional array
+          of type ``r_def``. The first dimension is is
+          ``"bandwidth_"<operator_name>``, the second is
+          ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
+	  
+	  1) Include the number of rows in the banded matrix.  This is
+	     an integer with intent ``in`` and is named as
+	     ``"nrow_"<operator_name>``.
+          2) Include the number of columns in the banded matrix.  This
+	     is an integer with intent ``in`` and is named as
+	     ``"ncol_"<operator_name>``.
+	  3) Include the bandwidth of the banded matrix. This is an
+	     integer with intent ``in`` and is named as
+	     ``"bandwidth_"<operator_name>``.
+	  4) Include banded-matrix parameter ``alpha``. This is an integer
+	     with intent ``in`` and is named as ``"alpha_"<operator_name>``.
+	  5) Include banded-matrix parameter ``beta``. This is an integer
+	     with intent ``in`` and is named as ``"beta_"<operator_name>``.
+	  6) Include banded-matrix parameter ``gamma_m``. This is an integer
+	     with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
+	  7) Include banded-matrix parameter ``gamma_p``. This is an integer
+	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
+
+    6) Include the required dofmaps and their dimensions:
+
+       1) Include ``ndf_to``, the number of degrees of freedom per cell for
+	  the to-space of the CMA operator. This is an integer with intent
+	  ``in``.
+       2) Include ``ndf_from``, the number of degrees of freedom per cell for
+	  the from-space of the CMA operator. This is an integer with intent
+	  ``in``.
+       3) Include ``column_banded_dofmap_to``, the list of offsets for the
+	  to-space. This is an integer array of rank 2. The first dimension
+	  is ``ndf_to`` and the second is ``nlayers``.
+       4) Include ``column_banded_dofmap_from``, the list of offsets for the
+	  from-space. This is an integer array of rank 2. The first dimension
+	  is ``ndf_from`` and the second is ``nlayers``.
 
 Application/Inverse-Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A kernel applying a CMA operator requires the column-indirection
 dofmap for both the to- and from-function spaces of the CMA
-operator. Such a kernel does not require the ``nlayers`` and
-``ncell_3d`` scalar arguments.
+operator. Since it does not have any LMA operator arguments it does
+not require the ``ncell_3d`` and ``nlayers`` scalar arguments.
+The full set of rules is then:
+
+    1) Include the ``cell`` argument. ``cell`` is an integer and has
+       intent ``in``.
+    2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+       an integer with intent ``in``.
+    3) For each argument in the ``meta_args`` meta-data array:
+
+       1) If it is a field, include the field array. This is a real
+          array of kind ``r_def`` and is of rank 1.  The field array name
+	  is currently specified as being
+	  ``"field_"<argument_position>"_"<field_function_space>``. The
+	  extent of the array is the number of unique degrees of freedom
+	  for the function space that the field is on.  This value is
+	  passed in separately. The intent of the argument is determined
+	  from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+
+       2) If it is a CMA operator, include it and its associated
+          parameters (see Rule 5 of CMA Assembly kernels).
+
+    4) For each of the unique function spaces encountered in the
+       meta-data arguments (the ``to`` function space of an operator
+       is considered to be before the ``from`` function space of the
+       same operator as it appears first in lexicographic order):
+
+       1) Include the number of degrees of freedom for the associated
+	  function space. This is an integer with intent ``in``. The name
+	  of this argument is ``"ndf_"<field_function_space>``.
+       2) Include the number of unique degrees of freedom for the associated
+	  function space. This is an integer with intent ``in``. The name
+	  of this argument is ``"undf_"<field_function_space>``.
+       3) Include the dofmap for this function space. This is a rank-1 integer
+	  array with extent equal to the number of degrees of freedom of
+	  the space (``"ndf_"<field_function_space>``).
+
+    5) Include the indirection map for the to-space of the CMA operator.
+       This is a rank-1 integer array with extent ``nrow``.
+    6) Include the indirection map for the from-space of the CMA operator.
+       This is a rank-1 integer array with extent ``ncol``.
 
 Matrix-Matrix
 ^^^^^^^^^^^^^
 
 Does not require any dofmaps and also does not require the ``nlayers``
-and ``ncell_3d`` scalar arguments.
+and ``ncell_3d`` scalar arguments. The full set of rules are then:
+
+    1) Include the ``cell`` argument. ``cell`` is an integer and has
+       intent ``in``.
+    2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+       an integer with intent ``in``.
+    3) For each (CMA operator) argument specifed in meta-data:
+
+       1) Include it and its associated parameters (see Rule 5 of CMA
+	  Assembly kernels).
+
 
 .. _dynamo_built-ins:
 
