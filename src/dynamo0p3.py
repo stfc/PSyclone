@@ -599,9 +599,9 @@ class DynKernMetadata(KernelType):
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
 
-        # The type of CMA operation this kernel performs (empty string
-        # signifies that no CMA operators are involved)
-        self._cma_operation = ""
+        # The type of CMA operation this kernel performs (or None if
+        # no CMA operators are involved)
+        self._cma_operation = None
 
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
@@ -3593,7 +3593,7 @@ class DynKernelArguments(Arguments):
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
         op_args = psyGen.args_filter(self._args,
-                                     arg_types=["gh_operator"],
+                                     arg_types=VALID_OPERATOR_NAMES,
                                      arg_accesses=["gh_write", "gh_inc"])
         if op_args:
             return op_args[0]
