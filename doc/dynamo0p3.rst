@@ -79,31 +79,34 @@ matrix-matrix. The following example sketches-out what the use
 of such kernels might look like in the Algorithm layer:
 ::
 
+  use field_mod, only: field_type
   use operator_mod, only : operator_type, columnwise_operator_type
+  type(field_type) :: field1, field2, field3
   type(operator_type) :: lma_op1, lma_op2
   type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
   ...
-  call invoke(assembly_kernel(cma_op1, lma_op1, lma_op2),      &
-              assembly_kernel(cma_op2, lma_op1, lma_op2),      &
-              apply_kernel(field1, field2, cma_op1),           &
-	      matrix_matrix_kernel(cma_op3, cma_op1, cma_op2), &
-              apply_kernel(field3, field1, cma_op3),           &
+  call invoke(assembly_kernel(cma_op1, lma_op1, lma_op2),          &
+              assembly_kernel2(cma_op2, lma_op1, lma_op2, field3), &
+              apply_kernel(field1, field2, cma_op1),               &
+	      matrix_matrix_kernel(cma_op3, cma_op1, cma_op2),     &
+              apply_kernel(field3, field1, cma_op3),               &
               name="cma_example")
 
-The above invoke uses two LMA operators to construct two separate CMA
-operators (``cma_op1`` and ``cma_op2``). The first of these is applied
-to ``field2`` and the result stored in ``field1`` (assuming that
-the meta-data for ``apply_kernel`` specifies that it is the first
-field argument that is written to). The two CMA operators are then
-multiplied together to produce a third, ``cma_op3``. This is then
-applied to ``field1`` and the result stored in ``field3``.
+The above invoke uses two LMA operators to construct the CMA operator
+``cma_op1``.  A second CMA operator, ``cma_op2``, is assembled from
+the same two LMA operators but also uses a field. The first of these
+CMA operators is then applied to ``field2`` and the result stored in
+``field1`` (assuming that the meta-data for ``apply_kernel`` specifies
+that it is the first field argument that is written to). The two CMA
+operators are then multiplied together to produce a third,
+``cma_op3``. This is then applied to ``field1`` and the result stored
+in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
 Column-Wise operations based on their arguments as described in
-meta-data. The names of the kernels in the above example are purely
-illustrative and are not used by PSyclone when determining kernel
-type.
-
+meta-data (see :ref:`cma_meta_data_rules` below). The names of the
+kernels in the above example are purely illustrative and are not used
+by PSyclone when determining kernel type.
 
 Quadrature rule
 +++++++++++++++
@@ -284,14 +287,26 @@ Rules specific to General-Purpose Kernels without CMA Operators
     aguments must therefore be declared in the meta-data as
     "GH_READ" - see below.
 
+.. _cma_meta_data_rules:
+
 Rules for Kernels that work with CMA Operators
 ++++++++++++++++++++++++++++++++++++++++++++++
 
 The Dynamo 0.3 API has support for kernels that assemble, apply (or
 inverse-apply) column-wise/Column Matrix Assembly (CMA) operators.
 Such operators may also be used by matrix-matrix kernels. There are
-thus three types of CMA-related kernels. The rules for each of
-these are described below.
+thus three types of CMA-related kernels.  Since, by definition, CMA
+operators only act on data within a column, they have no horizontal
+dependencies. Therefore, kernels that write to them may be
+parallelised without colouring.
+
+All three CMA-related kernel types must obey the following rule:
+
+  1) Since a CMA operator only acts within a single column of data,
+     stencil operations are not permitted.
+
+There are then additional rules specific to each of the three
+kernel types. These are described below.
 
 Assembly
 ########
@@ -306,6 +321,9 @@ operator must obey the following rules:
 
 3) The to/from function spaces of the input LMA operators
    must match the respective spaces of the CMA operator being assembled.
+
+4) Other types of argument (e.g. scalars or fields) are permitted but
+   must be read-only.
 
 Application and Inverse Application
 ###################################
