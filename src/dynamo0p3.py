@@ -789,9 +789,25 @@ class DynKernMetadata(KernelType):
             if len(cwise_ops) == len(self._arg_descriptors):
                 # All of the arguments are CMA operators so
                 # this must be a matrix-matrix operation.
+                # Check that we have more than one argument...
+                if len(cwise_ops) < 2:
+                    raise ParseError("Kernel {0} writes to a single CMA "
+                                     "operator but has no other arguments. "
+                                     "It is therefore not a valid "
+                                     "assembly or matrix-matrix kernel.".
+                                     format(self.name))
                 return "matrix-matrix"
             else:
-                # In order to assemble a CMA operator we need at
+                # If we're assembling a CMA operator then there must be
+                # no others in the argument list
+                if len(cwise_ops) != 1:
+                    raise ParseError("Kernel {0} assembles a CMA operator "
+                                     "and therefore should only have one CMA "
+                                     "operator argument but found {1}".
+                                     format(self.name, len(cwise_ops)))
+                # kernel arguments must be LMA operators
+
+                # we need at
                 # least one read-only LMA operator
                 lma_read_ops = psyGen.args_filter(self._arg_descriptors,
                                                   arg_types=["gh_operator"],
@@ -815,7 +831,7 @@ class DynKernMetadata(KernelType):
                             "LMA operators the to and from function "
                             "spaces must match but this is not the case "
                             "for kernel {0}".format(self.name))
-                # The kernel must not write to any CMA operators
+                # The kernel must not write to any LMA operators
                 lma_write_ops = psyGen.args_filter(self._arg_descriptors,
                                                    arg_types=["gh_operator"],
                                                    arg_accesses=["gh_inc",

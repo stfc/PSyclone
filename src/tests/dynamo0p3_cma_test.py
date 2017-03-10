@@ -49,11 +49,12 @@ from dynamo0p3 import DynKernMetadata
 CMA_ASSEMBLE = '''
 module testkern_cma
   type, extends(kernel_type) :: testkern_cma_type
-     type(arg_type), meta_args(3) =                 &
+     type(arg_type), meta_args(4) =                 &
           (/ arg_type(gh_operator,gh_read, any_space_1, any_space_2), &
              arg_type(gh_columnwise_operator,gh_write, any_space_1,   &
                       any_space_2),                                   &
-             arg_type(gh_field,gh_read, any_space_1)                  &
+             arg_type(gh_field,gh_read, any_space_1),                 &
+             arg_type(gh_real, gh_read)                               &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -83,6 +84,7 @@ def test_cma_mdata_assembly():
         "  function_space_from[3]='any_space_2'\n")
     print dkm_str
     assert expected in dkm_str
+    assert dkm._cma_operation == "assembly"
 
 
 def test_cma_mdata_assembly_missing_op():  # pylint: disable=invalid-name
@@ -93,7 +95,7 @@ def test_cma_mdata_assembly_missing_op():  # pylint: disable=invalid-name
     # Remove  the (required) LMA operator
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_operator,gh_read, any_space_1, any_space_2),", "", 1)
-    code = code.replace("meta_args(3) =", "meta_args(2) =", 1)
+    code = code.replace("meta_args(4) =", "meta_args(3) =", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -126,7 +128,7 @@ def test_cma_mdata_multi_writes():
         "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2),&\n"
         "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2)",
         1)
-    code = code.replace("meta_args(3) = ", "meta_args(4) = ", 1)
+    code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
@@ -165,7 +167,7 @@ def test_cma_mdata_writes_lma_op():
         "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n",
         "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n"
         "arg_type(gh_operator,gh_write, any_space_1, any_space_2), &\n", 1)
-    code = code.replace("meta_args(3)", "meta_args(4)", 1)
+    code = code.replace("meta_args(4)", "meta_args(5)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
@@ -244,6 +246,7 @@ def test_cma_mdata_apply():
         "  function_space_to[2]='any_space_1'\n"
         "  function_space_from[3]='any_space_2'\n")
     assert expected in dkm_str
+    assert dkm._cma_operation == "apply"
 
 
 def test_cma_mdata_apply_too_many_ops():  # pylint: disable=invalid-name
@@ -379,6 +382,7 @@ def test_cma_mdata_matrix_prod():
         "  function_space_from[3]='any_space_2'\n")
     print dkm_str
     assert expected in dkm_str
+    assert dkm._cma_operation == "matrix-matrix"
 
 
 def test_cma_mdata_matrix_too_few_args():
@@ -393,14 +397,16 @@ def test_cma_mdata_matrix_too_few_args():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("updates a column-wise operator but does not read from a LMA "
-            "operator (assembly kernel) or any other CMA operators "
-            "(matrix-matrix kernel)") in str(excinfo)
+    assert ("writes to a single CMA operator but has no other arguments. "
+            "It is therefore not a valid assembly or matrix-matrix") in \
+        str(excinfo)
 
 
 def test_cma_mdata_matrix_field_arg():
     ''' Check that we raise the expected error when a matrix-matrix kernel
-    reads from a field argument '''
+    reads from a field argument. Adding an argument that is not a CMA
+    operator means that PSyclone attempts to identify this as an assembly
+    kernel. '''
     fparser.logging.disable('CRITICAL')
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
@@ -409,10 +415,8 @@ def test_cma_mdata_matrix_field_arg():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("writes to a column-wise operator but does not conform to the "
-            "rules for matrix-matrix (it has arguments other than CMA "
-            "operators) or for assembly (it does not have any read-only LMA "
-            "operator arguments) kernels") in str(excinfo)
+    assert ("assembles a CMA operator and therefore should only have one "
+            "CMA operator argument but found 2") in str(excinfo)
 
 
 def test_cma_mdata_matrix_2_writes():
@@ -434,3 +438,29 @@ def test_cma_mdata_matrix_2_writes():
     assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
             "(column-wise) operator but kernel testkern_cma_type "
             "updates 2") in str(excinfo)
+
+
+def test_cma_mdata_stencil_invalid():
+    ''' Check that we raise the expected error when a matrix-matrix kernel
+    specifies a stencil '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2)",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, "
+        "stencil(cross))", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("the 4th argument of a meta_arg entry must be a valid function "
+            "space") in str(excinfo)
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2)",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2, "
+        "stencil(cross))", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("each meta_arg entry must have 4 arguments if its first argument "
+            "is gh_operator or gh_columnwise_operator") in str(excinfo)
