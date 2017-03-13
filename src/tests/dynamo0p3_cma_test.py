@@ -602,3 +602,35 @@ def test_cma_asm():
                 "cma_op1_proxy%fs_to%get_ndf(), "
                 "cma_op1_proxy%column_banded_dofmap_to, "
                 "cma_op1_proxy%column_banded_dofmap_from)") in code
+
+
+def test_cma_apply():
+    ''' Test that we generate correct code for an invoke containing
+    a kernel that applies a CMA operator '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.1_cma_apply.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert ("ndf_any_space_1_field_a = field_a_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_field_a = field_a_proxy%vspace%"
+                "get_undf()") in code
+
+        assert ("CALL columnwise_op_asm_kernel_code(cell, "
+                "lhs_p%data, rhs_p%data, "
+                "cma_op1_proxy%ncell_2d, cma_op1_proxy%columnwise_matrix, "
+                "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
+                "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
+                "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
+                "cma_op1_proxy%gamma_p, "
+                "cma_op1_proxy%fs_to%get_ndf(), "
+                "cma_op1_proxy%indirection_dofmap_to, "
+                "cma_op1_proxy%indirection_dofmap_from, "
+                "undf_any_space_1_field_a, map_any_space_1_field_a(:,cell), "
+                "undf_any_space_2_field_b, map_any_space_2_field_b(:,cell))") \
+            in code

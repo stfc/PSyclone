@@ -2997,6 +2997,12 @@ class KernCallArgList(ArgOrdering):
                                  "%column_banded_dofmap_to")
             self._arglist.append(arg.proxy_name_indexed+
                                  "%column_banded_dofmap_from")
+        elif self._kern.cma_operation == "apply":
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%indirection_dofmap_to")
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%indirection_dofmap_from")
+           
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
