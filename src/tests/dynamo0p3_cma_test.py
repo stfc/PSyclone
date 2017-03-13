@@ -46,11 +46,17 @@ the Dynamo 0.3 API using pytest. '''
 # pylint: disable=protected-access
 
 
+import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from parse import ParseError
+from parse import ParseError, parse
 from dynamo0p3 import DynKernMetadata
+from psyGen import PSyFactory, GenerationError
+
+# constants
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
 
 CMA_ASSEMBLE = '''
 module testkern_cma
@@ -563,3 +569,26 @@ def test_cma_mdata_matrix_vector_error():
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a vector "
             "argument (gh_columnwise_operator*3)") in str(excinfo)
+
+
+def test_cma_asm():
+    ''' Test that we generate correct code for an invoke containing
+    a kernel that assembles a CMA operator '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.0_cma_assembly.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+                "columnwise_operator_type, columnwise_operator_proxy_type") \
+            in code
+        assert ("TYPE(operator_proxy_type) lma_op1_proxy") in code
+        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+            in code
+        assert ("TYPE(columnwise_operator_proxy_type) cma_op1_proxy") in code
+        assert 0

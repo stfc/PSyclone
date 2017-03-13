@@ -913,7 +913,9 @@ class DynamoPSy(PSy):
                               funcnames=["field_type", "field_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
                               funcnames=["operator_type",
-                                         "operator_proxy_type"]))
+                                         "operator_proxy_type",
+                                         "columnwise_operator_type",
+                                         "columnwise_operator_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="quadrature_mod", only=True,
                               funcnames=["quadrature_type"]))
         psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
@@ -1530,6 +1532,26 @@ class DynInvoke(Invoke):
                                 entity_decls=op_declarations_dict[intent],
                                 intent=fort_intent))
 
+        # Add subroutine argument declarations for CMA operators that are
+        # read or written (as with normal/LMA operators, they are never 'inc'
+        # because they are discontinuous)
+        cma_op_declarations_dict = self.unique_declns_by_intent(
+            "gh_columnwise_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if cma_op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                invoke_sub.add(
+                    TypeDeclGen(invoke_sub,
+                                datatype="columnwise_operator_type",
+                                entity_decls=cma_op_declarations_dict[intent],
+                                intent=fort_intent))
+
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
         if len(self._psy_unique_qr_vars) > 0:
@@ -1579,7 +1601,8 @@ class DynInvoke(Invoke):
         # Use the first argument that is not a scalar
         first_var = None
         for var in self.psy_unique_vars:
-            if var.type in ["gh_field", "gh_operator"]:
+            if var.type in ["gh_field", "gh_operator",
+                            "gh_columnwise_operator"]:
                 first_var = var
                 break
         if not first_var:
@@ -2009,7 +2032,7 @@ class DynLoop(Loop):
             self.set_upper_bound("dofs")
         else:
             if config.DISTRIBUTED_MEMORY:
-                if self._field.type == "gh_operator":
+                if self._field.type in VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("halo", index=1)
@@ -2170,7 +2193,7 @@ class DynLoop(Loop):
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
-        elif arg.type == "gh_operator":
+        elif arg.type in VALID_OPERATOR_NAMES:
             # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
@@ -2281,6 +2304,8 @@ class DynKern(Kern):
             pre = None
             if descriptor.type.lower() == "gh_operator":
                 pre = "op_"
+            elif descriptor.type.lower() == "gh_columnwise_operator":
+                pre = "cma_op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
             elif descriptor.type.lower() == "gh_real":
@@ -2452,7 +2477,7 @@ class DynKern(Kern):
                            entity_decls=["cell"]))
 
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=["gh_operator"],
+        op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
                                           arg_accesses=["gh_read"])
         if op_args:
             # It does. We must check that our parent loop does not
@@ -2651,6 +2676,8 @@ class ArgOrdering(object):
                     self.stencil(arg)
             elif arg.type == "gh_operator":
                 self.operator(arg)
+            elif arg.type == "gh_columnwise_operator":
+                self.cma_operator(arg)
             elif arg.type in VALID_SCALAR_NAMES:
                 self.scalar(arg)
             else:
@@ -2842,6 +2869,19 @@ class KernCallArgList(ArgOrdering):
         ''' add the operator arguments to the argument list '''
         self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
         self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
+
+    def cma_operator(self, arg):
+        ''' add the CMA operator and associated scalars to the argument
+        list '''
+        self._arglist.append(arg.proxy_name_indexed+"%ncell_2d")
+        self._arglist.append(arg.proxy_name_indexed+"%columnwise_matrix")
+        self._arglist.append(arg.proxy_name_indexed+"%nrow")
+        self._arglist.append(arg.proxy_name_indexed+"%ncol")
+        self._arglist.append(arg.proxy_name_indexed+"%bandwidth")
+        self._arglist.append(arg.proxy_name_indexed+"%alpha")
+        self._arglist.append(arg.proxy_name_indexed+"%beta")
+        self._arglist.append(arg.proxy_name_indexed+"%gamma_m")
+        self._arglist.append(arg.proxy_name_indexed+"%gamma_p")
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
@@ -3054,6 +3094,11 @@ class KernStubArgList(ArgOrdering):
                                  dimension=",".join([ndf_name_to,
                                                      ndf_name_from, size]),
                                  intent=intent, entity_decls=[text]))
+
+    def cma_operator(self, arg):
+        ''' add the CMA operator arguments to the argument list '''
+        from f2pygen import DeclGen
+        raise NotImplementedError("cma op args to kernel stub")
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
@@ -3695,7 +3740,7 @@ class DynKernelArgument(KernelArgument):
         fs1 = None
         fs2 = None
 
-        if self._type == "gh_operator":
+        if self._type in VALID_OPERATOR_NAMES:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
                                 self._kernel_args)
@@ -3716,7 +3761,7 @@ class DynKernelArgument(KernelArgument):
     def ref_name(self, function_space=None):
         ''' Returns the name used to dereference this type of argument. '''
         if not function_space:
-            if self._type == "gh_operator":
+            if self._type in VALID_OPERATOR_NAMES:
                 # For an operator we use the 'from' FS
                 function_space = self._function_spaces[1]
             else:
@@ -3738,7 +3783,7 @@ class DynKernelArgument(KernelArgument):
                         self.function_space_names))
         if self._type == "gh_field":
             return "vspace"
-        elif self._type == "gh_operator":
+        elif self._type in VALID_OPERATOR_NAMES:
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
             elif function_space.orig_name == self.descriptor.function_space_to:
