@@ -875,6 +875,13 @@ class DynKernMetadata(KernelType):
         DynFuncDescriptor03 objects, one for each function space. '''
         return self._func_descriptors
 
+    @property
+    def cma_operation(self):
+        ''' Returns the type of CMA operation identified from the kernel
+        meta-data (one of 'assemble', 'apply' or 'matrix-matrix') or
+        None if the kernel does not involve CMA operators '''
+        return self._cma_operation
+
 # Second section : PSy specialisations
 
 # classes
@@ -1181,6 +1188,74 @@ class DynInvokeStencil(object):
                                          rhs=map_name + "%get_size()"))
 
 
+class DynInvokeColumnBandedDofmaps(object):
+    '''Holds all information on the column-banded dofmaps required by an
+    invoke'''
+    def __init__(self, schedule):
+
+        self._name_space_manager = NameSpaceFactory().create()
+        # Look at every kernel call in this invoke and generate a list
+        # of the unique function spaces involved.
+        # We create a dictionary whose keys are the map names and entries
+        # are the corresponding field objects.
+        self._unique_fs_maps = {}
+        for call in schedule.calls():
+            # We only need a column-banded dofmap if the kernel iterates
+            # over cells and assembles a CMA operator
+            if call.iterates_over == "cells" and \
+               call.cma_operation == "assemble":
+                cma_op = call.args_filter(arg_types=["gh_columnwise_operator"],
+                                          arg_accesses=["gh_write"])
+                if len(cma_op) != 1:
+                    raise GenerationError(
+                        "Kernel {0} is identified as assembling a CMA "
+                        "operator but writes to {1} CMA operators. Internel "
+                        "Error.".format(call.name, len(cma_op)))
+
+                to_map_name = get_fs_map_name(cma_op[0].fs_to)
+                if to_map_name not in self._unique_fs_maps:
+                    self._unique_fs_maps[to_map_name] = cma_op[0]
+                from_map_name = get_fs_map_name(cma_op[0].fs_from)
+                if from_map_name not in self._unique_fs_maps:
+                    self._unique_fs_maps[from_map_name] = cma_op[0]
+
+    def initialise_dofmaps(self, parent):
+        ''' Generates the calls to the LFRic infrastructure that
+        look-up the necessary column-banded dofmaps. Adds these calls as
+        children of the supplied parent node. This must be an appropriate
+        f2pygen object. '''
+        from f2pygen import CommentGen, AssignGen
+
+        # If we've got no dofmaps then we do nothing
+        if not self._unique_fs_maps:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                              " Look-up column-banded dofmaps for each "
+                              "function space"))
+        parent.add(CommentGen(parent, ""))
+
+        for dmap, field in self._unique_fs_maps.items():
+            parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                 rhs=field.proxy_name_indexed +
+                                 "%" + field.ref_name() +
+                                 "%get_whole_dofmap()"))
+
+    def declare_dofmaps(self, parent):
+        ''' Declare all unique function space dofmaps as pointers to
+        integer arrays of rank 2. The declarations are added as
+        children of the supplied parent argument. This must be an
+        appropriate f2pygen object. '''
+        from f2pygen import DeclGen
+        decl_map_names = \
+            [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
+
+        if decl_map_names:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=decl_map_names))
+
+
 class DynInvokeDofmaps(object):
     ''' Holds all information on the dofmaps required by an invoke '''
 
@@ -1269,6 +1344,10 @@ class DynInvoke(Invoke):
         # Initialise the object holding all information on the dofmaps
         # required by this invoke.
         self.dofmaps = DynInvokeDofmaps(self.schedule)
+
+        # Initialise the object holding all information on the column-
+        # -banded dofmaps required by this invoke.
+        #self.banded_dofmaps = DynInvokeColumnBandedDofmaps(self.schedule)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -1499,6 +1578,8 @@ class DynInvoke(Invoke):
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
 
+        #self.banded_dofmaps.declare_dofmaps(invoke_sub)
+
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
         for intent in FORTRAN_INTENT_NAMES:
@@ -1593,6 +1674,14 @@ class DynInvoke(Invoke):
                 TypeDeclGen(invoke_sub,
                             datatype="operator_proxy_type",
                             entity_decls=op_proxy_decs))
+        cma_op_proxy_decs = self.unique_proxy_declarations(
+            "gh_columnwise_operator")
+        if len(cma_op_proxy_decs) > 0:
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub,
+                            datatype="columnwise_operator_proxy_type",
+                            entity_decls=cma_op_proxy_decs))
+
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
@@ -1663,6 +1752,10 @@ class DynInvoke(Invoke):
         # Initialise dofmaps (one for each function space that is used
         # in this invoke)
         self.dofmaps.initialise_dofmaps(invoke_sub)
+
+        # Initialise banded dofmaps (one for each function space of any
+        # CMA operator being assembled)
+        #self.banded_dofmaps.initialise_dofmaps(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
@@ -2351,6 +2444,9 @@ class DynKern(Kern):
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
         self._func_descriptors = ktype.func_descriptors
+        # Keep a record of the type of CMA kernel identified when
+        # parsing the kernel meta-data
+        self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
@@ -2370,6 +2466,13 @@ class DynKern(Kern):
             self._qr_name = self._name_space_manager.create_name(
                 root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
+
+    @property
+    def cma_operation(self):
+        ''' Returns the type of CMA operation performed by this kernel
+        (one of 'assemble', 'apply' or 'matrix-matrix') or None if the
+        the kernel does not involve CMA operators '''
+        return self._cma_operation
 
     @property
     def fs_descriptors(self):
@@ -2882,6 +2985,18 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(arg.proxy_name_indexed+"%beta")
         self._arglist.append(arg.proxy_name_indexed+"%gamma_m")
         self._arglist.append(arg.proxy_name_indexed+"%gamma_p")
+        # TODO decide whether these column-banded dofmaps should be treated
+        # like our normal dofmaps or just as more args associated with the
+        # CMA operator (being assembled)
+        if self._kern.cma_operation == "assembly":
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%fs_from%get_ndf()")
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%fs_to%get_ndf()")
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%column_banded_dofmap_to")
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%column_banded_dofmap_from")
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
@@ -2891,9 +3006,13 @@ class KernCallArgList(ArgOrdering):
     def fs_compulsory(self, function_space):
         '''add compulsory arguments common to operators and
         fields on a space.'''
-        # There is currently one compulsory argument: "ndf".
-        ndf_name = get_fs_ndf_name(function_space)
-        self._arglist.append(ndf_name)
+        if self._kern.cma_operation == None:
+            # There is currently one compulsory argument: "ndf" but only
+            # if this is not a CMA-related kernel
+            # TODO We will need this ndf if there is a field on this
+            # space
+            ndf_name = get_fs_ndf_name(function_space)
+            self._arglist.append(ndf_name)
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a

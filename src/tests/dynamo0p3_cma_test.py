@@ -587,8 +587,18 @@ def test_cma_asm():
         assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
                 "columnwise_operator_type, columnwise_operator_proxy_type") \
             in code
-        assert ("TYPE(operator_proxy_type) lma_op1_proxy") in code
+        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
         assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
             in code
-        assert ("TYPE(columnwise_operator_proxy_type) cma_op1_proxy") in code
-        assert 0
+        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+        assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, "
+                "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+                "cma_op1_proxy%ncell_2d, cma_op1_proxy%columnwise_matrix, "
+                "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
+                "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
+                "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
+                "cma_op1_proxy%gamma_p, cma_op1_proxy%fs_from%get_ndf(), "
+                "cma_op1_proxy%fs_to%get_ndf(), "
+                "cma_op1_proxy%column_banded_dofmap_to, "
+                "cma_op1_proxy%column_banded_dofmap_from)") in code

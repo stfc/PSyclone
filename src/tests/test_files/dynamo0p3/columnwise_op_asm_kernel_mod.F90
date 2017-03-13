@@ -61,7 +61,6 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                       &
        arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       ! NOT CURRENTLY SUPPORTED BY PSY
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 !  type(func_type) :: meta_funcs(2) =  (/                                    &
