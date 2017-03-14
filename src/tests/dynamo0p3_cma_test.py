@@ -621,16 +621,16 @@ def test_cma_apply():
                 "      undf_any_space_1_field_a = field_a_proxy%vspace%"
                 "get_undf()") in code
 
-        assert ("CALL columnwise_op_asm_kernel_code(cell, "
-                "lhs_p%data, rhs_p%data, "
+        assert ("CALL columnwise_op_app_kernel_code(cell, "
+                "field_a_proxy%data, field_b_proxy%data, "
                 "cma_op1_proxy%ncell_2d, cma_op1_proxy%columnwise_matrix, "
                 "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
                 "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
                 "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                "cma_op1_proxy%gamma_p, "
-                "cma_op1_proxy%fs_to%get_ndf(), "
-                "cma_op1_proxy%indirection_dofmap_to, "
+                "cma_op1_proxy%gamma_p, cma_op1_proxy%indirection_dofmap_to, "
                 "cma_op1_proxy%indirection_dofmap_from, "
-                "undf_any_space_1_field_a, map_any_space_1_field_a(:,cell), "
-                "undf_any_space_2_field_b, map_any_space_2_field_b(:,cell))") \
+                "ndf_any_space_1_field_a, undf_any_space_1_field_a, "
+                "map_any_space_1_field_a(:,cell), "
+                "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
+                "map_any_space_2_field_b(:,cell))") \
             in code

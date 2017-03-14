@@ -878,7 +878,7 @@ class DynKernMetadata(KernelType):
     @property
     def cma_operation(self):
         ''' Returns the type of CMA operation identified from the kernel
-        meta-data (one of 'assemble', 'apply' or 'matrix-matrix') or
+        meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
         None if the kernel does not involve CMA operators '''
         return self._cma_operation
 
@@ -1203,7 +1203,7 @@ class DynInvokeColumnBandedDofmaps(object):
             # We only need a column-banded dofmap if the kernel iterates
             # over cells and assembles a CMA operator
             if call.iterates_over == "cells" and \
-               call.cma_operation == "assemble":
+               call.cma_operation == "assembly":
                 cma_op = call.args_filter(arg_types=["gh_columnwise_operator"],
                                           arg_accesses=["gh_write"])
                 if len(cma_op) != 1:
@@ -2470,7 +2470,7 @@ class DynKern(Kern):
     @property
     def cma_operation(self):
         ''' Returns the type of CMA operation performed by this kernel
-        (one of 'assemble', 'apply' or 'matrix-matrix') or None if the
+        (one of 'assembly', 'apply' or 'matrix-matrix') or None if the
         the kernel does not involve CMA operators '''
         return self._cma_operation
 
@@ -2752,8 +2752,10 @@ class ArgOrdering(object):
         if self._kern.arguments.has_operator:
             # operators require the cell index to be provided
             self.cell_position()
-        # always pass the number of layers in the mesh
-        self.mesh_height()
+        # Pass the number of layers in the mesh unless this kernel is
+        # applying a CMA operator or doing a CMA matrix-matrix calculation
+        if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
+            self.mesh_height()
         # for each argument in the order they are specified in the
         # kernel metadata, call particular methods depending on what
         # type of argument we find (field, field vector, operator or
@@ -3012,7 +3014,7 @@ class KernCallArgList(ArgOrdering):
     def fs_compulsory(self, function_space):
         '''add compulsory arguments common to operators and
         fields on a space.'''
-        if self._kern.cma_operation == None:
+        if self._kern.cma_operation != "assembly":
             # There is currently one compulsory argument: "ndf" but only
             # if this is not a CMA-related kernel
             # TODO We will need this ndf if there is a field on this
@@ -3771,9 +3773,10 @@ class DynKernelArguments(Arguments):
 
     @property
     def has_operator(self):
-        ''' Returns true if at least one of the arguments is an operator. '''
+        ''' Returns true if at least one of the arguments is an operator
+        (either LMA or CMA). '''
         for arg in self._args:
-            if arg.type == "gh_operator":
+            if arg.type in VALID_OPERATOR_NAMES:
                 return True
         return False
 
