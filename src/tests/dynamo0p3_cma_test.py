@@ -591,6 +591,8 @@ def test_cma_asm():
         assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
             in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert "INTEGER ncell_2d" in code
+        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
         assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
                 "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
@@ -617,6 +619,9 @@ def test_cma_apply():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+        assert "INTEGER ncell_2d" in code
+        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert ("ndf_any_space_1_field_a = field_a_proxy%vspace%get_ndf()\n"
                 "      undf_any_space_1_field_a = field_a_proxy%vspace%"
                 "get_undf()") in code
