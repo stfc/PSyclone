@@ -800,12 +800,12 @@ def test_goschedule_view(capsys):
         "    Loop[type='outer',field_space='cu',it_space='internal_pts']\n"
         "        Loop[type='inner',field_space='cu',it_space='internal_pts']\n"
         "            KernCall compute_cu_code(cu_fld,p_fld,u_fld) "
-        "[module_inline=False]\n"
+        "[module_inline=False][dump=False]\n"
         "    Loop[type='outer',field_space='every',it_space='internal_pts']\n"
         "        Loop[type='inner',field_space='every',"
         "it_space='internal_pts']\n"
         "            KernCall time_smooth_code(u_fld,unew_fld,uold_fld) "
-        "[module_inline=False]")
+        "[module_inline=False][dump=False]")
 
     assert expected_output in out
 
