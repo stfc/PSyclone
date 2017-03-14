@@ -3043,7 +3043,8 @@ class DinoWriters(ArgOrdering):
         '''get dino to output field datat associated with the argument
         'arg' '''
         if arg.intent in ["in", "inout"]:
-            text = arg.proxy_name + "%data"
+            undf_name = get_fs_undf_name(arg.function_space)
+            text = arg.proxy_name + "%data, " + undf_name
             self._add_dino_array(text)
 
     def stencil_unknown_extent(self, arg):
@@ -3066,7 +3067,8 @@ class DinoWriters(ArgOrdering):
 
     def operator(self, arg):
         ''' get dino to output the operator arguments '''
-        # TBD
+        self._add_dino_scalar(arg.proxy_name + "%ncell_3d")
+        self._add_dino_array(arg.proxy_name + "%local_stencil")
         pass
 
     def scalar(self, scalar_arg):
