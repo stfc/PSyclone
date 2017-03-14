@@ -3067,8 +3067,13 @@ class DinoWriters(ArgOrdering):
 
     def operator(self, arg):
         ''' get dino to output the operator arguments '''
-        self._add_dino_scalar(arg.proxy_name + "%ncell_3d")
-        self._add_dino_array(arg.proxy_name + "%local_stencil")
+        ncell_3d = arg.proxy_name + "%ncell_3d"
+        self._add_dino_scalar(ncell_3d)
+        ndf_to = get_fs_ndf_name(arg.function_space_to)
+        ndf_from = get_fs_ndf_name(arg.function_space_from)
+        text = arg.proxy_name + "%local_stencil, " + ndf_to + ", " + \
+            ndf_from + ", " + ncell_3d            
+        self._add_dino_array(text)
         pass
 
     def scalar(self, scalar_arg):
