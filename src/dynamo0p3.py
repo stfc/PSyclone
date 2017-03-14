@@ -3169,6 +3169,14 @@ class KernStubArgList(ArgOrdering):
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=["nlayers"]))
 
+    def mesh_ncell2d(self):
+        ''' Add the number of columns in the mesh to the argument list if
+        required '''
+        from f2pygen import DeclGen
+        self._arglist.append("ncell_2d")
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                                 entity_decls=["ncell_2d"]))
+
     def field_vector(self, argvect):
         '''add the field vector associated with the argument 'argvect' to the
         argument list '''
@@ -3262,7 +3270,33 @@ class KernStubArgList(ArgOrdering):
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
         from f2pygen import DeclGen
-        raise NotImplementedError("cma op args to kernel stub")
+        text = arg.name
+        nrow = arg.name + "_nrow"
+        ncol = text + "_ncol"
+        bandwidth = arg.name + "_bandwidth"
+        alpha = arg.name + "_alpha"
+        beta = arg.name + "_beta"
+        gamma_m = arg.name + "_gamma_m"
+        gamma_p = arg.name + "_gamma_p"
+        self._arglist.append(text)
+        self._arglist.append(nrow)
+        self._arglist.append(ncol)
+        self._arglist.append(bandwidth)
+        self._arglist.append(alpha)
+        self._arglist.append(beta)
+        self._arglist.append(gamma_m)
+        self._arglist.append(gamma_p)
+        intent = arg.intent
+        # Declare the associated scalar arguments
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 intent="in",
+                                 entity_decls=[nrow, ncol, bandwidth, alpha,
+                                               beta, gamma_m, gamma_p]))
+        # Declare the array that holds the CMA operator
+        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
+                                 dimension=",".join([bandwidth,
+                                                     nrow, "ncell_2d"]),
+                                 intent=intent, entity_decls=[text]))
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''

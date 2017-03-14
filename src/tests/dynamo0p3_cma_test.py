@@ -53,6 +53,7 @@ from fparser import api as fpapi
 from parse import ParseError, parse
 from dynamo0p3 import DynKernMetadata
 from psyGen import PSyFactory, GenerationError
+from genkernelstub import generate
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -674,3 +675,12 @@ def test_cma_matrix_matrix():
                 "cma_opc_proxy%beta, cma_opc_proxy%gamma_m, "
                 "cma_opc_proxy%gamma_p)") \
             in code
+
+
+def test_cma_asm_stub_gen():
+    ''' Test the kernel-stub generator for CMA operator assembly '''
+    result = generate("test_files/dynamo0p3/columnwise_op_asm_kernel_mod.F90",
+                      api="dynamo0.3")
+    print result
+    assert 0
+
