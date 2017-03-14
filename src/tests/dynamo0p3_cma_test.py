@@ -592,14 +592,14 @@ def test_cma_asm():
             in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, "
+        assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
                 "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-                "cma_op1_proxy%ncell_2d, cma_op1_proxy%columnwise_matrix, "
+                "cma_op1_proxy%columnwise_matrix, "
                 "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
                 "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
                 "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                "cma_op1_proxy%gamma_p, cma_op1_proxy%fs_from%get_ndf(), "
-                "cma_op1_proxy%fs_to%get_ndf(), "
+                "cma_op1_proxy%gamma_p, cma_op1_proxy%fs_to%get_ndf(), "
+                "cma_op1_proxy%fs_from%get_ndf(), "
                 "cma_op1_proxy%column_banded_dofmap_to, "
                 "cma_op1_proxy%column_banded_dofmap_from)") in code
 
@@ -621,9 +621,9 @@ def test_cma_apply():
                 "      undf_any_space_1_field_a = field_a_proxy%vspace%"
                 "get_undf()") in code
 
-        assert ("CALL columnwise_op_app_kernel_code(cell, "
+        assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
                 "field_a_proxy%data, field_b_proxy%data, "
-                "cma_op1_proxy%ncell_2d, cma_op1_proxy%columnwise_matrix, "
+                "cma_op1_proxy%columnwise_matrix, "
                 "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
                 "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
                 "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
@@ -634,3 +634,37 @@ def test_cma_apply():
                 "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
                 "map_any_space_2_field_b(:,cell))") \
             in code
+
+
+def test_cma_matrix_matrix():
+    ''' Test that we generate correct code for an invoke containing
+    a kernel that performs a matrix-matrix CMA calculation '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.2_cma_matrix_matrix.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert ("CALL columnwise_op_mul_kernel_code(cell, "
+                "ncell_2d, "
+                "cma_opa_proxy%columnwise_matrix, "
+                "cma_opa_proxy%nrow, cma_opa_proxy%ncol, "
+                "cma_opa_proxy%bandwidth, cma_opa_proxy%alpha, "
+                "cma_opa_proxy%beta, cma_opa_proxy%gamma_m, "
+                "cma_opa_proxy%gamma_p, "
+                "cma_opb_proxy%columnwise_matrix, "
+                "cma_opb_proxy%nrow, cma_opb_proxy%ncol, "
+                "cma_opb_proxy%bandwidth, cma_opb_proxy%alpha, "
+                "cma_opb_proxy%beta, cma_opb_proxy%gamma_m, "
+                "cma_opb_proxy%gamma_p, "
+                "cma_opc_proxy%columnwise_matrix, "
+                "cma_opc_proxy%nrow, cma_opc_proxy%ncol, "
+                "cma_opc_proxy%bandwidth, cma_opc_proxy%alpha, "
+                "cma_opc_proxy%beta, cma_opc_proxy%gamma_m, "
+                "cma_opc_proxy%gamma_p)") \
+            in code
+        assert 0

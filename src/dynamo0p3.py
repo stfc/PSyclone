@@ -1689,11 +1689,13 @@ class DynInvoke(Invoke):
 
         # Use the first argument that is not a scalar
         first_var = None
+        cma_op = None
         for var in self.psy_unique_vars:
-            if var.type in ["gh_field", "gh_operator",
-                            "gh_columnwise_operator"]:
+            if not first_var and var.type in ["gh_field", "gh_operator",
+                                              "gh_columnwise_operator"]:
                 first_var = var
-                break
+            if var.type == "gh_columnwise_operator":
+                cma_op = var
         if not first_var:
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments")
@@ -1709,6 +1711,20 @@ class DynInvoke(Invoke):
                       first_var.ref_name() + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
+
+        # If we have one or more CMA operators then we will need the number
+        # of columns in the mesh
+        if cma_op:
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Initialise number of cols"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            ncol_name = self._name_space_manager.create_name(
+                root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+            invoke_sub.add(
+                AssignGen(invoke_sub, lhs=ncol_name,
+                          rhs=cma_op.proxy_name_indexed + "%ncell_2d"))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[ncol_name]))
 
         # declare and initialise a mesh object if required
         if config.DISTRIBUTED_MEMORY:
@@ -2749,13 +2765,22 @@ class ArgOrdering(object):
         '''specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
         that can be specialised by a child class for its particular need'''
-        if self._kern.arguments.has_operator:
-            # operators require the cell index to be provided
+        if self._kern.arguments.has_operator():
+            # All operator types require the cell index to be provided
             self.cell_position()
         # Pass the number of layers in the mesh unless this kernel is
         # applying a CMA operator or doing a CMA matrix-matrix calculation
         if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
             self.mesh_height()
+        # Pass the number of cells in the mesh if this kernel has a
+        # LMA operator argument
+        #if self._kern.arguments.has_operator(op_type="gh_operator"):
+        #    self.mesh_ncell3d()
+        # Pass the number of columns in the mesh if this kernel has a CMA
+        # operator argument
+        if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
+            self.mesh_ncell2d()
+
         # for each argument in the order they are specified in the
         # kernel metadata, call particular methods depending on what
         # type of argument we find (field, field vector, operator or
@@ -2931,6 +2956,19 @@ class KernCallArgList(ArgOrdering):
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
 
+    def mesh_ncell3d(self):
+        ''' Add the number of cells in the full 3D mesh to the argument
+        list '''
+        ncell3d_name = self._name_space_manager.create_name(
+            root_name="ncell_3d", context="PSyVars", label="ncell3d")
+        self._arglist.append(ncell3d_name)
+
+    def mesh_ncell2d(self):
+        ''' Add the number of columns in the mesh to the argument list '''
+        ncell2d_name = self._name_space_manager.create_name(
+            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        self._arglist.append(ncell2d_name)
+
     def field_vector(self, argvect):
         '''add the field vector associated with the argument 'argvect' to the
         argument list '''
@@ -2978,7 +3016,7 @@ class KernCallArgList(ArgOrdering):
     def cma_operator(self, arg):
         ''' add the CMA operator and associated scalars to the argument
         list '''
-        self._arglist.append(arg.proxy_name_indexed+"%ncell_2d")
+        #self._arglist.append(arg.proxy_name_indexed+"%ncell_2d")
         self._arglist.append(arg.proxy_name_indexed+"%columnwise_matrix")
         self._arglist.append(arg.proxy_name_indexed+"%nrow")
         self._arglist.append(arg.proxy_name_indexed+"%ncol")
@@ -2992,9 +3030,9 @@ class KernCallArgList(ArgOrdering):
         # CMA operator (being assembled)
         if self._kern.cma_operation == "assembly":
             self._arglist.append(arg.proxy_name_indexed+
-                                 "%fs_from%get_ndf()")
-            self._arglist.append(arg.proxy_name_indexed+
                                  "%fs_to%get_ndf()")
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%fs_from%get_ndf()")
             self._arglist.append(arg.proxy_name_indexed+
                                  "%column_banded_dofmap_to")
             self._arglist.append(arg.proxy_name_indexed+
@@ -3014,7 +3052,7 @@ class KernCallArgList(ArgOrdering):
     def fs_compulsory(self, function_space):
         '''add compulsory arguments common to operators and
         fields on a space.'''
-        if self._kern.cma_operation != "assembly":
+        if self._kern.cma_operation not in ["assembly", "matrix-matrix"]:
             # There is currently one compulsory argument: "ndf" but only
             # if this is not a CMA-related kernel
             # TODO We will need this ndf if there is a field on this
@@ -3771,12 +3809,20 @@ class DynKernelArguments(Arguments):
                                  "is no field or operator with function space "
                                  "{0}".format(func_space.mangled_name))
 
-    @property
-    def has_operator(self):
+    def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator
         (either LMA or CMA). '''
+        if op_type and op_type not in VALID_OPERATOR_NAMES:
+            raise GenerationError(
+                "If supplied, op_type must be a valid operator type (one "
+                "of {0}) but got {1}".format(VALID_OPERATOR_NAMES, op_type))
+        if not op_type:
+            # If no operator type is specified then we match any type
+            op_list = VALID_OPERATOR_NAMES
+        else:
+            op_list = [op_type]
         for arg in self._args:
-            if arg.type in VALID_OPERATOR_NAMES:
+            if arg.type in op_list:
                 return True
         return False
 
