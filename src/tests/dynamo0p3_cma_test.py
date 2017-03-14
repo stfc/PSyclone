@@ -649,6 +649,8 @@ def test_cma_matrix_matrix():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+        assert "INTEGER ncell_2d" in code
+        assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
         assert ("CALL columnwise_op_mul_kernel_code(cell, "
                 "ncell_2d, "
                 "cma_opa_proxy%columnwise_matrix, "
@@ -667,4 +669,3 @@ def test_cma_matrix_matrix():
                 "cma_opc_proxy%beta, cma_opc_proxy%gamma_m, "
                 "cma_opc_proxy%gamma_p)") \
             in code
-        assert 0

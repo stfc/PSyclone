@@ -3016,7 +3016,6 @@ class KernCallArgList(ArgOrdering):
     def cma_operator(self, arg):
         ''' add the CMA operator and associated scalars to the argument
         list '''
-        #self._arglist.append(arg.proxy_name_indexed+"%ncell_2d")
         self._arglist.append(arg.proxy_name_indexed+"%columnwise_matrix")
         self._arglist.append(arg.proxy_name_indexed+"%nrow")
         self._arglist.append(arg.proxy_name_indexed+"%ncol")
