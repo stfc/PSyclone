@@ -2787,6 +2787,7 @@ class ArgOrdering(object):
         # scalar). If the argument is a field or field vector and also
         # has a stencil access then also call appropriate stencil
         # methods.
+        _cma_op = None
         for arg in self._kern.arguments.args:
             if arg.type == "gh_field":
                 if arg.vector_size > 1:
@@ -2807,6 +2808,7 @@ class ArgOrdering(object):
             elif arg.type == "gh_operator":
                 self.operator(arg)
             elif arg.type == "gh_columnwise_operator":
+                _cma_op = arg
                 self.cma_operator(arg)
             elif arg.type in VALID_SCALAR_NAMES:
                 self.scalar(arg)
@@ -2846,6 +2848,9 @@ class ArgOrdering(object):
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
+        # CMA-assembly requires banded dofmaps
+        if self._kern.cma_operation == "assembly":
+            self.banded_dofmaps(_cma_op)
 
     def cell_position(self):
         ''' add cell position information'''
@@ -2934,7 +2939,11 @@ class ArgOrdering(object):
         '''add qr information'''
         raise NotImplementedError(
             "Error: ArgOrdering.quad_rule() must be implemented by subclass")
-
+    
+    def banded_dofmaps(self, arg):
+        ''' Add banded dofmaps (required for CMA operator assembly) '''
+        raise NotImplementedError("Error: ArgOrdering.banded_dofmaps() must"
+                                  " be implemented by subclass")
 
 class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
@@ -3027,16 +3036,7 @@ class KernCallArgList(ArgOrdering):
         # TODO decide whether these column-banded dofmaps should be treated
         # like our normal dofmaps or just as more args associated with the
         # CMA operator (being assembled)
-        if self._kern.cma_operation == "assembly":
-            self._arglist.append(arg.proxy_name_indexed+
-                                 "%fs_to%get_ndf()")
-            self._arglist.append(arg.proxy_name_indexed+
-                                 "%fs_from%get_ndf()")
-            self._arglist.append(arg.proxy_name_indexed+
-                                 "%column_banded_dofmap_to")
-            self._arglist.append(arg.proxy_name_indexed+
-                                 "%column_banded_dofmap_from")
-        elif self._kern.cma_operation == "apply":
+        if self._kern.cma_operation == "apply":
             self._arglist.append(arg.proxy_name_indexed+
                                  "%indirection_dofmap_to")
             self._arglist.append(arg.proxy_name_indexed+
@@ -3118,6 +3118,17 @@ class KernCallArgList(ArgOrdering):
                               self._kern.qr_args["nv"],
                               self._kern.qr_args["h"],
                               self._kern.qr_args["v"]])
+    
+    def banded_dofmaps(self, arg):
+        ''' Add banded dofmaps (required for CMA operator assembly) '''
+        if self._kern.cma_operation != "assembly":
+            return
+        self._arglist.append(get_fs_ndf_name(arg.function_space_to))
+        self._arglist.append(get_fs_ndf_name(arg.function_space_from))
+        self._arglist.append(arg.proxy_name_indexed+
+                             "%column_banded_dofmap_to")
+        self._arglist.append(arg.proxy_name_indexed+
+                             "%column_banded_dofmap_from")
 
     @property
     def arglist(self):
@@ -3306,11 +3317,27 @@ class KernStubArgList(ArgOrdering):
                                            nrow, "ncell_2d"]),
                        intent=intent, entity_decls=[text])
         self._parent.add(decl)
-        if self._first_arg:
-            self._first_arg = False
-            self._first_arg_decl = decl
+        #if self._first_arg:
+        #    self._first_arg = False
+        #    self._first_arg_decl = decl
 
-
+    def banded_dofmaps(self, arg):
+        ''' Declare the banded dofmaps required for the CMA operator
+        being assembled'''
+        from f2pygen import DeclGen
+        ndf_to = get_fs_ndf_name(arg.function_space_to)
+        ndf_from = get_fs_ndf_name(arg.function_space_from)
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                                 entity_decls=[ndf_to, ndf_from]))
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 dimension=",".join([ndf_to, "nlayers"]),
+                                 intent="in",
+                                 entity_decls=[arg.name + "_column_banded_dofmap_to"]))
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 dimension=",".join([ndf_from, "nlayers"]),
+                                 intent="in",
+                                 entity_decls=[arg.name + "_column_banded_dofmap_from"]))
+        
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
         from f2pygen import DeclGen

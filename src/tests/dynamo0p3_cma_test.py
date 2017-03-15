@@ -601,8 +601,8 @@ def test_cma_asm():
                 "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
                 "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
                 "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                "cma_op1_proxy%gamma_p, cma_op1_proxy%fs_to%get_ndf(), "
-                "cma_op1_proxy%fs_from%get_ndf(), "
+                "cma_op1_proxy%gamma_p, ndf_any_space_1_lma_op1, "
+                "ndf_any_space_2_lma_op1, "
                 "cma_op1_proxy%column_banded_dofmap_to, "
                 "cma_op1_proxy%column_banded_dofmap_from)") in code
 
@@ -676,6 +676,8 @@ def test_cma_matrix_matrix():
                 "cma_opc_proxy%gamma_p)") \
             in code
 
+# Tests for the kernel-stub generator
+
 
 def test_cma_asm_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly '''
@@ -686,18 +688,25 @@ def test_cma_asm_stub_gen():
         "  MODULE columnwise_op_asm_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_any_space_1_op_1, ndf_any_space_2_op_1)\n"
+        "    SUBROUTINE columnwise_op_asm_kernel_code(cell, nlayers, "
+        "ncell_2d, op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, "
+        "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
+        "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_any_space_1_op_1, "
+        "ndf_any_space_2_op_1, cma_op_2_column_banded_dofmap_to, cma_op_2_column_banded_dofmap_from)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ncell_2d\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
         "      INTEGER, intent(in) :: cma_op_2_nrow, cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p\n"
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1, ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1,"
+        "nlayers) :: cma_op_2_column_banded_dofmap_to\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_2_op_1,"
+        "nlayers) :: cma_op_2_column_banded_dofmap_from\n"
         "    END SUBROUTINE columnwise_op_asm_kernel_code\n"
         "  END MODULE columnwise_op_asm_kernel_mod\n")
     assert expected in str(result)
