@@ -3292,14 +3292,11 @@ class KernStubArgList(ArgOrdering):
         beta = arg.name + "_beta"
         gamma_m = arg.name + "_gamma_m"
         gamma_p = arg.name + "_gamma_p"
-        self._arglist.append(text)
-        self._arglist.append(nrow)
-        self._arglist.append(ncol)
-        self._arglist.append(bandwidth)
-        self._arglist.append(alpha)
-        self._arglist.append(beta)
-        self._arglist.append(gamma_m)
-        self._arglist.append(gamma_p)
+        self._arglist += [text, nrow, ncol, bandwidth, alpha, beta, gamma_m,
+                          gamma_p]
+        if self._kern.cma_operation == "apply":
+            self._arglist += [arg.name+"_indirection_dofmap_to",
+                              arg.name+"_indirection_dofmap_from"]
         intent = arg.intent
         # Declare the associated scalar arguments before the array because
         # some of them are used to dimension the latter (and some compilers

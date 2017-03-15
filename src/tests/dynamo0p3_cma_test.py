@@ -714,12 +714,37 @@ def test_cma_asm_stub_gen():
 
 
 def test_cma_app_stub_gen():
-    ''' Test the kernel-stub generator for a CMA apply kernel '''
+    ''' Test the kernel-stub generator for a CMA apply kernel. This has
+    two fields and one CMA operator as arguments. '''
     result = generate("test_files/dynamo0p3/columnwise_op_app_kernel_mod.F90",
                       api="dynamo0.3")
     print result
-    expected = ("blah")
-    assert 0
+    expected = (
+        "  MODULE columnwise_op_app_kernel_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE columnwise_op_app_kernel_code(cell, ncell_2d, "
+        "field_1_any_space_1_field_1, field_2_any_space_2_field_2, cma_op_3, "
+        "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
+        "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
+        "cma_op_3_indirection_dofmap_to, cma_op_3_indirection_dofmap_from, "
+        "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
+        "map_any_space_1_field_1, ndf_any_space_2_field_2, "
+        "undf_any_space_2_field_2, map_any_space_2_field_2)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: ncell_2d\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_2_field_2\n"
+        "      INTEGER, intent(in) :: undf_any_space_2_field_2\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_any_space_1_field_1) :: field_1_any_space_1_field_1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_any_space_2_field_2) :: field_2_any_space_2_field_2\n"
+        "      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
+        "      INTEGER, intent(in), dimension(xxx) :: cma_op_3_indirection_dofmap_to"
+        "      INTEGER, intent(in), dimension(xxx) :: cma_op_3_indirection_dofmap_from")
+    assert expected in str(result)
 
 
 def test_cma_mul_stub_gen():
