@@ -3253,6 +3253,9 @@ class KernStubArgList(ArgOrdering):
         decl = DeclGen(self._parent, datatype="integer", intent="in",
                        entity_decls=[size])
         self._parent.add(decl)
+        # If this is the first argument in the kernel then keep a
+        # note so that we can put subsequent declarations in the
+        # correct location
         if self._first_arg:
             self._first_arg = False
             self._first_arg_decl = decl
@@ -3287,16 +3290,26 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append(gamma_m)
         self._arglist.append(gamma_p)
         intent = arg.intent
-        # Declare the associated scalar arguments
+        # Declare the associated scalar arguments before the array because
+        # some of them are used to dimension the latter (and some compilers
+        # get upset if this ordering is not followed)
         self._parent.add(DeclGen(self._parent, datatype="integer",
                                  intent="in",
                                  entity_decls=[nrow, ncol, bandwidth, alpha,
                                                beta, gamma_m, gamma_p]))
         # Declare the array that holds the CMA operator
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 dimension=",".join([bandwidth,
-                                                     nrow, "ncell_2d"]),
-                                 intent=intent, entity_decls=[text]))
+        # If this is the first argument in the kernel then keep a
+        # note so that we can put subsequent declarations in the
+        # correct location
+        decl = DeclGen(self._parent, datatype="real", kind="r_def",
+                       dimension=",".join([bandwidth,
+                                           nrow, "ncell_2d"]),
+                       intent=intent, entity_decls=[text])
+        self._parent.add(decl)
+        if self._first_arg:
+            self._first_arg = False
+            self._first_arg_decl = decl
+
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
@@ -3319,14 +3332,16 @@ class KernStubArgList(ArgOrdering):
 
     def fs_compulsory(self, function_space):
         ''' Provide compulsory arguments common to operators and
-        fields on a space. There is one: "ndf".'''
+        fields on a space. There is one: "ndf". The only exception to
+        this are CMA-assembly and CMA-matrix-matrix kenels. '''
         from f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
-        self._arglist.append(ndf_name)
-        self._parent.add(
-            DeclGen(self._parent, datatype="integer", intent="in",
-                    entity_decls=[ndf_name]),
-            position=["before", self._first_arg_decl.root])
+        if self._kern.cma_operation not in ["assembly", "matrix-matrix"]:
+            ndf_name = get_fs_ndf_name(function_space)
+            self._arglist.append(ndf_name)
+            self._parent.add(
+                DeclGen(self._parent, datatype="integer", intent="in",
+                        entity_decls=[ndf_name]),
+                position=["before", self._first_arg_decl.root])
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
