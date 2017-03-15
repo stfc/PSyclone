@@ -3317,9 +3317,9 @@ class KernStubArgList(ArgOrdering):
                                            nrow, "ncell_2d"]),
                        intent=intent, entity_decls=[text])
         self._parent.add(decl)
-        #if self._first_arg:
-        #    self._first_arg = False
-        #    self._first_arg_decl = decl
+        if self._first_arg:
+            self._first_arg = False
+            self._first_arg_decl = decl
 
     def banded_dofmaps(self, arg):
         ''' Declare the banded dofmaps required for the CMA operator
@@ -3327,16 +3327,20 @@ class KernStubArgList(ArgOrdering):
         from f2pygen import DeclGen
         ndf_to = get_fs_ndf_name(arg.function_space_to)
         ndf_from = get_fs_ndf_name(arg.function_space_from)
+        dofmap_to = arg.name + "_column_banded_dofmap_to"
+        dofmap_from = arg.name + "_column_banded_dofmap_from"
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[ndf_to, ndf_from]))
+                                 entity_decls=[ndf_to, ndf_from]),
+                         position=["before", self._first_arg_decl.root])
         self._parent.add(DeclGen(self._parent, datatype="integer",
                                  dimension=",".join([ndf_to, "nlayers"]),
                                  intent="in",
-                                 entity_decls=[arg.name + "_column_banded_dofmap_to"]))
+                                 entity_decls=[dofmap_to]))
         self._parent.add(DeclGen(self._parent, datatype="integer",
                                  dimension=",".join([ndf_from, "nlayers"]),
                                  intent="in",
-                                 entity_decls=[arg.name + "_column_banded_dofmap_from"]))
+                                 entity_decls=[dofmap_from]))
+        self._arglist += [ndf_to, ndf_from, dofmap_to, dofmap_from]
         
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''

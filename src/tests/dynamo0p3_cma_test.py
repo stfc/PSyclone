@@ -692,23 +692,24 @@ def test_cma_asm_stub_gen():
         "ncell_2d, op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, "
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
         "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_any_space_1_op_1, "
-        "ndf_any_space_2_op_1, cma_op_2_column_banded_dofmap_to, cma_op_2_column_banded_dofmap_from)\n"
+        "ndf_any_space_2_op_1, cma_op_2_column_banded_dofmap_to, "
+        "cma_op_2_column_banded_dofmap_from)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ncell_2d\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1, ndf_any_space_2_op_1\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
         "      INTEGER, intent(in) :: cma_op_2_nrow, cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p\n"
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_op_1, ndf_any_space_2_op_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1,"
         "nlayers) :: cma_op_2_column_banded_dofmap_to\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_2_op_1,"
         "nlayers) :: cma_op_2_column_banded_dofmap_from\n"
         "    END SUBROUTINE columnwise_op_asm_kernel_code\n"
-        "  END MODULE columnwise_op_asm_kernel_mod\n")
+        "  END MODULE columnwise_op_asm_kernel_mod")
     assert expected in str(result)
 
 
