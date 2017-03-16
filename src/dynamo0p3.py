@@ -2851,6 +2851,9 @@ class ArgOrdering(object):
         # CMA-assembly requires banded dofmaps
         if self._kern.cma_operation == "assembly":
             self.banded_dofmaps(_cma_op)
+        # Applying a CMA operator requires indirection dofmaps
+        elif self._kern.cma_operation == "apply":
+            self.indirection_dofmaps(_cma_op)
 
     def cell_position(self):
         ''' add cell position information'''
@@ -2945,6 +2948,12 @@ class ArgOrdering(object):
         raise NotImplementedError("Error: ArgOrdering.banded_dofmaps() must"
                                   " be implemented by subclass")
 
+    def indirection_dofmaps(self, arg):
+        ''' Add indirection dofmaps required when applying a CMA operator '''
+        raise NotImplementedError("Error: ArgOrdering.indirection_dofmaps() "
+                                  "must be implemented by subclass")
+
+
 class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
     PSy-layer. The ordering and type of arguments is captured by the base
@@ -3033,15 +3042,6 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(arg.proxy_name_indexed+"%beta")
         self._arglist.append(arg.proxy_name_indexed+"%gamma_m")
         self._arglist.append(arg.proxy_name_indexed+"%gamma_p")
-        # TODO decide whether these column-banded dofmaps should be treated
-        # like our normal dofmaps or just as more args associated with the
-        # CMA operator (being assembled)
-        if self._kern.cma_operation == "apply":
-            self._arglist.append(arg.proxy_name_indexed+
-                                 "%indirection_dofmap_to")
-            self._arglist.append(arg.proxy_name_indexed+
-                                 "%indirection_dofmap_from")
-           
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
@@ -3121,14 +3121,19 @@ class KernCallArgList(ArgOrdering):
     
     def banded_dofmaps(self, arg):
         ''' Add banded dofmaps (required for CMA operator assembly) '''
-        if self._kern.cma_operation != "assembly":
-            return
         self._arglist.append(get_fs_ndf_name(arg.function_space_to))
         self._arglist.append(get_fs_ndf_name(arg.function_space_from))
         self._arglist.append(arg.proxy_name_indexed+
                              "%column_banded_dofmap_to")
         self._arglist.append(arg.proxy_name_indexed+
                              "%column_banded_dofmap_from")
+
+    def indirection_dofmaps(self, arg):
+        ''' Add indirection dofmaps required when applying a CMA operator '''
+        self._arglist.append(arg.proxy_name_indexed+
+                             "%indirection_dofmap_to")
+        self._arglist.append(arg.proxy_name_indexed+
+                             "%indirection_dofmap_from")
 
     @property
     def arglist(self):
@@ -3284,19 +3289,16 @@ class KernStubArgList(ArgOrdering):
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
         from f2pygen import DeclGen
-        text = arg.name
         nrow = arg.name + "_nrow"
-        ncol = text + "_ncol"
+        ncol = arg.name + "_ncol"
         bandwidth = arg.name + "_bandwidth"
         alpha = arg.name + "_alpha"
         beta = arg.name + "_beta"
         gamma_m = arg.name + "_gamma_m"
         gamma_p = arg.name + "_gamma_p"
-        self._arglist += [text, nrow, ncol, bandwidth, alpha, beta, gamma_m,
-                          gamma_p]
-        if self._kern.cma_operation == "apply":
-            self._arglist += [arg.name+"_indirection_dofmap_to",
-                              arg.name+"_indirection_dofmap_from"]
+        self._arglist += [arg.name, nrow, ncol, bandwidth, alpha, beta,
+                          gamma_m, gamma_p]
+
         intent = arg.intent
         # Declare the associated scalar arguments before the array because
         # some of them are used to dimension the latter (and some compilers
@@ -3312,7 +3314,7 @@ class KernStubArgList(ArgOrdering):
         decl = DeclGen(self._parent, datatype="real", kind="r_def",
                        dimension=",".join([bandwidth,
                                            nrow, "ncell_2d"]),
-                       intent=intent, entity_decls=[text])
+                       intent=intent, entity_decls=[arg.name])
         self._parent.add(decl)
         if self._first_arg:
             self._first_arg = False
@@ -3338,7 +3340,25 @@ class KernStubArgList(ArgOrdering):
                                  intent="in",
                                  entity_decls=[dofmap_from]))
         self._arglist += [ndf_to, ndf_from, dofmap_to, dofmap_from]
-        
+
+    def indirection_dofmaps(self, arg):
+        ''' Declare the indirection dofmaps required when applying a
+        CMA operator '''
+        from f2pygen import DeclGen
+        nrow = arg.name + "_nrow"
+        ncol = arg.name + "_ncol"
+        to_name = arg.name + "_indirection_dofmap_to"
+        from_name = arg.name + "_indirection_dofmap_from"
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 dimension=nrow,
+                                 intent="in",
+                                 entity_decls=[to_name]))
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 dimension=ncol,
+                                 intent="in",
+                                 entity_decls=[from_name]))
+        self._arglist += [to_name, from_name]
+
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
         from f2pygen import DeclGen
