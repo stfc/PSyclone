@@ -890,6 +890,9 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	  7) Include banded-matrix parameter ``gamma_p``. This is an integer
 	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
 
+       3) If it is a field or scalar argument then include arguments following
+          the same rules as for general-purpose kernels. 
+	  
     6) Include the required dofmaps and their dimensions:
 
        1) Include ``ndf_to``, the number of degrees of freedom per cell for

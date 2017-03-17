@@ -677,6 +677,13 @@ def test_cma_matrix_matrix():
                 "cma_opc_proxy%gamma_p)") \
             in code
 
+
+def test_cma_multi_kernel():
+    ''' Test that we generate correct code when an invoke contains multiple
+    kernels with CMA operator arguments '''
+    assert 0
+
+
 # Tests for the kernel-stub generator
 
 
@@ -716,6 +723,17 @@ def test_cma_asm_stub_gen():
         "nlayers) :: cma_op_2_column_banded_dofmap_from\n"
         "    END SUBROUTINE columnwise_op_asm_kernel_code\n"
         "  END MODULE columnwise_op_asm_kernel_mod")
+    assert expected in str(result)
+
+
+def test_cma_asm_with_field_stub_gen():
+    ''' Test the kernel-stub generator for CMA operator assembly when a
+    field is involved '''
+    result = generate(
+        "test_files/dynamo0p3/columnwise_op_asm_field_kernel_mod.F90",
+        api="dynamo0.3")
+    print str(result)
+    expected = ()
     assert expected in str(result)
 
 
