@@ -1,4 +1,18 @@
-        1) #846 Bug fix - generate correct logic and code for the call to
+release 1.3.2
+
+	1) #908 Bug fix - ensure that the dynamo0p3 loop colour
+	transformation raises an exception if the loop it is applied to
+	does not iterate over cells.
+
+	2) #923 Change the name of the generated Fortran module containing
+	PSy-layer code for the Dynamo 0.3 API. The name is constructed by
+	appending "_psy" to the Algorithm-layer name. (Previously "psy_"
+	was prepended to it.) The names of modules produced by other
+	PSyclone APIs are unchanged.
+
+release 1.3.1
+
+	1) #846 Bug fix - generate correct logic and code for the call to
 	enforce_bc_kernel after a call to matrix_vector_kernel. Also add
 	w2h and w2v as spaces that cause enforce_bc_kernel to be called in
 	addition to W1 and W2.

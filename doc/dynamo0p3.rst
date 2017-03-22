@@ -154,6 +154,25 @@ For example, running test 19.2 from the dynamo0.3 api test suite gives::
   "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
   Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
 
+PSy-layer
+---------
+
+The general details of the PSy-layer are explained in the
+:ref:`PSy-layer` section. This section describes any dynamo0p3 specific
+issues.
+
+Module name
++++++++++++
+
+The PSy-layer code is contained within a Fortran module. The name of
+the module is determined from the algorithm-layer name with "_psy"
+appended. The algorithm-layer name is the algorithm's module name if it
+is a module, its subroutine name if it is a subroutine that is not
+within a module, or the program name if it is a program.
+
+So, for example, if the algorithm code is contained within a module
+called "fred" then the PSy-layer module name will be "fred_psy".
+
 
 Kernel
 -------
