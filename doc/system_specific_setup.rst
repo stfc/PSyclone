@@ -72,7 +72,7 @@ Install fparser
 ^^^^^^^^^^^^^^^
 
 fparser is also required by PSyclone but is not available from the
-Ubuntu software centre. It must instead be installed from the
+Ubuntu software centre. It can instead be installed from the
 Python Package Index using pip:
 ::
 
@@ -85,6 +85,11 @@ added to the PYTHONPATH, e.g.:
 ::
 
     > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
+
+Alternatively, if pip is not an option, a tarball of the latest release
+may be downloaded from https://github.com/stfc/fparser/releases. Simply
+unpack the tarball and ensure that the resulting
+``fparser-x.y.z/src/fparser`` directory is in your PYTHONPATH.
 
 If you just want to use PSyclone then you've installed all you need
 and you're ready to go to the getting-going :ref:`getting-going-run`

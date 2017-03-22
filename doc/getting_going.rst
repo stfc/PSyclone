@@ -43,7 +43,7 @@ fparser
 
 The fparser package (https://github.com/stfc/fparser) is a Fortran
 parser originally developed as a part of the f2py project. PSyclone
-requires version >= 0.0.1. It is available from the Python Package
+requires version >= 0.0.2. It is available from the Python Package
 Index and thus may be installed using pip
 (https://packaging.python.org/installing/#requirements-for-installing-packages):
 ::
