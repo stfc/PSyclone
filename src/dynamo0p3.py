@@ -821,16 +821,16 @@ class DynKernMetadata(KernelType):
                         "operator arguments) kernels".format(self.name))
                 # The to/from spaces for each LMA operator must
                 # match that of the CMA operator being assembled
-                for lop in lma_read_ops:
-                    if (lop.function_space_to !=
-                            mutable_cma_op.function_space_to or
-                            lop.function_space_from !=
-                            mutable_cma_op.function_space_from):
-                        raise ParseError(
-                            "When assembling a column-wise operator from "
-                            "LMA operators the to and from function "
-                            "spaces must match but this is not the case "
-                            "for kernel {0}".format(self.name))
+                #for lop in lma_read_ops:
+                #    if (lop.function_space_to !=
+                #            mutable_cma_op.function_space_to or
+                #            lop.function_space_from !=
+                #            mutable_cma_op.function_space_from):
+                #        raise ParseError(
+                #            "When assembling a column-wise operator from "
+                #            "LMA operators the to and from function "
+                #            "spaces must match but this is not the case "
+                #            "for kernel {0}".format(self.name))
                 # The kernel must not write to any LMA operators
                 lma_write_ops = psyGen.args_filter(self._arg_descriptors,
                                                    arg_types=["gh_operator"],

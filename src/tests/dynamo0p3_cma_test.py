@@ -177,6 +177,7 @@ def test_cma_mdata_writes_lma_op():
         str(excinfo)
 
 
+@pytest.mark.xfail(reason="Rule on to/from spaces now relaxed.")
 def test_cma_mdata_assembly_wrong_spaces():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if the supplied meta-data
     is assembling a gh_columnwise_operator but the to/from spaces don't
