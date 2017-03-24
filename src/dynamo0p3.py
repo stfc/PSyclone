@@ -3126,8 +3126,12 @@ class KernCallArgList(ArgOrdering):
         # space that appears in the meta-data.
         self._arglist.append(arg.proxy_name_indexed+
                              "%column_banded_dofmap_to")
-        self._arglist.append(arg.proxy_name_indexed+
-                             "%column_banded_dofmap_from")
+        # Only include the column-banded dofmap for the 'from' space if it
+        # differs from the 'to' space.
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
+            self._arglist.append(arg.proxy_name_indexed+
+                                 "%column_banded_dofmap_from")
 
     def indirection_dofmaps(self, arg):
         ''' Add indirection dofmaps required when applying a CMA operator '''
@@ -3329,18 +3333,17 @@ class KernStubArgList(ArgOrdering):
         ndf_from = get_fs_ndf_name(arg.function_space_from)
         dofmap_to = arg.name + "_column_banded_dofmap_to"
         dofmap_from = arg.name + "_column_banded_dofmap_from"
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[ndf_to, ndf_from]),
-                         position=["before", self._first_arg_decl.root])
         self._parent.add(DeclGen(self._parent, datatype="integer",
                                  dimension=",".join([ndf_to, "nlayers"]),
                                  intent="in",
                                  entity_decls=[dofmap_to]))
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=",".join([ndf_from, "nlayers"]),
-                                 intent="in",
-                                 entity_decls=[dofmap_from]))
-        self._arglist += [ndf_to, ndf_from, dofmap_to, dofmap_from]
+        self._arglist.append(dofmap_to)
+        if arg.function_space_to != arg.function_space_from:
+            self._parent.add(DeclGen(self._parent, datatype="integer",
+                                     dimension=",".join([ndf_from, "nlayers"]),
+                                     intent="in",
+                                     entity_decls=[dofmap_from]))
+            self._arglist.append(dofmap_from)
 
     def indirection_dofmaps(self, arg):
         ''' Declare the indirection dofmaps required when applying a
@@ -3382,9 +3385,9 @@ class KernStubArgList(ArgOrdering):
     def fs_compulsory(self, function_space):
         ''' Provide compulsory arguments common to operators and
         fields on a space. There is one: "ndf". The only exception to
-        this are CMA-assembly and CMA-matrix-matrix kenels. '''
+        this are CMA-matrix-matrix kenels. '''
         from f2pygen import DeclGen
-        if self._kern.cma_operation not in ["assembly", "matrix-matrix"]:
+        if self._kern.cma_operation not in ["matrix-matrix"]:
             ndf_name = get_fs_ndf_name(function_space)
             self._arglist.append(ndf_name)
             self._parent.add(
