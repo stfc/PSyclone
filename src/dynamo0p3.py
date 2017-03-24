@@ -3028,6 +3028,8 @@ class KernCallArgList(ArgOrdering):
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
+        # TODO we should only be including ncell_3d once in the argument
+        # list but this adds it for every operator
         self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
         self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
 
@@ -3051,11 +3053,9 @@ class KernCallArgList(ArgOrdering):
     def fs_compulsory(self, function_space):
         '''add compulsory arguments common to operators and
         fields on a space.'''
-        if self._kern.cma_operation not in ["assembly", "matrix-matrix"]:
+        if self._kern.cma_operation not in ["matrix-matrix"]:
             # There is currently one compulsory argument: "ndf" but only
             # if this is not a CMA-related kernel
-            # TODO We will need this ndf if there is a field on this
-            # space
             ndf_name = get_fs_ndf_name(function_space)
             self._arglist.append(ndf_name)
 
@@ -3121,8 +3121,9 @@ class KernCallArgList(ArgOrdering):
     
     def banded_dofmaps(self, arg):
         ''' Add banded dofmaps (required for CMA operator assembly) '''
-        self._arglist.append(get_fs_ndf_name(arg.function_space_to))
-        self._arglist.append(get_fs_ndf_name(arg.function_space_from))
+        # Note that the necessary ndf values will already have been added
+        # to the argument list as they are mandatory for every function
+        # space that appears in the meta-data.
         self._arglist.append(arg.proxy_name_indexed+
                              "%column_banded_dofmap_to")
         self._arglist.append(arg.proxy_name_indexed+

@@ -607,6 +607,46 @@ def test_cma_asm():
                 "cma_op1_proxy%column_banded_dofmap_from)") in code
 
 
+def test_cma_asm_field():
+    ''' Test that we generate correct code for an invoke containing
+    a kernel that assembles a CMA operator with a field as argument '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.3_cma_assembly_field.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+                "columnwise_operator_type, columnwise_operator_proxy_type") \
+            in code
+        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+            in code
+        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert "INTEGER ncell_2d" in code
+        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+        expected =  ("CALL columnwise_op_asm_field_kernel_code(cell, "
+                     "nlayers, ncell_2d, "
+                     "afield_proxy%data, lma_op1_proxy%ncell_3d, "
+                     "lma_op1_proxy%local_stencil, "
+                     "cma_op1_proxy%columnwise_matrix, "
+                     "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
+                     "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
+                     "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
+                     "cma_op1_proxy%gamma_p, ndf_any_space_1_afield, "
+                     "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
+                     "ndf_any_space_2_lma_op1, "
+                     "cma_op1_proxy%column_banded_dofmap_to, "
+                     "cma_op1_proxy%column_banded_dofmap_from)")
+        print expected
+        assert expected in code
+
+
 def test_cma_apply():
     ''' Test that we generate correct code for an invoke containing
     a kernel that applies a CMA operator '''
@@ -699,7 +739,8 @@ def test_cma_asm_stub_gen():
         "    SUBROUTINE columnwise_op_asm_kernel_code(cell, nlayers, "
         "ncell_2d, op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, "
         "cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
-        "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_any_space_1_op_1, "
+        "cma_op_2_gamma_m, cma_op_2_gamma_p, ndf_any_space_1_field_1, "
+        "undf_any_space_1_field_1, dofmap_any_space_1_field_1, "
         "ndf_any_space_2_op_1, cma_op_2_column_banded_dofmap_to, "
         "cma_op_2_column_banded_dofmap_from)\n"
         "      USE constants_mod, ONLY: r_def\n"
@@ -710,7 +751,7 @@ def test_cma_asm_stub_gen():
         "      INTEGER, intent(in) :: ndf_any_space_1_op_1, "
         "ndf_any_space_2_op_1\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_field_1,"
         "ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
         "      INTEGER, intent(in) :: cma_op_2_nrow, cma_op_2_ncol, "
         "cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m,"

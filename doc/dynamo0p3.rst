@@ -893,20 +893,33 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
        3) If it is a field or scalar argument then include arguments following
           the same rules as for general-purpose kernels. 
 	  
-    6) Include the required dofmaps and their dimensions:
+    6) For each unique function space in the order they appear in the
+       metadata arguments (the ``to`` function space of an operator is
+       considered to be before the ``from`` function space of the same
+       operator as it appears first in lexicographic order):
 
-       1) Include ``ndf_to``, the number of degrees of freedom per cell for
-	  the to-space of the CMA operator. This is an integer with intent
-	  ``in``.
-       2) Include ``ndf_from``, the number of degrees of freedom per cell for
-	  the from-space of the CMA operator. This is an integer with intent
-	  ``in``.
-       3) Include ``column_banded_dofmap_to``, the list of offsets for the
-	  to-space. This is an integer array of rank 2. The first dimension
-	  is ``ndf_to`` and the second is ``nlayers``.
-       4) Include ``column_banded_dofmap_from``, the list of offsets for the
-	  from-space. This is an integer array of rank 2. The first dimension
-	  is ``ndf_from`` and the second is ``nlayers``.
+       1) Include the number of degrees of freedom per cell for
+	  the space. This is an integer with intent ``in``. The name of this
+	  argument is ``"ndf_"<arg_function_space>``.
+
+       2) If there is a field on this space then:
+
+	  1) Include the unique number of degrees of freedom for the
+ 	     function space. This is an integer and has intent ``in``.
+             The name of this argument is ``"undf_"<field_function_space>``.
+
+	  2) Include the dofmap for this space. This is an integer array
+	     with intent ``in``. It has one dimension sized by the local
+	     degrees of freedom for the function space.
+
+    7) Include ``column_banded_dofmap_to``, the list of offsets for the
+       to-space of the CMA operator. This is an integer array of rank 2. The
+       first dimension is ``ndf_xxx`` and the second is ``nlayers``.
+
+    8) Include ``column_banded_dofmap_from``, the list of offsets for
+       the from-space of the CMA operator. This is an integer array of
+       rank 2. The first dimension is ``ndf_xxx`` and the second is
+       ``nlayers``.
 
 Application/Inverse-Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

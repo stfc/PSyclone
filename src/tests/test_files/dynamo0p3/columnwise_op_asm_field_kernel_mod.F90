@@ -40,7 +40,7 @@
 !> @brief Kernel which assembles a locally assembled matrix (LMA) into a
 !! columnwise assembled matrix (CMA). Takes a read-only field as argument too.
 
-module columnwise_op_asm_kernel_mod
+module columnwise_op_asm_field_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                    &
@@ -58,7 +58,7 @@ implicit none
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
+type, public, extends(kernel_type) :: columnwise_op_asm_field_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                        &
        arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_1),              &
@@ -67,7 +67,7 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass :: columnwise_op_asm_kernel_code
+  procedure, nopass :: columnwise_op_asm_field_kernel_code
 end type
 
 !-------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ end interface
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_asm_kernel_code
+public columnwise_op_asm_field_kernel_code
 contains
   
   type(columnwise_op_asm_kernel_type) function columnwise_constructor() result(self)
@@ -114,41 +114,41 @@ contains
   !> @param [in] ndf_from number of degrees of freedom per cell for the from-sp
   !> @param [in] column_banded_dofmap_to list of offsets for to-space
   !> @param [in] column_banded_dofmap_from list of offsets for from-space
-  subroutine columnwise_op_asm_kernel_code(cell,              &
-                                           nlayers,           &
-                                           ncell_3d,          &
-                                           ncell_2d,          &
-                                           field,             &
-                                           local_stencil,     &
-                                           columnwise_matrix, &
-                                           nrow,              &
-                                           ncol,              &
-                                           bandwidth,         &
-                                           alpha,             &
-                                           beta,              &
-                                           gamma_m,           &
-                                           gamma_p,           &
-                                           undf, ndf,         &
-                                           dofmap_field,      &
-                                           ndf_to,            &
-                                           ndf_from,          &
-                                           column_banded_dofmap_to, &
-                                           column_banded_dofmap_from)
+  subroutine columnwise_op_asm_field_kernel_code(cell,              &
+                                            nlayers,           &
+                                            ncell_2d,          &
+                                            ncell_3d,          &
+                                            field,             &
+                                            local_stencil,     &
+                                            columnwise_matrix, &
+                                            nrow,              &
+                                            ncol,              &
+                                            bandwidth,         &
+                                            alpha,             &
+                                            beta,              &
+                                            gamma_m,           &
+                                            gamma_p,           &
+                                            undf, ndf,         & ! any_space_1
+                                            dofmap_field,      &
+                                            ndf_lma_from,      & ! any_space_2
+                                            column_banded_dofmap_to, &
+                                            column_banded_dofmap_from)
 
     implicit none
     
     ! Arguments
     integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
-    real(kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in) :: local_stencil
+    integer(kind=i_def), intent(in) :: ndf_lma_to, ndf_lma_from
+    integer(kind=i_def), intent(in) :: ndf_to, ndf_from
+    real(kind=r_def), dimension(ndf_lma_to,ndf_lma_from,ncell_3d), intent(in) :: local_stencil
     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
     real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
-    integer(kind=i_def), intent(in) :: ndf_to, ndf_from
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
     integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
 
     write (*,*) "Hello CMA World"
 
-  end subroutine columnwise_op_asm_kernel_code
+  end subroutine columnwise_op_asm_field_kernel_code
 
-end module columnwise_op_asm_kernel_mod
+end module columnwise_op_asm_field_kernel_mod
