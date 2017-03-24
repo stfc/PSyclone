@@ -763,22 +763,23 @@ def test_field_fs():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
-        "m3)\n"
+        "m3, m4)\n"
         "      USE testkern_fs, ONLY: testkern_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f3\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
-        "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v\n"
+        "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v, "
+        "ndf_any_w2, undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
-        "f3_proxy, f4_proxy, m3_proxy\n"
+        "f3_proxy, f4_proxy, m3_proxy, m4_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_wtheta(:,:) => null(), "
-        "map_w1(:,:) => null(), map_w2v(:,:) => null(), "
-        "map_w2h(:,:) => null()\n"
+        "map_w1(:,:) => null(), map_any_w2(:,:) => null(), "
+        "map_w2v(:,:) => null(), map_w2h(:,:) => null()\n"
         "      !\n"
         "      ! Initialise field proxies\n"
         "      !\n"
@@ -789,6 +790,7 @@ def test_field_fs():
         "      f3_proxy = f3%get_proxy()\n"
         "      f4_proxy = f4%get_proxy()\n"
         "      m3_proxy = m3%get_proxy()\n"
+        "      m4_proxy = m4%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -804,6 +806,7 @@ def test_field_fs():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_any_w2 => m4_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
@@ -837,6 +840,11 @@ def test_field_fs():
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for any_w2\n"
+        "      !\n"
+        "      ndf_any_w2 = m4_proxy%vspace%get_ndf()\n"
+        "      undf_any_w2 = m4_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
@@ -859,14 +867,19 @@ def test_field_fs():
         "        CALL m3_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
+        "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m4_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
-        "m3_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+        "m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
         "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), "
-        "ndf_w2v, undf_w2v, map_w2v(:,cell))\n"
+        "ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_any_w2, undf_any_w2, "
+        "map_any_w2(:,cell))\n"
         "      END DO \n"
         "      !\n"
         "      ! Set halos dirty for fields modified in the above loop\n"
@@ -5903,8 +5916,8 @@ def test_dynloop_load_unexpected_function_space():
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v'] but "
-            "found 'broken'" in str(err))
+            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v', "
+            "'any_w2'] but found 'broken'" in str(err))
 
 
 def test_dynkernelarguments_unexpected_stencil_extent():
@@ -6342,3 +6355,10 @@ def test_kernstubarglist_arglist_error():
         "Internal error. The argument list in KernStubArgList:arglist() is "
         "empty. Has the generate() method been "
         "called?") in str(excinfo.value)
+
+# test that the new any_w2 space is accepted and produces the expected psy code
+# test that enforce_bc_kernel is called if matrix_vector_kernel is used with
+# any_w2
+# test that basis functions get the correct dimension with any_w2 space
+# test that differential basis functions get the correct dimension with any_w2 space
+# test that stub generation works with any_w2 space.
