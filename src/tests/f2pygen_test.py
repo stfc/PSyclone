@@ -1077,8 +1077,8 @@ def test_selectiongen_addcase():
     sgen.addcase("1")
     gen = str(sub.root)
     print gen
-    expected = ("SELECT CASE ( my_var )\n"
-                "CASE ( 1 )\n"
+    expected = ("      SELECT CASE ( my_var )\n"
+                "        CASE ( 1 )\n"
                 "      END SELECT")
     assert expected in gen
 
