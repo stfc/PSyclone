@@ -3,7 +3,8 @@
 System-specific set-up
 ======================
 
-This section provides system-specific information on how to set-up your system to use PSyclone.
+This section provides system-specific information on how to set-up
+your system to use PSyclone.
 
 Ubuntu 14.04.3
 --------------
@@ -74,6 +75,16 @@ Install fparser
 fparser is also required by PSyclone but is not available from the
 Ubuntu software centre. It can instead be installed from the
 Python Package Index using pip:
+::
+
+    > pip install fparser
+
+Uninstalling is simply a matter of doing:
+::
+    > pip uninstall fparser
+
+If you do not have sufficient privileges for a system-wide install then
+you can do:
 ::
 
     > pip install --user fparser
@@ -184,5 +195,10 @@ Finally, install useful pytest extensions using pip:
 If you don't have root access then you can specify the ``--user`` argument to
 install packages in a user-local directory -- see the instructions on
 :ref:`install_fparser` above.
+
+Should you wish to remove the above packages at any point, simply instruct
+pip to uninstall them, e.g.:
+::
+    > sudo pip uninstall pytest-cov
 
 OK, you're all set up.

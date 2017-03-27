@@ -44,11 +44,19 @@ fparser
 The fparser package (https://github.com/stfc/fparser) is a Fortran
 parser originally developed as a part of the f2py project. PSyclone
 requires version >= 0.0.2. It is available from the Python Package
-Index and thus may be installed using pip
+Index and thus may be installed using ``pip``
 (https://packaging.python.org/installing/#requirements-for-installing-packages):
 ::
+    > pip install fparser
 
+If you do not have sufficient permissions to perform a system-wide install
+then you can instruct pip to do a user-local install:
+::
     > pip install --user fparser
+
+Should you wish to remove fparser then simply do:
+::
+    > pip uninstall fparser
 
 (See :ref:`install_fparser` for more details.)
 
@@ -66,14 +74,23 @@ You can test whether pyparsing is already installed on your machine by
 typing ``import pyparsing`` from the python command line. If pyparsing
 is installed, this command will complete succesfully. If pyparsing is
 installed you can check its version by typing
-``pyparsing.__version__`` after succesfully importing it. Versions
-higher than 1.5.2 should work but have not been tested.
+``pyparsing.__version__`` after succesfully importing it.
 
-If pyparsing is not installed on your system you can install it from
-within Ubuntu using the software center (search for the
-"python-pyparsing" module in the software center and install). It is
-also available from the Python Package Index using
-``pip``. Alternatively, you could follow the instructions here
+If pyparsing is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+    > pip install pyparsing
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+    > pip uninstall pyparsing
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct pip to do a user-local install:
+::
+    > pip install --user pyparsing
+
+Alternatively, you could follow the instructions here
 http://pyparsing.wikispaces.com/Download+and+Installation.
 
 py.test
