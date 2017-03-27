@@ -763,7 +763,17 @@ def test_cma_matrix_matrix():
 def test_cma_multi_kernel():
     ''' Test that we generate correct code when an invoke contains multiple
     kernels with CMA operator arguments '''
-    assert 0
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.5_multi_cma_invoke.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert 0
 
 
 # Tests for the kernel-stub generator
