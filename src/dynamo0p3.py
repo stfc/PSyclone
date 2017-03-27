@@ -826,16 +826,23 @@ class DynKernMetadata(KernelType):
                     raise ParseError(
                         "Kernel {0} assembles a column-wise operator but "
                         "also writes to {1} argument(s). This is not "
-                        "allowed.".format(self.name, write_args))
-                # No field vectors are permitted
+                        "allowed.".format(self.name,
+                                          [arg.type for arg in write_args]))
                 for arg in self._arg_descriptors:
+                    # No vector arguments are permitted
                     if arg.vector_size > 1:
-                        print dir(arg)
                         raise ParseError(
                             "Kernel {0} assembles a CMA operator but has a "
                             "vector argument ({1}). This is not permitted.".
                             format(self.name,
                                    arg.type+"*"+str(arg.vector_size)))
+                    # No stencil accesses are permitted
+                    if arg.stencil:
+                        raise ParseError(
+                            "Kernel {0} assembles a CMA operator but "
+                            "specifies a stencil access ({1}) on a field "
+                            "argument. This is not permitted.".
+                            format(self.name, arg.stencil['type']))
                 return "assembly"
         else:
             raise ParseError(

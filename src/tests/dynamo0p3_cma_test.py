@@ -172,9 +172,10 @@ def test_cma_mdata_writes_lma_op():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
     assert ("Kernel testkern_cma_type assembles a column-wise operator but "
-            "also writes to a LMA operator. This is not allowed.") in \
-        str(excinfo)
+            "also writes to ['gh_operator'] argument(s). This is not "
+            "allowed.") in str(excinfo)
 
 
 def test_cma_mdata_assembly_diff_spaces():  # pylint: disable=invalid-name
@@ -229,9 +230,9 @@ def test_cma_mdata_asm_stencil_error(): # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type assembles a CMA operator but has a "
-            "field with a stencil access. This is not permitted.") in \
-        str(excinfo)
+    assert ("Kernel testkern_cma_type assembles a CMA operator but specifies "
+            "a stencil access (x1d) on a field argument. This is not "
+            "permitted.") in str(excinfo)
 
 
 CMA_APPLY = '''
