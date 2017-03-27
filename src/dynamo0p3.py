@@ -805,10 +805,7 @@ class DynKernMetadata(KernelType):
                                      "and therefore should only have one CMA "
                                      "operator argument but found {1}".
                                      format(self.name, len(cwise_ops)))
-                # kernel arguments must be LMA operators
-
-                # we need at
-                # least one read-only LMA operator
+                # We need at least one read-only LMA operator
                 lma_read_ops = psyGen.args_filter(self._arg_descriptors,
                                                   arg_types=["gh_operator"],
                                                   arg_accesses=["gh_read"])
@@ -819,28 +816,26 @@ class DynKernMetadata(KernelType):
                         "has arguments other than CMA operators) or for "
                         "assembly (it does not have any read-only LMA "
                         "operator arguments) kernels".format(self.name))
-                # The to/from spaces for each LMA operator must
-                # match that of the CMA operator being assembled
-                #for lop in lma_read_ops:
-                #    if (lop.function_space_to !=
-                #            mutable_cma_op.function_space_to or
-                #            lop.function_space_from !=
-                #            mutable_cma_op.function_space_from):
-                #        raise ParseError(
-                #            "When assembling a column-wise operator from "
-                #            "LMA operators the to and from function "
-                #            "spaces must match but this is not the case "
-                #            "for kernel {0}".format(self.name))
-                # The kernel must not write to any LMA operators
-                lma_write_ops = psyGen.args_filter(self._arg_descriptors,
-                                                   arg_types=["gh_operator"],
-                                                   arg_accesses=["gh_inc",
-                                                                 "gh_write"])
-                if lma_write_ops:
+                # The kernel must not write to any args other than the CMA
+                # operator
+                write_args = psyGen.args_filter(
+                    self._arg_descriptors,
+                    arg_types=["gh_operator", "gh_field", "gh_scalar"],
+                    arg_accesses=["gh_inc", "gh_write"])
+                if write_args:
                     raise ParseError(
                         "Kernel {0} assembles a column-wise operator but "
-                        "also writes to a LMA operator. This is not "
-                        "allowed.".format(self.name))
+                        "also writes to {1} argument(s). This is not "
+                        "allowed.".format(self.name, write_args))
+                # No field vectors are permitted
+                for arg in self._arg_descriptors:
+                    if arg.vector_size > 1:
+                        print dir(arg)
+                        raise ParseError(
+                            "Kernel {0} assembles a CMA operator but has a "
+                            "vector argument ({1}). This is not permitted.".
+                            format(self.name,
+                                   arg.type+"*"+str(arg.vector_size)))
                 return "assembly"
         else:
             raise ParseError(
