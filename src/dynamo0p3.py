@@ -781,6 +781,21 @@ class DynKernMetadata(KernelType):
                     "does not match the 'to' space of the operator "
                     "({2})".format(self.name, farg_write[0].function_space,
                                    cma_op.function_space_to))
+            if farg_read[0].stencil:
+                raise ParseError("Kernel {0} applies a CMA operator but has a "
+                                 "field argument with a stencil access ({1}). "
+                                 "This is forbidden.".
+                                 format(self.name,
+                                        farg_read[0].stencil['type']))
+            if farg_read[0].vector_size > 1 or farg_write[0].vector_size > 1:
+                if farg_read[0].vector_size > 1:
+                    _arg = farg_read[0]
+                else:
+                    _arg = farg_write[0]
+                raise ParseError("Kernel {0} applies a CMA operator but has a "
+                                 "vector argument ({1}). This is forbidden.".
+                                 format(self.name,
+                                        _arg.type+"*"+str(_arg.vector_size)))
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
         elif write_count == 1:

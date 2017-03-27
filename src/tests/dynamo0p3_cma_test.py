@@ -383,6 +383,37 @@ def test_cma_mdata_apply_wrong_spaces():  # pylint: disable=invalid-name
             "space of the operator (any_space_2)") in str(excinfo)
 
 
+def test_cma_mdata_apply_fld_vector_error():  # pylint: disable=invalid-name
+    ''' Check that we raise the expected error if the meta-data for a kernel
+    that applies a CMA operator contains a field vector argument '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)",
+                             "arg_type(GH_FIELD*3,  GH_INC,  ANY_SPACE_1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type applies a CMA operator but has a "
+            "vector argument (gh_field*3). This is forbidden.") in str(excinfo)
+
+
+def test_cma_mdata_apply_fld_stencil_error():  # pylint: disable=invalid-name
+    ''' Check that we raise the expected error if the meta-data for a kernel
+    that applies a CMA operator contains a field argument with a stencil
+    access '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_APPLY.replace(
+        "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2)",
+        "arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2, STENCIL(X1D))", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type applies a CMA operator but has a "
+            "field argument with a stencil access (x1d). This is "
+            "forbidden.") in str(excinfo)
+
+
 CMA_MATRIX = '''
 module testkern_cma_matrix_matrix
   type, extends(kernel_type) :: testkern_cma_type
