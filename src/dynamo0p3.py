@@ -1716,7 +1716,8 @@ class DynInvoke(Invoke):
         # of columns in the mesh
         if cma_op:
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Initialise number of cols"))
+            invoke_sub.add(CommentGen(invoke_sub,
+                                      " Initialise number of cols"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             ncol_name = self._name_space_manager.create_name(
                 root_name="ncell_2d", context="PSyVars", label="ncell_2d")
@@ -2774,8 +2775,10 @@ class ArgOrdering(object):
             self.mesh_height()
         # Pass the number of cells in the mesh if this kernel has a
         # LMA operator argument
-        #if self._kern.arguments.has_operator(op_type="gh_operator"):
-        #    self.mesh_ncell3d()
+        # TODO this code should replace the code that currently includes
+        # this quantity for *every* operator it encounters.
+        # if self._kern.arguments.has_operator(op_type="gh_operator"):
+        #     self.mesh_ncell3d()
         # Pass the number of columns in the mesh if this kernel has a CMA
         # operator argument
         if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
@@ -2942,7 +2945,7 @@ class ArgOrdering(object):
         '''add qr information'''
         raise NotImplementedError(
             "Error: ArgOrdering.quad_rule() must be implemented by subclass")
-    
+
     def banded_dofmaps(self, arg):
         ''' Add banded dofmaps (required for CMA operator assembly) '''
         raise NotImplementedError("Error: ArgOrdering.banded_dofmaps() must"
@@ -3122,26 +3125,26 @@ class KernCallArgList(ArgOrdering):
                               self._kern.qr_args["nv"],
                               self._kern.qr_args["h"],
                               self._kern.qr_args["v"]])
-    
+
     def banded_dofmaps(self, arg):
         ''' Add banded dofmaps (required for CMA operator assembly) '''
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        self._arglist.append(arg.proxy_name_indexed+
+        self._arglist.append(arg.proxy_name_indexed +
                              "%column_banded_dofmap_to")
         # Only include the column-banded dofmap for the 'from' space if it
         # differs from the 'to' space.
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            self._arglist.append(arg.proxy_name_indexed+
+            self._arglist.append(arg.proxy_name_indexed +
                                  "%column_banded_dofmap_from")
 
     def indirection_dofmaps(self, arg):
         ''' Add indirection dofmaps required when applying a CMA operator '''
-        self._arglist.append(arg.proxy_name_indexed+
+        self._arglist.append(arg.proxy_name_indexed +
                              "%indirection_dofmap_to")
-        self._arglist.append(arg.proxy_name_indexed+
+        self._arglist.append(arg.proxy_name_indexed +
                              "%indirection_dofmap_from")
 
     @property
@@ -3298,19 +3301,24 @@ class KernStubArgList(ArgOrdering):
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
         from f2pygen import DeclGen
+        # The CMA operator itself
+        self._arglist.append(arg.name)
+        # Associated scalar parameters
         nrow = arg.name + "_nrow"
-        self._arglist += [arg.name, nrow]
-        if arg.function_space_to != arg.function_space_from:
+        _local_args = [nrow]
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
             # If the to- and from-spaces are the same then so are ncol and
             # nrow so we only pass one of them
             ncol = arg.name + "_ncol"
-            self._arglist.append(ncol)
+            _local_args.append(ncol)
         bandwidth = arg.name + "_bandwidth"
         alpha = arg.name + "_alpha"
         beta = arg.name + "_beta"
         gamma_m = arg.name + "_gamma_m"
         gamma_p = arg.name + "_gamma_p"
-        self._arglist += [bandwidth, alpha, beta, gamma_m, gamma_p]
+        _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
+        self._arglist += _local_args
 
         intent = arg.intent
         # Declare the associated scalar arguments before the array because
@@ -3318,8 +3326,7 @@ class KernStubArgList(ArgOrdering):
         # get upset if this ordering is not followed)
         self._parent.add(DeclGen(self._parent, datatype="integer",
                                  intent="in",
-                                 entity_decls=[nrow, ncol, bandwidth, alpha,
-                                               beta, gamma_m, gamma_p]))
+                                 entity_decls=_local_args))
         # Declare the array that holds the CMA operator
         # If this is the first argument in the kernel then keep a
         # note so that we can put subsequent declarations in the
@@ -3346,7 +3353,10 @@ class KernStubArgList(ArgOrdering):
                                  intent="in",
                                  entity_decls=[dofmap_to]))
         self._arglist.append(dofmap_to)
-        if arg.function_space_to != arg.function_space_from:
+        # We only include both the banded dofmaps for both the to- and from-
+        # spaces if they are different
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
             self._parent.add(DeclGen(self._parent, datatype="integer",
                                      dimension=",".join([ndf_from, "nlayers"]),
                                      intent="in",

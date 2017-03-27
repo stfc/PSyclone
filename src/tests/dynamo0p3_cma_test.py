@@ -864,7 +864,38 @@ def test_cma_asm_same_fs_stub_gen():
                       "columnwise_op_asm_same_fs_kernel_mod.F90",
                       api="dynamo0.3")
     print str(result)
-    assert 0
+    expected = (
+        "  MODULE columnwise_op_asm_same_fs_kernel_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE columnwise_op_asm_same_fs_kernel_code(cell, nlayers, "
+        "ncell_2d, op_1_ncell_3d, op_1, field_2_any_space_1_op_1, cma_op_3, "
+        "cma_op_3_nrow, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
+        "cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_any_space_1_op_1, "
+        "undf_any_space_1_op_1, map_any_space_1_op_1, ndf_any_space_2_op_1, "
+        "cma_op_3_column_banded_dofmap_to)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ncell_2d\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
+        "      INTEGER, intent(in) :: undf_any_space_1_op_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: op_1_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,"
+        "ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_any_space_1_op_1) "
+        ":: field_2_any_space_1_op_1\n"
+        "      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_bandwidth, "
+        "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
+        "      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth,"
+        "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1) :: "
+        "map_any_space_1_op_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_2_op_1,nlayers) "
+        ":: cma_op_3_column_banded_dofmap_to\n")
+    assert expected in str(result)
 
 
 def test_cma_app_stub_gen():
