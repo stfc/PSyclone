@@ -3038,7 +3038,11 @@ class KernCallArgList(ArgOrdering):
         list '''
         self._arglist.append(arg.proxy_name_indexed+"%columnwise_matrix")
         self._arglist.append(arg.proxy_name_indexed+"%nrow")
-        self._arglist.append(arg.proxy_name_indexed+"%ncol")
+        # If the to- and from-spaces are the same then so are nrow and
+        # ncolumn so only pass one of them
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
+            self._arglist.append(arg.proxy_name_indexed+"%ncol")
         self._arglist.append(arg.proxy_name_indexed+"%bandwidth")
         self._arglist.append(arg.proxy_name_indexed+"%alpha")
         self._arglist.append(arg.proxy_name_indexed+"%beta")
@@ -3295,14 +3299,18 @@ class KernStubArgList(ArgOrdering):
         ''' add the CMA operator arguments to the argument list '''
         from f2pygen import DeclGen
         nrow = arg.name + "_nrow"
-        ncol = arg.name + "_ncol"
+        self._arglist += [arg.name, nrow]
+        if arg.function_space_to != arg.function_space_from:
+            # If the to- and from-spaces are the same then so are ncol and
+            # nrow so we only pass one of them
+            ncol = arg.name + "_ncol"
+            self._arglist.append(ncol)
         bandwidth = arg.name + "_bandwidth"
         alpha = arg.name + "_alpha"
         beta = arg.name + "_beta"
         gamma_m = arg.name + "_gamma_m"
         gamma_p = arg.name + "_gamma_p"
-        self._arglist += [arg.name, nrow, ncol, bandwidth, alpha, beta,
-                          gamma_m, gamma_p]
+        self._arglist += [bandwidth, alpha, beta, gamma_m, gamma_p]
 
         intent = arg.intent
         # Declare the associated scalar arguments before the array because

@@ -677,7 +677,7 @@ def test_cma_asm_field_same_fs():
                      "lma_op1_proxy%ncell_3d, "
                      "lma_op1_proxy%local_stencil, afield_proxy%data, "
                      "cma_op1_proxy%columnwise_matrix, "
-                     "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
+                     "cma_op1_proxy%nrow, "
                      "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
                      "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
                      "cma_op1_proxy%gamma_p, ndf_any_space_1_lma_op1, "
