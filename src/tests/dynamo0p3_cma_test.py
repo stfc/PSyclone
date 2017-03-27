@@ -40,6 +40,12 @@
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
+
 import pytest
 import fparser
 from fparser import api as fpapi
@@ -172,7 +178,6 @@ def test_cma_mdata_writes_lma_op():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    print str(excinfo)
     assert ("Kernel testkern_cma_type assembles a column-wise operator but "
             "also writes to ['gh_operator'] argument(s). This is not "
             "allowed.") in str(excinfo)
@@ -201,7 +206,7 @@ def test_cma_mdata_assembly_diff_spaces():  # pylint: disable=invalid-name
     assert dkm._cma_operation == "assembly"
 
 
-def test_cma_mdata_asm_fld_vector_error(): # pylint: disable=invalid-name
+def test_cma_mdata_asm_fld_vector_error():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if a kernel assembling a
     CMA operator reads from a field vector'''
     fparser.logging.disable('CRITICAL')
@@ -218,7 +223,7 @@ def test_cma_mdata_asm_fld_vector_error(): # pylint: disable=invalid-name
         str(excinfo)
 
 
-def test_cma_mdata_asm_stencil_error(): # pylint: disable=invalid-name
+def test_cma_mdata_asm_stencil_error():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if a kernel assembling a
     CMA operator specifies a stencil access on a field'''
     fparser.logging.disable('CRITICAL')
@@ -417,13 +422,13 @@ def test_cma_mdata_matrix_prod():
     assert dkm._cma_operation == "matrix-matrix"
 
 
-def test_cma_mdata_matrix_too_few_args():
+def test_cma_mdata_matrix_too_few_args():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error when there are too few
     arguments specified in meta-data '''
     fparser.logging.disable('CRITICAL')
     code = CMA_MATRIX.replace(
         "       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-        "ANY_SPACE_2),&\n","",2)
+        "ANY_SPACE_2),&\n", "", 2)
     code = code.replace("meta_args(3)", "meta_args(1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
@@ -442,7 +447,7 @@ def test_cma_mdata_matrix_field_arg():
     fparser.logging.disable('CRITICAL')
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-        "ANY_SPACE_2)","arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)",1)
+        "ANY_SPACE_2)", "arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
