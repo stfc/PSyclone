@@ -22,23 +22,24 @@ together, or click the top left "search" icon and type "terminal".
 Install PSyclone
 ^^^^^^^^^^^^^^^^
 
-You will need subversion to download the PSyclone software. In the
-terminal type:
-::
-
-    > sudo apt-get install subversion
-
-Check out a copy of PSyclone to your required location (where
+Change directory to where you would like to place the code (where
 <PSYCLONEHOME> refers to where you would like to place the code):
 ::
 
    > cd <PSYCLONEHOME>
-   > svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/trunk PSyclone_trunk
+
+Now download and extract the latest release of PSyclone:
+::
+
+   > wget https://github.com/stfc/PSyclone/archive/1.3.2.tar.gz
+   > gunzip 1.3.2.tar.gz
+   > tar xf 1.3.2.tar
+   > rm 1.3.2.tar
 
 Set your python path appropriately:
 ::
 
-   > cd PSyclone_trunk
+   > cd PSyclone-1.3.2
    > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
 
 You may want to set your python path permanently (e.g. by editing your
