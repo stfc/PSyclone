@@ -177,31 +177,27 @@ def test_cma_mdata_writes_lma_op():
         str(excinfo)
 
 
-@pytest.mark.xfail(reason="Rule on to/from spaces now relaxed.")
-def test_cma_mdata_assembly_wrong_spaces():  # pylint: disable=invalid-name
-    ''' Check that we raise the expected error if the supplied meta-data
+def test_cma_mdata_assembly_diff_spaces():  # pylint: disable=invalid-name
+    ''' Check that we successfully parse the supplied meta-data if it
     is assembling a gh_columnwise_operator but the to/from spaces don't
     match those of the supplied gh_operator '''
     fparser.logging.disable('CRITICAL')
-    # Remove  the (required) LMA operator
+    # Change the to space of the LMA operator
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
         "arg_type(gh_operator,gh_read, any_space_3, any_space_2),", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("When assembling a column-wise operator from LMA operators the "
-            "to and from function spaces must match") in str(excinfo)
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
-        "arg_type(gh_operator,gh_read, any_space_1, any_space_3),", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("When assembling a column-wise operator from LMA operators the "
-            "to and from function spaces must match") in str(excinfo)
+    dkm = DynKernMetadata(ast, name=name)
+    dkm_str = str(dkm.arg_descriptors[0])
+    expected = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_operator'\n"
+        "  access_descriptor[1]='gh_read'\n"
+        "  function_space_to[2]='any_space_3'\n"
+        "  function_space_from[3]='any_space_2'\n")
+    assert expected in dkm_str
+    assert dkm._cma_operation == "assembly"
 
 
 CMA_APPLY = '''
