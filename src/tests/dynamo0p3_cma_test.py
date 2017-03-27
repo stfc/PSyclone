@@ -200,6 +200,40 @@ def test_cma_mdata_assembly_diff_spaces():  # pylint: disable=invalid-name
     assert dkm._cma_operation == "assembly"
 
 
+def test_cma_mdata_asm_fld_vector_error(): # pylint: disable=invalid-name
+    ''' Check that we raise the expected error if a kernel assembling a
+    CMA operator reads from a field vector'''
+    fparser.logging.disable('CRITICAL')
+    # Change the space of the field that is written
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_field,gh_read,any_space_1)",
+        "arg_type(gh_field*3,gh_read,any_space_1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type assembles a CMA operator but has a "
+            "field vector argument. This is not permitted.") in \
+        str(excinfo)
+
+
+def test_cma_mdata_asm_stencil_error(): # pylint: disable=invalid-name
+    ''' Check that we raise the expected error if a kernel assembling a
+    CMA operator specifies a stencil access on a field'''
+    fparser.logging.disable('CRITICAL')
+    # Change the space of the field that is written
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_field,gh_read,any_space_1)",
+        "arg_type(gh_field,gh_read,any_space_1,stencil(x1d))", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type assembles a CMA operator but has a "
+            "field with a stencil access. This is not permitted.") in \
+        str(excinfo)
+
+
 CMA_APPLY = '''
 module testkern_cma_apply
   type, extends(kernel_type) :: testkern_cma_type
