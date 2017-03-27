@@ -49,11 +49,6 @@ def install(workingcopy, installroot):
              stat.S_IRGRP | stat.S_IXGRP |
              stat.S_IROTH | stat.S_IXOTH)
 
-    ignores = shutil.ignore_patterns('tests')
-    shutil.copytree(os.path.join(workingcopy, 'f2py_93'),
-                    os.path.join(installroot, 'f2py_93'),
-                    ignore=ignores)
-
 
 def _arguments():
     ''' Obtain the install directory from the command-line arguments and
