@@ -6356,7 +6356,11 @@ def test_kernstubarglist_arglist_error():
         "empty. Has the generate() method been "
         "called?") in str(excinfo.value)
 
-# test that the new any_w2 space is accepted and produces the expected psy code
+# test that the new any_w2 space works with multiple fields
+
+# test that the new any_w2 space works with field vectors
+# test that the new any_w2 space works with operators
+
 # test that enforce_bc_kernel is called if matrix_vector_kernel is used with
 # any_w2
 # test that basis functions get the correct dimension with any_w2 space
