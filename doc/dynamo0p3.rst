@@ -300,10 +300,13 @@ operators only act on data within a column, they have no horizontal
 dependencies. Therefore, kernels that write to them may be
 parallelised without colouring.
 
-All three CMA-related kernel types must obey the following rule:
+All three CMA-related kernel types must obey the following rules:
 
   1) Since a CMA operator only acts within a single column of data,
      stencil operations are not permitted.
+
+  2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
+     permitted as arguments.
 
 There are then additional rules specific to each of the three
 kernel types. These are described below.
@@ -319,10 +322,7 @@ operator must obey the following rules:
 
 2) Have exactly one CMA operator argument which must have write access.
 
-3) The to/from function spaces of the input LMA operators
-   must match the respective spaces of the CMA operator being assembled.
-
-4) Other types of argument (e.g. scalars or fields) are permitted but
+3) Other types of argument (e.g. scalars or fields) are permitted but
    must be read-only.
 
 Application and Inverse Application
