@@ -31,15 +31,15 @@ Change directory to where you would like to place the code (where
 Now download and extract the latest release of PSyclone:
 ::
 
-   > wget https://github.com/stfc/PSyclone/archive/1.3.2.tar.gz
-   > gunzip 1.3.2.tar.gz
-   > tar xf 1.3.2.tar
-   > rm 1.3.2.tar
+   > wget https://github.com/stfc/PSyclone/archive/1.3.3.tar.gz
+   > gunzip 1.3.3.tar.gz
+   > tar xf 1.3.3.tar
+   > rm 1.3.3.tar
 
 Set your python path appropriately:
 ::
 
-   > cd PSyclone-1.3.2
+   > cd PSyclone-1.3.3
    > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
 
 You may want to set your python path permanently (e.g. by editing your
