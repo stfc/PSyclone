@@ -206,9 +206,9 @@ def test_cma_mdata_assembly_diff_spaces():  # pylint: disable=invalid-name
     assert dkm._cma_operation == "assembly"
 
 
-def test_cma_mdata_asm_fld_vector_error():  # pylint: disable=invalid-name
+def test_cma_mdata_asm_vector_error():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if a kernel assembling a
-    CMA operator reads from a field vector'''
+    CMA operator has any vector arguments '''
     fparser.logging.disable('CRITICAL')
     # Change the space of the field that is written
     code = CMA_ASSEMBLE.replace(
@@ -218,9 +218,16 @@ def test_cma_mdata_asm_fld_vector_error():  # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type assembles a CMA operator but has a "
-            "vector argument (gh_field*3). This is not permitted.") in \
-        str(excinfo)
+    assert ("Kernel testkern_cma_type takes a CMA operator but has a "
+            "vector argument (gh_field*3). This is forbidden.") in str(excinfo)
+    code = CMA_ASSEMBLE.replace(
+        "gh_columnwise_operator,", "gh_columnwise_operator*2,", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type takes a CMA operator but has a "
+            "vector argument (gh_columnwise_operator*2). This is forbidden") \
+            in str(excinfo)
 
 
 def test_cma_mdata_asm_stencil_error():  # pylint: disable=invalid-name
@@ -235,9 +242,9 @@ def test_cma_mdata_asm_stencil_error():  # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type assembles a CMA operator but specifies "
-            "a stencil access (x1d) on a field argument. This is not "
-            "permitted.") in str(excinfo)
+    assert ("Kernel testkern_cma_type takes a CMA operator but has an "
+            "argument with a stencil access (x1d). This is forbidden.") \
+            in str(excinfo)
 
 
 CMA_APPLY = '''
@@ -383,9 +390,9 @@ def test_cma_mdata_apply_wrong_spaces():  # pylint: disable=invalid-name
             "space of the operator (any_space_2)") in str(excinfo)
 
 
-def test_cma_mdata_apply_fld_vector_error():  # pylint: disable=invalid-name
+def test_cma_mdata_apply_vector_error():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error if the meta-data for a kernel
-    that applies a CMA operator contains a field vector argument '''
+    that applies a CMA operator contains a vector argument '''
     fparser.logging.disable('CRITICAL')
     code = CMA_APPLY.replace("arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)",
                              "arg_type(GH_FIELD*3,  GH_INC,  ANY_SPACE_1)", 1)
@@ -393,8 +400,16 @@ def test_cma_mdata_apply_fld_vector_error():  # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type applies a CMA operator but has a "
+    assert ("Kernel testkern_cma_type takes a CMA operator but has a "
             "vector argument (gh_field*3). This is forbidden.") in str(excinfo)
+    code = CMA_APPLY.replace("GH_COLUMNWISE_OPERATOR,",
+                             "GH_COLUMNWISE_OPERATOR*4,", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type takes a CMA operator but has a "
+            "vector argument (gh_columnwise_operator*4). This is "
+            "forbidden.") in str(excinfo)
 
 
 def test_cma_mdata_apply_fld_stencil_error():  # pylint: disable=invalid-name
@@ -409,8 +424,8 @@ def test_cma_mdata_apply_fld_stencil_error():  # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type applies a CMA operator but has a "
-            "field argument with a stencil access (x1d). This is "
+    assert ("Kernel testkern_cma_type takes a CMA operator but has an "
+            "argument with a stencil access (x1d). This is "
             "forbidden.") in str(excinfo)
 
 
@@ -532,3 +547,19 @@ def test_cma_mdata_stencil_invalid():
         _ = DynKernMetadata(ast, name=name)
     assert ("each meta_arg entry must have 4 arguments if its first argument "
             "is gh_operator or gh_columnwise_operator") in str(excinfo)
+
+
+def test_cma_mdata_matrix_vector_error():
+    ''' Check that we raise the expected error when a matrix-matrix kernel
+    contains a vector argument '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2)",
+        "arg_type(GH_COLUMNWISE_OPERATOR*3,GH_WRITE,ANY_SPACE_1,ANY_SPACE_2)",
+        1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("Kernel testkern_cma_type takes a CMA operator but has a vector "
+            "argument (gh_columnwise_operator*3)") in str(excinfo)

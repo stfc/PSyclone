@@ -723,13 +723,30 @@ class DynKernMetadata(KernelType):
     def _identify_cma_op(self, cwise_ops):
         '''Identify and return the type of CMA-operator-related operation
         this kernel performs (one of "assemble", "apply" or "matrix-matrix")'''
+
+        for arg in self._arg_descriptors:
+            # No vector arguments are permitted
+            if arg.vector_size > 1:
+                raise ParseError(
+                    "Kernel {0} takes a CMA operator but has a "
+                    "vector argument ({1}). This is forbidden.".
+                    format(self.name,
+                           arg.type+"*"+str(arg.vector_size)))
+            # No stencil accesses are permitted
+            if arg.stencil:
+                raise ParseError(
+                    "Kernel {0} takes a CMA operator but has an argument "
+                    "with a stencil access ({1}). This is forbidden.".
+                    format(self.name, arg.stencil['type']))
+
+        # Identify which, if any, CMA operator is written to
         mutable_cma_op = None
         write_count = 0
         for cop in cwise_ops:
-            # Identify which, if any, CMA operator is written to
             if cop.access != "gh_read":
                 mutable_cma_op = cop
                 write_count += 1
+
         if write_count == 0:
             # This kernel only reads from CMA operators and must
             # therefore be an apply (or apply-inverse). It must
@@ -843,21 +860,6 @@ class DynKernMetadata(KernelType):
                         "also writes to {1} argument(s). This is not "
                         "allowed.".format(self.name,
                                           [arg.type for arg in write_args]))
-                for arg in self._arg_descriptors:
-                    # No vector arguments are permitted
-                    if arg.vector_size > 1:
-                        raise ParseError(
-                            "Kernel {0} assembles a CMA operator but has a "
-                            "vector argument ({1}). This is not permitted.".
-                            format(self.name,
-                                   arg.type+"*"+str(arg.vector_size)))
-                    # No stencil accesses are permitted
-                    if arg.stencil:
-                        raise ParseError(
-                            "Kernel {0} assembles a CMA operator but "
-                            "specifies a stencil access ({1}) on a field "
-                            "argument. This is not permitted.".
-                            format(self.name, arg.stencil['type']))
                 return "assembly"
         else:
             raise ParseError(
