@@ -600,13 +600,10 @@ def test_cma_asm():
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
         assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
                 "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-                "cma_op1_proxy%columnwise_matrix, "
-                "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
-                "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
-                "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                "cma_op1_proxy%gamma_p, ndf_any_space_1_lma_op1, "
-                "ndf_any_space_2_lma_op1, "
-                "cbanded_map_any_space_1_lma_op1, "
+                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+                "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
+                "ndf_any_space_2_lma_op1, cbanded_map_any_space_1_lma_op1, "
                 "cbanded_map_any_space_2_lma_op1)") in code
 
 
@@ -640,11 +637,10 @@ def test_cma_asm_field():
                      "nlayers, ncell_2d, "
                      "afield_proxy%data, lma_op1_proxy%ncell_3d, "
                      "lma_op1_proxy%local_stencil, "
-                     "cma_op1_proxy%columnwise_matrix, "
-                     "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
-                     "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
-                     "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                     "cma_op1_proxy%gamma_p, ndf_any_space_1_afield, "
+                     "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                     "cma_op1_bandwidth, cma_op1_alpha, "
+                     "cma_op1_beta, cma_op1_gamma_m, "
+                     "cma_op1_gamma_p, ndf_any_space_1_afield, "
                      "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
                      "ndf_any_space_2_lma_op1, "
                      "cbanded_map_any_space_1_afield, "
@@ -682,11 +678,10 @@ def test_cma_asm_scalar():
         expected =  ("CALL columnwise_op_asm_kernel_code(cell, "
                      "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
                      "lma_op1_proxy%local_stencil, "
-                     "cma_op1_proxy%columnwise_matrix, "
-                     "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
-                     "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
-                     "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                     "cma_op1_proxy%gamma_p, cma_op1_alpha, "
+                     "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                     "cma_op1_bandwidth, cma_op1_alpha_1, "
+                     "cma_op1_beta, cma_op1_gamma_m, "
+                     "cma_op1_gamma_p, cma_op1_alpha, "
                      "ndf_any_space_1_lma_op1, "
                      "ndf_any_space_2_lma_op1, "
                      "cbanded_map_any_space_1_lma_op1, "
@@ -726,11 +721,10 @@ def test_cma_asm_field_same_fs():
                      "nlayers, ncell_2d, "
                      "lma_op1_proxy%ncell_3d, "
                      "lma_op1_proxy%local_stencil, afield_proxy%data, "
-                     "cma_op1_proxy%columnwise_matrix, "
-                     "cma_op1_proxy%nrow, "
-                     "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
-                     "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                     "cma_op1_proxy%gamma_p, ndf_any_space_1_lma_op1, "
+                     "cma_op1_matrix, cma_op1_nrow, "
+                     "cma_op1_bandwidth, cma_op1_alpha, "
+                     "cma_op1_beta, cma_op1_gamma_m, "
+                     "cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
                      "undf_any_space_1_lma_op1, "
                      "map_any_space_1_lma_op1(:,cell), "
                      "ndf_any_space_2_lma_op1, "
@@ -761,11 +755,9 @@ def test_cma_apply():
 
         assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
                 "field_a_proxy%data, field_b_proxy%data, "
-                "cma_op1_proxy%columnwise_matrix, "
-                "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
-                "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
-                "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
-                "cma_op1_proxy%gamma_p, "
+                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                "cma_op1_bandwidth, cma_op1_alpha, "
+                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
                 "ndf_any_space_1_field_a, undf_any_space_1_field_a, "
                 "map_any_space_1_field_a(:,cell), "
                 "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
@@ -792,22 +784,15 @@ def test_cma_matrix_matrix():
         assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
         assert ("CALL columnwise_op_mul_kernel_code(cell, "
                 "ncell_2d, "
-                "cma_opa_proxy%columnwise_matrix, "
-                "cma_opa_proxy%nrow, cma_opa_proxy%ncol, "
-                "cma_opa_proxy%bandwidth, cma_opa_proxy%alpha, "
-                "cma_opa_proxy%beta, cma_opa_proxy%gamma_m, "
-                "cma_opa_proxy%gamma_p, "
-                "cma_opb_proxy%columnwise_matrix, "
-                "cma_opb_proxy%nrow, cma_opb_proxy%ncol, "
-                "cma_opb_proxy%bandwidth, cma_opb_proxy%alpha, "
-                "cma_opb_proxy%beta, cma_opb_proxy%gamma_m, "
-                "cma_opb_proxy%gamma_p, "
-                "cma_opc_proxy%columnwise_matrix, "
-                "cma_opc_proxy%nrow, cma_opc_proxy%ncol, "
-                "cma_opc_proxy%bandwidth, cma_opc_proxy%alpha, "
-                "cma_opc_proxy%beta, cma_opc_proxy%gamma_m, "
-                "cma_opc_proxy%gamma_p)") \
-            in code
+                "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+                "cma_opa_bandwidth, cma_opa_alpha, "
+                "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
+                "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+                "cma_opb_bandwidth, cma_opb_alpha, "
+                "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+                "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+                "cma_opc_bandwidth, cma_opc_alpha, "
+                "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
 
 
 def test_cma_multi_kernel():
@@ -823,12 +808,12 @@ def test_cma_multi_kernel():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
-        assert "cma_op1 = cma_op1_proxy%columnwise_matrix\n" in code
-        assert "ncol_cma_op1 = cma_op1_proxy%alpha\n" in code
-        assert "nrow_cma_op1 = cma_op1_proxy%alpha\n" in code
-        assert "bandwidth_cma_op1 = cma_op1_proxy%bandwidth\n" in code
-        assert "alpha_cma_op1 = cma_op1_proxy%alpha\n" in code
-        assert "beta_cma_op1 = cma_op1_proxy%beta\n" in code
+        assert "cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n" in code
+        assert "cma_op1_ncol = cma_op1_proxy%ncol\n" in code
+        assert "cma_op1_nrow = cma_op1_proxy%nrow\n" in code
+        assert "cma_op1_bandwidth = cma_op1_proxy%bandwidth\n" in code
+        assert "cma_op1_alpha = cma_op1_proxy%alpha\n" in code
+        assert "cma_op1_beta = cma_op1_proxy%beta\n" in code
         
 
 # Tests for the kernel-stub generator

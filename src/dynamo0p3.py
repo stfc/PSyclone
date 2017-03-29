@@ -175,7 +175,6 @@ def get_fs_operator_name(operator_name, function_space):
             "Unsupported name '{0}' found. Expected one of {1}".
             format(operator_name, VALID_METAFUNC_NAMES))
 
-
 def mangle_fs_name(args, fs_name):
     ''' Construct the mangled version of a function-space name given
     a list of kernel arguments '''
@@ -1194,76 +1193,10 @@ class DynInvokeStencil(object):
                                          rhs=map_name + "%get_size()"))
 
 
-class DynInvokeColumnBandedDofmaps(object):
-    '''Holds all information on the column-banded dofmaps required by an
-    invoke'''
-    def __init__(self, schedule):
-
-        self._name_space_manager = NameSpaceFactory().create()
-        # Look at every kernel call in this invoke and generate a list
-        # of the unique function spaces involved.
-        # We create a dictionary whose keys are the map names and entries
-        # are the corresponding field objects.
-        self._unique_fs_maps = {}
-        for call in schedule.calls():
-            # We only need a column-banded dofmap if the kernel iterates
-            # over cells and assembles a CMA operator
-            if call.iterates_over == "cells" and \
-               call.cma_operation == "assembly":
-                cma_op = call.args_filter(arg_types=["gh_columnwise_operator"],
-                                          arg_accesses=["gh_write"])
-                if len(cma_op) != 1:
-                    raise GenerationError(
-                        "Kernel {0} is identified as assembling a CMA "
-                        "operator but writes to {1} CMA operators. Internel "
-                        "Error.".format(call.name, len(cma_op)))
-
-                to_map_name = get_fs_map_name(cma_op[0].fs_to)
-                if to_map_name not in self._unique_fs_maps:
-                    self._unique_fs_maps[to_map_name] = cma_op[0]
-                from_map_name = get_fs_map_name(cma_op[0].fs_from)
-                if from_map_name not in self._unique_fs_maps:
-                    self._unique_fs_maps[from_map_name] = cma_op[0]
-
-    def initialise_dofmaps(self, parent):
-        ''' Generates the calls to the LFRic infrastructure that
-        look-up the necessary column-banded dofmaps. Adds these calls as
-        children of the supplied parent node. This must be an appropriate
-        f2pygen object. '''
-        from f2pygen import CommentGen, AssignGen
-
-        # If we've got no dofmaps then we do nothing
-        if not self._unique_fs_maps:
-            return
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                              " Look-up column-banded dofmaps for each "
-                              "function space"))
-        parent.add(CommentGen(parent, ""))
-
-        for dmap, field in self._unique_fs_maps.items():
-            parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                 rhs=field.proxy_name_indexed +
-                                 "%" + field.ref_name() +
-                                 "%get_whole_dofmap()"))
-
-    def declare_dofmaps(self, parent):
-        ''' Declare all unique function space dofmaps as pointers to
-        integer arrays of rank 2. The declarations are added as
-        children of the supplied parent argument. This must be an
-        appropriate f2pygen object. '''
-        from f2pygen import DeclGen
-        decl_map_names = \
-            [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
-
-        if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=decl_map_names))
-
 
 class DynInvokeDofmaps(object):
-    ''' Holds all information on the dofmaps required by an invoke '''
+    ''' Holds all information on the dofmaps (including column-banded and
+    indirection) required by an invoke '''
 
     def __init__(self, schedule):
 
@@ -1275,6 +1208,7 @@ class DynInvokeDofmaps(object):
         self._unique_fs_maps = {}
         # We also create a dictionary of column-banded dofmaps
         self._unique_cbanded_maps = {}
+        self._unique_indirection_maps = {}
 
         for call in schedule.calls():
             # We only need a dofmap if the kernel iterates over cells
@@ -1356,6 +1290,112 @@ class DynInvokeDofmaps(object):
                                entity_decls=decl_bmap_names))
 
 
+class DynInvokeCMAOperators(object):
+    ''' Holds all information on the CMA operators required by an invoke '''
+    
+    cma_same_fs_params = ["nrow", "bandwidth", "alpha",
+                          "beta", "gamma_m", "gamma_p"]
+    cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
+                          "beta", "gamma_m", "gamma_p"]
+
+    def __init__(self, schedule):
+
+        self._name_space_manager = NameSpaceFactory().create()
+        
+        # Look at every kernel call in this invoke and generate a set of
+        # the unique CMA operators involved. For each one we create a
+        # dictionary entry. The key is the name of the CMA argument in the
+        # PSy layer and the entry is itself another dictionary containing
+        # two entries: the first 'arg' is the CMA argument object and the
+        # second 'params' is the list of integer variables associated with
+        # that CMA operator. The contents of this list depend on whether
+        # or not the to/from function spaces of the CMA operator are the
+        # same.
+        self._cma_ops = {}
+        for call in schedule.calls():
+            if call.cma_operation:
+                # Get a list of all of the CMA arguments to this call
+                cma_args = psyGen.args_filter(
+                    call.arguments.args,
+                    arg_types=["gh_columnwise_operator"])
+                # Create a dictionary entry for each argument that we
+                # have not already seen
+                for arg in cma_args:
+                    if arg.name not in self._cma_ops:
+                        if arg.function_space_to.orig_name != \
+                           arg.function_space_from.orig_name:
+                            self._cma_ops[arg.name] = {
+                                "arg": arg,
+                                "params": self.cma_diff_fs_params}
+                        else:
+                            self._cma_ops[arg.name] = {
+                                "arg": arg,
+                                "params": self.cma_same_fs_params}
+
+    def initialise_cma_ops(self, parent):
+        ''' Generates the calls to the LFRic infrastructure that look-up
+        the various components of each CMA operator. Adds these as
+        children of the supplied parent node. This must be an appropriate
+        f2pygen object. '''
+        from f2pygen import CommentGen, AssignGen
+
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                                  " Look-up information for each CMA operator"))
+        parent.add(CommentGen(parent, ""))
+
+        for op_name in self._cma_ops:
+            # First create a pointer to the array containing the actual
+            # matrix
+            cma_name = self._name_space_manager.create_name(
+                root_name=op_name+"_matrix",
+                context="PSyVars",
+                label=op_name+"_matrix")
+            parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
+                                 rhs=self._cma_ops[op_name]["arg"].
+                                 proxy_name_indexed+"%columnwise_matrix"))
+            # Then make copies of the related integer parameters
+            for param in self._cma_ops[op_name]["params"]:
+                param_name = self._name_space_manager.create_name(
+                    root_name=op_name+"_"+param,
+                    context="PSyVars",
+                    label=op_name+"_"+param)
+                parent.add(AssignGen(parent, lhs=param_name,
+                                     rhs=self._cma_ops[op_name]["arg"].
+                                     proxy_name_indexed+"%"+param))
+
+    def declare_cma_ops(self, parent):
+        ''' Generate the necessary declarations for all column-wise operators
+        and their associated parameters '''
+        from f2pygen import DeclGen
+        
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
+        for op_name in self._cma_ops:
+            # Declare the matrix itself
+            cma_name = self._name_space_manager.create_name(
+                root_name=op_name+"_matrix", context="PSyVars",
+                label=op_name+"_matrix")
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               pointer=True,
+                               entity_decls=[cma_name+"(:,:,:) => null()"]))
+            # Declare the associated integer parameters
+            param_names = []
+            for param in self._cma_ops[op_name]["params"]:
+                param_names.append(self._name_space_manager.create_name(
+                    root_name=op_name+"_"+param,
+                    context="PSyVars",
+                    label=op_name+"_"+param))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=param_names))
+
+
 class DynInvoke(Invoke):
     ''' The Dynamo specific invoke class. This passes the Dynamo
     specific schedule class to the base class so it creates the one we
@@ -1386,8 +1426,8 @@ class DynInvoke(Invoke):
         self.dofmaps = DynInvokeDofmaps(self.schedule)
 
         # Initialise the object holding all information on the column-
-        # -banded dofmaps required by this invoke.
-        #self.banded_dofmaps = DynInvokeColumnBandedDofmaps(self.schedule)
+        # -matrix assembly operators required by this invoke.
+        self.cma_ops = DynInvokeCMAOperators(self.schedule)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -1618,7 +1658,8 @@ class DynInvoke(Invoke):
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
 
-        #self.banded_dofmaps.declare_dofmaps(invoke_sub)
+        # Declare any CMA operators and associated parameters
+        self.cma_ops.declare_cma_ops(invoke_sub)
 
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
@@ -1810,9 +1851,8 @@ class DynInvoke(Invoke):
         # in this invoke)
         self.dofmaps.initialise_dofmaps(invoke_sub)
 
-        # Initialise banded dofmaps (one for each function space of any
-        # CMA operator being assembled)
-        #self.banded_dofmaps.initialise_dofmaps(invoke_sub)
+        # Initialise CMA operators and associated parameters
+        self.cma_ops.initialise_cma_ops(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
@@ -3079,18 +3119,17 @@ class KernCallArgList(ArgOrdering):
     def cma_operator(self, arg):
         ''' add the CMA operator and associated scalars to the argument
         list '''
-        self._arglist.append(arg.proxy_name_indexed+"%columnwise_matrix")
-        self._arglist.append(arg.proxy_name_indexed+"%nrow")
-        # If the to- and from-spaces are the same then so are nrow and
-        # ncolumn so only pass one of them
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            self._arglist.append(arg.proxy_name_indexed+"%ncol")
-        self._arglist.append(arg.proxy_name_indexed+"%bandwidth")
-        self._arglist.append(arg.proxy_name_indexed+"%alpha")
-        self._arglist.append(arg.proxy_name_indexed+"%beta")
-        self._arglist.append(arg.proxy_name_indexed+"%gamma_m")
-        self._arglist.append(arg.proxy_name_indexed+"%gamma_p")
+            components = ["matrix"] + DynInvokeCMAOperators.cma_diff_fs_params
+        else:
+            components = ["matrix"] + DynInvokeCMAOperators.cma_same_fs_params
+        for component in components:
+            self._arglist.append(
+                self._name_space_manager.create_name(
+                    root_name=arg.name+"_"+component,
+                    context="PSyVars",
+                    label=arg.name+"_"+component))
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
