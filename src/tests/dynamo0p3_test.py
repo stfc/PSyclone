@@ -6356,13 +6356,114 @@ def test_kernstubarglist_arglist_error():
         "empty. Has the generate() method been "
         "called?") in str(excinfo.value)
 
+
 # test that the new any_w2 space works with multiple fields
+def test_multi_anyw2():
+    '''Check generated code works correctly when we have multiple any_w2
+    fields. Particularly check that we only generate a single lookup.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.1_single_invoke_multi_anyw2.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        if dist_mem:
+            output = (
+                "      ! Look-up dofmaps for each function space\n"
+                "      !\n"
+                "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_w2\n"
+                "      !\n"
+                "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+                "        !\n"
+                "        CALL testkern_multi_anyw2_code(nlayers, "
+                "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
+                "undf_any_w2, map_any_w2(:,cell))\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+            assert output in generated_code
+        else:
+            output = (
+                "      ! Look-up dofmaps for each function space\n"
+                "      !\n"
+                "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_w2\n"
+                "      !\n"
+                "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        CALL testkern_multi_anyw2_code(nlayers, "
+                "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
+                "undf_any_w2, map_any_w2(:,cell))\n"
+                "      END DO ")
+            assert output in generated_code
+
+
+# test that the new any_w2 space works with basis and diff basis
+def test_anyw2_basis():
+    '''Check generated code works correctly when we have any_w2 fields
+    and basis functions'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.2_single_invoke_multi_anyw2_basis.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        output = (
+            "      ! Initialise sizes and allocate any basis arrays "
+            "for any_w2\n"
+            "      !\n"
+            "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
+            "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
+            "      dim_any_w2 = f1_proxy%vspace%get_dim_space()\n"
+            "      ALLOCATE (basis_any_w2(dim_any_w2, ndf_any_w2, nqp_h, "
+            "nqp_v))\n"
+            "      diff_dim_any_w2 = f1_proxy%vspace%"
+            "get_dim_space_diff()\n"
+            "      ALLOCATE (diff_basis_any_w2(diff_dim_any_w2, "
+            "ndf_any_w2, nqp_h, nqp_v))\n"
+            "      !\n"
+            "      ! Compute basis arrays\n"
+            "      !\n"
+            "      CALL f1_proxy%vspace%compute_basis_function("
+            "basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)\n"
+            "      CALL f1_proxy%vspace%compute_diff_basis_function("
+            "diff_basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)")
+        assert output in generated_code
+
 
 # test that the new any_w2 space works with field vectors
 # test that the new any_w2 space works with operators
 
 # test that enforce_bc_kernel is called if matrix_vector_kernel is used with
 # any_w2
-# test that basis functions get the correct dimension with any_w2 space
-# test that differential basis functions get the correct dimension with any_w2 space
 # test that stub generation works with any_w2 space.

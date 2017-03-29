@@ -27,17 +27,18 @@
 
 ! Author R. Ford STFC Daresbury Lab
 
-program single_invoke_multi_anyw2
+program single_invoke_multi_anyw2_basis
 
   ! Description: test that correct code is produced when we have multiple
   ! any_w2 function spaces in a kernel call
-  use testkern_multi_anyw2, only: testkern_multi_anyw2_type
-  use inf,      only: field_type
+  use testkern_multi_anyw2_basis, only: testkern_multi_anyw2_basis_type
+  use inf,      only: field_type, quadrature_type
   implicit none
   type(field_type) :: f1, f2, f3
-
-  call invoke(                               &
-       testkern_multi_anyw2_type(f1,f2,f3)   &
+  type(quadrature_type) :: qr
+  
+  call invoke(                                      &
+       testkern_multi_anyw2_basis_type(f1,f2,f3,qr) &
           )
 
-end program single_invoke_multi_anyw2
+end program single_invoke_multi_anyw2_basis
