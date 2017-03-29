@@ -734,7 +734,7 @@ def test_cma_asm_field_same_fs():
 
 
 def test_cma_apply():
-    ''' Test that we generate correct code f
+    ''' Test that we generate correct code for
     a kernel that applies a CMA operator '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -771,6 +771,41 @@ def test_cma_apply():
                 "map_any_space_2_field_b(:,cell), "
                 "cma_indirection_map_any_space_1_field_a, "
                 "cma_indirection_map_any_space_2_field_b)") \
+            in code
+
+
+def test_cma_apply_same_space():
+    ''' Test that we generate correct code for
+    a kernel that applies a CMA operator which has the same to- and from-
+    spaces '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.1.1_cma_apply_same_spaces.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert "INTEGER ncell_2d" in code
+        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+        assert ("INTEGER, pointer :: cma_indirection_map_any_space_2_"
+                "field_a(:) => null()\n") in code
+        assert ("ndf_any_space_2_field_a = field_a_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_2_field_a = field_a_proxy%vspace%"
+                "get_undf()") in code
+        assert ("cma_indirection_map_any_space_2_field_a => "
+                "cma_op1_proxy%indirection_dofmap_to") in code
+        assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
+                "field_a_proxy%data, field_b_proxy%data, "
+                "cma_op1_matrix, cma_op1_nrow, "
+                "cma_op1_bandwidth, cma_op1_alpha, "
+                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+                "ndf_any_space_2_field_a, undf_any_space_2_field_a, "
+                "map_any_space_2_field_a(:,cell), "
+                "cma_indirection_map_any_space_2_field_a)") \
             in code
 
 
