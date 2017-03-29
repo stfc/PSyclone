@@ -124,6 +124,12 @@ def get_fs_map_name(function_space):
     return "map_" + function_space.mangled_name
 
 
+def get_cbanded_map_name(function_space):
+    ''' Returns the name of a column-banded dofmap for the supplied
+    FunctionSpace. '''
+    return "cbanded_map_" + function_space.mangled_name
+
+
 def get_fs_ndf_name(function_space):
     ''' Returns a ndf name for this FunctionSpace object. '''
     return "ndf_" + function_space.mangled_name
@@ -1267,6 +1273,9 @@ class DynInvokeDofmaps(object):
         # We create a dictionary whose keys are the map names and entries
         # are the corresponding field objects.
         self._unique_fs_maps = {}
+        # We also create a dictionary of column-banded dofmaps
+        self._unique_cbanded_maps = {}
+
         for call in schedule.calls():
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
@@ -1279,7 +1288,24 @@ class DynInvokeDofmaps(object):
                         map_name = get_fs_map_name(unique_fs)
                         if map_name not in self._unique_fs_maps:
                             self._unique_fs_maps[map_name] = fld_arg
-
+                if call.cma_operation == "assembly":
+                    # A kernel that assembles a CMA operator requires
+                    # column-banded dofmaps for its 'to' and 'from'
+                    # function spaces
+                    cma_args = psyGen.args_filter(
+                        call.arguments.args,
+                        arg_types=["gh_columnwise_operator"])
+                    map_name = get_cbanded_map_name(
+                            cma_args[0].function_space_to)
+                    if map_name not in self._unique_cbanded_maps:
+                        self._unique_cbanded_maps[map_name] = [cma_args[0],
+                                                               "to"]
+                    map_name = get_cbanded_map_name(
+                            cma_args[0].function_space_from)
+                    if map_name not in self._unique_cbanded_maps:
+                        self._unique_cbanded_maps[map_name] = [cma_args[0],
+                                                               "from"]
+                    
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
         look-up the necessary dofmaps. Adds these calls as children
@@ -1288,20 +1314,28 @@ class DynInvokeDofmaps(object):
         from f2pygen import CommentGen, AssignGen
 
         # If we've got no dofmaps then we do nothing
-        if not self._unique_fs_maps:
-            return
+        if self._unique_fs_maps:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Look-up dofmaps for each function space"))
+            parent.add(CommentGen(parent, ""))
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                              " Look-up dofmaps for each function space"))
-        parent.add(CommentGen(parent, ""))
+            for dmap, field in self._unique_fs_maps.items():
+                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                     rhs=field.proxy_name_indexed +
+                                     "%" + field.ref_name() +
+                                     "%get_whole_dofmap()"))
+        if self._unique_cbanded_maps:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Look-up required column-banded dofmaps"))
+            parent.add(CommentGen(parent, ""))
 
-        for dmap, field in self._unique_fs_maps.items():
-            parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                 rhs=field.proxy_name_indexed +
-                                 "%" + field.ref_name() +
-                                 "%get_whole_dofmap()"))
-
+            for dmap, cma in self._unique_cbanded_maps.items():
+                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                     rhs=cma[0].proxy_name_indexed +
+                                     "%column_banded_dofmap_"+cma[1]))
+            
     def declare_dofmaps(self, parent):
         ''' Declare all unique function space dofmaps as pointers to
         integer arrays of rank 2. The declarations are added as
@@ -1314,6 +1348,12 @@ class DynInvokeDofmaps(object):
         if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_map_names))
+
+        decl_bmap_names = \
+            [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
+        if decl_bmap_names:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=decl_bmap_names))
 
 
 class DynInvoke(Invoke):
@@ -3131,14 +3171,12 @@ class KernCallArgList(ArgOrdering):
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        self._arglist.append(arg.proxy_name_indexed +
-                             "%column_banded_dofmap_to")
+        self._arglist.append(get_cbanded_map_name(arg.function_space_to))
         # Only include the column-banded dofmap for the 'from' space if it
         # differs from the 'to' space.
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            self._arglist.append(arg.proxy_name_indexed +
-                                 "%column_banded_dofmap_from")
+            self._arglist.append(get_cbanded_map_name(arg.function_space_from))
 
     def indirection_dofmaps(self, arg):
         ''' Add indirection dofmaps required when applying a CMA operator '''
