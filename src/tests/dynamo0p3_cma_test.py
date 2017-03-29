@@ -653,6 +653,48 @@ def test_cma_asm_field():
         assert expected in code
 
 
+def test_cma_asm_scalar():
+    ''' Test that we generate correct code for an invoke containing
+    a kernel that assembles a CMA operator with a scalar as argument '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.0.1_cma_assembly_scalar.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+                "columnwise_operator_type, columnwise_operator_proxy_type") \
+            in code
+        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+            in code
+        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
+                "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
+                in code
+        assert "INTEGER ncell_2d" in code
+        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+        expected =  ("CALL columnwise_op_asm_kernel_code(cell, "
+                     "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
+                     "lma_op1_proxy%local_stencil, "
+                     "cma_op1_proxy%columnwise_matrix, "
+                     "cma_op1_proxy%nrow, cma_op1_proxy%ncol, "
+                     "cma_op1_proxy%bandwidth, cma_op1_proxy%alpha, "
+                     "cma_op1_proxy%beta, cma_op1_proxy%gamma_m, "
+                     "cma_op1_proxy%gamma_p, cma_op1_alpha, "
+                     "ndf_any_space_1_lma_op1, "
+                     "ndf_any_space_2_lma_op1, "
+                     "cbanded_map_any_space_1_lma_op1, "
+                     "cbanded_map_any_space_2_lma_op1)")
+        print expected
+        assert expected in code
+
+
 def test_cma_asm_field_same_fs():
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a field as argument.
