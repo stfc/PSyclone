@@ -130,6 +130,12 @@ def get_cbanded_map_name(function_space):
     return "cbanded_map_" + function_space.mangled_name
 
 
+def get_cma_indirection_map_name(function_space):
+    ''' Returns the name of a CMA indirection dofmap for the supplied
+    FunctionSpace. '''
+    return "cma_indirection_map_" + function_space.mangled_name
+
+
 def get_fs_ndf_name(function_space):
     ''' Returns a ndf name for this FunctionSpace object. '''
     return "ndf_" + function_space.mangled_name
@@ -1206,8 +1212,15 @@ class DynInvokeDofmaps(object):
         # We create a dictionary whose keys are the map names and entries
         # are the corresponding field objects.
         self._unique_fs_maps = {}
-        # We also create a dictionary of column-banded dofmaps
+        # We also create a dictionary of column-banded dofmaps. Entries
+        # in this one are a list where the first item is the
+        # corresponding CMA object and the second is whether the map
+        # corresponds to the 'to' or 'from' space.
         self._unique_cbanded_maps = {}
+        # A dictionary of required CMA indirection dofmaps. Each entry
+        # is a list where the first item correponds to the CMA object
+        # and the second is whether the map corresponds to the 'to' or
+        # 'from' space.
         self._unique_indirection_maps = {}
 
         for call in schedule.calls():
@@ -1235,10 +1248,28 @@ class DynInvokeDofmaps(object):
                         self._unique_cbanded_maps[map_name] = [cma_args[0],
                                                                "to"]
                     map_name = get_cbanded_map_name(
-                            cma_args[0].function_space_from)
+                        cma_args[0].function_space_from)
                     if map_name not in self._unique_cbanded_maps:
                         self._unique_cbanded_maps[map_name] = [cma_args[0],
                                                                "from"]
+                elif call.cma_operation == "apply":
+                    # A kernel that applies (or applies the inverse of) a
+                    # CMA operator requires the indirection dofmaps for the
+                    # to- and from-spaces of the operator.
+                    cma_args = psyGen.args_filter(
+                        call.arguments.args,
+                        arg_types=["gh_columnwise_operator"])
+                    map_name = get_cma_indirection_map_name(
+                        cma_args[0].function_space_to)
+                    if map_name not in self._unique_indirection_maps:
+                        self._unique_indirection_maps[map_name] = [cma_args[0],
+                                                                   "to"]
+                    map_name = get_cma_indirection_map_name(
+                        cma_args[0].function_space_from)
+                    if map_name not in self._unique_indirection_maps:
+                        self._unique_indirection_maps[map_name] = [cma_args[0],
+                                                                   "from"]
+
                     
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
@@ -1269,6 +1300,18 @@ class DynInvokeDofmaps(object):
                 parent.add(AssignGen(parent, pointer=True, lhs=dmap,
                                      rhs=cma[0].proxy_name_indexed +
                                      "%column_banded_dofmap_"+cma[1]))
+
+        if self._unique_indirection_maps:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Look-up required CMA indirection dofmaps"))
+            parent.add(CommentGen(parent, ""))
+            
+            for dmap, cma in self._unique_indirection_maps.items():
+                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                     rhs=cma[0].proxy_name_indexed +
+                                     "%indirection_dofmap_"+cma[1]))
+            
             
     def declare_dofmaps(self, parent):
         ''' Declare all unique function space dofmaps as pointers to
@@ -1276,18 +1319,28 @@ class DynInvokeDofmaps(object):
         children of the supplied parent argument. This must be an
         appropriate f2pygen object. '''
         from f2pygen import DeclGen
+        
+        # Function space dofmaps
         decl_map_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
 
         if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_map_names))
-
+            
+        # Column-banded dofmaps
         decl_bmap_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
         if decl_bmap_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_bmap_names))
+            
+        # CMA operator indirection dofmaps
+        decl_ind_map_names = \
+            [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
+        if decl_ind_map_names:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=decl_ind_map_names))
 
 
 class DynInvokeCMAOperators(object):
@@ -3219,10 +3272,15 @@ class KernCallArgList(ArgOrdering):
 
     def indirection_dofmaps(self, arg):
         ''' Add indirection dofmaps required when applying a CMA operator '''
-        self._arglist.append(arg.proxy_name_indexed +
-                             "%indirection_dofmap_to")
-        self._arglist.append(arg.proxy_name_indexed +
-                             "%indirection_dofmap_from")
+        self._arglist.append(get_cma_indirection_map_name(
+            arg.function_space_to))
+        # Only include the CMA indirection dofmap for the 'from' space if it
+        # differs from the 'to' space.
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
+            self._arglist.append(get_cma_indirection_map_name(
+                arg.function_space_from))
+
 
     @property
     def arglist(self):
