@@ -6534,3 +6534,16 @@ def test_anyw2_stencils():
 
 
 # test that stub generation works with any_w2 space.
+def test_stub_generate_with_anyw2():
+    '''check that the stub generate produces the expected output when we
+    have any_w2 fields. In particular, check basis functions as these
+    have specific sizes associated with the particular function space'''
+    result = generate("test_files/dynamo0p3/testkern_multi_anyw2_basis.f90",
+                      api="dynamo0.3")
+    print result
+    expected_output = (
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
+        "nqp_h,nqp_v) :: basis_any_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
+        "nqp_h,nqp_v) :: diff_basis_any_w2")
+    assert expected_output in str(result)
