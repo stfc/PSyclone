@@ -29,7 +29,8 @@ import config
 # constants
 DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
 # space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v", "any_w2"]
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v",
+                              "any_w2"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
