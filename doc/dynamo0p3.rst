@@ -229,7 +229,7 @@ The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. In the Dynamo API there are three
 different Kernel types; general purpose (user-supplied), CMA
 (user-supplied) and :ref:`dynamo_built-ins`. This section explains the
-the rules for the two user-supplied kernel types and then goes on to
+rules for the two user-supplied kernel types and then goes on to
 describe their metadata and subroutine arguments.
 
 Rules for all User-Supplied Kernels
