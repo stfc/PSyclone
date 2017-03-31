@@ -3,7 +3,8 @@
 System-specific set-up
 ======================
 
-This section provides system-specific information on how to set-up your system to use PSyclone.
+This section provides system-specific information on how to set-up
+your system to use PSyclone.
 
 Ubuntu 14.04.3
 --------------
@@ -18,27 +19,34 @@ User set-up
 Get a terminal window. You can do this by pressing <ctrl><Alt><t>
 together, or click the top left "search" icon and type "terminal".
 
-You will need subversion to download the PSyclone software. In the
-terminal type:
-::
+Install PSyclone
+^^^^^^^^^^^^^^^^
 
-    > sudo apt-get install subversion
-
-Check out a copy of PSyclone to your required location (where <PSYCLONEHOME> refers to where you would like to place the code)
-
+Change directory to where you would like to place the code (where
+<PSYCLONEHOME> refers to where you would like to place the code):
 ::
 
    > cd <PSYCLONEHOME>
-   > svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/trunk PSyclone_trunk
 
-Set your python path appropriately
+Now download and extract the latest release of PSyclone:
 ::
 
-   > cd PSyclone_trunk
-   > export PYTHONPATH=`pwd`/src:`pwd`/f2py_93
+   > wget https://github.com/stfc/PSyclone/archive/1.3.3.tar.gz
+   > gunzip 1.3.3.tar.gz
+   > tar xf 1.3.3.tar
+   > rm 1.3.3.tar
+
+Set your python path appropriately:
+::
+
+   > cd PSyclone-1.3.3
+   > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
 
 You may want to set your python path permanently (e.g. by editing your
 ${HOME}/.bashrc file if you run the BASH shell).
+
+Install Python packages using apt package manager
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 numpy is required to run PSyclone
 ::
@@ -49,6 +57,51 @@ pyparsing is required by PSyclone
 ::
 
    > sudo apt-get install python-pyparsing
+
+.. _install_pip:
+
+Install pip
+^^^^^^^^^^^
+
+The pip tool enables Python packages to be installed from the Python
+Package Index (https://packaging.python.org/installing/). Install it like so:
+::
+     > sudo apt-get install python-pip
+
+.. _install_fparser:
+
+Install fparser
+^^^^^^^^^^^^^^^
+
+fparser is also required by PSyclone but is not available from the
+Ubuntu software centre. It can instead be installed from the
+Python Package Index using pip:
+::
+
+    > pip install fparser
+
+Uninstalling is simply a matter of doing:
+::
+    > pip uninstall fparser
+
+If you do not have sufficient privileges for a system-wide install then
+you can do:
+::
+
+    > pip install --user fparser
+
+(The ``--user`` flag requests that the packages be installed locally for
+the current user rather than requiring root access.) In order for Python
+to find such locally-installed packages the necessary directory must be
+added to the PYTHONPATH, e.g.:
+::
+
+    > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
+
+Alternatively, if pip is not an option, a tarball of the latest release
+may be downloaded from https://github.com/stfc/fparser/releases. Simply
+unpack the tarball and ensure that the resulting
+``fparser-x.y.z/src/fparser`` directory is in your PYTHONPATH.
 
 If you just want to use PSyclone then you've installed all you need
 and you're ready to go to the getting-going :ref:`getting-going-run`
@@ -61,6 +114,9 @@ This section adds software that is used to develop and test
 PSyclone. Note, we assume you have already installed the software
 described in the :ref:`users` section.
 
+pytest
+^^^^^^
+
 Install pytest for running python tests
 ::
 
@@ -71,6 +127,9 @@ You can now run the PSyclone python tests
 
    > cd PSyclone_trunk/src/tests
    > py.test
+
+Documentation
+^^^^^^^^^^^^^
 
 Install Sphinx for creating PSyclone documentation 
 ::
@@ -100,6 +159,9 @@ You can now build the pdf documentation
    > cd doc
    > make latexpdf
 
+Static code tests and style checking
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Install the standalone pep8 tool
 ::
 
@@ -122,13 +184,7 @@ standards
 
     > pylint code.py
 
-Finally, include useful pytest extensions. To do this you will first
-need to install pip
-::
-
-    > sudo apt-get install python-pip
-
-You can now install the extensions
+Finally, install useful pytest extensions using pip:
 ::
 
     > sudo pip install pytest-cov
@@ -136,5 +192,14 @@ You can now install the extensions
     > sudo pip install pytest-pylint
     > sudo pip install pytest-flakes
     > sudo pip install pytest-pep257
+
+If you don't have root access then you can specify the ``--user`` argument to
+install packages in a user-local directory -- see the instructions on
+:ref:`install_fparser` above.
+
+Should you wish to remove the above packages at any point, simply instruct
+pip to uninstall them, e.g.:
+::
+    > sudo pip uninstall pytest-cov
 
 OK, you're all set up.

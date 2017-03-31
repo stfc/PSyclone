@@ -1,0 +1,7 @@
+*.pyc
+*~
+.cache
+.coverage
+doc/_build
+fparser.log
+htmlcov

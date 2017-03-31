@@ -6,73 +6,110 @@ Getting Going
 Download
 --------
 
-PSyclone is available for download from the Met Office Science
-Repository Service (SRS). The latest release is 1.3.2.
+PSyclone is available on github.
 
-``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/tags/vn1.3.2 PSyclone``
+``https://github.com/stfc/PSyclone``
 
-The latest stable version is maintained on the trunk.
+The latest release is 1.3.3 and the latest stable version is on the master branch.
 
-``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/trunk PSyclone``
+PSyclone releases can be downloaded (see ``1.3.3`` in the releases tab
+on the website) or you can download and extract the latest release of
+PSyclone directly
+::
 
-Hereon the location where you download PSyclone (including the
+   > wget https://github.com/stfc/PSyclone/archive/1.3.3.tar.gz
+   > gunzip 1.3.3.tar.gz
+   > tar xf 1.3.3.tar
+   > rm 1.3.3.tar
+   > ls
+   PSyclone-1.3.3
+   
+
+Alternatively PSyclone can be cloned:
+
+``git clone https://github.com/stfc/PSyclone.git``
+
+By default you will have access to the master branch if you clone. To
+change to the latest release then subsequently do the following
+
+``git checkout tags/1.3.3``
+
+Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be refered to as <PSYCLONEHOME>
 
 Dependencies
 ------------
 
-PSyclone is written in python so needs python to be installed on the
-target machine. PSyclone has been tested under python 2.6.5 and 2.7.3.
+PSyclone is written in Python so needs Python to be installed on the
+target machine. PSyclone has been tested under Python 2.6.5 and 2.7.3.
 
-PSyclone immediately relies on two external libraries, f2py and
-pyparsing. In addition, f2py requires numpy. To run the test suite you
-will require py.test.
+PSyclone immediately relies on two external Python packages; fparser
+and pyparsing. In addition, fparser requires numpy. To run the test
+suite you will require py.test. The easiest way to satisfy these
+dependencies is to use the Python Package Index (pypi.org) and
+``pip``. See https://packaging.python.org/installing/ for more
+information.
 
 System-specific set-up
 ^^^^^^^^^^^^^^^^^^^^^^
 
 System-specific set-up instructions are available for the following systems
 
-* :ref:`Ubuntu14.03.3`
+* Ubuntu 14.03.3 :ref:`Ubuntu14.03.3`
 
-f2py quick setup
-^^^^^^^^^^^^^^^^
+fparser
+^^^^^^^
 
-The source code of f2py (revision 93) is provided with PSyclone in the
-sub-directory ``f2py_93``.
-
-To use f2py provided with PSyclone you can simply set up your
-PYTHONPATH variable to include this directory.
+The fparser package (https://github.com/stfc/fparser) is a Fortran
+parser originally developed as a part of the f2py project. PSyclone
+requires version >= 0.0.2. It is available from the Python Package
+Index and thus may be installed using ``pip``
+(https://packaging.python.org/installing/#requirements-for-installing-packages):
 ::
+    > pip install fparser
 
-    > export PYTHONPATH=<PSYCLONEHOME>/f2py_93:${PYTHONPATH}
+If you do not have sufficient permissions to perform a system-wide install
+then you can instruct pip to do a user-local install:
+::
+    > pip install --user fparser
 
-If for some reason you need to install f2py yourself then 
-see :ref:`sec_f2py_install`.
+Should you wish to remove fparser then simply do:
+::
+    > pip uninstall fparser
+
+(See :ref:`install_fparser` for more details.)
 
 pyparsing
 ^^^^^^^^^
 
 PSyclone requires pyparsing, a library designed to allow parsers to be be
 built in Python. PSyclone uses pyparsing to parse fortran regular
-expressions as f2py does not fully parse these, (see
+expressions as fparser does not fully parse these, (see
 http://pyparsing.wikispaces.com for more information).
 
-PSyclone has been tested with pyparsing version 1.5.2 which is a
-relatively old version but is currently the version available in the
-Ubuntu software center.
+PSyclone has been tested with pyparsing versions 1.5.2 and 2.0.1.
 
-You can test if pyparsing is already installed on your machine by
+You can test whether pyparsing is already installed on your machine by
 typing ``import pyparsing`` from the python command line. If pyparsing
 is installed, this command will complete succesfully. If pyparsing is
 installed you can check its version by typing
-``pyparsing.__version__`` after succesfully importing it. Versions
-higher than 1.5.2 should work but have not been tested.
+``pyparsing.__version__`` after succesfully importing it.
 
-If pyparsing is not installed on your system you can install it from
-within Ubuntu using the software center (search for the
-"python-pyparsing" module in the software center and install). If you
-do not run Ubuntu you could follow the instructions here
+If pyparsing is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+    > pip install pyparsing
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+    > pip uninstall pyparsing
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct pip to do a user-local install:
+::
+    > pip install --user pyparsing
+
+Alternatively, you could follow the instructions here
 http://pyparsing.wikispaces.com/Download+and+Installation.
 
 py.test
@@ -87,8 +124,8 @@ output that begins with
 
     ======================== test session starts ==================
 
-If you do not have it then py.test can be installed from here
-http://pytest.org/latest/ (or specifically here
+If you do not have it then py.test can again be installed using
+``pip`` or from here http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
 Environment
@@ -96,11 +133,10 @@ Environment
 
 In order to use PSyclone (including running the test suite and
 building documentation) you will need to tell Python where to find the
-PSyclone source and the f2py source (if you have not already done the
-latter):
+PSyclone source:
 ::
 
-    > export PYTHONPATH=<PSYCLONEHOME>/src:<PSYCLONEHOME>/f2py_93:${PYTHONPATH}
+    > export PYTHONPATH=<PSYCLONEHOME>/src:${PYTHONPATH}
 
 Test
 ----
@@ -125,7 +161,6 @@ If everything is working as expected then you should see output similar to:
     alggen_test.py .......xxxxxxxxxxx.
     dynamo0p1_transformations_test.py .
     dynamo0p3_test.py .....................................x
-    f2pygen_test.py ....x..........
     generator_test.py ...................
     ghproto_transformations_test.py x
     gocean0p1_transformations_test.py .......
