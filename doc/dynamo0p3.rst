@@ -358,8 +358,19 @@ For example:
        arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
        /)
 
+In some cases a Kernel may be written so that it works for fields and/or
+operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
+``w2v``. In this case the metadata should be specified as being
+``any_w2``.
+
+.. Warning:: in the current implementation it is assumed that all
+             fields and/or operators specifying ``any_w2`` within a
+             kernel will use the **same** function space. It is up to
+             the user to ensure this is the case as otherwise invalid
+             code would be generated.
+
 It may be that a Kernel is written such that a field and/or operators
-may be on any function space. In this case the metadata should be
+may be on **any** function space. In this case the metadata should be
 specified as being one of ``any_space_1``, ``any_space_2``, ...,
 ``any_space_9``. The reason for having different names is that a
 Kernel might be written to allow 2 or more arguments to be able to support any
@@ -632,7 +643,7 @@ conventions, are:
             2) If ``evaluator_shape`` is of type ``_XYoZ`` then basis and diff basis are ``real`` arrays of rank 4 with extent (``dimension``, ``number_of_dofs``, ``n_xy``, ``n_z``)
             3) If ``evaluator_shape`` is of type ``_XoYoZ`` then basis and diff basis are ``real`` arrays of rank 5 with extent (``dimension``, ``number_of_dofs``, ``n_x``, ``n_y``, ``n_z``)
 
-           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1). ``number_of_dofs`` is the number of degrees of freedom associated with the function space. The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
+           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom associated with the function space. The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
