@@ -27,19 +27,18 @@
 
 ! Author R. Ford STFC Daresbury Lab
 
-program single_invoke_multi_anyw2_basis
+program single_invoke_anyw2_vector
 
-  ! Description: test that correct code is produced when we have
-  ! multiple any_w2 function spaces requiring basis and differential
-  ! basis functions in a kernel call
-  use testkern_multi_anyw2_basis, only: testkern_multi_anyw2_basis_type
+  ! Description: test that correct code is produced when we have an
+  ! any_w2 function space with a vector field in a kernel call
+  use testkern_anyw2_vector, only: testkern_anyw2_vector_type
   use inf,      only: field_type, quadrature_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1, f2, f3(2)
   type(quadrature_type) :: qr
   
-  call invoke(                                      &
-       testkern_multi_anyw2_basis_type(f1,f2,f3,qr) &
+  call invoke(                                 &
+       testkern_anyw2_vector_type(f1,f2,f3,qr) &
           )
 
-end program single_invoke_multi_anyw2_basis
+end program single_invoke_anyw2_vector

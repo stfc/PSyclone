@@ -2179,9 +2179,10 @@ def test_kernel_specific():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
+    print generated_code
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert output0 in generated_code
-    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
+    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v, any_w2\n"
     assert output1 in generated_code
     output2 = "INTEGER fs"
     assert output2 in generated_code
@@ -2190,12 +2191,15 @@ def test_kernel_specific():
     output4 = "fs = f1%which_function_space()"
     assert output4 in generated_code
     # We only call enforce_bc if the field is on a vector space
-    output5 = '''IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN
-        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
-      END IF'''
+    output5 = (
+        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
+        "fs == any_w2) THEN\n"
+        "        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()\n"
+        "      END IF")
     assert output5 in generated_code
     output6 = (
-        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN\n"
+        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
+        "fs == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2220,7 +2224,7 @@ def test_multi_kernel_specific():
     # should only be one of the following generated ...
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert generated_code.count(output0) == 1
-    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
+    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v, any_w2\n"
     assert generated_code.count(output1) == 1
 
     # first loop
@@ -2231,12 +2235,15 @@ def test_multi_kernel_specific():
     output3 = "fs = f1%which_function_space()"
     assert output3 in generated_code
     # We only call enforce_bc if the field is on a vector space
-    output4 = '''IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN
-        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
-      END IF'''
+    output4 = (
+        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
+        "fs == any_w2) THEN\n"
+        "        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()\n"
+        "      END IF")
     assert output4 in generated_code
     output5 = (
-        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN\n"
+        "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
+        "fs == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
@@ -2250,14 +2257,15 @@ def test_multi_kernel_specific():
     output8 = "fs_1 = f1%which_function_space()"
     assert output8 in generated_code
     output9 = (
-        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
+        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v "
+        ".or. fs_1 == any_w2) "
         "THEN\n"
         "        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()\n"
         "      END IF")
     assert output9 in generated_code
     output10 = (
-        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
-        "THEN\n"
+        "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v "
+        ".or. fs_1 == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
@@ -6357,7 +6365,6 @@ def test_kernstubarglist_arglist_error():
         "called?") in str(excinfo.value)
 
 
-# test that the new any_w2 space works with multiple fields
 def test_multi_anyw2():
     '''Check generated code works correctly when we have multiple any_w2
     fields. Particularly check that we only generate a single lookup.'''
@@ -6426,7 +6433,6 @@ def test_multi_anyw2():
             assert output in generated_code
 
 
-# test that the new any_w2 space works with basis and diff basis
 def test_anyw2_basis():
     '''Check generated code works correctly when we have any_w2 fields
     and basis functions'''
@@ -6461,9 +6467,70 @@ def test_anyw2_basis():
         assert output in generated_code
 
 
-# test that the new any_w2 space works with field vectors
-# test that the new any_w2 space works with operators
+def test_anyw2_vectors():
+    '''Check generated code works correctly when we have any_w2 field
+    vectors'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.3_single_invoke_anyw2_vector.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        assert "f3_proxy(1) = f3(1)%get_proxy()" in generated_code
+        assert "f3_proxy(2) = f3(2)%get_proxy()" in generated_code
+        assert "f3_proxy(1)%data, f3_proxy(2)%data" in generated_code
 
-# test that enforce_bc_kernel is called if matrix_vector_kernel is used with
-# any_w2
+
+def test_anyw2_operators():
+    '''Check generated code works correctly when we have any_w2 fields
+    with operators'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.4_single_invoke_anyw2_operator.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        output = (
+            "      ! Initialise sizes and allocate any basis arrays for "
+            "any_w2\n"
+            "      !\n"
+            "      ndf_any_w2 = mm_w2_proxy%fs_from%get_ndf()\n"
+            "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n"
+            "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
+            "      ALLOCATE (basis_any_w2(dim_any_w2, ndf_any_w2, nqp_h, "
+            "nqp_v))\n"
+            "      !\n"
+            "      ! Compute basis arrays\n"
+            "      !\n"
+            "      CALL mm_w2_proxy%fs_from%compute_basis_function("
+            "basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)")
+        assert output in generated_code
+
+
+def test_anyw2_stencils():
+    '''Check generated code works correctly when we have any_w2 fields
+    with stencils'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "20.5_single_invoke_anyw2_stencil.f90"),
+        api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        generated_code = str(psy.gen)
+        print generated_code
+        output = (
+            "      ! Initialise stencil dofmaps\n"
+            "      !\n"
+            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap"
+            "(STENCIL_CROSS,extent)\n"
+            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+            "      f2_stencil_size = f2_stencil_map%get_size()\n"
+            "      !\n")
+        assert output in generated_code
+
+
 # test that stub generation works with any_w2 space.

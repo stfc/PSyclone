@@ -27,19 +27,18 @@
 
 ! Author R. Ford STFC Daresbury Lab
 
-program single_invoke_multi_anyw2_basis
-
-  ! Description: test that correct code is produced when we have
-  ! multiple any_w2 function spaces requiring basis and differential
-  ! basis functions in a kernel call
-  use testkern_multi_anyw2_basis, only: testkern_multi_anyw2_basis_type
-  use inf,      only: field_type, quadrature_type
-  implicit none
-  type(field_type) :: f1, f2, f3
-  type(quadrature_type) :: qr
-  
-  call invoke(                                      &
-       testkern_multi_anyw2_basis_type(f1,f2,f3,qr) &
-          )
-
-end program single_invoke_multi_anyw2_basis
+module testkern_anyw2_stencil_mod
+  type, extends(kernel_type) :: testkern_anyw2_stencil_type
+     type(arg_type), dimension(3) :: meta_args =                  &
+          (/ arg_type(gh_field,gh_write,any_w2),                  &
+             arg_type(gh_field,gh_read, any_w2, stencil(cross)),  &
+             arg_type(gh_field,gh_read, any_w2, stencil(cross))   &
+          /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_anyw2_stencil_code
+  end type testkern_anyw2_stencil_type
+contains
+  subroutine testkern_anyw2_stencil_code()
+  end subroutine testkern_anyw2_stencil_code
+end module testkern_anyw2_stencil_mod

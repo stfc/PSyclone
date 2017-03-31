@@ -2372,7 +2372,7 @@ class DynKern(Kern):
             enforce_bc_arg = self.updated_arg
             # We only need to call the enforce_bc kernel if the field is on
             # a vector function space
-            space_names = ["w1", "w2", "w2h", "w2v"]
+            space_names = ["w1", "w2", "w2h", "w2v", "any_w2"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
