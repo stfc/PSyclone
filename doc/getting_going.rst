@@ -6,16 +6,35 @@ Getting Going
 Download
 --------
 
-PSyclone is available for download from the Met Office Science
-Repository Service (SRS). The latest release is 1.3.2.
+PSyclone is available on github.
 
-``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/tags/vn1.3.2 PSyclone``
+``https://github.com/stfc/PSyclone``
 
-The latest stable version is maintained on the trunk.
+The latest release is 1.3.3 and the latest stable version is on the master branch.
 
-``svn co https://code.metoffice.gov.uk/svn/lfric/PSyclone/trunk PSyclone``
+PSyclone releases can be downloaded (see ``1.3.3`` in the releases tab
+on the website) or you can download and extract the latest release of
+PSyclone directly
+::
 
-Hereon the location where you download PSyclone (including the
+   > wget https://github.com/stfc/PSyclone/archive/1.3.3.tar.gz
+   > gunzip 1.3.3.tar.gz
+   > tar xf 1.3.3.tar
+   > rm 1.3.3.tar
+   > ls
+   PSyclone-1.3.3
+   
+
+Alternatively PSyclone can be cloned:
+
+``git clone https://github.com/stfc/PSyclone.git``
+
+By default you will have access to the master branch if you clone. To
+change to the latest release then subsequently do the following
+
+``git checkout tags/1.3.3``
+
+Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be refered to as <PSYCLONEHOME>
 
 Dependencies
