@@ -750,12 +750,10 @@ class DynKernMetadata(KernelType):
                     "with a stencil access ({1}). This is forbidden.".
                     format(self.name, arg.stencil['type']))
 
-        # Identify which, if any, CMA operator is written to
-        mutable_cma_op = None
+        # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
             if cop.access != "gh_read":
-                mutable_cma_op = cop
                 write_count += 1
 
         if write_count == 0:

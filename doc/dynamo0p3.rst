@@ -229,7 +229,7 @@ The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. In the Dynamo API there are three
 different Kernel types; general purpose (user-supplied), CMA
 (user-supplied) and :ref:`dynamo_built-ins`. This section explains the
-the rules for the two user-supplied kernel types and then goes on to
+rules for the two user-supplied kernel types and then goes on to
 describe their metadata and subroutine arguments.
 
 Rules for all User-Supplied Kernels
@@ -875,8 +875,9 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	  1) Include the number of rows in the banded matrix.  This is
 	     an integer with intent ``in`` and is named as
 	     ``"nrow_"<operator_name>``.
-          2) Include the number of columns in the banded matrix.  This
-	     is an integer with intent ``in`` and is named as
+          2) If the from-space of the operator is *not* the same as the 
+	     to-space then include the number of columns in the banded
+	     matrix.  This is an integer with intent ``in`` and is named as
 	     ``"ncol_"<operator_name>``.
 	  3) Include the bandwidth of the banded matrix. This is an
 	     integer with intent ``in`` and is named as
@@ -912,14 +913,12 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	     with intent ``in``. It has one dimension sized by the local
 	     degrees of freedom for the function space.
 
-    7) Include ``column_banded_dofmap_to``, the list of offsets for the
-       to-space of the CMA operator. This is an integer array of rank 2. The
-       first dimension is ``ndf_xxx`` and the second is ``nlayers``.
+	3) If the CMA operator has this space as its to/from space then
+	   include the column-banded dofmap, the list of offsets for the
+	   to/from-space. This is an integer array of rank 2. The first
+	   dimension is ``"ndf_"<arg_function_space>```` and the second
+           is ``nlayers``.
 
-    8) Include ``column_banded_dofmap_from``, the list of offsets for
-       the from-space of the CMA operator. This is an integer array of
-       rank 2. The first dimension is ``ndf_xxx`` and the second is
-       ``nlayers``.
 
 Application/Inverse-Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -965,7 +964,8 @@ The full set of rules is then:
 
     5) Include the indirection map for the to-space of the CMA operator.
        This is a rank-1 integer array with extent ``nrow``.
-    6) Include the indirection map for the from-space of the CMA operator.
+    6) If the from-space of the operator is *not* the same as the to-space
+       then include the indirection map for the from-space of the CMA operator.
        This is a rank-1 integer array with extent ``ncol``.
 
 Matrix-Matrix
