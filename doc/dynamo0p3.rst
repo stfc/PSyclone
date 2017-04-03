@@ -875,8 +875,9 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	  1) Include the number of rows in the banded matrix.  This is
 	     an integer with intent ``in`` and is named as
 	     ``"nrow_"<operator_name>``.
-          2) Include the number of columns in the banded matrix.  This
-	     is an integer with intent ``in`` and is named as
+          2) If the from-space of the operator is *not* the same as the 
+	     to-space then include the number of columns in the banded
+	     matrix.  This is an integer with intent ``in`` and is named as
 	     ``"ncol_"<operator_name>``.
 	  3) Include the bandwidth of the banded matrix. This is an
 	     integer with intent ``in`` and is named as
@@ -895,15 +896,17 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
        1) Include ``ndf_to``, the number of degrees of freedom per cell for
 	  the to-space of the CMA operator. This is an integer with intent
 	  ``in``.
-       2) Include ``ndf_from``, the number of degrees of freedom per cell for
-	  the from-space of the CMA operator. This is an integer with intent
-	  ``in``.
+       2) If the from-space of the operator is *not* the same as the 
+	  to-space then include ``ndf_from``, the number of degrees of
+	  freedom per cell for the from-space of the CMA operator. This is
+	  an integer with intent ``in``.
        3) Include ``column_banded_dofmap_to``, the list of offsets for the
 	  to-space. This is an integer array of rank 2. The first dimension
 	  is ``ndf_to`` and the second is ``nlayers``.
-       4) Include ``column_banded_dofmap_from``, the list of offsets for the
-	  from-space. This is an integer array of rank 2. The first dimension
-	  is ``ndf_from`` and the second is ``nlayers``.
+       4) If the from-space of the operator is *not* the same as the 
+	  to-space then include ``column_banded_dofmap_from``, the list of
+	  offsets for the from-space. This is an integer array of rank 2. The
+	  first dimension is ``ndf_from`` and the second is ``nlayers``.
 
 Application/Inverse-Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -949,7 +952,8 @@ The full set of rules is then:
 
     5) Include the indirection map for the to-space of the CMA operator.
        This is a rank-1 integer array with extent ``nrow``.
-    6) Include the indirection map for the from-space of the CMA operator.
+    6) If the from-space of the operator is *not* the same as the to-space
+       then include the indirection map for the from-space of the CMA operator.
        This is a rank-1 integer array with extent ``ncol``.
 
 Matrix-Matrix
