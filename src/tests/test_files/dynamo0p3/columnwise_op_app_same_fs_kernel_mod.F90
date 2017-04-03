@@ -57,7 +57,7 @@ implicit none
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, extends(kernel_type) :: columnwise_op_app_kernel_type
+type, public, extends(kernel_type) :: columnwise_op_app_same_fs_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                      &
        arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_2),                        &  
@@ -66,8 +66,8 @@ type, public, extends(kernel_type) :: columnwise_op_app_kernel_type
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass :: columnwise_op_app_kernel_code
-end type columnwise_op_app_kernel_type
+  procedure, nopass :: columnwise_op_app_same_fs_kernel_code
+end type columnwise_op_app_same_fs_kernel_type
 
 !-------------------------------------------------------------------------------
 ! Constructors
@@ -109,7 +109,7 @@ contains
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
   !> @param [in] indirection_dofmap_to indirection map for to-space
   !> @param [in] indirection_dofmap_from indirection map for from-space
-  subroutine columnwise_op_app_kernel_code(cell,              &
+  subroutine columnwise_op_app_same_fs_kernel_code(cell,              &
                                            ncell_2d,          &
                                            lhs, x,            & 
                                            columnwise_matrix, &
@@ -124,6 +124,6 @@ contains
                                            indirection_dofmap_to)
     implicit none
 
-  end subroutine columnwise_op_app_kernel_code
+  end subroutine columnwise_op_app_same_fs_kernel_code
 
 end module columnwise_op_app_same_fs_kernel_mod

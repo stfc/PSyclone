@@ -41,14 +41,15 @@ program single_invoke_cma
 
   ! Description: single function specified in an invoke call using all
   ! function spaces
-  use columnwise_op_app_same_fs_kernel_mod, only: columnwise_op_app_kernel_type
+  use columnwise_op_app_same_fs_kernel_mod, only: &
+                            columnwise_op_app_same_fs_kernel_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: field_a, field_b
   type(columnwise_operator_type) :: cma_op1
 
   call invoke(                      &
-          columnwise_op_app_kernel_type(field_a, field_b, cma_op1) &
+          columnwise_op_app_same_fs_kernel_type(field_a, field_b, cma_op1) &
           )
 
 end program single_invoke_cma

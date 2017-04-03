@@ -209,6 +209,20 @@ def field_on_space(function_space, arguments):
                 return arg
     return None
 
+
+def cma_on_space(function_space, arguments):
+    ''' Returns the corresponding argument if the supplied list of arguments
+    contains a cma operator that maps to/from the specified space. Otherwise
+    returns None.'''
+    if function_space.mangled_name in arguments.unique_fs_names:
+        for arg in arguments.args:
+            # First, test that arg is a CMA op as some argument objects won't
+            # have function spaces, e.g. scalars
+            if arg.type == "gh_columnwise_operator" and \
+               function_space.orig_name in [arg.function_space_to.orig_name, arg.function_space_from.orig_name]:
+                return arg
+    return None
+
 # Classes
 
 
@@ -2961,6 +2975,15 @@ class ArgOrdering(object):
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
                 self.fs_compulsory_field(unique_fs)
+            cma_op = cma_on_space(unique_fs, self._kern.arguments)
+            if cma_op:
+                if self._kern.cma_operation == "assembly":
+                    # CMA-assembly requires banded dofmaps
+                    self.banded_dofmap(unique_fs)
+                elif self._kern.cma_operation == "apply":
+                    # Applying a CMA operator requires indirection dofmaps
+                    self.indirection_dofmap(unique_fs, op=cma_op)
+
             # Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function,
             # differential basis function and orientation) for a
@@ -2982,12 +3005,6 @@ class ArgOrdering(object):
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
-        # CMA-assembly requires banded dofmaps
-        if self._kern.cma_operation == "assembly":
-            self.banded_dofmaps(_cma_op)
-        # Applying a CMA operator requires indirection dofmaps
-        elif self._kern.cma_operation == "apply":
-            self.indirection_dofmaps(_cma_op)
 
     def cell_position(self):
         ''' add cell position information'''
@@ -3077,14 +3094,14 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.quad_rule() must be implemented by subclass")
 
-    def banded_dofmaps(self, arg):
-        ''' Add banded dofmaps (required for CMA operator assembly) '''
-        raise NotImplementedError("Error: ArgOrdering.banded_dofmaps() must"
+    def banded_dofmap(self, function_space):
+        ''' Add banded dofmap (required for CMA operator assembly) '''
+        raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
                                   " be implemented by subclass")
 
-    def indirection_dofmaps(self, arg):
-        ''' Add indirection dofmaps required when applying a CMA operator '''
-        raise NotImplementedError("Error: ArgOrdering.indirection_dofmaps() "
+    def indirection_dofmap(self, arg, op=None):
+        ''' Add indirection dofmap required when applying a CMA operator '''
+        raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
                                   "must be implemented by subclass")
 
 
@@ -3256,29 +3273,16 @@ class KernCallArgList(ArgOrdering):
                               self._kern.qr_args["h"],
                               self._kern.qr_args["v"]])
 
-    def banded_dofmaps(self, arg):
-        ''' Add banded dofmaps (required for CMA operator assembly) '''
+    def banded_dofmap(self, function_space):
+        ''' Add banded dofmap (required for CMA operator assembly) '''
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        self._arglist.append(get_cbanded_map_name(arg.function_space_to))
-        # Only include the column-banded dofmap for the 'from' space if it
-        # differs from the 'to' space.
-        if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
-            self._arglist.append(get_cbanded_map_name(arg.function_space_from))
+        self._arglist.append(get_cbanded_map_name(function_space))
 
-    def indirection_dofmaps(self, arg):
-        ''' Add indirection dofmaps required when applying a CMA operator '''
-        self._arglist.append(get_cma_indirection_map_name(
-            arg.function_space_to))
-        # Only include the CMA indirection dofmap for the 'from' space if it
-        # differs from the 'to' space.
-        if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
-            self._arglist.append(get_cma_indirection_map_name(
-                arg.function_space_from))
-
+    def indirection_dofmap(self, function_space, op=None):
+        ''' Add indirection dofmap required when applying a CMA operator '''
+        self._arglist.append(get_cma_indirection_map_name(function_space))
 
     @property
     def arglist(self):
@@ -3473,46 +3477,40 @@ class KernStubArgList(ArgOrdering):
             self._first_arg = False
             self._first_arg_decl = decl
 
-    def banded_dofmaps(self, arg):
-        ''' Declare the banded dofmaps required for the CMA operator
-        being assembled'''
+    def banded_dofmap(self, function_space):
+        ''' Declare the banded dofmap required for a CMA operator
+        that maps to/from the specified function space '''
         from f2pygen import DeclGen
-        ndf_to = get_fs_ndf_name(arg.function_space_to)
-        ndf_from = get_fs_ndf_name(arg.function_space_from)
-        dofmap_to = arg.name + "_column_banded_dofmap_to"
-        dofmap_from = arg.name + "_column_banded_dofmap_from"
+        ndf = get_fs_ndf_name(function_space)
+        dofmap = get_cbanded_map_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=",".join([ndf_to, "nlayers"]),
+                                 dimension=",".join([ndf, "nlayers"]),
                                  intent="in",
-                                 entity_decls=[dofmap_to]))
-        self._arglist.append(dofmap_to)
-        # We only include both the banded dofmaps for both the to- and from-
-        # spaces if they are different
-        if arg.function_space_to.orig_name != \
-           arg.function_space_from.orig_name:
-            self._parent.add(DeclGen(self._parent, datatype="integer",
-                                     dimension=",".join([ndf_from, "nlayers"]),
-                                     intent="in",
-                                     entity_decls=[dofmap_from]))
-            self._arglist.append(dofmap_from)
+                                 entity_decls=[dofmap]))
+        self._arglist.append(dofmap)
 
-    def indirection_dofmaps(self, arg):
+    def indirection_dofmap(self, function_space, op=None):
         ''' Declare the indirection dofmaps required when applying a
         CMA operator '''
         from f2pygen import DeclGen
-        nrow = arg.name + "_nrow"
-        ncol = arg.name + "_ncol"
-        to_name = arg.name + "_indirection_dofmap_to"
-        from_name = arg.name + "_indirection_dofmap_from"
+        if not op:
+            raise GenerationError("Internal error: no CMA operator supplied.")
+        if op.type != "gh_columnwise_operator":
+            raise GenerationError(
+                "Internal error: a CMA operator (gh_columnwise_operator) must "
+                "be supplied but got {0}".format(op.type))
+        # If a kernel applies a CMA operator then it must only have a
+        # single such operator amongst its arguments
+        if op.function_space_to.orig_name == function_space.orig_name:
+            dim_name = op.name + "_nrow"
+        else:
+            dim_name = op.name + "_ncol"
+        map_name = get_cma_indirection_map_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=nrow,
+                                 dimension=dim_name,
                                  intent="in",
-                                 entity_decls=[to_name]))
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=ncol,
-                                 intent="in",
-                                 entity_decls=[from_name]))
-        self._arglist += [to_name, from_name]
+                                 entity_decls=[map_name]))
+        self._arglist.append(map_name)
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
