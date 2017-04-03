@@ -227,7 +227,7 @@ def test_cma_mdata_asm_vector_error():  # pylint: disable=invalid-name
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has a "
             "vector argument (gh_columnwise_operator*2). This is forbidden") \
-            in str(excinfo)
+        in str(excinfo)
 
 
 def test_cma_mdata_asm_stencil_error():  # pylint: disable=invalid-name
@@ -244,7 +244,7 @@ def test_cma_mdata_asm_stencil_error():  # pylint: disable=invalid-name
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type takes a CMA operator but has an "
             "argument with a stencil access (x1d). This is forbidden.") \
-            in str(excinfo)
+        in str(excinfo)
 
 
 CMA_APPLY = '''
@@ -549,7 +549,7 @@ def test_cma_mdata_stencil_invalid():
             "is gh_operator or gh_columnwise_operator") in str(excinfo)
 
 
-def test_cma_mdata_matrix_vector_error():
+def test_cma_mdata_matrix_vector_error():  # pylint: disable=invalid-name
     ''' Check that we raise the expected error when a matrix-matrix kernel
     contains a vector argument '''
     fparser.logging.disable('CRITICAL')
