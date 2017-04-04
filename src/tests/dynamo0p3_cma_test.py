@@ -718,6 +718,12 @@ def test_cma_asm_field_same_fs():
         assert "INTEGER ncell_2d" in code
         assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+        if distmem:
+            # When distributed-memory is enabled then we compute operators
+            # redundantly (out to the L1 halo)
+            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+        else:
+            assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
         expected =  ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
                      "nlayers, ncell_2d, "
                      "lma_op1_proxy%ncell_3d, "
@@ -775,6 +781,50 @@ def test_cma_apply():
             in code
 
 
+def test_cma_apply_w3_space():
+    ''' Test that we generate correct code for a kernel that applies
+    a CMA operator to a field on a discontinuous space '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.1.2_cma_apply_w3.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert "INTEGER ncell_2d" in code
+        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+        assert ("INTEGER, pointer :: cma_indirection_map_w3(:) "
+                "=> null(), cma_indirection_map_any_space_2_field_b(:) => "
+                "null()\n") in code
+        assert ("ndf_w3 = field_a_proxy%vspace%get_ndf()\n"
+                "      undf_w3 = field_a_proxy%vspace%"
+                "get_undf()") in code
+        assert ("cma_indirection_map_w3 => "
+                "cma_op1_proxy%indirection_dofmap_to") in code
+        if distmem:
+            # The kernel only *reads* from a CMA operator and writes to a
+            # field on a discontinuous space - therefore we do not need to
+            # loop out into the L1 halo.
+            assert "DO cell=1,mesh%get_last_edge_cell()" in code
+        else:
+            assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
+            
+        assert ("CALL columnwise_op_app_w3_kernel_code(cell, ncell_2d, "
+                "field_a_proxy%data, field_b_proxy%data, "
+                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                "cma_op1_bandwidth, cma_op1_alpha, "
+                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+                "ndf_w3, undf_w3, map_w3(:,cell), cma_indirection_map_w3, "
+                "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
+                "map_any_space_2_field_b(:,cell), "
+                "cma_indirection_map_any_space_2_field_b)") \
+            in code
+
+
 def test_cma_apply_same_space():
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator which has the same to- and from-
@@ -825,6 +875,13 @@ def test_cma_matrix_matrix():
         print code
         assert "INTEGER ncell_2d" in code
         assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+        if distmem:
+            # When distributed-memory is enabled then we compute operators
+            # redundantly (out to the L1 halo)
+            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+        else:
+            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+
         assert ("CALL columnwise_op_mul_kernel_code(cell, "
                 "ncell_2d, "
                 "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
@@ -875,6 +932,17 @@ def test_cma_multi_kernel():
                 "      cma_indirection_map_any_space_2_field_b => "
                 "cma_op1_proxy%indirection_dofmap_from\n") in code
 
+        if distmem:
+            # When distributed-memory is enabled then we compute operators
+            # redundantly (out to the L1 halo). Since the field that the
+            # CMA operator is applied to is on any-space, we must assume
+            # the worst and also loop out to L1 for it too.
+            assert code.count("DO cell=1,mesh%get_last_halo_cell(1)\n") == 3
+        else:
+            assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
+            assert "DO cell=1,field_a_proxy%vspace%get_ncell()\n" in code
+            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+
         assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
                 "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
                 "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
@@ -893,7 +961,7 @@ def test_cma_multi_kernel():
                 "cma_indirection_map_any_space_1_field_a, "
                 "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
                 "map_any_space_2_field_b(:,cell), "
-                "cma_indirection_map_any_space_2_field_b)\n") in code 
+                "cma_indirection_map_any_space_2_field_b)\n") in code
         assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
                 "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
                 "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
