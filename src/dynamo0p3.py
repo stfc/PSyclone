@@ -572,15 +572,6 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here.")
 
     @property
-    def is_any_space(self):
-        ''' Returns True if this descriptor is of type any_space. This
-        could be any on the any_space spaces, i.e. any of any_space_1,
-        any_space_2, ... any_space_9, otherwise returns False. For
-        operators, returns True if the source descriptor is of type
-        any_space, else returns False. '''
-        return self.function_space in VALID_ANY_SPACE_NAMES
-
-    @property
     def vector_size(self):
         ''' Returns the vector size of the argument. This will be 1 if *n
         has not been specified. '''
@@ -821,21 +812,6 @@ class DynKernMetadata(KernelType):
                     "does not match the 'to' space of the operator "
                     "({2})".format(self.name, farg_write[0].function_space,
                                    cma_op.function_space_to))
-            if farg_read[0].stencil:
-                raise ParseError("Kernel {0} applies a CMA operator but has a "
-                                 "field argument with a stencil access ({1}). "
-                                 "This is forbidden.".
-                                 format(self.name,
-                                        farg_read[0].stencil['type']))
-            if farg_read[0].vector_size > 1 or farg_write[0].vector_size > 1:
-                if farg_read[0].vector_size > 1:
-                    _arg = farg_read[0]
-                else:
-                    _arg = farg_write[0]
-                raise ParseError("Kernel {0} applies a CMA operator but has a "
-                                 "vector argument ({1}). This is forbidden.".
-                                 format(self.name,
-                                        _arg.type+"*"+str(_arg.vector_size)))
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
         elif write_count == 1:
@@ -3125,12 +3101,14 @@ class KernCallArgList(ArgOrdering):
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
 
-    def mesh_ncell3d(self):
-        ''' Add the number of cells in the full 3D mesh to the argument
-        list '''
-        ncell3d_name = self._name_space_manager.create_name(
-            root_name="ncell_3d", context="PSyVars", label="ncell3d")
-        self._arglist.append(ncell3d_name)
+    # TODO uncomment this method when ensuring we only pass ncell3d once
+    # to any given kernel.
+    # def mesh_ncell3d(self):
+    #     ''' Add the number of cells in the full 3D mesh to the argument
+    #     list '''
+    #     ncell3d_name = self._name_space_manager.create_name(
+    #         root_name="ncell_3d", context="PSyVars", label="ncell3d")
+    #     self._arglist.append(ncell3d_name)
 
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list '''

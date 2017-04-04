@@ -6295,9 +6295,26 @@ def test_argordering_exceptions():
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
                        create_arg_list.orientation,
-                       create_arg_list.bc_kernel]:
+                       create_arg_list.bc_kernel,
+                       create_arg_list.banded_dofmap,
+                       create_arg_list.indirection_dofmap]:
             with pytest.raises(NotImplementedError):
                 method(None)
+
+
+def test_kernel_args_has_op():
+    ''' Check that we raise an exception if the arg. type supplied to
+    DynKernelArguments.has_operator() is not a valid operator '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    # find the parsed code's call class
+    call = invoke_info.calls.values()[0].kcalls[0]
+    from dynamo0p3 import DynKernelArguments
+    dka = DynKernelArguments(call, None)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = dka.has_operator(op_type="gh_field")
+    assert "op_type must be a valid operator type" in str(excinfo)
 
 
 def test_kernel_stub_invalid_scalar_argument():
@@ -6323,6 +6340,33 @@ def test_kernel_stub_invalid_scalar_argument():
     assert (
         "Internal error: expected arg type to be one of '['gh_real', "
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+
+
+def test_kernel_stub_ind_dofmap_errors():
+    '''Check that we raise the expected exceptions if the wrong arguments
+    are supplied to KernelStubArgList.indirection_dofmap() '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_one_int_scalar.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # create a temporary module to add code into
+    from f2pygen import ModuleGen
+    module = ModuleGen("module_name")
+    # Now call KernStubArgList to raise an exception
+    from dynamo0p3 import KernStubArgList
+    create_arg_list = KernStubArgList(kernel, module)
+    # First call it without an argument object
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.indirection_dofmap("w3")
+    assert "no CMA operator supplied" in str(excinfo)
+    # Second, call it with an argument object but one that is not
+    # an operator
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
+    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
+            "got") in str(excinfo)
 
 
 def test_kerncallarglist_arglist_error():
