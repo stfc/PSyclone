@@ -181,6 +181,7 @@ def get_fs_operator_name(operator_name, function_space):
             "Unsupported name '{0}' found. Expected one of {1}".
             format(operator_name, VALID_METAFUNC_NAMES))
 
+
 def mangle_fs_name(args, fs_name):
     ''' Construct the mangled version of a function-space name given
     a list of kernel arguments '''
@@ -219,7 +220,8 @@ def cma_on_space(function_space, arguments):
             # First, test that arg is a CMA op as some argument objects won't
             # have function spaces, e.g. scalars
             if arg.type == "gh_columnwise_operator" and \
-               function_space.orig_name in [arg.function_space_to.orig_name, arg.function_space_from.orig_name]:
+               function_space.orig_name in [arg.function_space_to.orig_name,
+                                            arg.function_space_from.orig_name]:
                 return arg
     return None
 
@@ -1187,7 +1189,6 @@ class DynInvokeStencil(object):
                                          rhs=map_name + "%get_size()"))
 
 
-
 class DynInvokeDofmaps(object):
     ''' Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke '''
@@ -1258,7 +1259,6 @@ class DynInvokeDofmaps(object):
                         self._unique_indirection_maps[map_name] = [cma_args[0],
                                                                    "from"]
 
-                    
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
         look-up the necessary dofmaps. Adds these calls as children
@@ -1294,20 +1294,19 @@ class DynInvokeDofmaps(object):
             parent.add(CommentGen(parent,
                                   " Look-up required CMA indirection dofmaps"))
             parent.add(CommentGen(parent, ""))
-            
+
             for dmap, cma in self._unique_indirection_maps.items():
                 parent.add(AssignGen(parent, pointer=True, lhs=dmap,
                                      rhs=cma[0].proxy_name_indexed +
                                      "%indirection_dofmap_"+cma[1]))
-            
-            
+
     def declare_dofmaps(self, parent):
         ''' Declare all unique function space dofmaps as pointers to
         integer arrays of rank 2. The declarations are added as
         children of the supplied parent argument. This must be an
         appropriate f2pygen object. '''
         from f2pygen import DeclGen
-        
+
         # Function space dofmaps
         decl_map_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
@@ -1315,14 +1314,14 @@ class DynInvokeDofmaps(object):
         if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_map_names))
-            
+
         # Column-banded dofmaps
         decl_bmap_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
         if decl_bmap_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_bmap_names))
-            
+
         # CMA operator indirection dofmaps
         decl_ind_map_names = \
             [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
@@ -1333,7 +1332,7 @@ class DynInvokeDofmaps(object):
 
 class DynInvokeCMAOperators(object):
     ''' Holds all information on the CMA operators required by an invoke '''
-    
+
     cma_same_fs_params = ["nrow", "bandwidth", "alpha",
                           "beta", "gamma_m", "gamma_p"]
     cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
@@ -1342,7 +1341,7 @@ class DynInvokeCMAOperators(object):
     def __init__(self, schedule):
 
         self._name_space_manager = NameSpaceFactory().create()
-        
+
         # Look at every kernel call in this invoke and generate a set of
         # the unique CMA operators involved. For each one we create a
         # dictionary entry. The key is the name of the CMA argument in the
@@ -1386,7 +1385,7 @@ class DynInvokeCMAOperators(object):
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
-                                  " Look-up information for each CMA operator"))
+                              " Look-up information for each CMA operator"))
         parent.add(CommentGen(parent, ""))
 
         for op_name in self._cma_ops:
@@ -1413,7 +1412,7 @@ class DynInvokeCMAOperators(object):
         ''' Generate the necessary declarations for all column-wise operators
         and their associated parameters '''
         from f2pygen import DeclGen
-        
+
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
@@ -2515,6 +2514,7 @@ class DynKern(Kern):
         self._qr_name = ""
         self._qr_args = None
         self._name_space_manager = NameSpaceFactory().create()
+        self._cma_operation = ""
 
     def load(self, call, parent=None):
         ''' sets up kernel information with the call object which is
@@ -2911,7 +2911,6 @@ class ArgOrdering(object):
         # scalar). If the argument is a field or field vector and also
         # has a stencil access then also call appropriate stencil
         # methods.
-        _cma_op = None
         for arg in self._kern.arguments.args:
             if arg.type == "gh_field":
                 if arg.vector_size > 1:
@@ -2932,7 +2931,6 @@ class ArgOrdering(object):
             elif arg.type == "gh_operator":
                 self.operator(arg)
             elif arg.type == "gh_columnwise_operator":
-                _cma_op = arg
                 self.cma_operator(arg)
             elif arg.type in VALID_SCALAR_NAMES:
                 self.scalar(arg)
@@ -2958,7 +2956,7 @@ class ArgOrdering(object):
                     self.banded_dofmap(unique_fs)
                 elif self._kern.cma_operation == "apply":
                     # Applying a CMA operator requires indirection dofmaps
-                    self.indirection_dofmap(unique_fs, op=cma_op)
+                    self.indirection_dofmap(unique_fs, operator=cma_op)
 
             # Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function,
@@ -2992,6 +2990,17 @@ class ArgOrdering(object):
         ''' add height information'''
         raise NotImplementedError(
             "Error: ArgOrdering.mesh_height() must be implemented by subclass")
+
+    def mesh_ncell2d(self):
+        ''' Add the number of columns in the mesh '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
+            "subclass")
+
+    def cma_operator(self, arg):
+        ''' Add information on the CMA operator '''
+        raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
+                                  "be implemented by subclass")
 
     def field_vector(self, arg):
         ''' add field-vector information for this field-vector argument '''
@@ -3075,7 +3084,7 @@ class ArgOrdering(object):
         raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
                                   " be implemented by subclass")
 
-    def indirection_dofmap(self, arg, op=None):
+    def indirection_dofmap(self, arg, operator=None):
         ''' Add indirection dofmap required when applying a CMA operator '''
         raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
                                   "must be implemented by subclass")
@@ -3258,7 +3267,7 @@ class KernCallArgList(ArgOrdering):
         # space that appears in the meta-data.
         self._arglist.append(get_cbanded_map_name(function_space))
 
-    def indirection_dofmap(self, function_space, op=None):
+    def indirection_dofmap(self, function_space, operator=None):
         ''' Add indirection dofmap required when applying a CMA operator '''
         self._arglist.append(get_cma_indirection_map_name(function_space))
 
@@ -3467,22 +3476,22 @@ class KernStubArgList(ArgOrdering):
                                  entity_decls=[dofmap]))
         self._arglist.append(dofmap)
 
-    def indirection_dofmap(self, function_space, op=None):
+    def indirection_dofmap(self, function_space, operator=None):
         ''' Declare the indirection dofmaps required when applying a
         CMA operator '''
         from f2pygen import DeclGen
-        if not op:
+        if not operator:
             raise GenerationError("Internal error: no CMA operator supplied.")
-        if op.type != "gh_columnwise_operator":
+        if operator.type != "gh_columnwise_operator":
             raise GenerationError(
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
-                "be supplied but got {0}".format(op.type))
+                "be supplied but got {0}".format(operator.type))
         # If a kernel applies a CMA operator then it must only have a
         # single such operator amongst its arguments
-        if op.function_space_to.orig_name == function_space.orig_name:
-            dim_name = op.name + "_nrow"
+        if operator.function_space_to.orig_name == function_space.orig_name:
+            dim_name = operator.name + "_nrow"
         else:
-            dim_name = op.name + "_ncol"
+            dim_name = operator.name + "_ncol"
         map_name = get_cma_indirection_map_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer",
                                  dimension=dim_name,

@@ -589,7 +589,8 @@ def test_field():
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
         "    USE quadrature_mod, ONLY: quadrature_type\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, columnwise_operator_type, columnwise_operator_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -789,7 +790,8 @@ def test_field_fs():
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
         "    USE quadrature_mod, ONLY: quadrature_type\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, columnwise_operator_type, columnwise_operator_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -6280,6 +6282,7 @@ def test_argordering_exceptions():
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_position,
                        create_arg_list.mesh_height,
+                       create_arg_list.mesh_ncell2d,
                        create_arg_list.quad_rule]:
             with pytest.raises(NotImplementedError):
                 method()
@@ -6297,7 +6300,8 @@ def test_argordering_exceptions():
                        create_arg_list.orientation,
                        create_arg_list.bc_kernel,
                        create_arg_list.banded_dofmap,
-                       create_arg_list.indirection_dofmap]:
+                       create_arg_list.indirection_dofmap,
+                       create_arg_list.cma_operator]:
             with pytest.raises(NotImplementedError):
                 method(None)
 
@@ -6317,7 +6321,7 @@ def test_kernel_args_has_op():
     assert "op_type must be a valid operator type" in str(excinfo)
 
 
-def test_kernel_stub_invalid_scalar_argument():
+def test_kernel_stub_invalid_scalar_argument():  # pylint: disable=invalid-name
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -6342,7 +6346,7 @@ def test_kernel_stub_invalid_scalar_argument():
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
 
 
-def test_kernel_stub_ind_dofmap_errors():
+def test_kernel_stub_ind_dofmap_errors():  # pylint: disable=invalid-name
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = fpapi.parse(os.path.join(BASE_PATH,

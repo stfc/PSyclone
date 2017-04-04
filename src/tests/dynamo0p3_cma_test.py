@@ -52,7 +52,7 @@ import fparser
 from fparser import api as fpapi
 from parse import ParseError, parse
 from dynamo0p3 import DynKernMetadata
-from psyGen import PSyFactory, GenerationError
+from psyGen import PSyFactory
 from genkernelstub import generate
 
 # constants
@@ -589,13 +589,13 @@ def test_cma_asm():
                 "columnwise_operator_type, columnwise_operator_proxy_type") \
             in code
         assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
             in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
         assert "INTEGER ncell_2d" in code
         assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
                 "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-                in code
+            in code
         assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
         assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
@@ -624,28 +624,28 @@ def test_cma_asm_field():
                 "columnwise_operator_type, columnwise_operator_proxy_type") \
             in code
         assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
             in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
         assert ("INTEGER, pointer :: cbanded_map_any_space_1_afield(:,:) => "
                 "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-                in code
+            in code
         assert "INTEGER ncell_2d" in code
         assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        expected =  ("CALL columnwise_op_asm_field_kernel_code(cell, "
-                     "nlayers, ncell_2d, "
-                     "afield_proxy%data, lma_op1_proxy%ncell_3d, "
-                     "lma_op1_proxy%local_stencil, "
-                     "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                     "cma_op1_bandwidth, cma_op1_alpha, "
-                     "cma_op1_beta, cma_op1_gamma_m, "
-                     "cma_op1_gamma_p, ndf_any_space_1_afield, "
-                     "undf_any_space_1_afield, "
-                     "map_any_space_1_afield(:,cell), "
-                     "cbanded_map_any_space_1_afield, "
-                     "ndf_any_space_2_lma_op1, "
-                     "cbanded_map_any_space_2_lma_op1)")
+        expected = ("CALL columnwise_op_asm_field_kernel_code(cell, "
+                    "nlayers, ncell_2d, "
+                    "afield_proxy%data, lma_op1_proxy%ncell_3d, "
+                    "lma_op1_proxy%local_stencil, "
+                    "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                    "cma_op1_bandwidth, cma_op1_alpha, "
+                    "cma_op1_beta, cma_op1_gamma_m, "
+                    "cma_op1_gamma_p, ndf_any_space_1_afield, "
+                    "undf_any_space_1_afield, "
+                    "map_any_space_1_afield(:,cell), "
+                    "cbanded_map_any_space_1_afield, "
+                    "ndf_any_space_2_lma_op1, "
+                    "cbanded_map_any_space_2_lma_op1)")
         print expected
         assert expected in code
 
@@ -667,26 +667,26 @@ def test_cma_asm_scalar():
                 "columnwise_operator_type, columnwise_operator_proxy_type") \
             in code
         assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
             in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
         assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
                 "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-                in code
+            in code
         assert "INTEGER ncell_2d" in code
         assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        expected =  ("CALL columnwise_op_asm_kernel_code(cell, "
-                     "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                     "lma_op1_proxy%local_stencil, "
-                     "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                     "cma_op1_bandwidth, cma_op1_alpha_1, "
-                     "cma_op1_beta, cma_op1_gamma_m, "
-                     "cma_op1_gamma_p, cma_op1_alpha, "
-                     "ndf_any_space_1_lma_op1, "
-                     "cbanded_map_any_space_1_lma_op1, "
-                     "ndf_any_space_2_lma_op1, "
-                     "cbanded_map_any_space_2_lma_op1)")
+        expected = ("CALL columnwise_op_asm_kernel_code(cell, "
+                    "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
+                    "lma_op1_proxy%local_stencil, "
+                    "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                    "cma_op1_bandwidth, cma_op1_alpha_1, "
+                    "cma_op1_beta, cma_op1_gamma_m, "
+                    "cma_op1_gamma_p, cma_op1_alpha, "
+                    "ndf_any_space_1_lma_op1, "
+                    "cbanded_map_any_space_1_lma_op1, "
+                    "ndf_any_space_2_lma_op1, "
+                    "cbanded_map_any_space_2_lma_op1)")
         print expected
         assert expected in code
 
@@ -710,7 +710,7 @@ def test_cma_asm_field_same_fs():
                 "columnwise_operator_type, columnwise_operator_proxy_type") \
             in code
         assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert ("TYPE(columnwise_operator_type), intent(inout) :: cma_op1") \
+        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
             in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
         assert ("INTEGER, pointer :: cbanded_map_any_space_2_lma_op1(:,:) => "
@@ -724,18 +724,18 @@ def test_cma_asm_field_same_fs():
             assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
         else:
             assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
-        expected =  ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
-                     "nlayers, ncell_2d, "
-                     "lma_op1_proxy%ncell_3d, "
-                     "lma_op1_proxy%local_stencil, afield_proxy%data, "
-                     "cma_op1_matrix, cma_op1_nrow, "
-                     "cma_op1_bandwidth, cma_op1_alpha, "
-                     "cma_op1_beta, cma_op1_gamma_m, "
-                     "cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
-                     "undf_any_space_1_lma_op1, "
-                     "map_any_space_1_lma_op1(:,cell), "
-                     "ndf_any_space_2_lma_op1, "
-                     "cbanded_map_any_space_2_lma_op1)")
+        expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
+                    "nlayers, ncell_2d, "
+                    "lma_op1_proxy%ncell_3d, "
+                    "lma_op1_proxy%local_stencil, afield_proxy%data, "
+                    "cma_op1_matrix, cma_op1_nrow, "
+                    "cma_op1_bandwidth, cma_op1_alpha, "
+                    "cma_op1_beta, cma_op1_gamma_m, "
+                    "cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
+                    "undf_any_space_1_lma_op1, "
+                    "map_any_space_1_lma_op1(:,cell), "
+                    "ndf_any_space_2_lma_op1, "
+                    "cbanded_map_any_space_2_lma_op1)")
         assert expected in code
         # We do not perform halo swaps for operators
         assert "lma_op1_proxy%is_dirty(" not in code
@@ -761,7 +761,7 @@ def test_cma_apply():
         assert ("INTEGER, pointer :: cma_indirection_map_any_space_1_"
                 "field_a(:) => null(), "
                 "cma_indirection_map_any_space_2_field_b(:) => null()\n") \
-                in code
+            in code
         assert ("ndf_any_space_1_field_a = field_a_proxy%vspace%get_ndf()\n"
                 "      undf_any_space_1_field_a = field_a_proxy%vspace%"
                 "get_undf()") in code
@@ -816,7 +816,7 @@ def test_cma_apply_w3_space():
             assert "DO cell=1,mesh%get_last_edge_cell()" in code
         else:
             assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
-            
+
         assert ("CALL columnwise_op_app_w3_kernel_code(cell, ncell_2d, "
                 "field_a_proxy%data, field_b_proxy%data, "
                 "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
@@ -1026,7 +1026,7 @@ def test_cma_asm_stub_gen():
     assert expected in str(result)
 
 
-def test_cma_asm_with_field_stub_gen():
+def test_cma_asm_with_field_stub_gen():  # pylint: disable=invalid-name
     ''' Test the kernel-stub generator for CMA operator assembly when a
     field is involved '''
     result = generate(
@@ -1056,8 +1056,8 @@ def test_cma_asm_with_field_stub_gen():
         "      REAL(KIND=r_def), intent(in), dimension("
         "undf_any_space_1_field_1) :: field_1_any_space_1_field_1\n"
         "      INTEGER, intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_field_1,"
-        "ndf_any_space_2_op_2,op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension("
+        "ndf_any_space_1_field_1,ndf_any_space_2_op_2,op_2_ncell_3d) :: op_2\n"
         "      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, "
         "cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m,"
         " cma_op_3_gamma_p\n"
@@ -1163,7 +1163,7 @@ def test_cma_app_stub_gen():
     assert expected in str(result)
 
 
-def test_cma_app_same_space_stub_gen():
+def test_cma_app_same_space_stub_gen():  # pylint: disable=invalid-name
     ''' Test the kernel-stub generator for a CMA apply kernel where the
     to/from function spaces of the CMA operator are the same. This kernel has
     two fields and one CMA operator as arguments. '''
@@ -1215,18 +1215,32 @@ def test_cma_mul_stub_gen():
         "  MODULE columnwise_op_mul_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE columnwise_op_mul_kernel_code(cell, ncell_2d, cma_op_1, cma_op_1_nrow, cma_op_1_ncol, cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, cma_op_1_gamma_m, cma_op_1_gamma_p, cma_op_2, cma_op_2_nrow, cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p, cma_op_3, cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p)\n"
+        "    SUBROUTINE columnwise_op_mul_kernel_code(cell, ncell_2d, "
+        "cma_op_1, cma_op_1_nrow, cma_op_1_ncol, cma_op_1_bandwidth, "
+        "cma_op_1_alpha, cma_op_1_beta, cma_op_1_gamma_m, cma_op_1_gamma_p, "
+        "cma_op_2, cma_op_2_nrow, cma_op_2_ncol, cma_op_2_bandwidth, "
+        "cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p, "
+        "cma_op_3, cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, "
+        "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: ncell_2d\n"
         "      INTEGER, intent(in) :: cma_op_1_nrow, cma_op_1_ncol, "
-        "cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, cma_op_1_gamma_m, cma_op_1_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d) :: cma_op_1\n"
-        "      INTEGER, intent(in) :: cma_op_2_nrow, cma_op_2_ncol, cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, cma_op_2_gamma_p\n"
-        "      REAL(KIND=r_def), intent(in), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
-        "      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
+        "cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, "
+        "cma_op_1_gamma_m, cma_op_1_gamma_p\n"
+        "      REAL(KIND=r_def), intent(in), dimension(cma_op_1_bandwidth,"
+        "cma_op_1_nrow,ncell_2d) :: cma_op_1\n"
+        "      INTEGER, intent(in) :: cma_op_2_nrow, cma_op_2_ncol, "
+        "cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, "
+        "cma_op_2_gamma_m, cma_op_2_gamma_p\n"
+        "      REAL(KIND=r_def), intent(in), dimension(cma_op_2_bandwidth,"
+        "cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
+        "      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, "
+        "cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
+        "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_3_bandwidth,"
+        "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
         "    END SUBROUTINE columnwise_op_mul_kernel_code\n"
         "  END MODULE columnwise_op_mul_kernel_mod")
     assert expected in str(result)
