@@ -880,7 +880,7 @@ class DynKernMetadata(KernelType):
     def cma_operation(self):
         ''' Returns the type of CMA operation identified from the kernel
         meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
-        None if the kernel does not involve CMA operators '''
+        "" if the kernel does not involve CMA operators '''
         return self._cma_operation
 
 # Second section : PSy specialisations

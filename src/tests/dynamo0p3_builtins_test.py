@@ -276,6 +276,21 @@ def test_dynbuiltin_gen_code():
         assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
 
 
+def test_dynbuiltin_cma():
+    ''' Check that a DynBuiltIn returns an empty string for CMA type (because
+    built-ins don't work with CMA operators) '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        cma_type = kern.cma_operation()
+        assert cma_type == ""
+
+
 def test_dynbuiltfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected. '''
