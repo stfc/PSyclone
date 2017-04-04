@@ -851,13 +851,58 @@ def test_cma_multi_kernel():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+        assert ("      afield_proxy = afield%get_proxy()\n"
+                "      lma_op1_proxy = lma_op1%get_proxy()\n"
+                "      cma_op1_proxy = cma_op1%get_proxy()\n"
+                "      field_a_proxy = field_a%get_proxy()\n"
+                "      field_b_proxy = field_b%get_proxy()\n"
+                "      cma_opb_proxy = cma_opb%get_proxy()\n"
+                "      cma_opc_proxy = cma_opc%get_proxy()\n") in code
+
         assert "cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n" in code
         assert "cma_op1_ncol = cma_op1_proxy%ncol\n" in code
         assert "cma_op1_nrow = cma_op1_proxy%nrow\n" in code
         assert "cma_op1_bandwidth = cma_op1_proxy%bandwidth\n" in code
         assert "cma_op1_alpha = cma_op1_proxy%alpha\n" in code
         assert "cma_op1_beta = cma_op1_proxy%beta\n" in code
-        
+
+        assert ("      cbanded_map_any_space_1_afield => "
+                "cma_op1_proxy%column_banded_dofmap_to\n"
+                "      cbanded_map_any_space_2_lma_op1 => "
+                "cma_op1_proxy%column_banded_dofmap_from\n") in code
+        assert ("cma_indirection_map_any_space_1_field_a => "
+                "cma_op1_proxy%indirection_dofmap_to\n"
+                "      cma_indirection_map_any_space_2_field_b => "
+                "cma_op1_proxy%indirection_dofmap_from\n") in code
+
+        assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+                "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
+                "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+                "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
+                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+                "ndf_any_space_1_afield, undf_any_space_1_afield, "
+                "map_any_space_1_afield(:,cell), "
+                "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+                "cbanded_map_any_space_2_lma_op1)") in code
+        assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
+                "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+                "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+                "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, ndf_any_space_1_field_a, "
+                "undf_any_space_1_field_a, map_any_space_1_field_a(:,cell), "
+                "cma_indirection_map_any_space_1_field_a, "
+                "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
+                "map_any_space_2_field_b(:,cell), "
+                "cma_indirection_map_any_space_2_field_b)\n") in code 
+        assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
+                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+                "cma_op1_gamma_m, cma_op1_gamma_p, cma_opb_matrix, "
+                "cma_opb_nrow, cma_opb_ncol, cma_opb_bandwidth, "
+                "cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, "
+                "cma_opb_gamma_p, cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+                "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
+                "cma_opc_gamma_m, cma_opc_gamma_p)") in code
 
 # Tests for the kernel-stub generator
 
