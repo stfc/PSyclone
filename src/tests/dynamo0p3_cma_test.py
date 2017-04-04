@@ -736,8 +736,10 @@ def test_cma_asm_field_same_fs():
                      "map_any_space_1_lma_op1(:,cell), "
                      "ndf_any_space_2_lma_op1, "
                      "cbanded_map_any_space_2_lma_op1)")
-        print expected
         assert expected in code
+        # We do not perform halo swaps for operators
+        assert "lma_op1_proxy%is_dirty(" not in code
+        assert "cma_op1_proxy%is_dirty(" not in code
 
 
 def test_cma_apply():
@@ -779,6 +781,8 @@ def test_cma_apply():
                 "map_any_space_2_field_b(:,cell), "
                 "cma_indirection_map_any_space_2_field_b)") \
             in code
+        # We do not perform halo swaps for operators
+        assert "cma_op1_proxy%is_dirty(" not in code
 
 
 def test_cma_apply_w3_space():
@@ -823,6 +827,9 @@ def test_cma_apply_w3_space():
                 "map_any_space_2_field_b(:,cell), "
                 "cma_indirection_map_any_space_2_field_b)") \
             in code
+        if distmem:
+            assert "CALL field_a_proxy%set_dirty()" in code
+            assert "cma_op1_proxy%is_dirty(" not in code
 
 
 def test_cma_apply_same_space():
@@ -858,6 +865,9 @@ def test_cma_apply_same_space():
                 "map_any_space_2_field_a(:,cell), "
                 "cma_indirection_map_any_space_2_field_a)") \
             in code
+        if distmem:
+            assert "CALL field_a_proxy%set_dirty()" in code
+            assert "cma_op1_proxy%is_dirty(" not in code
 
 
 def test_cma_matrix_matrix():
@@ -893,6 +903,8 @@ def test_cma_matrix_matrix():
                 "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
                 "cma_opc_bandwidth, cma_opc_alpha, "
                 "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
+        if distmem:
+            assert "_dirty(" not in code
 
 
 def test_cma_multi_kernel():

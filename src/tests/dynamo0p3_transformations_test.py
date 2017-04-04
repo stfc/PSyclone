@@ -164,6 +164,53 @@ def test_colour_trans_operator():
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
 
+def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
+    '''test of the colouring transformation of a single loop with a CMA
+    operator. We check that the first argument is a colourmap lookup,
+    not a direct cell index. We test when distributed memory is both
+    off and on. '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "20.3_cma_assembly_field.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get(
+            'invoke_0_columnwise_op_asm_field_kernel_type')
+        schedule = invoke.schedule
+        schedule.view()
+        ctrans = Dynamo0p3ColourTrans()
+
+        if dist_mem:
+            index = 1
+        else:
+            index = 0
+
+        # Colour the loop
+        schedule, _ = ctrans.apply(schedule.children[index])
+
+        # Store the results of applying this code transformation as a
+        # string
+        gen = str(psy.gen)
+        print gen
+
+        assert (
+            "      DO colour=1,ncolour\n"
+            "        DO cell=1,ncp_colour(colour)\n"
+            "          !\n"
+            "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
+            "cell), nlayers, ncell_2d, afield_proxy%data, "
+            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_any_space_1_afield, undf_any_space_1_afield, "
+            "map_any_space_1_afield(:,cmap(colour, cell)), "
+            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+            "cbanded_map_any_space_2_lma_op1)\n"
+            "        END DO \n"
+            "      END DO \n") in gen
+
+
 def test_colour_trans_stencil():
     '''test of the colouring transformation of a single loop with a
     stencil access. We test when distributed memory is both off and
