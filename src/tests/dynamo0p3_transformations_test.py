@@ -18,7 +18,8 @@ from transformations import TransformationError, \
     Dynamo0p3OMPLoopTrans, \
     DynamoOMPParallelLoopTrans, \
     DynamoLoopFuseTrans, \
-    KernelModuleInlineTrans
+    KernelModuleInlineTrans, \
+    MoveTrans
 
 # The version of the API that the tests in this file
 # exercise.
@@ -3350,3 +3351,176 @@ def test_list_multiple_reductions():
         arg.descriptor._access = "gh_sum"
         result = omp_loop_directive._reduction_string()
         assert ", reduction(+:f2), reduction(+:asum)" in result
+
+
+def test_move_name():
+    ''' Test the name property of the MoveTrans class '''
+    move_trans = MoveTrans()
+    name = move_trans.name
+    assert name == "Move"
+
+
+def test_move_str():
+    ''' Test the str method of the MoveTrans class '''
+    move_trans = MoveTrans()
+    name = str(move_trans)
+    assert name == "Move a node to a different location"
+
+
+def test_move_pos_arg():
+    '''Test that MoveTrans raises an exception if an invalid position
+    argument is passed'''
+    move_trans = MoveTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(None, None, position="invalid")
+    assert ("The position argument in the MoveTrans transformation must be one "
+            "of ['before', 'after'] but found 'invalid'") in str(excinfo)
+
+
+def test_move_valid_node():
+    '''Test that MoveTrans raises an exception if an invalid node
+    argument is passed'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.2_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(None, schedule.children[0])
+    assert ("In the Move transformation apply method, at least one of the "
+            "first two arguments is not a Node") in str(excinfo)
+
+
+def test_move_valid_location():
+    '''Test that MoveTrans raises an exception if an invalid node
+    location is passed'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.2_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[0], None)
+    assert ("In the Move transformation apply method, at least one of the "
+            "first two arguments is not a Node") in str(excinfo)
+
+
+def test_move_same_parent():
+    '''Test that MoveTrans raises an exception if the node and the
+    location do not have the same parent'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.2_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[0],
+                         schedule.children[1].children[0])
+    assert ("In the Move transformation apply method, the node and the "
+            "location do not have the same parent") in str(excinfo)
+
+
+def test_move_back():
+    '''Test that MoveTrans moves the node backwards to the expected
+    location'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 2
+    target_index = 0
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index])
+
+    new_arg = schedule.children[target_index]
+    assert orig_arg == new_arg
+
+
+def test_move_back_after():
+    '''Test that MoveTrans moves the node backwards to the expected
+    location when location="after" '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 2
+    target_index = 0
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index],
+                     position="after")
+
+    new_arg = schedule.children[target_index+1]
+    assert orig_arg == new_arg
+
+
+def test_move_forward():
+    '''Test that MoveTrans moves the node forewards to the expected
+    location'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 0
+    target_index = 2
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    schedule.view()
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index])
+
+    new_arg = schedule.children[target_index-1]
+    schedule.view()
+    assert orig_arg == new_arg
+
+
+def test_move_forward_after():
+    '''Test that MoveTrans moves the node forewards to the expected
+    location'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 0
+    target_index = 2
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    schedule.view()
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index],
+                     position="after")
+
+    new_arg = schedule.children[target_index]
+    schedule.view()
+    assert orig_arg == new_arg
+
+# test that move with dependencies fails
