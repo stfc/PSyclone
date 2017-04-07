@@ -3409,6 +3409,22 @@ def test_move_valid_location():
             "first two arguments is not a Node") in str(excinfo)
 
 
+def test_move_same_location():
+    '''Test that MoveTrans raises an exception if the supplied location is
+    the same as the current location'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.2_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[0], schedule.children[0])
+    assert ("In the Move transformation apply method, the node and the "
+            "location are the same") in str(excinfo)
+
+
 def test_move_same_parent():
     '''Test that MoveTrans raises an exception if the node and the
     location do not have the same parent'''

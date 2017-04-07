@@ -1112,6 +1112,14 @@ class MoveTrans(Transformation):
                 "In the Move transformation apply method, at least one of the "
                 "first two arguments is not a Node")
 
+        # Check proposed location is different to the current node location
+        if node.abs_position == location.abs_position:
+            raise TransformationError(
+                "In the Move transformation apply method, the node and the "
+                "location are the same so this transformation would have "
+                "no effect.")
+            
+        
         # Check node and location arguments have the same parent
         if not node.sameParent(location):
             raise TransformationError(
@@ -1119,7 +1127,10 @@ class MoveTrans(Transformation):
                 "location do not have the same parent")
 
         # Check new location conforms to any data dependencies
-        # *** TBD ***
+        #if not node.isValidLocation(location, position=position):
+        #    raise TransformationError(
+        #        "In the Move transformation apply method, data dependencies "
+        #        "forbid the move to the new location")
 
     def apply(self, node, location, position="before"):
         ''' Move the node represented by :py:obj:`node` after location
