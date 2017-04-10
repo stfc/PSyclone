@@ -1097,40 +1097,19 @@ class MoveTrans(Transformation):
     def _validate(self, node, location, position):
         ''' validity checks for input arguments '''
 
-        # Check that the position argument is valid
-        valid_positions = ["before", "after"]
-        if position not in valid_positions:
-            raise TransformationError(
-                "The position argument in the MoveTrans transformation must "
-                "be one of {0} but found '{1}'".format(valid_positions,
-                                                       position))
-        
-        # Check that the supplied arguments are Nodes
+        # Check that the first argument is a Node
         from psyGen import Node
-        if not isinstance(node, Node) or not isinstance(location, Node):
+        if not isinstance(node, Node):
             raise TransformationError(
-                "In the Move transformation apply method, at least one of the "
-                "first two arguments is not a Node")
-
-        # Check proposed location is different to the current node location
-        if node.abs_position == location.abs_position:
-            raise TransformationError(
-                "In the Move transformation apply method, the node and the "
-                "location are the same so this transformation would have "
-                "no effect.")
-            
-        
-        # Check node and location arguments have the same parent
-        if not node.sameParent(location):
-            raise TransformationError(
-                "In the Move transformation apply method, the node and the "
-                "location do not have the same parent")
+                "In the Move transformation apply method the first argument "
+                "is not a Node")
 
         # Check new location conforms to any data dependencies
-        #if not node.isValidLocation(location, position=position):
-        #    raise TransformationError(
-        #        "In the Move transformation apply method, data dependencies "
-        #        "forbid the move to the new location")
+        # This also checks the location and position arguments
+        if not node.isValidLocation(location, position=position):
+            raise TransformationError(
+                "In the Move transformation apply method, data dependencies "
+                "forbid the move to the new location")
 
     def apply(self, node, location, position="before"):
         ''' Move the node represented by :py:obj:`node` after location
