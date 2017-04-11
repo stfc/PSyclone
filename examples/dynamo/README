@@ -7,9 +7,12 @@
 # Author A. R. Porter, STFC Daresbury Lab
 
 The dynamo examples in the eg1 and eg2 directories below the one
-containing this README use the Dynamo 0.1 API. Those in eg3 and eg4 use
+containing this README use the Dynamo 0.1 API. Those in eg3 - eg7 use
 version 0.3 of the Dynamo API. They are primarily provided to
-illustrate the use of the PSyclone code-generation system.
+illustrate the use of the PSyclone code-generation system. No guarantee
+is made as to their functional correctness or usefulness (i.e. the
+calculations that they perform may often be nonsensical - it is the use
+of PSyclone that is being illustrated).
 
 In order to use PSyclone you must first add it to your PYTHONPATH. The
 simplest way to do this is to change to the top-level directory of your
@@ -57,22 +60,22 @@ algorithm layer.
     python ../../../src/generator.py alg.f90
 
 The sixth example illustrates the use and implementation of
-reductions. The example may be run sequentially:
+reductions. The example may be run so as to generate sequential code:
 ::
     cd eg6/ python
     python ../../../src/generator.py -nodm alg.x90
 
-with MPI:
+code parallelised with MPI:
 ::
     cd eg6/
     python ../../../src/generator.py alg.x90
 
-with OpenMP (and loop fusion)
+code parallelised with OpenMP (and loop fusion)
 ::
     cd eg6/
     python ../../../src/generator.py -nodm -s ./omp_script.py alg.x90
 
-or with both MPI and OpenMP (and loop fusion)
+or code parallelised with both MPI and OpenMP (and loop fusion)
 ::
     cd eg6/
     python ../../../src/generator.py -s ./omp_script.py alg.x90
@@ -87,3 +90,9 @@ of threads
 ::
     cd eg6/
     python ../../../src/generator.py -s ./omp_reprod_script.py alg.x90
+
+The seventh example illustrates the use of PSyclone with kernels that
+perform operations with column-wise (Column-Matrix Assembly) operators:
+::
+    cd eg7/
+    python ../../../src/generator.py alg.x90
