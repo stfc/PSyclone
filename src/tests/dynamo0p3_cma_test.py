@@ -508,6 +508,35 @@ def test_cma_mdata_matrix_field_arg():
             "has: ['gh_field', ") in str(excinfo)
 
 
+def test_cma_mdata_matrix_no_scalar_arg():
+    ''' Check that we successfully parse meta-data for a matrix-matrix kernel
+    that has no scalar arguments. '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_REAL,                GH_READ)",
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)",
+        1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    dkm = DynKernMetadata(ast, name=name)
+    assert dkm._cma_operation == "matrix-matrix"
+
+
+def test_cma_mdata_matrix_2_scalar_args():
+    ''' Check that we successfully parse meta-data for a matrix-matrix kernel
+    that has 2 scalar arguments. '''
+    fparser.logging.disable('CRITICAL')
+    code = CMA_MATRIX.replace(
+        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)",
+        "arg_type(GH_REAL,                GH_READ)",
+        1)
+    print code
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    dkm = DynKernMetadata(ast, name=name)
+    assert dkm._cma_operation == "matrix-matrix"
+
+
 def test_cma_mdata_matrix_2_writes():
     ''' Check that we raise the expected error when a matrix-matrix kernel
     writes to more than one CMA operator '''
