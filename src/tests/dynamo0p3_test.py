@@ -2187,47 +2187,40 @@ def test_dyninvoke_arg_for_fs():
 
 
 def test_kernel_specific():
-    ''' Test that a call to enforce boundary conditions is added following
-    a call to the matrix_vector_kernel_type kernel. This code is required
-    as the dynamo0.3 api does not know about boundary conditions but this
-    kernel requires them. This "hack" is only supported to get
-    PSyclone to generate correct code for the current implementation
-    of dynamo. Future API's will not support any hacks. '''
+    ''' Test that a call to enforce boundary conditions is *not* added
+    following a call to the matrix_vector_kernel_type kernel. Boundary
+    conditions are now explicity specified in the Algorithm as required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
-    assert output0 in generated_code
+    assert output0 not in generated_code
     output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
-    assert output1 in generated_code
+    assert output1 not in generated_code
     output2 = "INTEGER fs"
-    assert output2 in generated_code
+    assert output2 not in generated_code
     output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
-    assert output3 in generated_code
+    assert output3 not in generated_code
     output4 = "fs = f1%which_function_space()"
-    assert output4 in generated_code
+    assert output4 not in generated_code
     # We only call enforce_bc if the field is on a vector space
     output5 = '''IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
-    assert output5 in generated_code
+    assert output5 not in generated_code
     output6 = (
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
-    assert output6 in generated_code
+    assert output6 not in generated_code
 
 
 def test_multi_kernel_specific():
-    '''Test that a call to enforce boundary conditions is added following
-    multiple calls to the matrix_vector_kernel_type kernel. This code
-    is required as the dynamo0.3 api does not know about boundary
-    conditions but this kernel requires them. This "hack" is only
-    supported to get PSyclone to generate correct code for the current
-    implementation of dynamo. Future API's will not support any
-    hacks. '''
+    '''Test that a call to enforce boundary conditions is *not* added following
+    multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
+    must now be explicitly specified as part of the Algorithm. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.3_multi_kernel_specific.f90"),
                            api="dynamo0.3")
@@ -2235,51 +2228,51 @@ def test_multi_kernel_specific():
     generated_code = str(psy.gen)
     print generated_code
 
-    # should only be one of the following generated ...
+    # Output must not contain any bc-related code
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
-    assert generated_code.count(output0) == 1
+    assert generated_code.count(output0) == 0
     output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
-    assert generated_code.count(output1) == 1
+    assert generated_code.count(output1) == 0
 
     # first loop
     output1 = "INTEGER fs\n"
-    assert output1 in generated_code
+    assert output1 not in generated_code
     output2 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
-    assert output2 in generated_code
+    assert output2 not in generated_code
     output3 = "fs = f1%which_function_space()"
-    assert output3 in generated_code
+    assert output3 not in generated_code
     # We only call enforce_bc if the field is on a vector space
     output4 = '''IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN
         boundary_dofs => f1_proxy%vspace%get_boundary_dofs()
       END IF'''
-    assert output4 in generated_code
+    assert output4 not in generated_code
     output5 = (
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
-    assert output5 in generated_code
+    assert output5 not in generated_code
 
     # second loop
     output6 = "INTEGER fs_1\n"
-    assert output6 in generated_code
+    assert output6 not in generated_code
     output7 = "INTEGER, pointer :: boundary_dofs_1(:,:) => null()"
-    assert output7 in generated_code
+    assert output7 not in generated_code
     output8 = "fs_1 = f1%which_function_space()"
-    assert output8 in generated_code
+    assert output8 not in generated_code
     output9 = (
         "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
         "THEN\n"
         "        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()\n"
         "      END IF")
-    assert output9 in generated_code
+    assert output9 not in generated_code
     output10 = (
         "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v) "
         "THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
-    assert output10 in generated_code
+    assert output10 not in generated_code
 
 
 def test_bc_kernel():
