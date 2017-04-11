@@ -113,11 +113,10 @@ def test_cma_mdata_assembly_missing_op():  # pylint: disable=invalid-name
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type writes to a column-wise operator but "
-            "does not conform to the rules for matrix-matrix (it has "
-            "arguments other than CMA operators) or for assembly (it does "
-            "not have any read-only LMA operator arguments) kernels") in \
-        str(excinfo)
+    assert ("Kernel testkern_cma_type has a single column-wise operator "
+            "argument but does not conform to the rules for an Assembly "
+            "kernel because it does not have any read-only LMA operator "
+            "arguments") in str(excinfo)
 
 
 def test_cma_mdata_multi_writes():
@@ -164,10 +163,8 @@ def test_cma_mdata_mutable_op():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("Kernel testkern_cma_type writes to a column-wise operator but "
-            "does not conform to the rules for matrix-matrix (it has arguments"
-            " other than CMA operators) or for assembly (it does not have any "
-            "read-only LMA operator arguments) kernels") in \
-        str(excinfo)
+            "also writes to ['gh_operator'] argument(s). This is not "
+            "allowed.") in str(excinfo)
 
 
 def test_cma_mdata_writes_lma_op():
@@ -185,7 +182,7 @@ def test_cma_mdata_writes_lma_op():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type assembles a column-wise operator but "
+    assert ("Kernel testkern_cma_type writes to a column-wise operator but "
             "also writes to ['gh_operator'] argument(s). This is not "
             "allowed.") in str(excinfo)
 
@@ -439,8 +436,9 @@ def test_cma_mdata_apply_fld_stencil_error():  # pylint: disable=invalid-name
 CMA_MATRIX = '''
 module testkern_cma_matrix_matrix
   type, extends(kernel_type) :: testkern_cma_type
-  type(arg_type) :: meta_args(3) = (/                                      &
+  type(arg_type) :: meta_args(4) = (/                                      &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),&
+       arg_type(GH_REAL,                GH_READ),                          &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),&
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE,ANY_SPACE_1, ANY_SPACE_2) &
        /)
@@ -463,7 +461,7 @@ def test_cma_mdata_matrix_prod():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     dkm = DynKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[1])
+    dkm_str = str(dkm.arg_descriptors[2])
     expected = (
         "DynArgDescriptor03 object\n"
         "  argument_type[0]='gh_columnwise_operator'\n"
@@ -482,21 +480,21 @@ def test_cma_mdata_matrix_too_few_args():  # pylint: disable=invalid-name
     code = CMA_MATRIX.replace(
         "       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
         "ANY_SPACE_2),&\n", "", 2)
-    code = code.replace("meta_args(3)", "meta_args(1)", 1)
+    code = code.replace("meta_args(4)", "meta_args(2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("writes to a single CMA operator but has no other arguments. "
-            "It is therefore not a valid assembly or matrix-matrix") in \
-        str(excinfo)
+    assert ("has a single column-wise operator argument but does not conform "
+            "to the rules for an Assembly kernel because it does not have "
+            "any read-only LMA operator arguments") in str(excinfo)
 
 
 def test_cma_mdata_matrix_field_arg():
     ''' Check that we raise the expected error when a matrix-matrix kernel
     reads from a field argument. Adding an argument that is not a CMA
-    operator means that PSyclone attempts to identify this as an assembly
-    kernel. '''
+    operator or scalar means that PSyclone attempts to identify this as an
+    assembly kernel. '''
     fparser.logging.disable('CRITICAL')
     code = CMA_MATRIX.replace(
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
@@ -505,8 +503,9 @@ def test_cma_mdata_matrix_field_arg():
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("assembles a CMA operator and therefore should only have one "
-            "CMA operator argument but found 2") in str(excinfo)
+    assert ("A column-wise matrix-matrix kernel must have only column-wise "
+            "operators and scalars as arguments but kernel testkern_cma_type "
+            "has: ['gh_field', ") in str(excinfo)
 
 
 def test_cma_mdata_matrix_2_writes():
@@ -520,7 +519,7 @@ def test_cma_mdata_matrix_2_writes():
         "ANY_SPACE_2),&\n"
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, "
         "ANY_SPACE_2),&\n", 1)
-    code = code.replace("meta_args(3)", "meta_args(4)", 1)
+    code = code.replace("meta_args(4)", "meta_args(5)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:

@@ -818,50 +818,49 @@ class DynKernMetadata(KernelType):
             return "apply"
         elif write_count == 1:
             # This kernel must either be assembling a CMA operator
-            # or performing a matrix-matrix operation
-            if len(cwise_ops) == len(self._arg_descriptors):
-                # All of the arguments are CMA operators so
-                # this must be a matrix-matrix operation.
-                # Check that we have more than one argument...
-                if len(cwise_ops) < 2:
-                    raise ParseError("Kernel {0} writes to a single CMA "
-                                     "operator but has no other arguments. "
-                                     "It is therefore not a valid "
-                                     "assembly or matrix-matrix kernel.".
-                                     format(self.name))
-                return "matrix-matrix"
-            else:
-                # If we're assembling a CMA operator then there must be
-                # no others in the argument list
-                if len(cwise_ops) != 1:
-                    raise ParseError("Kernel {0} assembles a CMA operator "
-                                     "and therefore should only have one CMA "
-                                     "operator argument but found {1}".
-                                     format(self.name, len(cwise_ops)))
-                # We need at least one read-only LMA operator
+            # or performing a matrix-matrix operation...
+            # The kernel must not write to any args other than the CMA
+            # operator
+            write_args = psyGen.args_filter(
+                self._arg_descriptors,
+                arg_types=["gh_operator", "gh_field", "gh_real", "gh_integer"],
+                arg_accesses=["gh_inc", "gh_write"])
+            if write_args:
+                raise ParseError(
+                    "Kernel {0} writes to a column-wise operator but "
+                    "also writes to {1} argument(s). This is not "
+                    "allowed.".format(self.name,
+                                      [arg.type for arg in write_args]))
+            if len(cwise_ops) == 1:
+
+                # If this is an assembly kernel then we need at least one
+                # read-only LMA operator
                 lma_read_ops = psyGen.args_filter(self._arg_descriptors,
                                                   arg_types=["gh_operator"],
                                                   arg_accesses=["gh_read"])
-                if not lma_read_ops:
+                if lma_read_ops:
+                    return "assembly"
+                else:
                     raise ParseError(
-                        "Kernel {0} writes to a column-wise operator but "
-                        "does not conform to the rules for matrix-matrix (it "
-                        "has arguments other than CMA operators) or for "
-                        "assembly (it does not have any read-only LMA "
-                        "operator arguments) kernels".format(self.name))
-                # The kernel must not write to any args other than the CMA
-                # operator
-                write_args = psyGen.args_filter(
+                        "Kernel {0} has a single column-wise operator "
+                        "argument but does not conform to the rules for an "
+                        "Assembly kernel because it does not have any read-"
+                        "only LMA operator arguments".format(self.name))
+            else:
+                # A valid matrix-matrix kernel must only have CMA operators
+                # and scalars as arguments.
+                scalar_args = psyGen.args_filter(
                     self._arg_descriptors,
-                    arg_types=["gh_operator", "gh_field", "gh_scalar"],
-                    arg_accesses=["gh_inc", "gh_write"])
-                if write_args:
+                    arg_types=["gh_real", "gh_integer"])
+                if (len(scalar_args) + len(cwise_ops)) != \
+                   len(self._arg_descriptors):
                     raise ParseError(
-                        "Kernel {0} assembles a column-wise operator but "
-                        "also writes to {1} argument(s). This is not "
-                        "allowed.".format(self.name,
-                                          [arg.type for arg in write_args]))
-                return "assembly"
+                        "A column-wise matrix-matrix kernel must have only "
+                        "column-wise operators and scalars as arguments but "
+                        "kernel {0} has: {1}.".
+                        format(self.name,
+                               [arg.type for arg in self._arg_descriptors]))
+                return "matrix-matrix"
         else:
             raise ParseError(
                 "A Dynamo 0.3 kernel cannot update more than one CMA "
