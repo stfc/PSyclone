@@ -1451,6 +1451,13 @@ class Call(Node):
         to True then only Nodes with the same parent as self are
         considered, otherwise all preceding Nodes are considered.'''
         dependencies = []
+        for arg in self.arguments.args:
+            dependent_arg = arg.backwardDependence
+            if dependent_arg:
+                call = dependent_arg.call
+                if not same_parent or (same_parent and self.sameParent(call)):
+                    if call not in dependencies:
+                        dependencies.append(call)
         return dependencies
 
     def forwardDependencies(self, same_parent=True):
@@ -1459,6 +1466,12 @@ class Call(Node):
         to True then only Nodes with the same parent as self are
         considered, otherwise all following Nodes are considered.'''
         dependencies = []
+        for arg in self.arguments.args:
+            for dependent_arg in arg.forwardDependencies():
+                call = dependent_arg.call
+                if not same_parent or (same_parent and self.sameParent(call)):
+                    if call not in dependencies:
+                        dependencies.append(call)
         return dependencies
 
     def lastPreviousDependentNode(self, same_parent=True):
@@ -1971,6 +1984,11 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
+        # forward and backward dependence values
+        self._bd_computed = False
+        self._bd_value = None
+        self._fd_computed = False
+        self._fd_value = None
 
     def __str__(self):
         return self._name
@@ -2008,6 +2026,66 @@ class Argument(object):
         ''' Return the call that this argument is associated with '''
         return self._call
 
+    def backwardDependence(self):
+        '''Returns the preceding argument that this argument has a direct
+        dependence with, or None if there is not one. The argument may
+        exist in a call, a haloexchange, or a globalsum. For performance
+        reasons only compute once then store the result. '''
+        if not self._bd_computed:
+            self._bd_computed = True
+            all_nodes = self._call.walk(self._call.root.children, Node)
+            position = all_nodes.index(self._call)
+            all_prev_nodes = all_nodes[:position-1]
+            all_prev_nodes = all_prev_nodes.reverse
+            self._bd_value = self._find_argument(all_prev_nodes)
+        return self._bd_value
+
+    def forwardDependence(self):
+        '''Returns the following argument that this argument has a direct
+        dependence with, or None if there is not one. The argument may
+        exist in a call, a haloexchange, or a globalsum. For performance
+        reasons only compute once, then store the result.'''
+        if not self._fd_computed:
+            self._fd_computed = True
+            all_nodes = self._call.walk(self._call.root.children, Node)
+            position = all_nodes.index(self._call)
+            all_following_nodes = all_nodes[position+1:]
+            self._fd_value = self._find_argument(all_following_nodes)
+        return self._fd_value
+    
+    def _find_argument(self, nodes):
+        '''Return the first argument in the list of nodes that has a
+        dependency with self. If one is not found return None'''
+        for node in nodes:
+            if isinstance(node, Call):
+                for argument in node.arguments.args:
+                    if self._dependent_arg(argument):
+                        return argument
+            elif isinstance(node, HaloExchange):
+                argument = node._field
+                if self._dependent_arg(argument):
+                    return argument
+            elif isinstance(node, GlobalSum
+                argument = node._scalar
+                if self._dependent_arg(argument):
+                    return argument
+            else:
+                # this node has no arguments
+                pass
+        return None
+
+    def _dependent_arg(self, argument):
+        ''' If there is a dependency between the argument and self then return
+        True, otherwise return False'''
+        writers = ["WRITE", "INC", "SUM"]
+        readers = ["READ", "INC"]
+        if argument.name == self._name:
+            if self.access in writers and argument.access in readers:
+                return True
+            if self.access in readers and argument.access in writers:
+                return True
+        return False
+        
     def set_dependencies(self):
         writers = ["WRITE", "INC", "SUM"]
         readers = ["READ", "INC"]
