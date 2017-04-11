@@ -2065,7 +2065,7 @@ class Argument(object):
                 argument = node._field
                 if self._dependent_arg(argument):
                     return argument
-            elif isinstance(node, GlobalSum
+            elif isinstance(node, GlobalSum):
                 argument = node._scalar
                 if self._dependent_arg(argument):
                     return argument
@@ -2077,8 +2077,9 @@ class Argument(object):
     def _dependent_arg(self, argument):
         ''' If there is a dependency between the argument and self then return
         True, otherwise return False'''
-        writers = ["WRITE", "INC", "SUM"]
-        readers = ["READ", "INC"]
+        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
+                   MAPPING_REDUCTIONS["sum"]]
+        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
         if argument.name == self._name:
             if self.access in writers and argument.access in readers:
                 return True

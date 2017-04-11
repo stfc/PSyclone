@@ -810,3 +810,47 @@ def test_invalid_reprod_pad_size():
             "REPROD_PAD_SIZE in config.py should be a positive "
             "integer") in str(excinfo.value)
     config.REPROD_PAD_SIZE = keep
+
+
+def test_argument_dependent_arg():
+    '''Check that the dependent_arg method returns the appropriate boolean
+    value for arguments with combinations of read and write access'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5_multikernel_invokes.f90"),
+                           distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    arg_f1_inc_1 = schedule.children[0].children[0].arguments.args[0]
+    arg_f1_inc_2 = schedule.children[2].children[0].arguments.args[0]
+    arg_f2_read_1 = schedule.children[0].children[0].arguments.args[2]
+    arg_f2_inc = schedule.children[1].children[0].arguments.args[0]
+    arg_f2_read_2 = schedule.children[2].children[0].arguments.args[1]
+    # different names returns False
+    assert not arg_f2_inc._dependent_arg(arg_f1_inc_1)
+    # same name both reads returns False
+    assert not arg_f2_read_1._dependent_arg(arg_f2_read_2)
+    # same name both incs (write to read) returns True
+    assert arg_f1_inc_2._dependent_arg(arg_f1_inc_1)
+    # read to write returns True
+    assert arg_f2_read_1._dependent_arg(arg_f2_inc)
+    # write to read returns True
+    assert arg_f2_inc._dependent_arg(arg_f2_read_1)
+    # same name both writes (the 4.5 example only uses inc) returns False
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
+    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[1]
+    assert not arg_f1_write_1._dependent_arg(arg_f1_write_2)
+
+
+
+# _find_argument - returns first argument if there are many, returns none if there are none, returns halo argument, returns globalsum argument
+# backwardDependence - call/call, call/halo, call/globalsum, none
+#                      check bd_value and bd_computed None/False at start
+#                      then set to value/True after
+# forwardDependence - same as above
