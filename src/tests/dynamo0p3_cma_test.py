@@ -680,7 +680,9 @@ def test_cma_asm_field():
 
 def test_cma_asm_scalar():
     ''' Test that we generate correct code for an invoke containing
-    a kernel that assembles a CMA operator with a scalar as argument '''
+    a kernel that assembles a CMA operator with a scalar as argument. The
+    name of the scalar is deliberately chosen to provoke a clash with the
+    name generated for one of the CMA parameters.'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -928,6 +930,46 @@ def test_cma_matrix_matrix():
                 "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
                 "cma_opb_bandwidth, cma_opb_alpha, "
                 "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+                "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+                "cma_opc_bandwidth, cma_opc_alpha, "
+                "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
+        if distmem:
+            assert "_dirty(" not in code
+
+
+def test_cma_matrix_matrix_2scalars():
+    ''' Test that we generate correct code for an invoke containing
+    a kernel that performs a matrix-matrix CMA calculation including
+    scalar arguments. '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.2.1_cma_matrix_matrix.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert "INTEGER ncell_2d" in code
+        assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+        if distmem:
+            # When distributed-memory is enabled then we compute operators
+            # redundantly (out to the L1 halo)
+            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+        else:
+            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+
+        assert ("CALL columnwise_op_mul_kernel_code(cell, "
+                "ncell_2d, "
+                "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+                "cma_opa_bandwidth, cma_opa_alpha, "
+                "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
+                "alpha, "
+                "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+                "cma_opb_bandwidth, cma_opb_alpha, "
+                "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+                "beta, "
                 "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
                 "cma_opc_bandwidth, cma_opc_alpha, "
                 "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
