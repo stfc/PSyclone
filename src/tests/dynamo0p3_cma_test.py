@@ -1314,3 +1314,49 @@ def test_cma_mul_stub_gen():
         "    END SUBROUTINE columnwise_op_mul_kernel_code\n"
         "  END MODULE columnwise_op_mul_kernel_mod")
     assert expected in str(result)
+
+
+def test_cma_mul_with_scalars_stub_gen():
+    ''' Test the kernel-stub generator for a CMA matrix-matrix kernel that
+    includes scalar arguments '''
+    result = generate(
+        "test_files/dynamo0p3/columnwise_op_mul_2scalars_kernel.F90",
+        api="dynamo0.3")
+    print result
+    expected = (
+        "  MODULE columnwise_op_mul_kernel_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE columnwise_op_mul_kernel_code(cell, ncell_2d, "
+        "cma_op_1, cma_op_1_nrow, cma_op_1_ncol, cma_op_1_bandwidth, "
+        "cma_op_1_alpha, cma_op_1_beta, cma_op_1_gamma_m, cma_op_1_gamma_p, "
+        "rscalar_2, "
+        "cma_op_3, cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, "
+        "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
+        "rscalar_4, "
+        "cma_op_5, cma_op_5_nrow, cma_op_5_ncol, cma_op_5_bandwidth, "
+        "cma_op_5_alpha, cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: ncell_2d\n"
+        "      INTEGER, intent(in) :: cma_op_1_nrow, cma_op_1_ncol, "
+        "cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, "
+        "cma_op_1_gamma_m, cma_op_1_gamma_p\n"
+        "      REAL(KIND=r_def), intent(in), dimension(cma_op_1_bandwidth,"
+        "cma_op_1_nrow,ncell_2d) :: cma_op_1\n"
+        "      REAL(KIND=r_def), intent(in) :: rscalar_2\n"
+        "      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, "
+        "cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, "
+        "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
+        "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
+        "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
+        "      REAL(KIND=r_def), intent(in) :: rscalar_4\n"
+        "      INTEGER, intent(in) :: cma_op_5_nrow, cma_op_5_ncol, "
+        "cma_op_5_bandwidth, cma_op_5_alpha, cma_op_5_beta, "
+        "cma_op_5_gamma_m, cma_op_5_gamma_p\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(cma_op_5_bandwidth,"
+        "cma_op_5_nrow,ncell_2d) :: cma_op_5\n"
+        "    END SUBROUTINE columnwise_op_mul_kernel_code\n"
+        "  END MODULE columnwise_op_mul_kernel_mod")
+    assert expected in str(result)
