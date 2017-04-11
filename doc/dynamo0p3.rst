@@ -84,13 +84,15 @@ of such kernels might look like in the Algorithm layer:
   type(field_type) :: field1, field2, field3
   type(operator_type) :: lma_op1, lma_op2
   type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
+  real(kind=r_def) :: alpha
   ...
-  call invoke(assembly_kernel(cma_op1, lma_op1, lma_op2),          &
-              assembly_kernel2(cma_op2, lma_op1, lma_op2, field3), &
-              apply_kernel(field1, field2, cma_op1),               &
-	      matrix_matrix_kernel(cma_op3, cma_op1, cma_op2),     &
-              apply_kernel(field3, field1, cma_op3),               &
-              name="cma_example")
+  call invoke(                                                    &
+          assembly_kernel(cma_op1, lma_op1, lma_op2),             &
+          assembly_kernel2(cma_op2, lma_op1, lma_op2, field3),    &
+          apply_kernel(field1, field2, cma_op1),                  &
+          matrix_matrix_kernel(cma_op3, cma_op1, alpha, cma_op2), &
+          apply_kernel(field3, field1, cma_op3),                  &
+          name="cma_example")
 
 The above invoke uses two LMA operators to construct the CMA operator
 ``cma_op1``.  A second CMA operator, ``cma_op2``, is assembled from
@@ -98,9 +100,8 @@ the same two LMA operators but also uses a field. The first of these
 CMA operators is then applied to ``field2`` and the result stored in
 ``field1`` (assuming that the meta-data for ``apply_kernel`` specifies
 that it is the first field argument that is written to). The two CMA
-operators are then multiplied together to produce a third,
-``cma_op3``. This is then applied to ``field1`` and the result stored
-in ``field3``.
+operators are then combined to produce a third, ``cma_op3``. This is
+then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
 Column-Wise operations based on their arguments as described in
@@ -341,13 +342,14 @@ kernels must therefore:
 Matrix-Matrix
 #############
 
-A kernel that has only column-wise operators as arguments is identified
-as performing a matrix-matrix operation. In this case:
+A kernel that has just column-wise operators as arguments and zero or
+more read-only scalars is identified as performing a matrix-matrix
+operation. In this case:
 
-1) All arguments must be CMA operators.
+1) Arguments must be CMA operators and, optionally, one or more scalars.
 
-2) Exactly one of the arguments must be written to while the others
-   must be read-only.
+2) Exactly one of the CMA arguments must be written to while all other
+   arguments must be read-only.
 
 Metadata
 ++++++++
@@ -682,14 +684,15 @@ field and a field that is updated, e.g.:
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 
-**Matrix-matrix** kernels compute the product of CMA operators. They must
-therefore have one such operator that is updated while the rest are
-read-only, e.g.:
+**Matrix-matrix** kernels compute the product/linear combination of CMA
+operators. They must therefore have one such operator that is updated while
+the rest are read-only. They may also have read-only scalar arguments, e.g.:
 ::
-   type(arg_type) :: meta_args(3) = (/ &
+   type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
-	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)   & /)
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+        arg_type(GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in meta-data for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
 
@@ -978,11 +981,13 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
        intent ``in``.
     2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
        an integer with intent ``in``.
-    3) For each (CMA operator) argument specifed in meta-data:
+    3) For each CMA operator argument specifed in meta-data:
 
        1) Include it and its associated parameters (see Rule 5 of CMA
 	  Assembly kernels).
 
+    4) For each scalar argument specified in meta-data include the
+       Fortran variable in the argument list with intent ``in``.
 
 .. _dynamo_built-ins:
 
