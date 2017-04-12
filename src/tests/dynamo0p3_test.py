@@ -3484,7 +3484,7 @@ def test_orientation_stubs():
     assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
 
 
-def test_enforce_bc_kernel_stub_gen():
+def test_enforce_bc_kernel_stub_gen():  # pylint: disable=invalid-name
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs'''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
@@ -3516,6 +3516,39 @@ def test_enforce_bc_kernel_stub_gen():
         "  END MODULE enforce_bc_mod")
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+
+def test_enforce_op_bc_kernel_stub_gen():  # pylint: disable=invalid-name
+    ''' Test that the enforce_operator_bc_kernel boundary dofs argument
+    modification is handled correctly for kernel stubs'''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "enforce_operator_bc_kernel_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    output = (
+        "  MODULE enforce_operator_bc_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, op_1_ncell_3d,"
+        " op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, boundary_dofs)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: op_1_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension("
+        "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1,2) :: "
+        "boundary_dofs\n"
+        "    END SUBROUTINE enforce_operator_bc_code\n"
+        "  END MODULE enforce_operator_bc_mod")
+    print generated_code
+    assert output in generated_code
 
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.

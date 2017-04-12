@@ -2566,6 +2566,9 @@ class ArgOrdering(object):
         if self._kern.arguments.has_operator:
             # operators require the cell index to be provided
             self.cell_position()
+        # Variable to hold 'to' function space of operator in case we are
+        # generating a stub for the enforce_operator_bc_kernel_type kernel
+        fs_to = None
         # always pass the number of layers in the mesh
         self.mesh_height()
         # for each argument in the order they are specified in the
@@ -2593,6 +2596,7 @@ class ArgOrdering(object):
                     self.stencil(arg)
             elif arg.type == "gh_operator":
                 self.operator(arg)
+                fs_to = arg.function_space_to
             elif arg.type in VALID_SCALAR_NAMES:
                 self.scalar(arg)
             else:
@@ -2631,7 +2635,7 @@ class ArgOrdering(object):
         # Add boundary dofs array to the operator boundary condition
         # kernel (enforce_operator_bc_kernel) arguments
         if self._kern.name.lower() == "enforce_operator_bc_code":
-            self.operator_bcs_kernel()
+            self.operator_bcs_kernel(fs_to)
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -2863,7 +2867,7 @@ class KernCallArgList(ArgOrdering):
                                  "%vspace%get_boundary_dofs()"),
                        position=["before", position])
 
-    def operator_bcs_kernel(self):
+    def operator_bcs_kernel(self, function_space):
         ''' Supply necessary additional arguments for the kernel that
         applies boundary conditions to an operator '''
         from f2pygen import DeclGen, AssignGen
@@ -2872,7 +2876,7 @@ class KernCallArgList(ArgOrdering):
         parent.add(DeclGen(parent, datatype="integer",
                            pointer=True, entity_decls=[
                                "boundary_dofs(:,:) => null()"]))
-        # Find the single operator argument that this kernel writes to
+        # Find the single operator argument that this kernel updates
         # TODO replace this with args_filter() once the modification to
         # make it a module function is on master
         op_args = []
@@ -2893,7 +2897,7 @@ class KernCallArgList(ArgOrdering):
                 "dofs but kernel {0} has {1}.".
                 format(self._kern.name, len(op_args)))
         # TODO this access should really be "gh_readwrite". Support for
-        # this will be added under #22.
+        # this will be added under #25.
         if op_args[0].access != "gh_inc":
             raise GenerationError(
                 "Kernel {0} is recognised as a kernel which applies boundary "
@@ -3182,13 +3186,19 @@ class KernStubArgList(ArgOrdering):
                                  entity_decls=[orientation_name]))
 
     def field_bcs_kernel(self, function_space):
-        ''' implement the boundary_dofs array fix '''
+        ''' implement the boundary_dofs array fix for fields '''
         from f2pygen import DeclGen
         self._arglist.append("boundary_dofs")
         ndf_name = get_fs_ndf_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  dimension=",".join([ndf_name, "2"]),
                                  entity_decls=["boundary_dofs"]))
+
+    def operator_bcs_kernel(self, function_space):
+        ''' Implement the boundary_dofs array fix for operators. This is the
+        same as for fields with the function space set to the 'to' space of
+        the operator. '''
+        self.field_bcs_kernel(function_space)
 
     def quad_rule(self):
         ''' provide qr information '''
