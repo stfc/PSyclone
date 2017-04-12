@@ -2868,31 +2868,30 @@ class KernCallArgList(ArgOrdering):
 
     def operator_bcs_kernel(self, function_space):
         ''' Supply necessary additional arguments for the kernel that
-        applies boundary conditions to an operator '''
+        applies boundary conditions to a LMA operator '''
         from f2pygen import DeclGen, AssignGen
         self._arglist.append("boundary_dofs")
         parent = self._parent
         parent.add(DeclGen(parent, datatype="integer",
                            pointer=True, entity_decls=[
                                "boundary_dofs(:,:) => null()"]))
-        # Find the single operator argument that this kernel updates
+        # Find the single, LMA operator argument that this kernel updates
         # TODO replace this with args_filter() once the modification to
         # make it a module function is on master
         op_args = []
         for arg in self._kern.arguments.args:
-            if arg.type in VALID_OPERATOR_NAMES:
+            if arg.type == "gh_operator":
                 op_args.append(arg)
-
         # op_args = self.parent.args_filter(self._kern.arguments,
         #                                   arg_types=VALID_OPERATOR_NAMES,
         #                                   arg_accesses=["gh_write"])
         if not op_args:
             raise GenerationError(
-                "Expected an operator from which to look-up boundary dofs but "
-                "kernel {0} has no such argument.".format(self._kern.name))
+                "Expected a LMA operator from which to look-up boundary dofs "
+                "but kernel {0} has no such argument.".format(self._kern.name))
         if len(op_args) > 1:
             raise GenerationError(
-                "Expected a single operator from which to look-up boundary "
+                "Expected a single LMA operator from which to look-up boundary "
                 "dofs but kernel {0} has {1}.".
                 format(self._kern.name, len(op_args)))
         # TODO this access should really be "gh_readwrite". Support for

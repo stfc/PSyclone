@@ -2369,7 +2369,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
         monkeypatch.setattr(arg, "_type", value="gh_field")
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
-        assert ("Expected an operator from which to look-up boundary dofs "
+        assert ("Expected a LMA operator from which to look-up boundary dofs "
                 "but kernel enforce_operator_bc_code has no such argument") \
             in str(excinfo)
 
@@ -2393,8 +2393,8 @@ def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert (
-            "Expected a single operator from which to look-up boundary dofs "
-            "but kernel enforce_operator_bc_code has 2") in str(excinfo)
+            "Expected a single LMA operator from which to look-up boundary "
+            "dofs but kernel enforce_operator_bc_code has 2") in str(excinfo)
 
 
 def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
