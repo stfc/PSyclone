@@ -45,6 +45,8 @@ or without distributed memory parallel code:
 
 The fourth example illustrates the use of (multiple) calls to built-in
 operations within an invoke as well as the use of the name="..." argument.
+It also includes the use of the enforce_bc_kernel_type kernel to apply
+boundary conditions.
 ::
     cd eg4/
     python ../../../src/generator.py solver_mod.x90

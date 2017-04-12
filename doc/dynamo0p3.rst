@@ -1274,7 +1274,7 @@ ability to apply boundary conditions to operators this functionality
 is no longer required and has been removed.
 
 Example ``eg4`` in the ``examples/dynamo`` directory includes a call
-to ``matrix_vector_type`` so can be used to see the boundary condition
+to ``enforce_bc_kernel_type`` so can be used to see the boundary condition
 code that is added by PSyclone. See the ``README`` in the
 ``examples/dynamo`` directory for instructions on how to run this
 example.
