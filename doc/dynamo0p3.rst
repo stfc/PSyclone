@@ -1246,32 +1246,32 @@ where:
 Boundary Conditions
 -------------------
 
-In the dynamo0.3 API, boundary conditions for a field can be enforced
-by the algorithm developer by calling a particular Kernel called
-``enforce_bc_type``. This kernel takes a field as input and applies
+In the dynamo0.3 API, boundary conditions for a field or LMA operator can
+be enforced by the algorithm developer by calling the Kernels
+``enforce_bc_type`` or ``enforce_operator_bc_type``,
+respectively. These kernels take a field or operator as input and apply
 boundary conditions. For example:
 
 ::
 
-  call invoke( kernel_type(field1, field2), &
-               enforce_bc_type(field1)      &
+  call invoke( kernel_type(field1, field2),      &
+               enforce_bc_type(field1),          &
+	       kernel_with_op_type(field1, op1), &
+	       enforce_operator_bc_type(op1)     &
              )
 
 The particular boundary conditions that are applied are not known by
-PSyclone, PSyclone simply recognises this kernel by its name and passes
-pre-specified dofmap and boundary_value arrays into its kernel
-implementation, the contents of which are set by the LFRic
+PSyclone, PSyclone simply recognises these kernels by their names and passes
+pre-specified dofmap and boundary_value arrays into the kernel
+implementations, the contents of which are set by the LFRic
 infrastructure.
 
-There is one situation where boundary conditions are applied without
-the algorithm developer having to specify them explicitly. Boundary
-conditions are added automatically after a call to
-``matrix_vector_type`` if the fields being passed into the call are on
-a vector function space (one of ``w1``, ``w2``, ``w2h`` or
-``w2v``). This functionality was requested by the scientists to avoid
-having to write a large number of ``enforce_bc_type`` calls in the
-algorithm layer as ``matrix_vector_type`` may be used a large number
-of times in an algorithm.
+Up to and including version 1.3.2 of PSyclone, boundary conditions
+were applied automatically after a call to ``matrix_vector_type`` if
+the field arguments were on a vector function space (one of ``w1``,
+``w2``, ``w2h`` or ``w2v``). With the subsequent introduction of the
+ability to apply boundary conditions to operators this functionality
+is no longer required and has been removed.
 
 Example ``eg4`` in the ``examples/dynamo`` directory includes a call
 to ``matrix_vector_type`` so can be used to see the boundary condition
