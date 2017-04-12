@@ -2275,7 +2275,7 @@ def test_multi_kernel_specific():
     assert output10 not in generated_code
 
 
-def test_bc_kernel():
+def test_field_bc_kernel():
     '''tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
@@ -2329,6 +2329,49 @@ def test_bc_kernel_field_only(monkeypatch):
                 "for kernel enforce_bc_code but got gh_operator"
                 in str(excinfo))
 
+
+def test_operator_bc_kernel():
+    ''' Tests that a kernel with a particular name is recognised as a
+    kernel that applies boundary conditions to operators and that
+    appropriate code is added to support this. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    assert output1 in generated_code
+    output2 = "boundary_dofs => op_a_proxy%fs_to%get_boundary_dofs()"
+    assert output2 in generated_code
+    output3 = (
+        "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
+        "op_a_proxy%local_stencil, ndf_any_space_1_op_a, "
+        "ndf_any_space_2_op_a, boundary_dofs)")
+    assert output3 in generated_code
+
+
+def test_operator_bc_kernel_fld_err(monkeypatch):
+    ''' test that we reject the recognised operator boundary conditions
+    kernel if its argument is not an operator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[0]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        # Monkeypatch the argument object so that it thinks it is a
+        # field rather than an operator
+        monkeypatch.setattr(arg, "_type", value="gh_field")
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Expected an operator from which to look-up boundary dofs "
+                "but kernel enforce_operator_bc_code has no such argument") \
+            in str(excinfo)
 
 def test_multikernel_invoke_1():
     ''' Test that correct code is produced when there are multiple
@@ -6273,7 +6316,8 @@ def test_argordering_exceptions():
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_position,
                        create_arg_list.mesh_height,
-                       create_arg_list.quad_rule]:
+                       create_arg_list.quad_rule,
+                       create_arg_list.operator_bcs_kernel]:
             with pytest.raises(NotImplementedError):
                 method()
         for method in [create_arg_list.field_vector,
@@ -6288,7 +6332,7 @@ def test_argordering_exceptions():
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
                        create_arg_list.orientation,
-                       create_arg_list.bc_kernel]:
+                       create_arg_list.field_bcs_kernel]:
             with pytest.raises(NotImplementedError):
                 method(None)
 
