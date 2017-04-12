@@ -2877,11 +2877,8 @@ class KernCallArgList(ArgOrdering):
         # make it a module function is on master
         op_args = []
         for arg in self._kern.arguments.args:
-            # TODO this access should really be "gh_readwrite". Support for
-            # this will be added under #22.
-            if arg.type in VALID_OPERATOR_NAMES and arg.access == "gh_inc":
+            if arg.type in VALID_OPERATOR_NAMES:
                 op_args.append(arg)
-                break
 
         # op_args = self.parent.args_filter(self._kern.arguments,
         #                                   arg_types=VALID_OPERATOR_NAMES,
@@ -2892,9 +2889,17 @@ class KernCallArgList(ArgOrdering):
                 "kernel {0} has no such argument.".format(self._kern.name))
         if len(op_args) > 1:
             raise GenerationError(
-                "Expected a single operator with gh_inc access from which to "
-                "look-up boundary dofs but kernel {0} has {1}.".
+                "Expected a single operator from which to look-up boundary "
+                "dofs but kernel {0} has {1}.".
                 format(self._kern.name, len(op_args)))
+        # TODO this access should really be "gh_readwrite". Support for
+        # this will be added under #22.
+        if op_args[0].access != "gh_inc":
+            raise GenerationError(
+                "Kernel {0} is recognised as a kernel which applies boundary "
+                "conditions to an operator. However its operator argument has "
+                "access {1} rather than gh_inc.".format(self._kern.name,
+                                                        op_args[0].access))
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
                                  lhs="boundary_dofs",

@@ -2373,6 +2373,54 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
                 "but kernel enforce_operator_bc_code has no such argument") \
             in str(excinfo)
 
+
+def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
+    ''' test that we reject the recognised operator boundary conditions
+    kernel if it has more than one operator argument '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[0]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        # Make the list of arguments invalid by duplicating (a reference to)
+        # this argument
+        call.arguments.args.append(arg)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert (
+            "Expected a single operator from which to look-up boundary dofs "
+            "but kernel enforce_operator_bc_code has 2") in str(excinfo)
+
+
+
+def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
+    ''' test that we reject the recognised operator boundary conditions
+    kernel if its operator argument has the wrong access type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[0]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        print dir(arg)
+        print type(arg)
+        arg._access = "gh_read"
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert (
+            "applies boundary conditions to an operator. However its operator "
+            "argument has access gh_read rather than gh_inc") in str(excinfo)
+
+
 def test_multikernel_invoke_1():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke. We test the parts of the code that
