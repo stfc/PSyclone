@@ -2397,7 +2397,6 @@ def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
             "but kernel enforce_operator_bc_code has 2") in str(excinfo)
 
 
-
 def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
     ''' test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
@@ -6397,8 +6396,7 @@ def test_argordering_exceptions():
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_position,
                        create_arg_list.mesh_height,
-                       create_arg_list.quad_rule,
-                       create_arg_list.operator_bcs_kernel]:
+                       create_arg_list.quad_rule]:
             with pytest.raises(NotImplementedError):
                 method()
         for method in [create_arg_list.field_vector,
@@ -6413,7 +6411,8 @@ def test_argordering_exceptions():
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
                        create_arg_list.orientation,
-                       create_arg_list.field_bcs_kernel]:
+                       create_arg_list.field_bcs_kernel,
+                       create_arg_list.operator_bcs_kernel]:
             with pytest.raises(NotImplementedError):
                 method(None)
 

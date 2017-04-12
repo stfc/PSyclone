@@ -2444,8 +2444,7 @@ class DynKern(Kern):
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
-        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen, \
-            IfThenGen
+        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
@@ -2725,7 +2724,7 @@ class ArgOrdering(object):
             "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
             "subclass")
 
-    def operator_bcs_kernel(self):
+    def operator_bcs_kernel(self, function_space):
         '''add boundary condition information for an operator on this function
         space'''
         raise NotImplementedError(
