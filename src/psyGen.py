@@ -1212,7 +1212,13 @@ class GlobalSum(Node):
     manipulated in, a schedule. '''
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
-        self._scalar = scalar
+        import copy
+        self._scalar = copy.copy(scalar)
+        if scalar:
+            # update scalar values appropriately
+            # HACK:TODO: update mapping to readwrite when it is supported
+            self._scalar._access = MAPPING_ACCESSES["inc"]
+            self._scalar._call = self
 
     def view(self, indent):
         ''' Class specific view  '''
@@ -1227,7 +1233,13 @@ class HaloExchange(Node):
 
     def __init__(self, field, halo_type, halo_depth, check_dirty, parent=None):
         Node.__init__(self, children=[], parent=parent)
-        self._field = field
+        import copy
+        self._field = copy.copy(field)
+        if field:
+            # update fields values appropriately
+            # HACK:TODO: update mapping to readwrite when it is supported
+            self._field._access = MAPPING_ACCESSES["inc"]
+            self._field._call = self
         self._halo_type = halo_type
         if halo_depth:
             self._halo_depth = halo_depth
