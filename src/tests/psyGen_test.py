@@ -853,7 +853,7 @@ def test_argument_find_argument():
     argument in a list of nodes, or None if none are found'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -867,10 +867,10 @@ def test_argument_find_argument():
     f3_first_read = schedule.children[0].children[0].arguments.args[2]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
-    # 3: halo node
+    # 3: haloexchange node
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -889,7 +889,6 @@ def test_argument_find_argument():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
     # a) globalsum arg depends on kern arg
     kern_asum_arg = schedule.children[3].children[0].arguments.args[0]
     glob_sum_arg = schedule.children[2]._scalar
@@ -900,13 +899,41 @@ def test_argument_find_argument():
     assert result == kern_asum_arg
 
 
-# test globalsum node argument is gh_readwrite - fails as gh_inc used
-# test halo node argument is gh_readwrite - fails as gh_inc used
-# test globalsum depends on previous kernel sum and vice versa
-# test haloexchange depends on following read and vice versa
+@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
+def test_globalsum_arg():
+    '''Check that the globalsum argument is defined as gh_readwrite and
+    points to the globalsum node'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    glob_sum = schedule.children[2]
+    glob_sum_arg = glob_sum._scalar
+    assert glob_sum_arg._access == "gh_readwrite"
+    assert glob_sum_arg._call == glob_sum
+    
+
+@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
+def test_haloexchange_arg():
+    '''Check that the haloexchange argument is defined as gh_readwrite and
+    points to the haloexchange node'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[2]
+    halo_exchange_arg = halo_exchange._field
+    assert halo_exchange_arg._access == "gh_readwrite"
+    assert halo_exchange_arg._call == haloexchange
 
 
 # backwardDependence - call/call, call/halo, call/globalsum, none
 #                      check bd_value and bd_computed None/False at start
 #                      then set to value/True after
 # forwardDependence - same as above
+# test globalsum depends on previous kernel sum and vice versa
+# test haloexchange depends on following read and vice versa
