@@ -1457,14 +1457,14 @@ class Loop(Node):
 
 class Call(Node):
 
-    def backwardDependencies(self, same_parent=True):
+    def backward_dependencies(self, same_parent=True):
         '''Returns the list of preceding Nodes which this Node has direct
         dependencies with. If the same_parent optional argument is set
         to True then only Nodes with the same parent as self are
         considered, otherwise all preceding Nodes are considered.'''
         dependencies = []
         for arg in self.arguments.args:
-            dependent_arg = arg.backwardDependence
+            dependent_arg = arg.backward_dependence
             if dependent_arg:
                 call = dependent_arg.call
                 if not same_parent or (same_parent and self.sameParent(call)):
@@ -1472,14 +1472,14 @@ class Call(Node):
                         dependencies.append(call)
         return dependencies
 
-    def forwardDependencies(self, same_parent=True):
+    def forward_dependencies(self, same_parent=True):
         '''Returns the list of following Nodes which this Node has direct
         dependencies with. If the same_parent optional argument is set
         to True then only Nodes with the same parent as self are
         considered, otherwise all following Nodes are considered.'''
         dependencies = []
         for arg in self.arguments.args:
-            for dependent_arg in arg.forwardDependencies():
+            for dependent_arg in arg.forward_dependencies():
                 call = dependent_arg.call
                 if not same_parent or (same_parent and self.sameParent(call)):
                     if call not in dependencies:
@@ -1492,7 +1492,7 @@ class Call(Node):
         parent as self are considered, otherwise all Nodes are
         considered.'''
         closest = None
-        for node in self.backwardDependencies(same_parent):
+        for node in self.backward_dependencies(same_parent):
             if not closest:
                 closest = node
             elif closest.abs_position < node.abs_position:
@@ -1505,7 +1505,7 @@ class Call(Node):
         parent as self are considered, otherwise all Nodes are
         considered.'''
         closest = None
-        for node in self.forwardDependencies(same_parent):
+        for node in self.forward_dependencies(same_parent):
             if not closest:
                 closest = node
             elif closest.abs_position > node.abs_position:
@@ -1556,7 +1556,7 @@ class Call(Node):
         # Treat forward and backward dependencies separately
         if new_position < self.position:
             # the new_node is before this node in the schedule
-            if not self.backwardDependencies():
+            if not self.backward_dependencies():
                 # There are no backward dependencies so the move is valid
                 return True
             # Find the location of the last backward dependence
@@ -1565,7 +1565,7 @@ class Call(Node):
             return (prev_dep_node.position < new_position)
         else:  # new_node.position > self.position
             # the new_node is after this node in the schedule
-            if not self.forwardDependencies():
+            if not self.forward_dependencies():
                 # There are no forward dependencies so the move is valid
                 return True
             # Find the location of the first forward dependence
@@ -2038,7 +2038,7 @@ class Argument(object):
         ''' Return the call that this argument is associated with '''
         return self._call
 
-    def backwardDependence(self):
+    def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum. For performance
@@ -2047,12 +2047,12 @@ class Argument(object):
             self._bd_computed = True
             all_nodes = self._call.walk(self._call.root.children, Node)
             position = all_nodes.index(self._call)
-            all_prev_nodes = all_nodes[:position-1]
-            all_prev_nodes = all_prev_nodes.reverse
+            all_prev_nodes = all_nodes[:position]
+            all_prev_nodes.reverse()
             self._bd_value = self._find_argument(all_prev_nodes)
         return self._bd_value
 
-    def forwardDependence(self):
+    def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum. For performance

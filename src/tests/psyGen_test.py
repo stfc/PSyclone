@@ -857,8 +857,11 @@ def test_argument_find_argument():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # 1: returns none if none found (check many reads)
+    # 1: returns none if none found
     f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    # a) empty node list
+    assert not f1_first_read._find_argument([])
+    # b) check many reads
     call_nodes = schedule.calls()
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
@@ -931,9 +934,127 @@ def test_haloexchange_arg():
     assert halo_exchange_arg._call == haloexchange
 
 
-# backwardDependence - call/call, call/halo, call/globalsum, none
-#                      check bd_value and bd_computed None/False at start
-#                      then set to value/True after
-# forwardDependence - same as above
-# test globalsum depends on previous kernel sum and vice versa
-# test haloexchange depends on following read and vice versa
+def test_argument_forward_dependence():
+    '''Check that forward_dependence method returns the first dependent
+    argument after the current Node in the schedule or None if none
+    are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    # 1: internal var computed set to False
+    assert not f1_first_read._fd_computed
+    # 2: initial internal value set to None
+    assert not f1_first_read._fd_value
+    # 3: returns none if none found (check many reads)
+    assert not f1_first_read.forward_dependence()
+    # 4: computed set to True once run
+    assert f1_first_read._fd_computed
+    # 5: returns first dependent kernel arg when there are many
+    # dependencies (check first read returned)
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    f3_next_read = schedule.children[4].children[0].arguments.args[2]
+    result = f3_write.forward_dependence()
+    assert result == f3_next_read
+    # 6: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
+    f2_halo_field = schedule.children[15]._field
+    f2_next_arg = schedule.children[17].children[0].arguments.args[0]
+    # a) previous kern arg depends on halo arg
+    result = f2_prev_arg.forward_dependence()
+    assert result == f2_halo_field
+    # b) halo arg depends on following kern arg
+    result = f2_halo_field.forward_dependence()
+    assert result == f2_next_arg
+    # 7: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_arg = schedule.children[0].children[0].arguments.args[0]
+    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    global_sum_arg = schedule.children[2]._scalar
+    next_arg = schedule.children[3].children[0].arguments.args[0]
+    # a) prev kern arg depends on sum
+    result = prev_arg.forward_dependence()
+    assert result == sum_arg
+    # b) sum arg depends on global sum arg
+    result = sum_arg.forward_dependence()
+    assert result == global_sum_arg
+    # c) global sum arg depends on next kern arg
+    result = global_sum_arg.forward_dependence()
+    assert result == next_arg
+
+
+def test_argument_backward_dependence():
+    '''Check that backward_dependence method returns the first dependent
+    argument before the current Node in the schedule or None if none
+    are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f1_last_read = schedule.children[6].children[0].arguments.args[1]
+    # 1: internal var computed set to False
+    assert not f1_last_read._bd_computed
+    # 2: initial internal value set to None
+    assert not f1_last_read._bd_value
+    # 3: returns none if none found (check many reads)
+    assert not f1_last_read.backward_dependence()
+    # 4: computed set to True once run
+    assert f1_last_read._bd_computed
+    # 5: returns first dependent kernel arg when there are many
+    # dependencies (check first read returned)
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    f3_prev_read = schedule.children[2].children[0].arguments.args[2]
+    result = f3_write.backward_dependence()
+    assert result == f3_prev_read
+    # 6: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
+    f2_halo_field = schedule.children[15]._field
+    f2_next_arg = schedule.children[17].children[0].arguments.args[0]
+    # a) following kern arg depends on halo arg
+    result = f2_next_arg.backward_dependence()
+    assert result == f2_halo_field
+    # b) halo arg depends on previous kern arg
+    result = f2_halo_field.backward_dependence()
+    assert result == f2_prev_arg
+    # 7: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_arg = schedule.children[0].children[0].arguments.args[0]
+    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    global_sum_arg = schedule.children[2]._scalar
+    next_arg = schedule.children[3].children[0].arguments.args[0]
+    # a) next kern arg depends on global sum arg
+    result = next_arg.backward_dependence()
+    assert result == global_sum_arg
+    # b) global sum arg depends on sum arg
+    result = global_sum_arg.backward_dependence()
+    assert result == sum_arg
+    # c) sum depends on prev kern arg
+    result = sum_arg.backward_dependence()
+    assert result == prev_arg
