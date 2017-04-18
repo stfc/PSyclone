@@ -1148,3 +1148,58 @@ def test_globalsum_args():
     global_sum = schedule.children[2]
     assert len(global_sum.args) == 1
     assert global_sum.args[0] == global_sum._scalar
+
+
+def test_node_backward_dependence():
+    '''Test that the Node class backward_dependence method returns the
+    closest dependent Node before the current Node in the schedule or
+    None if none are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: loop no backwards dependence
+    loop3 = schedule.children[2]
+    assert not loop3.backward_dependence()
+    # 2: loop to loop backward dependence
+    # a) many steps
+    last_loop_node = schedule.children[6]
+    prev_dep_loop_node = schedule.children[3]
+    assert last_loop_node.backward_dependence() == prev_dep_loop_node
+    # b) previous
+    assert prev_dep_loop_node.backward_dependence() == loop3
+    # 3: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop13 = schedule.children[14]
+    halo_exchange = schedule.children[16]
+    loop16 = schedule.children[17]
+    # a) following loop node depends on halo exchange node
+    result = loop16.backward_dependence()
+    assert result == halo_exchange
+    # b) halo exchange node depends on previous loop node
+    result = halo_exchange.backward_dependence()
+    assert result == loop13
+    # 4: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
+    global_sum = schedule.children[2]
+    loop3 = schedule.children[3]
+    # a) loop3 depends on global sum
+    assert loop3.backward_dependence() == global_sum
+    # b) global sum depends on loop2
+    assert global_sum.backward_dependence() == loop2
+    # c) loop2 (sum) depends on loop1
+    assert loop2.backward_dependence() == loop1
