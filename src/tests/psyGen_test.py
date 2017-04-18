@@ -1150,6 +1150,65 @@ def test_globalsum_args():
     assert global_sum.args[0] == global_sum._scalar
 
 
+def test_node_forward_dependence():
+    '''Test that the Node class forward_dependence method returns the
+    closest dependent Node after the current Node in the schedule or
+    None if none are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    read4 = schedule.children[4]
+    # 1: returns none if none found
+    # a) check many reads
+    assert not read4.forward_dependence()
+    # b) check no dependencies for a call
+    assert not read4.children[0].forward_dependence()
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies
+    # a) check first read returned
+    writer = schedule.children[3]
+    next_read = schedule.children[4]
+    assert writer.forward_dependence() == next_read
+    # a) check writer returned
+    first_loop = schedule.children[0]
+    assert first_loop.forward_dependence() == writer
+    # 3: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_loop = schedule.children[14]
+    halo_field = schedule.children[15]
+    next_loop = schedule.children[17]
+    # a) previous loop depends on halo exchange
+    assert prev_loop.forward_dependence() == halo_field
+    # b) halo exchange depends on following loop
+    assert halo_field.forward_dependence() == next_loop
+
+    # 4: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_loop = schedule.children[0]
+    sum_loop = schedule.children[1]
+    global_sum_loop = schedule.children[2]
+    next_loop = schedule.children[3]
+    # a) prev loop depends on sum loop
+    assert prev_loop.forward_dependence() == sum_loop
+    # b) sum loop depends on global sum loop
+    assert sum_loop.forward_dependence() == global_sum_loop
+    # c) global sum loop depends on next loop
+    assert global_sum_loop.forward_dependence() == next_loop
+
+
 def test_node_backward_dependence():
     '''Test that the Node class backward_dependence method returns the
     closest dependent Node before the current Node in the schedule or

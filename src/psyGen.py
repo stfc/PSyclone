@@ -677,6 +677,26 @@ class Node(object):
                             dependence = node
         return dependence
 
+    def forward_dependence(self):
+        '''Returns the closest following Node that this Node has a direct
+        dependence with or None if there is not one. Only Nodes with
+        the same parent as self are returned. Nodes inherit their
+        descendents dependencies.'''
+        dependence = None
+        for arg in self.args:
+            dependent_arg = arg.forward_dependence()
+            if dependent_arg:
+                node = dependent_arg.call
+                while node.depth > self.depth:
+                    node = node.parent
+                if self.sameParent(node):
+                    if not dependence:
+                        dependence = node
+                    else:
+                        if dependence.position > node.position:
+                            dependence = node
+        return dependence
+
     def isValidLocation(new_node, position="before"):
         '''Abstract method that should be implemented by subclasses. Returns
         True if this Node object can be moved to the new_node (where
@@ -1516,47 +1536,6 @@ class Call(Node):
         '''Return the list of arguments associated with this node. Overide the
         base method and simply return our arguments. '''
         return self.arguments.args
-
-    def forward_dependencies(self, same_parent=True):
-
-        '''Returns the list of following Nodes which this Node has direct
-        dependencies with. If the same_parent optional argument is set
-        to True then only Nodes with the same parent as self are
-        considered, otherwise all following Nodes are considered.'''
-        dependencies = []
-        for arg in self.arguments.args:
-            for dependent_arg in arg.forward_dependencies():
-                call = dependent_arg.call
-                if not same_parent or (same_parent and self.sameParent(call)):
-                    if call not in dependencies:
-                        dependencies.append(call)
-        return dependencies
-
-    def lastPreviousDependentNode(self, same_parent=True):
-        '''Returns the closest preceding dependendent Node. If the same_parent
-        optional argument is set to True then only Nodes with the same
-        parent as self are considered, otherwise all Nodes are
-        considered.'''
-        closest = None
-        for node in self.backward_dependencies(same_parent):
-            if not closest:
-                closest = node
-            elif closest.abs_position < node.abs_position:
-                closest = node
-        return closest
-        
-    def firstNextDependentNode(self, same_parent=True):
-        '''Returns the closest following dependendent Node. If the same_parent
-        optional argument is set to True then only Nodes with the same
-        parent as self are considered, otherwise all Nodes are
-        considered.'''
-        closest = None
-        for node in self.forward_dependencies(same_parent):
-            if not closest:
-                closest = node
-            elif closest.abs_position > node.abs_position:
-                closest = node
-        return closest
 
     def isValidLocation(new_node, position="before"):
         '''If this Call object can be moved to the new_node
