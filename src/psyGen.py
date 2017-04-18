@@ -647,6 +647,36 @@ class Invoke(object):
 class Node(object):
     ''' baseclass for a node in a schedule '''
 
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. The default
+        implementation assumes the node has no directly associated arguments
+        (i.e. is not a Call class or subclass)'''
+        args = []
+        for call in self.calls:
+            args.extend(call.args)
+        return args
+    
+    def backward_dependence(self):
+        '''Returns the closest preceding Node that this Node has a direct
+        dependence with or None if there is not one. Only Nodes with
+        the same parent as self are returned. Nodes inherit their
+        descendents dependencies.'''
+        dependence = None
+        for arg in self.args:
+            dependent_arg = arg.backward_dependence()
+            if dependent_arg:
+                node = dependent_arg.call
+                while node.depth > self.depth:
+                    node = node.parent
+                if self.sameParent(node):
+                    if not dependence:
+                        dependence = node
+                    else:
+                        if dependence.position < node.position:
+                            dependence = node
+        return dependence
+
     def isValidLocation(new_node, position="before"):
         '''Abstract method that should be implemented by subclasses. Returns
         True if this Node object can be moved to the new_node (where
@@ -655,6 +685,16 @@ class Node(object):
         otherwise. '''
         raise NotImplementedError(
             "A subclass of Node should implement the isInvalidLocation method")
+
+    @property
+    def depth(self):
+        ''' Returns this Node's depth in the tree. '''
+        my_depth = 0
+        node = self
+        while node is not None:
+            node = node.parent
+            my_depth += 1
+        return my_depth
 
     def view(self):
         raise NotImplementedError("BaseClass of a Node must implement the "
@@ -1457,20 +1497,8 @@ class Loop(Node):
 
 class Call(Node):
 
-    def backward_dependencies(self, same_parent=True):
-        '''Returns the list of preceding Nodes which this Node has direct
-        dependencies with. If the same_parent optional argument is set
-        to True then only Nodes with the same parent as self are
-        considered, otherwise all preceding Nodes are considered.'''
-        dependencies = []
-        for arg in self.arguments.args:
-            dependent_arg = arg.backward_dependence
-            if dependent_arg:
-                call = dependent_arg.call
-                if not same_parent or (same_parent and self.sameParent(call)):
-                    if call not in dependencies:
-                        dependencies.append(call)
-        return dependencies
+    # need tests for directives. For example, I don't think
+    # abs_position will work if we have directives.
 
     def forward_dependencies(self, same_parent=True):
         '''Returns the list of following Nodes which this Node has direct

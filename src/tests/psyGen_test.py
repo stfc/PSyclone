@@ -1058,3 +1058,19 @@ def test_argument_backward_dependence():
     # c) sum depends on prev kern arg
     result = sum_arg.backward_dependence()
     assert result == prev_arg
+
+
+def test_node_depth():
+    '''Test that the Node class depth method returns the correct value
+    for a Node in a tree '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    assert schedule.depth == 1
+    for child in schedule.children:
+        assert child.depth == 2
+    for child in schedule.children[3].children:
+        assert child.depth == 3
