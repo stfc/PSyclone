@@ -1074,3 +1074,77 @@ def test_node_depth():
         assert child.depth == 2
     for child in schedule.children[3].children:
         assert child.depth == 3
+
+
+def test_node_args():
+    '''Test that the Node class args method returns the correct arguments
+    for Nodes that do not have arguments themselves'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop1 = schedule.children[0]
+    kern1 = loop1.children[0]
+    loop2 = schedule.children[1]
+    kern2 = loop2.children[0]
+    # 1) Schedule (not that this is useful)
+    all_args = kern1.arguments.args
+    all_args.extend(kern2.arguments.args)
+    schedule_args = schedule.args
+    for idx, arg in enumerate(all_args):
+        assert arg == schedule_args[idx]
+    # 2) Loop1
+    loop1_args = loop1.args
+    for idx, arg in enumerate(kern1.arguments.args):
+        assert arg == loop1_args[idx]
+    # 3) Loop2
+    loop2_args = loop2.args
+    for idx, arg in enumerate(kern2.arguments.args):
+        assert arg == loop2_args[idx]
+
+
+def test_call_args():
+    '''Test that the call class args method returns the appropriate
+    arguments '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kern = schedule.children[0].children[0]
+    builtin = schedule.children[1].children[0]
+    # 1) kern
+    for idx, arg in enumerate(kern.args):
+        assert arg == kern.arguments.args[idx]
+    # 2) builtin
+    for idx, arg in enumerate(builtin.args):
+        assert arg == builtin.arguments.args[idx]
+
+def test_haloexchange_args():
+    '''Test that the haloexchange class args method returns the appropriate
+    argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for haloexchange in schedule.children[:2]:
+        assert len(haloexchange.args) == 1
+        assert haloexchange.args[0] == haloexchange._field
+
+def test_globalsum_args():
+    '''Test that the globalsum class args method returns the appropriate
+    argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    assert len(global_sum.args) == 1
+    assert global_sum.args[0] == global_sum._scalar

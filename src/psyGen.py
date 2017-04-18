@@ -653,7 +653,7 @@ class Node(object):
         implementation assumes the node has no directly associated arguments
         (i.e. is not a Call class or subclass)'''
         args = []
-        for call in self.calls:
+        for call in self.calls():
             args.extend(call.args)
         return args
     
@@ -1260,6 +1260,12 @@ class GlobalSum(Node):
             self._scalar._access = MAPPING_ACCESSES["inc"]
             self._scalar._call = self
 
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Overide the
+        base method and simply return our argument. '''
+        return [self._scalar]
+
     def view(self, indent):
         ''' Class specific view  '''
         print self.indent(indent) + (
@@ -1286,6 +1292,12 @@ class HaloExchange(Node):
         else:
             self._halo_depth = "unknown"
         self._check_dirty = check_dirty
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Overide the
+        base method and simply return our argument. '''
+        return [self._field]
 
     def view(self, indent):
         ''' Class specific view  '''
@@ -1497,10 +1509,16 @@ class Loop(Node):
 
 class Call(Node):
 
-    # need tests for directives. For example, I don't think
-    # abs_position will work if we have directives.
+    # TBD: I don't think abs_position will work if we have directives.
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Overide the
+        base method and simply return our arguments. '''
+        return self.arguments.args
 
     def forward_dependencies(self, same_parent=True):
+
         '''Returns the list of following Nodes which this Node has direct
         dependencies with. If the same_parent optional argument is set
         to True then only Nodes with the same parent as self are
