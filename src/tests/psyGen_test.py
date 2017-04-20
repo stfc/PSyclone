@@ -1334,7 +1334,6 @@ def test_node_is_valid_location():
     assert not node.is_valid_location(schedule.children[3], position="after")
 
 # transformation move tests - multiple calls in loops, directives
-# global position fix -> new issue
-# remove previous dependence analysis code
-# documentation
+# documentation?
 # pep8, pyflakes, pylint
+# global position fix -> new issue

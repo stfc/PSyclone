@@ -220,38 +220,6 @@ class Invokes(object):
             invoke.gen_code(parent)
 
 
-class Dependencies(object):
-    def __init__(self, this_arg):
-        self._arg = this_arg
-        self._precedes = []
-        self._follows = []
-
-    def set(self):
-        if self._arg.is_literal:
-            pass
-        else:
-            for following_call in self._arg._call.following_calls:
-                for argument in following_call.arguments._args:
-                    if argument.name == self._arg._name:
-                        self.add_follows(argument)
-            for preceding_call in self._arg._call.preceding_calls:
-                for argument in preceding_call.arguments._args:
-                    if argument.name == self._arg._name:
-                        self.add_precedes(argument)
-
-    def add_precedes(self, obj):
-        self._precedes.append(obj)
-
-    def add_follows(self, obj):
-        self._follows.append(obj)
-
-    def get_precedes(self):
-        return self._precedes
-
-    def get_follows(self):
-        return self._follows
-
-
 class NameSpaceFactory(object):
         # storage for the instance reference
     _instance = None
@@ -398,11 +366,6 @@ class Invoke(object):
 
         # let the schedule have access to me
         self._schedule.invoke = self
-
-        # Set up the ordering constraints between the calls in the schedule
-        # Obviously the schedule must be created first
-        for call in self._schedule.calls():
-            call.set_constraints()
 
         # extract the argument list for the algorithm call and psy
         # layer subroutine.
@@ -1797,11 +1760,6 @@ class Call(Node):
     def arg_descriptors(self, obj):
         self._arg_descriptors = obj
 
-    def set_constraints(self):
-        # first set up the dependencies of my arguments
-        self.arguments.set_dependencies
-        # TODO: set up constraints between calls
-
     @property
     def arguments(self):
         return self._arguments
@@ -1983,16 +1941,10 @@ class Arguments(object):
             return self._args
         return arguments
 
-    def set_dependencies(self):
-        for argument in self._args:
-            argument.set_dependencies()
-        # TODO create a summary of dependencies
-
 
 class Argument(object):
     ''' argument base class '''
     def __init__(self, call, arg_info, access):
-        self._dependencies = Dependencies(self)
         self._call = call
         self._text = arg_info.text
         self._orig_name = arg_info.varName
@@ -2117,43 +2069,6 @@ class Argument(object):
                 return True
         return False
         
-    def set_dependencies(self):
-        writers = ["WRITE", "INC", "SUM"]
-        readers = ["READ", "INC"]
-        self._true_dependence = []
-        self._anti_dependence = []
-        for following_call in self._call.following_calls:
-            for argument in following_call.arguments.args:
-                if argument.name == self._name:
-                    if self.access in writers and argument.access in readers:
-                        self._true_dependence.append(argument)
-                    if self.access in readers and argument.access in writers:
-                        self._anti_dependence.append(argument)
-
-    def has_true_dependence(self):
-        if len(self._true_dependence) > 0:
-            return True
-        return False
-
-    def has_anti_dependence(self):
-        if len(self._anti_dependence) > 0:
-            return True
-        return False
-
-    def has_dependence(self):
-        if self.has_anti_dependence() or self.has_true_dependence():
-            return True
-        return False
-
-    def true_dependencies(self):
-        return self._true_dependence
-
-    def anti_dependencies(self):
-        return self._anti_dependence
-
-    def dependencies(self):
-        return self.true_dependencies()+self.anti_dependencies()
-
 
 class KernelArgument(Argument):
     def __init__(self, arg, arg_info, call):
