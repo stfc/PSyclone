@@ -836,7 +836,7 @@ def test_argument_dependent_arg():
     assert arg_f2_read_1._dependent_arg(arg_f2_inc)
     # write to read returns True
     assert arg_f2_inc._dependent_arg(arg_f2_read_1)
-    # same name both writes (the 4.5 example only uses inc) returns False
+    # same name both writes (the 4.5 example only uses inc) returns True
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
@@ -845,7 +845,7 @@ def test_argument_dependent_arg():
     schedule = invoke.schedule
     arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
     arg_f1_write_2 = schedule.children[1].children[0].arguments.args[1]
-    assert not arg_f1_write_1._dependent_arg(arg_f1_write_2)
+    assert arg_f1_write_1._dependent_arg(arg_f1_write_2)
 
 
 def test_argument_find_argument():
@@ -1333,8 +1333,6 @@ def test_node_is_valid_location():
     node = schedule.children[0]
     assert not node.is_valid_location(schedule.children[3], position="after")
 
-
-# w->w is a dependence change code and tests
 # transformation move tests - multiple calls in loops, directives
 # global position fix -> new issue
 # remove previous dependence analysis code

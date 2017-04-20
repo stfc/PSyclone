@@ -11,19 +11,19 @@ program single_invoke
   ! Description: multi axpy point-wise operations specified in an invoke call
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1, f2(7), f3
   real(r_def) :: a
 
   a = 0.5
 
-  call invoke(                       &
-              axpy(a, f1, f3, f2),   &
-              axpy(a, f1, f3, f2),   &
-              axpy(a, f1, f3, f2),   &
-              axpy(a, f1, f2, f3),   &
-              axpy(a, f1, f3, f2),   &
-              axpy(a, f1, f3, f2),   &
-              axpy(a, f1, f3, f2)    &
+  call invoke(                          &
+              axpy(a, f1, f3, f2(1)),   &
+              axpy(a, f1, f3, f2(2)),   &
+              axpy(a, f1, f3, f2(3)),   &
+              axpy(a, f1, f2(4), f3),   &
+              axpy(a, f1, f3, f2(5)),   &
+              axpy(a, f1, f3, f2(6)),   &
+              axpy(a, f1, f3, f2(7))    &
              )
 
 end program single_invoke

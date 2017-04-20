@@ -2113,6 +2113,8 @@ class Argument(object):
                 return True
             if self.access in readers and argument.access in writers:
                 return True
+            if self.access in writers and argument.access in writers:
+                return True
         return False
         
     def set_dependencies(self):
