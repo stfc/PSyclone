@@ -697,14 +697,66 @@ class Node(object):
                             dependence = node
         return dependence
 
-    def isValidLocation(new_node, position="before"):
-        '''Abstract method that should be implemented by subclasses. Returns
-        True if this Node object can be moved to the new_node (where
-        position determines whether it is before of after the
-        new_node) without breaking any data dependencies and False
-        otherwise. '''
-        raise NotImplementedError(
-            "A subclass of Node should implement the isInvalidLocation method")
+    def is_valid_location(self, new_node, position="before"):
+        '''If this Node can be moved to the new_node
+        (where position determines whether it is before of after the
+        new_node) without breaking any data dependencies then return True,
+        otherwise return False. '''
+        # First perform correctness checks
+        # 1: check new_node is a Node
+        if not isinstance(new_node, Node):
+            raise GenerationError(
+                "In the psyGen Call class is_valid_location() method the "
+                "supplied argument is not a Node")
+
+        # 2: check position has a valid value
+        valid_positions = ["before", "after"]
+        if position not in valid_positions:
+            raise GenerationError(
+                "The position argument in the psyGen Call class "
+                "is_valid_location() method must be one of {0} but "
+                "found '{1}'".format(valid_positions, position))
+
+        # 3: check self and new_node have the same parent
+        if not self.sameParent(new_node):
+            raise GenerationError(
+                "In the psyGen Call class is_valid_location() method "
+                "the node and the location do not have the same parent")
+
+        # 4: check proposed new position is not the same as current position
+        new_position = new_node.position
+        if new_position < self.position and position == "after":
+            new_position += 1
+        elif new_position > self.position and position == "before":
+            new_position -= 1
+
+        if self.position == new_position:
+            raise GenerationError(
+                "In the psyGen Call class is_valid_location() method, the "
+                "node and the location are the same so this transformation "
+                "would have no effect.")
+
+        # Now determine whether the new location is valid in terms of
+        # data dependencies
+        # Treat forward and backward dependencies separately
+        if new_position < self.position:
+            # the new_node is before this node in the schedule
+            prev_dep_node = self.backward_dependence()
+            if not prev_dep_node:
+                # There are no backward dependencies so the move is valid
+                return True
+            else:
+                # return (is the dependent node before the new_position?)
+                return (prev_dep_node.position < new_position)
+        else:  # new_node.position > self.position
+            # the new_node is after this node in the schedule
+            next_dep_node = self.forward_dependence()
+            if not next_dep_node:
+                # There are no forward dependencies so the move is valid
+                return True
+            else:
+                # return (is the dependent node after the new_position?)
+                return (next_dep_node.position > new_position)
 
     @property
     def depth(self):
@@ -1536,67 +1588,6 @@ class Call(Node):
         '''Return the list of arguments associated with this node. Overide the
         base method and simply return our arguments. '''
         return self.arguments.args
-
-    def isValidLocation(new_node, position="before"):
-        '''If this Call object can be moved to the new_node
-        (where position determines whether it is before of after the
-        new_node) without breaking any data dependencies then return True,
-        otherwise return False. '''
-        # First perform correctness checks
-        # 1: check new_node is a Node
-        if not isinstance(new_node, Node):
-            raise GenerationError(
-                "In the psyGen Call class isValidLocation() method the "
-                "supplied argument is not a Node")
-
-        # 2: check position has a valid value
-        valid_positions = ["before", "after"]
-        if position not in valid_positions:
-            raise GenerationError(
-                "The position argument in the psyGen Call class "
-                "isValidLocation() method must be one of {0} but "
-                "found '{1}'".format(valid_positions, position))
-        
-        # 3: check self and new_node have the same parent
-        if not self.sameParent(new_node):
-            raise GenerationError(
-                "In the psyGen Call class isValidLocation() method "
-                "the node and the location do not have the same parent")
-
-        # 4: check proposed new position is not the same as current position
-        new_position = new_node.position
-        if new_position < self.position and position == "after":
-            new_position += 1
-        elif new_position > self.position and position == "before":
-            new_position -= 1
-        
-        if self.position == new_position:
-            raise GenerationError(
-                "In the psyGen Call class isValidLocation() method, the "
-                "node and the location are the same so this transformation "
-                "would have no effect.")
-
-        # Now determine whether the new location is valid in terms of
-        # data dependencies
-        # Treat forward and backward dependencies separately
-        if new_position < self.position:
-            # the new_node is before this node in the schedule
-            if not self.backward_dependencies():
-                # There are no backward dependencies so the move is valid
-                return True
-            # Find the location of the last backward dependence
-            prev_dep_node = self.lastPreviousDependentNode()
-            # return (is it before the new_position?)
-            return (prev_dep_node.position < new_position)
-        else:  # new_node.position > self.position
-            # the new_node is after this node in the schedule
-            if not self.forward_dependencies():
-                # There are no forward dependencies so the move is valid
-                return True
-            # Find the location of the first forward dependence
-            next_dep_node = self.firstNextDependentNode()
-            # return (is it after the new_position?)
-            return (next_dep_node.position > new_position)
 
     def view(self, indent=0):
         print self.indent(indent)+"Call", \

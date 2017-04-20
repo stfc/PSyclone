@@ -1262,3 +1262,81 @@ def test_node_backward_dependence():
     assert global_sum.backward_dependence() == loop2
     # c) loop2 (sum) depends on loop1
     assert loop2.backward_dependence() == loop1
+
+def test_node_is_valid_location():
+    '''Test that the Node class is_valid_location method returns True if
+    the new location does not break any data dependencies, otherwise it
+    returns False'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: new node argument is invalid
+    node = schedule.children[0]
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location("invalid_node_argument")
+    assert "argument is not a Node" in str(excinfo.value)
+    # 2: optional position argument is invalid
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(node, position="invalid_node_argument")
+    assert "The position argument in the psyGen" in str(excinfo.value)
+    assert "method must be one of" in str(excinfo.value)
+    # 3: parents of node and new_node are not the same
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(schedule.children[3].children[0])
+    assert ("the node and the location do not have the same "
+            "parent") in str(excinfo.value)
+    # 4: positions are the same
+    prev_node = schedule.children[0]
+    node = schedule.children[1]
+    next_node = schedule.children[2]
+    # a) before this node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(node, position="before")
+    assert ("the node and the location are the same") in str(excinfo.value)
+    # b) after this node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(node, position="after")
+    assert ("the node and the location are the same") in str(excinfo.value)
+    # c) after previous node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(prev_node, position="after")
+    assert ("the node and the location are the same") in str(excinfo.value)
+    # d) before next node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(next_node, position="before")
+    assert ("the node and the location are the same") in str(excinfo.value)
+    # 5: valid no previous dependency
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 6: valid no prev dep
+    node = schedule.children[2]
+    assert node.is_valid_location(schedule.children[0])
+    # 7: valid prev dep (after)
+    node = schedule.children[6]
+    assert node.is_valid_location(schedule.children[3], position="after")
+    # 8: invalid prev dep (before)
+    assert not node.is_valid_location(schedule.children[3], position="before")
+    # 9: valid no following dep
+    node = schedule.children[4]
+    assert node.is_valid_location(schedule.children[6], position="after")
+    # 10: valid following dep (before)
+    node = schedule.children[0]
+    assert node.is_valid_location(schedule.children[3], position="before")
+    # 11: invalid following dep (after)
+    node = schedule.children[0]
+    assert not node.is_valid_location(schedule.children[3], position="after")
+
+
+# w->w is a dependence change code and tests
+# transformation move tests - multiple calls in loops, directives
+# global position fix -> new issue
+# remove previous dependence analysis code
+# documentation
+# pep8, pyflakes, pylint
