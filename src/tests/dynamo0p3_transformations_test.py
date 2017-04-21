@@ -3457,7 +3457,7 @@ def test_move_forward():
 
 def test_move_forward_after():
     '''Test that MoveTrans moves the node forewards to the expected
-    location'''
+    location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.0.2_multiple_set_kernels.f90"),
                     api=TEST_API)
@@ -3480,4 +3480,32 @@ def test_move_forward_after():
     schedule.view()
     assert orig_arg == new_arg
 
+
 # test that move with dependencies fails
+def test_move_fail():
+    '''Test that MoveTrans fails to move the node backwards and forwards
+    if there is a dependence. '''
+    _, info = parse(os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 6
+    target_index = 0
+    orig_loop = schedule.children[initial_index]
+    new_loop = schedule.children[target_index]
+
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[initial_index],
+                         schedule.children[target_index])
+    assert "data dependencies forbid the move" in str(excinfo.value)
+
+    initial_index = 0
+    target_index = 6
+    orig_loop = schedule.children[initial_index]
+    new_loop = schedule.children[target_index]
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[initial_index],
+                         schedule.children[target_index])
+    assert "data dependencies forbid the move" in str(excinfo.value)
