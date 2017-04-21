@@ -1106,7 +1106,7 @@ class MoveTrans(Transformation):
 
         # Check new location conforms to any data dependencies
         # This also checks the location and position arguments
-        if not node.isValidLocation(location, position=position):
+        if not node.is_valid_location(location, position=position):
             raise TransformationError(
                 "In the Move transformation apply method, data dependencies "
                 "forbid the move to the new location")

@@ -3367,16 +3367,6 @@ def test_move_str():
     assert name == "Move a node to a different location"
 
 
-def test_move_pos_arg():
-    '''Test that MoveTrans raises an exception if an invalid position
-    argument is passed'''
-    move_trans = MoveTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        move_trans.apply(None, None, position="invalid")
-    assert ("The position argument in the MoveTrans transformation must be one "
-            "of ['before', 'after'] but found 'invalid'") in str(excinfo)
-
-
 def test_move_valid_node():
     '''Test that MoveTrans raises an exception if an invalid node
     argument is passed'''
@@ -3389,57 +3379,8 @@ def test_move_valid_node():
     move_trans = MoveTrans()
     with pytest.raises(TransformationError) as excinfo:
         move_trans.apply(None, schedule.children[0])
-    assert ("In the Move transformation apply method, at least one of the "
-            "first two arguments is not a Node") in str(excinfo)
-
-
-def test_move_valid_location():
-    '''Test that MoveTrans raises an exception if an invalid node
-    location is passed'''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "4.2_multikernel_invokes.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    move_trans = MoveTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        move_trans.apply(schedule.children[0], None)
-    assert ("In the Move transformation apply method, at least one of the "
-            "first two arguments is not a Node") in str(excinfo)
-
-
-def test_move_same_location():
-    '''Test that MoveTrans raises an exception if the supplied location is
-    the same as the current location'''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "4.2_multikernel_invokes.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    move_trans = MoveTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        move_trans.apply(schedule.children[0], schedule.children[0])
-    assert ("In the Move transformation apply method, the node and the "
-            "location are the same") in str(excinfo)
-
-
-def test_move_same_parent():
-    '''Test that MoveTrans raises an exception if the node and the
-    location do not have the same parent'''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "4.2_multikernel_invokes.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    move_trans = MoveTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        move_trans.apply(schedule.children[0],
-                         schedule.children[1].children[0])
-    assert ("In the Move transformation apply method, the node and the "
-            "location do not have the same parent") in str(excinfo)
+    assert ("In the Move transformation apply method the "
+            "first argument is not a Node") in str(excinfo)
 
 
 def test_move_back():
