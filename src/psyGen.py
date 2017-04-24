@@ -613,7 +613,12 @@ class Node(object):
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and it's children'''
         import graphviz as gv
-        g1 = gv.Digraph(format=file_format)
+        try:
+            g1 = gv.Digraph(format=file_format)
+        except ValueError:
+            raise GenerationError(
+                "unsupported graphviz file format '{0}' provided".
+                format(file_format))
         self.dag_gen(g1)
         g1.render(filename=file_name)
 

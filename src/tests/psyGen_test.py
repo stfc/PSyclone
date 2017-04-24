@@ -1236,6 +1236,7 @@ def test_node_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    schedule.dag()
     loop13 = schedule.children[14]
     halo_exchange = schedule.children[16]
     loop16 = schedule.children[17]
@@ -1333,7 +1334,74 @@ def test_node_is_valid_location():
     node = schedule.children[0]
     assert not node.is_valid_location(schedule.children[3], position="after")
 
-# transformation move tests - multiple calls in loops, directives
-# documentation?
+
+def test_dag_name():
+    '''test that the dag_name method returns the correct value for the
+    node class and its specialisations'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from psyGen import Schedule
+    assert super(Schedule,schedule).dag_name == "node_0"
+    assert schedule.dag_name == "schedule"
+    assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
+    assert schedule.children[3].dag_name == "loop_3"
+    assert (schedule.children[3].children[0].dag_name ==
+            "kernel_testkern_code_5")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    assert global_sum.dag_name == "globalsum(asum)_2"
+    builtin = schedule.children[1].children[0]
+    assert builtin.dag_name == "builtin_4"
+
+EXPECTED = (
+"digraph {\n"
+"	schedule_start\n"
+"	schedule_end\n"
+"	loop_0_start\n"
+"	loop_0_end\n"
+"		loop_0_end -> schedule_end [color=blue]\n"
+"		schedule_start -> loop_0_start [color=blue]\n"
+"	kernel_testkern_code_2\n"
+"		kernel_testkern_code_2 -> loop_0_end [color=blue]\n"
+"		loop_0_start -> kernel_testkern_code_2 [color=blue]\n"
+"}")
+
+
+def test_node_dag(tmpdir):
+    ''' test that dag generation works correctly '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    file = tmpdir.join('test')
+    schedule.dag(file_name=file.strpath)
+    result = file.read()
+    assert EXPECTED in result
+    file = tmpdir.join('test.svg')
+    result = file.read()
+    for name in ["<title>schedule_start</title>",
+                 "<title>schedule_end</title>",
+                 "<title>loop_0_start</title>",
+                 "<title>loop_0_end</title>",
+                 "<title>kernel_testkern_code_2</title>",
+                 "<svg", "</svg>", "blue"]:
+        assert name in result
+        with pytest.raises(GenerationError) as excinfo:
+            schedule.dag(file_name=file.strpath, file_format="rubbish")
+        assert "unsupported graphviz file format" in str(excinfo.value)
+
 # pep8, pyflakes, pylint
-# global position fix -> new issue
+# documentation
+# example
