@@ -610,6 +610,54 @@ class Invoke(object):
 class Node(object):
     ''' baseclass for a node in a schedule '''
 
+    def dag(self, file_name='dag', file_format='svg'):
+        '''Create a dag of this node and it's children'''
+        import graphviz as gv
+        g1 = gv.Digraph(format=file_format)
+        self.dag_gen(g1)
+        g1.render(filename=file_name)
+
+    def dag_gen(self, graph):
+        '''output my node's graph information and call any children'''
+        start_postfix = "_start"
+        end_postfix = "_end"
+        if self.children:
+            graph.node(self.dag_name+start_postfix)
+            graph.node(self.dag_name+end_postfix)
+        else:
+            graph.node(self.dag_name)
+        node = self.forward_dependence()
+        local_name = self.dag_name
+        if self.children:
+            local_name += end_postfix
+        if node:
+            remote_name = node.dag_name
+            if node.children:
+                remote_name += start_postfix
+            graph.edge(local_name, remote_name, color="green")
+        elif self.parent:
+            remote_name = self.parent.dag_name + end_postfix
+            graph.edge(local_name, remote_name, color="blue")
+        node = self.backward_dependence()
+        local_name = self.dag_name
+        if self.children:
+            local_name += start_postfix
+        if node:
+            remote_name = node.dag_name
+            if node.children:
+                remote_name += end_postfix
+            graph.edge(remote_name, local_name, color="red")
+        elif self.parent:
+            remote_name = self.parent.dag_name + start_postfix
+            graph.edge(remote_name, local_name, color="blue")
+        for child in self.children:
+            child.dag_gen(graph)
+
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "node_" + str(self.abs_position)
+
     @property
     def args(self):
         '''Return the list of arguments associated with this node. The default
@@ -813,7 +861,7 @@ class Node(object):
             position += 1
             if child == self:
                 return True, position
-            if isinstance(child, Loop):
+            if child.children:
                 found, position = self._find_position(child.children, position)
                 if found:
                     return True, position
@@ -935,6 +983,10 @@ class Schedule(Node):
 
     '''
 
+    @property
+    def dag_name(self):
+        return "schedule"
+
     def tkinter_delete(self):
         for entity in self._children:
             entity.tkinter_delete()
@@ -993,8 +1045,18 @@ class Directive(Node):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "directive_" + str(self.abs_position)
+
 
 class OMPDirective(Directive):
+
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
         print self.indent(indent) + "Directive[OMP]"
@@ -1016,6 +1078,11 @@ class OMPDirective(Directive):
 
 
 class OMPParallelDirective(OMPDirective):
+
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "OMP_parallel_" + str(self.abs_position)
 
     def view(self, indent=0):
         print self.indent(indent)+"Directive[OMP parallel]"
@@ -1165,6 +1232,11 @@ class OMPDoDirective(OMPDirective):
                               children=children,
                               parent=parent)
 
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "OMP_do_" + str(self.abs_position)
+
     def view(self, indent=0):
         ''' Write out a textual summary of the OpenMP Do Directive '''
         if self.reductions():
@@ -1250,6 +1322,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 parent=parent,
                                 omp_schedule=omp_schedule)
 
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "OMP_parallel_do_" + str(self.abs_position)
+
     def view(self, indent=0):
         ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
         print self.indent(indent) + \
@@ -1296,6 +1373,10 @@ class GlobalSum(Node):
             self._scalar._call = self
 
     @property
+    def dag_name(self):
+        return "globalsum({0})_".format(self._scalar.name) + str(self.position)
+
+    @property
     def args(self):
         '''Return the list of arguments associated with this node. Overide the
         base method and simply return our argument. '''
@@ -1329,6 +1410,14 @@ class HaloExchange(Node):
         self._check_dirty = check_dirty
 
     @property
+    def dag_name(self):
+        name = ("haloexchange({0})_".format(self._field.name) +
+                str(self.position))
+        if self._check_dirty:
+            name = "check" + name
+        return (name)
+    
+    @property
     def args(self):
         '''Return the list of arguments associated with this node. Overide the
         base method and simply return our argument. '''
@@ -1344,6 +1433,14 @@ class HaloExchange(Node):
 
 class Loop(Node):
 
+    @property
+    def dag_name(self):
+        if self.loop_type:
+            name = "loop_[{0}]_".format(self.loop_type) + str(self.position)
+        else:
+            name = "loop_" + str(self.position)
+        return name
+    
     @property
     def loop_type(self):
         return self._loop_type
@@ -1543,8 +1640,6 @@ class Loop(Node):
 
 
 class Call(Node):
-
-    # TBD: I don't think abs_position will work if we have directives.
 
     @property
     def args(self):
@@ -1804,6 +1899,10 @@ class Kern(Call):
         return "kern call: "+self._name
 
     @property
+    def dag_name(self):
+        return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
+
+    @property
     def module_inline(self):
         return self._module_inline
 
@@ -1874,6 +1973,10 @@ class BuiltIn(Call):
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
+
+    @property
+    def dag_name(self):
+        return "builtin_" + str(self.abs_position)
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
