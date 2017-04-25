@@ -1126,7 +1126,7 @@ class MoveTrans(Transformation):
         parent = node.parent
 
         my_node = parent.children.pop(node.position)
-        
+
         location_index = location.position
         if position == "before":
             schedule.children.insert(location_index, my_node)

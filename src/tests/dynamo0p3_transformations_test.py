@@ -3493,9 +3493,6 @@ def test_move_fail():
     move_trans = MoveTrans()
     initial_index = 6
     target_index = 0
-    orig_loop = schedule.children[initial_index]
-    new_loop = schedule.children[target_index]
-
     with pytest.raises(TransformationError) as excinfo:
         move_trans.apply(schedule.children[initial_index],
                          schedule.children[target_index])
@@ -3503,8 +3500,6 @@ def test_move_fail():
 
     initial_index = 0
     target_index = 6
-    orig_loop = schedule.children[initial_index]
-    new_loop = schedule.children[target_index]
     with pytest.raises(TransformationError) as excinfo:
         move_trans.apply(schedule.children[initial_index],
                          schedule.children[target_index])

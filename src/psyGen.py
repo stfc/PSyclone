@@ -614,16 +614,16 @@ class Node(object):
         '''Create a dag of this node and it's children'''
         import graphviz as gv
         try:
-            g1 = gv.Digraph(format=file_format)
+            graph = gv.Digraph(format=file_format)
         except ValueError:
             raise GenerationError(
                 "unsupported graphviz file format '{0}' provided".
                 format(file_format))
-        self.dag_gen(g1)
-        g1.render(filename=file_name)
+        self.dag_gen(graph)
+        graph.render(filename=file_name)
 
     def dag_gen(self, graph):
-        '''output my node's graph information and call any children'''
+        '''output my node's graph (dag) information and call any children'''
         start_postfix = "_start"
         end_postfix = "_end"
         if self.children:
@@ -666,13 +666,15 @@ class Node(object):
     @property
     def args(self):
         '''Return the list of arguments associated with this node. The default
-        implementation assumes the node has no directly associated arguments
-        (i.e. is not a Call class or subclass)'''
+        implementation assumes the node has no directly associated
+        arguments (i.e. is not a Call class or subclass). Arguments of
+        any of this nodes descendents are considered to be
+        associated. '''
         args = []
         for call in self.calls():
             args.extend(call.args)
         return args
-    
+
     def backward_dependence(self):
         '''Returns the closest preceding Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
@@ -763,7 +765,7 @@ class Node(object):
                 return True
             else:
                 # return (is the dependent node before the new_position?)
-                return (prev_dep_node.position < new_position)
+                return prev_dep_node.position < new_position
         else:  # new_node.position > self.position
             # the new_node is after this node in the schedule
             next_dep_node = self.forward_dependence()
@@ -772,7 +774,7 @@ class Node(object):
                 return True
             else:
                 # return (is the dependent node after the new_position?)
-                return (next_dep_node.position > new_position)
+                return next_dep_node.position > new_position
 
     @property
     def depth(self):
@@ -990,6 +992,7 @@ class Schedule(Node):
 
     @property
     def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
         return "schedule"
 
     def tkinter_delete(self):
@@ -1060,7 +1063,7 @@ class OMPDirective(Directive):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        ''' Return the name to use in a dag for this node'''
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1086,7 +1089,7 @@ class OMPParallelDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1239,7 +1242,7 @@ class OMPDoDirective(OMPDirective):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        ''' Return the name to use in a dag for this node'''
         return "OMP_do_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1329,7 +1332,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        ''' Return the name to use in a dag for this node'''
         return "OMP_parallel_do_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1374,11 +1377,17 @@ class GlobalSum(Node):
         if scalar:
             # update scalar values appropriately
             # HACK:TODO: update mapping to readwrite when it is supported
-            self._scalar._access = MAPPING_ACCESSES["inc"]
-            self._scalar._call = self
+            self._scalar.access = MAPPING_ACCESSES["inc"]
+            self._scalar.call = self
+
+    @property
+    def scalar(self):
+        ''' Return the scalar field that this global sum acts on '''
+        return self._scalar
 
     @property
     def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
         return "globalsum({0})_".format(self._scalar.name) + str(self.position)
 
     @property
@@ -1405,8 +1414,8 @@ class HaloExchange(Node):
         if field:
             # update fields values appropriately
             # HACK:TODO: update mapping to readwrite when it is supported
-            self._field._access = MAPPING_ACCESSES["inc"]
-            self._field._call = self
+            self._field.access = MAPPING_ACCESSES["inc"]
+            self._field.call = self
         self._halo_type = halo_type
         if halo_depth:
             self._halo_depth = halo_depth
@@ -1415,13 +1424,19 @@ class HaloExchange(Node):
         self._check_dirty = check_dirty
 
     @property
+    def field(self):
+        ''' Return the field that the halo exchange acts on '''
+        return self._field
+
+    @property
     def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
         name = ("haloexchange({0})_".format(self._field.name) +
                 str(self.position))
         if self._check_dirty:
             name = "check" + name
-        return (name)
-    
+        return name
+
     @property
     def args(self):
         '''Return the list of arguments associated with this node. Overide the
@@ -1440,12 +1455,13 @@ class Loop(Node):
 
     @property
     def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
         if self.loop_type:
             name = "loop_[{0}]_".format(self.loop_type) + str(self.position)
         else:
             name = "loop_" + str(self.position)
         return name
-    
+
     @property
     def loop_type(self):
         return self._loop_type
@@ -1905,6 +1921,7 @@ class Kern(Call):
 
     @property
     def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
         return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
 
     @property
@@ -1981,6 +1998,7 @@ class BuiltIn(Call):
 
     @property
     def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
         return "builtin_" + str(self.abs_position)
 
     def load(self, call, arguments, parent=None):
@@ -2101,6 +2119,11 @@ class Argument(object):
     def access(self):
         return self._access
 
+    @access.setter
+    def access(self, value):
+        ''' set the access type for this argument '''
+        self._access = value
+
     @property
     def type(self):
         '''Return the type of the argument. API's that do not have this
@@ -2113,6 +2136,11 @@ class Argument(object):
     def call(self):
         ''' Return the call that this argument is associated with '''
         return self._call
+
+    @call.setter
+    def call(self, value):
+        ''' set the node that this argument is associated with '''
+        self._call = value
 
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
@@ -2140,7 +2168,7 @@ class Argument(object):
             all_following_nodes = all_nodes[position+1:]
             self._fd_value = self._find_argument(all_following_nodes)
         return self._fd_value
-    
+
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a
         dependency with self. If one is not found return None'''
@@ -2150,11 +2178,11 @@ class Argument(object):
                     if self._dependent_arg(argument):
                         return argument
             elif isinstance(node, HaloExchange):
-                argument = node._field
+                argument = node.field
                 if self._dependent_arg(argument):
                     return argument
             elif isinstance(node, GlobalSum):
-                argument = node._scalar
+                argument = node.scalar
                 if self._dependent_arg(argument):
                     return argument
             else:
@@ -2176,7 +2204,7 @@ class Argument(object):
             if self.access in writers and argument.access in writers:
                 return True
         return False
-        
+
 
 class KernelArgument(Argument):
     def __init__(self, arg, arg_info, call):

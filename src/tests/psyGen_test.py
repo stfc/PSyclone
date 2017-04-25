@@ -8,6 +8,11 @@
 
 ''' Performs py.test tests on the psygen module '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # internal classes requiring tests
 # PSy,Invokes,Dependencies,NameSpaceFactory,NameSpace,Invoke,Node,Schedule,
 # LoopDirective,OMPLoopDirective,Loop,Call,Inf,SetInfCall,Kern,Arguments,
@@ -17,12 +22,12 @@
 # PSyFactory, TransInfo, Transformation
 import os
 import pytest
+from fparser import api as fpapi
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
-from fparser import api as fpapi
 from parse import parse
 from transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
 from generator import generate
@@ -40,7 +45,7 @@ def test_invalid_api():
         _ = PSyFactory(api="invalid")
 
 
-def test_psyfactory_valid_return_object():
+def test_psyfactory_valid_return_object():  # pylint: disable=invalid-name
     '''test that psyfactory returns a psyfactory object for all supported
     inputs'''
     psy_factory = PSyFactory()
@@ -142,7 +147,7 @@ def test_invalid_high_number():
         _ = trans.get_trans_num(999)
 
 
-def test_valid_return_object_from_number():
+def test_valid_return_object_from_number():  # pylint: disable=invalid-name
     ''' check get_trans_num method returns expected type of instance '''
     trans = TransInfo()
     transform = trans.get_trans_num(1)
@@ -157,7 +162,7 @@ def test_invalid_name():
         _ = trans.get_trans_name("invalid")
 
 
-def test_valid_return_object_from_name():
+def test_valid_return_object_from_name():  # pylint: disable=invalid-name
     ''' check get_trans_name method return the correct object type '''
     trans = TransInfo()
     transform = trans.get_trans_name("LoopFuse")
@@ -253,7 +258,7 @@ def test_existing_labels():
     assert name4 == name2
 
 
-def test_existing_labels_case_sensitive():
+def test_existing_labels_case_sensitive():  # pylint: disable=invalid-name
     '''tests that existing labels and contexts return the previous name'''
     namespace = NameSpace(case_sensitive=True)
     name = "Rupert"
@@ -285,7 +290,7 @@ def test_reserved_names():
     assert name1 == nameb.lower()+"_1"
 
 
-def test_reserved_names_case_sensitive():
+def test_reserved_names_case_sensitive():  # pylint: disable=invalid-name
     '''tests that reserved names are not returned by the case sensitive
     name space manager'''
     namea = "PSyclone"
@@ -315,7 +320,7 @@ def test_reserved_name_exists():
         namespace.add_reserved_name(name.lower())
 
 
-def test_reserved_name_exists_case_sensitive():
+def test_reserved_name_exists_case_sensitive():  # pylint: disable=invalid-name
     '''tests that an error is generated if a reserved name has already
     been used as a name'''
     name = "PSyclone"
@@ -350,7 +355,7 @@ def test_internal_name_clashes():
     assert name3 == name2+"_1"
 
 
-def test_internal_name_clashes_case_sensitive():
+def test_intern_name_clash_case_sensitive():  # pylint: disable=invalid-name
     '''tests that names that are generated internally by the case
     sensitive namespace manager can be used as root names'''
     anon_name = "Anon"
@@ -523,7 +528,7 @@ def test_written_arg():
         str(excinfo.value)
 
 
-def test_OMPDoDirective_class_view(capsys):
+def test_ompdo_directive_class_view(capsys):
     '''tests the view method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -591,7 +596,7 @@ def test_call_abstract_methods():
     assert "Call.gen_code should be implemented" in str(excinfo.value)
 
 
-def test_haloexchange_unknown_halo_depth():
+def test_haloexchange_unknown_halo_depth():  # pylint: disable=invalid-name
     '''test the case when the halo exchange base class is called without
     a halo depth'''
     halo_exchange = HaloExchange(None, None, None, None, None)
@@ -879,7 +884,7 @@ def test_argument_find_argument():
     schedule = invoke.schedule
     # a) kern arg depends on halo arg
     m2_read_arg = schedule.children[3].children[0].arguments.args[4]
-    m2_halo_field = schedule.children[2]._field
+    m2_halo_field = schedule.children[2].field
     result = m2_read_arg._find_argument(schedule.children)
     assert result == m2_halo_field
     # b) halo arg depends on kern arg
@@ -894,7 +899,7 @@ def test_argument_find_argument():
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
     kern_asum_arg = schedule.children[3].children[0].arguments.args[0]
-    glob_sum_arg = schedule.children[2]._scalar
+    glob_sum_arg = schedule.children[2].scalar
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
     # b) kern arg depends on globalsum arg
@@ -913,10 +918,10 @@ def test_globalsum_arg():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
-    glob_sum_arg = glob_sum._scalar
-    assert glob_sum_arg._access == "gh_readwrite"
-    assert glob_sum_arg._call == glob_sum
-    
+    glob_sum_arg = glob_sum.scalar
+    assert glob_sum_arg.access == "gh_readwrite"
+    assert glob_sum_arg.call == glob_sum
+
 
 @pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_haloexchange_arg():
@@ -929,12 +934,12 @@ def test_haloexchange_arg():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     halo_exchange = schedule.children[2]
-    halo_exchange_arg = halo_exchange._field
-    assert halo_exchange_arg._access == "gh_readwrite"
-    assert halo_exchange_arg._call == haloexchange
+    halo_exchange_arg = halo_exchange.field
+    assert halo_exchange_arg.access == "gh_readwrite"
+    assert halo_exchange_arg.call == halo_exchange
 
 
-def test_argument_forward_dependence():
+def test_argument_forward_dependence():  # pylint: disable=invalid-name
     '''Check that forward_dependence method returns the first dependent
     argument after the current Node in the schedule or None if none
     are found.'''
@@ -967,7 +972,7 @@ def test_argument_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
-    f2_halo_field = schedule.children[15]._field
+    f2_halo_field = schedule.children[15].field
     f2_next_arg = schedule.children[17].children[0].arguments.args[0]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
@@ -984,7 +989,7 @@ def test_argument_forward_dependence():
     schedule = invoke.schedule
     prev_arg = schedule.children[0].children[0].arguments.args[0]
     sum_arg = schedule.children[1].children[0].arguments.args[1]
-    global_sum_arg = schedule.children[2]._scalar
+    global_sum_arg = schedule.children[2].scalar
     next_arg = schedule.children[3].children[0].arguments.args[0]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
@@ -997,7 +1002,7 @@ def test_argument_forward_dependence():
     assert result == next_arg
 
 
-def test_argument_backward_dependence():
+def test_argument_backward_dependence():  # pylint: disable=invalid-name
     '''Check that backward_dependence method returns the first dependent
     argument before the current Node in the schedule or None if none
     are found.'''
@@ -1030,7 +1035,7 @@ def test_argument_backward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
-    f2_halo_field = schedule.children[15]._field
+    f2_halo_field = schedule.children[15].field
     f2_next_arg = schedule.children[17].children[0].arguments.args[0]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
@@ -1047,7 +1052,7 @@ def test_argument_backward_dependence():
     schedule = invoke.schedule
     prev_arg = schedule.children[0].children[0].arguments.args[0]
     sum_arg = schedule.children[1].children[0].arguments.args[1]
-    global_sum_arg = schedule.children[2]._scalar
+    global_sum_arg = schedule.children[2].scalar
     next_arg = schedule.children[3].children[0].arguments.args[0]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
@@ -1123,6 +1128,7 @@ def test_call_args():
     for idx, arg in enumerate(builtin.args):
         assert arg == builtin.arguments.args[idx]
 
+
 def test_haloexchange_args():
     '''Test that the haloexchange class args method returns the appropriate
     argument '''
@@ -1134,7 +1140,8 @@ def test_haloexchange_args():
     schedule = invoke.schedule
     for haloexchange in schedule.children[:2]:
         assert len(haloexchange.args) == 1
-        assert haloexchange.args[0] == haloexchange._field
+        assert haloexchange.args[0] == haloexchange.field
+
 
 def test_globalsum_args():
     '''Test that the globalsum class args method returns the appropriate
@@ -1147,7 +1154,7 @@ def test_globalsum_args():
     schedule = invoke.schedule
     global_sum = schedule.children[2]
     assert len(global_sum.args) == 1
-    assert global_sum.args[0] == global_sum._scalar
+    assert global_sum.args[0] == global_sum.scalar
 
 
 def test_node_forward_dependence():
@@ -1275,9 +1282,8 @@ def test_call_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from transformations import DynamoLoopFuseTrans
     ftrans = DynamoLoopFuseTrans()
-    for idx in range(6):
+    for _ in range(6):
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
                                    same_space=True)
     read4 = schedule.children[0].children[4]
@@ -1305,9 +1311,8 @@ def test_call_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from transformations import DynamoLoopFuseTrans
     ftrans = DynamoLoopFuseTrans()
-    for idx in range(6):
+    for _ in range(6):
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
                                    same_space=True)
     # 1: loop no backwards dependence
@@ -1321,9 +1326,7 @@ def test_call_backward_dependence():
     # b) previous
     assert prev_dep_call_node.backward_dependence() == call3
 
-#************************************
-# TBD add openmp then test for dependencies when moving directives
-#repeat backwards and forwards dependence code above but perform moves on directives, not loops (or calls).
+
 def test_omp_forward_dependence():
     '''Test that the forward_dependence method works for Directives,
     returning the closest dependent Node after the current Node in the
@@ -1375,7 +1378,7 @@ def test_omp_forward_dependence():
     assert global_sum_loop.forward_dependence() == next_omp
 
 
-def test_directive_backward_dependence():
+def test_directive_backward_dependence():  # pylint: disable=invalid-name
     '''Test that the backward_dependence method works for Directives,
     returning the closest dependent Node before the current Node in
     the schedule or None if none are found.'''
@@ -1453,19 +1456,19 @@ def test_node_is_valid_location():
     # a) before this node
     with pytest.raises(GenerationError) as excinfo:
         node.is_valid_location(node, position="before")
-    assert ("the node and the location are the same") in str(excinfo.value)
+    assert "the node and the location are the same" in str(excinfo.value)
     # b) after this node
     with pytest.raises(GenerationError) as excinfo:
         node.is_valid_location(node, position="after")
-    assert ("the node and the location are the same") in str(excinfo.value)
+    assert "the node and the location are the same" in str(excinfo.value)
     # c) after previous node
     with pytest.raises(GenerationError) as excinfo:
         node.is_valid_location(prev_node, position="after")
-    assert ("the node and the location are the same") in str(excinfo.value)
+    assert "the node and the location are the same" in str(excinfo.value)
     # d) before next node
     with pytest.raises(GenerationError) as excinfo:
         node.is_valid_location(next_node, position="before")
-    assert ("the node and the location are the same") in str(excinfo.value)
+    assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
@@ -1502,7 +1505,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     from psyGen import Schedule
-    assert super(Schedule,schedule).dag_name == "node_0"
+    assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_3"
@@ -1520,7 +1523,7 @@ def test_dag_names():
     assert builtin.dag_name == "builtin_4"
 
 
-def test_OpenMP_pdo_dag_name():
+def test_openmp_pdo_dag_name():
     '''Test that we generate the correct dag name for the OpenMP parallel
     do node'''
     _, info = parse(os.path.join(BASE_PATH,
@@ -1565,17 +1568,17 @@ def test_omp_dag_names():
     assert directive.dag_name == "directive_1"
 
 EXPECTED = (
-"digraph {\n"
-"	schedule_start\n"
-"	schedule_end\n"
-"	loop_0_start\n"
-"	loop_0_end\n"
-"		loop_0_end -> schedule_end [color=blue]\n"
-"		schedule_start -> loop_0_start [color=blue]\n"
-"	kernel_testkern_code_2\n"
-"		kernel_testkern_code_2 -> loop_0_end [color=blue]\n"
-"		loop_0_start -> kernel_testkern_code_2 [color=blue]\n"
-"}")
+    "digraph {\n"
+    "	schedule_start\n"
+    "	schedule_end\n"
+    "	loop_0_start\n"
+    "	loop_0_end\n"
+    "		loop_0_end -> schedule_end [color=blue]\n"
+    "		schedule_start -> loop_0_start [color=blue]\n"
+    "	kernel_testkern_code_2\n"
+    "		kernel_testkern_code_2 -> loop_0_end [color=blue]\n"
+    "		loop_0_start -> kernel_testkern_code_2 [color=blue]\n"
+    "}")
 
 
 def test_node_dag(tmpdir):
@@ -1587,12 +1590,12 @@ def test_node_dag(tmpdir):
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    file = tmpdir.join('test')
-    schedule.dag(file_name=file.strpath)
-    result = file.read()
+    my_file = tmpdir.join('test')
+    schedule.dag(file_name=my_file.strpath)
+    result = my_file.read()
     assert EXPECTED in result
-    file = tmpdir.join('test.svg')
-    result = file.read()
+    my_file = tmpdir.join('test.svg')
+    result = my_file.read()
     for name in ["<title>schedule_start</title>",
                  "<title>schedule_end</title>",
                  "<title>loop_0_start</title>",
@@ -1601,9 +1604,8 @@ def test_node_dag(tmpdir):
                  "<svg", "</svg>", "blue"]:
         assert name in result
         with pytest.raises(GenerationError) as excinfo:
-            schedule.dag(file_name=file.strpath, file_format="rubbish")
+            schedule.dag(file_name=my_file.strpath, file_format="rubbish")
         assert "unsupported graphviz file format" in str(excinfo.value)
 
-# pep8, pyflakes, pylint
 # documentation
 # example
