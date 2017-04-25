@@ -1324,6 +1324,102 @@ def test_call_backward_dependence():
 #************************************
 # TBD add openmp then test for dependencies when moving directives
 #repeat backwards and forwards dependence code above but perform moves on directives, not loops (or calls).
+def test_omp_forward_dependence():
+    '''Test that the forward_dependence method works for Directives,
+    returning the closest dependent Node after the current Node in the
+    schedule or None if none are found. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    for child in schedule.children:
+        schedule, _ = otrans.apply(child)
+    read4 = schedule.children[4]
+    # 1: returns none if none found
+    # a) check many reads
+    assert not read4.forward_dependence()
+    # b) check no dependencies for the loop
+    assert not read4.children[0].forward_dependence()
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies
+    # a) check first read returned
+    writer = schedule.children[3]
+    next_read = schedule.children[4]
+    assert writer.forward_dependence() == next_read
+    # b) check writer returned
+    first_omp = schedule.children[0]
+    assert first_omp.forward_dependence() == writer
+    # 3: directive and globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule, _ = otrans.apply(schedule.children[0])
+    schedule, _ = otrans.apply(schedule.children[1])
+    schedule, _ = otrans.apply(schedule.children[3])
+    prev_omp = schedule.children[0]
+    sum_omp = schedule.children[1]
+    global_sum_loop = schedule.children[2]
+    next_omp = schedule.children[3]
+    # a) prev omp depends on sum omp
+    assert prev_omp.forward_dependence() == sum_omp
+    # b) sum omp depends on global sum loop
+    assert sum_omp.forward_dependence() == global_sum_loop
+    # c) global sum loop depends on next omp
+    assert global_sum_loop.forward_dependence() == next_omp
+
+
+def test_directive_backward_dependence():
+    '''Test that the backward_dependence method works for Directives,
+    returning the closest dependent Node before the current Node in
+    the schedule or None if none are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    for child in schedule.children:
+        schedule, _ = otrans.apply(child)
+    # 1: omp directive no backwards dependence
+    omp3 = schedule.children[2]
+    assert not omp3.backward_dependence()
+    # 2: omp to omp backward dependence
+    # a) many steps
+    last_omp_node = schedule.children[6]
+    prev_dep_omp_node = schedule.children[3]
+    assert last_omp_node.backward_dependence() == prev_dep_omp_node
+    # b) previous
+    assert prev_dep_omp_node.backward_dependence() == omp3
+    # 3: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule, _ = otrans.apply(schedule.children[0])
+    schedule, _ = otrans.apply(schedule.children[1])
+    schedule, _ = otrans.apply(schedule.children[3])
+    omp1 = schedule.children[0]
+    omp2 = schedule.children[1]
+    global_sum = schedule.children[2]
+    omp3 = schedule.children[3]
+    # a) omp3 depends on global sum
+    assert omp3.backward_dependence() == global_sum
+    # b) global sum depends on omp2
+    assert global_sum.backward_dependence() == omp2
+    # c) omp2 (sum) depends on omp1
+    assert omp2.backward_dependence() == omp1
+
 
 def test_node_is_valid_location():
     '''Test that the Node class is_valid_location method returns True if
