@@ -1264,6 +1264,67 @@ def test_node_backward_dependence():
     # c) loop2 (sum) depends on loop1
     assert loop2.backward_dependence() == loop1
 
+
+def test_call_forward_dependence():
+    '''Test that the Call class forward_dependence method returns the
+    closest dependent call after the current call in the schedule or
+    None if none are found. This is achieved by loop fusing first.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoLoopFuseTrans
+    ftrans = DynamoLoopFuseTrans()
+    for idx in range(6):
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
+    read4 = schedule.children[0].children[4]
+    # 1: returns none if none found
+    # a) check many reads
+    assert not read4.forward_dependence()
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies
+    # a) check first read returned
+    writer = schedule.children[0].children[3]
+    next_read = schedule.children[0].children[4]
+    assert writer.forward_dependence() == next_read
+    # a) check writer returned
+    first_loop = schedule.children[0].children[0]
+    assert first_loop.forward_dependence() == writer
+
+
+def test_call_backward_dependence():
+    '''Test that the Call class backward_dependence method returns the
+    closest dependent call before the current call in the schedule or
+    None if none are found. This is achieved by loop fusing first.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoLoopFuseTrans
+    ftrans = DynamoLoopFuseTrans()
+    for idx in range(6):
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
+    # 1: loop no backwards dependence
+    call3 = schedule.children[0].children[2]
+    assert not call3.backward_dependence()
+    # 2: call to call backward dependence
+    # a) many steps
+    last_call_node = schedule.children[0].children[6]
+    prev_dep_call_node = schedule.children[0].children[3]
+    assert last_call_node.backward_dependence() == prev_dep_call_node
+    # b) previous
+    assert prev_dep_call_node.backward_dependence() == call3
+
+#************************************
+# TBD add openmp then test for dependencies when moving directives
+#repeat backwards and forwards dependence code above but perform moves on directives, not loops (or calls).
+
 def test_node_is_valid_location():
     '''Test that the Node class is_valid_location method returns True if
     the new location does not break any data dependencies, otherwise it
@@ -1335,7 +1396,7 @@ def test_node_is_valid_location():
     assert not node.is_valid_location(schedule.children[3], position="after")
 
 
-def test_dag_name():
+def test_dag_names():
     '''test that the dag_name method returns the correct value for the
     node class and its specialisations'''
     _, invoke_info = parse(
@@ -1361,6 +1422,51 @@ def test_dag_name():
     assert global_sum.dag_name == "globalsum(asum)_2"
     builtin = schedule.children[1].children[0]
     assert builtin.dag_name == "builtin_4"
+
+
+def test_OpenMP_pdo_dag_name():
+    '''Test that we generate the correct dag name for the OpenMP parallel
+    do node'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.2.0_copy_field_builtin.f90"),
+                    api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+    assert schedule.children[0].dag_name == "OMP_parallel_do_1"
+
+
+def test_omp_dag_names():
+    '''Test that we generate the correct dag names for omp parallel, omp
+    do, omp directive and directive nodes'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    from transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans
+    olooptrans = Dynamo0p3OMPLoopTrans()
+    ptrans = OMPParallelTrans()
+    # Put an OMP PARALLEL around this loop
+    child = schedule.children[0]
+    oschedule, _ = ptrans.apply(child)
+    # Put an OMP DO around this loop
+    schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
+    # Replace the original loop schedule with the transformed one
+    omp_par_node = schedule.children[0]
+    assert omp_par_node.dag_name == "OMP_parallel_1"
+    assert omp_par_node.children[0].dag_name == "OMP_do_2"
+    omp_directive = super(OMPParallelDirective, omp_par_node)
+    assert omp_directive.dag_name == "OMP_directive_1"
+    print type(omp_directive)
+    directive = super(OMPDirective, omp_par_node)
+    assert directive.dag_name == "directive_1"
 
 EXPECTED = (
 "digraph {\n"
