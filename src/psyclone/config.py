@@ -10,7 +10,7 @@
 defaults are set.'''
 
 SUPPORTEDAPIS = ["gunghoproto", "dynamo0.1", "dynamo0.3", "gocean0.1",
-                 "gocean1.0"]
+                 "gocean1.0", "nemo0.1"]
 DEFAULTAPI = "dynamo0.3"
 SUPPORTEDSTUBAPIS = ["dynamo0.3"]
 DEFAULTSTUBAPI = "dynamo0.3"
