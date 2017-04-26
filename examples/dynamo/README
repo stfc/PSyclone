@@ -57,7 +57,10 @@ algorithm layer.
     python ../../../src/generator.py alg.f90
 
 The sixth example illustrates the use and implementation of
-reductions. The example may be run sequentially:
+reductions. It also demonstrates the generation of a schedule's
+dependence graph in svg format (see dag.svg). The example may be run
+sequentially:
+
 ::
     cd eg6/ python
     python ../../../src/generator.py -nodm alg.x90

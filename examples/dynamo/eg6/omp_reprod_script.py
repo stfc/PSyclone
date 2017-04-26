@@ -28,5 +28,6 @@ def trans(psy):
 
     # take a look at what we've done
     schedule.view()
+    schedule.dag()
 
     return psy
