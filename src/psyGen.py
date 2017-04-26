@@ -1,8 +1,39 @@
 # -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
@@ -70,6 +101,29 @@ def zero_reduction_variables(red_call_list, parent):
         for call in red_call_list:
             call.zero_reduction_variable(parent)
         parent.add(CommentGen(parent, ""))
+
+
+def args_filter(arg_list, arg_types=None, arg_accesses=None):
+    '''Return all arguments in the supplied list that are of type
+    arg_types and with access in arg_accesses. If these are not set
+    then return all arguments.'''
+    arguments = []
+    if arg_types and arg_accesses:
+        for argument in arg_list:
+            if argument.type.lower() in arg_types and \
+               argument.access.lower() in arg_accesses:
+                arguments.append(argument)
+    elif arg_types:
+        for argument in arg_list:
+            if argument.type.lower() in arg_types:
+                arguments.append(argument)
+    elif arg_accesses:
+        for argument in arg_list:
+            if argument.access.lower() in arg_accesses:
+                arguments.append(argument)
+    else:  # no conditions provided so return all args
+        return arg_list
+    return arguments
 
 
 class GenerationError(Exception):
@@ -1628,7 +1682,8 @@ class Loop(Node):
         all_args = []
         all_arg_names = []
         for call in self.calls():
-            call_args = call.arguments.args_filter(arg_types, arg_accesses)
+            call_args = args_filter(call.arguments.args, arg_types,
+                                    arg_accesses)
             if unique:
                 for arg in call_args:
                     if arg.name not in all_arg_names:
@@ -1731,9 +1786,9 @@ class Call(Node):
         self._arg_descriptors = None
 
         # initialise any reduction information
-        args = arguments.args_filter(
-            arg_types=MAPPING_SCALARS.values(),
-            arg_accesses=MAPPING_REDUCTIONS.values())
+        args = args_filter(arguments.args,
+                           arg_types=MAPPING_SCALARS.values(),
+                           arg_accesses=MAPPING_REDUCTIONS.values())
         if args:
             self._reduction = True
             if len(args) != 1:
