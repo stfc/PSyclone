@@ -1606,6 +1606,3 @@ def test_node_dag(tmpdir):
         with pytest.raises(GenerationError) as excinfo:
             schedule.dag(file_name=my_file.strpath, file_format="rubbish")
         assert "unsupported graphviz file format" in str(excinfo.value)
-
-# documentation
-# example

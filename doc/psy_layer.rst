@@ -108,10 +108,10 @@ API
 Schedule
 --------
 
-A PSy **Schedule** object consists of a tree of objects which can be
-used to describe the required schedule for a PSy layer
-subroutine. This subroutine is called by the Algorithm layer and
-itself calls one or more Kernels and/or implements any required
+A PSy **Schedule** object consists of a tree of objects (called Nodes
+in PSyclone) which can be used to describe the required schedule for a
+PSy layer subroutine. This subroutine is called by the Algorithm layer
+and itself calls one or more Kernels and/or implements any required
 Built-in operations. These objects can currently be a **Loop**, a
 **Kernel**, a **Built-in** (see the :ref:`built-ins` section), a
 **Directive** (of various types), a **HaloExchange**, or a
@@ -131,3 +131,66 @@ merging, inlining, OpenMP parallelisation etc.). The tree could be
 manipulated directly, however, to simplify optimisation, a set of
 transformations are supplied. These transformations are discussed in
 the next section.
+
+Schedule visualisation
+----------------------
+
+PSyclone supports visualising a schedule in two ways. Firstly the
+`view()` method outputs textual information about the contents of a
+schedule. If we were to look at the dynamo eg6 example we would see
+the following output:
+::
+   >>> schedule.view()
+   Schedule[invoke='invoke_0' dm=True]
+       Directive[OMP parallel do]
+           Loop[type='dofs',field_space='any_space_1',it_space='dofs']
+               Call copy_field_code(z,p)
+               Call inner_product_code(res,z,rs_old)
+       GlobalSum[scalar='rs_old']
+
+The above output tells us that the invoke name for the schedule we are
+looking at is `invoke_0` and that the distributed_memory option has
+been switched on. Within the schedule is an OpenMP parallel directive
+containing a loop which itself contains two builtin calls. As the
+latter of the two builtin calls requires a reduction and distributed
+memory is switched on, PSyclone has added a GlobalSum call for the
+appropriate scalar.
+
+Secondly, the `dag()` method (standing for directed acyclic graph),
+outputs the schedule and its data dependencies. By default a file in
+dot format is output with the name ``dag`` and a file in svg format is
+output with the name ``dag.svg``. The file name can be changed using
+the ``file_name`` optional argument and the output file format can be
+changed using the ``file_format`` optional argument. The file_format
+value is simply passed on to graphviz so the graphviz documentation
+should be consulted for valid formats if svg is not required.
+::
+   >>> schedule.dag(file_name="lovely", file_format="png")
+
+.. note:: The dag method can be called from any node and will will
+          output the dag for that node and all of its children.
+
+if we were to look at the dynamo eg6 example we would see the
+following image:
+
+.. image:: dag.png
+	   :width: 256
+
+In the image, all nodes (Psyclone's generic name for objects in the
+schedule) with children are split into a start vertex and an end
+vertex (for example the schedule node has a `schedule_start` and a
+`schedule_end` vertex). Blue arrows indicate that there is a parent to
+child relationship (from a start node) or a child to parent
+relationship (to an end node). Green arrows indicate that there is a
+forward dependence. Therefore the OMP parallel loop must complete
+before the globalsum is performed. Red arrows indicate that there is a backward dependence. However
+the direction of the red arrows are reversed to improve the flow of the dag
+layout. In this example the forward and backward dependence is the
+same, however this is not always the case. The two built-ins do not
+depend on each other, so they have no associated green or red arrows.
+
+The dependence graph output gives an indication of whether nodes can
+be moved in the schedule. In this case it is valid to run the
+builtin's in either order. The underlying dependence analysis used to
+create this graph is used to determine whether a transformation of a
+schedule is valid from the perspective of data dependencies.

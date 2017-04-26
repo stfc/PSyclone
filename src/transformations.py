@@ -1073,7 +1073,7 @@ class MoveTrans(Transformation):
         >>> from parse import parse
         >>> from psyGen import PSyFactory
         >>> ast,invokeInfo=parse("dynamo.F90")
-        >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
+        >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
         >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> schedule.view()
         >>>
@@ -1112,8 +1112,9 @@ class MoveTrans(Transformation):
                 "forbid the move to the new location")
 
     def apply(self, node, location, position="before"):
-        ''' Move the node represented by :py:obj:`node` after location
-        :py:obj:`location` '''
+        '''Move the node represented by :py:obj:`node` before location
+        :py:obj:`location` by default and after if the optional
+        `position` argument is set to 'after' '''
 
         self._validate(node, location, position)
 
