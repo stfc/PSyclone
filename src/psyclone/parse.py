@@ -802,6 +802,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     '''
 
+    if api == "nemo0.1":
+        ast, kernel_info = parse_nemo(alg_filename)
+        return ast, kernel_info
+
     if distributed_memory not in [True, False]:
         raise ParseError(
             "The distributed_memory flag in parse() must be set to"
@@ -1045,3 +1049,136 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             invokecalls[statement] = InvokeCall(statement_kcalls,
                                                 name=invoke_label)
     return ast, FileInfo(container_name, invokecalls)
+
+
+def parse_nemo(filename):
+    ''' Parse a NEMO routine and identify kernels '''
+    from fparser.api import Fortran2003
+    from fparser.readfortran import FortranFileReader
+    from parse2003 import walk_ast, Loop, get_child, ParseError
+    from fparser.Fortran2003 import Main_Program, Program_Stmt, \
+        Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
+        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
+        Name, Loop_Control
+    from nemo0p1 import NEMOKern
+
+    reader = FortranFileReader(filename)
+    ast = Fortran2003.Program(reader)
+
+    # Find all the subroutines contained in the file
+    routines = walk_ast(ast.content, [Subroutine_Subprogram,
+                                      Function_Subprogram])
+    # Add the main program as a routine to analyse - take care
+    # here as the Fortran source file might not contain a
+    # main program (might just be a subroutine in a module)
+    try:
+        main_prog = get_child(ast, Main_Program)
+        routines.append(main_prog)
+    except ParseError:
+        pass
+
+    # Analyse each routine we've found
+    for subroutine in routines:
+        # Get the name of this (sub)routine
+        substmt = walk_ast(subroutine.content,
+                           [Subroutine_Stmt, Function_Stmt,
+                            Program_Stmt])
+        if isinstance(substmt[0], Function_Stmt):
+            for item in substmt[0].items:
+                if isinstance(item, Name):
+                    sub_name = str(item)
+        else:
+            sub_name = str(substmt[0].get_name())
+        print "routine name: ", sub_name
+
+        # Find the section of the tree containing the execution part
+        # of the code
+        try:
+            exe_part = get_child(subroutine, Execution_Part)
+        except ParseError:
+            # This subroutine has no execution part so we skip it
+            # TODO log this event
+            continue
+
+        # Make a list of all Do loops in the routine
+        loops = walk_ast(exe_part.content,
+                         [Block_Nonlabel_Do_Construct])
+
+        if not loops:
+            print "Routine {0} contains no DO loops - skipping".\
+                format(sub_name)
+            continue
+
+        # Create a list of kernels by identifying loop nests
+        inner_loops = []
+        kernel_list = []
+        for loop in loops[:]:
+
+            ctrl = walk_ast(loop.content, [Loop_Control])
+            # items member of Loop Control contains:
+            #   Loop variable, start value expression, end value expression
+            # Loop variable will be an instance of Fortran2003.Name
+            loop_var = str(ctrl[0].items[0])
+
+            nested_loops = walk_ast(loop.content,
+                                   [Block_Nonlabel_Do_Construct])
+            # TODO check for perfect nesting (i.e. no statements between
+            # the nested DO's or END DO's)
+            if loop_var == "jk" and len(nested_loops) == 2:
+                kern = NEMOKern()
+                kern.load(loop)
+                kernel_list.append(kern)
+            elif loop_var == "jj" and len(nested_loops) == 1:
+                kern = NEMOKern()
+                kern.load(loop)
+                kernel_list.append(kern)
+        print "Have {0} Kernels".format(len(kernel_list))
+
+    # Now we've identified the kernels, we want to re-construct the AST
+    # with the associated loop nests replaced by our kernel objects
+    translate_ast(exe_part, kernel_list, debug=False)
+
+    print ast.tofortran()
+    exit(1)
+    # TODO pass back list of Kernel objects instead of inner_loops?
+    return ast, inner_loops
+
+
+def translate_ast(parent, kernels, indent=0, debug=False):
+    '''' Walk down the tree produced by the f2003 parser where children
+    are listed under 'content'.  Returns a list of all nodes with the
+    specified type(s). '''
+    import parse2003
+    cblock_list = []
+    if hasattr(parent, "content"):
+        children = parent.content
+    elif hasattr(parent, "items"):
+        children = parent.items
+    else:
+        return
+
+    for idx, child in enumerate(children[:]):
+        if debug:
+            print indent*"  " + "child type = ", type(child)
+        if type(child) in parse2003.LOOP_TYPES:
+            is_kern = False
+            for kern in kernels:
+                print type(child)
+                print type(kern.loop)
+                if child is kern.loop:
+                    is_kern = True
+                    print "replaced child {0}".format(idx)
+                    children[idx] = kern
+                    break
+            if is_kern:
+                # If this is a kernel then we don't walk any further down
+                # the tree
+                continue
+
+        # Depending on their level in the tree produced by fparser2003,
+        # some nodes have children listed in .content and some have them
+        # listed under .items. If a node has neither then it has no
+        # children.
+        translate_ast(child, kernels, indent+1, debug)
+
+    return
