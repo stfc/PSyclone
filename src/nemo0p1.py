@@ -609,11 +609,43 @@ class NEMOKern(object):
         # The Loop object created by fparser2 which holds the AST for the
         # section of code associated with this kernel
         self._loop = None
+        # List of the loop variables, one for each loop
         self._loop_vars = []
+        # A list of 2-tuples, one for each loop
+        self._loop_ranges = []
 
     def load(self, loop, parent=None):
         ''' Populate the state of this GOKern object '''
+        from parse2003 import walk_ast
+        from fparser.Fortran2003 import Loop_Control, \
+            Block_Nonlabel_Do_Construct, Nonlabel_Do_Stmt, End_Do_Stmt
+        # Keep a pointer to the original loop in the AST
         self._loop = loop
+
+        ctrls = walk_ast(loop.content, [Loop_Control], debug=True)
+        # items member of Loop Control contains a 2-tuple:
+        #   (Loop variable, [start value expression, end value expression])
+        # i.e. the second element of the tuple is itself a list containing
+        # the loop limits.
+        # Loop variable will be an instance of Fortran2003.Name
+        for ctrl in ctrls:
+            print ctrl.items
+            self._loop_vars.append(str(ctrl.items[0]))
+            self._loop_ranges.append( (str(ctrl.items[1][0]),
+                                       str(ctrl.items[1][1])) )
+
+        # Now we find the content of this nested loop
+        nested_loops = walk_ast(loop.content, [Block_Nonlabel_Do_Construct])
+        inner_loop = nested_loops[-1]
+        if not isinstance(inner_loop.content[0], Nonlabel_Do_Stmt):
+            raise ParseError("Internal error, expecting Nonlabel_Do_Stmt as "
+                             "first child of Block_Nonlabel_Do_Construct but "
+                             "got {0}".format(type(inner_loop.content[0])))
+        self._body = []
+        for content in inner_loop.content[1:]:
+            if isinstance(content, End_Do_Stmt):
+                break
+            self._body.append(content)
 
     @property
     def loop(self):
@@ -623,8 +655,20 @@ class NEMOKern(object):
     def tofortran(self, tab='', isfix=False):
         ''' Returns a string containing the Fortran representation of this
         kernel '''
-        fort_str = "DO " + ",".join(self._loop_vars) + "\n"
-        return fort_str + "Your Kernel Fortran goes here"
+        fort_lines = []
+        tablen = len(tab)
+        for idx, loop_var in enumerate(self._loop_vars):
+            fort_lines.append(tablen*" "+"DO {0} = {1}, {2}".
+                              format(loop_var,
+                                     self._loop_ranges[idx][0],
+                                     self._loop_ranges[idx][1]))
+            tablen += 2
+        for item in self._body:
+            fort_lines.append(item.tofortran(tab=tablen*" ", isfix=isfix))
+        for loop_var in self._loop_vars:
+            tablen -= 2
+            fort_lines.append(tablen*" "+"END DO")
+        return "\n".join(fort_lines)
 
     def local_vars(self):
         '''Return a list of the variable (names) that are local to this loop
@@ -646,12 +690,6 @@ class NEMOKern2D(NEMOKern):
 
         NEMOKern.load(self, loop, parent)
 
-        ctrl = walk_ast(loop.content, [Loop_Control], debug=True)
-        # items member of Loop Control contains:
-        #   Loop variable, start value expression, end value expression
-        # Loop variable will be an instance of Fortran2003.Name
-        self._loop_vars.append(str(ctrl[0].items[0]))
-        self._loop_vars.append(str(ctrl[1].items[0]))
 
 class NEMOKern3D(NEMOKern):
     ''' Specialisation of a NEMO kernel for a '3d' loop nest - i.e. over
@@ -665,13 +703,6 @@ class NEMOKern3D(NEMOKern):
 
         NEMOKern.load(self, loop, parent)
 
-        ctrl = walk_ast(loop.content, [Loop_Control])
-        # items member of Loop Control contains:
-        #   Loop variable, start value expression, end value expression
-        # Loop variable will be an instance of Fortran2003.Name
-        self._loop_vars.append(str(ctrl[0].items[0]))
-        self._loop_vars.append(str(ctrl[1].items[0]))
-        self._loop_vars.append(str(ctrl[2].items[0]))
 
 class GOKernelArguments(Arguments):
     '''Provides information about GOcean kernel-call arguments

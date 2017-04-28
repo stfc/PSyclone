@@ -1132,6 +1132,7 @@ def parse_nemo(filename):
             if io_statements:
                 # A kernel cannot contain IO statements
                 continue
+
             # TODO check for perfect nesting (i.e. no statements between
             # the nested DO's or END DO's)
             if loop_var == "jk" and len(nested_loops) == 2:
