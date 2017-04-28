@@ -600,18 +600,16 @@ class NEMOKern(object):
     ''' Stores information about NEMO kernels as extracted from the
     NEMO code. '''
     def __init__(self):
-        ''' Create an empty GOKern object. The object is given state via
+        ''' Create an empty NEMOKern object. The object is given state via
         the load method '''
-        if False:
-            self._arguments = GOKernelArguments(None, None)  # for pyreverse
         # Create those member variables required for testing and to keep
         # pylint happy
         self._children = []
         self._name = ""
-        self._index_offset = ""
         # The Loop object created by fparser2 which holds the AST for the
         # section of code associated with this kernel
         self._loop = None
+        self._loop_vars = []
 
     def load(self, loop, parent=None):
         ''' Populate the state of this GOKern object '''
@@ -625,7 +623,8 @@ class NEMOKern(object):
     def tofortran(self, tab='', isfix=False):
         ''' Returns a string containing the Fortran representation of this
         kernel '''
-        return "Your Kernel Fortran goes here"
+        fort_str = "DO " + ",".join(self._loop_vars) + "\n"
+        return fort_str + "Your Kernel Fortran goes here"
 
     def local_vars(self):
         '''Return a list of the variable (names) that are local to this loop
@@ -634,71 +633,45 @@ class NEMOKern(object):
         '''
         return []
 
-    def _find_grid_access(self):
-        '''Determine the best kernel argument from which to get properties of
-            the grid. For this, an argument must be a field (i.e. not
-            a scalar) and must be supplied by the algorithm layer
-            (i.e. not a grid property). If possible it should also be
-            a field that is read-only as otherwise compilers can get
-            confused about data dependencies and refuse to SIMD
-            vectorise.
 
-        '''
-        for access in ["read", "readwrite", "write"]:
-            for arg in self._arguments.args:
-                if arg.type == "field" and arg.access.lower() == access:
-                    return arg
-        # We failed to find any kernel argument which could be used
-        # to access the grid properties. This will only be a problem
-        # if the kernel requires a grid-property argument.
-        return None
+class NEMOKern2D(NEMOKern):
+    ''' Specialisation of a NEMO kernel for a '2d' loop nest - i.e. only
+    over x and y '''
 
-    def gen_code(self, parent):
-        ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
-            kernel instance. '''
-        from f2pygen import CallGen, UseGen
+    def load(self, loop, parent=None):
+        ''' Populate the state of this object from the Loop node in the AST '''
+        from parse2003 import walk_ast
+        from fparser.Fortran2003 import Loop_Control, \
+            Block_Nonlabel_Do_Construct
 
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self._find_grid_access()
+        NEMOKern.load(self, loop, parent)
 
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._arguments.args:
+        ctrl = walk_ast(loop.content, [Loop_Control], debug=True)
+        # items member of Loop Control contains:
+        #   Loop variable, start value expression, end value expression
+        # Loop variable will be an instance of Fortran2003.Name
+        self._loop_vars.append(str(ctrl[0].items[0]))
+        self._loop_vars.append(str(ctrl[1].items[0]))
 
-            if arg.type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.type == "field":
-                # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
-            elif arg.type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        "Error: kernel {0} requires grid property {1} but "
-                        "does not have any arguments that are fields".
-                        format(self._name, arg.name))
-                else:
-                    arguments.append(grid_arg.name+"%grid%"+arg.name)
-            else:
-                raise GenerationError("Kernel {0}, argument {1} has "
-                                      "unrecognised type: {2}".
-                                      format(self._name, arg.name, arg.type))
+class NEMOKern3D(NEMOKern):
+    ''' Specialisation of a NEMO kernel for a '3d' loop nest - i.e. over
+    x, y and z. '''
 
-        parent.add(CallGen(parent, self._name, arguments))
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
+    def load(self, loop, parent=None):
+        ''' Populate the state of this object from the Loop node in the AST '''
+        from parse2003 import walk_ast
+        from fparser.Fortran2003 import Loop_Control, \
+            Block_Nonlabel_Do_Construct
 
-    @property
-    def index_offset(self):
-        ''' The grid index-offset convention that this kernel expects '''
-        return self._index_offset
+        NEMOKern.load(self, loop, parent)
 
+        ctrl = walk_ast(loop.content, [Loop_Control])
+        # items member of Loop Control contains:
+        #   Loop variable, start value expression, end value expression
+        # Loop variable will be an instance of Fortran2003.Name
+        self._loop_vars.append(str(ctrl[0].items[0]))
+        self._loop_vars.append(str(ctrl[1].items[0]))
+        self._loop_vars.append(str(ctrl[2].items[0]))
 
 class GOKernelArguments(Arguments):
     '''Provides information about GOcean kernel-call arguments

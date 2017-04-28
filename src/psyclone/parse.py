@@ -1059,8 +1059,8 @@ def parse_nemo(filename):
     from fparser.Fortran2003 import Main_Program, Program_Stmt, \
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
-        Name, Loop_Control
-    from nemo0p1 import NEMOKern
+        Name, Loop_Control, Write_Stmt, Read_Stmt
+    from nemo0p1 import NEMOKern2D, NEMOKern3D
 
     reader = FortranFileReader(filename)
     ast = Fortran2003.Program(reader)
@@ -1122,24 +1122,36 @@ def parse_nemo(filename):
 
             nested_loops = walk_ast(loop.content,
                                    [Block_Nonlabel_Do_Construct])
+            if not nested_loops:
+                # A Kernel must be a loop nest
+                continue
+
+            # Check the content of the innermost loop
+            io_statements = walk_ast(nested_loops[-1].content,
+                                     [Write_Stmt, Read_Stmt])
+            if io_statements:
+                # A kernel cannot contain IO statements
+                continue
             # TODO check for perfect nesting (i.e. no statements between
             # the nested DO's or END DO's)
             if loop_var == "jk" and len(nested_loops) == 2:
-                kern = NEMOKern()
+                kern = NEMOKern3D()
                 kern.load(loop)
                 kernel_list.append(kern)
             elif loop_var == "jj" and len(nested_loops) == 1:
-                kern = NEMOKern()
+                kern = NEMOKern2D()
                 kern.load(loop)
                 kernel_list.append(kern)
         print "Have {0} Kernels".format(len(kernel_list))
 
     # Now we've identified the kernels, we want to re-construct the AST
     # with the associated loop nests replaced by our kernel objects
-    translate_ast(exe_part, kernel_list, debug=False)
+    translate_ast(exe_part, kernel_list)
 
     print ast.tofortran()
+    print "ARPDBG: early exit from parse_nemo()"
     exit(1)
+
     # TODO pass back list of Kernel objects instead of inner_loops?
     return ast, inner_loops
 
@@ -1163,11 +1175,8 @@ def translate_ast(parent, kernels, indent=0, debug=False):
         if type(child) in parse2003.LOOP_TYPES:
             is_kern = False
             for kern in kernels:
-                print type(child)
-                print type(kern.loop)
                 if child is kern.loop:
                     is_kern = True
-                    print "replaced child {0}".format(idx)
                     children[idx] = kern
                     break
             if is_kern:
