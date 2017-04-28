@@ -63,14 +63,15 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
 VALID_LOOP_TYPES = ["inner", "outer"]
 
 
-class GOPSy(PSy):
-    ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
+class NEMOPSy(PSy):
+    ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
         invokes object (which controls all the required invocation calls).
         Also overrides the PSy gen method so that we generate GOcean-
         specific PSy module code. '''
     def __init__(self, invoke_info):
-        PSy.__init__(self, invoke_info)
-        self._invokes = GOInvokes(invoke_info.calls)
+        #PSy.__init__(self, invoke_info)
+        #self._invokes = GOInvokes(invoke_info.calls)
+        pass
 
     @property
     def gen(self):
@@ -564,19 +565,6 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
-class GOBuiltInCallFactory(object):
-    ''' A GOcean-specific built-in call factory. No built-ins
-        are supported in GOcean at the moment. '''
-
-    @staticmethod
-    def create():
-        ''' Placeholder to create a GOocean-specific built-in call.
-        This will require us to create a doubly-nested loop and then create
-        the body of the particular built-in operation. '''
-        raise GenerationError(
-            "Built-ins are not supported for the GOcean 1.0 API")
-
-
 class GOKernCallFactory(object):
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
@@ -608,11 +596,9 @@ class GOKernCallFactory(object):
         return outer_loop
 
 
-class GOKern(Kern):
-    ''' Stores information about GOcean Kernels as specified by the Kernel
-        metadata. Uses this information to generate appropriate PSy layer
-        code for the Kernel instance. Specialises the gen_code method to
-        create the appropriate GOcean specific kernel call. '''
+class NEMOKern(object):
+    ''' Stores information about NEMO kernels as extracted from the
+    NEMO code. '''
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
@@ -623,15 +609,23 @@ class GOKern(Kern):
         self._children = []
         self._name = ""
         self._index_offset = ""
+        # The Loop object created by fparser2 which holds the AST for the
+        # section of code associated with this kernel
+        self._loop = None
 
-    def load(self, call, parent=None):
+    def load(self, loop, parent=None):
         ''' Populate the state of this GOKern object '''
-        Kern.__init__(self, GOKernelArguments, call, parent, check=False)
+        self._loop = loop
 
-        # Pull out the grid index-offset that this kernel expects and
-        # store it here. This is used to check that all of the kernels
-        # invoked by an application are using compatible index offsets.
-        self._index_offset = call.ktype.index_offset
+    @property
+    def loop(self):
+        ''' Returns the Fortran2003 loop object associated with this kernel '''
+        return self._loop
+
+    def tofortran(self, tab='', isfix=False):
+        ''' Returns a string containing the Fortran representation of this
+        kernel '''
+        return "Your Kernel Fortran goes here"
 
     def local_vars(self):
         '''Return a list of the variable (names) that are local to this loop
