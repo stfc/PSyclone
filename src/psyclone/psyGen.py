@@ -215,8 +215,8 @@ class PSyFactory(object):
             from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
         elif self._type == "nemo0.1":
-            # We have no PSy layer in this API
-            return None
+            from nemo0p1 import NEMOPSy
+            return NEMOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "

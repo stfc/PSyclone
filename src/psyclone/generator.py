@@ -124,6 +124,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
                         format(filename, script_name))
                 if callable(getattr(transmod, 'trans', None)):
                     try:
+                        # Apply the tranformation script to the psy layer
                         psy = transmod.trans(psy)
                     except Exception:
                         exc_type, exc_value, exc_traceback = sys.exc_info()
