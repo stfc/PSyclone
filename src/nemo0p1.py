@@ -16,6 +16,9 @@ from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, KernelArgument, GenerationError
 
+# The loop index variables we expect NEMO to use
+NEMO_LOOP_VARS = ["ji", "jj", "jk"]
+
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
 
@@ -613,6 +616,13 @@ class NEMOKern(object):
         self._loop_vars = []
         # A list of 2-tuples, one for each loop
         self._loop_ranges = []
+        # List of variable names that must be thread-private
+        self._private_vars = None
+        # List of variable names that must be first-private because they
+        # are scalars with a first access of read
+        self._first_private_vars = None
+        # List of variables that are shared between threads
+        self._shared_vars = None
 
     def load(self, loop, parent=None):
         ''' Populate the state of this GOKern object '''
@@ -622,14 +632,13 @@ class NEMOKern(object):
         # Keep a pointer to the original loop in the AST
         self._loop = loop
 
-        ctrls = walk_ast(loop.content, [Loop_Control], debug=True)
+        ctrls = walk_ast(loop.content, [Loop_Control], debug=False)
         # items member of Loop Control contains a 2-tuple:
         #   (Loop variable, [start value expression, end value expression])
         # i.e. the second element of the tuple is itself a list containing
         # the loop limits.
         # Loop variable will be an instance of Fortran2003.Name
         for ctrl in ctrls:
-            print ctrl.items
             self._loop_vars.append(str(ctrl.items[0]))
             self._loop_ranges.append( (str(ctrl.items[1][0]),
                                        str(ctrl.items[1][1])) )
@@ -646,6 +655,34 @@ class NEMOKern(object):
             if isinstance(content, End_Do_Stmt):
                 break
             self._body.append(content)
+
+        # Analyse the loop body to identify private and shared variables
+        from habakkuk.make_dag import dag_of_code_block
+        # Create a DAG of the kernel code block using Habakkuk
+        kernel_dag = dag_of_code_block(inner_loop, "nemo_kernel")
+        inputs = kernel_dag.input_nodes()
+        outputs = kernel_dag.output_nodes()
+        print "Kernel has {0} outputs: ".format(len(outputs)) + \
+            ",".join([node.variable.orig_name for node in outputs])
+        self._shared_vars = set()
+        self._first_private_vars = set()
+        self._private_vars = set()
+        # If there are scalar variables that are inputs to the DAG (other than
+        # the loop counters) then they must be declared first-private.
+        for node in inputs:
+            if not node.node_type:
+                if node.name not in NEMO_LOOP_VARS:
+                    self._first_private_vars.add(node.name)
+        for key, node in kernel_dag._nodes.iteritems():
+            if node.node_type == "array_ref":
+                self._shared_vars.add(node.variable.orig_name)
+            elif not node.node_type:
+                self._private_vars.add(node.variable.orig_name)
+        private_vars -= first_private_vars
+        print "OpenMP shared vars: " + ",".join(self._shared_vars)
+        print "OpenMP private vars: " + ",".join(self._private_vars)
+        print "OpenMP first-private vars: " + \
+            ",".join(self._first_private_vars)
 
     @property
     def loop(self):

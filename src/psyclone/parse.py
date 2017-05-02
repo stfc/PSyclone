@@ -1112,7 +1112,13 @@ def parse_nemo(filename):
         # Create a list of kernels by identifying loop nests
         inner_loops = []
         kernel_list = []
+        processed_loops = set()
         for loop in loops[:]:
+
+            # Skip this loop if it's an inner-loop for a loop-nest
+            # we've already identified as a kernel
+            if loop in processed_loops:
+                continue
 
             ctrl = walk_ast(loop.content, [Loop_Control])
             # items member of Loop Control contains:
@@ -1139,10 +1145,19 @@ def parse_nemo(filename):
                 kern = NEMOKern3D()
                 kern.load(loop)
                 kernel_list.append(kern)
+                # We don't want to create kernels for any of the loops
+                # nested within this loop
+                for inner_loop in nested_loops:
+                    processed_loops.add(inner_loop)
+
             elif loop_var == "jj" and len(nested_loops) == 1:
                 kern = NEMOKern2D()
                 kern.load(loop)
                 kernel_list.append(kern)
+                # We don't want to create kernels for any of the loops
+                # nested within this loop
+                for inner_loop in nested_loops:
+                    processed_loops.add(inner_loop)
         print "Have {0} Kernels".format(len(kernel_list))
 
     # Now we've identified the kernels, we want to re-construct the AST
@@ -1159,8 +1174,9 @@ def parse_nemo(filename):
 
 def translate_ast(parent, kernels, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
-    are listed under 'content'.  Returns a list of all nodes with the
-    specified type(s). '''
+    are listed under 'content'.  Replace any loop nests that we've
+    identified as kernels with the corresponding Kernel object. '''
+    from fparser import Fortran2003
     cblock_list = []
     if hasattr(parent, "content"):
         children = parent.content
