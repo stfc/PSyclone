@@ -616,7 +616,7 @@ class NEMOKern(object):
 
     def load(self, loop, parent=None):
         ''' Populate the state of this GOKern object '''
-        from parse2003 import walk_ast
+        from habakkuk.parse2003 import walk_ast
         from fparser.Fortran2003 import Loop_Control, \
             Block_Nonlabel_Do_Construct, Nonlabel_Do_Stmt, End_Do_Stmt
         # Keep a pointer to the original loop in the AST
@@ -684,7 +684,7 @@ class NEMOKern2D(NEMOKern):
 
     def load(self, loop, parent=None):
         ''' Populate the state of this object from the Loop node in the AST '''
-        from parse2003 import walk_ast
+        from habakkuk.parse2003 import walk_ast
         from fparser.Fortran2003 import Loop_Control, \
             Block_Nonlabel_Do_Construct
 
@@ -697,7 +697,7 @@ class NEMOKern3D(NEMOKern):
 
     def load(self, loop, parent=None):
         ''' Populate the state of this object from the Loop node in the AST '''
-        from parse2003 import walk_ast
+        from habakkuk.parse2003 import walk_ast
         from fparser.Fortran2003 import Loop_Control, \
             Block_Nonlabel_Do_Construct
 

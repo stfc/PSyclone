@@ -1055,7 +1055,7 @@ def parse_nemo(filename):
     ''' Parse a NEMO routine and identify kernels '''
     from fparser.api import Fortran2003
     from fparser.readfortran import FortranFileReader
-    from parse2003 import walk_ast, Loop, get_child, ParseError
+    from habakkuk.parse2003 import walk_ast, Loop, get_child, ParseError
     from fparser.Fortran2003 import Main_Program, Program_Stmt, \
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
@@ -1161,7 +1161,6 @@ def translate_ast(parent, kernels, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
     are listed under 'content'.  Returns a list of all nodes with the
     specified type(s). '''
-    import parse2003
     cblock_list = []
     if hasattr(parent, "content"):
         children = parent.content
@@ -1173,7 +1172,7 @@ def translate_ast(parent, kernels, indent=0, debug=False):
     for idx, child in enumerate(children[:]):
         if debug:
             print indent*"  " + "child type = ", type(child)
-        if type(child) in parse2003.LOOP_TYPES:
+        if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
             is_kern = False
             for kern in kernels:
                 if child is kern.loop:
