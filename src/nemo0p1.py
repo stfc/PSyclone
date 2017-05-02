@@ -13,7 +13,7 @@
 '''
 
 from parse import Descriptor, KernelType, ParseError
-from psyGen import PSy, Invokes, Invoke, Schedule, \
+from psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, Arguments, KernelArgument, GenerationError
 
 # The loop index variables we expect NEMO to use
@@ -61,9 +61,8 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
                       "grid_dx_const": "dx",
                       "grid_dy_const": "dy"}
 
-# The valid types of loop. In this API we expect only doubly-nested
-# loops.
-VALID_LOOP_TYPES = ["inner", "outer"]
+# The valid types of loop.
+VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers"]
 
 
 class NEMOPSy(PSy):
@@ -249,14 +248,15 @@ class GOInvoke(Invoke):
                            position=["after", position])
 
 
-class GOSchedule(Schedule):
+class NEMOSchedule(Schedule):
     ''' The GOcean specific schedule class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
-    def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+    def __init__(self):
+        Node.__init__(self)
+        #Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+        #                  alg_calls)
 
         # Configuration of this Schedule - we default to having
         # constant loop bounds. If we end up having a long list
@@ -265,10 +265,8 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        ''' Print a representation of this GOSchedule '''
-        print self.indent(indent) + "GOSchedule[invoke='" + \
-            self.invoke.name + "',Constant loop bounds=" + \
-            str(self._const_loop_bounds) + "]"
+        ''' Print a representation of this NEMOSchedule '''
+        print self.indent(indent) + "NEMOSchedule[]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -322,8 +320,8 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = obj
 
 
-class GOLoop(Loop):
-    ''' The GOcean specific Loop class. This passes the GOcean specific
+class NEMOLoop(Loop):
+    ''' The NEMO-specific Loop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
@@ -337,10 +335,12 @@ class GOLoop(Loop):
         # We set the loop variable name in the constructor so that it is
         # available when we're determining which vars should be OpenMP
         # PRIVATE (which is done *before* code generation is performed)
-        if self.loop_type == "inner":
-            self._variable_name = "i"
-        elif self.loop_type == "outer":
-            self._variable_name = "j"
+        if self.loop_type == "lon":
+            self._variable_name = "ji"
+        elif self.loop_type == "lat":
+            self._variable_name = "jj"
+        elif self.loop_type == "levels":
+            self._variable_name = "jk"
         else:
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
@@ -568,6 +568,17 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
+class NEMOCodeBlock(Node):
+    ''' Node representing some generic Fortran code that PSyclone
+    does not attempt to manipulate '''
+
+    def view(self, indent=0):
+        ''' Print a representation of this node in the schedule '''
+        print self.indent(indent) + "CodeBlock[]"
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    
 class GOKernCallFactory(object):
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
@@ -599,7 +610,7 @@ class GOKernCallFactory(object):
         return outer_loop
 
 
-class NEMOKern(object):
+class NEMOKern(Node):
     ''' Stores information about NEMO kernels as extracted from the
     NEMO code. '''
     def __init__(self):
@@ -678,7 +689,7 @@ class NEMOKern(object):
                 self._shared_vars.add(node.variable.orig_name)
             elif not node.node_type:
                 self._private_vars.add(node.variable.orig_name)
-        private_vars -= first_private_vars
+        self._private_vars -= self._first_private_vars
         print "OpenMP shared vars: " + ",".join(self._shared_vars)
         print "OpenMP private vars: " + ",".join(self._private_vars)
         print "OpenMP first-private vars: " + \
@@ -727,7 +738,13 @@ class NEMOKern2D(NEMOKern):
 
         NEMOKern.load(self, loop, parent)
 
+    def view(self, indent=0):
+        ''' Print representation of this node to stdout '''
+        print self.indent(indent) + "NEMOKern2D[]"
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
+            
 class NEMOKern3D(NEMOKern):
     ''' Specialisation of a NEMO kernel for a '3d' loop nest - i.e. over
     x, y and z. '''
@@ -739,6 +756,12 @@ class NEMOKern3D(NEMOKern):
             Block_Nonlabel_Do_Construct
 
         NEMOKern.load(self, loop, parent)
+
+    def view(self, indent=0):
+        ''' Print representation of this node to stdout '''
+        print self.indent(indent) + "NEMOKern3D[]"
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
 
 class GOKernelArguments(Arguments):

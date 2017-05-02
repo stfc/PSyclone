@@ -1060,7 +1060,7 @@ def parse_nemo(filename):
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
         Name, Loop_Control, Write_Stmt, Read_Stmt
-    from nemo0p1 import NEMOKern2D, NEMOKern3D
+    from nemo0p1 import NEMOKern2D, NEMOKern3D, NEMOSchedule
 
     reader = FortranFileReader(filename)
     ast = Fortran2003.Program(reader)
@@ -1109,32 +1109,60 @@ def parse_nemo(filename):
                 format(sub_name)
             continue
 
-        # Create a list of kernels by identifying loop nests
-        inner_loops = []
-        kernel_list = []
-        processed_loops = set()
-        for loop in loops[:]:
+        # Now we've identified the kernels, we want to re-construct the AST
+        # with the associated loop nests replaced by our kernel objects
+        sched = NEMOSchedule()
+        translate_ast(sched, exe_part)
+        sched.view()
+        print ast.tofortran()
+        print "ARPDBG: early exit from parse_nemo()"
+        exit(1)
 
-            # Skip this loop if it's an inner-loop for a loop-nest
-            # we've already identified as a kernel
-            if loop in processed_loops:
-                continue
+    # TODO pass back list of Kernel objects instead of inner_loops?
+    return ast, inner_loops
 
-            ctrl = walk_ast(loop.content, [Loop_Control])
+
+def translate_ast(node, parent, indent=0, debug=False):
+    '''' Walk down the tree produced by the f2003 parser where children
+    are listed under 'content'.  Replace any loop nests that we've
+    identified as kernels with the corresponding Kernel object. '''
+    from fparser import Fortran2003
+    from habakkuk.parse2003 import walk_ast
+    from nemo0p1 import NEMOLoop, NEMOCodeBlock, NEMOKern3D, NEMOKern2D
+    cblock_list = []
+    # Depending on their level in the tree produced by fparser2003,
+    # some nodes have children listed in .content and some have them
+    # listed under .items. If a node has neither then it has no
+    # children.
+    if hasattr(parent, "content"):
+        children = parent.content
+    elif hasattr(parent, "items"):
+        children = parent.items
+    else:
+        return
+    
+    for idx, child in enumerate(children[:]):
+        if debug:
+            print indent*"  " + "child type = ", type(child)
+            
+        if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
+
+            ctrl = walk_ast(child.content, [Fortran2003.Loop_Control])
             # items member of Loop Control contains:
             #   Loop variable, start value expression, end value expression
             # Loop variable will be an instance of Fortran2003.Name
             loop_var = str(ctrl[0].items[0])
 
-            nested_loops = walk_ast(loop.content,
-                                   [Block_Nonlabel_Do_Construct])
+            nested_loops = walk_ast(child.content,
+                                   [Fortran2003.Block_Nonlabel_Do_Construct])
             if not nested_loops:
                 # A Kernel must be a loop nest
                 continue
 
             # Check the content of the innermost loop
             io_statements = walk_ast(nested_loops[-1].content,
-                                     [Write_Stmt, Read_Stmt])
+                                     [Fortran2003.Write_Stmt,
+                                      Fortran2003.Read_Stmt])
             if io_statements:
                 # A kernel cannot contain IO statements
                 continue
@@ -1143,67 +1171,28 @@ def parse_nemo(filename):
             # the nested DO's or END DO's)
             if loop_var == "jk" and len(nested_loops) == 2:
                 kern = NEMOKern3D()
-                kern.load(loop)
-                kernel_list.append(kern)
+                kern.load(child, parent=node)
+                node.addchild(kern)
                 # We don't want to create kernels for any of the loops
-                # nested within this loop
-                for inner_loop in nested_loops:
-                    processed_loops.add(inner_loop)
+                # nested within this loop so skip
+                continue
 
             elif loop_var == "jj" and len(nested_loops) == 1:
                 kern = NEMOKern2D()
-                kern.load(loop)
-                kernel_list.append(kern)
+                kern.load(child, parent=node)
+                node.addchild(kern)
                 # We don't want to create kernels for any of the loops
                 # nested within this loop
-                for inner_loop in nested_loops:
-                    processed_loops.add(inner_loop)
-        print "Have {0} Kernels".format(len(kernel_list))
-
-    # Now we've identified the kernels, we want to re-construct the AST
-    # with the associated loop nests replaced by our kernel objects
-    translate_ast(exe_part, kernel_list)
-
-    print ast.tofortran()
-    print "ARPDBG: early exit from parse_nemo()"
-    exit(1)
-
-    # TODO pass back list of Kernel objects instead of inner_loops?
-    return ast, inner_loops
-
-
-def translate_ast(parent, kernels, indent=0, debug=False):
-    '''' Walk down the tree produced by the f2003 parser where children
-    are listed under 'content'.  Replace any loop nests that we've
-    identified as kernels with the corresponding Kernel object. '''
-    from fparser import Fortran2003
-    cblock_list = []
-    if hasattr(parent, "content"):
-        children = parent.content
-    elif hasattr(parent, "items"):
-        children = parent.items
-    else:
-        return
-
-    for idx, child in enumerate(children[:]):
-        if debug:
-            print indent*"  " + "child type = ", type(child)
-        if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
-            is_kern = False
-            for kern in kernels:
-                if child is kern.loop:
-                    is_kern = True
-                    children[idx] = kern
-                    break
-            if is_kern:
-                # If this is a kernel then we don't walk any further down
-                # the tree
                 continue
-
-        # Depending on their level in the tree produced by fparser2003,
-        # some nodes have children listed in .content and some have them
-        # listed under .items. If a node has neither then it has no
-        # children.
-        translate_ast(child, kernels, indent+1, debug)
+            
+            else:
+                # TODO identify correct loop type
+                loop = NEMOLoop(parent=node, loop_type="lon")
+                node.addchild(loop)
+                translate_ast(loop, child, indent+1, debug)
+        else:
+            code_block = NEMOCodeBlock(parent=node)
+            node.addchild(code_block)
+            translate_ast(code_block, child, indent+1, debug)
 
     return
