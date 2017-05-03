@@ -572,9 +572,16 @@ class NEMOCodeBlock(Node):
     ''' Node representing some generic Fortran code that PSyclone
     does not attempt to manipulate '''
 
+    def __init__(self, statements, parent=None):
+        Node.__init__(self, parent=parent)
+        # Store a list of the parser objects holding the code
+        # associated with this block
+        self._statements = statements[:]
+
     def view(self, indent=0):
         ''' Print a representation of this node in the schedule '''
-        print self.indent(indent) + "CodeBlock[]"
+        print self.indent(indent) + "CodeBlock[" + \
+            str(type(self._statements[0])) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 

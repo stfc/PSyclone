@@ -1140,12 +1140,23 @@ def translate_ast(node, parent, indent=0, debug=False):
         children = parent.items
     else:
         return
-    
+
+    code_block_statements = []
+
     for idx, child in enumerate(children[:]):
         if debug:
             print indent*"  " + "child type = ", type(child)
             
         if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
+
+            # The start of a loop is taken as the end of any exising
+            # code block so we create that now
+            if code_block_statements:
+                code_block = NEMOCodeBlock(code_block_statements,
+                                           parent=node)
+                node.addchild(code_block)
+                code_block_statements = []
+    
 
             ctrl = walk_ast(child.content, [Fortran2003.Loop_Control])
             # items member of Loop Control contains:
@@ -1155,35 +1166,36 @@ def translate_ast(node, parent, indent=0, debug=False):
 
             nested_loops = walk_ast(child.content,
                                    [Fortran2003.Block_Nonlabel_Do_Construct])
+            is_kern = True
             if not nested_loops:
                 # A Kernel must be a loop nest
-                continue
-
-            # Check the content of the innermost loop
-            io_statements = walk_ast(nested_loops[-1].content,
-                                     [Fortran2003.Write_Stmt,
-                                      Fortran2003.Read_Stmt])
-            if io_statements:
-                # A kernel cannot contain IO statements
-                continue
+                is_kern = False
+            else:
+                # Check the content of the innermost loop
+                io_statements = walk_ast(nested_loops[-1].content,
+                                         [Fortran2003.Write_Stmt,
+                                          Fortran2003.Read_Stmt])
+                if io_statements:
+                    # A kernel cannot contain IO statements
+                    is_kern = False
 
             # TODO check for perfect nesting (i.e. no statements between
             # the nested DO's or END DO's)
-            if loop_var == "jk" and len(nested_loops) == 2:
+            if is_kern and (loop_var == "jk" and len(nested_loops) == 2):
                 kern = NEMOKern3D()
                 kern.load(child, parent=node)
                 node.addchild(kern)
                 # We don't want to create kernels for any of the loops
-                # nested within this loop so skip
-                continue
+                # nested within this loop so we don't carry on any
+                # further down the tree
 
-            elif loop_var == "jj" and len(nested_loops) == 1:
+            elif is_kern and (loop_var == "jj" and len(nested_loops) == 1):
                 kern = NEMOKern2D()
                 kern.load(child, parent=node)
                 node.addchild(kern)
                 # We don't want to create kernels for any of the loops
-                # nested within this loop
-                continue
+                # nested within this loop so we don't carry on any
+                # further down the tree
             
             else:
                 # TODO identify correct loop type
@@ -1191,8 +1203,7 @@ def translate_ast(node, parent, indent=0, debug=False):
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
         else:
-            code_block = NEMOCodeBlock(parent=node)
-            node.addchild(code_block)
-            translate_ast(code_block, child, indent+1, debug)
+            code_block_statements.append(child)
+ 
 
     return
