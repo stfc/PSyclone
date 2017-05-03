@@ -650,12 +650,32 @@ class NEMOKern(Node):
         self._first_private_vars = None
         # List of variables that are shared between threads
         self._shared_vars = None
+        # Type of kernel (2D, 3D..)
+        self._kernel_type = ""
 
     def load(self, loop, parent=None):
-        ''' Populate the state of this GOKern object '''
+        ''' Populate the state of this NEMOKern object '''
+        from habakkuk.parse2003 import walk_ast
+        from fparser.Fortran2003 import Block_Nonlabel_Do_Construct, \
+            Assignment_Stmt
+        
+        if isinstance(loop, Block_Nonlabel_Do_Construct):
+            self._load_from_loop(loop, parent)
+        elif isinstance(loop, Assignment_Stmt):
+            self._load_from_implicit_loop(loop, parent)
+        else:
+            raise ParseError(
+                "Internal error: expecting either "
+                "Block_Nonlabel_Do_Construct or Assignment_Stmt but got "
+                "{0}".format(str(type(loop))))
+
+    def _load_from_loop(self, loop, parent=None):
+        ''' Populate the state of this NEMOKern object from an fparser2
+        AST for a loop nest '''
         from habakkuk.parse2003 import walk_ast
         from fparser.Fortran2003 import Loop_Control, \
             Block_Nonlabel_Do_Construct, Nonlabel_Do_Stmt, End_Do_Stmt
+
         # Keep a pointer to the original loop in the AST
         self._loop = loop
 
@@ -682,6 +702,11 @@ class NEMOKern(Node):
             if isinstance(content, End_Do_Stmt):
                 break
             self._body.append(content)
+
+        if len(self._loop_vars) == 2:
+            self._kernel_type = "2D"
+        else:
+            self._kernel_type = "3D"
 
         # Analyse the loop body to identify private and shared variables
         from habakkuk.make_dag import dag_of_code_block
@@ -710,6 +735,15 @@ class NEMOKern(Node):
         print "OpenMP private vars: " + ",".join(self._private_vars)
         print "OpenMP first-private vars: " + \
             ",".join(self._first_private_vars)
+        return
+    
+    def _load_from_implicit_loop(self, loop, parent=None):
+        ''' Populate the state of this NEMOKern object from an fparser2
+        AST for an implicit loop (Fortran array syntax) '''
+        from fparser.Fortran2003 import Section_Subscript_List
+        # TODO implement this method!
+        self._kernel_type = "Implicit"
+        return
 
     @property
     def loop(self):
@@ -741,41 +775,9 @@ class NEMOKern(Node):
         '''
         return []
 
-
-class NEMOKern2D(NEMOKern):
-    ''' Specialisation of a NEMO kernel for a '2d' loop nest - i.e. only
-    over x and y '''
-
-    def load(self, loop, parent=None):
-        ''' Populate the state of this object from the Loop node in the AST '''
-        from habakkuk.parse2003 import walk_ast
-        from fparser.Fortran2003 import Loop_Control, \
-            Block_Nonlabel_Do_Construct
-
-        NEMOKern.load(self, loop, parent)
-
     def view(self, indent=0):
         ''' Print representation of this node to stdout '''
-        print self.indent(indent) + "NEMOKern2D[]"
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-            
-class NEMOKern3D(NEMOKern):
-    ''' Specialisation of a NEMO kernel for a '3d' loop nest - i.e. over
-    x, y and z. '''
-
-    def load(self, loop, parent=None):
-        ''' Populate the state of this object from the Loop node in the AST '''
-        from habakkuk.parse2003 import walk_ast
-        from fparser.Fortran2003 import Loop_Control, \
-            Block_Nonlabel_Do_Construct
-
-        NEMOKern.load(self, loop, parent)
-
-    def view(self, indent=0):
-        ''' Print representation of this node to stdout '''
-        print self.indent(indent) + "NEMOKern3D[]"
+        print self.indent(indent) + "NEMOKern[" + self._kernel_type + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
