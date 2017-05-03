@@ -1059,8 +1059,8 @@ def parse_nemo(filename):
     from fparser.Fortran2003 import Main_Program, Program_Stmt, \
         Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
         Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
-        Name, Loop_Control, Write_Stmt, Read_Stmt
-    from nemo0p1 import NEMOKern2D, NEMOKern3D, NEMOSchedule
+        Name
+    from nemo0p1 import NEMOSchedule
 
     reader = FortranFileReader(filename)
     ast = Fortran2003.Program(reader)
@@ -1109,10 +1109,11 @@ def parse_nemo(filename):
                 format(sub_name)
             continue
 
-        # Now we've identified the kernels, we want to re-construct the AST
-        # with the associated loop nests replaced by our kernel objects
+        # Since this subroutine contains loops we now walk through
+        # the AST produced by fparser2 and construct a new AST
+        # using objects from the nemo0p1 module.
         sched = NEMOSchedule()
-        translate_ast(sched, exe_part)
+        translate_ast(sched, exe_part, debug=True)
         sched.view()
         print ast.tofortran()
         print "ARPDBG: early exit from parse_nemo()"
@@ -1128,8 +1129,7 @@ def translate_ast(node, parent, indent=0, debug=False):
     identified as kernels with the corresponding Kernel object. '''
     from fparser import Fortran2003
     from habakkuk.parse2003 import walk_ast
-    from nemo0p1 import NEMOLoop, NEMOCodeBlock, NEMOKern3D, NEMOKern2D, \
-        NEMO_LOOP_TYPE_MAPPING
+    from nemo0p1 import NEMOLoop, NEMOKern, NEMO_LOOP_TYPE_MAPPING
     cblock_list = []
     # Depending on their level in the tree produced by fparser2003,
     # some nodes have children listed in .content and some have them
@@ -1152,12 +1152,7 @@ def translate_ast(node, parent, indent=0, debug=False):
 
             # The start of a loop is taken as the end of any exising
             # code block so we create that now
-            if code_block_statements:
-                code_block = NEMOCodeBlock(code_block_statements,
-                                           parent=node)
-                node.addchild(code_block)
-                code_block_statements = []
-    
+            _add_code_block(node, code_block_statements)
 
             ctrl = walk_ast(child.content, [Fortran2003.Loop_Control])
             # items member of Loop Control contains:
@@ -1183,7 +1178,7 @@ def translate_ast(node, parent, indent=0, debug=False):
             # TODO check for perfect nesting (i.e. no statements between
             # the nested DO's or END DO's)
             if is_kern and (loop_var == "jk" and len(nested_loops) == 2):
-                kern = NEMOKern3D()
+                kern = NEMOKern()
                 kern.load(child, parent=node)
                 node.addchild(kern)
                 # We don't want to create kernels for any of the loops
@@ -1191,7 +1186,7 @@ def translate_ast(node, parent, indent=0, debug=False):
                 # further down the tree
 
             elif is_kern and (loop_var == "jj" and len(nested_loops) == 1):
-                kern = NEMOKern2D()
+                kern = NEMOKern()
                 kern.load(child, parent=node)
                 node.addchild(kern)
                 # We don't want to create kernels for any of the loops
@@ -1211,16 +1206,42 @@ def translate_ast(node, parent, indent=0, debug=False):
             # Add this node in the AST to our list for the current
             # code block (unless it is loop-related in which case we
             # ignore it)
-            if type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
+            arr_sections = []
+            if isinstance(child, Fortran2003.Assignment_Stmt):
+                arr_sections = walk_ast(child.items,
+                                        [Fortran2003.Section_Subscript_List],
+                                        debug=True)
+                if arr_sections:
+                    # An implicit loop marks the end of any current
+                    # code block
+                    _add_code_block(node, code_block_statements)
+                    
+                    kern = NEMOKern()
+                    kern.load(child, parent=node)
+                    node.addchild(kern)
+
+            if (not arr_sections) and \
+               type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
                                    fparser.Fortran2003.End_Do_Stmt]:
                 code_block_statements.append(child)
  
 
-    if code_block_statements:
-        # Finish any open code block
-        code_block = NEMOCodeBlock(code_block_statements,
-                                   parent=node)
-        node.addchild(code_block)
-        code_block_statements = []
+    # Finish any open code block
+    _add_code_block(node, code_block_statements)
 
+    return
+
+
+def _add_code_block(parent, statements):
+    ''' Create a NEMOCodeBlock for the supplied list of statements
+    and then wipe the list of statements '''
+    from nemo0p1 import NEMOCodeBlock
+
+    if not statements:
+        return
+    
+    code_block = NEMOCodeBlock(statements,
+                               parent=parent)
+    parent.addchild(code_block)
+    statements = []
     return
