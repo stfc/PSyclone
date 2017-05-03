@@ -16,9 +16,6 @@ from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, Arguments, KernelArgument, GenerationError
 
-# The loop index variables we expect NEMO to use
-NEMO_LOOP_VARS = ["ji", "jj", "jk"]
-
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
 
@@ -61,9 +58,15 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
                       "grid_dx_const": "dx",
                       "grid_dy_const": "dy"}
 
+# The loop index variables we expect NEMO to use
+NEMO_LOOP_VARS = ["ji", "jj", "jk"]
+
 # The valid types of loop.
 VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers"]
 
+# Mapping from loop variable to loop type
+NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
+                          "jt": "tracers"}
 
 class NEMOPSy(PSy):
     ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
@@ -341,6 +344,12 @@ class NEMOLoop(Loop):
             self._variable_name = "jj"
         elif self.loop_type == "levels":
             self._variable_name = "jk"
+        elif self.loop_type == "tracers":
+            self._variable_name = "jt"
+        elif self.loop_type == "unknown":
+            # TODO work out whether we care about variable name
+            # for NEMO loops
+            self._variable_name = "index"
         else:
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
