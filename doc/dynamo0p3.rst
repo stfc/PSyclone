@@ -59,7 +59,54 @@ Scalar
 Operator
 ++++++++
 
-.. note:: To be written.
+Represents a matrix constructed on a per-cell basis using Local
+Matrix Assembly (LMA).
+
+Column-Wise Operator
+++++++++++++++++++++
+
+The Dynamo 0.3 API has support for the construction and use of
+column-wise/Column Matrix Assembly (CMA) operators. As the name
+suggests, these are operators constructed for a whole column of the
+mesh. These are themselves constructed from the Local Matrix Assembly
+(LMA) operators of each cell in the column. The rules governing
+Kernels that have CMA operators as arguments are given in the
+:ref:`dynamo0.3-kernel` section below.
+
+There are three recognised Kernel types involving CMA operations;
+construction, application (including inverse application) and
+matrix-matrix. The following example sketches-out what the use
+of such kernels might look like in the Algorithm layer:
+::
+
+  use field_mod, only: field_type
+  use operator_mod, only : operator_type, columnwise_operator_type
+  type(field_type) :: field1, field2, field3
+  type(operator_type) :: lma_op1, lma_op2
+  type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
+  ...
+  call invoke(assembly_kernel(cma_op1, lma_op1, lma_op2),          &
+              assembly_kernel2(cma_op2, lma_op1, lma_op2, field3), &
+              apply_kernel(field1, field2, cma_op1),               &
+	      matrix_matrix_kernel(cma_op3, cma_op1, cma_op2),     &
+              apply_kernel(field3, field1, cma_op3),               &
+              name="cma_example")
+
+The above invoke uses two LMA operators to construct the CMA operator
+``cma_op1``.  A second CMA operator, ``cma_op2``, is assembled from
+the same two LMA operators but also uses a field. The first of these
+CMA operators is then applied to ``field2`` and the result stored in
+``field1`` (assuming that the meta-data for ``apply_kernel`` specifies
+that it is the first field argument that is written to). The two CMA
+operators are then multiplied together to produce a third,
+``cma_op3``. This is then applied to ``field1`` and the result stored
+in ``field3``.
+
+Note that PSyclone identifies the type of kernels performing
+Column-Wise operations based on their arguments as described in
+meta-data (see :ref:`cma_meta_data_rules` below). The names of the
+kernels in the above example are purely illustrative and are not used
+by PSyclone when determining kernel type.
 
 Quadrature rule
 +++++++++++++++
@@ -173,36 +220,30 @@ within a module, or the program name if it is a program.
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
 
+.. _dynamo0.3-kernel:
 
 Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. This section explains the
-dynamo0.3-specific rules for kernels and then goes on to describe
-their metadata and subroutine arguments.
+in the :ref:`kernel-layer` section. In the Dynamo API there are three
+different Kernel types; general purpose (user-supplied), CMA
+(user-supplied) and :ref:`dynamo_built-ins`. This section explains the
+rules for the two user-supplied kernel types and then goes on to
+describe their metadata and subroutine arguments.
 
-Rules
-+++++
+Rules for all User-Supplied Kernels
++++++++++++++++++++++++++++++++++++
 
- 1) Kernels accept arguments of any of the supported types (field,
-    field vector, operator, scalar integer, scalar real).
+In the following, 'operator' refers to both LMA and CMA operator
+types.
 
- 2) A Kernel must have at least one argument that is a field, field
+ 1) A Kernel must have at least one argument that is a field, field
     vector, or operator. This rule reflects the fact that a Kernel
     iterates over a space and therefore must have some representation
     over that space.
 
- 3) A Kernel is permitted to write to more than one
-    quantity (field or operator) and these quantities may be on the
-    same or different function spaces.
-
- 4) A Kernel may not write to a scalar argument. (Only
-    :ref:`dynamo_built-ins` are permitted to do this.) Any scalar
-    aguments must therefore be declared in the meta-data as
-    "GH_READ" - see below.
-
- 5) The continuity of the iteration space of the Kernel is determined
+ 2) The continuity of the iteration space of the Kernel is determined
     from the function space of the modified argument. If more than one
     argument is modified then the iteration space is taken to be the
     largest required by any of those arguments. e.g. if a Kernel
@@ -210,25 +251,103 @@ Rules
     second on W1 (continuous), then the iteration space of that Kernel
     will be determined by the field on the continuous space.
 
- 6) If the function space of the modified argument(s) cannot be
+ 3) If the function space of the modified argument(s) cannot be
     determined then they are assumed to be continuous. This is
     the case if any of the modified arguments are declared as ANY_SPACE and
     their actual space cannot be determined statically. This assumption is
     always safe but leads to additional computation if the quantities being
     updated are actually on discontinuous function spaces.
 
- 7) Operators do not have halo operations operating on them as they
-    are local matrix assembly and therefore act like discontinous
-    fields.
+ 4) Operators do not have halo operations operating on them as they
+    are either cell- (LMA) or column-based (CMA) and therefore act
+    like discontinous fields.
 
- 8) Any Kernel that writes to an operator will have its iteration
+ 5) Any Kernel that writes to an operator will have its iteration
     space expanded such that valid values for the operator are
     computed in the level-1 halo.
 
- 9) Any Kernel that reads from an operator must not access halos
+ 6) Any Kernel that reads from an operator must not access halos
     beyond level 1. In this case PSyclone will check that the Kernel
     does not require values beyond the level-1 halo. If it does then
     PSyclone will abort.
+
+Rules specific to General-Purpose Kernels without CMA Operators
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+ 1) General-purpose kernels accept arguments of any of the following
+    types: field, field vector, LMA operator, scalar integer, scalar
+    real.
+
+ 2) A Kernel is permitted to write to more than one
+    quantity (field or operator) and these quantities may be on the
+    same or different function spaces.
+
+ 3) A Kernel may not write to a scalar argument. (Only
+    :ref:`dynamo_built-ins` are permitted to do this.) Any scalar
+    aguments must therefore be declared in the meta-data as
+    "GH_READ" - see below.
+
+.. _cma_meta_data_rules:
+
+Rules for Kernels that work with CMA Operators
+++++++++++++++++++++++++++++++++++++++++++++++
+
+The Dynamo 0.3 API has support for kernels that assemble, apply (or
+inverse-apply) column-wise/Column Matrix Assembly (CMA) operators.
+Such operators may also be used by matrix-matrix kernels. There are
+thus three types of CMA-related kernels.  Since, by definition, CMA
+operators only act on data within a column, they have no horizontal
+dependencies. Therefore, kernels that write to them may be
+parallelised without colouring.
+
+All three CMA-related kernel types must obey the following rules:
+
+  1) Since a CMA operator only acts within a single column of data,
+     stencil operations are not permitted.
+
+  2) No vector quantities (e.g. "GH_FIELD*3" - see below) are
+     permitted as arguments.
+
+There are then additional rules specific to each of the three
+kernel types. These are described below.
+
+Assembly
+########
+
+CMA operators are themselves constructed from Local-Matrix-Assembly
+(LMA) operators. Therefore, any kernel which assembles a CMA
+operator must obey the following rules:
+
+1) Have one or more LMA operators as read-only arguments.
+
+2) Have exactly one CMA operator argument which must have write access.
+
+3) Other types of argument (e.g. scalars or fields) are permitted but
+   must be read-only.
+
+Application and Inverse Application
+###################################
+
+Column-wise operators can only be applied to fields. CMA-Application
+kernels must therefore:
+
+1) Have a single CMA operator as a read-only argument.
+
+2) Have exactly two field arguments, one read-only and one that is written to.
+
+3) The function spaces of the read and written fields must match the
+   from and to spaces, respectively, of the supplied CMA operator.
+
+Matrix-Matrix
+#############
+
+A kernel that has only column-wise operators as arguments is identified
+as performing a matrix-matrix operation. In this case:
+
+1) All arguments must be CMA operators.
+
+2) Exactly one of the arguments must be written to while the others
+   must be read-only.
 
 Metadata
 ++++++++
@@ -281,12 +400,13 @@ array will be of size 2 and there will be two ``arg_type`` entries:
 
 Argument-metadata (metadata contained within the brackets of an
 ``arg_type`` entry), describes either a **scalar**, a **field** or an
-**operator**.
+**operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
 being passed is for a real scalar (``GH_REAL``), an integer scalar
-(``GH_INTEGER``), a field (``GH_FIELD``) or an operator
-(``GH_OPERATOR``). This information is mandatory.
+(``GH_INTEGER``), a field (``GH_FIELD``) or an operator (either
+``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR`` for CMA). This
+information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
 fields (see the :ref:`dynamo0.3-api-algorithm` section for more
@@ -315,13 +435,20 @@ values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
 valid and PSyclone will raise an exception if an invalid combination
 is specified. Valid combinations are specified later in this section.
 
-* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
+* ``GH_WRITE`` indicates the data is modified in the Kernel before
+  (optionally) being read.
 
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
-* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
+* ``GH_INC`` indicates that different iterations of a Kernel make
+  contributions to shared values. For example, values at cell faces
+  may receive contributions from cells on either side of the
+  face. This means that such a Kernel needs appropriate
+  synchronisation (or colouring) to run in parallel.
 
-* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
+* ``GH_SUM`` is an example of a reduction and is the only reduction
+  currently supported in PSyclone. This metadata indicates that values
+  are summed over calls to Kernel code.
 
 For example:
 
@@ -348,14 +475,15 @@ field the 3rd argument specifies the function space that the field
 lives on. Supported function spaces are ``w0``, ``w1``, ``w2``, ``w3``,
 ``wtheta``, ``w2h`` and ``w2v``.
 
-For example:
+For example, the meta-data for a kernel that applies a Column-wise
+operator to a field might look like:
 
 ::
 
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD, GH_INC, W1),                                 &
-       arg_type(GH_FIELD*3, GH_WRITE, W2H),                            &
-       arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
+  type(arg_type) :: meta_args(3) = (/                     &
+       arg_type(GH_FIELD, GH_INC, W1),                    &
+       arg_type(GH_FIELD, GH_READ, W2H),                  &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, W1, W2H) &
        /)
 
 In some cases a Kernel may be written so that it works for fields and/or
@@ -370,12 +498,12 @@ operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
              code would be generated.
 
 It may be that a Kernel is written such that a field and/or operators
-may be on **any** function space. In this case the metadata should be
-specified as being one of ``any_space_1``, ``any_space_2``, ...,
-``any_space_9``. The reason for having different names is that a
-Kernel might be written to allow 2 or more arguments to be able to support any
-function space but for a particular call the function spaces may have
-to be the same as each other.
+may be on/map-between any function space(s). In this case the metadata
+should be specified as being one of ``any_space_1``, ``any_space_2``,
+..., ``any_space_9``. The reason for having different names is that a
+Kernel might be written to allow 2 or more arguments to be able to
+support any function space but for a particular call the function
+spaces may have to be the same as each other.
 
 In the example below, the first field entry supports any function space but
 it must be the same as the operator's ``to`` function space. Similarly,
@@ -417,51 +545,63 @@ need not be on the same space.
           always treated as if it is continuous in the horizontal,
           even if it is not.
 
+Valid Access Modes
+^^^^^^^^^^^^^^^^^^
+
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
-(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
-be read within a Kernel and this is specified in metadata using
-``GH_READ``. At least one kernel argument must be listed as being
-modified. When data is *modified* in a Kernel then the permitted access
-modes depend on the type of data it is and the function
-space it is on. Valid values are given in the table below.
+(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD``, ``GH_OPERATOR`` and
+``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this is
+specified in metadata using ``GH_READ``. At least one kernel argument
+must be listed as being modified. When data is *modified* in a Kernel
+then the permitted access modes depend on the type of data it is and
+the function space it is on. Valid values are given in the table
+below.
 
-=============     ============================    =======================
-Argument Type     Function space                  Access type
-=============     ============================    =======================
-GH_INTEGER        n/a                             GH_SUM (Built-ins only)
-GH_REAL           n/a                             GH_SUM (Built-ins only)
-GH_FIELD          Discontinuous (w3)              GH_WRITE
-GH_FIELD          Continuous (not w3)             GH_INC
-GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
-=============     ============================    =======================
+======================	============================    =======================
+Argument Type     	Function space                  Access type
+======================	============================    =======================
+GH_INTEGER        	n/a                             GH_SUM (Built-ins only)
+GH_REAL           	n/a                             GH_SUM (Built-ins only)
+GH_FIELD                Discontinuous (w3)              GH_WRITE
+GH_FIELD                Continuous (not w3)             GH_INC
+GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE
+GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
+======================  ============================    =======================
 
 Note that only Built-ins may modify scalar arguments. There is no
 restriction on the number and function-spaces of other quantities that
-a kernel can modify other than that it must modify at least one. If a
-kernel writes to quantities on different function spaces then PSyclone
-generates loop bounds appropriate to the largest iteration space. This
-means that if a single kernel updates one quantity on a continuous function
-space and one on a discontinuous space then the resulting loop will
-include cells in the level 1 halo since they are required for a
-quantity on a continuous space. As a consequence, any quantities on a
-discontinuous space will then be computed redundantly in the level 1
-halo. Currently PSyclone makes no attempt to take advantage of this
-(by e.g. setting the appropriate level-1 halo to 'clean').
+a general-purpose kernel can modify other than that it must modify at
+least one. The rules for kernels involving CMA operators, however, are
+stricter and only one argument may be modified (the CMA operator
+itself for assembly, a field for CMA-application and a CMA operator
+for matrix-matrix kernels). If a kernel writes to quantities on
+different function spaces then PSyclone generates loop bounds
+appropriate to the largest iteration space. This means that if a
+single kernel updates one quantity on a continuous function space and
+one on a discontinuous space then the resulting loop will include
+cells in the level 1 halo since they are required for a quantity on a
+continuous space. As a consequence, any quantities on a discontinuous
+space will then be computed redundantly in the level 1 halo. Currently
+PSyclone makes no attempt to take advantage of this (by e.g. setting
+the appropriate level-1 halo to 'clean').
 
-PSyclone ensures that operators are computed (redundantly) out to the
-level-1 halo cells. This permits their use in kernels which modify
-quantities on continuous function spaces and also in subsequent
-redundant computation of other quantities on discontinuous function
-spaces. In conjunction with this, PSyclone also checks (when
-generating the PSy layer) that any kernels which read operator values
-do not do so beyond the level-1 halo. If any such accesses are found
-then PSyclone aborts.
+PSyclone ensures that both CMA and LMA operators are computed
+(redundantly) out to the level-1 halo cells. This permits their use in
+kernels which modify quantities on continuous function spaces and also
+in subsequent redundant computation of other quantities on
+discontinuous function spaces. In conjunction with this, PSyclone also
+checks (when generating the PSy layer) that any kernels which read
+operator values do not do so beyond the level-1 halo. If any such
+accesses are found then PSyclone aborts.
 
-Finally, field metadata supports an optional 4th argument which
-specifies that the field is accessed as a stencil operation within the
-Kernel. Stencil metadata only makes sense if the associated field
-is read within a Kernel i.e. it only makes sense to specify stencil
+Stencil Metadata
+^^^^^^^^^^^^^^^^
+
+Field metadata supports an optional 4th argument which specifies that
+the field is accessed as a stencil operation within the
+Kernel. Stencil metadata only makes sense if the associated field is
+read within a Kernel i.e. it only makes sense to specify stencil
 metadata if the first entry is ``GH_FIELD`` and the second entry is
 ``GH_READ``.
 
@@ -528,6 +668,42 @@ Below is an example of stencil information within the full kernel metadata.
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
 
+Column-wise Operators (CMA)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In this section we provide example metadata for each of the three
+recognised kernel types involving CMA operators.
+
+Column-wise operators are constructed from cell-wise (local) operators.
+Therefore, in order to **assemble** a CMA operator, a kernel must have at
+least one read-only LMA operator, e.g.:
+::
+  type(arg_type) :: meta_args(2) = (/                                       &
+       arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
+       /)
+
+CMA operators (and their inverse) are **applied** to fields. Therefore any
+kernel of this type must have one read-only CMA operator, one read-only
+field and a field that is updated, e.g.:
+::
+  type(arg_type) :: meta_args(3) = (/                                      &
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
+       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+       /)
+
+**Matrix-matrix** kernels compute the product of CMA operators. They must
+therefore have one such operator that is updated while the rest are
+read-only, e.g.:
+::
+   type(arg_type) :: meta_args(3) = (/ &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)   & /)
+
+.. note:: The order with which arguments are specified in meta-data for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
+
 meta_funcs
 ##########
 
@@ -582,10 +758,10 @@ required.
 iterates over
 #############
 
-The fourth type of metadata provided is ``ITERATES_OVER``. This specifies
-that the Kernel has been written with the assumption that it is
-iterating over the specified entity. Currently this only has one valid
-value which is ``CELLS``.
+The fourth type of metadata provided is ``ITERATES_OVER``. This
+specifies that the Kernel has been written with the assumption that it
+is iterating over the specified entity. For user-supplied kernels this
+currently only has one valid value which is ``CELLS``.
 
 Procedure
 #########
@@ -605,21 +781,33 @@ Subroutine
 
 .. _stub-generation-rules:
 
-Rules
-#####
+Rules for General-Purpose Kernels
+#################################
 
-Kernel arguments follow a set of rules which have been specified for
+The arguments to general-purpose kernels (those that do not involve
+CMA operators) follow a set of rules which have been specified for
 the dynamo0.3 API. These rules are encoded in the ``generate()``
 method within the ``ArgOrdering`` abstract class in the
 ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
 conventions, are:
 
-1) If an operator is passed then include the ``cells`` argument. ``cells`` is an integer and has intent ``in``.
-2) Include ``nlayers``, the number of layers in a column. ``nlayers`` is an integer and has intent ``in``.
-3) For each scalar/field/vector_field/operator in the order specified by the meta_args metadata:
+1) If an LMA operator is passed then include the ``cells`` argument.
+   ``cells`` is an integer and has intent ``in``.
+2) Include ``nlayers``, the number of layers in a column. ``nlayers``
+   is an integer and has intent ``in``.
+3) For each scalar/field/vector_field/operator in the order specified by
+   the meta_args metadata:
 
-    1) if the current entry is a scalar quantity then include the Fortran variable in the argument list. The intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
-    2) if the current entry is a field then include the field array. The field array name is currently specified as being ``"field_"<argument_position>"_"<field_function_space>``. A field array is a real array of type ``r_def`` and dimensioned as the unique degrees of freedom for the space that the field operates on. This value is passed in separately. Again, the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+    1) if the current entry is a scalar quantity then include the Fortran
+       variable in the argument list. The intent is determined from the
+       metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
+    2) if the current entry is a field then include the field array. The
+       field array name is currently specified as being
+       ``"field_"<argument_position>"_"<field_function_space>``. A field
+       array is a real array of type ``r_def`` and dimensioned as the
+       unique degrees of freedom for the space that the field operates on.
+       This value is passed in separately. Again, the intent is determined
+       from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
        1) If the field entry has a stencil access then add an integer stencil-size argument with intent ``in``. This will supply the number of cells in the stencil.
        2) If the field entry stencil access is of type ``XORY1D`` then add an integer direction argument with intent ``in``.
@@ -660,6 +848,140 @@ conventions, are:
        1) If ``quadrature_type_XYZ`` pass in ``w_XZY(n_xyz)``
        2) If ``quadrature_type_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_z(n_z)``
        3) If ``quadrature_type_XoYoZ`` pass in ``w_X(n_x)``, ``w_Y(n_y)`` and ``w_z(n_z)``
+
+Rules for CMA Kernels
+#####################
+
+Kernels involving CMA operators are restricted to just three types;
+assembly, application/inverse-application and matrix-matrix.
+We give the rules for each of these in the sections below.
+
+Assembly
+^^^^^^^^
+
+An assembly kernel requires the column-banded dofmap for both the to-
+and from-function spaces of the CMA operator being assembled as well
+as the number of dofs for each of the dofmaps. The full set of rules is:
+
+    1) Include the ``cell`` argument. ``cell`` is an integer and has
+       intent ``in``.
+    2) Include ``nlayers``, the number of layers in a column. ``nlayers``
+       is an integer and has intent ``in``.
+    3) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+       an integer with intent ``in``.
+    4) Include the total number of cells, ``ncell_3d``, which is an integer
+       with intent ``in``.
+    5) For each argument in the ``meta_args`` meta-data array:
+       
+       1) If it is a LMA operator, include a real, 3-dimensional
+          array of type ``r_def``. The first two dimensions are the local
+          degrees of freedom for the ``to`` and ``from`` spaces,
+          respectively. The third dimension is ``ncell_3d``.
+	  
+       2) If it is a CMA operator, include a real, 3-dimensional array
+          of type ``r_def``. The first dimension is is
+          ``"bandwidth_"<operator_name>``, the second is
+          ``"nrow_"<operator_name>``, and the third is ``ncell_2d``.
+	  
+	  1) Include the number of rows in the banded matrix.  This is
+	     an integer with intent ``in`` and is named as
+	     ``"nrow_"<operator_name>``.
+          2) If the from-space of the operator is *not* the same as the 
+	     to-space then include the number of columns in the banded
+	     matrix.  This is an integer with intent ``in`` and is named as
+	     ``"ncol_"<operator_name>``.
+	  3) Include the bandwidth of the banded matrix. This is an
+	     integer with intent ``in`` and is named as
+	     ``"bandwidth_"<operator_name>``.
+	  4) Include banded-matrix parameter ``alpha``. This is an integer
+	     with intent ``in`` and is named as ``"alpha_"<operator_name>``.
+	  5) Include banded-matrix parameter ``beta``. This is an integer
+	     with intent ``in`` and is named as ``"beta_"<operator_name>``.
+	  6) Include banded-matrix parameter ``gamma_m``. This is an integer
+	     with intent ``in`` and is named as ``"gamma_m_"<operator_name>``.
+	  7) Include banded-matrix parameter ``gamma_p``. This is an integer
+	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
+
+    6) Include the required dofmaps and their dimensions:
+
+       1) Include ``ndf_to``, the number of degrees of freedom per cell for
+	  the to-space of the CMA operator. This is an integer with intent
+	  ``in``.
+       2) If the from-space of the operator is *not* the same as the 
+	  to-space then include ``ndf_from``, the number of degrees of
+	  freedom per cell for the from-space of the CMA operator. This is
+	  an integer with intent ``in``.
+       3) Include ``column_banded_dofmap_to``, the list of offsets for the
+	  to-space. This is an integer array of rank 2. The first dimension
+	  is ``ndf_to`` and the second is ``nlayers``.
+       4) If the from-space of the operator is *not* the same as the 
+	  to-space then include ``column_banded_dofmap_from``, the list of
+	  offsets for the from-space. This is an integer array of rank 2. The
+	  first dimension is ``ndf_from`` and the second is ``nlayers``.
+
+Application/Inverse-Application
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A kernel applying a CMA operator requires the column-indirection
+dofmap for both the to- and from-function spaces of the CMA
+operator. Since it does not have any LMA operator arguments it does
+not require the ``ncell_3d`` and ``nlayers`` scalar arguments.
+The full set of rules is then:
+
+    1) Include the ``cell`` argument. ``cell`` is an integer and has
+       intent ``in``.
+    2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+       an integer with intent ``in``.
+    3) For each argument in the ``meta_args`` meta-data array:
+
+       1) If it is a field, include the field array. This is a real
+          array of kind ``r_def`` and is of rank 1.  The field array name
+	  is currently specified as being
+	  ``"field_"<argument_position>"_"<field_function_space>``. The
+	  extent of the array is the number of unique degrees of freedom
+	  for the function space that the field is on.  This value is
+	  passed in separately. The intent of the argument is determined
+	  from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+
+       2) If it is a CMA operator, include it and its associated
+          parameters (see Rule 5 of CMA Assembly kernels).
+
+    4) For each of the unique function spaces encountered in the
+       meta-data arguments (the ``to`` function space of an operator
+       is considered to be before the ``from`` function space of the
+       same operator as it appears first in lexicographic order):
+
+       1) Include the number of degrees of freedom for the associated
+	  function space. This is an integer with intent ``in``. The name
+	  of this argument is ``"ndf_"<field_function_space>``.
+       2) Include the number of unique degrees of freedom for the associated
+	  function space. This is an integer with intent ``in``. The name
+	  of this argument is ``"undf_"<field_function_space>``.
+       3) Include the dofmap for this function space. This is a rank-1 integer
+	  array with extent equal to the number of degrees of freedom of
+	  the space (``"ndf_"<field_function_space>``).
+
+    5) Include the indirection map for the to-space of the CMA operator.
+       This is a rank-1 integer array with extent ``nrow``.
+    6) If the from-space of the operator is *not* the same as the to-space
+       then include the indirection map for the from-space of the CMA operator.
+       This is a rank-1 integer array with extent ``ncol``.
+
+Matrix-Matrix
+^^^^^^^^^^^^^
+
+Does not require any dofmaps and also does not require the ``nlayers``
+and ``ncell_3d`` scalar arguments. The full set of rules are then:
+
+    1) Include the ``cell`` argument. ``cell`` is an integer and has
+       intent ``in``.
+    2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
+       an integer with intent ``in``.
+    3) For each (CMA operator) argument specifed in meta-data:
+
+       1) Include it and its associated parameters (see Rule 5 of CMA
+	  Assembly kernels).
+
 
 .. _dynamo_built-ins:
 

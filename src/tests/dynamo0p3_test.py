@@ -1,10 +1,41 @@
 # -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -409,7 +440,7 @@ def test_fs_desc_invalid_op_type():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert '2nd argument and all subsequent arguments of a meta_func ' + \
-        'entry should be a valid operator name' in str(excinfo.value)
+        'entry should be one of' in str(excinfo.value)
 
 
 def test_fs_desc_replicated_op_type():
@@ -3985,12 +4016,12 @@ def test_arg_descriptor_function_space_tofrom_error():
     field_descriptor = metadata.arg_descriptors[0]
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space_to
-    assert 'function_space_to only makes sense for a gh_operator' \
-        in str(excinfo.value)
+    assert ("function_space_to only makes sense for one of ['gh_operator', "
+            "'gh_columnwise_operator']") in str(excinfo.value)
     with pytest.raises(RuntimeError) as excinfo:
         _ = field_descriptor.function_space_from
-    assert 'function_space_from only makes sense for a gh_operator' \
-        in str(excinfo.value)
+    assert ("function_space_from only makes sense for one of ['gh_operator', "
+            "'gh_columnwise_operator']") in str(excinfo.value)
 
 
 def test_mangle_no_space_error():
