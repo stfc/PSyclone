@@ -1128,7 +1128,8 @@ def translate_ast(node, parent, indent=0, debug=False):
     identified as kernels with the corresponding Kernel object. '''
     from fparser import Fortran2003
     from habakkuk.parse2003 import walk_ast
-    from nemo0p1 import NEMOLoop, NEMOCodeBlock, NEMOKern3D, NEMOKern2D
+    from nemo0p1 import NEMOLoop, NEMOCodeBlock, NEMOKern3D, NEMOKern2D, \
+        NEMO_LOOP_TYPE_MAPPING
     cblock_list = []
     # Depending on their level in the tree produced by fparser2003,
     # some nodes have children listed in .content and some have them
@@ -1199,11 +1200,27 @@ def translate_ast(node, parent, indent=0, debug=False):
             
             else:
                 # TODO identify correct loop type
-                loop = NEMOLoop(parent=node, loop_type="lon")
+                if loop_var in NEMO_LOOP_TYPE_MAPPING:
+                    ltype = NEMO_LOOP_TYPE_MAPPING[loop_var]
+                else:
+                    ltype = "unknown"
+                loop = NEMOLoop(parent=node, loop_type=ltype)
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
         else:
-            code_block_statements.append(child)
+            # Add this node in the AST to our list for the current
+            # code block (unless it is loop-related in which case we
+            # ignore it)
+            if type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
+                                   fparser.Fortran2003.End_Do_Stmt]:
+                code_block_statements.append(child)
  
+
+    if code_block_statements:
+        # Finish any open code block
+        code_block = NEMOCodeBlock(code_block_statements,
+                                   parent=node)
+        node.addchild(code_block)
+        code_block_statements = []
 
     return
