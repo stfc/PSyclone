@@ -2,8 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
@@ -80,8 +78,13 @@ VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
                        VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write",
-                                 "gh_inc"] + VALID_REDUCTION_NAMES
+# List of all access types that involve writing to an argument
+# in some form
+GH_WRITE_ACCESSES = ["gh_write", "gh_inc"] + VALID_REDUCTION_NAMES
+# List of all access types that only involve reading an argument
+GH_READ_ACCESSES = ["gh_read"]
+VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ACCESSES + GH_WRITE_ACCESSES
+
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -760,7 +763,7 @@ class DynKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access != "gh_read":
+            if cop.access not in GH_READ_ACCESSES:
                 write_count += 1
 
         if write_count == 0:
@@ -784,11 +787,10 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
-                                           arg_accesses=["gh_read"])
+                                           arg_accesses=GH_READ_ACCESSES)
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
-                                            arg_accesses=["gh_write",
-                                                          "gh_inc"])
+                                            arg_accesses=GH_WRITE_ACCESSES)
             if len(farg_read) != 1:
                 raise ParseError(
                     "Kernel {0} has a read-only CMA operator. In order "
@@ -816,16 +818,23 @@ class DynKernMetadata(KernelType):
                                    cma_op.function_space_to))
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
+
         elif write_count == 1:
-            # This kernel must either be assembling a CMA operator
+            # This kernel writes to a single CMA operator and therefore
+            # must either be assembling a CMA operator
             # or performing a matrix-matrix operation...
             # The kernel must not write to any args other than the CMA
             # operator
-            write_args = psyGen.args_filter(
-                self._arg_descriptors,
-                arg_types=["gh_operator", "gh_field", "gh_real", "gh_integer"],
-                arg_accesses=["gh_inc", "gh_write"])
-            if write_args:
+            write_args = psyGen.args_filter(self._arg_descriptors,
+                                            arg_accesses=GH_WRITE_ACCESSES)
+            if len(write_args) > 1:
+                # Remove the one CMA operator from the list of arguments
+                # that are written to so that we can produce a nice
+                # error message
+                for arg in write_args[:]:
+                    if arg.type == 'gh_columnwise_operator':
+                        write_args.remove(arg)
+                        break
                 raise ParseError(
                     "Kernel {0} writes to a column-wise operator but "
                     "also writes to {1} argument(s). This is not "
@@ -833,11 +842,11 @@ class DynKernMetadata(KernelType):
                                       [arg.type for arg in write_args]))
             if len(cwise_ops) == 1:
 
-                # If this is an assembly kernel then we need at least one
+                # If this is a valid assembly kernel then we need at least one
                 # read-only LMA operator
-                lma_read_ops = psyGen.args_filter(self._arg_descriptors,
-                                                  arg_types=["gh_operator"],
-                                                  arg_accesses=["gh_read"])
+                lma_read_ops = psyGen.args_filter(
+                    self._arg_descriptors,
+                    arg_types=["gh_operator"], arg_accesses=GH_READ_ACCESSES)
                 if lma_read_ops:
                     return "assembly"
                 else:
@@ -942,7 +951,7 @@ class DynamoInvokes(Invokes):
 
     def __init__(self, alg_calls):
         self._name_space_manager = NameSpaceFactory().create()
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._0_to_n = DynInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke)
 
@@ -1231,7 +1240,7 @@ class DynInvokeDofmaps(object):
                         call.arguments.args,
                         arg_types=["gh_columnwise_operator"])
                     map_name = get_cbanded_map_name(
-                            cma_args[0].function_space_to)
+                        cma_args[0].function_space_to)
                     if map_name not in self._unique_cbanded_maps:
                         self._unique_cbanded_maps[map_name] = [cma_args[0],
                                                                "to"]
@@ -2504,7 +2513,7 @@ class DynKern(Kern):
     instance or to generate a Kernel stub'''
 
     def __init__(self):
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -3954,7 +3963,8 @@ class DynKernelArguments(Arguments):
     collectively, as specified by the kernel argument metadata. '''
 
     def __init__(self, call, parent_call):
-        if False:  # for pyreverse
+        if False:  # pylint: disable=using-constant-test
+            # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
 
         self._name_space_manager = NameSpaceFactory().create()
@@ -4085,7 +4095,7 @@ class DynKernelArguments(Arguments):
         # check whether this kernel writes to an operator
         op_args = psyGen.args_filter(self._args,
                                      arg_types=VALID_OPERATOR_NAMES,
-                                     arg_accesses=["gh_write", "gh_inc"])
+                                     arg_accesses=GH_WRITE_ACCESSES)
         if op_args:
             return op_args[0]
 
@@ -4099,7 +4109,7 @@ class DynKernelArguments(Arguments):
         # larger (include L1 halo cells)
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
-                                      arg_accesses=["gh_write", "gh_inc"])
+                                      arg_accesses=GH_WRITE_ACCESSES)
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
