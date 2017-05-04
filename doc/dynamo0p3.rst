@@ -1154,6 +1154,21 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type),    intent(in) :: *field2*
 
+inc_xpby
++++++++++
+
+**inc_xpby** (*field1*, *b*, *field2*)
+
+Performs:
+
+field1(:) = field1(:) + b*field2(:)
+
+where:
+
+    real(r_def), intent(in) :: b
+    type(field_type), intent(inout) :: field1
+    type(field_type), intent(in) :: field2
+
 minus_fields
 ++++++++++++
 
