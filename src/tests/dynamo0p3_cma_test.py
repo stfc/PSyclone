@@ -52,7 +52,7 @@ import fparser
 from fparser import api as fpapi
 from parse import ParseError, parse
 from dynamo0p3 import DynKernMetadata
-from psyGen import PSyFactory
+from psyGen import PSyFactory, GenerationError
 from genkernelstub import generate
 
 # constants
@@ -600,6 +600,28 @@ def test_cma_mdata_matrix_vector_error():  # pylint: disable=invalid-name
             "argument (gh_columnwise_operator*3)") in str(excinfo)
 
 
+def test_cma_asm_cbanded_dofmap_error():  # pylint: disable=invalid-name
+    ''' Check that we raise expected internal error if DynInvokeDofmaps
+    encounters an assembly kernel that has more than one CMA op argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.0_cma_assembly.f90"),
+        distributed_memory=True,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    calls = invoke.schedule.calls()
+    # We must go in and make the internal state inconsistent in order
+    # to trigger the error. So, we set the type of all the arguments
+    # in the kernel cal to be CMA operators...
+    for arg in calls[0].arguments.args:
+        arg._type = 'gh_columnwise_operator'
+    with pytest.raises(GenerationError) as excinfo:
+        invoke.dofmaps.__init__(invoke.schedule)
+    assert ("Internal error: there should only be one CMA operator argument "
+            "for a CMA assembly kernel but found 2") in str(excinfo)
+
 def test_cma_asm():
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator '''
@@ -770,6 +792,30 @@ def test_cma_asm_field_same_fs():
         # We do not perform halo swaps for operators
         assert "lma_op1_proxy%is_dirty(" not in code
         assert "cma_op1_proxy%is_dirty(" not in code
+
+
+def test_cma_apply_indirection_dofmap_error():  # pylint: disable=invalid-name
+    ''' Check that we raise expected internal error if DynInvokeDofmaps
+    encounters an apply kernel that has more than one CMA op argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.1_cma_apply.f90"),
+        distributed_memory=True,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    calls = invoke.schedule.calls()
+    # We must go in and make the internal state inconsistent in order
+    # to trigger the error. So, we set the type of all the arguments
+    # in the kernel cal to be CMA operators...
+    for arg in calls[0].arguments.args:
+        arg._type = 'gh_columnwise_operator'
+    with pytest.raises(GenerationError) as excinfo:
+        invoke.dofmaps.__init__(invoke.schedule)
+    assert ("Internal error: there should only be one CMA "
+            "operator argument for a kernel that applies a "
+            "CMA operator but found 3") in str(excinfo)
 
 
 def test_cma_apply():

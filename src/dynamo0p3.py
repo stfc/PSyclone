@@ -1239,6 +1239,14 @@ class DynInvokeDofmaps(object):
                     cma_args = psyGen.args_filter(
                         call.arguments.args,
                         arg_types=["gh_columnwise_operator"])
+
+                    # Sanity check - we expect only one CMA argument
+                    if len(cma_args) != 1:
+                        raise GenerationError(
+                            "Internal error: there should only be one CMA "
+                            "operator argument for a CMA assembly kernel but "
+                            "found {0}".format(len(cma_args)))
+
                     map_name = get_cbanded_map_name(
                         cma_args[0].function_space_to)
                     if map_name not in self._unique_cbanded_maps:
@@ -1258,6 +1266,14 @@ class DynInvokeDofmaps(object):
                     cma_args = psyGen.args_filter(
                         call.arguments.args,
                         arg_types=["gh_columnwise_operator"])
+
+                    # Sanity check - we expect only one CMA argument
+                    if len(cma_args) != 1:
+                        raise GenerationError(
+                            "Internal error: there should only be one CMA "
+                            "operator argument for a kernel that applies a "
+                            "CMA operator but found {0}".format(len(cma_args)))
+
                     map_name = get_cma_indirection_map_name(
                         cma_args[0].function_space_to)
                     if map_name not in self._unique_indirection_maps:
