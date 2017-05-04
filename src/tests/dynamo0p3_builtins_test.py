@@ -1943,6 +1943,95 @@ def test_innerprod():
             assert "      TYPE(scalar_type) global_sum\n" in code
 
 
+def test_innerselfprod_str():
+    ''' Test the str method of DynInnerSelfProductKern '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.1_inner_self_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: inner_self_product"
+
+
+def test_innerselfprod():
+    ''' Test that we produce correct code for the inner product of 
+    a vector by itself built-in '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.1_inner_self_prod_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        output = (
+            "      !\n"
+            "      ! Initialise field proxies\n"
+            "      !\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of layers\n"
+            "      !\n"
+            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+            "      !\n")
+        assert output in code
+
+        if not distmem:
+            output_seq = (
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n")
+            assert output_seq in code
+
+        if distmem:
+            mesh_code_present(code)
+            output_dm = (
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      !\n")
+            assert output_dm in code
+            assert "      USE scalar_mod, ONLY: scalar_type" in code
+            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+            assert "      TYPE(scalar_type) global_sum\n" in code
+
+
 def test_sumfield_str():
     ''' Test the str method of DynSumFieldKern '''
     for distmem in [False, True]:
@@ -2150,3 +2239,4 @@ def test_scalar_int_builtin_error(monkeypatch):
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
                 "'gh_real'] but kernel set_field_scalar_code has an argument "
                 "of type gh_integer" in str(excinfo))
+

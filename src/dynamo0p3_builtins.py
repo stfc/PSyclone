@@ -474,6 +474,22 @@ class DynInnerProductKern(DynBuiltIn):
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
+class DynInnerSelfProductKern(DynBuiltIn):
+    ''' Calculates the inner product of one field by itself,
+    asum = SUM( field1(:)*field1(:) ) '''
+
+    def __str__(self):
+        return "Built-in: inner_self_product"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We sum the dof-wise product of the supplied fields. The variable
+        # holding the sum is initialised to zero in the psy layer.
+        sum_name = self._reduction_ref(self._arguments.args[1].name)
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name1
+        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+
 
 # The built-in operations that we support for this API. The meta-data
 # describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
@@ -489,6 +505,7 @@ BUILTIN_MAP = {"axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
                "inc_multiply_field": DynIncMultiplyFieldKern,
                "inc_xpby": DynIncXPBYKern,
                "inner_product": DynInnerProductKern,
+               "inner_self_product": DynInnerSelfProductKern,
                "minus_fields": DynSubtractFieldsKern,
                "multiply_fields": DynMultiplyFieldsKern,
                "plus_fields": DynAddFieldsKern,

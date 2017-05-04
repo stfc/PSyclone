@@ -1183,6 +1183,24 @@ where:
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
+inner_self_product
+++++++++++++++++++
+
+**inner_self_product** (*field1*, *sumval*)
+
+Computes the inner product of the field *field1* by itself, *i.e.*: ::
+
+   sumval = SUM(field1(:)*field1(:))
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* real(r_def), intent(out) :: *sumval*
+
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
 minus_fields
 ++++++++++++
 

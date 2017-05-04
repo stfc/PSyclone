@@ -171,6 +171,18 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inner_product_code
   end type inner_product
 
+  !> sum = sum + field1(i,j,..) * field1(i,j,...)
+  type, public, extends(kernel_type) :: inner_self_product
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_SUM              )                    &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inner_self_product_code
+  end type inner_self_product
+
   !> field3 = field1 - field2
   type, public, extends(kernel_type) :: minus_fields
      private
@@ -284,6 +296,9 @@ contains
   subroutine inner_product_code()
   end subroutine inner_product_code
 
+  subroutine inner_self_product_code()
+  end subroutine inner_self_product_code
+
   subroutine minus_fields_code()
   end subroutine minus_fields_code
 
@@ -301,5 +316,5 @@ contains
 
   subroutine sum_field_code()
   end subroutine sum_field_code
-  
+
 end module dynamo0p3_builtins_mod
