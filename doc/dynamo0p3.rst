@@ -1141,7 +1141,7 @@ inc_multiply_field
 
 **inc_multiply_field** (*field1*, *field2*)
 
-Multiplies the first field by the second and returns it:
+Multiplies the first field by the second and returns it: ::
 
    field1(:) = field1(:) * field2(:)
 
