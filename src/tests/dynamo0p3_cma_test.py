@@ -508,7 +508,7 @@ def test_cma_mdata_matrix_field_arg():
             "has: ['gh_field', ") in str(excinfo)
 
 
-def test_cma_mdata_matrix_no_scalar_arg():
+def test_cma_mdata_matrix_no_scalar_arg():  # pylint: disable=invalid-name
     ''' Check that we successfully parse meta-data for a matrix-matrix kernel
     that has no scalar arguments. '''
     fparser.logging.disable('CRITICAL')
@@ -522,7 +522,7 @@ def test_cma_mdata_matrix_no_scalar_arg():
     assert dkm._cma_operation == "matrix-matrix"
 
 
-def test_cma_mdata_matrix_2_scalar_args():
+def test_cma_mdata_matrix_2_scalar_args():   # pylint: disable=invalid-name
     ''' Check that we successfully parse meta-data for a matrix-matrix kernel
     that has 2 scalar arguments. '''
     fparser.logging.disable('CRITICAL')
@@ -1316,7 +1316,7 @@ def test_cma_mul_stub_gen():
     assert expected in str(result)
 
 
-def test_cma_mul_with_scalars_stub_gen():
+def test_cma_mul_with_scalars_stub_gen():  # pylint: disable=invalid-name
     ''' Test the kernel-stub generator for a CMA matrix-matrix kernel that
     includes scalar arguments '''
     result = generate(
