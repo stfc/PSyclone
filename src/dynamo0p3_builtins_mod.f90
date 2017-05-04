@@ -133,6 +133,19 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_field_code
   end type inc_field
 
+  !> field1 = field1 + b*field2
+  type, public, extends(kernel_type) :: inc_xpby
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
+          arg_type(GH_REAL,  GH_READ             ),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inc_xpby_code
+  end type inc_xpby
+
   !> sum = sum + field1(i,j,..) * field2(i,j,...)
   type, public, extends(kernel_type) :: inner_product
      private
@@ -221,19 +234,6 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: sum_field_code
   end type sum_field
 
-  !> field1 = field1 + b*field2
-  type, public, extends(kernel_type) :: inc_xpby
-     private
-     type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
-          arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
-          /)
-     integer :: iterates_over = DOFS
-   contains
-     procedure, nopass :: inc_xpby_code
-  end type inc_xpby
-
 contains
 
   subroutine axpby_code()
@@ -263,6 +263,9 @@ contains
   subroutine inc_field_code()
   end subroutine inc_field_code
 
+  subroutine inc_xpby_code()
+  end subroutine inc_xpby_code
+
   subroutine inner_product_code()
   end subroutine inner_product_code
 
@@ -283,8 +286,5 @@ contains
 
   subroutine sum_field_code()
   end subroutine sum_field_code
-
-  subroutine inc_xpby_code()
-  end subroutine inc_xpby_code
   
 end module dynamo0p3_builtins_mod

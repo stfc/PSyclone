@@ -417,6 +417,25 @@ class DynIncAXPBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
 
 
+class DynIncXPBYKern(DynBuiltIn):
+    ''' x = x + b.y where 'b' is a scalar and 'x' and 'y' are
+    fields '''
+
+    def __str__(self):
+        return "Built-in: INC_XPBY"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
+        # add it to the corresponding element of a first field f1 (1st arg)
+        # and write the value to back into the element of field f1.
+        scalar_name = self._arguments.args[1].name
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = invar_name1 + " + " + scalar_name + "*" + invar_name2
+        parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
+
+
 class DynInnerProductKern(DynBuiltIn):
     ''' Calculates the inner product of two fields,
     asum = SUM( field1(:)*field2(:) ) '''
@@ -446,6 +465,7 @@ BUILTIN_MAP = {"axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
                "divide_field": DynDivideFieldKern,
                "divide_fields": DynDivideFieldsKern,
                "inc_field": DynIncFieldKern,
+               "inc_xpby": DynIncXPBYKern,
                "inner_product": DynInnerProductKern,
                "minus_fields": DynSubtractFieldsKern,
                "multiply_fields": DynMultiplyFieldsKern,

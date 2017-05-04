@@ -17,8 +17,6 @@ program single_invoke
 
   b = 0.8
 
-  call invoke(                      &
-              inc_xpby(f1, b, f2)   &
-             )
+  call invoke( inc_xpby(f1, b, f2) )
 
 end program single_invoke
