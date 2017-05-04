@@ -981,13 +981,13 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
        intent ``in``.
     2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
        an integer with intent ``in``.
-    3) For each CMA operator argument specifed in meta-data:
+    3) For each CMA operator or scalar argument specifed in meta-data:
 
-       1) Include it and its associated parameters (see Rule 5 of CMA
-	  Assembly kernels).
+       1) If it is a CMA operator, include it and its associated
+	  parameters (see Rule 5 of CMA Assembly kernels).
 
-    4) For each scalar argument specified in meta-data include the
-       Fortran variable in the argument list with intent ``in``.
+       2) If it is a scalar argument include the corresponding Fortran
+	  variable in the argument list with intent ``in``.
 
 .. _dynamo_built-ins:
 
