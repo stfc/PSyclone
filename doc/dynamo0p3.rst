@@ -1122,24 +1122,6 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
-inner_product
-+++++++++++++
-
-**inner_product** (*field1*, *field2*, *sumval*)
-
-Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
-
-  sumval = SUM(field1(:)*field2(:))
-
-where:
-
-* type(field_type), intent(in) :: *field1*, *field2*
-* real(r_def), intent(out) :: *sumval*
-
-.. note:: when used with distributed memory this built-in will trigger
-          the addition of a global sum which may affect the
-          performance and/or scalability of the code.
-
 inc_field
 +++++++++
 
@@ -1168,6 +1150,24 @@ where:
     real(r_def), intent(in) :: b
     type(field_type), intent(inout) :: field1
     type(field_type), intent(in) :: field2
+
+inner_product
++++++++++++++
+
+**inner_product** (*field1*, *field2*, *sumval*)
+
+Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+
+  sumval = SUM(field1(:)*field2(:))
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* real(r_def), intent(out) :: *sumval*
+
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
 
 minus_fields
 ++++++++++++

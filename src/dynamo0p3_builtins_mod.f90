@@ -61,10 +61,10 @@ module dynamo0p3_builtins_mod
   !> field1 = a*field1 + field2
   type, public, extends(kernel_type) :: inc_axpy
      private
-     type(arg_type) :: meta_args(3) = (/                             &
-          arg_type(GH_REAL,  GH_READ             ),                  &
-          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                   &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_REAL,  GH_READ             ),                   &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -74,9 +74,9 @@ module dynamo0p3_builtins_mod
   !> field2 = field1
   type, public, extends(kernel_type) :: copy_field
      private
-     type(arg_type) :: meta_args(2) = (/                                &
-          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                    &
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                 &
+          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                  &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -111,10 +111,10 @@ module dynamo0p3_builtins_mod
   !> field3 = field1 / field2
   type, public, extends(kernel_type) :: divide_fields
      private
-     type(arg_type) :: meta_args(3) = (/                               &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -124,9 +124,9 @@ module dynamo0p3_builtins_mod
   !> field1 = field1 + field2
   type, public, extends(kernel_type) :: inc_field
      private
-     type(arg_type) :: meta_args(2) = (/                               &
-          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                    &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                     &
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -149,10 +149,10 @@ module dynamo0p3_builtins_mod
   !> sum = sum + field1(i,j,..) * field2(i,j,...)
   type, public, extends(kernel_type) :: inner_product
      private
-     type(arg_type) :: meta_args(3) = (/                             &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_SUM              )                   &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_SUM              )                    &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -162,10 +162,10 @@ module dynamo0p3_builtins_mod
   !> field3 = field1 - field2
   type, public, extends(kernel_type) :: minus_fields
      private
-     type(arg_type) :: meta_args(3) = (/                               &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -175,10 +175,10 @@ module dynamo0p3_builtins_mod
   !> field3(:) = field1(:) * field2(:)
   type, public, extends(kernel_type) :: multiply_fields
      private
-     type(arg_type) :: meta_args(3) = (/                               &
-          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                   &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                 &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                 &
+          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                  &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -188,10 +188,10 @@ module dynamo0p3_builtins_mod
   !> field3 = field1 + field2
   type, public, extends(kernel_type) :: plus_fields
      private
-     type(arg_type) :: meta_args(3) = (/                               &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -201,9 +201,9 @@ module dynamo0p3_builtins_mod
   !> field1 = ascalar * field1
   type, public, extends(kernel_type) :: scale_field
      private
-     type(arg_type) :: meta_args(2) = (/                             &
-          arg_type(GH_REAL,  GH_READ),                               &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1)                    &
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_REAL,  GH_READ),                                &
+          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1)                     &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -225,9 +225,9 @@ module dynamo0p3_builtins_mod
   !> scalar = SUM(field1(:,:,...))
   type, public, extends(kernel_type) :: sum_field
      private
-     type(arg_type) :: meta_args(2) = (/                             &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_SUM              )                   &
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_SUM              )                    &
           /)
      integer :: iterates_over = DOFS
    contains

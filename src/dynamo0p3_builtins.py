@@ -160,7 +160,7 @@ class DynScaleFieldKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # In this case we're multiplying each element of a field by the
-        # supplied scalar value
+        # supplied scalar value.
         var_name = self.array_ref(self._arguments.args[1].proxy_name)
         value = self._arguments.args[0].name
         parent.add(AssignGen(parent, lhs=var_name,
@@ -190,7 +190,8 @@ class DynSumFieldKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # Sum all the elements of a field
+        # Sum all the elements of a field. The variable holding the
+        # sum is initialised to zero in the psy layer.
         fld_name = self.array_ref(self._arguments.args[0].proxy_name)
         sum_name = self._reduction_ref(self._arguments.args[1].name)
         rhs_expr = sum_name + "+" + fld_name
@@ -222,7 +223,7 @@ class DynMultiplyFieldsKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
-        # of f1 and store the result in f3
+        # of f1 and store the result in f3.
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
@@ -241,7 +242,7 @@ class DynSubtractFieldsKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
-        # of f1 and store the result in f3
+        # of f1 and store the result in f3.
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
@@ -259,7 +260,7 @@ class DynAddFieldsKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We add each element of f2 to the corresponding element of f1
-        # and store the result in f3
+        # and store the result in f3.
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
@@ -276,7 +277,7 @@ class DynDivideFieldKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
-        # f2 and store the result in f3
+        # f2 and store the result back in f1.
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=invar_name1,
@@ -293,7 +294,7 @@ class DynDivideFieldsKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
-        # f2 and store the result in f3
+        # f2 and store the result in f3.
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
@@ -310,7 +311,7 @@ class DynIncFieldKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We add each element of f1 to the corresponding element of f2
-        # and store the result back in f1
+        # and store the result back in f1.
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=invar_name1,
@@ -327,7 +328,7 @@ class DynCopyScaledFieldKern(DynBuiltIn):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We multiply each element of f1 by the scalar argument and
-        # store the result in f2
+        # store the result in f2.
         scalar_name = self._arguments.args[0].name
         invar_name = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
@@ -364,6 +365,10 @@ class DynIncAXPYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
+         # We multiply one element of field f1 (2nd arg) by a scalar
+         # (1st arg), add it to the corresponding element of a 
+         # second field (3rd arg) and write the value back into 
+         # the element of field f1.
         scalar_name = self._arguments.args[0].name
         fld_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         fld_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -407,7 +412,7 @@ class DynIncAXPBYKern(DynBuiltIn):
         # We multiply one element of field f1 (2nd arg) by the first scalar
         # (1st arg), add it to the product of the corresponding element of
         # a second field (4th arg) with the second scalar (4rd arg) and
-        # write the value to back into the element of field f1.
+        # write the value back into the element of field f1.
         scalar_name1 = self._arguments.args[0].name
         scalar_name2 = self._arguments.args[2].name
         invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
@@ -428,7 +433,7 @@ class DynIncXPBYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
         # add it to the corresponding element of a first field f1 (1st arg)
-        # and write the value to back into the element of field f1.
+        # and write the value back into the element of field f1.
         scalar_name = self._arguments.args[1].name
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
