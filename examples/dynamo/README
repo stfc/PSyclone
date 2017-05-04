@@ -70,12 +70,12 @@ code parallelised with MPI:
     cd eg6/
     python ../../../src/generator.py alg.x90
 
-code parallelised with OpenMP (and loop fusion)
+code parallelised with OpenMP (and loop fused)
 ::
     cd eg6/
     python ../../../src/generator.py -nodm -s ./omp_script.py alg.x90
 
-or code parallelised with both MPI and OpenMP (and loop fusion)
+or code parallelised with both MPI and OpenMP (and loop fused)
 ::
     cd eg6/
     python ../../../src/generator.py -s ./omp_script.py alg.x90
