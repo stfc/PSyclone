@@ -859,8 +859,7 @@ class DynKernMetadata(KernelType):
                 # A valid matrix-matrix kernel must only have CMA operators
                 # and scalars as arguments.
                 scalar_args = psyGen.args_filter(
-                    self._arg_descriptors,
-                    arg_types=["gh_real", "gh_integer"])
+                    self._arg_descriptors, arg_types=VALID_SCALAR_NAMES)
                 if (len(scalar_args) + len(cwise_ops)) != \
                    len(self._arg_descriptors):
                     raise ParseError(
@@ -888,7 +887,7 @@ class DynKernMetadata(KernelType):
     def cma_operation(self):
         ''' Returns the type of CMA operation identified from the kernel
         meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
-        "" if the kernel does not involve CMA operators '''
+        None if the kernel does not involve CMA operators '''
         return self._cma_operation
 
 # Second section : PSy specialisations
@@ -1210,14 +1209,15 @@ class DynInvokeDofmaps(object):
         # are the corresponding field objects.
         self._unique_fs_maps = {}
         # We also create a dictionary of column-banded dofmaps. Entries
-        # in this one are a list where the first item is the
-        # corresponding CMA object and the second is whether the map
-        # corresponds to the 'to' or 'from' space.
+        # in this one are themselves dictionaries containing two entries:
+        # "argument" - the object holding information on the CMA kernel
+        #              argument
+        # "direction" - whether the dofmap is required for the "to" for
+        #               "from" function space of the operator.
         self._unique_cbanded_maps = {}
-        # A dictionary of required CMA indirection dofmaps. Each entry
-        # is a list where the first item correponds to the CMA object
-        # and the second is whether the map corresponds to the 'to' or
-        # 'from' space.
+        # A dictionary of required CMA indirection dofmaps. As with the
+        # column-banded dofmaps, each entry is itself a dictionary with
+        # "argument" and "direction" entries.
         self._unique_indirection_maps = {}
 
         for call in schedule.calls():
@@ -1242,13 +1242,15 @@ class DynInvokeDofmaps(object):
                     map_name = get_cbanded_map_name(
                         cma_args[0].function_space_to)
                     if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = [cma_args[0],
-                                                               "to"]
+                        self._unique_cbanded_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "to"}
                     map_name = get_cbanded_map_name(
                         cma_args[0].function_space_from)
                     if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = [cma_args[0],
-                                                               "from"]
+                        self._unique_cbanded_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "from"}
                 elif call.cma_operation == "apply":
                     # A kernel that applies (or applies the inverse of) a
                     # CMA operator requires the indirection dofmaps for the
@@ -1259,13 +1261,15 @@ class DynInvokeDofmaps(object):
                     map_name = get_cma_indirection_map_name(
                         cma_args[0].function_space_to)
                     if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = [cma_args[0],
-                                                                   "to"]
+                        self._unique_indirection_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "to"}
                     map_name = get_cma_indirection_map_name(
                         cma_args[0].function_space_from)
                     if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = [cma_args[0],
-                                                                   "from"]
+                        self._unique_indirection_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "from"}
 
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
@@ -1294,8 +1298,8 @@ class DynInvokeDofmaps(object):
 
             for dmap, cma in self._unique_cbanded_maps.items():
                 parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma[0].proxy_name_indexed +
-                                     "%column_banded_dofmap_"+cma[1]))
+                                     rhs=cma["argument"].proxy_name_indexed +
+                                     "%column_banded_dofmap_"+cma["direction"]))
 
         if self._unique_indirection_maps:
             parent.add(CommentGen(parent, ""))
@@ -1305,8 +1309,8 @@ class DynInvokeDofmaps(object):
 
             for dmap, cma in self._unique_indirection_maps.items():
                 parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma[0].proxy_name_indexed +
-                                     "%indirection_dofmap_"+cma[1]))
+                                     rhs=cma["argument"].proxy_name_indexed +
+                                     "%indirection_dofmap_"+cma["direction"]))
 
     def declare_dofmaps(self, parent):
         ''' Declare all unique function space dofmaps as pointers to
