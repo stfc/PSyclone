@@ -1086,7 +1086,7 @@ copy_scaled_field
 
 Multiplies a field by a scalar and stores the result in a second field: ::
   
-  field2(:) = value * field1(:)
+   field2(:) = value * field1(:)
 
 where:
 
@@ -1129,27 +1129,41 @@ inc_field
 
 Adds the second field to the first and returns it: ::
 
-  field1(:) = field1(:) + field2(:)
+   field1(:) = field1(:) + field2(:)
 
 where:
 
 * type(field_type), intent(inout) :: *field1*
 * type(field_type),    intent(in) :: *field2*
 
-inc_xpby
-+++++++++
+inc_multiply_field
+++++++++++++++++++
 
-**inc_xpby** (*field1*, *b*, *field2*)
+**inc_multiply_field** (*field1*, *field2*)
 
-Performs:
+Multiplies the first field by the second and returns it:
 
-field1(:) = field1(:) + b*field2(:)
+   field1(:) = field1(:) * field2(:)
 
 where:
 
-    real(r_def), intent(in) :: b
-    type(field_type), intent(inout) :: field1
-    type(field_type), intent(in) :: field2
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in)    :: *field2*
+
+inc_xpby
+++++++++
+
+**inc_xpby** (*field1*, *b*, *field2*)
+
+Performs: ::
+
+   field1(:) = field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in)    :: *field2*
 
 inner_product
 +++++++++++++
@@ -1158,7 +1172,7 @@ inner_product
 
 Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
 
-  sumval = SUM(field1(:)*field2(:))
+   sumval = SUM(field1(:)*field2(:))
 
 where:
 
@@ -1177,7 +1191,7 @@ minus_fields
 Subtracts the second field from the first and stores the result in
 the third. *i.e.* performs the operation: ::
   
-  field3(:) = field1(:) - field2(:)
+   field3(:) = field1(:) - field2(:)
 
 where:
 
@@ -1192,7 +1206,7 @@ multiply_fields
 
 Multiplies two fields together and returns the result in a third field: ::
 
-  field3(:) = field1(:)*field2(:)
+   field3(:) = field1(:)*field2(:)
 
 where:
 
@@ -1206,7 +1220,7 @@ plus_fields
 
 Sums two fields: ::
   
-  field3(:) = field1(:) + field2(:)
+   field3(:) = field1(:) + field2(:)
 
 where:
 
@@ -1221,7 +1235,7 @@ scale_field
 
 Multiplies a field by a scalar value and returns the field: ::
 
-  field1(:) = scalar * field1(:)
+   field1(:) = scalar * field1(:)
 
 where:
 
@@ -1247,7 +1261,7 @@ sum_field
 Sums all of the elements of the field *field* and returns the result
 in the scalar variable *sumval*: ::
   
-  sumval = SUM(field(:))
+   sumval = SUM(field(:))
 
 where:
 

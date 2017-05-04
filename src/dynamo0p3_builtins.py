@@ -232,6 +232,22 @@ class DynMultiplyFieldsKern(DynBuiltIn):
         parent.add(assign)
 
 
+class DynIncMultiplyFieldKern(DynBuiltIn):
+    ''' Multiply the first field by the second and return it '''
+
+    def __str__(self):
+        return "Built-in: Multiply field by another"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We multiply each element of f1 by the corresponding element of
+        # f2 and store the result back in f1.
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=invar_name1,
+                             rhs=invar_name1 + " * " + invar_name2))
+
+
 class DynSubtractFieldsKern(DynBuiltIn):
     ''' Subtract one field from another and return the result as a
     third field '''
@@ -470,6 +486,7 @@ BUILTIN_MAP = {"axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
                "divide_field": DynDivideFieldKern,
                "divide_fields": DynDivideFieldsKern,
                "inc_field": DynIncFieldKern,
+               "inc_multiply_field": DynIncMultiplyFieldKern,
                "inc_xpby": DynIncXPBYKern,
                "inner_product": DynInnerProductKern,
                "minus_fields": DynSubtractFieldsKern,

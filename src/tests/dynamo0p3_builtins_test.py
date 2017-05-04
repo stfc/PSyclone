@@ -1732,6 +1732,73 @@ def test_multiply_fields():
             assert output in code
 
 
+def test_inc_multiply_field_str():
+    ''' Test that the str method of DynIncMultiplyFieldKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.3.4_inc_multiply_field_invoke.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Multiply field by another"
+
+
+def test_inc_multiply_field():
+    ''' Test that we generate correct code for the multiply field
+    infrastructure kernel (x = x*y) '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.3.4_inc_multiply_field_invoke.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        if distmem:
+            mesh_code_present(code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
 def test_scale_field_str():
     ''' Test the str method of DynScaleFieldKern '''
     for distmem in [False, True]:
@@ -2083,4 +2150,3 @@ def test_scalar_int_builtin_error(monkeypatch):
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
                 "'gh_real'] but kernel set_field_scalar_code has an argument "
                 "of type gh_integer" in str(excinfo))
-
