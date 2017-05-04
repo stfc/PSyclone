@@ -18,7 +18,7 @@ In order to use PSyclone you must first add it to your PYTHONPATH. The
 simplest way to do this is to change to the top-level directory of your
 PSyclone installation and do:
 ::
-    export PYTHONPATH=`pwd`/src:`pwd`/f2py_93
+    export PYTHONPATH=`pwd`/src:${PYTHONPATH}
 
 PSyclone can be run for the first two examples by entering the directory and 
 executing, e.g.
