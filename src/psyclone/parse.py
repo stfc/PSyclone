@@ -1163,6 +1163,7 @@ def translate_ast(node, parent, indent=0, debug=False):
             nested_loops = walk_ast(child.content,
                                    [Fortran2003.Block_Nonlabel_Do_Construct])
             is_kern = True
+            io_statements = []
             if not nested_loops:
                 # A Kernel must be a loop nest
                 is_kern = False
@@ -1174,6 +1175,12 @@ def translate_ast(node, parent, indent=0, debug=False):
                 if io_statements:
                     # A kernel cannot contain IO statements
                     is_kern = False
+
+            if not nested_loops and not io_statements:
+                # Does this loop itself contain an implicit loop?
+                # TODO implement this!
+                pass
+                #walk_ast(, [Fortran2003.Section_Subscript_List])
 
             # TODO check for perfect nesting (i.e. no statements between
             # the nested DO's or END DO's)
@@ -1203,9 +1210,7 @@ def translate_ast(node, parent, indent=0, debug=False):
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
         else:
-            # Add this node in the AST to our list for the current
-            # code block (unless it is loop-related in which case we
-            # ignore it)
+            # Check whether this is an implicit loop
             arr_sections = []
             if isinstance(child, Fortran2003.Assignment_Stmt):
                 arr_sections = walk_ast(child.items,
@@ -1215,16 +1220,19 @@ def translate_ast(node, parent, indent=0, debug=False):
                     # An implicit loop marks the end of any current
                     # code block
                     _add_code_block(node, code_block_statements)
-                    
+                        
+                    # Create a kernel for this implicit loop
                     kern = NEMOKern()
                     kern.load(child, parent=node)
                     node.addchild(kern)
 
+            # Add this node in the AST to our list for the current
+            # code block (unless it is loop-related in which case we
+            # ignore it)
             if (not arr_sections) and \
                type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
                                    fparser.Fortran2003.End_Do_Stmt]:
                 code_block_statements.append(child)
- 
 
     # Finish any open code block
     _add_code_block(node, code_block_statements)
