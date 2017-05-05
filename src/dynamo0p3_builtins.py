@@ -153,7 +153,7 @@ class DynBuiltIn(BuiltIn):
     def cma_operation(self):
         ''' Built-ins do not perform operations with Column-Matrix-Assembly
         operators '''
-        return ""
+        return None
 
 
 class DynScaleFieldKern(DynBuiltIn):
