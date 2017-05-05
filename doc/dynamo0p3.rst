@@ -1094,20 +1094,6 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(out) :: *field2*
 
-divide_field
-++++++++++++
-
-**divide_field** (*field1*, *field2*)
-
-Divides the first field by the second and returns it: ::
-
-   field1(:) = field1(:) / field2(:)
-
-where:
-
-* type(field_type), intent(inout) :: *field1*
-* type(field_type),    intent(in) :: *field2*
-
 divide_fields
 +++++++++++++
 
@@ -1121,6 +1107,20 @@ where:
 
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
+
+inc_divide_field
+++++++++++++++++
+
+**inc_divide_field** (*field1*, *field2*)
+
+Divides the first field by the second and returns it: ::
+
+   field1(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
 
 inc_field
 +++++++++

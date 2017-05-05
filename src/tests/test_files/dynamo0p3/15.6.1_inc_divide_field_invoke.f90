@@ -1,4 +1,5 @@
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -9,6 +10,6 @@ program single_invoke
   implicit none
   type(field_type) :: f1, f2
 
-  call invoke( divide_field(f1, f2) )
+  call invoke( inc_divide_field(f1, f2) )
 
 end program single_invoke

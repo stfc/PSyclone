@@ -284,22 +284,6 @@ class DynAddFieldsKern(DynBuiltIn):
                              rhs=invar_name1 + " + " + invar_name2))
 
 
-class DynDivideFieldKern(DynBuiltIn):
-    ''' Divide the first field by the second and return it '''
-
-    def __str__(self):
-        return "Built-in: Divide field by another"
-
-    def gen_code(self, parent):
-        from f2pygen import AssignGen
-        # We divide each element of f1 by the corresponding element of
-        # f2 and store the result back in f1.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        parent.add(AssignGen(parent, lhs=invar_name1,
-                             rhs=invar_name1 + " / " + invar_name2))
-
-
 class DynDivideFieldsKern(DynBuiltIn):
     ''' Divide the first field by the second and return the result as
     a third field '''
@@ -315,6 +299,22 @@ class DynDivideFieldsKern(DynBuiltIn):
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name,
+                             rhs=invar_name1 + " / " + invar_name2))
+
+
+class DynIncDivideFieldKern(DynBuiltIn):
+    ''' Divide the first field by the second and return it '''
+
+    def __str__(self):
+        return "Built-in: Divide field by another"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We divide each element of f1 by the corresponding element of
+        # f2 and store the result back in f1.
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=invar_name1,
                              rhs=invar_name1 + " / " + invar_name2))
 
 
@@ -499,8 +499,8 @@ BUILTIN_MAP = {"axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
                "axpby": DynAXPBYKern, "inc_axpby": DynIncAXPBYKern,
                "copy_field": DynCopyFieldKern,
                "copy_scaled_field": DynCopyScaledFieldKern,
-               "divide_field": DynDivideFieldKern,
                "divide_fields": DynDivideFieldsKern,
+               "inc_divide_field": DynIncDivideFieldKern,
                "inc_field": DynIncFieldKern,
                "inc_multiply_field": DynIncMultiplyFieldKern,
                "inc_xpby": DynIncXPBYKern,

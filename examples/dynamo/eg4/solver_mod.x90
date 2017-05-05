@@ -111,7 +111,7 @@ contains
                   set_field_scalar(flag_obj%rflag, Ax), &
                   matrix_vector_kernel_type(Ax,lhs,mm), &
                   minus_fields( rhs, Ax, res ),         &
-                  divide_field( res, diagonal ),  &
+                  inc_divide_field( res, diagonal ),  &
                   inc_axpy( MU, lhs, res ) )
 
 ! Ready for next iteration

@@ -194,7 +194,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.6.1_divide_field_invoke.f90"),
+                     "15.6.1_inc_divide_field_invoke.f90"),
         api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -202,7 +202,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
                        distributed_memory=False).create(invoke_info)
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
             "must be on the same space. However, found spaces ['any_space_2', "
-            "'any_space_1'] for arguments to divide_field_code" in
+            "'any_space_1'] for arguments to inc_divide_field_code" in
             str(excinfo))
 
 
@@ -911,11 +911,11 @@ def test_divide_fields():
             assert output_dm_2 in code
 
 
-def test_divide_field_str():
-    ''' Test that the str method of DynDivideFieldKern returns the
+def test_inc_divide_field_str():
+    ''' Test that the str method of DynIncDivideFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_divide_field_invoke.f90"),
+                                        "15.6.1_inc_divide_field_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -925,11 +925,11 @@ def test_divide_field_str():
         assert str(kern) == "Built-in: Divide field by another"
 
 
-def test_divide_field():
+def test_inc_divide_field():
     ''' Test that we generate correct code for the divide field
     infrastructure kernel (x = x/y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_divide_field_invoke.f90"),
+                                        "15.6.1_inc_divide_field_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -2239,4 +2239,5 @@ def test_scalar_int_builtin_error(monkeypatch):
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
                 "'gh_real'] but kernel set_field_scalar_code has an argument "
                 "of type gh_integer" in str(excinfo))
+
 

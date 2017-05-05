@@ -93,7 +93,7 @@ module dynamo0p3_builtins_mod
   end type copy_scaled_field
 
   !> Invalid built-in that has arguments on different spaces
-  type, public, extends(kernel_type) :: divide_field
+  type, public, extends(kernel_type) :: inc_divide_field
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD,  GH_INC, ANY_SPACE_1),                   &
@@ -101,8 +101,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: divide_field_code
-  end type divide_field
+     procedure, nopass :: inc_divide_field_code
+  end type inc_divide_field
 
 contains
 
@@ -124,8 +124,8 @@ contains
   subroutine copy_scaled_field_code()
   end subroutine copy_scaled_field_code
 
-  subroutine divide_field_code()
-  end subroutine divide_field_code
+  subroutine inc_divide_field_code()
+  end subroutine inc_divide_field_code
 
 end module dynamo0p3_builtins_mod
 

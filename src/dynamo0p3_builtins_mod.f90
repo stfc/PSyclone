@@ -96,18 +96,6 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: copy_scaled_field_code
   end type copy_scaled_field
 
-  !> field1 = field1 / field2
-  type, public, extends(kernel_type) :: divide_field
-     private
-     type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INC, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1)                   &
-          /)
-     integer :: iterates_over = DOFS
-   contains
-     procedure, nopass :: divide_field_code
-  end type divide_field
-
   !> field3 = field1 / field2
   type, public, extends(kernel_type) :: divide_fields
      private
@@ -120,6 +108,18 @@ module dynamo0p3_builtins_mod
    contains
      procedure, nopass :: divide_fields_code
   end type divide_fields
+
+  !> field1 = field1 / field2
+  type, public, extends(kernel_type) :: inc_divide_field
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_INC, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1)                   &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inc_divide_field_code
+  end type inc_divide_field
 
   !> field1 = field1 + field2
   type, public, extends(kernel_type) :: inc_field
@@ -278,11 +278,11 @@ contains
   subroutine copy_scaled_field_code()
   end subroutine copy_scaled_field_code
 
-  subroutine divide_field_code()
-  end subroutine divide_field_code
-
   subroutine divide_fields_code()
   end subroutine divide_fields_code
+
+  subroutine inc_divide_field_code()
+  end subroutine inc_divide_field_code
 
   subroutine inc_field_code()
   end subroutine inc_field_code
