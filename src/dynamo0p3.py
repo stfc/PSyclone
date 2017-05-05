@@ -1361,8 +1361,12 @@ class DynInvokeDofmaps(object):
 class DynInvokeCMAOperators(object):
     ''' Holds all information on the CMA operators required by an invoke '''
 
+    # The scalar parameters that must be passed along with a CMA operator
+    # if its 'to' and 'from' spaces are the same
     cma_same_fs_params = ["nrow", "bandwidth", "alpha",
                           "beta", "gamma_m", "gamma_p"]
+    # The scalar parameters that must be passed along with a CMA operator
+    # if its 'to' and 'from' spaces are different
     cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
                           "beta", "gamma_m", "gamma_p"]
 
@@ -1792,7 +1796,8 @@ class DynInvoke(Invoke):
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Initialise field proxies"))
+        invoke_sub.add(CommentGen(invoke_sub,
+                                  " Initialise field and/or operator proxies"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
             # We don't have proxies for scalars
@@ -1825,7 +1830,7 @@ class DynInvoke(Invoke):
                             entity_decls=op_proxy_decs))
         cma_op_proxy_decs = self.unique_proxy_declarations(
             "gh_columnwise_operator")
-        if len(cma_op_proxy_decs) > 0:
+        if cma_op_proxy_decs:
             invoke_sub.add(
                 TypeDeclGen(invoke_sub,
                             datatype="columnwise_operator_proxy_type",
@@ -1840,8 +1845,7 @@ class DynInvoke(Invoke):
         first_var = None
         cma_op = None
         for var in self.psy_unique_vars:
-            if not first_var and var.type in ["gh_field", "gh_operator",
-                                              "gh_columnwise_operator"]:
+            if not first_var and var.type not in VALID_SCALAR_NAMES:
                 first_var = var
             if var.type == "gh_columnwise_operator":
                 cma_op = var
@@ -2542,7 +2546,7 @@ class DynKern(Kern):
         self._qr_name = ""
         self._qr_args = None
         self._name_space_manager = NameSpaceFactory().create()
-        self._cma_operation = ""
+        self._cma_operation = None
 
     def load(self, call, parent=None):
         ''' sets up kernel information with the call object which is
