@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -63,10 +61,6 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
        arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
        /)
-!  type(func_type) :: meta_funcs(2) =  (/                                    &
-!       func_type(ANY_SPACE_1, GH_COLUMN_BANDED_DOFMAP), &
-!       func_type(ANY_SPACE_2, GH_COLUMN_BANDED_DOFMAP)  &
-!       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass :: columnwise_op_asm_kernel_code

@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -100,6 +98,7 @@ contains
   !> @param [in] nlayers number of vertical layers
   !> @param [in] ncell_3d total number of cells
   !> @param [in] ncell_2d number of cells in 2d grid
+  !> @param [in] field example field argument
   !> @param [in] local_stencil locally assembled matrix
   !> @param [out] columnwise_matrix banded matrix to assemble into
   !> @param [in] nrow number of rows in the banded matrix
@@ -110,8 +109,8 @@ contains
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
   !> @param [in] ndf No. of dofs per cell for the F-S that the field is on
-  !> @param [in] ndf_to number of degrees of freedom per cell for the to-space
-  !> @param [in] ndf_from number of degrees of freedom per cell for the from-sp
+  !> @param [in] dofmap_field Dofmap for the field
+  !> @param [in] ndf_lma_from number of degrees of freedom per cell for the from-sp
   !> @param [in] column_banded_dofmap_to list of offsets for to-space
   !> @param [in] column_banded_dofmap_from list of offsets for from-space
   subroutine columnwise_op_asm_field_kernel_code(cell,              &

@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -39,16 +37,13 @@
 
 program single_invoke_cma
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
+  ! Description: single CMA-apply kernel specified in an invoke call
   use columnwise_op_app_kernel_mod, only: columnwise_op_app_kernel_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: field_a, field_b
   type(columnwise_operator_type) :: cma_op1
 
-  call invoke(                      &
-          columnwise_op_app_kernel_type(field_a, field_b, cma_op1) &
-          )
+  call invoke( columnwise_op_app_kernel_type(field_a, field_b, cma_op1) )
 
 end program single_invoke_cma

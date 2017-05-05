@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -103,16 +101,14 @@ contains
   !> @param [in] local_stencil locally assembled matrix
   !> @param [out] columnwise_matrix banded matrix to assemble into
   !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
   !> @param [in] bandwidth bandwidth of the banded matrix
   !> @param [in] alpha banded matrix parameter \f$\alpha\f$
   !> @param [in] beta banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] ndf_to number of dofs per cell for the LMA to-space
-  !> @param [in] ndf_from number of dofs per cell for the LMA from-space
+  !> @param [in] ndf_lma_to number of dofs per cell for the LMA to-space
   !> @param [in] undf No. of unique dofs  for the F-S that the field is on
-  !> @param [in] dofmap Dofmap for the F-S that the field is on
+  !> @param [in] dofmap_field Dofmap for the F-S that the field is on
   !> @param [in] column_banded_dofmap_to list of offsets for to/from-space
   subroutine columnwise_op_asm_same_fs_kernel_code(cell,              &
                                             nlayers,           &
@@ -122,14 +118,12 @@ contains
                                             local_stencil,     &
                                             columnwise_matrix, &
                                             nrow,              &
-                                            ncol,              &
                                             bandwidth,         &
                                             alpha,             &
                                             beta,              &
                                             gamma_m,           &
                                             gamma_p,           &
                                             ndf_lma_to,        & ! any_space_1
-                                            ndf_lma_from,      & ! any_space_2
                                             undf,              & ! any_space_1
                                             dofmap_field,      &
                                             column_banded_dofmap_to)
@@ -138,14 +132,12 @@ contains
     
     ! Arguments
     integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
-    integer(kind=i_def), intent(in) :: ndf_lma_to, ndf_lma_from
-    integer(kind=i_def), intent(in) :: ndf_to, ndf_from
-    real(kind=r_def), dimension(ndf_lma_to,ndf_lma_from,ncell_3d), intent(in) :: local_stencil
-    integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    integer(kind=i_def), intent(in) :: ndf_lma_to
+    real(kind=r_def), dimension(ndf_lma_to,ndf_lma_to,ncell_3d), intent(in) :: local_stencil
+    integer(kind=i_def), intent(in) :: nrow, bandwidth
+    real(kind=r_def), dimension(bandwidth,nrow,nrow), intent(out) :: columnwise_matrix
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to
-    integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
+    integer(kind=i_def), dimension(ndf_lma_to,nlayers), intent(in) :: column_banded_dofmap_to
 
     write (*,*) "Hello CMA World"
 

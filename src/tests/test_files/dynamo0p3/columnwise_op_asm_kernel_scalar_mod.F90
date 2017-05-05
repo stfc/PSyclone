@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -108,6 +106,7 @@ contains
   !> @param [in] beta banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] a_scalar example scalar argument
   !> @param [in] ndf_to number of degrees of freedom per cell for the to-space
   !> @param [in] ndf_from number of degrees of freedom per cell for the from-sp
   !> @param [in] column_banded_dofmap_to list of offsets for to-space

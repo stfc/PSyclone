@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -121,20 +119,20 @@ contains
   subroutine columnwise_op_mul_kernel_code(cell,                      &
                                            ncell_2d,                  &
                                            columnwise_matrix_A,       &
-                                           columnwise_matrix_B,       &
-                                           columnwise_matrix_C,       &
                                            nrow_A, ncol_A,            &
                                            bandwidth_A,               &
                                            alpha_A,                   &
                                            beta_A,                    &
                                            gamma_m_A,                 &
                                            gamma_p_A,                 &
+                                           columnwise_matrix_B,       &
                                            nrow_B, ncol_B,            &
                                            bandwidth_B,               &
                                            alpha_B,                   &
                                            beta_B,                    &
                                            gamma_m_B,                 &
                                            gamma_p_B,                 &
+                                           columnwise_matrix_C,       &
                                            nrow_C, ncol_C,            &
                                            bandwidth_C,               &
                                            alpha_C,                   &

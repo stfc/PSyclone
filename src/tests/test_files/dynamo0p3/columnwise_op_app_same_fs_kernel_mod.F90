@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -101,14 +99,12 @@ contains
   !> @param [in] undf2 unique number of degrees of freedom for the from-space 
   !> @param [in] map2 dofmap for the from-space
   !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
   !> @param [in] bandwidth bandwidth of the banded matrix
   !> @param [in] alpha banded matrix parameter \f$\alpha\f$
   !> @param [in] beta banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
   !> @param [in] indirection_dofmap_to indirection map for to-space
-  !> @param [in] indirection_dofmap_from indirection map for from-space
   subroutine columnwise_op_app_same_fs_kernel_code(cell,              &
                                            ncell_2d,          &
                                            lhs, x,            & 
