@@ -2974,9 +2974,9 @@ class ArgOrdering(object):
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
-            # Provide compulsory arguments common to operators and
-            # fields on a space.
-            self.fs_compulsory(unique_fs)
+            # Provide arguments common to LMA operators and fields
+            # on a space.
+            self.fs_common(unique_fs)
             # Provide additional compulsory arguments if there is a
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
@@ -3072,11 +3072,11 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.scalar() must be implemented by subclass")
 
-    def fs_compulsory(self, function_space):
-        '''add compulsory information common to operators and fieldsfor this
+    def fs_common(self, function_space):
+        '''add information common to LMA operators and fields for this
         function space'''
         raise NotImplementedError(
-            "Error: ArgOrdering.fs_compulsory() must be implemented by "
+            "Error: ArgOrdering.fs_common() must be implemented by "
             "subclass")
 
     def fs_compulsory_field(self, function_space):
@@ -3223,12 +3223,12 @@ class KernCallArgList(ArgOrdering):
         list'''
         self._arglist.append(scalar_arg.name)
 
-    def fs_compulsory(self, function_space):
-        '''add compulsory arguments common to operators and
-        fields on a space.'''
+    def fs_common(self, function_space):
+        '''add function-space related arguments common to LMA operators and
+        fields'''
         if self._kern.cma_operation not in ["matrix-matrix"]:
-            # There is currently one compulsory argument: "ndf" but only
-            # if this is not a CMA-related kernel
+            # There is currently one argument: "ndf" but only
+            # if this is not a CMA matrix-matrix kernel
             ndf_name = get_fs_ndf_name(function_space)
             self._arglist.append(ndf_name)
 
@@ -3550,10 +3550,9 @@ class KernStubArgList(ArgOrdering):
         self._parent.add(decl)
         self._arglist.append(arg.name)
 
-    def fs_compulsory(self, function_space):
-        ''' Provide compulsory arguments common to operators and
-        fields on a space. There is one: "ndf". The only exception to
-        this are CMA-matrix-matrix kenels. '''
+    def fs_common(self, function_space):
+        ''' Provide arguments common to LMA operators and
+        fields on a space. There is one: "ndf". '''
         from f2pygen import DeclGen
         if self._kern.cma_operation not in ["matrix-matrix"]:
             ndf_name = get_fs_ndf_name(function_space)
@@ -3763,8 +3762,8 @@ class KernStubArgList(ArgOrdering):
 #        if scalar_arg in ["in", "inout"]:
 #            self._add_dino_scalar(scalar_arg.name)
 #
-#    def fs_compulsory(self, function_space):
-#        '''get dino to output any compulsory arguments common to operators and
+#    def fs_common(self, function_space):
+#        '''get dino to output any arguments common to LMA operators and
 #        fields on a space. '''
 #        # There is currently one: "ndf".
 #        ndf_name = get_fs_ndf_name(function_space)

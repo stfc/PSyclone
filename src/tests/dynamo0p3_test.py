@@ -6293,7 +6293,7 @@ def test_argordering_exceptions():
                        create_arg_list.stencil,
                        create_arg_list.operator,
                        create_arg_list.scalar,
-                       create_arg_list.fs_compulsory,
+                       create_arg_list.fs_common,
                        create_arg_list.fs_compulsory_field,
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
