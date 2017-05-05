@@ -3087,6 +3087,10 @@ class DinoWriters(ArgOrdering):
         # There is currently one: "ndf".
         ndf_name = get_fs_ndf_name(function_space)
         self._add_dino_scalar(ndf_name)
+        map_name = get_fs_map_name(function_space)
+        last = "mesh%get_last_halo_cell(1)"
+        arrayText = map_name + ", " + ndf_name + ", " + last 
+        self._add_dino_array(arrayText)
 
     def fs_compulsory_field(self, function_space):
         '''get dino to output compulsory arguments if there is a field on this
