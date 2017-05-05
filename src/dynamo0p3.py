@@ -3464,8 +3464,8 @@ class KernStubArgList(ArgOrdering):
         _local_args = [nrow]
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            # If the to- and from-spaces are the same then so are ncol and
-            # nrow so we only pass one of them
+            # If the to- and from-spaces are different then so are ncol and
+            # nrow so we pass both of them
             ncol = arg.name + "_ncol"
             _local_args.append(ncol)
         bandwidth = arg.name + "_bandwidth"
@@ -3518,8 +3518,8 @@ class KernStubArgList(ArgOrdering):
             raise GenerationError(
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
                 "be supplied but got {0}".format(operator.type))
-        # If a kernel applies a CMA operator then it must only have a
-        # single such operator amongst its arguments
+        # The extent of the (1D) dofmap depends on whether it is for the 'to'
+        # or 'from' function space of the operator
         if operator.function_space_to.orig_name == function_space.orig_name:
             dim_name = operator.name + "_nrow"
         else:
@@ -4079,7 +4079,9 @@ class DynKernelArguments(Arguments):
 
     def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator
-        (either LMA or CMA). '''
+        of type op_type (either gh_operator [LMA] or gh_columnwise_operator
+        [CMA]). If op_type is None then searches for *any* valid operator
+        type. '''
         if op_type and op_type not in VALID_OPERATOR_NAMES:
             raise GenerationError(
                 "If supplied, op_type must be a valid operator type (one "
