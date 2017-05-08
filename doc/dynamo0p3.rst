@@ -1004,6 +1004,21 @@ does not necessarily reflect the actual implementation of the
 built-in (*e.g.* it could be implemented by PSyclone
 generating a call to an optimised maths library).
 
+axmy
+++++
+
+**axmy** (*a*, *field1*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) - field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
 axpby
 +++++
 

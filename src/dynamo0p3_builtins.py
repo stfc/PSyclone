@@ -367,6 +367,26 @@ class DynCopyScaledFieldKern(DynBuiltIn):
                              rhs=scalar_name + " * " + invar_name))
 
 
+class DynAXMYKern(DynBuiltIn):
+    ''' f = a.x - y where 'a' is a scalar and 'f', 'x' and
+    'y' are fields '''
+
+    def __str__(self):
+        return "Built-in: AXMY"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We multiply one element of field f1 (2nd arg) by a scalar
+        # (1st arg), subtract it from the corresponding
+        # element of a second field (3rd arg)  and write the value to the
+        # corresponding element of field f3 (4th arg).
+        scalar_name = self._arguments.args[0].name
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = scalar_name + "*" + invar_name1 + " - " + invar_name2
+        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
+
 class DynAXPYKern(DynBuiltIn):
     ''' f = a.x + y where 'a' is a scalar and 'f', 'x' and
     'y' are fields '''
@@ -510,7 +530,8 @@ class DynInnerSelfProductKern(DynBuiltIn):
 # describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-BUILTIN_MAP = {"axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
+BUILTIN_MAP = {"axmy": DynAXMYKern,
+               "axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
                "axpby": DynAXPBYKern, "inc_axpby": DynIncAXPBYKern,
                "copy_field": DynCopyFieldKern,
                "copy_scaled_field": DynCopyScaledFieldKern,
