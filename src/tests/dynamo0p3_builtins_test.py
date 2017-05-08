@@ -1817,7 +1817,8 @@ def test_inc_multiply_field_str():
     ''' Test that the str method of DynIncMultiplyFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.4_inc_multiply_field_invoke.f90"),
+                                        (r"15.3.4_"
+                                         r"inc_multiply_field_invoke.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1831,7 +1832,8 @@ def test_inc_multiply_field():
     ''' Test that we generate correct code for the multiply field
     infrastructure kernel (x = x*y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.4_inc_multiply_field_invoke.f90"),
+                                        (r"15.3.4_"
+                                         r"inc_multiply_field_invoke.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -2095,7 +2097,7 @@ def test_innerselfprod_str():
 
 
 def test_innerselfprod():
-    ''' Test that we produce correct code for the inner product of 
+    ''' Test that we produce correct code for the inner product of
     a vector by itself built-in '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2375,6 +2377,3 @@ def test_scalar_int_builtin_error(monkeypatch):
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
                 "'gh_real'] but kernel set_field_scalar_code has an argument "
                 "of type gh_integer" in str(excinfo))
-
-
-

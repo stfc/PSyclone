@@ -206,12 +206,13 @@ class DynRaiseFieldKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # In this case we're raising each element of a field to a 
+        # In this case we're raising each element of a field to a
         # supplied scalar value.
         var_name = self.array_ref(self._arguments.args[0].proxy_name)
         value = self._arguments.args[1].name
         parent.add(AssignGen(parent, lhs=var_name,
                              rhs=var_name + "**" + value))
+
 
 class DynCopyFieldKern(DynBuiltIn):
     ''' Set a field equal to another field '''
@@ -387,6 +388,7 @@ class DynAXMYKern(DynBuiltIn):
         rhs_expr = scalar_name + "*" + invar_name1 + " - " + invar_name2
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
+
 class DynAXPYKern(DynBuiltIn):
     ''' f = a.x + y where 'a' is a scalar and 'f', 'x' and
     'y' are fields '''
@@ -416,10 +418,10 @@ class DynIncAXPYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-         # We multiply one element of field f1 (2nd arg) by a scalar
-         # (1st arg), add it to the corresponding element of a 
-         # second field (3rd arg) and write the value back into 
-         # the element of field f1.
+        # We multiply one element of field f1 (2nd arg) by a scalar
+        # (1st arg), add it to the corresponding element of a
+        # second field (3rd arg) and write the value back into
+        # the element of field f1.
         scalar_name = self._arguments.args[0].name
         fld_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         fld_name2 = self.array_ref(self._arguments.args[2].proxy_name)
@@ -508,6 +510,7 @@ class DynInnerProductKern(DynBuiltIn):
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+
 
 class DynInnerSelfProductKern(DynBuiltIn):
     ''' Calculates the inner product of one field by itself,
