@@ -1519,8 +1519,8 @@ class GlobalSum(Node):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
-        base method and simply return our argument. '''
+        '''Return the list of arguments associated with this node. Override
+        the base method and simply return our argument.'''
         return [self._scalar]
 
     def view(self, indent):

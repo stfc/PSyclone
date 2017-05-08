@@ -1508,6 +1508,9 @@ def test_dag_names():
     assert schedule.dag_name == "schedule"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
     assert schedule.children[3].dag_name == "loop_3"
+    schedule.children[3].loop_type = "colour"
+    assert schedule.children[3].dag_name == "loop_[colour]_3"
+    schedule.children[3].loop_type = ""
     assert (schedule.children[3].children[0].dag_name ==
             "kernel_testkern_code_5")
     _, invoke_info = parse(
