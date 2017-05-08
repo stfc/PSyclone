@@ -2127,11 +2127,11 @@ class BuiltIn(Call):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        return "builtin_" + str(self.abs_position)
+        return "builtin_{0}_".format(self.name) + str(self.abs_position)
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
-        name = call.ktype.procedure.name
+        name = call.ktype.name
         Call.__init__(self, parent, call, name, arguments)
 
     def local_vars(self):

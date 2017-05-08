@@ -1522,7 +1522,7 @@ def test_dag_names():
     global_sum = schedule.children[2]
     assert global_sum.dag_name == "globalsum(asum)_2"
     builtin = schedule.children[1].children[0]
-    assert builtin.dag_name == "builtin_4"
+    assert builtin.dag_name == "builtin_sum_field_4"
 
 
 def test_openmp_pdo_dag_name():

@@ -16,12 +16,12 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: set_field_scalar_code
+     procedure, nopass :: inner_product_code
   end type inner_product
 
 contains
 
-  subroutine set_field_scalar_code()
-  end subroutine set_field_scalar_code
+  subroutine inner_product_code()
+  end subroutine inner_product_code
   
 end module dynamo0p3_builtins_mod

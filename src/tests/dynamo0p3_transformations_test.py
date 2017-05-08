@@ -3253,18 +3253,18 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call inner_product_code(f1,f2,asum)\n"
+                "                Call inner_product(f1,f2,asum)\n"
                 "    GlobalSum[scalar='asum']\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call scale_field_code(f1,asum)\n"
+                "                Call scale_field(f1,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_field_code(f2,bsum)\n"
+                "                Call sum_field(f2,bsum)\n"
                 "    GlobalSum[scalar='bsum']\n")
         else:
             expected = (
@@ -3273,17 +3273,17 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call inner_product_code(f1,f2,asum)\n"
+                "                Call inner_product(f1,f2,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call scale_field_code(f1,asum)\n"
+                "                Call scale_field(f1,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_field_code(f2,bsum)\n")
+                "                Call sum_field(f2,bsum)\n")
 
         print "Expected ..."
         print expected
