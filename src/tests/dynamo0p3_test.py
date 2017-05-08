@@ -5616,6 +5616,18 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth == '10'
 
 
+def test_haloexchange_correct_parent():
+    '''Test that a dynamo haloexchange has the correct parent once it has
+    been added to a schedule.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    for child in schedule.children:
+        assert child.parent == schedule
+
+
 def test_single_kernel_multi_field_same_stencil():
     '''This test checks for the case where we have the same stencil used
     by more than one field in a kernel'''
