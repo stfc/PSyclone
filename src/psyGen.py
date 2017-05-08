@@ -665,7 +665,7 @@ class Node(object):
     ''' baseclass for a node in a schedule '''
 
     def dag(self, file_name='dag', file_format='svg'):
-        '''Create a dag of this node and it's children'''
+        '''Create a dag of this node and its children'''
         try:
             import graphviz as gv
         except ImportError:
@@ -682,38 +682,73 @@ class Node(object):
         graph.render(filename=file_name)
 
     def dag_gen(self, graph):
-        '''output my node's graph (dag) information and call any children'''
+        '''output my node's graph (dag) information and call any
+        children. Nodes with children are represented as two vertices,
+        a start and an end. Forward dependencies are represented as
+        green edges, backward dependencies are represented as red
+        edges (but their direction is reversed so the layout looks
+        reasonable) and parent child dependencies are represented as
+        blue edges.'''
+        # names to append to my default name to create start and end vertices
         start_postfix = "_start"
         end_postfix = "_end"
         if self.children:
+            # I am represented by two vertices, a start and an end
             graph.node(self.dag_name+start_postfix)
             graph.node(self.dag_name+end_postfix)
         else:
+            # I am represented by a single vertex
             graph.node(self.dag_name)
-        node = self.forward_dependence()
+        # first deal with forward dependencies
+        remote_node = self.forward_dependence()
         local_name = self.dag_name
         if self.children:
+            # edge will come from my end vertex as I am a forward dependence
             local_name += end_postfix
-        if node:
-            remote_name = node.dag_name
-            if node.children:
+        if remote_node:
+            # this node has a forward dependence
+            remote_name = remote_node.dag_name
+            if remote_node.children:
+                # the remote node has children so I will connect to
+                # its start vertex
                 remote_name += start_postfix
+            # Create the forward dependence edge in green
             graph.edge(local_name, remote_name, color="green")
         elif self.parent:
+            # this node is a child of another node and has no forward
+            # dependence. Therefore connect it to the the end vertex
+            # of its parent. Use blue to indicate a parent child
+            # relationship.
             remote_name = self.parent.dag_name + end_postfix
             graph.edge(local_name, remote_name, color="blue")
-        node = self.backward_dependence()
+        # now deal with backward dependencies. When creating the edges
+        # we reverse the direction of the dependence (place
+        # remote_node before local_node) to help with the graph
+        # layout
+        remote_node = self.backward_dependence()
         local_name = self.dag_name
         if self.children:
+            # the edge will come from my start vertex as I am a
+            # backward dependence
             local_name += start_postfix
-        if node:
-            remote_name = node.dag_name
-            if node.children:
+        if remote_node:
+            # this node has a backward dependence.
+            remote_name = remote_node.dag_name
+            if remote_node.children:
+                # the remote node has children so I will connect to
+                # its end vertex
                 remote_name += end_postfix
+            # Create the backward dependence edge in red.
             graph.edge(remote_name, local_name, color="red")
         elif self.parent:
+            # this node has a parent and has no backward
+            # dependence. Therefore connect it to the the start vertex
+            # of its parent. Use blue to indicate a parent child
+            # relationship.
             remote_name = self.parent.dag_name + start_postfix
             graph.edge(remote_name, local_name, color="blue")
+        # now call any children so they can add their information to
+        # the graph
         for child in self.children:
             child.dag_gen(graph)
 
