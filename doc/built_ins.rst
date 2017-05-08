@@ -227,12 +227,12 @@ Adding new additional built-in operations
     The tests rely on ``single_invoke`` programs in the relevant 
     ``src/tests/test_files/`` subfolder. *e.g.* for Dynamo 0.3 it is 
     ``src/tests/test_files/dynamo0p3/``, and the built-in programs are named 
-    ``15.<subcategory.number>_<single_invoke_name>.f90``
+    ``15.<subcategory.number>_<single_invoke_name>.f90``.
  7. Create the appropriate ``15.<subcategory.number>_<single_invoke_name>.f90`` 
     program for the new built-in in the relevant  ``src/tests/test_files/`` 
     subfolder. 
  8. Document the new built-in in the documentation of the
-    relevant API (*e.g.* ``doc/dynamo0p3.rst``)
+    relevant API (*e.g.* ``doc/dynamo0p3.rst``).
 
 
 If the API being extended does not currently support any built-ins
