@@ -222,8 +222,18 @@ Adding new additional built-in operations
  5. Add meta-data describing this call to the appropriate file specified in
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
     this is ``dynamo0p3_builtins_mod.f90``.
- 6. Document the new built-in in the documentation of the
+ 6. Add relevant tests to the PSyclone test file for the API to be extended. 
+    *e.g.* for Dynamo 0.3 it is ``src/tests/dynamo0p3_builtins_test.py``. 
+    The tests rely on ``single_invoke`` programs in the relevant 
+    ``src/tests/test_files/`` subfolder. *e.g.* for Dynamo 0.3 it is 
+    ``src/tests/test_files/dynamo0p3/``, and the built-in programs are named 
+    ``15.<subcategory.number>_<single_invoke_name>.f90``
+ 7. Create the appropriate ``15.<subcategory.number>_<single_invoke_name>.f90`` 
+    program for the new built-in in the relevant  ``src/tests/test_files/`` 
+    subfolder. 
+ 8. Document the new built-in in the documentation of the
     relevant API (*e.g.* ``doc/dynamo0p3.rst``)
+
 
 If the API being extended does not currently support any built-ins
 then the ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` module
