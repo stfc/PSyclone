@@ -1149,6 +1149,74 @@ def test_fuse_colour_loops():
             assert code.count("set_dirty()") == 2
 
 
+def test_loop_fuse_cma():
+    ''' Test that we can loop fuse two loops when one contains a
+    call to a CMA kernel '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "20.6_multi_invoke_with_cma.f90"),
+                    api=TEST_API)
+    ftrans = DynamoLoopFuseTrans()
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
+        schedule.view()
+        if dist_mem:
+            # We have halo-swaps between the two loops but these can
+            # all be moved before the first loop since the first
+            # kernel doesn't look at the corresponding fields
+            schedule.children.insert(1, schedule.children.pop(2))
+            schedule.children.insert(2, schedule.children.pop(3))
+            schedule.children.insert(3, schedule.children.pop(4))
+            schedule.view()
+            index = 4
+        else:
+            index = 0
+
+        # Fuse all three loops
+        schedule, _ = ftrans.apply(schedule.children[index],
+                                   schedule.children[index+1],
+                                   same_space=True)
+        schedule.view()
+        code = str(psy.gen)
+        print code
+        assert (
+            "      ! Look-up required column-banded dofmaps\n"
+            "      !\n"
+            "      cbanded_map_any_space_1_afield => "
+            "cma_op1_proxy%column_banded_dofmap_to\n"
+            "      cbanded_map_any_space_2_lma_op1 => "
+            "cma_op1_proxy%column_banded_dofmap_from\n") in code
+        assert (
+            "      ! Look-up information for each CMA operator\n"
+            "      !\n"
+            "      cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n"
+            "      cma_op1_nrow = cma_op1_proxy%nrow\n"
+            "      cma_op1_ncol = cma_op1_proxy%ncol\n"
+            "      cma_op1_bandwidth = cma_op1_proxy%bandwidth\n"
+            "      cma_op1_alpha = cma_op1_proxy%alpha\n"
+            "      cma_op1_beta = cma_op1_proxy%beta\n"
+            "      cma_op1_gamma_m = cma_op1_proxy%gamma_m\n"
+            "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
+        ) in code
+        assert (
+            "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+            "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
+            "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+            "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_afield, "
+            "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
+            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+            "cbanded_map_any_space_2_lma_op1)\n"
+            "        !\n"
+            "        CALL testkern_code(nlayers, scalar1, "
+            "afield_proxy%data, bfield_proxy%data, cfield_proxy%data, "
+            "dfield_proxy%data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))\n") in code
+
+
 def test_omp_parallel_and_halo_exchange_error():
     '''Tests that we raise an error if we try to apply an omp parallel
     transformation to a list containing halo_exchange calls. If this is

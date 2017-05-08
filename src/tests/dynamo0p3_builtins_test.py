@@ -277,7 +277,7 @@ def test_dynbuiltin_gen_code():
 
 
 def test_dynbuiltin_cma():
-    ''' Check that a DynBuiltIn returns an empty string for CMA type (because
+    ''' Check that a DynBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
@@ -288,7 +288,7 @@ def test_dynbuiltin_cma():
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         cma_type = kern.cma_operation()
-        assert cma_type == ""
+        assert cma_type == None
 
 
 def test_dynbuiltfactory_str():
