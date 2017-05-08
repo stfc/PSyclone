@@ -20,6 +20,11 @@ from transformations import TransformationError, \
     DynamoLoopFuseTrans, \
     KernelModuleInlineTrans
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # The version of the API that the tests in this file
 # exercise.
 TEST_API = "dynamo0.3"
@@ -1151,7 +1156,7 @@ def test_fuse_colour_loops():
 
 def test_loop_fuse_cma():
     ''' Test that we can loop fuse two loops when one contains a
-    call to a CMA kernel '''
+    call to a CMA-related kernel '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "20.6_multi_invoke_with_cma.f90"),
@@ -1161,7 +1166,6 @@ def test_loop_fuse_cma():
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
-        schedule.view()
         if dist_mem:
             # We have halo-swaps between the two loops but these can
             # all be moved before the first loop since the first
@@ -1169,16 +1173,14 @@ def test_loop_fuse_cma():
             schedule.children.insert(1, schedule.children.pop(2))
             schedule.children.insert(2, schedule.children.pop(3))
             schedule.children.insert(3, schedule.children.pop(4))
-            schedule.view()
             index = 4
         else:
             index = 0
 
-        # Fuse all three loops
+        # Fuse the loops
         schedule, _ = ftrans.apply(schedule.children[index],
                                    schedule.children[index+1],
                                    same_space=True)
-        schedule.view()
         code = str(psy.gen)
         print code
         assert (
