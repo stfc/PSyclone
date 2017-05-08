@@ -1854,6 +1854,61 @@ def test_scale_field():
             assert output in code
 
 
+def test_raise_field_str():
+    ''' Test the str method of DynRaiseFieldKern '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.2.3_raise_field_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: raise a field to an exponent"
+
+
+def test_raise_field():
+    ''' Test that DynRaiseFieldKern generates correct code '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.2.3_raise_field_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+                "      END DO \n"
+                "      !\n")
+        if distmem:
+            mesh_code_present(code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+
+            assert output in code
+
+
 def test_innerprod_str():
     ''' Test the str method of DynInnerProductKern '''
     for distmem in [False, True]:
@@ -2239,5 +2294,6 @@ def test_scalar_int_builtin_error(monkeypatch):
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
                 "'gh_real'] but kernel set_field_scalar_code has an argument "
                 "of type gh_integer" in str(excinfo))
+
 
 

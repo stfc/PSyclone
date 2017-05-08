@@ -198,6 +198,21 @@ class DynSumFieldKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
+class DynRaiseFieldKern(DynBuiltIn):
+    ''' Raise a field to an exponent and return it '''
+
+    def __str__(self):
+        return "Built-in: raise a field to an exponent"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # In this case we're raising each element of a field to a 
+        # supplied scalar value.
+        var_name = self.array_ref(self._arguments.args[0].proxy_name)
+        value = self._arguments.args[1].name
+        parent.add(AssignGen(parent, lhs=var_name,
+                             rhs=var_name + "**" + value))
+
 class DynCopyFieldKern(DynBuiltIn):
     ''' Set a field equal to another field '''
 
@@ -509,6 +524,7 @@ BUILTIN_MAP = {"axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
                "minus_fields": DynSubtractFieldsKern,
                "multiply_fields": DynMultiplyFieldsKern,
                "plus_fields": DynAddFieldsKern,
+               "raise_field": DynRaiseFieldKern,
                "scale_field": DynScaleFieldKern,
                "set_field_scalar": DynSetFieldScalarKern,
                "sum_field": DynSumFieldKern}

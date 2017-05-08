@@ -1246,6 +1246,20 @@ where:
 * type(field_type), intent(in) :: *field2*
 * type(field_type), intent(out) :: *field3*
 
+raise_field
++++++++++++
+
+**raise_field** (*field1*, *scalar*)
+
+Raises a field to a scalar value and returns the field: ::
+
+   field1(:) = field1(:) **  scalar
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* real(r_def),      intent(in) :: *scalar*
+
 scale_field
 +++++++++++
 
