@@ -773,19 +773,36 @@ class Node(object):
         '''Returns the closest preceding Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies.'''
+        descendents dependencies. The reason for this is that for
+        correctness a node must maintain its parent if it is
+        moved. For example a halo exchange and a kernel call may have
+        a dependence between them but it is the loop body containing
+        the kernel call that the halo exchange must not move beyond
+        i.e. the loop body inherits the dependencies of the routines
+        within it.'''
         dependence = None
+        # look through all the backward dependencies of my arguments
         for arg in self.args:
             dependent_arg = arg.backward_dependence()
             if dependent_arg:
+                # this argument has a backward dependence
                 node = dependent_arg.call
+                # if the remote node is deeper in the tree than me
+                # then find the ancestor that is at the same level of
+                # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
                 if self.sameParent(node):
+                    # The remote node (or one of its ancestors) shares
+                    # the same parent as me
                     if not dependence:
+                        # this is the first dependence found so keep it
                         dependence = node
                     else:
+                        # we have already found a dependence
                         if dependence.position < node.position:
+                            # the new dependence is closer to me than
+                            # the previous dependence so keep it
                             dependence = node
         return dependence
 
@@ -793,19 +810,35 @@ class Node(object):
         '''Returns the closest following Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies.'''
+        descendents dependencies. The reason for this is that for
+        correctness a node must maintain its parent if it is
+        moved. For example a halo exchange and a kernel call may have
+        a dependence between them but it is the loop body containing
+        the kernel call that the halo exchange must not move beyond
+        i.e. the loop body inherits the dependencies of the routines
+        within it.'''
         dependence = None
+        # look through all the forward dependencies of my arguments
         for arg in self.args:
             dependent_arg = arg.forward_dependence()
             if dependent_arg:
+                # this argument has a forward dependence
                 node = dependent_arg.call
+                # if the remote node is deeper in the tree than me
+                # then find the ancestor that is at the same level of
+                # the tree as me.
                 while node.depth > self.depth:
                     node = node.parent
                 if self.sameParent(node):
+                    # The remote node (or one of its ancestors) shares
+                    # the same parent as me
                     if not dependence:
+                        # this is the first dependence found so keep it
                         dependence = node
                     else:
                         if dependence.position > node.position:
+                            # the new dependence is closer to me than
+                            # the previous dependence so keep it
                             dependence = node
         return dependence
 
