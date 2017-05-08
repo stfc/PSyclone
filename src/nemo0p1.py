@@ -269,7 +269,8 @@ class NEMOSchedule(Schedule):
 
     def view(self, indent=0):
         ''' Print a representation of this NEMOSchedule '''
-        print self.indent(indent) + "NEMOSchedule[]"
+        from numpy.distutils.misc_util import red_text
+        print self.indent(indent) + red_text("NEMOSchedule[]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -427,6 +428,15 @@ class NEMOLoop(Loop):
                 self._bounds_lookup[offset]['every'][itspace] = \
                     {'inner': {'start': "1", 'stop': "+1"},
                      'outer': {'start': "1", 'stop': "+1"}}
+
+    def view(self, indent=0):
+        ''' Print a representation of this Loop to stdout '''
+        from numpy.distutils.misc_util import blue_text
+        print self.indent(indent) +\
+            blue_text("Loop[type='{0}',field_space='{1}',it_space='{2}']".\
+            format(self._loop_type, self._field_space, self.iteration_space))
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
     def _upper_bound(self):
         ''' Returns the upper bound of this loop as a string '''
@@ -777,7 +787,8 @@ class NEMOKern(Node):
 
     def view(self, indent=0):
         ''' Print representation of this node to stdout '''
-        print self.indent(indent) + "NEMOKern[" + self._kernel_type + "]"
+        from numpy.distutils.misc_util import yellow_text
+        print self.indent(indent) + yellow_text("NEMOKern[" + self._kernel_type + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
