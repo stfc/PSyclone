@@ -3431,7 +3431,7 @@ def test_move_back_after():
 
 
 def test_move_forward():
-    '''Test that MoveTrans moves the node forewards to the expected
+    '''Test that MoveTrans moves the node forwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.0.2_multiple_set_kernels.f90"),
@@ -3456,7 +3456,7 @@ def test_move_forward():
 
 
 def test_move_forward_after():
-    '''Test that MoveTrans moves the node forewards to the expected
+    '''Test that MoveTrans moves the node forwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.0.2_multiple_set_kernels.f90"),

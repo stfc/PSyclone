@@ -1640,6 +1640,6 @@ def test_node_dag(tmpdir):
                      "<title>kernel_testkern_code_2</title>",
                      "<svg", "</svg>", "blue"]:
             assert name in result
-            with pytest.raises(GenerationError) as excinfo:
-                schedule.dag(file_name=my_file.strpath, file_format="rubbish")
-            assert "unsupported graphviz file format" in str(excinfo.value)
+        with pytest.raises(GenerationError) as excinfo:
+            schedule.dag(file_name=my_file.strpath, file_format="rubbish")
+        assert "unsupported graphviz file format" in str(excinfo.value)

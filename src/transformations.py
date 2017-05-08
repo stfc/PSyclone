@@ -1067,7 +1067,7 @@ class GOConstLoopBoundsTrans(Transformation):
 
 
 class MoveTrans(Transformation):
-    ''' Provides a transformation to move a node in the tree. For
+    '''Provides a transformation to move a node in the tree. For
         example:
 
         >>> from parse import parse
@@ -1084,7 +1084,9 @@ class MoveTrans(Transformation):
                                                 position="after")
         >>> new_schedule.view()
 
-    '''
+        Nodes may only be moved to a new location with the same parent
+    and must not break any dependencies otherwise an exception is
+    raised.'''
 
     def __str__(self):
         return "Move a node to a different location"
@@ -1113,8 +1115,9 @@ class MoveTrans(Transformation):
 
     def apply(self, node, location, position="before"):
         '''Move the node represented by :py:obj:`node` before location
-        :py:obj:`location` by default and after if the optional
-        `position` argument is set to 'after' '''
+        :py:obj:`location` (which as also a node) by default and after
+        if the optional `position` argument is set to 'after'. An
+        exception is raised if the move is invalid '''
 
         self._validate(node, location, position)
 

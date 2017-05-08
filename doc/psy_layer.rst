@@ -112,7 +112,7 @@ A PSy **Schedule** object consists of a tree of objects (called Nodes
 in PSyclone) which can be used to describe the required schedule for a
 PSy layer subroutine. This subroutine is called by the Algorithm layer
 and itself calls one or more Kernels and/or implements any required
-Built-in operations. These objects can currently be a **Loop**, a
+Built-in operations. The Node objects can currently be a **Loop**, a
 **Kernel**, a **Built-in** (see the :ref:`built-ins` section), a
 **Directive** (of various types), a **HaloExchange**, or a
 **GlobalSum** (the latter two are only used if distributed memory is

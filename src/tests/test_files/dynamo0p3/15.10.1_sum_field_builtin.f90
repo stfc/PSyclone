@@ -8,7 +8,7 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation specified in an invoke call
+  ! Description: three point-wise operations specified in an invoke call
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1
