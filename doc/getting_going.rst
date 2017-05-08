@@ -138,18 +138,16 @@ you can instruct pip to do a user-local install:
 ::
     > pip install --user graphviz
 
-If graphviz itself is not installed on your system then it can be
-simply installed using ``apt``
+If graphviz itself is not installed on your system and your system
+supports the ``apt`` package manager then see below, otherwise please
+refer to the download and install instructions which are available
+here http://www.graphviz.org/Download..php.
+
+If your system supports the ``apt`` package manager then it can be
+installed and removed in the following way:
 ::
    > sudo apt install graphviz
-
-Should you wish to, uninstalling is simply performed by doing:
-::
    > sudo apt remove graphviz
-
-If you are using a different operating system or version of linux that does
-not support ``apt`` please see the download instructions here
-http://www.graphviz.org/Download..php
 
 py.test
 ^^^^^^^

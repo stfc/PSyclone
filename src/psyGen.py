@@ -666,7 +666,12 @@ class Node(object):
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and it's children'''
-        import graphviz as gv
+        try:
+            import graphviz as gv
+        except ImportError:
+            # todo: add a warning to a log file here
+            # silently return if graphviz bindings are not installed
+            return
         try:
             graph = gv.Digraph(format=file_format)
         except ValueError:

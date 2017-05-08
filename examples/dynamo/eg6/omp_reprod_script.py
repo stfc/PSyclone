@@ -5,6 +5,7 @@ generator.py script.'''
 from transformations import OMPParallelTrans, DynamoLoopFuseTrans, \
     Dynamo0p3OMPLoopTrans
 
+
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 api to apply
     loop fusion and OpenMP for a particular example.'''

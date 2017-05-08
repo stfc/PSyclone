@@ -1243,7 +1243,6 @@ def test_node_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.dag()
     loop13 = schedule.children[14]
     halo_exchange = schedule.children[16]
     loop16 = schedule.children[17]
@@ -1581,8 +1580,19 @@ EXPECTED = (
     "}")
 
 
-def test_node_dag(tmpdir):
-    ''' test that dag generation works correctly '''
+def test_node_dag_no_graphviz(tmpdir):
+    '''test that dag generation does nothing if graphviz is not
+    installed. If graphviz is installed on this system we need to make
+    the test think that it is not. We do this by messing with
+    sys.modules. '''
+    import sys
+    keep = None
+    try:
+        import graphviz
+        keep = sys.modules['graphviz']
+        sys.modules['graphviz'] = None
+    except:
+        pass
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
@@ -1592,17 +1602,41 @@ def test_node_dag(tmpdir):
     schedule = invoke.schedule
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
-    result = my_file.read()
-    assert EXPECTED in result
-    my_file = tmpdir.join('test.svg')
-    result = my_file.read()
-    for name in ["<title>schedule_start</title>",
-                 "<title>schedule_end</title>",
-                 "<title>loop_0_start</title>",
-                 "<title>loop_0_end</title>",
-                 "<title>kernel_testkern_code_2</title>",
-                 "<svg", "</svg>", "blue"]:
-        assert name in result
-        with pytest.raises(GenerationError) as excinfo:
-            schedule.dag(file_name=my_file.strpath, file_format="rubbish")
-        assert "unsupported graphviz file format" in str(excinfo.value)
+    assert not os.path.exists(my_file.strpath)
+    if keep:
+        sys.modules['graphviz'] = keep
+
+
+def test_node_dag(tmpdir):
+    '''test that dag generation works correctly. Skip the test if
+    graphviz is not installed'''
+    graphviz_installed = False
+    try:
+        import graphviz
+        graphviz_installed = True
+    except:
+        pass
+    if graphviz_installed:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "1_single_invoke.f90"),
+            distributed_memory=False, api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=False).create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        my_file = tmpdir.join('test')
+        schedule.dag(file_name=my_file.strpath)
+        result = my_file.read()
+        assert EXPECTED in result
+        my_file = tmpdir.join('test.svg')
+        result = my_file.read()
+        for name in ["<title>schedule_start</title>",
+                     "<title>schedule_end</title>",
+                     "<title>loop_0_start</title>",
+                     "<title>loop_0_end</title>",
+                     "<title>kernel_testkern_code_2</title>",
+                     "<svg", "</svg>", "blue"]:
+            assert name in result
+            with pytest.raises(GenerationError) as excinfo:
+                schedule.dag(file_name=my_file.strpath, file_format="rubbish")
+            assert "unsupported graphviz file format" in str(excinfo.value)
