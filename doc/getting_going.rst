@@ -121,8 +121,7 @@ The data dependencies of a PSy-layer schedule (see Section
 :ref:`psy-layer-schedule`) determine the validity of changes to a
 schedule. PSyclone supports the visualisation of these dependencies as
 a graph using graphviz. This visualisation is not needed to use
-PSyclone but will cause one of the tests to fail if graphviz is not
-installed.
+PSyclone.
 
 If the Python bindings to graphviz are not installed on your system
 then it may be installed from the Python Package Index using ``pip``:
