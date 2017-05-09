@@ -1014,7 +1014,7 @@ def test_fuse_colour_loops():
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
         mtrans = MoveTrans()
-        
+
         if dist_mem:
             # We have halo exchanges inbetween the two loops which we
             # are going to get rid of for simplicity. Fields b, d and

@@ -1606,7 +1606,7 @@ def test_node_dag_no_graphviz(tmpdir):
         import graphviz
         keep = sys.modules['graphviz']
         sys.modules['graphviz'] = None
-    except:
+    except ImportError:
         pass
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1629,7 +1629,7 @@ def test_node_dag(tmpdir):
     try:
         import graphviz
         graphviz_installed = True
-    except:
+    except ImportError:
         pass
     if graphviz_installed:
         _, invoke_info = parse(
