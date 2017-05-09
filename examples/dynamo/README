@@ -58,8 +58,10 @@ algorithm layer.
 
 The sixth example illustrates the use and implementation of
 reductions. It also demonstrates the generation of a schedule's
-dependence graph in svg format (see dag.svg). The example may be run
-sequentially:
+dependence graph in svg format (see dag.svg). Note, that if graphviz
+and its Python bindings are not installed then no dag image will be
+generated and the dag method will silently return. The example may be
+run sequentially:
 
 ::
     cd eg6/ python
