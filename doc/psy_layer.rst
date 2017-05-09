@@ -167,7 +167,7 @@ should be consulted for valid formats if svg is not required.
 ::
    >>> schedule.dag(file_name="lovely", file_format="png")
 
-.. note:: The dag method can be called from any node and will will
+.. note:: The dag method can be called from any node and will
           output the dag for that node and all of its children.
 
 if we were to look at the dynamo eg6 example we would see the
