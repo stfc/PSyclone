@@ -852,7 +852,8 @@ class Node(object):
         if not isinstance(new_node, Node):
             raise GenerationError(
                 "In the psyGen Call class is_valid_location() method the "
-                "supplied argument is not a Node")
+                "supplied argument is not a Node, it is a '{0}'.".
+                format(type(new_node).__name__))
 
         # 2: check position has a valid value
         valid_positions = ["before", "after"]

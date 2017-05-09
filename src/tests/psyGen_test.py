@@ -1449,7 +1449,7 @@ def test_node_is_valid_location():
     node = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
         node.is_valid_location("invalid_node_argument")
-    assert "argument is not a Node" in str(excinfo.value)
+    assert "argument is not a Node, it is a 'str'." in str(excinfo.value)
     # 2: optional position argument is invalid
     with pytest.raises(GenerationError) as excinfo:
         node.is_valid_location(node, position="invalid_node_argument")
