@@ -178,8 +178,7 @@ following image:
 
 In the image, all nodes (Psyclone's generic name for objects in the
 schedule) with children are split into a start vertex and an end
-vertex (for example the schedule node has a `schedule_start` and a
-`schedule_end` vertex). Blue arrows indicate that there is a parent to
+vertex (for example the Schedule node has both `schedule_start` and `schedule_end` vertices). Blue arrows indicate that there is a parent to
 child relationship (from a start node) or a child to parent
 relationship (to an end node). Green arrows indicate that there is a
 forward dependence. Therefore the OMP parallel loop must complete
