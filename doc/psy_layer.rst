@@ -178,15 +178,19 @@ following image:
 
 In the image, all nodes (Psyclone's generic name for objects in the
 schedule) with children are split into a start vertex and an end
-vertex (for example the Schedule node has both `schedule_start` and `schedule_end` vertices). Blue arrows indicate that there is a parent to
-child relationship (from a start node) or a child to parent
-relationship (to an end node). Green arrows indicate that there is a
-forward dependence. Therefore the OMP parallel loop must complete
-before the globalsum is performed. Red arrows indicate that there is a backward dependence. However
-the direction of the red arrows are reversed to improve the flow of the dag
-layout. In this example the forward and backward dependence is the
-same, however this is not always the case. The two built-ins do not
-depend on each other, so they have no associated green or red arrows.
+vertex (for example the Schedule node has both `schedule_start` and
+`schedule_end` vertices). Blue arrows indicate that there is a parent
+to child relationship (from a start node) or a child to parent
+relationship (to an end node). Green arrows indicate that a Node
+depends on another Node later in the schedule (which we call a forward
+dependence). Therefore the OMP parallel loop must complete before the
+globalsum is performed. Red arrows indicate that a Node depends on
+another Node that is earlier in the schedule (which we call a backward
+dependence). However the direction of the red arrows are reversed to
+improve the flow of the dag layout. In this example the forward and
+backward dependence is the same, however this is not always the
+case. The two built-ins do not depend on each other, so they have no
+associated green or red arrows.
 
 The dependence graph output gives an indication of whether nodes can
 be moved in the schedule. In this case it is valid to run the
