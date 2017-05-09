@@ -571,6 +571,7 @@ def test_colouring_multi_kernel():
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
+        mtrans = MoveTrans()
 
         if dist_mem:
             # We have halo exchanges inbetween the two loops which we
@@ -579,9 +580,8 @@ def test_colouring_multi_kernel():
             # can be removed
             del schedule.children[8:13]
             # f is required but can be moved before the first loop
-            schedule.children.insert(6, schedule.children.pop(7))
-            # In the future we will have transformations to move
-            # elements around with checks for validity.
+            schedule, _ = mtrans.apply(schedule.children[7],
+                                       schedule.children[6])
             index = 7
         else:
             index = 0
@@ -786,6 +786,7 @@ def test_loop_fuse_different_spaces():
             schedule = invoke.schedule
 
             ftrans = DynamoLoopFuseTrans()
+            mtrans = MoveTrans()
             if dist_mem:
                 # b halo exchange between loops can be removed as access
                 # in both loops is read and it is already covered by the
@@ -793,8 +794,10 @@ def test_loop_fuse_different_spaces():
                 del schedule.children[7]
                 # c and g halo exchange between loops can be moved before
                 # 1st loop as they are not accessed in first loop
-                schedule.children.insert(6, schedule.children.pop(7))
-                schedule.children.insert(7, schedule.children.pop(8))
+                schedule, _ = mtrans.apply(schedule.children[7],
+                                           schedule.children[6])
+                schedule, _ = mtrans.apply(schedule.children[8],
+                                           schedule.children[7])
                 index = 8
             else:
                 index = 0
@@ -1010,7 +1013,8 @@ def test_fuse_colour_loops():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
-
+        mtrans = MoveTrans()
+        
         if dist_mem:
             # We have halo exchanges inbetween the two loops which we
             # are going to get rid of for simplicity. Fields b, d and
@@ -1018,9 +1022,8 @@ def test_fuse_colour_loops():
             # can be removed
             del schedule.children[8:13]
             # f is required but can be moved before the first loop
-            schedule.children.insert(6, schedule.children.pop(7))
-            # In the future we will have transformations to move
-            # elements around with checks for validity.
+            schedule, _ = mtrans.apply(schedule.children[7],
+                                       schedule.children[6])
             index = 7
         else:
             index = 0
@@ -1869,7 +1872,10 @@ def test_two_reductions_real_do():
         schedule = invoke.schedule
         if distmem:
             # move the first global sum after the second loop
-            schedule.children.insert(2, schedule.children.pop(1))
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
@@ -1945,7 +1951,10 @@ def test_two_reprod_reductions_real_do():
         schedule = invoke.schedule
         if distmem:
             # move the first global sum after the second loop
-            schedule.children.insert(2, schedule.children.pop(1))
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
@@ -2272,9 +2281,10 @@ def test_multi_builtins_reduction_then_standard_do():
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
-        schedule.view()
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2343,8 +2353,10 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         rtrans = DynamoOMPParallelLoopTrans()
         ftrans = DynamoLoopFuseTrans()
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
@@ -2405,8 +2417,10 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
         ftrans = DynamoLoopFuseTrans()
@@ -2855,8 +2869,10 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2957,8 +2973,10 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
         ftrans = DynamoLoopFuseTrans()
