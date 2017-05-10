@@ -929,7 +929,9 @@ Application/Inverse-Application
 A kernel applying a CMA operator requires the column-indirection
 dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
-not require the ``ncell_3d`` and ``nlayers`` scalar arguments.
+not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
+column-wise operator is, by definition, assembled for a whole column,
+there is no loop over levels when applying it.)
 The full set of rules is then:
 
     1) Include the ``cell`` argument. ``cell`` is an integer and has
