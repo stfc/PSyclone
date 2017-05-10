@@ -3468,7 +3468,8 @@ class KernStubArgList(ArgOrdering):
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
             # If the to- and from-spaces are different then so are ncol and
-            # nrow so we pass both of them
+            # nrow so we pass both of them. If they are the same then we
+            # could pass either but choose to pass nrow and not ncol.
             ncol = arg.name + "_ncol"
             _local_args.append(ncol)
         bandwidth = arg.name + "_bandwidth"
