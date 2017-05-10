@@ -1841,7 +1841,10 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
 
-        # Use the first argument that is not a scalar
+        # Find the first argument that is not a scalar. Also, if there
+        # any CMA operators as arguments then keep a reference to one
+        # of them so that we can look-up the number of columns in the
+        # mesh using its proxy
         first_var = None
         cma_op = None
         for var in self.psy_unique_vars:
