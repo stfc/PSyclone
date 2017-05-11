@@ -8,14 +8,15 @@
 
 module testkern_fs
   type, extends(kernel_type) :: testkern_fs_type
-     type(arg_type), dimension(7) :: meta_args = &
+     type(arg_type), dimension(8) :: meta_args = &
           (/ arg_type(gh_field,gh_write,w1),     &
              arg_type(gh_field,gh_read, w2),     &
              arg_type(gh_field,gh_read, w2),     &
              arg_type(gh_field,gh_read, w3),     &
              arg_type(gh_field,gh_write, wtheta),&
              arg_type(gh_field,gh_read, w2h),    &
-             arg_type(gh_field,gh_read, w2v)     &
+             arg_type(gh_field,gh_read, w2v),    &
+             arg_type(gh_field,gh_read, any_w2)  &
            /)
      integer, parameter :: iterates_over = cells
    contains

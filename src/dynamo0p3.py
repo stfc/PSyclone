@@ -57,7 +57,9 @@ import config
 
 # constants
 DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
+# space any_w2 can be w2, w2h or w2v
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v",
+                              "any_w2"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -2866,7 +2868,7 @@ class DynKern(Kern):
             enforce_bc_arg = self.updated_arg
             # We only need to call the enforce_bc kernel if the field is on
             # a vector function space
-            space_names = ["w1", "w2", "w2h", "w2v"]
+            space_names = ["w1", "w2", "w2h", "w2v", "any_w2"]
             kern_func_space_name = enforce_bc_arg.function_space
             ndf_name = get_fs_ndf_name(kern_func_space_name)
             undf_name = get_fs_undf_name(kern_func_space_name)
@@ -3606,7 +3608,7 @@ class KernStubArgList(ArgOrdering):
            ["w0", "w3", "wtheta"]:
             first_dim = "1"
         elif (function_space.orig_name.lower() in
-              ["w1", "w2", "w2h", "w2v"]):
+              ["w1", "w2", "w2h", "w2v", "any_w2"]):
             first_dim = "3"
         else:
             raise GenerationError(
@@ -3635,7 +3637,7 @@ class KernStubArgList(ArgOrdering):
         # w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1
         first_dim = None
         if function_space.orig_name.lower() in \
-           ["w2", "w2h", "w2v"]:
+           ["w2", "w2h", "w2v", "any_w2"]:
             first_dim = "1"
         elif (function_space.orig_name.lower() in
               ["w0", "w1", "w3", "wtheta"]):
