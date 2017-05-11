@@ -42,6 +42,11 @@ python ../../../src/generator.py -s ./omp_script.py alg.x90
 python ../../../src/generator.py -s ./omp_reprod_script.py alg.x90
 cd -
 
+echo "Running example dynamo/eg7"
+cd dynamo/eg7
+python ../../../src/generator.py alg.x90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py
