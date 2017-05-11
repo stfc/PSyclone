@@ -34,7 +34,7 @@ contains
 end type
 
 !-------------------------------------------------------------------------------
-! Constenforce_operator_bcctors
+! Constructors
 !-------------------------------------------------------------------------------
 
 ! overload the default structure constructor for function space
