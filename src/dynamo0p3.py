@@ -2869,9 +2869,6 @@ class ArgOrdering(object):
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
-        # Variable to hold 'to' function space of operator in case we are
-        # generating a stub for the enforce_operator_bc_kernel_type kernel
-        fs_to = None
         # Pass the number of layers in the mesh unless this kernel is
         # applying a CMA operator or doing a CMA matrix-matrix calculation
         if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
@@ -2912,7 +2909,6 @@ class ArgOrdering(object):
                     self.stencil(arg)
             elif arg.type == "gh_operator":
                 self.operator(arg)
-                fs_to = arg.function_space_to
             elif arg.type == "gh_columnwise_operator":
                 self.cma_operator(arg)
             elif arg.type in VALID_SCALAR_NAMES:
@@ -2962,7 +2958,18 @@ class ArgOrdering(object):
         # Add boundary dofs array to the operator boundary condition
         # kernel (enforce_operator_bc_kernel) arguments
         if self._kern.name.lower() == "enforce_operator_bc_code":
-            self.operator_bcs_kernel(fs_to)
+            # Minimal sanity check - this kernel should only have a single LMA
+            # operator as argument so the first one must be a gh_operator.
+            # Full sanity checking is done in the operator_bcs_kernel()
+            # method.
+            op_arg = self._kern.arguments.args[0]
+            if op_arg.type != "gh_operator":
+                raise GenerationError(
+                    "Expected a LMA operator from which to look-up boundary "
+                    "dofs but kernel {0} has argument {1}.".
+                    format(self._kern.name, op_arg.type))
+            self.operator_bcs_kernel(op_arg.function_space_to)
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -3253,16 +3260,11 @@ class KernCallArgList(ArgOrdering):
         ''' Supply necessary additional arguments for the kernel that
         applies boundary conditions to a LMA operator '''
         from f2pygen import DeclGen, AssignGen
-        self._arglist.append("boundary_dofs")
-        parent = self._parent
-        parent.add(DeclGen(parent, datatype="integer",
-                           pointer=True, entity_decls=[
-                               "boundary_dofs(:,:) => null()"]))
-        # Sanity check - this kernel should only have a single LMA
+        # Sanity checks - this kernel should only have a single LMA
         # operator as argument
         if len(self._kern.arguments.args) > 1:
             raise GenerationError(
-                "Kernel {0} has {1} arguments when it should only have one "
+                "Kernel {0} has {1} arguments when it should only have 1 "
                 "(an LMA operator)".format(self._kern.name,
                                            len(self._kern.arguments.args)))
         op_arg = self._kern.arguments.args[0]
@@ -3279,6 +3281,11 @@ class KernCallArgList(ArgOrdering):
                 "conditions to an operator. However its operator argument has "
                 "access {1} rather than gh_inc.".format(self._kern.name,
                                                         op_arg.access))
+        self._arglist.append("boundary_dofs")
+        parent = self._parent
+        parent.add(DeclGen(parent, datatype="integer",
+                           pointer=True, entity_decls=[
+                               "boundary_dofs(:,:) => null()"]))
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
                                  lhs="boundary_dofs",

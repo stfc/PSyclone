@@ -2356,6 +2356,7 @@ def test_operator_bc_kernel():
 def test_operator_bc_kernel_fld_err(monkeypatch):
     ''' test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
+    from dynamo0p3 import KernCallArgList
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api="dynamo0.3")
@@ -2366,6 +2367,9 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
         loop = schedule.children[0]
         call = loop.children[0]
         arg = call.arguments.args[0]
+        # Make ourselves a valid KernCallArgList object so we can separately
+        # test the sanity checks inside its operator_bcs_kernel() method
+        arg_list = KernCallArgList(call, loop)
         # Monkeypatch the argument object so that it thinks it is a
         # field rather than an operator
         monkeypatch.setattr(arg, "_type", value="gh_field")
@@ -2374,11 +2378,17 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
         assert ("Expected a LMA operator from which to look-up boundary dofs "
                 "but kernel enforce_operator_bc_code has argument gh_field") \
             in str(excinfo)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = arg_list.operator_bcs_kernel(arg.function_space_to)
+        assert ("Expected a LMA operator from which to look-up boundary dofs "
+                "but kernel enforce_operator_bc_code has argument gh_field") \
+            in str(excinfo)
 
 
 def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
     ''' test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
+    import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api="dynamo0.3")
@@ -2389,19 +2399,20 @@ def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
         loop = schedule.children[0]
         call = loop.children[0]
         arg = call.arguments.args[0]
-        # Make the list of arguments invalid by duplicating (a reference to)
-        # this argument
-        call.arguments.args.append(arg)
+        # Make the list of arguments invalid by duplicating (a copy of)
+        # this argument. We take a copy because otherwise, when we change
+        # the type of arg 1 below, we change it for both.
+        call.arguments.args.append(copy.copy(arg))
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
-                "should only have one (an LMA operator)") in str(excinfo)
+                "should only have 1 (an LMA operator)") in str(excinfo)
         # And again but make the second argument a field this time
         call.arguments.args[1]._type = "gh_field"
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
-                "should only have one (an LMA operator)") in str(excinfo)
+                "should only have 1 (an LMA operator)") in str(excinfo)
 
 
 def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
