@@ -797,7 +797,7 @@ conventions, are:
        field array name is currently specified as being
        ``"field_"<argument_position>"_"<field_function_space>``. A field
        array is a real array of type ``r_def`` and dimensioned as the
-       unique degrees of freedom for the space that the field operates on.
+       unique degrees of freedom for the space that the field is on.
        This value is passed in separately. Again, the intent is determined
        from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
@@ -807,9 +807,14 @@ conventions, are:
     3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
     4) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-4) For each function space in the order they appear in the metadata arguments (the ``to`` function space of an operator is considered to be before the ``from`` function space of the same operator as it appears first in lexicographic order)
+4) For each function space in the order they appear in the metadata arguments
+   (the ``to`` function space of an operator is considered to be before the
+   ``from`` function space of the same operator as it appears first in
+   lexicographic order)
 
-    1) Include the number of local degrees of freedom for the function space. This is an integer and has intent ``in``. The name of this argument is ``"ndf_"<field_function_space>``.
+    1) Include the number of local degrees of freedom (i.e. number per-cell)
+       for the function space. This is an integer and has intent ``in``. The
+       name of this argument is ``"ndf_"<field_function_space>``.
     2) If there is a field on this space
 
         1) Include the unique number of degrees of freedom for the function space. This is an integer and has intent ``in``. The name of this argument is ``"undf_"<field_function_space>``.
@@ -957,7 +962,7 @@ The full set of rules is then:
        is considered to be before the ``from`` function space of the
        same operator as it appears first in lexicographic order):
 
-       1) Include the number of degrees of freedom for the associated
+       1) Include the number of degrees of freedom per cell for the associated
 	  function space. This is an integer with intent ``in``. The name
 	  of this argument is ``"ndf_"<field_function_space>``.
        2) Include the number of unique degrees of freedom for the associated
