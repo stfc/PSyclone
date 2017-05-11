@@ -2335,8 +2335,8 @@ def test_bc_kernel_field_only(monkeypatch):
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("Expected a gh_field from which to look-up boundary dofs "
-                "for kernel enforce_bc_code but got gh_operator") \
-                in str(excinfo)
+                "for kernel enforce_bc_code but got gh_operator"
+                in str(excinfo))
 
 
 def test_multikernel_invoke_1():

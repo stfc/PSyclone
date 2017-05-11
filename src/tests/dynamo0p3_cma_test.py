@@ -622,6 +622,7 @@ def test_cma_asm_cbanded_dofmap_error():  # pylint: disable=invalid-name
     assert ("Internal error: there should only be one CMA operator argument "
             "for a CMA assembly kernel but found 2") in str(excinfo)
 
+
 def test_cma_asm():
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator '''

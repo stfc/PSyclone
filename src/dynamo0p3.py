@@ -1315,7 +1315,8 @@ class DynInvokeDofmaps(object):
             for dmap, cma in self._unique_cbanded_maps.items():
                 parent.add(AssignGen(parent, pointer=True, lhs=dmap,
                                      rhs=cma["argument"].proxy_name_indexed +
-                                     "%column_banded_dofmap_"+cma["direction"]))
+                                     "%column_banded_dofmap_" +
+                                     cma["direction"]))
 
         if self._unique_indirection_maps:
             parent.add(CommentGen(parent, ""))

@@ -288,7 +288,7 @@ def test_dynbuiltin_cma():
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         cma_type = kern.cma_operation()
-        assert cma_type == None
+        assert cma_type is None
 
 
 def test_dynbuiltfactory_str():
