@@ -6449,7 +6449,7 @@ def test_multi_anyw2():
     '''Check generated code works correctly when we have multiple any_w2
     fields. Particularly check that we only generate a single lookup.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "20.1_single_invoke_multi_anyw2.f90"),
+        os.path.join(BASE_PATH, "21.1_single_invoke_multi_anyw2.f90"),
         api="dynamo0.3")
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -6517,7 +6517,7 @@ def test_anyw2_basis():
     '''Check generated code works correctly when we have any_w2 fields
     and basis functions'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "20.2_single_invoke_multi_anyw2_basis.f90"),
+        os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
         api="dynamo0.3")
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -6551,7 +6551,7 @@ def test_anyw2_vectors():
     '''Check generated code works correctly when we have any_w2 field
     vectors'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "20.3_single_invoke_anyw2_vector.f90"),
+        os.path.join(BASE_PATH, "21.3_single_invoke_anyw2_vector.f90"),
         api="dynamo0.3")
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -6567,7 +6567,7 @@ def test_anyw2_operators():
     '''Check generated code works correctly when we have any_w2 fields
     with operators'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "20.4_single_invoke_anyw2_operator.f90"),
+        os.path.join(BASE_PATH, "21.4_single_invoke_anyw2_operator.f90"),
         api="dynamo0.3")
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -6595,7 +6595,7 @@ def test_anyw2_stencils():
     '''Check generated code works correctly when we have any_w2 fields
     with stencils'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "20.5_single_invoke_anyw2_stencil.f90"),
+        os.path.join(BASE_PATH, "21.5_single_invoke_anyw2_stencil.f90"),
         api="dynamo0.3")
     for dist_mem in [False, True]:
         psy = PSyFactory("dynamo0.3",
