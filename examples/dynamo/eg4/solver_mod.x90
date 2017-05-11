@@ -33,6 +33,11 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
 !
 !> @brief Contains methods and algorithms for solving a system A.x = b for known
 !! input field b and matrix A and returns field x
