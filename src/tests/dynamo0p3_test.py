@@ -589,7 +589,8 @@ def test_field():
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
         "    USE quadrature_mod, ONLY: quadrature_type\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -605,7 +606,7 @@ def test_field():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -692,7 +693,7 @@ def test_field_deref():
             "      INTEGER, pointer :: map_w2(:,:) => null(), "
             "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
             "      !\n"
-            "      ! Initialise field proxies\n"
+            "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      est_f2_proxy = est_f2%get_proxy()\n"
@@ -789,7 +790,8 @@ def test_field_fs():
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
         "    USE quadrature_mod, ONLY: quadrature_type\n"
-        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+        "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -812,7 +814,7 @@ def test_field_fs():
         "map_w1(:,:) => null(), map_any_w2(:,:) => null(), "
         "map_w2v(:,:) => null(), map_w2h(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -963,7 +965,7 @@ def test_field_qr():
     assert output_decls in generated_code
     output = (
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -1106,7 +1108,7 @@ def test_real_scalar():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -1189,7 +1191,7 @@ def test_int_scalar():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -1273,7 +1275,7 @@ def test_two_real_scalars():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -1356,7 +1358,7 @@ def test_two_int_scalars():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -1447,7 +1449,7 @@ def test_two_scalars():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
@@ -1633,7 +1635,7 @@ def test_operator_different_spaces():
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
         "      INTEGER, pointer :: map_w0(:,:) => null()\n"
         "      !\n"
-        "      ! Initialise field proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      mapping_proxy = mapping%get_proxy()\n"
         "      chi_proxy(1) = chi(1)%get_proxy()\n"
@@ -6302,6 +6304,7 @@ def test_argordering_exceptions():
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_position,
                        create_arg_list.mesh_height,
+                       create_arg_list.mesh_ncell2d,
                        create_arg_list.quad_rule]:
             with pytest.raises(NotImplementedError):
                 method()
@@ -6312,17 +6315,35 @@ def test_argordering_exceptions():
                        create_arg_list.stencil,
                        create_arg_list.operator,
                        create_arg_list.scalar,
-                       create_arg_list.fs_compulsory,
+                       create_arg_list.fs_common,
                        create_arg_list.fs_compulsory_field,
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
                        create_arg_list.orientation,
-                       create_arg_list.bc_kernel]:
+                       create_arg_list.bc_kernel,
+                       create_arg_list.banded_dofmap,
+                       create_arg_list.indirection_dofmap,
+                       create_arg_list.cma_operator]:
             with pytest.raises(NotImplementedError):
                 method(None)
 
 
-def test_kernel_stub_invalid_scalar_argument():
+def test_kernel_args_has_op():
+    ''' Check that we raise an exception if the arg. type supplied to
+    DynKernelArguments.has_operator() is not a valid operator '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api="dynamo0.3")
+    # find the parsed code's call class
+    call = invoke_info.calls.values()[0].kcalls[0]
+    from dynamo0p3 import DynKernelArguments
+    dka = DynKernelArguments(call, None)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = dka.has_operator(op_type="gh_field")
+    assert "op_type must be a valid operator type" in str(excinfo)
+
+
+def test_kernel_stub_invalid_scalar_argument():  # pylint: disable=invalid-name
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -6345,6 +6366,33 @@ def test_kernel_stub_invalid_scalar_argument():
     assert (
         "Internal error: expected arg type to be one of '['gh_real', "
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+
+
+def test_kernel_stub_ind_dofmap_errors():  # pylint: disable=invalid-name
+    '''Check that we raise the expected exceptions if the wrong arguments
+    are supplied to KernelStubArgList.indirection_dofmap() '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_one_int_scalar.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # create a temporary module to add code into
+    from f2pygen import ModuleGen
+    module = ModuleGen("module_name")
+    # Now call KernStubArgList to raise an exception
+    from dynamo0p3 import KernStubArgList
+    create_arg_list = KernStubArgList(kernel, module)
+    # First call it without an argument object
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.indirection_dofmap("w3")
+    assert "no CMA operator supplied" in str(excinfo)
+    # Second, call it with an argument object but one that is not
+    # an operator
+    with pytest.raises(GenerationError) as excinfo:
+        create_arg_list.indirection_dofmap("w3", kernel.arguments.args[1])
+    assert ("a CMA operator (gh_columnwise_operator) must be supplied but "
+            "got") in str(excinfo)
 
 
 def test_kerncallarglist_arglist_error():

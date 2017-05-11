@@ -2,8 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
@@ -82,8 +80,13 @@ VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
                        VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write",
-                                 "gh_inc"] + VALID_REDUCTION_NAMES
+# List of all access types that involve writing to an argument
+# in some form
+GH_WRITE_ACCESSES = ["gh_write", "gh_inc"] + VALID_REDUCTION_NAMES
+# List of all access types that only involve reading an argument
+GH_READ_ACCESSES = ["gh_read"]
+VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ACCESSES + GH_WRITE_ACCESSES
+
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -124,6 +127,18 @@ psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 def get_fs_map_name(function_space):
     ''' Returns a dofmap name for the supplied FunctionSpace. '''
     return "map_" + function_space.mangled_name
+
+
+def get_cbanded_map_name(function_space):
+    ''' Returns the name of a column-banded dofmap for the supplied
+    FunctionSpace. '''
+    return "cbanded_map_" + function_space.mangled_name
+
+
+def get_cma_indirection_map_name(function_space):
+    ''' Returns the name of a CMA indirection dofmap for the supplied
+    FunctionSpace. '''
+    return "cma_indirection_map_" + function_space.mangled_name
 
 
 def get_fs_ndf_name(function_space):
@@ -197,6 +212,21 @@ def field_on_space(function_space, arguments):
             # have function spaces, e.g. scalars
             if arg.type == "gh_field" and \
                arg.function_space.orig_name == function_space.orig_name:
+                return arg
+    return None
+
+
+def cma_on_space(function_space, arguments):
+    ''' Returns the corresponding argument if the supplied list of arguments
+    contains a cma operator that maps to/from the specified space. Otherwise
+    returns None.'''
+    if function_space.mangled_name in arguments.unique_fs_names:
+        for arg in arguments.args:
+            # First, test that arg is a CMA op as some argument objects won't
+            # have function spaces, e.g. scalars
+            if arg.type == "gh_columnwise_operator" and \
+               function_space.orig_name in [arg.function_space_to.orig_name,
+                                            arg.function_space_from.orig_name]:
                 return arg
     return None
 
@@ -549,15 +579,6 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here.")
 
     @property
-    def is_any_space(self):
-        ''' Returns True if this descriptor is of type any_space. This
-        could be any on the any_space spaces, i.e. any of any_space_1,
-        any_space_2, ... any_space_9, otherwise returns False. For
-        operators, returns True if the source descriptor is of type
-        any_space, else returns False. '''
-        return self.function_space in VALID_ANY_SPACE_NAMES
-
-    @property
     def vector_size(self):
         ''' Returns the vector size of the argument. This will be 1 if *n
         has not been specified. '''
@@ -744,7 +765,7 @@ class DynKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access != "gh_read":
+            if cop.access not in GH_READ_ACCESSES:
                 write_count += 1
 
         if write_count == 0:
@@ -768,11 +789,10 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
-                                           arg_accesses=["gh_read"])
+                                           arg_accesses=GH_READ_ACCESSES)
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
-                                            arg_accesses=["gh_write",
-                                                          "gh_inc"])
+                                            arg_accesses=GH_WRITE_ACCESSES)
             if len(farg_read) != 1:
                 raise ParseError(
                     "Kernel {0} has a read-only CMA operator. In order "
@@ -798,69 +818,59 @@ class DynKernMetadata(KernelType):
                     "does not match the 'to' space of the operator "
                     "({2})".format(self.name, farg_write[0].function_space,
                                    cma_op.function_space_to))
-            if farg_read[0].stencil:
-                raise ParseError("Kernel {0} applies a CMA operator but has a "
-                                 "field argument with a stencil access ({1}). "
-                                 "This is forbidden.".
-                                 format(self.name,
-                                        farg_read[0].stencil['type']))
-            if farg_read[0].vector_size > 1 or farg_write[0].vector_size > 1:
-                if farg_read[0].vector_size > 1:
-                    _arg = farg_read[0]
-                else:
-                    _arg = farg_write[0]
-                raise ParseError("Kernel {0} applies a CMA operator but has a "
-                                 "vector argument ({1}). This is forbidden.".
-                                 format(self.name,
-                                        _arg.type+"*"+str(_arg.vector_size)))
             # This is a valid CMA-apply or CMA-apply-inverse kernel
             return "apply"
+
         elif write_count == 1:
-            # This kernel must either be assembling a CMA operator
-            # or performing a matrix-matrix operation
-            if len(cwise_ops) == len(self._arg_descriptors):
-                # All of the arguments are CMA operators so
-                # this must be a matrix-matrix operation.
-                # Check that we have more than one argument...
-                if len(cwise_ops) < 2:
-                    raise ParseError("Kernel {0} writes to a single CMA "
-                                     "operator but has no other arguments. "
-                                     "It is therefore not a valid "
-                                     "assembly or matrix-matrix kernel.".
-                                     format(self.name))
-                return "matrix-matrix"
-            else:
-                # If we're assembling a CMA operator then there must be
-                # no others in the argument list
-                if len(cwise_ops) != 1:
-                    raise ParseError("Kernel {0} assembles a CMA operator "
-                                     "and therefore should only have one CMA "
-                                     "operator argument but found {1}".
-                                     format(self.name, len(cwise_ops)))
-                # We need at least one read-only LMA operator
-                lma_read_ops = psyGen.args_filter(self._arg_descriptors,
-                                                  arg_types=["gh_operator"],
-                                                  arg_accesses=["gh_read"])
-                if not lma_read_ops:
-                    raise ParseError(
-                        "Kernel {0} writes to a column-wise operator but "
-                        "does not conform to the rules for matrix-matrix (it "
-                        "has arguments other than CMA operators) or for "
-                        "assembly (it does not have any read-only LMA "
-                        "operator arguments) kernels".format(self.name))
-                # The kernel must not write to any args other than the CMA
-                # operator
-                write_args = psyGen.args_filter(
+            # This kernel writes to a single CMA operator and therefore
+            # must either be assembling a CMA operator
+            # or performing a matrix-matrix operation...
+            # The kernel must not write to any args other than the CMA
+            # operator
+            write_args = psyGen.args_filter(self._arg_descriptors,
+                                            arg_accesses=GH_WRITE_ACCESSES)
+            if len(write_args) > 1:
+                # Remove the one CMA operator from the list of arguments
+                # that are written to so that we can produce a nice
+                # error message
+                for arg in write_args[:]:
+                    if arg.type == 'gh_columnwise_operator':
+                        write_args.remove(arg)
+                        break
+                raise ParseError(
+                    "Kernel {0} writes to a column-wise operator but "
+                    "also writes to {1} argument(s). This is not "
+                    "allowed.".format(self.name,
+                                      [arg.type for arg in write_args]))
+            if len(cwise_ops) == 1:
+
+                # If this is a valid assembly kernel then we need at least one
+                # read-only LMA operator
+                lma_read_ops = psyGen.args_filter(
                     self._arg_descriptors,
-                    arg_types=["gh_operator", "gh_field", "gh_scalar"],
-                    arg_accesses=["gh_inc", "gh_write"])
-                if write_args:
+                    arg_types=["gh_operator"], arg_accesses=GH_READ_ACCESSES)
+                if lma_read_ops:
+                    return "assembly"
+                else:
                     raise ParseError(
-                        "Kernel {0} assembles a column-wise operator but "
-                        "also writes to {1} argument(s). This is not "
-                        "allowed.".format(self.name,
-                                          [arg.type for arg in write_args]))
-                return "assembly"
+                        "Kernel {0} has a single column-wise operator "
+                        "argument but does not conform to the rules for an "
+                        "Assembly kernel because it does not have any read-"
+                        "only LMA operator arguments".format(self.name))
+            else:
+                # A valid matrix-matrix kernel must only have CMA operators
+                # and scalars as arguments.
+                scalar_args = psyGen.args_filter(
+                    self._arg_descriptors, arg_types=VALID_SCALAR_NAMES)
+                if (len(scalar_args) + len(cwise_ops)) != \
+                   len(self._arg_descriptors):
+                    raise ParseError(
+                        "A column-wise matrix-matrix kernel must have only "
+                        "column-wise operators and scalars as arguments but "
+                        "kernel {0} has: {1}.".
+                        format(self.name,
+                               [arg.type for arg in self._arg_descriptors]))
+                return "matrix-matrix"
         else:
             raise ParseError(
                 "A Dynamo 0.3 kernel cannot update more than one CMA "
@@ -874,6 +884,13 @@ class DynKernMetadata(KernelType):
         meta_funcs variable. Information is returned as a list of
         DynFuncDescriptor03 objects, one for each function space. '''
         return self._func_descriptors
+
+    @property
+    def cma_operation(self):
+        ''' Returns the type of CMA operation identified from the kernel
+        meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
+        None if the kernel does not involve CMA operators '''
+        return self._cma_operation
 
 # Second section : PSy specialisations
 
@@ -913,7 +930,9 @@ class DynamoPSy(PSy):
                               funcnames=["field_type", "field_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
                               funcnames=["operator_type",
-                                         "operator_proxy_type"]))
+                                         "operator_proxy_type",
+                                         "columnwise_operator_type",
+                                         "columnwise_operator_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="quadrature_mod", only=True,
                               funcnames=["quadrature_type"]))
         psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
@@ -933,7 +952,7 @@ class DynamoInvokes(Invokes):
 
     def __init__(self, alg_calls):
         self._name_space_manager = NameSpaceFactory().create()
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._0_to_n = DynInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke)
 
@@ -1180,7 +1199,8 @@ class DynInvokeStencil(object):
 
 
 class DynInvokeDofmaps(object):
-    ''' Holds all information on the dofmaps required by an invoke '''
+    ''' Holds all information on the dofmaps (including column-banded and
+    indirection) required by an invoke '''
 
     def __init__(self, schedule):
 
@@ -1190,6 +1210,18 @@ class DynInvokeDofmaps(object):
         # We create a dictionary whose keys are the map names and entries
         # are the corresponding field objects.
         self._unique_fs_maps = {}
+        # We also create a dictionary of column-banded dofmaps. Entries
+        # in this one are themselves dictionaries containing two entries:
+        # "argument" - the object holding information on the CMA kernel
+        #              argument
+        # "direction" - whether the dofmap is required for the "to" for
+        #               "from" function space of the operator.
+        self._unique_cbanded_maps = {}
+        # A dictionary of required CMA indirection dofmaps. As with the
+        # column-banded dofmaps, each entry is itself a dictionary with
+        # "argument" and "direction" entries.
+        self._unique_indirection_maps = {}
+
         for call in schedule.calls():
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
@@ -1202,6 +1234,60 @@ class DynInvokeDofmaps(object):
                         map_name = get_fs_map_name(unique_fs)
                         if map_name not in self._unique_fs_maps:
                             self._unique_fs_maps[map_name] = fld_arg
+                if call.cma_operation == "assembly":
+                    # A kernel that assembles a CMA operator requires
+                    # column-banded dofmaps for its 'to' and 'from'
+                    # function spaces
+                    cma_args = psyGen.args_filter(
+                        call.arguments.args,
+                        arg_types=["gh_columnwise_operator"])
+
+                    # Sanity check - we expect only one CMA argument
+                    if len(cma_args) != 1:
+                        raise GenerationError(
+                            "Internal error: there should only be one CMA "
+                            "operator argument for a CMA assembly kernel but "
+                            "found {0}".format(len(cma_args)))
+
+                    map_name = get_cbanded_map_name(
+                        cma_args[0].function_space_to)
+                    if map_name not in self._unique_cbanded_maps:
+                        self._unique_cbanded_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "to"}
+                    map_name = get_cbanded_map_name(
+                        cma_args[0].function_space_from)
+                    if map_name not in self._unique_cbanded_maps:
+                        self._unique_cbanded_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "from"}
+                elif call.cma_operation == "apply":
+                    # A kernel that applies (or applies the inverse of) a
+                    # CMA operator requires the indirection dofmaps for the
+                    # to- and from-spaces of the operator.
+                    cma_args = psyGen.args_filter(
+                        call.arguments.args,
+                        arg_types=["gh_columnwise_operator"])
+
+                    # Sanity check - we expect only one CMA argument
+                    if len(cma_args) != 1:
+                        raise GenerationError(
+                            "Internal error: there should only be one CMA "
+                            "operator argument for a kernel that applies a "
+                            "CMA operator but found {0}".format(len(cma_args)))
+
+                    map_name = get_cma_indirection_map_name(
+                        cma_args[0].function_space_to)
+                    if map_name not in self._unique_indirection_maps:
+                        self._unique_indirection_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "to"}
+                    map_name = get_cma_indirection_map_name(
+                        cma_args[0].function_space_from)
+                    if map_name not in self._unique_indirection_maps:
+                        self._unique_indirection_maps[map_name] = {
+                            "argument": cma_args[0],
+                            "direction": "from"}
 
     def initialise_dofmaps(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
@@ -1211,19 +1297,39 @@ class DynInvokeDofmaps(object):
         from f2pygen import CommentGen, AssignGen
 
         # If we've got no dofmaps then we do nothing
-        if not self._unique_fs_maps:
-            return
+        if self._unique_fs_maps:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Look-up dofmaps for each function space"))
+            parent.add(CommentGen(parent, ""))
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                              " Look-up dofmaps for each function space"))
-        parent.add(CommentGen(parent, ""))
+            for dmap, field in self._unique_fs_maps.items():
+                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                     rhs=field.proxy_name_indexed +
+                                     "%" + field.ref_name() +
+                                     "%get_whole_dofmap()"))
+        if self._unique_cbanded_maps:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Look-up required column-banded dofmaps"))
+            parent.add(CommentGen(parent, ""))
 
-        for dmap, field in self._unique_fs_maps.items():
-            parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                 rhs=field.proxy_name_indexed +
-                                 "%" + field.ref_name() +
-                                 "%get_whole_dofmap()"))
+            for dmap, cma in self._unique_cbanded_maps.items():
+                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                     rhs=cma["argument"].proxy_name_indexed +
+                                     "%column_banded_dofmap_" +
+                                     cma["direction"]))
+
+        if self._unique_indirection_maps:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " Look-up required CMA indirection dofmaps"))
+            parent.add(CommentGen(parent, ""))
+
+            for dmap, cma in self._unique_indirection_maps.items():
+                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                                     rhs=cma["argument"].proxy_name_indexed +
+                                     "%indirection_dofmap_"+cma["direction"]))
 
     def declare_dofmaps(self, parent):
         ''' Declare all unique function space dofmaps as pointers to
@@ -1231,12 +1337,138 @@ class DynInvokeDofmaps(object):
         children of the supplied parent argument. This must be an
         appropriate f2pygen object. '''
         from f2pygen import DeclGen
+
+        # Function space dofmaps
         decl_map_names = \
             [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
 
         if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_map_names))
+
+        # Column-banded dofmaps
+        decl_bmap_names = \
+            [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
+        if decl_bmap_names:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=decl_bmap_names))
+
+        # CMA operator indirection dofmaps
+        decl_ind_map_names = \
+            [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
+        if decl_ind_map_names:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=decl_ind_map_names))
+
+
+class DynInvokeCMAOperators(object):
+    ''' Holds all information on the CMA operators required by an invoke '''
+
+    # The scalar parameters that must be passed along with a CMA operator
+    # if its 'to' and 'from' spaces are the same
+    cma_same_fs_params = ["nrow", "bandwidth", "alpha",
+                          "beta", "gamma_m", "gamma_p"]
+    # The scalar parameters that must be passed along with a CMA operator
+    # if its 'to' and 'from' spaces are different
+    cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
+                          "beta", "gamma_m", "gamma_p"]
+
+    def __init__(self, schedule):
+
+        self._name_space_manager = NameSpaceFactory().create()
+
+        # Look at every kernel call in this invoke and generate a set of
+        # the unique CMA operators involved. For each one we create a
+        # dictionary entry. The key is the name of the CMA argument in the
+        # PSy layer and the entry is itself another dictionary containing
+        # two entries: the first 'arg' is the CMA argument object and the
+        # second 'params' is the list of integer variables associated with
+        # that CMA operator. The contents of this list depend on whether
+        # or not the to/from function spaces of the CMA operator are the
+        # same.
+        self._cma_ops = {}
+        for call in schedule.calls():
+            if call.cma_operation:
+                # Get a list of all of the CMA arguments to this call
+                cma_args = psyGen.args_filter(
+                    call.arguments.args,
+                    arg_types=["gh_columnwise_operator"])
+                # Create a dictionary entry for each argument that we
+                # have not already seen
+                for arg in cma_args:
+                    if arg.name not in self._cma_ops:
+                        if arg.function_space_to.orig_name != \
+                           arg.function_space_from.orig_name:
+                            self._cma_ops[arg.name] = {
+                                "arg": arg,
+                                "params": self.cma_diff_fs_params}
+                        else:
+                            self._cma_ops[arg.name] = {
+                                "arg": arg,
+                                "params": self.cma_same_fs_params}
+
+    def initialise_cma_ops(self, parent):
+        ''' Generates the calls to the LFRic infrastructure that look-up
+        the various components of each CMA operator. Adds these as
+        children of the supplied parent node. This must be an appropriate
+        f2pygen object. '''
+        from f2pygen import CommentGen, AssignGen
+
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                              " Look-up information for each CMA operator"))
+        parent.add(CommentGen(parent, ""))
+
+        for op_name in self._cma_ops:
+            # First create a pointer to the array containing the actual
+            # matrix
+            cma_name = self._name_space_manager.create_name(
+                root_name=op_name+"_matrix",
+                context="PSyVars",
+                label=op_name+"_matrix")
+            parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
+                                 rhs=self._cma_ops[op_name]["arg"].
+                                 proxy_name_indexed+"%columnwise_matrix"))
+            # Then make copies of the related integer parameters
+            for param in self._cma_ops[op_name]["params"]:
+                param_name = self._name_space_manager.create_name(
+                    root_name=op_name+"_"+param,
+                    context="PSyVars",
+                    label=op_name+"_"+param)
+                parent.add(AssignGen(parent, lhs=param_name,
+                                     rhs=self._cma_ops[op_name]["arg"].
+                                     proxy_name_indexed+"%"+param))
+
+    def declare_cma_ops(self, parent):
+        ''' Generate the necessary declarations for all column-wise operators
+        and their associated parameters '''
+        from f2pygen import DeclGen
+
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
+        for op_name in self._cma_ops:
+            # Declare the matrix itself
+            cma_name = self._name_space_manager.create_name(
+                root_name=op_name+"_matrix", context="PSyVars",
+                label=op_name+"_matrix")
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               pointer=True,
+                               entity_decls=[cma_name+"(:,:,:) => null()"]))
+            # Declare the associated integer parameters
+            param_names = []
+            for param in self._cma_ops[op_name]["params"]:
+                param_names.append(self._name_space_manager.create_name(
+                    root_name=op_name+"_"+param,
+                    context="PSyVars",
+                    label=op_name+"_"+param))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=param_names))
 
 
 class DynInvoke(Invoke):
@@ -1267,6 +1499,10 @@ class DynInvoke(Invoke):
         # Initialise the object holding all information on the dofmaps
         # required by this invoke.
         self.dofmaps = DynInvokeDofmaps(self.schedule)
+
+        # Initialise the object holding all information on the column-
+        # -matrix assembly operators required by this invoke.
+        self.cma_ops = DynInvokeCMAOperators(self.schedule)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -1497,6 +1733,9 @@ class DynInvoke(Invoke):
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
 
+        # Declare any CMA operators and associated parameters
+        self.cma_ops.declare_cma_ops(invoke_sub)
+
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
         for intent in FORTRAN_INTENT_NAMES:
@@ -1530,6 +1769,26 @@ class DynInvoke(Invoke):
                                 entity_decls=op_declarations_dict[intent],
                                 intent=fort_intent))
 
+        # Add subroutine argument declarations for CMA operators that are
+        # read or written (as with normal/LMA operators, they are never 'inc'
+        # because they are discontinuous)
+        cma_op_declarations_dict = self.unique_declns_by_intent(
+            "gh_columnwise_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if cma_op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                invoke_sub.add(
+                    TypeDeclGen(invoke_sub,
+                                datatype="columnwise_operator_type",
+                                entity_decls=cma_op_declarations_dict[intent],
+                                intent=fort_intent))
+
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
         if len(self._psy_unique_qr_vars) > 0:
@@ -1540,7 +1799,8 @@ class DynInvoke(Invoke):
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Initialise field proxies"))
+        invoke_sub.add(CommentGen(invoke_sub,
+                                  " Initialise field and/or operator proxies"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
             # We don't have proxies for scalars
@@ -1571,17 +1831,30 @@ class DynInvoke(Invoke):
                 TypeDeclGen(invoke_sub,
                             datatype="operator_proxy_type",
                             entity_decls=op_proxy_decs))
+        cma_op_proxy_decs = self.unique_proxy_declarations(
+            "gh_columnwise_operator")
+        if cma_op_proxy_decs:
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub,
+                            datatype="columnwise_operator_proxy_type",
+                            entity_decls=cma_op_proxy_decs))
+
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
 
-        # Use the first argument that is not a scalar
+        # Find the first argument that is not a scalar. Also, if there
+        # any CMA operators as arguments then keep a reference to one
+        # of them so that we can look-up the number of columns in the
+        # mesh using its proxy
         first_var = None
+        cma_op = None
         for var in self.psy_unique_vars:
-            if var.type in ["gh_field", "gh_operator"]:
+            if not first_var and var.type not in VALID_SCALAR_NAMES:
                 first_var = var
-                break
+            if var.type == "gh_columnwise_operator":
+                cma_op = var
         if not first_var:
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments")
@@ -1597,6 +1870,21 @@ class DynInvoke(Invoke):
                       first_var.ref_name() + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
+
+        # If we have one or more CMA operators then we will need the number
+        # of columns in the mesh
+        if cma_op:
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub,
+                                      " Initialise number of cols"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            ncol_name = self._name_space_manager.create_name(
+                root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+            invoke_sub.add(
+                AssignGen(invoke_sub, lhs=ncol_name,
+                          rhs=cma_op.proxy_name_indexed + "%ncell_2d"))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[ncol_name]))
 
         # declare and initialise a mesh object if required
         if config.DISTRIBUTED_MEMORY:
@@ -1640,6 +1928,9 @@ class DynInvoke(Invoke):
         # Initialise dofmaps (one for each function space that is used
         # in this invoke)
         self.dofmaps.initialise_dofmaps(invoke_sub)
+
+        # Initialise CMA operators and associated parameters
+        self.cma_ops.initialise_cma_ops(invoke_sub)
 
         if self.qr_required:
             # declare and initialise qr values
@@ -2009,7 +2300,7 @@ class DynLoop(Loop):
             self.set_upper_bound("dofs")
         else:
             if config.DISTRIBUTED_MEMORY:
-                if self._field.type == "gh_operator":
+                if self._field.type in VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
                     self.set_upper_bound("halo", index=1)
@@ -2170,7 +2461,7 @@ class DynLoop(Loop):
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
-        elif arg.type == "gh_operator":
+        elif arg.type in VALID_OPERATOR_NAMES:
             # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
@@ -2252,7 +2543,7 @@ class DynKern(Kern):
     instance or to generate a Kernel stub'''
 
     def __init__(self):
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -2261,6 +2552,7 @@ class DynKern(Kern):
         self._qr_name = ""
         self._qr_args = None
         self._name_space_manager = NameSpaceFactory().create()
+        self._cma_operation = None
 
     def load(self, call, parent=None):
         ''' sets up kernel information with the call object which is
@@ -2281,6 +2573,8 @@ class DynKern(Kern):
             pre = None
             if descriptor.type.lower() == "gh_operator":
                 pre = "op_"
+            elif descriptor.type.lower() == "gh_columnwise_operator":
+                pre = "cma_op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
             elif descriptor.type.lower() == "gh_real":
@@ -2326,6 +2620,9 @@ class DynKern(Kern):
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
         self._func_descriptors = ktype.func_descriptors
+        # Keep a record of the type of CMA kernel identified when
+        # parsing the kernel meta-data
+        self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
@@ -2345,6 +2642,13 @@ class DynKern(Kern):
             self._qr_name = self._name_space_manager.create_name(
                 root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
+
+    @property
+    def cma_operation(self):
+        ''' Returns the type of CMA operation performed by this kernel
+        (one of 'assembly', 'apply' or 'matrix-matrix') or None if the
+        the kernel does not involve CMA operators '''
+        return self._cma_operation
 
     @property
     def fs_descriptors(self):
@@ -2452,7 +2756,7 @@ class DynKern(Kern):
                            entity_decls=["cell"]))
 
         # Check whether this kernel reads from an operator
-        op_args = self.parent.args_filter(arg_types=["gh_operator"],
+        op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
                                           arg_accesses=["gh_read"])
         if op_args:
             # It does. We must check that our parent loop does not
@@ -2621,11 +2925,24 @@ class ArgOrdering(object):
         '''specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
         that can be specialised by a child class for its particular need'''
-        if self._kern.arguments.has_operator:
-            # operators require the cell index to be provided
+        if self._kern.arguments.has_operator():
+            # All operator types require the cell index to be provided
             self.cell_position()
-        # always pass the number of layers in the mesh
-        self.mesh_height()
+        # Pass the number of layers in the mesh unless this kernel is
+        # applying a CMA operator or doing a CMA matrix-matrix calculation
+        if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
+            self.mesh_height()
+        # Pass the number of cells in the mesh if this kernel has a
+        # LMA operator argument
+        # TODO this code should replace the code that currently includes
+        # this quantity for *every* operator it encounters.
+        # if self._kern.arguments.has_operator(op_type="gh_operator"):
+        #     self.mesh_ncell3d()
+        # Pass the number of columns in the mesh if this kernel has a CMA
+        # operator argument
+        if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
+            self.mesh_ncell2d()
+
         # for each argument in the order they are specified in the
         # kernel metadata, call particular methods depending on what
         # type of argument we find (field, field vector, operator or
@@ -2651,6 +2968,8 @@ class ArgOrdering(object):
                     self.stencil(arg)
             elif arg.type == "gh_operator":
                 self.operator(arg)
+            elif arg.type == "gh_columnwise_operator":
+                self.cma_operator(arg)
             elif arg.type in VALID_SCALAR_NAMES:
                 self.scalar(arg)
             else:
@@ -2661,13 +2980,22 @@ class ArgOrdering(object):
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
-            # Provide compulsory arguments common to operators and
-            # fields on a space.
-            self.fs_compulsory(unique_fs)
+            # Provide arguments common to LMA operators and fields
+            # on a space.
+            self.fs_common(unique_fs)
             # Provide additional compulsory arguments if there is a
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
                 self.fs_compulsory_field(unique_fs)
+            cma_op = cma_on_space(unique_fs, self._kern.arguments)
+            if cma_op:
+                if self._kern.cma_operation == "assembly":
+                    # CMA-assembly requires banded dofmaps
+                    self.banded_dofmap(unique_fs)
+                elif self._kern.cma_operation == "apply":
+                    # Applying a CMA operator requires indirection dofmaps
+                    self.indirection_dofmap(unique_fs, operator=cma_op)
+
             # Provide any optional arguments. These arguments are
             # associated with the keyword arguments (basis function,
             # differential basis function and orientation) for a
@@ -2700,6 +3028,17 @@ class ArgOrdering(object):
         ''' add height information'''
         raise NotImplementedError(
             "Error: ArgOrdering.mesh_height() must be implemented by subclass")
+
+    def mesh_ncell2d(self):
+        ''' Add the number of columns in the mesh '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
+            "subclass")
+
+    def cma_operator(self, arg):
+        ''' Add information on the CMA operator '''
+        raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
+                                  "be implemented by subclass")
 
     def field_vector(self, arg):
         ''' add field-vector information for this field-vector argument '''
@@ -2739,11 +3078,11 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.scalar() must be implemented by subclass")
 
-    def fs_compulsory(self, function_space):
-        '''add compulsory information common to operators and fieldsfor this
+    def fs_common(self, function_space):
+        '''add information common to LMA operators and fields for this
         function space'''
         raise NotImplementedError(
-            "Error: ArgOrdering.fs_compulsory() must be implemented by "
+            "Error: ArgOrdering.fs_common() must be implemented by "
             "subclass")
 
     def fs_compulsory_field(self, function_space):
@@ -2778,6 +3117,16 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.quad_rule() must be implemented by subclass")
 
+    def banded_dofmap(self, function_space):
+        ''' Add banded dofmap (required for CMA operator assembly) '''
+        raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
+                                  " be implemented by subclass")
+
+    def indirection_dofmap(self, arg, operator=None):
+        ''' Add indirection dofmap required when applying a CMA operator '''
+        raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
+                                  "must be implemented by subclass")
+
 
 class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
@@ -2798,6 +3147,21 @@ class KernCallArgList(ArgOrdering):
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
+
+    # TODO uncomment this method when ensuring we only pass ncell3d once
+    # to any given kernel.
+    # def mesh_ncell3d(self):
+    #     ''' Add the number of cells in the full 3D mesh to the argument
+    #     list '''
+    #     ncell3d_name = self._name_space_manager.create_name(
+    #         root_name="ncell_3d", context="PSyVars", label="ncell3d")
+    #     self._arglist.append(ncell3d_name)
+
+    def mesh_ncell2d(self):
+        ''' Add the number of columns in the mesh to the argument list '''
+        ncell2d_name = self._name_space_manager.create_name(
+            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        self._arglist.append(ncell2d_name)
 
     def field_vector(self, argvect):
         '''add the field vector associated with the argument 'argvect' to the
@@ -2840,20 +3204,39 @@ class KernCallArgList(ArgOrdering):
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
+        # TODO we should only be including ncell_3d once in the argument
+        # list but this adds it for every operator
         self._arglist.append(arg.proxy_name_indexed+"%ncell_3d")
         self._arglist.append(arg.proxy_name_indexed+"%local_stencil")
+
+    def cma_operator(self, arg):
+        ''' add the CMA operator and associated scalars to the argument
+        list '''
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
+            components = ["matrix"] + DynInvokeCMAOperators.cma_diff_fs_params
+        else:
+            components = ["matrix"] + DynInvokeCMAOperators.cma_same_fs_params
+        for component in components:
+            self._arglist.append(
+                self._name_space_manager.create_name(
+                    root_name=arg.name+"_"+component,
+                    context="PSyVars",
+                    label=arg.name+"_"+component))
 
     def scalar(self, scalar_arg):
         '''add the name associated with the scalar argument to the argument
         list'''
         self._arglist.append(scalar_arg.name)
 
-    def fs_compulsory(self, function_space):
-        '''add compulsory arguments common to operators and
-        fields on a space.'''
-        # There is currently one compulsory argument: "ndf".
-        ndf_name = get_fs_ndf_name(function_space)
-        self._arglist.append(ndf_name)
+    def fs_common(self, function_space):
+        '''add function-space related arguments common to LMA operators and
+        fields'''
+        if self._kern.cma_operation not in ["matrix-matrix"]:
+            # There is currently one argument: "ndf" but only
+            # if this is not a CMA matrix-matrix kernel
+            ndf_name = get_fs_ndf_name(function_space)
+            self._arglist.append(ndf_name)
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -2915,6 +3298,17 @@ class KernCallArgList(ArgOrdering):
                               self._kern.qr_args["h"],
                               self._kern.qr_args["v"]])
 
+    def banded_dofmap(self, function_space):
+        ''' Add banded dofmap (required for CMA operator assembly) '''
+        # Note that the necessary ndf values will already have been added
+        # to the argument list as they are mandatory for every function
+        # space that appears in the meta-data.
+        self._arglist.append(get_cbanded_map_name(function_space))
+
+    def indirection_dofmap(self, function_space, operator=None):
+        ''' Add indirection dofmap required when applying a CMA operator '''
+        self._arglist.append(get_cma_indirection_map_name(function_space))
+
     @property
     def arglist(self):
         '''return the kernel argument list. The generate function must be
@@ -2964,6 +3358,14 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append("nlayers")
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=["nlayers"]))
+
+    def mesh_ncell2d(self):
+        ''' Add the number of columns in the mesh to the argument list if
+        required '''
+        from f2pygen import DeclGen
+        self._arglist.append("ncell_2d")
+        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+                                 entity_decls=["ncell_2d"]))
 
     def field_vector(self, argvect):
         '''add the field vector associated with the argument 'argvect' to the
@@ -3041,6 +3443,9 @@ class KernStubArgList(ArgOrdering):
         decl = DeclGen(self._parent, datatype="integer", intent="in",
                        entity_decls=[size])
         self._parent.add(decl)
+        # If this is the first argument in the kernel then keep a
+        # note so that we can put subsequent declarations in the
+        # correct location
         if self._first_arg:
             self._first_arg = False
             self._first_arg_decl = decl
@@ -3054,6 +3459,84 @@ class KernStubArgList(ArgOrdering):
                                  dimension=",".join([ndf_name_to,
                                                      ndf_name_from, size]),
                                  intent=intent, entity_decls=[text]))
+
+    def cma_operator(self, arg):
+        ''' add the CMA operator arguments to the argument list '''
+        from f2pygen import DeclGen
+        # The CMA operator itself
+        self._arglist.append(arg.name)
+        # Associated scalar parameters
+        nrow = arg.name + "_nrow"
+        _local_args = [nrow]
+        if arg.function_space_to.orig_name != \
+           arg.function_space_from.orig_name:
+            # If the to- and from-spaces are different then so are ncol and
+            # nrow so we pass both of them. If they are the same then we
+            # could pass either but choose to pass nrow and not ncol.
+            ncol = arg.name + "_ncol"
+            _local_args.append(ncol)
+        bandwidth = arg.name + "_bandwidth"
+        alpha = arg.name + "_alpha"
+        beta = arg.name + "_beta"
+        gamma_m = arg.name + "_gamma_m"
+        gamma_p = arg.name + "_gamma_p"
+        _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
+        self._arglist += _local_args
+
+        intent = arg.intent
+        # Declare the associated scalar arguments before the array because
+        # some of them are used to dimension the latter (and some compilers
+        # get upset if this ordering is not followed)
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 intent="in",
+                                 entity_decls=_local_args))
+        # Declare the array that holds the CMA operator
+        # If this is the first argument in the kernel then keep a
+        # note so that we can put subsequent declarations in the
+        # correct location
+        decl = DeclGen(self._parent, datatype="real", kind="r_def",
+                       dimension=",".join([bandwidth,
+                                           nrow, "ncell_2d"]),
+                       intent=intent, entity_decls=[arg.name])
+        self._parent.add(decl)
+        if self._first_arg:
+            self._first_arg = False
+            self._first_arg_decl = decl
+
+    def banded_dofmap(self, function_space):
+        ''' Declare the banded dofmap required for a CMA operator
+        that maps to/from the specified function space '''
+        from f2pygen import DeclGen
+        ndf = get_fs_ndf_name(function_space)
+        dofmap = get_cbanded_map_name(function_space)
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 dimension=",".join([ndf, "nlayers"]),
+                                 intent="in",
+                                 entity_decls=[dofmap]))
+        self._arglist.append(dofmap)
+
+    def indirection_dofmap(self, function_space, operator=None):
+        ''' Declare the indirection dofmaps required when applying a
+        CMA operator '''
+        from f2pygen import DeclGen
+        if not operator:
+            raise GenerationError("Internal error: no CMA operator supplied.")
+        if operator.type != "gh_columnwise_operator":
+            raise GenerationError(
+                "Internal error: a CMA operator (gh_columnwise_operator) must "
+                "be supplied but got {0}".format(operator.type))
+        # The extent of the (1D) dofmap depends on whether it is for the 'to'
+        # or 'from' function space of the operator
+        if operator.function_space_to.orig_name == function_space.orig_name:
+            dim_name = operator.name + "_nrow"
+        else:
+            dim_name = operator.name + "_ncol"
+        map_name = get_cma_indirection_map_name(function_space)
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 dimension=dim_name,
+                                 intent="in",
+                                 entity_decls=[map_name]))
+        self._arglist.append(map_name)
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
@@ -3074,16 +3557,17 @@ class KernStubArgList(ArgOrdering):
         self._parent.add(decl)
         self._arglist.append(arg.name)
 
-    def fs_compulsory(self, function_space):
-        ''' Provide compulsory arguments common to operators and
-        fields on a space. There is one: "ndf".'''
+    def fs_common(self, function_space):
+        ''' Provide arguments common to LMA operators and
+        fields on a space. There is one: "ndf". '''
         from f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
-        self._arglist.append(ndf_name)
-        self._parent.add(
-            DeclGen(self._parent, datatype="integer", intent="in",
-                    entity_decls=[ndf_name]),
-            position=["before", self._first_arg_decl.root])
+        if self._kern.cma_operation not in ["matrix-matrix"]:
+            ndf_name = get_fs_ndf_name(function_space)
+            self._arglist.append(ndf_name)
+            self._parent.add(
+                DeclGen(self._parent, datatype="integer", intent="in",
+                        entity_decls=[ndf_name]),
+                position=["before", self._first_arg_decl.root])
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
@@ -3285,8 +3769,8 @@ class KernStubArgList(ArgOrdering):
 #        if scalar_arg in ["in", "inout"]:
 #            self._add_dino_scalar(scalar_arg.name)
 #
-#    def fs_compulsory(self, function_space):
-#        '''get dino to output any compulsory arguments common to operators and
+#    def fs_common(self, function_space):
+#        '''get dino to output any arguments common to LMA operators and
 #        fields on a space. '''
 #        # There is currently one: "ndf".
 #        ndf_name = get_fs_ndf_name(function_space)
@@ -3509,7 +3993,8 @@ class DynKernelArguments(Arguments):
     collectively, as specified by the kernel argument metadata. '''
 
     def __init__(self, call, parent_call):
-        if False:  # for pyreverse
+        if False:  # pylint: disable=using-constant-test
+            # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
 
         self._name_space_manager = NameSpaceFactory().create()
@@ -3599,11 +4084,22 @@ class DynKernelArguments(Arguments):
                                  "is no field or operator with function space "
                                  "{0}".format(func_space.mangled_name))
 
-    @property
-    def has_operator(self):
-        ''' Returns true if at least one of the arguments is an operator. '''
+    def has_operator(self, op_type=None):
+        ''' Returns true if at least one of the arguments is an operator
+        of type op_type (either gh_operator [LMA] or gh_columnwise_operator
+        [CMA]). If op_type is None then searches for *any* valid operator
+        type. '''
+        if op_type and op_type not in VALID_OPERATOR_NAMES:
+            raise GenerationError(
+                "If supplied, op_type must be a valid operator type (one "
+                "of {0}) but got {1}".format(VALID_OPERATOR_NAMES, op_type))
+        if not op_type:
+            # If no operator type is specified then we match any type
+            op_list = VALID_OPERATOR_NAMES
+        else:
+            op_list = [op_type]
         for arg in self._args:
-            if arg.type == "gh_operator":
+            if arg.type in op_list:
                 return True
         return False
 
@@ -3631,7 +4127,7 @@ class DynKernelArguments(Arguments):
         # check whether this kernel writes to an operator
         op_args = psyGen.args_filter(self._args,
                                      arg_types=VALID_OPERATOR_NAMES,
-                                     arg_accesses=["gh_write", "gh_inc"])
+                                     arg_accesses=GH_WRITE_ACCESSES)
         if op_args:
             return op_args[0]
 
@@ -3645,7 +4141,7 @@ class DynKernelArguments(Arguments):
         # larger (include L1 halo cells)
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
-                                      arg_accesses=["gh_write", "gh_inc"])
+                                      arg_accesses=GH_WRITE_ACCESSES)
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
@@ -3695,7 +4191,7 @@ class DynKernelArgument(KernelArgument):
         fs1 = None
         fs2 = None
 
-        if self._type == "gh_operator":
+        if self._type in VALID_OPERATOR_NAMES:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
                                 self._kernel_args)
@@ -3716,7 +4212,7 @@ class DynKernelArgument(KernelArgument):
     def ref_name(self, function_space=None):
         ''' Returns the name used to dereference this type of argument. '''
         if not function_space:
-            if self._type == "gh_operator":
+            if self._type in VALID_OPERATOR_NAMES:
                 # For an operator we use the 'from' FS
                 function_space = self._function_spaces[1]
             else:
@@ -3738,7 +4234,7 @@ class DynKernelArgument(KernelArgument):
                         self.function_space_names))
         if self._type == "gh_field":
             return "vspace"
-        elif self._type == "gh_operator":
+        elif self._type in VALID_OPERATOR_NAMES:
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
             elif function_space.orig_name == self.descriptor.function_space_to:

@@ -276,6 +276,21 @@ def test_dynbuiltin_gen_code():
         assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
 
 
+def test_dynbuiltin_cma():
+    ''' Check that a DynBuiltIn returns None for CMA type (because
+    built-ins don't work with CMA operators) '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        cma_type = kern.cma_operation()
+        assert cma_type is None
+
+
 def test_dynbuiltfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected. '''
@@ -334,7 +349,7 @@ def test_builtin_set():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      !\n"
@@ -399,7 +414,7 @@ def test_builtin_set_by_ref():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      !\n"
@@ -462,7 +477,7 @@ def test_multiple_builtin_set():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -667,7 +682,7 @@ def test_copy():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1081,7 +1096,7 @@ def test_axpy():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1147,7 +1162,7 @@ def test_axpy_by_value():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1227,7 +1242,7 @@ def test_inc_axpy():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1307,7 +1322,7 @@ def test_axpby():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1373,7 +1388,7 @@ def test_axpby_by_value():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1456,7 +1471,7 @@ def test_inc_axpby():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1737,7 +1752,7 @@ def test_innerprod():
         print code
         output = (
             "      !\n"
-            "      ! Initialise field proxies\n"
+            "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
@@ -1826,7 +1841,7 @@ def test_sumfield():
         print code
         output = (
             "      !\n"
-            "      ! Initialise field proxies\n"
+            "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
