@@ -4,6 +4,8 @@
 	2) #6 Implement support for Column Matrix Assembly (CMA) in
 	PSyclone.
 
+	3) #12 Add support for the any_w2 function space descriptor
+
 release 1.3.3
 
 	1) Project moved to github: https://github.com/stfc/PSyclone.
