@@ -150,6 +150,11 @@ class DynBuiltIn(BuiltIn):
     def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
 
+    def cma_operation(self):
+        ''' Built-ins do not perform operations with Column-Matrix-Assembly
+        operators '''
+        return None
+
 
 class DynScaleFieldKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''
