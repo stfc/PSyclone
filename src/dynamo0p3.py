@@ -3258,37 +3258,31 @@ class KernCallArgList(ArgOrdering):
         parent.add(DeclGen(parent, datatype="integer",
                            pointer=True, entity_decls=[
                                "boundary_dofs(:,:) => null()"]))
-        # Find the single, LMA operator argument that this kernel updates
-        # TODO replace this with args_filter() once the modification to
-        # make it a module function is on master
-        op_args = []
-        for arg in self._kern.arguments.args:
-            if arg.type == "gh_operator":
-                op_args.append(arg)
-        # op_args = self.parent.args_filter(self._kern.arguments,
-        #                                   arg_types=VALID_OPERATOR_NAMES,
-        #                                   arg_accesses=["gh_write"])
-        if not op_args:
+        # Sanity check - this kernel should only have a single LMA
+        # operator as argument
+        if len(self._kern.arguments.args) > 1:
+            raise GenerationError(
+                "Kernel {0} has {1} arguments when it should only have one "
+                "(an LMA operator)".format(self._kern.name,
+                                           len(self._kern.arguments.args)))
+        op_arg = self._kern.arguments.args[0]
+        if op_arg.type != "gh_operator":
             raise GenerationError(
                 "Expected a LMA operator from which to look-up boundary dofs "
-                "but kernel {0} has no such argument.".format(self._kern.name))
-        if len(op_args) > 1:
-            raise GenerationError(
-                "Expected a single LMA operator from which to look-up boundary "
-                "dofs but kernel {0} has {1}.".
-                format(self._kern.name, len(op_args)))
+                "but kernel {0} has argument {1}.".
+                format(self._kern.name, op_arg.type))
         # TODO this access should really be "gh_readwrite". Support for
         # this will be added under #25.
-        if op_args[0].access != "gh_inc":
+        if op_arg.access != "gh_inc":
             raise GenerationError(
                 "Kernel {0} is recognised as a kernel which applies boundary "
                 "conditions to an operator. However its operator argument has "
                 "access {1} rather than gh_inc.".format(self._kern.name,
-                                                        op_args[0].access))
+                                                        op_arg.access))
         new_parent, position = parent.start_parent_loop()
         new_parent.add(AssignGen(new_parent, pointer=True,
                                  lhs="boundary_dofs",
-                                 rhs=op_args[0].proxy_name +
+                                 rhs=op_arg.proxy_name +
                                  "%fs_to%get_boundary_dofs()"),
                        position=["before", position])
 

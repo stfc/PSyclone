@@ -2372,13 +2372,13 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("Expected a LMA operator from which to look-up boundary dofs "
-                "but kernel enforce_operator_bc_code has no such argument") \
+                "but kernel enforce_operator_bc_code has argument gh_field") \
             in str(excinfo)
 
 
 def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
     ''' test that we reject the recognised operator boundary conditions
-    kernel if it has more than one operator argument '''
+    kernel if it has more than one argument '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api="dynamo0.3")
@@ -2394,9 +2394,14 @@ def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
         call.arguments.args.append(arg)
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
-        assert (
-            "Expected a single LMA operator from which to look-up boundary "
-            "dofs but kernel enforce_operator_bc_code has 2") in str(excinfo)
+        assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
+                "should only have one (an LMA operator)") in str(excinfo)
+        # And again but make the second argument a field this time
+        call.arguments.args[1]._type = "gh_field"
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
+                "should only have one (an LMA operator)") in str(excinfo)
 
 
 def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
