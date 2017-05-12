@@ -922,27 +922,36 @@ class DynamoPSy(PSy):
         :rtype: ast
 
         '''
+        # return the AST for the generated code
+        return self.psy_module.root
+
+    @property
+    def psy_module(self):
+        ''' Creates the f2pygen AST representing the PSy layer. This tree
+        is stored in self._psy_module '''
         from f2pygen import ModuleGen, UseGen
-        # create an empty PSy layer module
-        psy_module = ModuleGen(self.name)
-        # include required infrastructure modules
-        psy_module.add(UseGen(psy_module, name="field_mod", only=True,
-                              funcnames=["field_type", "field_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
-                              funcnames=["operator_type",
-                                         "operator_proxy_type",
-                                         "columnwise_operator_type",
-                                         "columnwise_operator_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="quadrature_mod", only=True,
-                              funcnames=["quadrature_type"]))
-        psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
-                              funcnames=["r_def"]))
-        # add all invoke specific information
-        self.invokes.gen_code(psy_module)
-        # inline kernels where requested
-        self.inline(psy_module)
-        # return the generated code
-        return psy_module.root
+        if not self._psy_module:
+            # create an empty PSy layer module
+            psy_module = ModuleGen(self.name)
+            # include required infrastructure modules
+            psy_module.add(UseGen(psy_module, name="field_mod", only=True,
+                                  funcnames=["field_type", "field_proxy_type"]))
+            psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
+                                  funcnames=["operator_type",
+                                             "operator_proxy_type",
+                                             "columnwise_operator_type",
+                                             "columnwise_operator_proxy_type"]))
+            psy_module.add(UseGen(psy_module, name="quadrature_mod", only=True,
+                                  funcnames=["quadrature_type"]))
+            psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
+                                  funcnames=["r_def"]))
+            # add all invoke specific information
+            self.invokes.gen_code(psy_module)
+            # inline kernels where requested
+            self.inline(psy_module)
+            # Store the resulting f2pygen tree
+            self._psy_module = psy_module
+        return self._psy_module
 
 
 class DynamoInvokes(Invokes):

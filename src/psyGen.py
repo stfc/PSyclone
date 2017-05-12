@@ -213,6 +213,7 @@ class PSy(object):
 
         self._name = invoke_info.name
         self._invokes = None
+        self._psy_module = None
 
     def __str__(self):
         return "PSy"
