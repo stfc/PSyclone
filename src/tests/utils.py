@@ -54,30 +54,65 @@ def compile_file(filename):
         return True
 
 
-def code_compiles(module_path, module_files, code, tmpdir):
+def code_compiles(base_path, module_files, psy, tmpdir):
     '''Attempts to build the supplied Fortran code. Returns True for
     success, False otherwise. If no Fortran compiler is available
     then returns True. '''
-    import shutil
 
     if not F90_COMPILER:
-        # TODO Log the fact that we have no Fortran compiler set-up?
+        # TODO Log the fact that we have no Fortran compiler setup?
         return True
+
+    import f2pygen
+    kernel_modules = []
+    # Get the list of Use statements in the generated code
+    use_stmts = psy.psy_module.walk(psy._psy_module.children, f2pygen.UseGen)
+    # Those that aren't in our list of infrastructure modules must be
+    # kernels
+    for stmt in use_stmts:
+        if stmt.root.name not in module_files:
+            kernel_modules.append(stmt.root.name)
 
     # Create a temporary working directory using the object passed to
     # us from pytest
     cwd = str(tmpdir.mkdir("tmp"))
     os.chdir(cwd)
 
+    # Create a file containing our generated PSy layer
     filename = "psy.f90"
     psy_file = open(filename, 'w')
-    psy_file.write(code)
+    psy_file.write(str(psy.gen))
     psy_file.close()
 
-    for file in module_files:
-        shutil.copy(os.path.join(module_path, file), cwd)
+    module_path = os.path.join(base_path, "infrastructure")
+    kernel_path = base_path
 
-        success = compile_file(file)
+    # First build the modules
+    for file in module_files:
+        name = os.path.join(module_path, file)
+        if os.path.isfile(str(name)+".f90"):
+            name += ".f90"
+        elif os.path.isfile(str(name)+".F90"):
+            name += ".F90"
+        else:
+            raise IOError("Cannot find infrastructure module {0}.F/f90".
+                          format(name))
+        # We don't have to copy the source file - just compile it in the
+        # current working directory.
+        success = compile_file(name)
+        if not success:
+            return False
+    # Then build the kernels
+    for file in kernel_modules:
+        name = os.path.join(kernel_path, file)
+        if os.path.isfile(str(name)+".f90"):
+            name += ".f90"
+        elif os.path.isfile(str(name)+".F90"):
+            name += ".F90"
+        else:
+            raise IOError("Cannot find kernel module {0}.F/f90".
+                          format(name))
+        success = compile_file(name)
         if not success:
             return False
 
