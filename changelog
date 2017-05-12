@@ -1,3 +1,5 @@
+release 1.4.0
+
         1) #2 Add support for kernel meta-data changes required to support
         Column-wise operators (Column Matrix Assembly).
 
