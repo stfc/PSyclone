@@ -56,6 +56,8 @@ from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     DynGlobalSum
 from transformations import LoopFuseTrans
 from genkernelstub import generate
+from dynamo0p3_build import INFRASTRUCTURE_MODULES
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -578,7 +580,7 @@ def test_unecessary_eval_shape():
             in str(excinfo))
 
 
-def test_field():
+def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -649,6 +651,10 @@ def test_field():
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
+
+    assert utils.code_compiles(BASE_PATH,
+                               INFRASTRUCTURE_MODULES, psy, tmpdir)
+
     print output
     print generated_code
     assert str(generated_code).find(output) != -1
