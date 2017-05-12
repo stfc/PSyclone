@@ -14,12 +14,13 @@ import os
 import pytest
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
-
+import utils
+from dynamo0p3_build import INFRASTRUCTURE_PATH, \
+    INFRASTRUCTURE_MODULES
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-
 # functions
 
 
@@ -329,7 +330,7 @@ def test_builtin_set_str():
         assert str(kern) == "Built-in: Set field to a scalar value"
 
 
-def test_builtin_set():
+def test_builtin_set(tmpdir):
     ''' Tests that we generate correct code for a serial builtin
     set operation with a scalar passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -340,6 +341,10 @@ def test_builtin_set():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+
+        assert utils.code_compiles(BASE_PATH, INFRASTRUCTURE_MODULES,
+                                   psy, tmpdir)
+
         if not distmem:
             output_seq = (
                 "    SUBROUTINE invoke_0(f1)\n"
