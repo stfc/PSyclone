@@ -21,6 +21,11 @@ from transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # The version of the API that the tests in this file
 # exercise.
 TEST_API = "dynamo0.3"
@@ -163,6 +168,53 @@ def test_colour_trans_operator():
 
         # check the first argument is a colourmap lookup
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
+
+
+def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
+    '''test of the colouring transformation of a single loop with a CMA
+    operator. We check that the first argument is a colourmap lookup,
+    not a direct cell index. We test when distributed memory is both
+    off and on. '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "20.3_cma_assembly_field.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get(
+            'invoke_0_columnwise_op_asm_field_kernel_type')
+        schedule = invoke.schedule
+        schedule.view()
+        ctrans = Dynamo0p3ColourTrans()
+
+        if dist_mem:
+            index = 1
+        else:
+            index = 0
+
+        # Colour the loop
+        schedule, _ = ctrans.apply(schedule.children[index])
+
+        # Store the results of applying this code transformation as a
+        # string
+        gen = str(psy.gen)
+        print gen
+
+        assert (
+            "      DO colour=1,ncolour\n"
+            "        DO cell=1,ncp_colour(colour)\n"
+            "          !\n"
+            "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
+            "cell), nlayers, ncell_2d, afield_proxy%data, "
+            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_any_space_1_afield, undf_any_space_1_afield, "
+            "map_any_space_1_afield(:,cmap(colour, cell)), "
+            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+            "cbanded_map_any_space_2_lma_op1)\n"
+            "        END DO \n"
+            "      END DO \n") in gen
 
 
 def test_colour_trans_stencil():
@@ -1104,6 +1156,71 @@ def test_fuse_colour_loops():
                 "      CALL f_proxy%set_dirty()\n")
             assert set_dirty_str in code
             assert code.count("set_dirty()") == 2
+
+
+def test_loop_fuse_cma():
+    ''' Test that we can loop fuse two loops when one contains a
+    call to a CMA-related kernel '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "20.6_multi_invoke_with_cma.f90"),
+                    api=TEST_API)
+    ftrans = DynamoLoopFuseTrans()
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
+        if dist_mem:
+            # We have halo-swaps between the two loops but these can
+            # all be moved before the first loop since the first
+            # kernel doesn't look at the corresponding fields
+            schedule.children.insert(1, schedule.children.pop(2))
+            schedule.children.insert(2, schedule.children.pop(3))
+            schedule.children.insert(3, schedule.children.pop(4))
+            index = 4
+        else:
+            index = 0
+
+        # Fuse the loops
+        schedule, _ = ftrans.apply(schedule.children[index],
+                                   schedule.children[index+1],
+                                   same_space=True)
+        code = str(psy.gen)
+        print code
+        assert (
+            "      ! Look-up required column-banded dofmaps\n"
+            "      !\n"
+            "      cbanded_map_any_space_1_afield => "
+            "cma_op1_proxy%column_banded_dofmap_to\n"
+            "      cbanded_map_any_space_2_lma_op1 => "
+            "cma_op1_proxy%column_banded_dofmap_from\n") in code
+        assert (
+            "      ! Look-up information for each CMA operator\n"
+            "      !\n"
+            "      cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n"
+            "      cma_op1_nrow = cma_op1_proxy%nrow\n"
+            "      cma_op1_ncol = cma_op1_proxy%ncol\n"
+            "      cma_op1_bandwidth = cma_op1_proxy%bandwidth\n"
+            "      cma_op1_alpha = cma_op1_proxy%alpha\n"
+            "      cma_op1_beta = cma_op1_proxy%beta\n"
+            "      cma_op1_gamma_m = cma_op1_proxy%gamma_m\n"
+            "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
+        ) in code
+        assert (
+            "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+            "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
+            "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+            "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_afield, "
+            "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
+            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+            "cbanded_map_any_space_2_lma_op1)\n"
+            "        !\n"
+            "        CALL testkern_code(nlayers, scalar1, "
+            "afield_proxy%data, bfield_proxy%data, cfield_proxy%data, "
+            "dfield_proxy%data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))\n") in code
 
 
 def test_omp_parallel_and_halo_exchange_error():
