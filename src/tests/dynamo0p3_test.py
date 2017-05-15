@@ -2378,7 +2378,6 @@ def test_operator_bc_kernel():
 def test_operator_bc_kernel_fld_err(monkeypatch):
     ''' test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
-    from dynamo0p3 import KernCallArgList
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api="dynamo0.3")
@@ -2389,19 +2388,11 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
         loop = schedule.children[0]
         call = loop.children[0]
         arg = call.arguments.args[0]
-        # Make ourselves a valid KernCallArgList object so we can separately
-        # test the sanity checks inside its operator_bcs_kernel() method
-        arg_list = KernCallArgList(call, loop)
         # Monkeypatch the argument object so that it thinks it is a
         # field rather than an operator
         monkeypatch.setattr(arg, "_type", value="gh_field")
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
-        assert ("Expected a LMA operator from which to look-up boundary dofs "
-                "but kernel enforce_operator_bc_code has argument gh_field") \
-            in str(excinfo)
-        with pytest.raises(GenerationError) as excinfo:
-            _ = arg_list.operator_bcs_kernel(arg.function_space_to)
         assert ("Expected a LMA operator from which to look-up boundary dofs "
                 "but kernel enforce_operator_bc_code has argument gh_field") \
             in str(excinfo)
