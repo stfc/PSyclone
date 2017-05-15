@@ -2281,21 +2281,12 @@ class Argument(object):
         '''Return the first argument in the list of nodes that has a
         dependency with self. If one is not found return None'''
         for node in nodes:
-            if isinstance(node, Call):
-                for argument in node.arguments.args:
+            # only check objects which contain their own data
+            if isinstance(node, Call) or isinstance(node, HaloExchange) \
+               or isinstance(node, GlobalSum):
+                for argument in node.args:
                     if self._depends_on(argument):
                         return argument
-            elif isinstance(node, HaloExchange):
-                argument = node.field
-                if self._depends_on(argument):
-                    return argument
-            elif isinstance(node, GlobalSum):
-                argument = node.scalar
-                if self._depends_on(argument):
-                    return argument
-            else:
-                # this node has no arguments
-                pass
         return None
 
     def _depends_on(self, argument):
