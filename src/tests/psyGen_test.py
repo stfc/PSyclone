@@ -817,8 +817,8 @@ def test_invalid_reprod_pad_size():
     config.REPROD_PAD_SIZE = keep
 
 
-def test_argument_dependent_arg():
-    '''Check that the dependent_arg method returns the appropriate boolean
+def test_argument_depends_on():
+    '''Check that the depends_on method returns the appropriate boolean
     value for arguments with combinations of read and write access'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
@@ -832,15 +832,15 @@ def test_argument_dependent_arg():
     arg_f2_inc = schedule.children[1].children[0].arguments.args[0]
     arg_f2_read_2 = schedule.children[2].children[0].arguments.args[1]
     # different names returns False
-    assert not arg_f2_inc._dependent_arg(arg_f1_inc_1)
+    assert not arg_f2_inc._depends_on(arg_f1_inc_1)
     # same name both reads returns False
-    assert not arg_f2_read_1._dependent_arg(arg_f2_read_2)
+    assert not arg_f2_read_1._depends_on(arg_f2_read_2)
     # same name both incs (write to read) returns True
-    assert arg_f1_inc_2._dependent_arg(arg_f1_inc_1)
+    assert arg_f1_inc_2._depends_on(arg_f1_inc_1)
     # read to write returns True
-    assert arg_f2_read_1._dependent_arg(arg_f2_inc)
+    assert arg_f2_read_1._depends_on(arg_f2_inc)
     # write to read returns True
-    assert arg_f2_inc._dependent_arg(arg_f2_read_1)
+    assert arg_f2_inc._depends_on(arg_f2_read_1)
     # same name both writes (the 4.5 example only uses inc) returns True
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
@@ -850,7 +850,7 @@ def test_argument_dependent_arg():
     schedule = invoke.schedule
     arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
     arg_f1_write_2 = schedule.children[1].children[0].arguments.args[1]
-    assert arg_f1_write_1._dependent_arg(arg_f1_write_2)
+    assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
 def test_argument_find_argument():

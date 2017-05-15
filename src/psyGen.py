@@ -2175,27 +2175,6 @@ class Arguments(object):
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
 
-    def args_filter(self, arg_types=None, arg_accesses=None):
-        '''Return all arguments of type arg_types and arg_accesses. If these
-        are not set then return all arguments.'''
-        arguments = []
-        if arg_types and arg_accesses:
-            for argument in self._args:
-                if argument.type.lower() in arg_types and \
-                   argument.access.lower() in arg_accesses:
-                    arguments.append(argument)
-        elif arg_types:
-            for argument in self._args:
-                if argument.type.lower() in arg_types:
-                    arguments.append(argument)
-        elif arg_accesses:
-            for argument in self._args:
-                if argument.access.lower() in arg_accesses:
-                    arguments.append(argument)
-        else:  # no conditions provided so return all args
-            return self._args
-        return arguments
-
 
 class Argument(object):
     ''' argument base class '''
@@ -2304,24 +2283,50 @@ class Argument(object):
         for node in nodes:
             if isinstance(node, Call):
                 for argument in node.arguments.args:
-                    if self._dependent_arg(argument):
+                    if self._depends_on(argument):
                         return argument
             elif isinstance(node, HaloExchange):
                 argument = node.field
-                if self._dependent_arg(argument):
+                if self._depends_on(argument):
                     return argument
             elif isinstance(node, GlobalSum):
                 argument = node.scalar
-                if self._dependent_arg(argument):
+                if self._depends_on(argument):
                     return argument
             else:
                 # this node has no arguments
                 pass
         return None
 
-    def _dependent_arg(self, argument):
-        ''' If there is a dependency between the argument and self then return
-        True, otherwise return False'''
+    def _depends_on(self, argument):
+        '''If there is a dependency between the argument and self then return
+        True, otherwise return False. We consider there to be a
+        dependency between two arguments if the names are the same and
+        if one reads and one writes, or if both write. Dependencies
+        are often defined as being read-after-write (RAW),
+        write-after-read (WAR) and write after write (WAW). These
+        dependencies can be considered to be forward dependencies, in
+        the sense that RAW means that the read is after the write in
+        the schedule. Similarly for WAR and WAW. We capture these
+        dependencies in this method. However we also capture
+        dependencies in the opposite direction (backward
+        dependencies). These are the same dependencies as forward
+        dependencies but are reversed. One could consider these to be
+        read-before-write, write-before-read, and
+        write-before-write. The terminology of forward and backward to
+        indicate whether the argument we depend on is after or before
+        us in the schedule is borrowed from loop dependence analysis
+        where a forward dependence indicates a dependence in a future
+        loop iteration and a backward dependence indicates a
+        dependence on a previous loop iteration. Note, we currently
+        assume that any read or write to an argument results in a
+        dependence i.e. we do not consider the internal structure of
+        the argument (e.g. it may be an array). However, this
+        assumption is OK as all elements of an array are typically
+        accessed. However, we may need to revisit this when we change
+        the iteration spaces of loops e.g. for overlapping
+        communication and computation. '''
+        
         writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
                    MAPPING_REDUCTIONS["sum"]]
         readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
