@@ -14,6 +14,8 @@ import os
 # environment variable
 F90_COMPILER = os.environ.get('F90')
 F90_FLAGS = os.environ.get('F90FLAGS')
+# The various file suffixes we recognise as being Fortran
+FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
 def line_number(root, string_name):
@@ -37,10 +39,29 @@ def count_lines(root, string_name):
     return count
 
 
+def find_fortran_file(path, root_name):
+    ''' Returns the full path to a Fortran source file. Searches for
+    files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
+    if no matching file is found. '''
+    name = os.path.join(path, root_name)
+    for suffix in FORTRAN_SUFFIXES:
+        if os.path.isfile(str(name)+"."+suffix):
+            name += "." + suffix
+            return name
+    raise IOError("Cannot find a Fortran file {0} with suffix in {1}".
+                  format(name), FORTRAN_SUFFIXES)
+
+
 def compile_file(filename):
+    ''' Compiles the specified Fortran file using the compiler
+    previously picked-up from the F90 environment variable. '''
     import subprocess
 
-    build = subprocess.Popen([F90_COMPILER, '-c', filename],
+    if F90_FLAGS:
+        arg_list = [F90_COMPILER, F90_FLAGS, '-c', filename]
+    else:
+        arg_list = [F90_COMPILER, '-c', filename]
+    build = subprocess.Popen(arg_list,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT)
     (output, error) = build.communicate()
@@ -61,14 +82,17 @@ def code_compiles(base_path, module_files, psy, tmpdir):
 
     if not F90_COMPILER:
         # TODO Log the fact that we have no Fortran compiler setup?
+        # If no Fortran compiler is set-up then we quietly skip this test
         return True
 
     import f2pygen
     kernel_modules = []
     # Get the list of Use statements in the generated code
-    use_stmts = psy.psy_module.walk(psy._psy_module.children, f2pygen.UseGen)
+    use_stmts = psy.psy_module.walk(psy.psy_module.children, f2pygen.UseGen)
     # Those that aren't in our list of infrastructure modules must be
-    # kernels
+    # kernels. Note that we don't use this method to find which infrastructure
+    # modules to compile because we don't have any way of knowing which
+    # ones are required by the individual kernels.
     for stmt in use_stmts:
         if stmt.root.name not in module_files:
             kernel_modules.append(stmt.root.name)
@@ -78,8 +102,8 @@ def code_compiles(base_path, module_files, psy, tmpdir):
     old_pwd = tmpdir.chdir()
 
     # Create a file containing our generated PSy layer
-    filename = "psy.f90"
-    psy_file = open(filename, 'w')
+    psy_filename = "psy.f90"
+    psy_file = open(psy_filename, 'w')
     psy_file.write(str(psy.gen))
     psy_file.close()
 
@@ -87,42 +111,31 @@ def code_compiles(base_path, module_files, psy, tmpdir):
     module_path = os.path.join(base_path, "infrastructure")
     kernel_path = base_path
 
-    # First build the modules
-    for file in module_files:
-        name = os.path.join(module_path, file)
-        if os.path.isfile(str(name)+".f90"):
-            name += ".f90"
-        elif os.path.isfile(str(name)+".F90"):
-            name += ".F90"
-        else:
-            raise IOError("Cannot find infrastructure module {0}.F/f90".
-                          format(name))
+    # First build the infrastructure modules
+    for fort_file in module_files:
+        name = find_fortran_file(module_path, fort_file)
         # We don't have to copy the source file - just compile it in the
         # current working directory.
         success = compile_file(name)
         if not success:
-            return False
-    # Then build the kernels
-    for file in kernel_modules:
-        name = os.path.join(kernel_path, file)
-        if os.path.isfile(str(name)+".f90"):
-            name += ".f90"
-        elif os.path.isfile(str(name)+".F90"):
-            name += ".F90"
-        else:
-            raise IOError("Cannot find kernel module {0}.F/f90".
-                          format(name))
-        success = compile_file(name)
-        if not success:
+            # Build failed so break-out of this routine early
             return False
 
-    # Finally, we can build the psy file
-    success = compile_file(filename)
+    # Next, build the kernels
+    for fort_file in kernel_modules:
+        name = find_fortran_file(kernel_path, fort_file)
+        success = compile_file(name)
+        if not success:
+            # Build failed so break-out of this routine early
+            return False
+
+    # Finally, we can build the psy file we have generated
+    success = compile_file(psy_filename)
 
     # Clean-up - delete all generated files. This permits this routine
     # to be called multiple times from within the same test.
     os.chdir(str(old_pwd))
-    for file in tmpdir.listdir():
-        file.remove()
+    for ofile in tmpdir.listdir():
+        ofile.remove()
 
     return success

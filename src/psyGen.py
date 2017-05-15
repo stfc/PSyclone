@@ -231,6 +231,11 @@ class PSy(object):
         raise NotImplementedError("Error: PSy.gen() must be implemented "
                                   "by subclass")
 
+    @property
+    def psy_module(self):
+        raise NotImplementedError("PSy.psy_module must be implemented by "
+                                  "subclass")
+
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
             inlining. Avoid inlining the same kernel more than once. '''
