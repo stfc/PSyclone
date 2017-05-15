@@ -1621,6 +1621,26 @@ def test_node_dag_no_graphviz(tmpdir):
     if keep:
         sys.modules['graphviz'] = keep
 
+EXPECTED2 = (
+    "digraph {\n"
+    "	schedule_start\n"
+    "	schedule_end\n"
+    "	loop_0_start\n"
+    "	loop_0_end\n"
+    "		loop_0_end -> loop_1_start [color=green]\n"
+    "		schedule_start -> loop_0_start [color=blue]\n"
+    "	kernel_testkern_qr_code_2\n"
+    "		kernel_testkern_qr_code_2 -> loop_0_end [color=blue]\n"
+    "		loop_0_start -> kernel_testkern_qr_code_2 [color=blue]\n"
+    "	loop_1_start\n"
+    "	loop_1_end\n"
+    "		loop_1_end -> schedule_end [color=blue]\n"
+    "		loop_0_end -> loop_1_start [color=red]\n"
+    "	kernel_testkern_qr_code_4\n"
+    "		kernel_testkern_qr_code_4 -> loop_1_end [color=blue]\n"
+    "		loop_1_start -> kernel_testkern_qr_code_4 [color=blue]\n"
+    "}")
+
 
 def test_node_dag(tmpdir):
     '''test that dag generation works correctly. Skip the test if
@@ -1633,7 +1653,7 @@ def test_node_dag(tmpdir):
         pass
     if graphviz_installed:
         _, invoke_info = parse(
-            os.path.join(BASE_PATH, "1_single_invoke.f90"),
+            os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
             distributed_memory=False, api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=False).create(invoke_info)
@@ -1642,15 +1662,16 @@ def test_node_dag(tmpdir):
         my_file = tmpdir.join('test')
         schedule.dag(file_name=my_file.strpath)
         result = my_file.read()
-        assert EXPECTED in result
+        assert EXPECTED2 in result
         my_file = tmpdir.join('test.svg')
         result = my_file.read()
         for name in ["<title>schedule_start</title>",
                      "<title>schedule_end</title>",
                      "<title>loop_0_start</title>",
                      "<title>loop_0_end</title>",
-                     "<title>kernel_testkern_code_2</title>",
-                     "<svg", "</svg>", "blue"]:
+                     "<title>kernel_testkern_qr_code_2</title>",
+                     "<title>kernel_testkern_qr_code_4</title>",
+                     "<svg", "</svg>", "blue", "green", "red"]:
             assert name in result
         with pytest.raises(GenerationError) as excinfo:
             schedule.dag(file_name=my_file.strpath, file_format="rubbish")
