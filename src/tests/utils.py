@@ -73,10 +73,9 @@ def code_compiles(base_path, module_files, psy, tmpdir):
         if stmt.root.name not in module_files:
             kernel_modules.append(stmt.root.name)
 
-    # Create a temporary working directory using the object passed to
-    # us from pytest
-    cwd = str(tmpdir.mkdir("tmp"))
-    os.chdir(cwd)
+    # Change to the temporary directory passed in to us from
+    # pytest. (This is a LocalPath object.)
+    old_pwd = tmpdir.chdir()
 
     # Create a file containing our generated PSy layer
     filename = "psy.f90"
@@ -84,6 +83,7 @@ def code_compiles(base_path, module_files, psy, tmpdir):
     psy_file.write(str(psy.gen))
     psy_file.close()
 
+    # Infrastructure modules are in the 'infrastructure' directory
     module_path = os.path.join(base_path, "infrastructure")
     kernel_path = base_path
 
@@ -118,4 +118,11 @@ def code_compiles(base_path, module_files, psy, tmpdir):
 
     # Finally, we can build the psy file
     success = compile_file(filename)
+
+    # Clean-up - delete all generated files. This permits this routine
+    # to be called multiple times from within the same test.
+    os.chdir(str(old_pwd))
+    for file in tmpdir.listdir():
+        file.remove()
+
     return success

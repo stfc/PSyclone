@@ -282,7 +282,7 @@ contains
   !> @brief Gets a routing table for halo swapping
   !> @param[in] depth The depth of halo swap to perform  
   !> @return haloHandle The routing table for swapping halos to the depth required
-!  procedure get_haloHandle
+  !procedure get_haloHandle
 
   !> @brief Gets the ESMF distributed grid description for the function space
   !> @return distgrid The ESMF distributed grid description
