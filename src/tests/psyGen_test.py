@@ -1645,34 +1645,31 @@ EXPECTED2 = (
 def test_node_dag(tmpdir):
     '''test that dag generation works correctly. Skip the test if
     graphviz is not installed'''
-    graphviz_installed = False
     try:
         import graphviz
-        graphviz_installed = True
     except ImportError:
-        pass
-    if graphviz_installed:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
-            distributed_memory=False, api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=False).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        my_file = tmpdir.join('test')
-        schedule.dag(file_name=my_file.strpath)
-        result = my_file.read()
-        assert EXPECTED2 in result
-        my_file = tmpdir.join('test.svg')
-        result = my_file.read()
-        for name in ["<title>schedule_start</title>",
-                     "<title>schedule_end</title>",
-                     "<title>loop_0_start</title>",
-                     "<title>loop_0_end</title>",
-                     "<title>kernel_testkern_qr_code_2</title>",
-                     "<title>kernel_testkern_qr_code_4</title>",
-                     "<svg", "</svg>", "blue", "green", "red"]:
-            assert name in result
-        with pytest.raises(GenerationError) as excinfo:
-            schedule.dag(file_name=my_file.strpath, file_format="rubbish")
-        assert "unsupported graphviz file format" in str(excinfo.value)
+        return
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    my_file = tmpdir.join('test')
+    schedule.dag(file_name=my_file.strpath)
+    result = my_file.read()
+    assert EXPECTED2 in result
+    my_file = tmpdir.join('test.svg')
+    result = my_file.read()
+    for name in ["<title>schedule_start</title>",
+                 "<title>schedule_end</title>",
+                 "<title>loop_0_start</title>",
+                 "<title>loop_0_end</title>",
+                 "<title>kernel_testkern_qr_code_2</title>",
+                 "<title>kernel_testkern_qr_code_4</title>",
+                 "<svg", "</svg>", "blue", "green", "red"]:
+        assert name in result
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.dag(file_name=my_file.strpath, file_format="rubbish")
+    assert "unsupported graphviz file format" in str(excinfo.value)
