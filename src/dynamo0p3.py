@@ -2924,9 +2924,10 @@ class ArgOrdering(object):
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
             # Provide arguments common to LMA operators and fields
-            # on a space.
-            self.fs_common(unique_fs)
-            # Provide additional compulsory arguments if there is a
+            # on a space *unless* this is a CMA matrix-matrix kernel
+            if self._kern.cma_operation not in ["matrix-matrix"]:
+                self.fs_common(unique_fs)
+            # Provide additional arguments if there is a
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
                 self.fs_compulsory_field(unique_fs)
@@ -3199,11 +3200,9 @@ class KernCallArgList(ArgOrdering):
     def fs_common(self, function_space):
         '''add function-space related arguments common to LMA operators and
         fields'''
-        if self._kern.cma_operation not in ["matrix-matrix"]:
-            # There is currently one argument: "ndf" but only
-            # if this is not a CMA matrix-matrix kernel
-            ndf_name = get_fs_ndf_name(function_space)
-            self._arglist.append(ndf_name)
+        # There is currently one argument: "ndf"
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(ndf_name)
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -3565,13 +3564,12 @@ class KernStubArgList(ArgOrdering):
         ''' Provide arguments common to LMA operators and
         fields on a space. There is one: "ndf". '''
         from f2pygen import DeclGen
-        if self._kern.cma_operation not in ["matrix-matrix"]:
-            ndf_name = get_fs_ndf_name(function_space)
-            self._arglist.append(ndf_name)
-            self._parent.add(
-                DeclGen(self._parent, datatype="integer", intent="in",
-                        entity_decls=[ndf_name]),
-                position=["before", self._first_arg_decl.root])
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(ndf_name)
+        self._parent.add(
+            DeclGen(self._parent, datatype="integer", intent="in",
+                    entity_decls=[ndf_name]),
+            position=["before", self._first_arg_decl.root])
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
