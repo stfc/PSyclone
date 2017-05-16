@@ -101,10 +101,14 @@ def code_compiles(base_path, module_files, psy, tmpdir):
     # pytest. (This is a LocalPath object.)
     old_pwd = tmpdir.chdir()
 
-    # Create a file containing our generated PSy layer
+    # Create a file containing our generated PSy layer.
+    # We limit the line lengths of the generated code so that
+    # we don't trip over compiler limits.
+    from line_length import FortLineLength
+    fll = FortLineLength()
     psy_filename = "psy.f90"
     psy_file = open(psy_filename, 'w')
-    psy_file.write(str(psy.gen))
+    psy_file.write(fll.process(str(psy.gen)))
     psy_file.close()
 
     # Infrastructure modules are in the 'infrastructure' directory
