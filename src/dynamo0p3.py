@@ -2752,8 +2752,7 @@ class DynKern(Kern):
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
-        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen, \
-            IfThenGen
+        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
@@ -2859,62 +2858,6 @@ class DynKern(Kern):
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name,
                               only=True, funcnames=[self._name]))
-        # 5: Fix for boundary_dofs array in matrix_vector_code
-        if self.name == "matrix_vector_code":
-            # Any call to this kernel must be followed by a call
-            # to update boundary conditions (if the updated field
-            # is not on a discontinuous space).
-            # Rather than rely on knowledge of the interface to
-            # matrix_vector kernel, look-up the argument that is
-            # updated and then apply b.c.'s to that...
-            enforce_bc_arg = self.updated_arg
-            # We only need to call the enforce_bc kernel if the field is on
-            # a vector function space
-            space_names = ["w1", "w2", "w2h", "w2v", "any_w2"]
-            kern_func_space_name = enforce_bc_arg.function_space
-            ndf_name = get_fs_ndf_name(kern_func_space_name)
-            undf_name = get_fs_undf_name(kern_func_space_name)
-            map_name = get_fs_map_name(kern_func_space_name)
-            proxy_name = enforce_bc_arg.proxy_name
-            self._name_space_manager = NameSpaceFactory().create()
-            fs_name = self._name_space_manager.create_name(root_name="fs")
-            boundary_dofs_name = self._name_space_manager.create_name(
-                root_name="boundary_dofs")
-            parent.add(UseGen(parent, name="function_space_mod",
-                              only=True, funcnames=space_names))
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=[boundary_dofs_name +
-                                             "(:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[fs_name]))
-            new_parent, position = parent.start_parent_loop()
-            new_parent.add(AssignGen(new_parent, lhs=fs_name,
-                                     rhs=enforce_bc_arg.name +
-                                     "%which_function_space()"),
-                           position=["before", position])
-            test_str = " .or. ".join(
-                [fs_name + " == " + space_name for space_name in
-                 space_names])
-            if_then = IfThenGen(new_parent, test_str)
-            new_parent.add(if_then, position=["before", position])
-            if_then.add(AssignGen(if_then, pointer=True,
-                                  lhs=boundary_dofs_name,
-                                  rhs=proxy_name +
-                                  "%vspace%get_boundary_dofs()"))
-            parent.add(CommentGen(parent, ""))
-            if_then = IfThenGen(parent, test_str)
-            parent.add(if_then)
-            nlayers_name = self._name_space_manager.create_name(
-                root_name="nlayers", context="PSyVars", label="nlayers")
-            parent.add(UseGen(parent, name="enforce_bc_kernel_mod", only=True,
-                              funcnames=["enforce_bc_code"]))
-            if_then.add(CallGen(if_then, "enforce_bc_code",
-                                [nlayers_name,
-                                 enforce_bc_arg.proxy_name+"%data",
-                                 ndf_name, undf_name,
-                                 map_name+"(:,"+cell_index+")",
-                                 boundary_dofs_name]))
-            parent.add(CommentGen(parent, ""))
 
 
 class ArgOrdering(object):
@@ -2983,9 +2926,10 @@ class ArgOrdering(object):
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
             # Provide arguments common to LMA operators and fields
-            # on a space.
-            self.fs_common(unique_fs)
-            # Provide additional compulsory arguments if there is a
+            # on a space *unless* this is a CMA matrix-matrix kernel
+            if self._kern.cma_operation not in ["matrix-matrix"]:
+                self.fs_common(unique_fs)
+            # Provide additional arguments if there is a
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
                 self.fs_compulsory_field(unique_fs)
@@ -3015,7 +2959,33 @@ class ArgOrdering(object):
             # kernel (enforce_bc_kernel) arguments
             if self._kern.name.lower() == "enforce_bc_code" and \
                unique_fs.orig_name.lower() == "any_space_1":
-                self.bc_kernel(unique_fs)
+                self.field_bcs_kernel(unique_fs)
+        # Add boundary dofs array to the operator boundary condition
+        # kernel (enforce_operator_bc_kernel) arguments
+        if self._kern.name.lower() == "enforce_operator_bc_code":
+            # Sanity checks - this kernel should only have a single LMA
+            # operator as argument
+            if len(self._kern.arguments.args) > 1:
+                raise GenerationError(
+                    "Kernel {0} has {1} arguments when it should only have 1 "
+                    "(an LMA operator)".format(self._kern.name,
+                                               len(self._kern.arguments.args)))
+            op_arg = self._kern.arguments.args[0]
+            if op_arg.type != "gh_operator":
+                raise GenerationError(
+                    "Expected a LMA operator from which to look-up boundary "
+                    "dofs but kernel {0} has argument {1}.".
+                    format(self._kern.name, op_arg.type))
+            # TODO this access should really be "gh_readwrite". Support for
+            # this will be added under #25.
+            if op_arg.access != "gh_inc":
+                raise GenerationError(
+                    "Kernel {0} is recognised as a kernel which applies "
+                    "boundary conditions to an operator. However its "
+                    "operator argument has access {1} rather than gh_inc.".
+                    format(self._kern.name, op_arg.access))
+            self.operator_bcs_kernel(op_arg.function_space_to)
+
         # Provide qr arguments if required
         if self._kern.qr_required:
             self.quad_rule()
@@ -3109,10 +3079,19 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.orientation() must be implemented by subclass")
 
-    def bc_kernel(self, function_space):
-        '''add boundary condition information for this function space'''
+    def field_bcs_kernel(self, function_space):
+        '''add boundary condition information for a field on this function
+        space'''
         raise NotImplementedError(
-            "Error: ArgOrdering.bc_kernel() must be implemented by subclass")
+            "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
+            "subclass")
+
+    def operator_bcs_kernel(self, function_space):
+        '''add boundary condition information for an operator on this function
+        space'''
+        raise NotImplementedError(
+            "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
+            "subclass")
 
     def quad_rule(self):
         '''add qr information'''
@@ -3234,11 +3213,9 @@ class KernCallArgList(ArgOrdering):
     def fs_common(self, function_space):
         '''add function-space related arguments common to LMA operators and
         fields'''
-        if self._kern.cma_operation not in ["matrix-matrix"]:
-            # There is currently one argument: "ndf" but only
-            # if this is not a CMA matrix-matrix kernel
-            ndf_name = get_fs_ndf_name(function_space)
-            self._arglist.append(ndf_name)
+        # There is currently one argument: "ndf"
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(ndf_name)
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -3266,8 +3243,8 @@ class KernCallArgList(ArgOrdering):
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
 
-    def bc_kernel(self, function_space):
-        ''' implement the boundary_dofs array fix '''
+    def field_bcs_kernel(self, function_space):
+        ''' implement the boundary_dofs array fix for a field '''
         from f2pygen import DeclGen, AssignGen
         self._arglist.append("boundary_dofs")
         parent = self._parent
@@ -3291,6 +3268,25 @@ class KernCallArgList(ArgOrdering):
                                  lhs="boundary_dofs",
                                  rhs=farg.proxy_name +
                                  "%vspace%get_boundary_dofs()"),
+                       position=["before", position])
+
+    def operator_bcs_kernel(self, function_space):
+        ''' Supply necessary additional arguments for the kernel that
+        applies boundary conditions to a LMA operator '''
+        from f2pygen import DeclGen, AssignGen
+        # This kernel has only a single LMA operator as argument.
+        # Checks for this are performed in ArgOrdering.generate()
+        op_arg = self._kern.arguments.args[0]
+        self._arglist.append("boundary_dofs")
+        parent = self._parent
+        parent.add(DeclGen(parent, datatype="integer",
+                           pointer=True, entity_decls=[
+                               "boundary_dofs(:,:) => null()"]))
+        new_parent, position = parent.start_parent_loop()
+        new_parent.add(AssignGen(new_parent, pointer=True,
+                                 lhs="boundary_dofs",
+                                 rhs=op_arg.proxy_name +
+                                 "%fs_to%get_boundary_dofs()"),
                        position=["before", position])
 
     def quad_rule(self):
@@ -3563,13 +3559,12 @@ class KernStubArgList(ArgOrdering):
         ''' Provide arguments common to LMA operators and
         fields on a space. There is one: "ndf". '''
         from f2pygen import DeclGen
-        if self._kern.cma_operation not in ["matrix-matrix"]:
-            ndf_name = get_fs_ndf_name(function_space)
-            self._arglist.append(ndf_name)
-            self._parent.add(
-                DeclGen(self._parent, datatype="integer", intent="in",
-                        entity_decls=[ndf_name]),
-                position=["before", self._first_arg_decl.root])
+        ndf_name = get_fs_ndf_name(function_space)
+        self._arglist.append(ndf_name)
+        self._parent.add(
+            DeclGen(self._parent, datatype="integer", intent="in",
+                    entity_decls=[ndf_name]),
+            position=["before", self._first_arg_decl.root])
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
@@ -3668,14 +3663,20 @@ class KernStubArgList(ArgOrdering):
                                  intent="in", dimension=ndf_name,
                                  entity_decls=[orientation_name]))
 
-    def bc_kernel(self, function_space):
-        ''' implement the boundary_dofs array fix '''
+    def field_bcs_kernel(self, function_space):
+        ''' implement the boundary_dofs array fix for fields '''
         from f2pygen import DeclGen
         self._arglist.append("boundary_dofs")
         ndf_name = get_fs_ndf_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  dimension=",".join([ndf_name, "2"]),
                                  entity_decls=["boundary_dofs"]))
+
+    def operator_bcs_kernel(self, function_space):
+        ''' Implement the boundary_dofs array fix for operators. This is the
+        same as for fields with the function space set to the 'to' space of
+        the operator. '''
+        self.field_bcs_kernel(function_space)
 
     def quad_rule(self):
         ''' provide qr information '''
@@ -3802,7 +3803,7 @@ class KernStubArgList(ArgOrdering):
 #        # TBD
 #        pass
 #
-#    def bc_kernel(self, function_space):
+#    def field_bcs_kernel(self, function_space):
 #        '''get dino to output any boundary_dofs information for bc_kernel'''
 #        # TBD
 #        pass
