@@ -1,3 +1,9 @@
+	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
+	addition to the existing enforce_bc_kernel) for boundary
+	conditions. PSyclone no longer adds in boundary condition calls
+	after a call to matrix_vector_kernel, it is up to the user to add
+	them in the algorithm layer in all cases.
+
 release 1.4.0
 
         1) #2 Add support for kernel meta-data changes required to support
