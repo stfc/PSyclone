@@ -10,19 +10,19 @@ PSyclone is available on github.
 
 ``https://github.com/stfc/PSyclone``
 
-The latest release is 1.4.0 and the latest stable version is on the master branch.
+The latest release is 1.4.1 and the latest stable version is on the master branch.
 
-PSyclone releases can be downloaded (see ``1.4.0`` in the releases tab
+PSyclone releases can be downloaded (see ``1.4.1`` in the releases tab
 on the website) or you can download and extract the latest release of
 PSyclone directly
 ::
 
-   > wget https://github.com/stfc/PSyclone/archive/1.4.0.tar.gz
-   > gunzip 1.4.0.tar.gz
-   > tar xf 1.4.0.tar
-   > rm 1.4.0.tar
+   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
+   > gunzip 1.4.1.tar.gz
+   > tar xf 1.4.1.tar
+   > rm 1.4.1.tar
    > ls
-   PSyclone-1.4.0
+   PSyclone-1.4.1
    
 
 Alternatively PSyclone can be cloned:
@@ -32,7 +32,7 @@ Alternatively PSyclone can be cloned:
 By default you will have access to the master branch if you clone. To
 change to the latest release then subsequently do the following
 
-``git checkout tags/1.4.0``
+``git checkout tags/1.4.1``
 
 Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be refered to as <PSYCLONEHOME>

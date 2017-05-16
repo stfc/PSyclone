@@ -1301,7 +1301,7 @@ pre-specified dofmap and boundary_value arrays into the kernel
 implementations, the contents of which are set by the LFRic
 infrastructure.
 
-Up to and including version 1.3.2 of PSyclone, boundary conditions
+Up to and including version 1.4.0 of PSyclone, boundary conditions
 were applied automatically after a call to ``matrix_vector_type`` if
 the field arguments were on a vector function space (one of ``w1``,
 ``w2``, ``w2h`` or ``w2v``). With the subsequent introduction of the
