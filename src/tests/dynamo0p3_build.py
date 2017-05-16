@@ -12,6 +12,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 INFRASTRUCTURE_PATH = os.path.join(BASE_PATH, "infrastructure")
 INFRASTRUCTURE_MODULES = ["constants_mod",
                           "linked_list_data_mod",
+                          "argument_mod",
+                          "kernel_mod",
                           "partition_mod",
                           "mesh_mod",
                           "stencil_dofmap_mod",
