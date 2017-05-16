@@ -30,6 +30,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 
+! Author A. Porter STFC
+
 program enforce_operator_bc_kernel_example
 
   ! Users can add this kernel when they want to enforce boundary
