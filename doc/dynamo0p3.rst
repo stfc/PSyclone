@@ -84,13 +84,15 @@ of such kernels might look like in the Algorithm layer:
   type(field_type) :: field1, field2, field3
   type(operator_type) :: lma_op1, lma_op2
   type(columnwise_operator_type) :: cma_op1, cma_op2, cma_op3
+  real(kind=r_def) :: alpha
   ...
-  call invoke(assembly_kernel(cma_op1, lma_op1, lma_op2),          &
-              assembly_kernel2(cma_op2, lma_op1, lma_op2, field3), &
-              apply_kernel(field1, field2, cma_op1),               &
-	      matrix_matrix_kernel(cma_op3, cma_op1, cma_op2),     &
-              apply_kernel(field3, field1, cma_op3),               &
-              name="cma_example")
+  call invoke(                                                    &
+          assembly_kernel(cma_op1, lma_op1, lma_op2),             &
+          assembly_kernel2(cma_op2, lma_op1, lma_op2, field3),    &
+          apply_kernel(field1, field2, cma_op1),                  &
+          matrix_matrix_kernel(cma_op3, cma_op1, alpha, cma_op2), &
+          apply_kernel(field3, field1, cma_op3),                  &
+          name="cma_example")
 
 The above invoke uses two LMA operators to construct the CMA operator
 ``cma_op1``.  A second CMA operator, ``cma_op2``, is assembled from
@@ -98,9 +100,8 @@ the same two LMA operators but also uses a field. The first of these
 CMA operators is then applied to ``field2`` and the result stored in
 ``field1`` (assuming that the meta-data for ``apply_kernel`` specifies
 that it is the first field argument that is written to). The two CMA
-operators are then multiplied together to produce a third,
-``cma_op3``. This is then applied to ``field1`` and the result stored
-in ``field3``.
+operators are then combined to produce a third, ``cma_op3``. This is
+then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
 Column-Wise operations based on their arguments as described in
@@ -341,13 +342,14 @@ kernels must therefore:
 Matrix-Matrix
 #############
 
-A kernel that has only column-wise operators as arguments is identified
-as performing a matrix-matrix operation. In this case:
+A kernel that has just column-wise operators as arguments and zero or
+more read-only scalars is identified as performing a matrix-matrix
+operation. In this case:
 
-1) All arguments must be CMA operators.
+1) Arguments must be CMA operators and, optionally, one or more scalars.
 
-2) Exactly one of the arguments must be written to while the others
-   must be read-only.
+2) Exactly one of the CMA arguments must be written to while all other
+   arguments must be read-only.
 
 Metadata
 ++++++++
@@ -486,8 +488,19 @@ operator to a field might look like:
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, W1, W2H) &
        /)
 
+In some cases a Kernel may be written so that it works for fields and/or
+operators from any type of w2 space i.e. one of ``w2``, ``w2h`` or
+``w2v``. In this case the metadata should be specified as being
+``any_w2``.
+
+.. Warning:: in the current implementation it is assumed that all
+             fields and/or operators specifying ``any_w2`` within a
+             kernel will use the **same** function space. It is up to
+             the user to ensure this is the case as otherwise invalid
+             code would be generated.
+
 It may be that a Kernel is written such that a field and/or operators
-may be on/map-between any function space. In this case the metadata
+may be on/map-between any function space(s). In this case the metadata
 should be specified as being one of ``any_space_1``, ``any_space_2``,
 ..., ``any_space_9``. The reason for having different names is that a
 Kernel might be written to allow 2 or more arguments to be able to
@@ -682,14 +695,15 @@ field and a field that is updated, e.g.:
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 
-**Matrix-matrix** kernels compute the product of CMA operators. They must
-therefore have one such operator that is updated while the rest are
-read-only, e.g.:
+**Matrix-matrix** kernels compute the product/linear combination of CMA
+operators. They must therefore have one such operator that is updated while
+the rest are read-only. They may also have read-only scalar arguments, e.g.:
 ::
-   type(arg_type) :: meta_args(3) = (/ &
+   type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
-	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
-	arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)   & /)
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
+        arg_type(GH_REAL, GH_READ) /)
 
 .. note:: The order with which arguments are specified in meta-data for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
 
@@ -794,7 +808,7 @@ conventions, are:
        field array name is currently specified as being
        ``"field_"<argument_position>"_"<field_function_space>``. A field
        array is a real array of type ``r_def`` and dimensioned as the
-       unique degrees of freedom for the space that the field operates on.
+       unique degrees of freedom for the space that the field is on.
        This value is passed in separately. Again, the intent is determined
        from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
@@ -804,9 +818,14 @@ conventions, are:
     3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
     4) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-4) For each function space in the order they appear in the metadata arguments (the ``to`` function space of an operator is considered to be before the ``from`` function space of the same operator as it appears first in lexicographic order)
+4) For each function space in the order they appear in the metadata arguments
+   (the ``to`` function space of an operator is considered to be before the
+   ``from`` function space of the same operator as it appears first in
+   lexicographic order)
 
-    1) Include the number of local degrees of freedom for the function space. This is an integer and has intent ``in``. The name of this argument is ``"ndf_"<field_function_space>``.
+    1) Include the number of local degrees of freedom (i.e. number per-cell)
+       for the function space. This is an integer and has intent ``in``. The
+       name of this argument is ``"ndf_"<field_function_space>``.
     2) If there is a field on this space
 
         1) Include the unique number of degrees of freedom for the function space. This is an integer and has intent ``in``. The name of this argument is ``"undf_"<field_function_space>``.
@@ -820,7 +839,7 @@ conventions, are:
             2) If ``evaluator_shape`` is of type ``_XYoZ`` then basis and diff basis are ``real`` arrays of rank 4 with extent (``dimension``, ``number_of_dofs``, ``n_xy``, ``n_z``)
             3) If ``evaluator_shape`` is of type ``_XoYoZ`` then basis and diff basis are ``real`` arrays of rank 5 with extent (``dimension``, ``number_of_dofs``, ``n_x``, ``n_y``, ``n_z``)
 
-           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1). ``number_of_dofs`` is the number of degrees of freedom associated with the function space. The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
+           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom associated with the function space. The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
@@ -891,22 +910,34 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
 	  7) Include banded-matrix parameter ``gamma_p``. This is an integer
 	     with intent ``in`` and is named as ``"gamma_p_"<operator_name>``.
 
-    6) Include the required dofmaps and their dimensions:
+       3) If it is a field or scalar argument then include arguments following
+          the same rules as for general-purpose kernels. 
+	  
+    6) For each unique function space in the order they appear in the
+       metadata arguments (the ``to`` function space of an operator is
+       considered to be before the ``from`` function space of the same
+       operator as it appears first in lexicographic order):
 
-       1) Include ``ndf_to``, the number of degrees of freedom per cell for
-	  the to-space of the CMA operator. This is an integer with intent
-	  ``in``.
-       2) If the from-space of the operator is *not* the same as the 
-	  to-space then include ``ndf_from``, the number of degrees of
-	  freedom per cell for the from-space of the CMA operator. This is
-	  an integer with intent ``in``.
-       3) Include ``column_banded_dofmap_to``, the list of offsets for the
-	  to-space. This is an integer array of rank 2. The first dimension
-	  is ``ndf_to`` and the second is ``nlayers``.
-       4) If the from-space of the operator is *not* the same as the 
-	  to-space then include ``column_banded_dofmap_from``, the list of
-	  offsets for the from-space. This is an integer array of rank 2. The
-	  first dimension is ``ndf_from`` and the second is ``nlayers``.
+       1) Include the number of degrees of freedom per cell for
+	  the space. This is an integer with intent ``in``. The name of this
+	  argument is ``"ndf_"<arg_function_space>``.
+
+       2) If there is a field on this space then:
+
+	  1) Include the unique number of degrees of freedom for the
+ 	     function space. This is an integer and has intent ``in``.
+             The name of this argument is ``"undf_"<field_function_space>``.
+
+	  2) Include the dofmap for this space. This is an integer array
+	     with intent ``in``. It has one dimension sized by the local
+	     degrees of freedom for the function space.
+
+	3) If the CMA operator has this space as its to/from space then
+	   include the column-banded dofmap, the list of offsets for the
+	   to/from-space. This is an integer array of rank 2. The first
+	   dimension is ``"ndf_"<arg_function_space>```` and the second
+           is ``nlayers``.
+
 
 Application/Inverse-Application
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -914,7 +945,9 @@ Application/Inverse-Application
 A kernel applying a CMA operator requires the column-indirection
 dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
-not require the ``ncell_3d`` and ``nlayers`` scalar arguments.
+not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
+column-wise operator is, by definition, assembled for a whole column,
+there is no loop over levels when applying it.)
 The full set of rules is then:
 
     1) Include the ``cell`` argument. ``cell`` is an integer and has
@@ -940,7 +973,7 @@ The full set of rules is then:
        is considered to be before the ``from`` function space of the
        same operator as it appears first in lexicographic order):
 
-       1) Include the number of degrees of freedom for the associated
+       1) Include the number of degrees of freedom per cell for the associated
 	  function space. This is an integer with intent ``in``. The name
 	  of this argument is ``"ndf_"<field_function_space>``.
        2) Include the number of unique degrees of freedom for the associated
@@ -966,11 +999,13 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
        intent ``in``.
     2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
        an integer with intent ``in``.
-    3) For each (CMA operator) argument specifed in meta-data:
+    3) For each CMA operator or scalar argument specifed in meta-data:
 
-       1) Include it and its associated parameters (see Rule 5 of CMA
-	  Assembly kernels).
+       1) If it is a CMA operator, include it and its associated
+	  parameters (see Rule 5 of CMA Assembly kernels).
 
+       2) If it is a scalar argument include the corresponding Fortran
+	  variable in the argument list with intent ``in``.
 
 .. _dynamo_built-ins:
 
@@ -1322,35 +1357,35 @@ where:
 Boundary Conditions
 -------------------
 
-In the dynamo0.3 API, boundary conditions for a field can be enforced
-by the algorithm developer by calling a particular Kernel called
-``enforce_bc_type``. This kernel takes a field as input and applies
+In the dynamo0.3 API, boundary conditions for a field or LMA operator can
+be enforced by the algorithm developer by calling the Kernels
+``enforce_bc_type`` or ``enforce_operator_bc_type``,
+respectively. These kernels take a field or operator as input and apply
 boundary conditions. For example:
 
 ::
 
-  call invoke( kernel_type(field1, field2), &
-               enforce_bc_type(field1)      &
+  call invoke( kernel_type(field1, field2),      &
+               enforce_bc_type(field1),          &
+	       kernel_with_op_type(field1, op1), &
+	       enforce_operator_bc_type(op1)     &
              )
 
 The particular boundary conditions that are applied are not known by
-PSyclone, PSyclone simply recognises this kernel by its name and passes
-pre-specified dofmap and boundary_value arrays into its kernel
-implementation, the contents of which are set by the LFRic
+PSyclone, PSyclone simply recognises these kernels by their names and passes
+pre-specified dofmap and boundary_value arrays into the kernel
+implementations, the contents of which are set by the LFRic
 infrastructure.
 
-There is one situation where boundary conditions are applied without
-the algorithm developer having to specify them explicitly. Boundary
-conditions are added automatically after a call to
-``matrix_vector_type`` if the fields being passed into the call are on
-a vector function space (one of ``w1``, ``w2``, ``w2h`` or
-``w2v``). This functionality was requested by the scientists to avoid
-having to write a large number of ``enforce_bc_type`` calls in the
-algorithm layer as ``matrix_vector_type`` may be used a large number
-of times in an algorithm.
+Up to and including version 1.4.0 of PSyclone, boundary conditions
+were applied automatically after a call to ``matrix_vector_type`` if
+the field arguments were on a vector function space (one of ``w1``,
+``w2``, ``w2h`` or ``w2v``). With the subsequent introduction of the
+ability to apply boundary conditions to operators this functionality
+is no longer required and has been removed.
 
 Example ``eg4`` in the ``examples/dynamo`` directory includes a call
-to ``matrix_vector_type`` so can be used to see the boundary condition
+to ``enforce_bc_kernel_type`` so can be used to see the boundary condition
 code that is added by PSyclone. See the ``README`` in the
 ``examples/dynamo`` directory for instructions on how to run this
 example.

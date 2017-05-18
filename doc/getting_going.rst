@@ -10,19 +10,19 @@ PSyclone is available on github.
 
 ``https://github.com/stfc/PSyclone``
 
-The latest release is 1.3.3 and the latest stable version is on the master branch.
+The latest release is 1.4.1 and the latest stable version is on the master branch.
 
-PSyclone releases can be downloaded (see ``1.3.3`` in the releases tab
+PSyclone releases can be downloaded (see ``1.4.1`` in the releases tab
 on the website) or you can download and extract the latest release of
 PSyclone directly
 ::
 
-   > wget https://github.com/stfc/PSyclone/archive/1.3.3.tar.gz
-   > gunzip 1.3.3.tar.gz
-   > tar xf 1.3.3.tar
-   > rm 1.3.3.tar
+   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
+   > gunzip 1.4.1.tar.gz
+   > tar xf 1.4.1.tar
+   > rm 1.4.1.tar
    > ls
-   PSyclone-1.3.3
+   PSyclone-1.4.1
    
 
 Alternatively PSyclone can be cloned:
@@ -32,7 +32,7 @@ Alternatively PSyclone can be cloned:
 By default you will have access to the master branch if you clone. To
 change to the latest release then subsequently do the following
 
-``git checkout tags/1.3.3``
+``git checkout tags/1.4.1``
 
 Hereon the location where you download or clone PSyclone (including the
 PSyclone directory itself) will be refered to as <PSYCLONEHOME>
@@ -61,8 +61,14 @@ fparser
 ^^^^^^^
 
 The fparser package (https://github.com/stfc/fparser) is a Fortran
-parser originally developed as a part of the f2py project. PSyclone
-requires version >= 0.0.2. It is available from the Python Package
+parser originally developed as a part of the f2py project.
+
+The minimum version of fparser required by PSyclone is currently 0.0.2
+but we strongly recommend you install the latest version to reduce the
+chance of encountering problems when parsing existing algorithm or
+kernel code.
+
+fparser is available from the Python Package
 Index and thus may be installed using ``pip``
 (https://packaging.python.org/installing/#requirements-for-installing-packages):
 ::
@@ -77,6 +83,11 @@ Should you wish to remove fparser then simply do:
 ::
     > pip uninstall fparser
 
+If you have already installed fparser and want to upgrade to the
+latest version simply do:
+::
+   > pip install fparser --upgrade
+
 (See :ref:`install_fparser` for more details.)
 
 pyparsing
@@ -87,7 +98,7 @@ built in Python. PSyclone uses pyparsing to parse fortran regular
 expressions as fparser does not fully parse these, (see
 http://pyparsing.wikispaces.com for more information).
 
-PSyclone has been tested with pyparsing versions 1.5.2 and 2.0.1.
+PSyclone has been tested with pyparsing versions 1.5.2, 2.0.1 and 2.2.0.
 
 You can test whether pyparsing is already installed on your machine by
 typing ``import pyparsing`` from the python command line. If pyparsing

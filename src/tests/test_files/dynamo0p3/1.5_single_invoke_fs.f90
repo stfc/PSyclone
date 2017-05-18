@@ -13,10 +13,10 @@ program single_invoke_fs
   use testkern_fs, only: testkern_fs_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
+  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
 
   call invoke(                      &
-       testkern_fs_type(f1,f2,m1,m2,f3,f4,m3)   &
+       testkern_fs_type(f1,f2,m1,m2,f3,f4,m3,m4)   &
           )
 
 end program single_invoke_fs
