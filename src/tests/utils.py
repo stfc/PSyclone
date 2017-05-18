@@ -18,7 +18,7 @@ F90_FLAGS = os.environ.get('F90FLAGS')
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
-class BuildError(Exception):
+class CompileError(Exception):
     ''' Exception raised when compilation of a Fortran source file
     fails '''
     def __init__(self, value):
@@ -76,13 +76,17 @@ def find_fortran_file(path, root_name):
 def compile_file(filename):
     ''' Compiles the specified Fortran file using the compiler
     previously picked-up from the F90 environment variable. Raises
-    a BuildError if the compilation fails. '''
-    import subprocess
+    a CompileError if the compilation fails. '''
+
+    if not F90_COMPILER:
+        return True
 
     if F90_FLAGS:
         arg_list = [F90_COMPILER, F90_FLAGS, '-c', filename]
     else:
         arg_list = [F90_COMPILER, '-c', filename]
+
+    import subprocess
     build = subprocess.Popen(arg_list,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT)
@@ -90,9 +94,10 @@ def compile_file(filename):
     stat = build.returncode
     if stat != 0:
         print output
-        print "========="
-        print error
-        raise BuildError(output)
+        if error:
+            print "========="
+            print error
+        raise CompileError(output)
     else:
         return True
 
@@ -155,7 +160,7 @@ def code_compiles(base_path, module_files, psy_ast, tmpdir):
         # Finally, we can build the psy file we have generated
         success = compile_file(psy_filename)
 
-    except BuildError as excinfo:
+    except CompileError as excinfo:
         success = False
 
     finally:

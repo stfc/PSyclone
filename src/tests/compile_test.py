@@ -36,41 +36,72 @@
 ''' This module contains tests for the infrastructure used to test
 the compilation of generated Fortran code '''
 
-import os
 import pytest
 import utils
 
-def test_compiler_works(tmpdir):
-    ''' Check that the specified compiler works for a hello-world
-    example '''
 
-    hello_code = '''
+HELLO_CODE = '''
 program hello
   write (*,*) "Hello"
 end program hello
 '''
+
+
+def test_no_compiler(monkeypatch):
+    ''' Check that attempting to build a file when no Fortran
+    compiler has been set returns success '''
+    # Use monkeypatch to mock the case where the F90 environment
+    # variable has not been set
+    monkeypatch.setattr(utils, "F90_COMPILER", value=None)
+    success = utils.compile_file("a_file.f90")
+    assert success
+
+
+def test_compiler_works(tmpdir):
+    ''' Check that the specified compiler works for a hello-world
+    example '''
     tmpdir.chdir()
     with open("hello_world.f90", "w") as ffile:
-        ffile.write(hello_code)
-
+        ffile.write(HELLO_CODE)
     success = utils.compile_file("hello_world.f90")
     assert success
 
-    
+
+def test_compiler_with_flags(tmpdir, monkeypatch):
+    ''' Check that we can pass through flags to the Fortran compiler.
+    Since correct flags are compiler-dependent and hard to test,
+    we pass something that is definitely not a flag and check that
+    the compiler complains. This test is skipped if no Fortran
+    compiler has been specified. '''
+    if not utils.F90_COMPILER:
+        return
+    # Use monkeypatch for this so that we don't mess with any
+    # real F90_FLAGS setting in the environment.
+    monkeypatch.setattr(utils, "F90_FLAGS", value="not-a-flag")
+    tmpdir.chdir()
+    with open("hello_world.f90", "w") as ffile:
+        ffile.write(HELLO_CODE)
+    with pytest.raises(utils.CompileError) as excinfo:
+        _ = utils.compile_file("hello_world.f90")
+    assert "not-a-flag" in str(excinfo)
+    # For completeness we also try with a valid flag although we
+    # can't actually check its effect.
+    monkeypatch.setattr(utils, "F90_FLAGS", value="-g")
+    success = utils.compile_file("hello_world.f90")
+    assert success
+
+
 def test_build_invalid_fortran(tmpdir):
     ''' Check that we raise the expected error when attempting
-    to compile some invalid Fortran '''
+    to compile some invalid Fortran. Skips test if no Fortran
+    compiler has been specified (F90 environment variable). '''
     if not utils.F90_COMPILER:
         return
 
-    invalid_code = '''
-program hello
-  wite (*,*) "Hello"
-end program hello
-'''
+    invalid_code = HELLO_CODE.replace("write", "wite", 1)
     tmpdir.chdir()
     with open("hello_world.f90", "w") as ffile:
         ffile.write(invalid_code)
-    with pytest.raises(utils.BuildError) as excinfo:
+    with pytest.raises(utils.CompileError) as excinfo:
         _ = utils.compile_file("hello_world.f90")
     assert "Compile error" in str(excinfo)
