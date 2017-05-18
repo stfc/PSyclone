@@ -237,15 +237,6 @@ class BaseGen(object):
             print "code for final location ", str(parent.content[index])
         return local_current, parent.content[index]
 
-    def walk(self, children, my_type):
-        ''' recurse through tree and return objects of mytype '''
-        local_list = []
-        for child in children:
-            if isinstance(child, my_type):
-                local_list.append(child)
-            local_list += self.walk(child.children, my_type)
-        return local_list
-
 
 class ProgUnitGen(BaseGen):
     ''' Functionality relevant to program units (currently modules,
