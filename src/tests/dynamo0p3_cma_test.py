@@ -1106,7 +1106,8 @@ def test_cma_multi_kernel():
 
 def test_cma_asm_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly '''
-    result = generate("test_files/dynamo0p3/columnwise_op_asm_kernel_mod.F90",
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_asm_kernel_mod.F90"),
                       api="dynamo0.3")
     print str(result)
     expected = (
@@ -1147,7 +1148,7 @@ def test_cma_asm_with_field_stub_gen():  # pylint: disable=invalid-name
     ''' Test the kernel-stub generator for CMA operator assembly when a
     field is involved '''
     result = generate(
-        "test_files/dynamo0p3/columnwise_op_asm_field_kernel_mod.F90",
+        os.path.join(BASE_PATH, "columnwise_op_asm_field_kernel_mod.F90"),
         api="dynamo0.3")
     print str(result)
     expected = (
@@ -1194,8 +1195,8 @@ def test_cma_asm_with_field_stub_gen():  # pylint: disable=invalid-name
 def test_cma_asm_same_fs_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly when the
     to and from spaces are the same '''
-    result = generate("test_files/dynamo0p3/"
-                      "columnwise_op_asm_same_fs_kernel_mod.F90",
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_asm_same_fs_kernel_mod.F90"),
                       api="dynamo0.3")
     print str(result)
     expected = (
@@ -1235,7 +1236,8 @@ def test_cma_asm_same_fs_stub_gen():
 def test_cma_app_stub_gen():
     ''' Test the kernel-stub generator for a CMA apply kernel. This has
     two fields and one CMA operator as arguments. '''
-    result = generate("test_files/dynamo0p3/columnwise_op_app_kernel_mod.F90",
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_app_kernel_mod.F90"),
                       api="dynamo0.3")
     print result
     expected = (
@@ -1284,9 +1286,9 @@ def test_cma_app_same_space_stub_gen():  # pylint: disable=invalid-name
     ''' Test the kernel-stub generator for a CMA apply kernel where the
     to/from function spaces of the CMA operator are the same. This kernel has
     two fields and one CMA operator as arguments. '''
-    result = generate(
-        "test_files/dynamo0p3/columnwise_op_app_same_fs_kernel_mod.F90",
-        api="dynamo0.3")
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_app_same_fs_kernel_mod.F90"),
+                      api="dynamo0.3")
     print result
     expected = (
         "  MODULE columnwise_op_app_same_fs_kernel_mod\n"
@@ -1325,7 +1327,8 @@ def test_cma_app_same_space_stub_gen():  # pylint: disable=invalid-name
 
 def test_cma_mul_stub_gen():
     ''' Test the kernel-stub generator for a CMA matrix-matrix kernel '''
-    result = generate("test_files/dynamo0p3/columnwise_op_mul_kernel.F90",
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_mul_kernel.F90"),
                       api="dynamo0.3")
     print result
     expected = (
@@ -1366,9 +1369,9 @@ def test_cma_mul_stub_gen():
 def test_cma_mul_with_scalars_stub_gen():  # pylint: disable=invalid-name
     ''' Test the kernel-stub generator for a CMA matrix-matrix kernel that
     includes scalar arguments '''
-    result = generate(
-        "test_files/dynamo0p3/columnwise_op_mul_2scalars_kernel.F90",
-        api="dynamo0.3")
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_mul_2scalars_kernel.F90"),
+                      api="dynamo0.3")
     print result
     expected = (
         "  MODULE columnwise_op_mul_kernel_mod\n"
