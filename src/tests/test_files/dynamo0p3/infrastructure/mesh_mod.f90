@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2014.
@@ -17,21 +18,8 @@
 
 module mesh_mod
 
-  !use base_mesh_config_mod, only : geometry, &
-  !                                 base_mesh_geometry_spherical
   use constants_mod,        only : i_def, r_def, l_def, pi, imdi
-  !use extrusion_config_mod, only : extrusion_method_uniform
-  !use global_mesh_mod,      only : global_mesh_type
-  !use log_mod,              only : log_event, log_scratch_space, &
-  !                                 LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
-  !use partition_mod,        only : partition_type
   use linked_list_data_mod, only : linked_list_data_type
-  !use mesh_constructor_helper_functions_mod, &
-  !                          only : domain_size_type, &
-  !                                 mesh_extruder, &
-  !                                 mesh_connectivity, &
-  !                                 set_domain_size, &
-  !                                 set_vertical_coordinate
   use partition_mod, only: partition_type
 
   implicit none
@@ -205,11 +193,6 @@ module mesh_mod
     !final :: mesh_destructor
 
   end type mesh_type
-!!$
-!!$  interface mesh_type
-!!$    module procedure mesh_constructor
-!!$    module procedure mesh_constructor_unit_test_data
-!!$  end interface
 
   ! -------------------------------------------------------------------------
   ! Module parameters
@@ -230,28 +213,6 @@ module mesh_mod
   !> @}
 
 contains
-
-  !============================================================================
-  !> @brief Constructor for the mesh object
-  !> @param [in] partition     Partition object to base 3D-Mesh on
-  !> @param [in] global_mesh   Global mesh object on which the partition is
-  !>                           applied
-  !> @param [in] nlayers_in    Number of 3D-cell layers in the 3D-Mesh object
-  !> @param [in] domain_top    Top of atmosphere above surface
-  !> @param [in] vgrid_option  Choice of vertical grid
-  !> @return                   3D-Mesh object based on the list of partitioned
-  !>                           cells on the given global mesh
-  !============================================================================
-!!$  function mesh_constructor (              &
-!!$                              global_mesh,   &
-!!$                              partition,     &
-!!$                              nlayers_in,    &
-!!$                              domain_top,    &
-!!$                              vgrid_option ) &
-!!$                            result( self )
-!!$ 
-!!$  end function mesh_constructor
-
 
   !============================================================================
   ! Mesh Type Methods

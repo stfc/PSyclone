@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown, 
 ! Met Office and NERC 2014. 
@@ -7,32 +8,7 @@
 
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
-!> @details Metadata for the kernels. In order to create correct PSy code a
-!> code we need to know how many fields and operators are passed to the kernel
-!> and in what order they are passed. We also needs to know how these
-!> fields/operators are accessed (read, write etc) within the kernel and what
-!> function space they are on (w0, w1 etc). In the case of operators there are
-!> two function spaces (to and from). This information is stored in the
-!> arg_type type.
-
-!> A kernel may also require additional data associated with a particular
-!> function space (basis function, differential basis function and orientation
-!> information). This information is specified in the xxx type.
-!> the psy layer needs to know how this is to be accessed.
-!> read, write etc and which function space it belongs. These are the three
-!> integers of
-!> the arg_type and the values are then one of the parameters
-!> defined in this module. 
-!> field metadata also has three logicals controlling whether the psy layer
-!> needs to pass the basis function, the differential basis function,
-!> and the guassian quadrature type.
-!> Another metadatum which describes the kernel, not the fields
-!> is what the kernel will iterate over. Usually cells, sometimes
-!> all the dofs.
-
 module argument_mod
-
-  !use fs_continuity_mod, only : W0, W1, W2, W3, Wtheta, W2V, W2H, Wchi
 
   implicit none
 

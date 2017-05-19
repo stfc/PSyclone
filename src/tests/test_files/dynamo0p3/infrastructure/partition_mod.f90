@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2014.
@@ -22,21 +23,11 @@
 
 module partition_mod
 
-!use global_mesh_mod, only : global_mesh_type
-!use log_mod,         only : log_event,         &
-!                            LOG_LEVEL_ERROR
 use constants_mod,   only: i_def, r_def, l_def
-
-!use ESMF
 
 implicit none
 
 private
-
-!public :: partitioner_cubedsphere, &
-!          partitioner_biperiodic, &
-!          partitioner_cubedsphere_serial, &
-!          partitioner_interface
 
 type, public :: partition_type
   private
@@ -181,36 +172,6 @@ contains
 
 end type partition_type
 
-!!$interface
-!!$!-------------------------------------------------------------------------------
-!!$! Interface for partitioner function pointer to be supplied to the constructor
-!!$!-------------------------------------------------------------------------------
-!!$  subroutine partitioner_interface( global_mesh, &
-!!$                                    xproc, &
-!!$                                    yproc, &
-!!$                                    local_rank, &
-!!$                                    total_ranks, &
-!!$                                    max_stencil_depth, &
-!!$                                    global_cell_id, &
-!!$                                    num_inner, &
-!!$                                    num_edge, &
-!!$                                    num_halo, &
-!!$                                    num_ghost )
-!!$    import :: global_mesh_type
-!!$    import :: i_def
-!!$
-!!$    type(global_mesh_type),     intent(in), pointer :: global_mesh
-!!$    integer(i_def),             intent(in)    :: xproc, yproc, &
-!!$                                                 local_rank, total_ranks
-!!$    integer(i_def), allocatable,intent(inout) :: global_cell_id( : )
-!!$    integer(i_def),             intent(in)    :: max_stencil_depth
-!!$    integer(i_def),             intent(out)   :: num_inner( : ),&
-!!$                                                 num_edge, &
-!!$                                                 num_halo( : ), &
-!!$                                                 num_ghost
-!!$  end subroutine partitioner_interface
-!!$end interface
-
 contains
 
 subroutine partition_type_assign(dest, source)
@@ -243,133 +204,6 @@ subroutine partition_type_assign(dest, source)
   dest%cell_owner=source%cell_owner
 
 end subroutine partition_type_assign
-
-!-------------------------------------------------------------------------------
-! Applies a stencil around a collection of cells. PRIVATE subroutine.
-!-------------------------------------------------------------------------------
-! Details: Applies a single depth stencil around a collection of cells and adds
-!          the global ids of the stencil cells to a list of cells known to the 
-!          partition - if they are not already in the list.
-! Input:   global_mesh      A global mesh object that describes the layout of 
-!                           the global mesh
-!          input_cells      A pointer to the start of a portion of the linked
-!                           list over which the stencil will be applied
-!          number_of_cells  The number of cells in the portion of the linked
-!                           list over which the stencil will be applied
-! In/Out:  known_cells      The current linked list known_cells
-!
-! Optional: insert_point    Where to insert before/after in known_cells
-!                           
-!           placement       Flag to insert before or after insert point
-!      
-!           exclude         An additional list to check for duplicates
-!-------------------------------------------------------------------------------
-!!$  subroutine apply_stencil( global_mesh, &
-!!$                            known_cells, &
-!!$                            input_cells, &
-!!$                            number_of_cells, &
-!!$                            insert_point, &
-!!$                            placement, &
-!!$                            exclude )
-!!$  use linked_list_int_mod, only : linked_list_int_type
-!!$  use linked_list_mod,     only : linked_list_type, &
-!!$                                  linked_list_item_type, &
-!!$                                  before
-!!$  use reference_element_mod, only : nverts_h
-!!$
-!!$  use log_mod,         only : log_event,         &
-!!$                              log_scratch_space, &
-!!$                              LOG_LEVEL_INFO
-!!$  implicit none
-!!$
-!!$  type(global_mesh_type),               pointer,  intent(in)    :: global_mesh
-!!$  type(linked_list_type),                         intent(inout) :: known_cells
-!!$  type(linked_list_item_type),target,             intent(inout) :: input_cells
-!!$  integer(i_def),                                 intent(in)    :: number_of_cells
-!!$  type(linked_list_item_type), optional,target,   intent(inout) :: insert_point
-!!$  integer(i_def),         optional,               intent(in)    :: placement
-!!$  type(linked_list_type), optional,               intent(in)    :: exclude
-!!$
-!!$  integer(i_def) :: i,j,k  ! loop counter
-!!$  integer(i_def) :: cell_id ! the current cell id that the stencil is being applied to
-!!$  integer(i_def) :: add_cell ! flag controlling whether to insert after checking duplicates
-!!$  integer(i_def), allocatable :: verts(:)
-!!$  integer(i_def), allocatable :: cells(:)
-!!$
-!!$  type(linked_list_item_type), pointer :: loop => null() ! temp ptr to loop through list
-!!$  type(linked_list_item_type), pointer :: insert_ptr => null() ! pointer to access insert_point
-!!$
-!!$
-!!$  allocate( cells( global_mesh%get_max_cells_per_vertex() ) )
-!!$  allocate( verts(nverts_h) )
-!!$
-!!$
-!!$  ! point at where we want to start
-!!$  loop => input_cells
-!!$  insert_ptr => insert_point
-!!$
-!!$  ! iterate through the list for the given number of cells
-!!$  do i = 1,number_of_cells
-!!$    ! get cell id for current item
-!!$    cell_id = loop%payload%get_id()
-!!$    ! get list of vertices on this cell 
-!!$    call global_mesh%get_vert_on_cell(cell_id, verts)
-!!$    ! iterate through these verts
-!!$    do j = 1,nverts_h
-!!$      ! get all the cells sharing this vert
-!!$      call global_mesh%get_cell_on_vert( verts(j), cells )
-!!$      ! iterate through these cells 
-!!$      do k = 1,global_mesh%get_max_cells_per_vertex()
-!!$        ! Assume we are not adding the cell at first
-!!$        ! then flag for adding depending on checks
-!!$        add_cell = 0
-!!$        if(cells(k) > 0)then
-!!$          ! check if cell is already in known_cells list
-!!$          if (.not.(known_cells%item_exists(cells(k)))) then
-!!$            ! Not in known_cells so flag to add initially
-!!$            add_cell = 1
-!!$            ! .... but also check exclude list if it is present
-!!$            if (present(exclude)) then
-!!$              if (exclude%item_exists(cells(k))) then
-!!$                ! It is in the exclude list so don't flag
-!!$                add_cell = 0
-!!$              end if
-!!$            end if
-!!$
-!!$          end if
-!!$
-!!$          if (add_cell == 1) then
-!!$             ! add this cell
-!!$             call known_cells%insert_item( linked_list_int_type(cells(k)), &
-!!$                                           insert_point=insert_ptr, &
-!!$                                           placement=placement)
-!!$
-!!$             ! If we added then need to update insert point according to placement
-!!$             if (present(insert_point)) then
-!!$               if (present(placement)) then
-!!$                 if (placement == before) then
-!!$                   insert_ptr => insert_ptr%prev
-!!$                 else
-!!$                   insert_ptr => insert_ptr%next
-!!$                 end if
-!!$               else
-!!$                 ! No placement present so default is to insert after
-!!$                 insert_ptr => insert_ptr%next
-!!$               end if
-!!$             end if
-!!$          end if
-!!$
-!!$        end if
-!!$      end do
-!!$    end do
-!!$    ! point at next item 
-!!$    loop=>loop%next
-!!$  end do
-!!$
-!!$  deallocate(verts)
-!!$  deallocate(cells)
-!!$
-!!$  end subroutine apply_stencil
 
 !-------------------------------------------------------------------------------
 ! Gets total number of cells in a layer
