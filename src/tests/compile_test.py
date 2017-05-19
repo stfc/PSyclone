@@ -36,6 +36,7 @@
 ''' This module contains tests for the infrastructure used to test
 the compilation of generated Fortran code '''
 
+import os
 import pytest
 import utils
 
@@ -60,10 +61,13 @@ def test_no_compiler(monkeypatch):
 def test_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     example '''
-    tmpdir.chdir()
-    with open("hello_world.f90", "w") as ffile:
-        ffile.write(HELLO_CODE)
-    success = utils.compile_file("hello_world.f90")
+    old_pwd = tmpdir.chdir()
+    try:
+        with open("hello_world.f90", "w") as ffile:
+            ffile.write(HELLO_CODE)
+            success = utils.compile_file("hello_world.f90")
+    finally:
+        os.chdir(str(old_pwd))
     assert success
 
 
@@ -78,16 +82,19 @@ def test_compiler_with_flags(tmpdir, monkeypatch):
     # Use monkeypatch for this so that we don't mess with any
     # real F90_FLAGS setting in the environment.
     monkeypatch.setattr(utils, "F90_FLAGS", value="not-a-flag")
-    tmpdir.chdir()
-    with open("hello_world.f90", "w") as ffile:
-        ffile.write(HELLO_CODE)
-    with pytest.raises(utils.CompileError) as excinfo:
-        _ = utils.compile_file("hello_world.f90")
-    assert "not-a-flag" in str(excinfo)
-    # For completeness we also try with a valid flag although we
-    # can't actually check its effect.
-    monkeypatch.setattr(utils, "F90_FLAGS", value="-g")
-    success = utils.compile_file("hello_world.f90")
+    old_pwd = tmpdir.chdir()
+    try:
+        with open("hello_world.f90", "w") as ffile:
+            ffile.write(HELLO_CODE)
+        with pytest.raises(utils.CompileError) as excinfo:
+            _ = utils.compile_file("hello_world.f90")
+        assert "not-a-flag" in str(excinfo)
+        # For completeness we also try with a valid flag although we
+        # can't actually check its effect.
+        monkeypatch.setattr(utils, "F90_FLAGS", value="-g")
+        success = utils.compile_file("hello_world.f90")
+    finally:
+        os.chdir(str(old_pwd))
     assert success
 
 
@@ -99,9 +106,12 @@ def test_build_invalid_fortran(tmpdir):
         return
 
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
-    tmpdir.chdir()
-    with open("hello_world.f90", "w") as ffile:
-        ffile.write(invalid_code)
-    with pytest.raises(utils.CompileError) as excinfo:
-        _ = utils.compile_file("hello_world.f90")
+    old_pwd = tmpdir.chdir()
+    try:
+        with open("hello_world.f90", "w") as ffile:
+            ffile.write(invalid_code)
+        with pytest.raises(utils.CompileError) as excinfo:
+            _ = utils.compile_file("hello_world.f90")
+    finally:
+        os.chdir(str(old_pwd))
     assert "Compile error" in str(excinfo)
