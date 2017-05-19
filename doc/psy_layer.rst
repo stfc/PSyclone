@@ -170,7 +170,7 @@ should be consulted for valid formats if svg is not required.
 .. note:: The dag method can be called from any node and will
           output the dag for that node and all of its children.
 
-if we were to look at the dynamo eg6 example we would see the
+If we were to look at the dynamo eg6 example we would see the
 following image:
 
 .. image:: dag.png
