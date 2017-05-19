@@ -8,6 +8,11 @@
 
 ''' Performs py.test tests on the psygen module '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # internal classes requiring tests
 # PSy,Invokes,Dependencies,NameSpaceFactory,NameSpace,Invoke,Node,Schedule,
 # LoopDirective,OMPLoopDirective,Loop,Call,Inf,SetInfCall,Kern,Arguments,
@@ -17,12 +22,12 @@
 # PSyFactory, TransInfo, Transformation
 import os
 import pytest
+from fparser import api as fpapi
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
-from fparser import api as fpapi
 from parse import parse
 from transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
 from generator import generate
@@ -40,7 +45,7 @@ def test_invalid_api():
         _ = PSyFactory(api="invalid")
 
 
-def test_psyfactory_valid_return_object():
+def test_psyfactory_valid_return_object():  # pylint: disable=invalid-name
     '''test that psyfactory returns a psyfactory object for all supported
     inputs'''
     psy_factory = PSyFactory()
@@ -142,7 +147,7 @@ def test_invalid_high_number():
         _ = trans.get_trans_num(999)
 
 
-def test_valid_return_object_from_number():
+def test_valid_return_object_from_number():  # pylint: disable=invalid-name
     ''' check get_trans_num method returns expected type of instance '''
     trans = TransInfo()
     transform = trans.get_trans_num(1)
@@ -157,7 +162,7 @@ def test_invalid_name():
         _ = trans.get_trans_name("invalid")
 
 
-def test_valid_return_object_from_name():
+def test_valid_return_object_from_name():  # pylint: disable=invalid-name
     ''' check get_trans_name method return the correct object type '''
     trans = TransInfo()
     transform = trans.get_trans_name("LoopFuse")
@@ -253,7 +258,7 @@ def test_existing_labels():
     assert name4 == name2
 
 
-def test_existing_labels_case_sensitive():
+def test_existing_labels_case_sensitive():  # pylint: disable=invalid-name
     '''tests that existing labels and contexts return the previous name'''
     namespace = NameSpace(case_sensitive=True)
     name = "Rupert"
@@ -285,7 +290,7 @@ def test_reserved_names():
     assert name1 == nameb.lower()+"_1"
 
 
-def test_reserved_names_case_sensitive():
+def test_reserved_names_case_sensitive():  # pylint: disable=invalid-name
     '''tests that reserved names are not returned by the case sensitive
     name space manager'''
     namea = "PSyclone"
@@ -315,7 +320,7 @@ def test_reserved_name_exists():
         namespace.add_reserved_name(name.lower())
 
 
-def test_reserved_name_exists_case_sensitive():
+def test_reserved_name_exists_case_sensitive():  # pylint: disable=invalid-name
     '''tests that an error is generated if a reserved name has already
     been used as a name'''
     name = "PSyclone"
@@ -350,7 +355,7 @@ def test_internal_name_clashes():
     assert name3 == name2+"_1"
 
 
-def test_internal_name_clashes_case_sensitive():
+def test_intern_name_clash_case_sensitive():  # pylint: disable=invalid-name
     '''tests that names that are generated internally by the case
     sensitive namespace manager can be used as root names'''
     anon_name = "Anon"
@@ -523,7 +528,7 @@ def test_written_arg():
         str(excinfo.value)
 
 
-def test_OMPDoDirective_class_view(capsys):
+def test_ompdo_directive_class_view(capsys):
     '''tests the view method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -591,7 +596,7 @@ def test_call_abstract_methods():
     assert "Call.gen_code should be implemented" in str(excinfo.value)
 
 
-def test_haloexchange_unknown_halo_depth():
+def test_haloexchange_unknown_halo_depth():  # pylint: disable=invalid-name
     '''test the case when the halo exchange base class is called without
     a halo depth'''
     halo_exchange = HaloExchange(None, None, None, None, None)
@@ -810,3 +815,861 @@ def test_invalid_reprod_pad_size():
             "REPROD_PAD_SIZE in config.py should be a positive "
             "integer") in str(excinfo.value)
     config.REPROD_PAD_SIZE = keep
+
+
+def test_argument_depends_on():
+    '''Check that the depends_on method returns the appropriate boolean
+    value for arguments with combinations of read and write access'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.5_multikernel_invokes.f90"),
+                           distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    arg_f1_inc_1 = schedule.children[0].children[0].arguments.args[0]
+    arg_f1_inc_2 = schedule.children[2].children[0].arguments.args[0]
+    arg_f2_read_1 = schedule.children[0].children[0].arguments.args[2]
+    arg_f2_inc = schedule.children[1].children[0].arguments.args[0]
+    arg_f2_read_2 = schedule.children[2].children[0].arguments.args[1]
+    # different names returns False
+    assert not arg_f2_inc._depends_on(arg_f1_inc_1)
+    # same name both reads returns False
+    assert not arg_f2_read_1._depends_on(arg_f2_read_2)
+    # same name both incs (write to read) returns True
+    assert arg_f1_inc_2._depends_on(arg_f1_inc_1)
+    # read to write returns True
+    assert arg_f2_read_1._depends_on(arg_f2_inc)
+    # write to read returns True
+    assert arg_f2_inc._depends_on(arg_f2_read_1)
+    # same name both writes (the 4.5 example only uses inc) returns True
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
+    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[1]
+    assert arg_f1_write_1._depends_on(arg_f1_write_2)
+
+
+def test_argument_find_argument():
+    '''Check that the find_argument method returns the first dependent
+    argument in a list of nodes, or None if none are found'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: returns none if none found
+    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    # a) empty node list
+    assert not f1_first_read._find_argument([])
+    # b) check many reads
+    call_nodes = schedule.calls()
+    assert not f1_first_read._find_argument(call_nodes)
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies (check first read returned)
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    f3_first_read = schedule.children[0].children[0].arguments.args[2]
+    result = f3_write._find_argument(call_nodes)
+    assert result == f3_first_read
+    # 3: haloexchange node
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # a) kern arg depends on halo arg
+    m2_read_arg = schedule.children[3].children[0].arguments.args[4]
+    m2_halo_field = schedule.children[2].field
+    result = m2_read_arg._find_argument(schedule.children)
+    assert result == m2_halo_field
+    # b) halo arg depends on kern arg
+    result = m2_halo_field._find_argument([schedule.children[3].children[0]])
+    assert result == m2_read_arg
+    # 4: globalsum node
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # a) globalsum arg depends on kern arg
+    kern_asum_arg = schedule.children[3].children[0].arguments.args[0]
+    glob_sum_arg = schedule.children[2].scalar
+    result = kern_asum_arg._find_argument(schedule.children)
+    assert result == glob_sum_arg
+    # b) kern arg depends on globalsum arg
+    result = glob_sum_arg._find_argument([schedule.children[3].children[0]])
+    assert result == kern_asum_arg
+
+
+@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
+def test_globalsum_arg():
+    '''Check that the globalsum argument is defined as gh_readwrite and
+    points to the globalsum node'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    glob_sum = schedule.children[2]
+    glob_sum_arg = glob_sum.scalar
+    assert glob_sum_arg.access == "gh_readwrite"
+    assert glob_sum_arg.call == glob_sum
+
+
+@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
+def test_haloexchange_arg():
+    '''Check that the haloexchange argument is defined as gh_readwrite and
+    points to the haloexchange node'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[2]
+    halo_exchange_arg = halo_exchange.field
+    assert halo_exchange_arg.access == "gh_readwrite"
+    assert halo_exchange_arg.call == halo_exchange
+
+
+def test_argument_forward_dependence():  # pylint: disable=invalid-name
+    '''Check that forward_dependence method returns the first dependent
+    argument after the current Node in the schedule or None if none
+    are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    # 1: internal var computed set to False
+    assert not f1_first_read._fd_computed
+    # 2: initial internal value set to None
+    assert not f1_first_read._fd_value
+    # 3: returns none if none found (check many reads)
+    assert not f1_first_read.forward_dependence()
+    # 4: computed set to True once run
+    assert f1_first_read._fd_computed
+    # 5: returns first dependent kernel arg when there are many
+    # dependencies (check first read returned)
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    f3_next_read = schedule.children[4].children[0].arguments.args[2]
+    result = f3_write.forward_dependence()
+    assert result == f3_next_read
+    # 6: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
+    f2_halo_field = schedule.children[15].field
+    f2_next_arg = schedule.children[17].children[0].arguments.args[0]
+    # a) previous kern arg depends on halo arg
+    result = f2_prev_arg.forward_dependence()
+    assert result == f2_halo_field
+    # b) halo arg depends on following kern arg
+    result = f2_halo_field.forward_dependence()
+    assert result == f2_next_arg
+    # 7: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_arg = schedule.children[0].children[0].arguments.args[0]
+    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    global_sum_arg = schedule.children[2].scalar
+    next_arg = schedule.children[3].children[0].arguments.args[0]
+    # a) prev kern arg depends on sum
+    result = prev_arg.forward_dependence()
+    assert result == sum_arg
+    # b) sum arg depends on global sum arg
+    result = sum_arg.forward_dependence()
+    assert result == global_sum_arg
+    # c) global sum arg depends on next kern arg
+    result = global_sum_arg.forward_dependence()
+    assert result == next_arg
+
+
+def test_argument_backward_dependence():  # pylint: disable=invalid-name
+    '''Check that backward_dependence method returns the first dependent
+    argument before the current Node in the schedule or None if none
+    are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f1_last_read = schedule.children[6].children[0].arguments.args[1]
+    # 1: internal var computed set to False
+    assert not f1_last_read._bd_computed
+    # 2: initial internal value set to None
+    assert not f1_last_read._bd_value
+    # 3: returns none if none found (check many reads)
+    assert not f1_last_read.backward_dependence()
+    # 4: computed set to True once run
+    assert f1_last_read._bd_computed
+    # 5: returns first dependent kernel arg when there are many
+    # dependencies (check first read returned)
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    f3_prev_read = schedule.children[2].children[0].arguments.args[2]
+    result = f3_write.backward_dependence()
+    assert result == f3_prev_read
+    # 6: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
+    f2_halo_field = schedule.children[15].field
+    f2_next_arg = schedule.children[17].children[0].arguments.args[0]
+    # a) following kern arg depends on halo arg
+    result = f2_next_arg.backward_dependence()
+    assert result == f2_halo_field
+    # b) halo arg depends on previous kern arg
+    result = f2_halo_field.backward_dependence()
+    assert result == f2_prev_arg
+    # 7: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_arg = schedule.children[0].children[0].arguments.args[0]
+    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    global_sum_arg = schedule.children[2].scalar
+    next_arg = schedule.children[3].children[0].arguments.args[0]
+    # a) next kern arg depends on global sum arg
+    result = next_arg.backward_dependence()
+    assert result == global_sum_arg
+    # b) global sum arg depends on sum arg
+    result = global_sum_arg.backward_dependence()
+    assert result == sum_arg
+    # c) sum depends on prev kern arg
+    result = sum_arg.backward_dependence()
+    assert result == prev_arg
+
+
+def test_node_depth():
+    '''Test that the Node class depth method returns the correct value
+    for a Node in a tree '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    assert schedule.depth == 1
+    for child in schedule.children:
+        assert child.depth == 2
+    for child in schedule.children[3].children:
+        assert child.depth == 3
+
+
+def test_node_args():
+    '''Test that the Node class args method returns the correct arguments
+    for Nodes that do not have arguments themselves'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop1 = schedule.children[0]
+    kern1 = loop1.children[0]
+    loop2 = schedule.children[1]
+    kern2 = loop2.children[0]
+    # 1) Schedule (not that this is useful)
+    all_args = kern1.arguments.args
+    all_args.extend(kern2.arguments.args)
+    schedule_args = schedule.args
+    for idx, arg in enumerate(all_args):
+        assert arg == schedule_args[idx]
+    # 2) Loop1
+    loop1_args = loop1.args
+    for idx, arg in enumerate(kern1.arguments.args):
+        assert arg == loop1_args[idx]
+    # 3) Loop2
+    loop2_args = loop2.args
+    for idx, arg in enumerate(kern2.arguments.args):
+        assert arg == loop2_args[idx]
+    # 4) Loopfuse
+    ftrans = DynamoLoopFuseTrans()
+    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                               same_space=True)
+    loop = schedule.children[0]
+    kern1 = loop.children[0]
+    kern2 = loop.children[1]
+    loop_args = loop.args
+    kern_args = kern1.arguments.args
+    kern_args.extend(kern2.arguments.args)
+    for idx, arg in enumerate(kern_args):
+        assert arg == loop_args[idx]
+
+
+def test_call_args():
+    '''Test that the call class args method returns the appropriate
+    arguments '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kern = schedule.children[0].children[0]
+    builtin = schedule.children[1].children[0]
+    # 1) kern
+    for idx, arg in enumerate(kern.args):
+        assert arg == kern.arguments.args[idx]
+    # 2) builtin
+    for idx, arg in enumerate(builtin.args):
+        assert arg == builtin.arguments.args[idx]
+
+
+def test_haloexchange_args():
+    '''Test that the haloexchange class args method returns the appropriate
+    argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for haloexchange in schedule.children[:2]:
+        assert len(haloexchange.args) == 1
+        assert haloexchange.args[0] == haloexchange.field
+
+
+def test_globalsum_args():
+    '''Test that the globalsum class args method returns the appropriate
+    argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    assert len(global_sum.args) == 1
+    assert global_sum.args[0] == global_sum.scalar
+
+
+def test_node_forward_dependence():
+    '''Test that the Node class forward_dependence method returns the
+    closest dependent Node after the current Node in the schedule or
+    None if none are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    read4 = schedule.children[4]
+    # 1: returns none if none found
+    # a) check many reads
+    assert not read4.forward_dependence()
+    # b) check no dependencies for a call
+    assert not read4.children[0].forward_dependence()
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies
+    # a) check first read returned
+    writer = schedule.children[3]
+    next_read = schedule.children[4]
+    assert writer.forward_dependence() == next_read
+    # a) check writer returned
+    first_loop = schedule.children[0]
+    assert first_loop.forward_dependence() == writer
+    # 3: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_loop = schedule.children[14]
+    halo_field = schedule.children[15]
+    next_loop = schedule.children[17]
+    # a) previous loop depends on halo exchange
+    assert prev_loop.forward_dependence() == halo_field
+    # b) halo exchange depends on following loop
+    assert halo_field.forward_dependence() == next_loop
+
+    # 4: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    prev_loop = schedule.children[0]
+    sum_loop = schedule.children[1]
+    global_sum_loop = schedule.children[2]
+    next_loop = schedule.children[3]
+    # a) prev loop depends on sum loop
+    assert prev_loop.forward_dependence() == sum_loop
+    # b) sum loop depends on global sum loop
+    assert sum_loop.forward_dependence() == global_sum_loop
+    # c) global sum loop depends on next loop
+    assert global_sum_loop.forward_dependence() == next_loop
+
+
+def test_node_backward_dependence():
+    '''Test that the Node class backward_dependence method returns the
+    closest dependent Node before the current Node in the schedule or
+    None if none are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: loop no backwards dependence
+    loop3 = schedule.children[2]
+    assert not loop3.backward_dependence()
+    # 2: loop to loop backward dependence
+    # a) many steps
+    last_loop_node = schedule.children[6]
+    prev_dep_loop_node = schedule.children[3]
+    assert last_loop_node.backward_dependence() == prev_dep_loop_node
+    # b) previous
+    assert prev_dep_loop_node.backward_dependence() == loop3
+    # 3: haloexchange dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop13 = schedule.children[14]
+    halo_exchange = schedule.children[16]
+    loop16 = schedule.children[17]
+    # a) following loop node depends on halo exchange node
+    result = loop16.backward_dependence()
+    assert result == halo_exchange
+    # b) halo exchange node depends on previous loop node
+    result = halo_exchange.backward_dependence()
+    assert result == loop13
+    # 4: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
+    global_sum = schedule.children[2]
+    loop3 = schedule.children[3]
+    # a) loop3 depends on global sum
+    assert loop3.backward_dependence() == global_sum
+    # b) global sum depends on loop2
+    assert global_sum.backward_dependence() == loop2
+    # c) loop2 (sum) depends on loop1
+    assert loop2.backward_dependence() == loop1
+
+
+def test_call_forward_dependence():
+    '''Test that the Call class forward_dependence method returns the
+    closest dependent call after the current call in the schedule or
+    None if none are found. This is achieved by loop fusing first.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    for _ in range(6):
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
+    read4 = schedule.children[0].children[4]
+    # 1: returns none if none found
+    # a) check many reads
+    assert not read4.forward_dependence()
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies
+    # a) check first read returned
+    writer = schedule.children[0].children[3]
+    next_read = schedule.children[0].children[4]
+    assert writer.forward_dependence() == next_read
+    # a) check writer returned
+    first_loop = schedule.children[0].children[0]
+    assert first_loop.forward_dependence() == writer
+
+
+def test_call_backward_dependence():
+    '''Test that the Call class backward_dependence method returns the
+    closest dependent call before the current call in the schedule or
+    None if none are found. This is achieved by loop fusing first.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    ftrans = DynamoLoopFuseTrans()
+    for _ in range(6):
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
+    # 1: loop no backwards dependence
+    call3 = schedule.children[0].children[2]
+    assert not call3.backward_dependence()
+    # 2: call to call backward dependence
+    # a) many steps
+    last_call_node = schedule.children[0].children[6]
+    prev_dep_call_node = schedule.children[0].children[3]
+    assert last_call_node.backward_dependence() == prev_dep_call_node
+    # b) previous
+    assert prev_dep_call_node.backward_dependence() == call3
+
+
+def test_omp_forward_dependence():
+    '''Test that the forward_dependence method works for Directives,
+    returning the closest dependent Node after the current Node in the
+    schedule or None if none are found. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    for child in schedule.children:
+        schedule, _ = otrans.apply(child)
+    read4 = schedule.children[4]
+    # 1: returns none if none found
+    # a) check many reads
+    assert not read4.forward_dependence()
+    # b) check no dependencies for the loop
+    assert not read4.children[0].forward_dependence()
+    # 2: returns first dependent kernel arg when there are many
+    # dependencies
+    # a) check first read returned
+    writer = schedule.children[3]
+    next_read = schedule.children[4]
+    assert writer.forward_dependence() == next_read
+    # b) check writer returned
+    first_omp = schedule.children[0]
+    assert first_omp.forward_dependence() == writer
+    # 3: directive and globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule, _ = otrans.apply(schedule.children[0])
+    schedule, _ = otrans.apply(schedule.children[1])
+    schedule, _ = otrans.apply(schedule.children[3])
+    prev_omp = schedule.children[0]
+    sum_omp = schedule.children[1]
+    global_sum_loop = schedule.children[2]
+    next_omp = schedule.children[3]
+    # a) prev omp depends on sum omp
+    assert prev_omp.forward_dependence() == sum_omp
+    # b) sum omp depends on global sum loop
+    assert sum_omp.forward_dependence() == global_sum_loop
+    # c) global sum loop depends on next omp
+    assert global_sum_loop.forward_dependence() == next_omp
+
+
+def test_directive_backward_dependence():  # pylint: disable=invalid-name
+    '''Test that the backward_dependence method works for Directives,
+    returning the closest dependent Node before the current Node in
+    the schedule or None if none are found.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    for child in schedule.children:
+        schedule, _ = otrans.apply(child)
+    # 1: omp directive no backwards dependence
+    omp3 = schedule.children[2]
+    assert not omp3.backward_dependence()
+    # 2: omp to omp backward dependence
+    # a) many steps
+    last_omp_node = schedule.children[6]
+    prev_dep_omp_node = schedule.children[3]
+    assert last_omp_node.backward_dependence() == prev_dep_omp_node
+    # b) previous
+    assert prev_dep_omp_node.backward_dependence() == omp3
+    # 3: globalsum dependencies
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule, _ = otrans.apply(schedule.children[0])
+    schedule, _ = otrans.apply(schedule.children[1])
+    schedule, _ = otrans.apply(schedule.children[3])
+    omp1 = schedule.children[0]
+    omp2 = schedule.children[1]
+    global_sum = schedule.children[2]
+    omp3 = schedule.children[3]
+    # a) omp3 depends on global sum
+    assert omp3.backward_dependence() == global_sum
+    # b) global sum depends on omp2
+    assert global_sum.backward_dependence() == omp2
+    # c) omp2 (sum) depends on omp1
+    assert omp2.backward_dependence() == omp1
+
+
+def test_node_is_valid_location():
+    '''Test that the Node class is_valid_location method returns True if
+    the new location does not break any data dependencies, otherwise it
+    returns False'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: new node argument is invalid
+    node = schedule.children[0]
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location("invalid_node_argument")
+    assert "argument is not a Node, it is a 'str'." in str(excinfo.value)
+    # 2: optional position argument is invalid
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(node, position="invalid_node_argument")
+    assert "The position argument in the psyGen" in str(excinfo.value)
+    assert "method must be one of" in str(excinfo.value)
+    # 3: parents of node and new_node are not the same
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(schedule.children[3].children[0])
+    assert ("the node and the location do not have the same "
+            "parent") in str(excinfo.value)
+    # 4: positions are the same
+    prev_node = schedule.children[0]
+    node = schedule.children[1]
+    next_node = schedule.children[2]
+    # a) before this node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(node, position="before")
+    assert "the node and the location are the same" in str(excinfo.value)
+    # b) after this node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(node, position="after")
+    assert "the node and the location are the same" in str(excinfo.value)
+    # c) after previous node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(prev_node, position="after")
+    assert "the node and the location are the same" in str(excinfo.value)
+    # d) before next node
+    with pytest.raises(GenerationError) as excinfo:
+        node.is_valid_location(next_node, position="before")
+    assert "the node and the location are the same" in str(excinfo.value)
+    # 5: valid no previous dependency
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 6: valid no prev dep
+    node = schedule.children[2]
+    assert node.is_valid_location(schedule.children[0])
+    # 7: valid prev dep (after)
+    node = schedule.children[6]
+    assert node.is_valid_location(schedule.children[3], position="after")
+    # 8: invalid prev dep (before)
+    assert not node.is_valid_location(schedule.children[3], position="before")
+    # 9: valid no following dep
+    node = schedule.children[4]
+    assert node.is_valid_location(schedule.children[6], position="after")
+    # 10: valid following dep (before)
+    node = schedule.children[0]
+    assert node.is_valid_location(schedule.children[3], position="before")
+    # 11: invalid following dep (after)
+    node = schedule.children[0]
+    assert not node.is_valid_location(schedule.children[3], position="after")
+
+
+def test_dag_names():
+    '''test that the dag_name method returns the correct value for the
+    node class and its specialisations'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from psyGen import Schedule
+    assert super(Schedule, schedule).dag_name == "node_0"
+    assert schedule.dag_name == "schedule"
+    assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
+    assert schedule.children[3].dag_name == "loop_3"
+    schedule.children[3].loop_type = "colour"
+    assert schedule.children[3].dag_name == "loop_[colour]_3"
+    schedule.children[3].loop_type = ""
+    assert (schedule.children[3].children[0].dag_name ==
+            "kernel_testkern_code_5")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    assert global_sum.dag_name == "globalsum(asum)_2"
+    builtin = schedule.children[1].children[0]
+    assert builtin.dag_name == "builtin_sum_field_4"
+
+
+def test_openmp_pdo_dag_name():
+    '''Test that we generate the correct dag name for the OpenMP parallel
+    do node'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.2.0_copy_field_builtin.f90"),
+                    api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+    assert schedule.children[0].dag_name == "OMP_parallel_do_1"
+
+
+def test_omp_dag_names():
+    '''Test that we generate the correct dag names for omp parallel, omp
+    do, omp directive and directive nodes'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    from transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans
+    olooptrans = Dynamo0p3OMPLoopTrans()
+    ptrans = OMPParallelTrans()
+    # Put an OMP PARALLEL around this loop
+    child = schedule.children[0]
+    oschedule, _ = ptrans.apply(child)
+    # Put an OMP DO around this loop
+    schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
+    # Replace the original loop schedule with the transformed one
+    omp_par_node = schedule.children[0]
+    assert omp_par_node.dag_name == "OMP_parallel_1"
+    assert omp_par_node.children[0].dag_name == "OMP_do_2"
+    omp_directive = super(OMPParallelDirective, omp_par_node)
+    assert omp_directive.dag_name == "OMP_directive_1"
+    print type(omp_directive)
+    directive = super(OMPDirective, omp_par_node)
+    assert directive.dag_name == "directive_1"
+
+EXPECTED = (
+    "digraph {\n"
+    "	schedule_start\n"
+    "	schedule_end\n"
+    "	loop_0_start\n"
+    "	loop_0_end\n"
+    "		loop_0_end -> schedule_end [color=blue]\n"
+    "		schedule_start -> loop_0_start [color=blue]\n"
+    "	kernel_testkern_code_2\n"
+    "		kernel_testkern_code_2 -> loop_0_end [color=blue]\n"
+    "		loop_0_start -> kernel_testkern_code_2 [color=blue]\n"
+    "}")
+
+
+def test_node_dag_no_graphviz(tmpdir):
+    '''test that dag generation does nothing if graphviz is not
+    installed. If graphviz is installed on this system we need to make
+    the test think that it is not. We do this by messing with
+    sys.modules. '''
+    import sys
+    keep = None
+    try:
+        import graphviz
+        keep = sys.modules['graphviz']
+        sys.modules['graphviz'] = None
+    except ImportError:
+        pass
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    my_file = tmpdir.join('test')
+    schedule.dag(file_name=my_file.strpath)
+    assert not os.path.exists(my_file.strpath)
+    if keep:
+        sys.modules['graphviz'] = keep
+
+EXPECTED2 = (
+    "digraph {\n"
+    "	schedule_start\n"
+    "	schedule_end\n"
+    "	loop_0_start\n"
+    "	loop_0_end\n"
+    "		loop_0_end -> loop_1_start [color=green]\n"
+    "		schedule_start -> loop_0_start [color=blue]\n"
+    "	kernel_testkern_qr_code_2\n"
+    "		kernel_testkern_qr_code_2 -> loop_0_end [color=blue]\n"
+    "		loop_0_start -> kernel_testkern_qr_code_2 [color=blue]\n"
+    "	loop_1_start\n"
+    "	loop_1_end\n"
+    "		loop_1_end -> schedule_end [color=blue]\n"
+    "		loop_0_end -> loop_1_start [color=red]\n"
+    "	kernel_testkern_qr_code_4\n"
+    "		kernel_testkern_qr_code_4 -> loop_1_end [color=blue]\n"
+    "		loop_1_start -> kernel_testkern_qr_code_4 [color=blue]\n"
+    "}")
+
+
+def test_node_dag(tmpdir):
+    '''test that dag generation works correctly. Skip the test if
+    graphviz is not installed'''
+    try:
+        import graphviz
+    except ImportError:
+        return
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    my_file = tmpdir.join('test')
+    schedule.dag(file_name=my_file.strpath)
+    result = my_file.read()
+    assert EXPECTED2 in result
+    my_file = tmpdir.join('test.svg')
+    result = my_file.read()
+    for name in ["<title>schedule_start</title>",
+                 "<title>schedule_end</title>",
+                 "<title>loop_0_start</title>",
+                 "<title>loop_0_end</title>",
+                 "<title>kernel_testkern_qr_code_2</title>",
+                 "<title>kernel_testkern_qr_code_4</title>",
+                 "<svg", "</svg>", "blue", "green", "red"]:
+        assert name in result
+    with pytest.raises(GenerationError) as excinfo:
+        schedule.dag(file_name=my_file.strpath, file_format="rubbish")
+    assert "unsupported graphviz file format" in str(excinfo.value)

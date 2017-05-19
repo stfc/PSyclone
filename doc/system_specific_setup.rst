@@ -31,15 +31,15 @@ Change directory to where you would like to place the code (where
 Now download and extract the latest release of PSyclone:
 ::
 
-   > wget https://github.com/stfc/PSyclone/archive/1.3.3.tar.gz
-   > gunzip 1.3.3.tar.gz
-   > tar xf 1.3.3.tar
-   > rm 1.3.3.tar
+   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
+   > gunzip 1.4.1.tar.gz
+   > tar xf 1.4.1.tar
+   > rm 1.4.1.tar
 
 Set your python path appropriately:
 ::
 
-   > cd PSyclone-1.3.3
+   > cd PSyclone-1.4.1
    > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
 
 You may want to set your python path permanently (e.g. by editing your
@@ -78,11 +78,11 @@ Ubuntu software centre. It can instead be installed from the
 Python Package Index using pip:
 ::
 
-    > pip install fparser
+    > sudo pip install fparser
 
 Uninstalling is simply a matter of doing:
 ::
-    > pip uninstall fparser
+    > sudo pip uninstall fparser
 
 If you do not have sufficient privileges for a system-wide install then
 you can do:
@@ -102,6 +102,19 @@ Alternatively, if pip is not an option, a tarball of the latest release
 may be downloaded from https://github.com/stfc/fparser/releases. Simply
 unpack the tarball and ensure that the resulting
 ``fparser-x.y.z/src/fparser`` directory is in your PYTHONPATH.
+
+PSyclone supports the ability to output a schedule dependency graph
+using the graphviz package. This is optional and the associated
+routine will silently return if the graphviz bindings are not
+installed. To output a graph you need to install the graphviz package
+::
+
+   > sudo apt-get install graphviz
+
+and the Python bindings to the graphviz package
+::
+
+   > sudo pip install graphviz
 
 If you just want to use PSyclone then you've installed all you need
 and you're ready to go to the getting-going :ref:`getting-going-run`

@@ -1,3 +1,19 @@
+        1) #20 and PR #28 add dependence analysis (and a Move
+        transformation) to PSyclone. This will subsequently allow for
+        the safe implementation of more complex schedule transformations
+        and optimisations.
+
+release 1.4.1
+
+	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
+	addition to the existing enforce_bc_kernel) for boundary
+	conditions. PSyclone no longer adds in boundary condition calls
+	after a call to matrix_vector_kernel, it is up to the user to add
+	them in the algorithm layer in all cases. Also fixes a bug
+	introduced in 1.4.0 issue #12.
+
+release 1.4.0
+
         1) #2 Add support for kernel meta-data changes required to support
         Column-wise operators (Column Matrix Assembly).
 
@@ -5,6 +21,8 @@
 	PSyclone.
 
 	3) #12 Add support for the any_w2 function space descriptor
+
+	4) #33 Update documentation referring to fparser.
 
 release 1.3.3
 

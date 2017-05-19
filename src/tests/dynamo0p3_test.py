@@ -2209,51 +2209,44 @@ def test_dyninvoke_arg_for_fs():
 
 
 def test_kernel_specific():
-    ''' Test that a call to enforce boundary conditions is added following
-    a call to the matrix_vector_kernel_type kernel. This code is required
-    as the dynamo0.3 api does not know about boundary conditions but this
-    kernel requires them. This "hack" is only supported to get
-    PSyclone to generate correct code for the current implementation
-    of dynamo. Future API's will not support any hacks. '''
+    ''' Test that a call to enforce boundary conditions is *not* added
+    following a call to the matrix_vector_kernel_type kernel. Boundary
+    conditions are now explicity specified in the Algorithm as required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
-    assert output0 in generated_code
-    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v, any_w2\n"
-    assert output1 in generated_code
+    assert output0 not in generated_code
+    output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v\n"
+    assert output1 not in generated_code
     output2 = "INTEGER fs"
-    assert output2 in generated_code
+    assert output2 not in generated_code
     output3 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
-    assert output3 in generated_code
+    assert output3 not in generated_code
     output4 = "fs = f1%which_function_space()"
-    assert output4 in generated_code
+    assert output4 not in generated_code
     # We only call enforce_bc if the field is on a vector space
     output5 = (
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
         "fs == any_w2) THEN\n"
         "        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()\n"
         "      END IF")
-    assert output5 in generated_code
+    assert output5 not in generated_code
     output6 = (
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
         "fs == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
-    assert output6 in generated_code
+    assert output6 not in generated_code
 
 
 def test_multi_kernel_specific():
-    '''Test that a call to enforce boundary conditions is added following
-    multiple calls to the matrix_vector_kernel_type kernel. This code
-    is required as the dynamo0.3 api does not know about boundary
-    conditions but this kernel requires them. This "hack" is only
-    supported to get PSyclone to generate correct code for the current
-    implementation of dynamo. Future API's will not support any
-    hacks. '''
+    '''Test that a call to enforce boundary conditions is *not* added following
+    multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
+    must now be explicitly specified as part of the Algorithm. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.3_multi_kernel_specific.f90"),
                            api="dynamo0.3")
@@ -2261,58 +2254,58 @@ def test_multi_kernel_specific():
     generated_code = str(psy.gen)
     print generated_code
 
-    # should only be one of the following generated ...
+    # Output must not contain any bc-related code
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
-    assert generated_code.count(output0) == 1
+    assert generated_code.count(output0) == 0
     output1 = "USE function_space_mod, ONLY: w1, w2, w2h, w2v, any_w2\n"
-    assert generated_code.count(output1) == 1
+    assert generated_code.count(output1) == 0
 
     # first loop
     output1 = "INTEGER fs\n"
-    assert output1 in generated_code
+    assert output1 not in generated_code
     output2 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
-    assert output2 in generated_code
+    assert output2 not in generated_code
     output3 = "fs = f1%which_function_space()"
-    assert output3 in generated_code
+    assert output3 not in generated_code
     # We only call enforce_bc if the field is on a vector space
     output4 = (
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
         "fs == any_w2) THEN\n"
         "        boundary_dofs => f1_proxy%vspace%get_boundary_dofs()\n"
         "      END IF")
-    assert output4 in generated_code
+    assert output4 not in generated_code
     output5 = (
         "IF (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v .or. "
         "fs == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs)")
-    assert output5 in generated_code
+    assert output5 not in generated_code
 
     # second loop
     output6 = "INTEGER fs_1\n"
-    assert output6 in generated_code
+    assert output6 not in generated_code
     output7 = "INTEGER, pointer :: boundary_dofs_1(:,:) => null()"
-    assert output7 in generated_code
+    assert output7 not in generated_code
     output8 = "fs_1 = f1%which_function_space()"
-    assert output8 in generated_code
+    assert output8 not in generated_code
     output9 = (
         "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v "
         ".or. fs_1 == any_w2) "
         "THEN\n"
         "        boundary_dofs_1 => f1_proxy%vspace%get_boundary_dofs()\n"
         "      END IF")
-    assert output9 in generated_code
+    assert output9 not in generated_code
     output10 = (
         "IF (fs_1 == w1 .or. fs_1 == w2 .or. fs_1 == w2h .or. fs_1 == w2v "
         ".or. fs_1 == any_w2) THEN\n"
         "          CALL enforce_bc_code(nlayers, f1_proxy%data, "
         "ndf_any_space_1_f1, undf_any_space_1_f1, map_any_space_1_f1(:,cell), "
         "boundary_dofs_1)")
-    assert output10 in generated_code
+    assert output10 not in generated_code
 
 
-def test_bc_kernel():
+def test_field_bc_kernel():
     '''tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
@@ -2365,6 +2358,103 @@ def test_bc_kernel_field_only(monkeypatch):
         assert ("Expected a gh_field from which to look-up boundary dofs "
                 "for kernel enforce_bc_code but got gh_operator"
                 in str(excinfo))
+
+
+def test_operator_bc_kernel():
+    ''' Tests that a kernel with a particular name is recognised as a
+    kernel that applies boundary conditions to operators and that
+    appropriate code is added to support this. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    assert output1 in generated_code
+    output2 = "boundary_dofs => op_a_proxy%fs_to%get_boundary_dofs()"
+    assert output2 in generated_code
+    output3 = (
+        "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
+        "op_a_proxy%local_stencil, ndf_any_space_1_op_a, "
+        "ndf_any_space_2_op_a, boundary_dofs)")
+    assert output3 in generated_code
+
+
+def test_operator_bc_kernel_fld_err(monkeypatch):
+    ''' test that we reject the recognised operator boundary conditions
+    kernel if its argument is not an operator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[0]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        # Monkeypatch the argument object so that it thinks it is a
+        # field rather than an operator
+        monkeypatch.setattr(arg, "_type", value="gh_field")
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Expected a LMA operator from which to look-up boundary dofs "
+                "but kernel enforce_operator_bc_code has argument gh_field") \
+            in str(excinfo)
+
+
+def test_operator_bc_kernel_multi_args_err():  # pylint: disable=invalid-name
+    ''' test that we reject the recognised operator boundary conditions
+    kernel if it has more than one argument '''
+    import copy
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[0]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        # Make the list of arguments invalid by duplicating (a copy of)
+        # this argument. We take a copy because otherwise, when we change
+        # the type of arg 1 below, we change it for both.
+        call.arguments.args.append(copy.copy(arg))
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
+                "should only have 1 (an LMA operator)") in str(excinfo)
+        # And again but make the second argument a field this time
+        call.arguments.args[1]._type = "gh_field"
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
+                "should only have 1 (an LMA operator)") in str(excinfo)
+
+
+def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
+    ''' test that we reject the recognised operator boundary conditions
+    kernel if its operator argument has the wrong access type '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api="dynamo0.3")
+    for dist_mem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        loop = schedule.children[0]
+        call = loop.children[0]
+        arg = call.arguments.args[0]
+        print dir(arg)
+        print type(arg)
+        arg._access = "gh_read"
+        with pytest.raises(GenerationError) as excinfo:
+            _ = psy.gen
+        assert (
+            "applies boundary conditions to an operator. However its operator "
+            "argument has access gh_read rather than gh_inc") in str(excinfo)
 
 
 def test_multikernel_invoke_1():
@@ -3430,7 +3520,7 @@ def test_orientation_stubs():
     assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
 
 
-def test_enforce_bc_kernel_stub_gen():
+def test_enforce_bc_kernel_stub_gen():  # pylint: disable=invalid-name
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs'''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
@@ -3462,6 +3552,39 @@ def test_enforce_bc_kernel_stub_gen():
         "  END MODULE enforce_bc_mod")
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+
+def test_enforce_op_bc_kernel_stub_gen():  # pylint: disable=invalid-name
+    ''' Test that the enforce_operator_bc_kernel boundary dofs argument
+    modification is handled correctly for kernel stubs'''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "enforce_operator_bc_kernel_mod.F90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    output = (
+        "  MODULE enforce_operator_bc_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, op_1_ncell_3d,"
+        " op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, boundary_dofs)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: op_1_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension("
+        "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1,2) :: "
+        "boundary_dofs\n"
+        "    END SUBROUTINE enforce_operator_bc_code\n"
+        "  END MODULE enforce_operator_bc_mod")
+    print generated_code
+    assert output in generated_code
 
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
@@ -5646,6 +5769,18 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth == '10'
 
 
+def test_haloexchange_correct_parent():  # pylint: disable=invalid-name
+    '''Test that a dynamo haloexchange has the correct parent once it has
+    been added to a schedule.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    for child in schedule.children:
+        assert child.parent == schedule
+
+
 def test_single_kernel_multi_field_same_stencil():
     '''This test checks for the case where we have the same stencil used
     by more than one field in a kernel'''
@@ -6326,7 +6461,8 @@ def test_argordering_exceptions():
                        create_arg_list.basis,
                        create_arg_list.diff_basis,
                        create_arg_list.orientation,
-                       create_arg_list.bc_kernel,
+                       create_arg_list.field_bcs_kernel,
+                       create_arg_list.operator_bcs_kernel,
                        create_arg_list.banded_dofmap,
                        create_arg_list.indirection_dofmap,
                        create_arg_list.cma_operator]:
