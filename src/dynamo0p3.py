@@ -1539,13 +1539,15 @@ class DynInvoke(Invoke):
                         # 1 to the vector size which is what we
                         # require in our Fortran code
                         for idx in range(1, halo_field.vector_size+1):
-                            exchange = DynHaloExchange(
-                                halo_field, parent=loop, vector_index=idx,
-                                inc=inc)
+                            exchange = DynHaloExchange(halo_field,
+                                                       parent=loop.parent,
+                                                       vector_index=idx,
+                                                       inc=inc)
                             loop.parent.children.insert(loop.position,
                                                         exchange)
                     else:
-                        exchange = DynHaloExchange(halo_field, parent=loop,
+                        exchange = DynHaloExchange(halo_field,
+                                                   parent=loop.parent,
                                                    inc=inc)
                         loop.parent.children.insert(loop.position, exchange)
             # global sum calls

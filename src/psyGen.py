@@ -274,38 +274,6 @@ class Invokes(object):
             invoke.gen_code(parent)
 
 
-class Dependencies(object):
-    def __init__(self, this_arg):
-        self._arg = this_arg
-        self._precedes = []
-        self._follows = []
-
-    def set(self):
-        if self._arg.is_literal:
-            pass
-        else:
-            for following_call in self._arg._call.following_calls:
-                for argument in following_call.arguments._args:
-                    if argument.name == self._arg._name:
-                        self.add_follows(argument)
-            for preceding_call in self._arg._call.preceding_calls:
-                for argument in preceding_call.arguments._args:
-                    if argument.name == self._arg._name:
-                        self.add_precedes(argument)
-
-    def add_precedes(self, obj):
-        self._precedes.append(obj)
-
-    def add_follows(self, obj):
-        self._follows.append(obj)
-
-    def get_precedes(self):
-        return self._precedes
-
-    def get_follows(self):
-        return self._follows
-
-
 class NameSpaceFactory(object):
         # storage for the instance reference
     _instance = None
@@ -452,11 +420,6 @@ class Invoke(object):
 
         # let the schedule have access to me
         self._schedule.invoke = self
-
-        # Set up the ordering constraints between the calls in the schedule
-        # Obviously the schedule must be created first
-        for call in self._schedule.calls():
-            call.set_constraints()
 
         # extract the argument list for the algorithm call and psy
         # layer subroutine.
@@ -701,6 +664,256 @@ class Invoke(object):
 class Node(object):
     ''' baseclass for a node in a schedule '''
 
+    def dag(self, file_name='dag', file_format='svg'):
+        '''Create a dag of this node and its children'''
+        try:
+            import graphviz as gv
+        except ImportError:
+            # todo: add a warning to a log file here
+            # silently return if graphviz bindings are not installed
+            return
+        try:
+            graph = gv.Digraph(format=file_format)
+        except ValueError:
+            raise GenerationError(
+                "unsupported graphviz file format '{0}' provided".
+                format(file_format))
+        self.dag_gen(graph)
+        graph.render(filename=file_name)
+
+    def dag_gen(self, graph):
+        '''output my node's graph (dag) information and call any
+        children. Nodes with children are represented as two vertices,
+        a start and an end. Forward dependencies are represented as
+        green edges, backward dependencies are represented as red
+        edges (but their direction is reversed so the layout looks
+        reasonable) and parent child dependencies are represented as
+        blue edges.'''
+        # names to append to my default name to create start and end vertices
+        start_postfix = "_start"
+        end_postfix = "_end"
+        if self.children:
+            # I am represented by two vertices, a start and an end
+            graph.node(self.dag_name+start_postfix)
+            graph.node(self.dag_name+end_postfix)
+        else:
+            # I am represented by a single vertex
+            graph.node(self.dag_name)
+        # first deal with forward dependencies
+        remote_node = self.forward_dependence()
+        local_name = self.dag_name
+        if self.children:
+            # edge will come from my end vertex as I am a forward dependence
+            local_name += end_postfix
+        if remote_node:
+            # this node has a forward dependence
+            remote_name = remote_node.dag_name
+            if remote_node.children:
+                # the remote node has children so I will connect to
+                # its start vertex
+                remote_name += start_postfix
+            # Create the forward dependence edge in green
+            graph.edge(local_name, remote_name, color="green")
+        elif self.parent:
+            # this node is a child of another node and has no forward
+            # dependence. Therefore connect it to the the end vertex
+            # of its parent. Use blue to indicate a parent child
+            # relationship.
+            remote_name = self.parent.dag_name + end_postfix
+            graph.edge(local_name, remote_name, color="blue")
+        # now deal with backward dependencies. When creating the edges
+        # we reverse the direction of the dependence (place
+        # remote_node before local_node) to help with the graph
+        # layout
+        remote_node = self.backward_dependence()
+        local_name = self.dag_name
+        if self.children:
+            # the edge will come from my start vertex as I am a
+            # backward dependence
+            local_name += start_postfix
+        if remote_node:
+            # this node has a backward dependence.
+            remote_name = remote_node.dag_name
+            if remote_node.children:
+                # the remote node has children so I will connect to
+                # its end vertex
+                remote_name += end_postfix
+            # Create the backward dependence edge in red.
+            graph.edge(remote_name, local_name, color="red")
+        elif self.parent:
+            # this node has a parent and has no backward
+            # dependence. Therefore connect it to the the start vertex
+            # of its parent. Use blue to indicate a parent child
+            # relationship.
+            remote_name = self.parent.dag_name + start_postfix
+            graph.edge(remote_name, local_name, color="blue")
+        # now call any children so they can add their information to
+        # the graph
+        for child in self.children:
+            child.dag_gen(graph)
+
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "node_" + str(self.abs_position)
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. The default
+        implementation assumes the node has no directly associated
+        arguments (i.e. is not a Call class or subclass). Arguments of
+        any of this nodes descendents are considered to be
+        associated. '''
+        args = []
+        for call in self.calls():
+            args.extend(call.args)
+        return args
+
+    def backward_dependence(self):
+        '''Returns the closest preceding Node that this Node has a direct
+        dependence with or None if there is not one. Only Nodes with
+        the same parent as self are returned. Nodes inherit their
+        descendents dependencies. The reason for this is that for
+        correctness a node must maintain its parent if it is
+        moved. For example a halo exchange and a kernel call may have
+        a dependence between them but it is the loop body containing
+        the kernel call that the halo exchange must not move beyond
+        i.e. the loop body inherits the dependencies of the routines
+        within it.'''
+        dependence = None
+        # look through all the backward dependencies of my arguments
+        for arg in self.args:
+            dependent_arg = arg.backward_dependence()
+            if dependent_arg:
+                # this argument has a backward dependence
+                node = dependent_arg.call
+                # if the remote node is deeper in the tree than me
+                # then find the ancestor that is at the same level of
+                # the tree as me.
+                while node.depth > self.depth:
+                    node = node.parent
+                if self.sameParent(node):
+                    # The remote node (or one of its ancestors) shares
+                    # the same parent as me
+                    if not dependence:
+                        # this is the first dependence found so keep it
+                        dependence = node
+                    else:
+                        # we have already found a dependence
+                        if dependence.position < node.position:
+                            # the new dependence is closer to me than
+                            # the previous dependence so keep it
+                            dependence = node
+        return dependence
+
+    def forward_dependence(self):
+        '''Returns the closest following Node that this Node has a direct
+        dependence with or None if there is not one. Only Nodes with
+        the same parent as self are returned. Nodes inherit their
+        descendents dependencies. The reason for this is that for
+        correctness a node must maintain its parent if it is
+        moved. For example a halo exchange and a kernel call may have
+        a dependence between them but it is the loop body containing
+        the kernel call that the halo exchange must not move beyond
+        i.e. the loop body inherits the dependencies of the routines
+        within it.'''
+        dependence = None
+        # look through all the forward dependencies of my arguments
+        for arg in self.args:
+            dependent_arg = arg.forward_dependence()
+            if dependent_arg:
+                # this argument has a forward dependence
+                node = dependent_arg.call
+                # if the remote node is deeper in the tree than me
+                # then find the ancestor that is at the same level of
+                # the tree as me.
+                while node.depth > self.depth:
+                    node = node.parent
+                if self.sameParent(node):
+                    # The remote node (or one of its ancestors) shares
+                    # the same parent as me
+                    if not dependence:
+                        # this is the first dependence found so keep it
+                        dependence = node
+                    else:
+                        if dependence.position > node.position:
+                            # the new dependence is closer to me than
+                            # the previous dependence so keep it
+                            dependence = node
+        return dependence
+
+    def is_valid_location(self, new_node, position="before"):
+        '''If this Node can be moved to the new_node
+        (where position determines whether it is before of after the
+        new_node) without breaking any data dependencies then return True,
+        otherwise return False. '''
+        # First perform correctness checks
+        # 1: check new_node is a Node
+        if not isinstance(new_node, Node):
+            raise GenerationError(
+                "In the psyGen Call class is_valid_location() method the "
+                "supplied argument is not a Node, it is a '{0}'.".
+                format(type(new_node).__name__))
+
+        # 2: check position has a valid value
+        valid_positions = ["before", "after"]
+        if position not in valid_positions:
+            raise GenerationError(
+                "The position argument in the psyGen Call class "
+                "is_valid_location() method must be one of {0} but "
+                "found '{1}'".format(valid_positions, position))
+
+        # 3: check self and new_node have the same parent
+        if not self.sameParent(new_node):
+            raise GenerationError(
+                "In the psyGen Call class is_valid_location() method "
+                "the node and the location do not have the same parent")
+
+        # 4: check proposed new position is not the same as current position
+        new_position = new_node.position
+        if new_position < self.position and position == "after":
+            new_position += 1
+        elif new_position > self.position and position == "before":
+            new_position -= 1
+
+        if self.position == new_position:
+            raise GenerationError(
+                "In the psyGen Call class is_valid_location() method, the "
+                "node and the location are the same so this transformation "
+                "would have no effect.")
+
+        # Now determine whether the new location is valid in terms of
+        # data dependencies
+        # Treat forward and backward dependencies separately
+        if new_position < self.position:
+            # the new_node is before this node in the schedule
+            prev_dep_node = self.backward_dependence()
+            if not prev_dep_node:
+                # There are no backward dependencies so the move is valid
+                return True
+            else:
+                # return (is the dependent node before the new_position?)
+                return prev_dep_node.position < new_position
+        else:  # new_node.position > self.position
+            # the new_node is after this node in the schedule
+            next_dep_node = self.forward_dependence()
+            if not next_dep_node:
+                # There are no forward dependencies so the move is valid
+                return True
+            else:
+                # return (is the dependent node after the new_position?)
+                return next_dep_node.position > new_position
+
+    @property
+    def depth(self):
+        ''' Returns this Node's depth in the tree. '''
+        my_depth = 0
+        node = self
+        while node is not None:
+            node = node.parent
+            my_depth += 1
+        return my_depth
+
     def view(self):
         raise NotImplementedError("BaseClass of a Node must implement the "
                                   "view method")
@@ -783,7 +996,7 @@ class Node(object):
             position += 1
             if child == self:
                 return True, position
-            if isinstance(child, Loop):
+            if child.children:
                 found, position = self._find_position(child.children, position)
                 if found:
                     return True, position
@@ -905,6 +1118,11 @@ class Schedule(Node):
 
     '''
 
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "schedule"
+
     def tkinter_delete(self):
         for entity in self._children:
             entity.tkinter_delete()
@@ -963,8 +1181,18 @@ class Directive(Node):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    @property
+    def dag_name(self):
+        ''' return the base dag name for this node '''
+        return "directive_" + str(self.abs_position)
+
 
 class OMPDirective(Directive):
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
         print self.indent(indent) + "Directive[OMP]"
@@ -986,6 +1214,11 @@ class OMPDirective(Directive):
 
 
 class OMPParallelDirective(OMPDirective):
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "OMP_parallel_" + str(self.abs_position)
 
     def view(self, indent=0):
         print self.indent(indent)+"Directive[OMP parallel]"
@@ -1135,6 +1368,11 @@ class OMPDoDirective(OMPDirective):
                               children=children,
                               parent=parent)
 
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "OMP_do_" + str(self.abs_position)
+
     def view(self, indent=0):
         ''' Write out a textual summary of the OpenMP Do Directive '''
         if self.reductions():
@@ -1220,6 +1458,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 parent=parent,
                                 omp_schedule=omp_schedule)
 
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "OMP_parallel_do_" + str(self.abs_position)
+
     def view(self, indent=0):
         ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
         print self.indent(indent) + \
@@ -1257,7 +1500,29 @@ class GlobalSum(Node):
     manipulated in, a schedule. '''
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
-        self._scalar = scalar
+        import copy
+        self._scalar = copy.copy(scalar)
+        if scalar:
+            # update scalar values appropriately
+            # HACK:TODO: update mapping to readwrite when it is supported
+            self._scalar.access = MAPPING_ACCESSES["inc"]
+            self._scalar.call = self
+
+    @property
+    def scalar(self):
+        ''' Return the scalar field that this global sum acts on '''
+        return self._scalar
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "globalsum({0})_".format(self._scalar.name) + str(self.position)
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Override
+        the base method and simply return our argument.'''
+        return [self._scalar]
 
     def view(self, indent):
         ''' Class specific view  '''
@@ -1272,13 +1537,39 @@ class HaloExchange(Node):
 
     def __init__(self, field, halo_type, halo_depth, check_dirty, parent=None):
         Node.__init__(self, children=[], parent=parent)
-        self._field = field
+        import copy
+        self._field = copy.copy(field)
+        if field:
+            # update fields values appropriately
+            # HACK:TODO: update mapping to readwrite when it is supported
+            self._field.access = MAPPING_ACCESSES["inc"]
+            self._field.call = self
         self._halo_type = halo_type
         if halo_depth:
             self._halo_depth = halo_depth
         else:
             self._halo_depth = "unknown"
         self._check_dirty = check_dirty
+
+    @property
+    def field(self):
+        ''' Return the field that the halo exchange acts on '''
+        return self._field
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        name = ("haloexchange({0})_".format(self._field.name) +
+                str(self.position))
+        if self._check_dirty:
+            name = "check" + name
+        return name
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Overide the
+        base method and simply return our argument. '''
+        return [self._field]
 
     def view(self, indent):
         ''' Class specific view  '''
@@ -1289,6 +1580,15 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        if self.loop_type:
+            name = "loop_[{0}]_".format(self.loop_type) + str(self.position)
+        else:
+            name = "loop_" + str(self.position)
+        return name
 
     @property
     def loop_type(self):
@@ -1490,6 +1790,12 @@ class Loop(Node):
 
 
 class Call(Node):
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Overide the
+        base method and simply return our arguments. '''
+        return self.arguments.args
 
     def view(self, indent=0):
         print self.indent(indent)+"Call", \
@@ -1699,11 +2005,6 @@ class Call(Node):
     def arg_descriptors(self, obj):
         self._arg_descriptors = obj
 
-    def set_constraints(self):
-        # first set up the dependencies of my arguments
-        self.arguments.set_dependencies
-        # TODO: set up constraints between calls
-
     @property
     def arguments(self):
         return self._arguments
@@ -1746,6 +2047,11 @@ class Kern(Call):
 
     def __str__(self):
         return "kern call: "+self._name
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
 
     @property
     def module_inline(self):
@@ -1819,9 +2125,14 @@ class BuiltIn(Call):
         self._fs_descriptors = None
         self._reduction = None
 
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "builtin_{0}_".format(self.name) + str(self.abs_position)
+
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
-        name = call.ktype.procedure.name
+        name = call.ktype.name
         Call.__init__(self, parent, call, name, arguments)
 
     def local_vars(self):
@@ -1864,16 +2175,10 @@ class Arguments(object):
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
 
-    def set_dependencies(self):
-        for argument in self._args:
-            argument.set_dependencies()
-        # TODO create a summary of dependencies
-
 
 class Argument(object):
     ''' argument base class '''
     def __init__(self, call, arg_info, access):
-        self._dependencies = Dependencies(self)
         self._call = call
         self._text = arg_info.text
         self._orig_name = arg_info.varName
@@ -1893,6 +2198,11 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
+        # forward and backward dependence values
+        self._bd_computed = False
+        self._bd_value = None
+        self._fd_computed = False
+        self._fd_value = None
 
     def __str__(self):
         return self._name
@@ -1917,6 +2227,11 @@ class Argument(object):
     def access(self):
         return self._access
 
+    @access.setter
+    def access(self, value):
+        ''' set the access type for this argument '''
+        self._access = value
+
     @property
     def type(self):
         '''Return the type of the argument. API's that do not have this
@@ -1930,42 +2245,90 @@ class Argument(object):
         ''' Return the call that this argument is associated with '''
         return self._call
 
-    def set_dependencies(self):
-        writers = ["WRITE", "INC", "SUM"]
-        readers = ["READ", "INC"]
-        self._true_dependence = []
-        self._anti_dependence = []
-        for following_call in self._call.following_calls:
-            for argument in following_call.arguments.args:
-                if argument.name == self._name:
-                    if self.access in writers and argument.access in readers:
-                        self._true_dependence.append(argument)
-                    if self.access in readers and argument.access in writers:
-                        self._anti_dependence.append(argument)
+    @call.setter
+    def call(self, value):
+        ''' set the node that this argument is associated with '''
+        self._call = value
 
-    def has_true_dependence(self):
-        if len(self._true_dependence) > 0:
-            return True
+    def backward_dependence(self):
+        '''Returns the preceding argument that this argument has a direct
+        dependence with, or None if there is not one. The argument may
+        exist in a call, a haloexchange, or a globalsum. For performance
+        reasons only compute once then store the result. '''
+        if not self._bd_computed:
+            self._bd_computed = True
+            all_nodes = self._call.walk(self._call.root.children, Node)
+            position = all_nodes.index(self._call)
+            all_prev_nodes = all_nodes[:position]
+            all_prev_nodes.reverse()
+            self._bd_value = self._find_argument(all_prev_nodes)
+        return self._bd_value
+
+    def forward_dependence(self):
+        '''Returns the following argument that this argument has a direct
+        dependence with, or None if there is not one. The argument may
+        exist in a call, a haloexchange, or a globalsum. For performance
+        reasons only compute once, then store the result.'''
+        if not self._fd_computed:
+            self._fd_computed = True
+            all_nodes = self._call.walk(self._call.root.children, Node)
+            position = all_nodes.index(self._call)
+            all_following_nodes = all_nodes[position+1:]
+            self._fd_value = self._find_argument(all_following_nodes)
+        return self._fd_value
+
+    def _find_argument(self, nodes):
+        '''Return the first argument in the list of nodes that has a
+        dependency with self. If one is not found return None'''
+        for node in nodes:
+            # only check objects which contain their own data
+            if isinstance(node, Call) or isinstance(node, HaloExchange) \
+               or isinstance(node, GlobalSum):
+                for argument in node.args:
+                    if self._depends_on(argument):
+                        return argument
+        return None
+
+    def _depends_on(self, argument):
+        '''If there is a dependency between the argument and self then return
+        True, otherwise return False. We consider there to be a
+        dependency between two arguments if the names are the same and
+        if one reads and one writes, or if both write. Dependencies
+        are often defined as being read-after-write (RAW),
+        write-after-read (WAR) and write after write (WAW). These
+        dependencies can be considered to be forward dependencies, in
+        the sense that RAW means that the read is after the write in
+        the schedule. Similarly for WAR and WAW. We capture these
+        dependencies in this method. However we also capture
+        dependencies in the opposite direction (backward
+        dependencies). These are the same dependencies as forward
+        dependencies but are reversed. One could consider these to be
+        read-before-write, write-before-read, and
+        write-before-write. The terminology of forward and backward to
+        indicate whether the argument we depend on is after or before
+        us in the schedule is borrowed from loop dependence analysis
+        where a forward dependence indicates a dependence in a future
+        loop iteration and a backward dependence indicates a
+        dependence on a previous loop iteration. Note, we currently
+        assume that any read or write to an argument results in a
+        dependence i.e. we do not consider the internal structure of
+        the argument (e.g. it may be an array). However, this
+        assumption is OK as all elements of an array are typically
+        accessed. However, we may need to revisit this when we change
+        the iteration spaces of loops e.g. for overlapping
+        communication and computation. '''
+
+        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
+                   MAPPING_REDUCTIONS["sum"]]
+        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        if argument.name == self._name:
+            if self.access in writers and argument.access in readers:
+                return True
+            if self.access in readers and argument.access in writers:
+                return True
+            if self.access in writers and argument.access in writers:
+                return True
         return False
-
-    def has_anti_dependence(self):
-        if len(self._anti_dependence) > 0:
-            return True
-        return False
-
-    def has_dependence(self):
-        if self.has_anti_dependence() or self.has_true_dependence():
-            return True
-        return False
-
-    def true_dependencies(self):
-        return self._true_dependence
-
-    def anti_dependencies(self):
-        return self._anti_dependence
-
-    def dependencies(self):
-        return self.true_dependencies()+self.anti_dependencies()
 
 
 class KernelArgument(Argument):

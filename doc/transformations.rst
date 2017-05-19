@@ -43,6 +43,10 @@ API-specific sections).
     :members:
     :noindex:
 
+.. autoclass:: transformations.MoveTrans
+    :members:
+    :noindex:
+
 .. autoclass:: transformations.ColourTrans
     :members:
     :noindex:
