@@ -50,8 +50,9 @@ def count_lines(root, string_name):
 
 
 def walk(parent, my_type):
-    ''' recurse through tree a tree of objects and return those that are
-    instances of mytype '''
+    ''' recurse through a tree of objects and return those that are
+    instances of mytype. Assumes that the children of any given node
+    are held in the list node.children '''
     local_list = []
     for child in parent.children:
         if isinstance(child, my_type):
@@ -74,7 +75,8 @@ def find_fortran_file(path, root_name):
 
 
 def compile_file(filename):
-    ''' Compiles the specified Fortran file using the compiler
+    ''' Compiles the specified Fortran file into an object file (in
+    the current working directory) using the compiler
     previously picked-up from the F90 environment variable. Raises
     a CompileError if the compilation fails. '''
 
@@ -131,13 +133,12 @@ def code_compiles(base_path, module_files, psy_ast, tmpdir):
 
     # Create a file containing our generated PSy layer.
     psy_filename = "psy.f90"
-    psy_file = open(psy_filename, 'w')
-    # We limit the line lengths of the generated code so that
-    # we don't trip over compiler limits.
-    from line_length import FortLineLength
-    fll = FortLineLength()
-    psy_file.write(fll.process(str(psy_ast.gen)))
-    psy_file.close()
+    with open(psy_filename, 'w') as psy_file:
+        # We limit the line lengths of the generated code so that
+        # we don't trip over compiler limits.
+        from line_length import FortLineLength
+        fll = FortLineLength()
+        psy_file.write(fll.process(str(psy_ast.gen)))
 
     # Infrastructure modules are in the 'infrastructure' directory
     module_path = os.path.join(base_path, "infrastructure")
@@ -160,7 +161,8 @@ def code_compiles(base_path, module_files, psy_ast, tmpdir):
         # Finally, we can build the psy file we have generated
         success = compile_file(psy_filename)
 
-    except CompileError as excinfo:
+    except CompileError:
+        # Failed to compile one of the files
         success = False
 
     finally:
