@@ -24,7 +24,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, OMPParallelDoDirective, \
+    NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
@@ -67,6 +67,26 @@ def test_psyfactory_valid_dm_flag():
     assert "distributed_memory flag" in str(excinfo.value)
     _ = PSyFactory(distributed_memory=True)
     _ = PSyFactory(distributed_memory=False)
+
+
+# PSy class unit tests
+
+def test_psy_base_err(monkeypatch):
+    ''' Check that we cannot call gen or psy_module on the base class
+    directly '''
+    # We have no easy way to create the extra information which
+    # the PSy constructor requires. Therefore, we use a PSyFactory
+    # object and monkey-patch it so that it has a name attribute.
+    factory = PSyFactory()
+    monkeypatch.setattr(factory, "name",
+                        value="fred", raising=False)
+    psy = PSy(factory)
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = psy.gen
+    assert "must be implemented by subclass" in str(excinfo)
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = psy.psy_module
+    assert "must be implemented by subclass" in str(excinfo)
 
 
 # TBD need to find a way to create a valid info object to pass to
