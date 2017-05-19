@@ -2317,7 +2317,7 @@ class Argument(object):
         accessed. However, we may need to revisit this when we change
         the iteration spaces of loops e.g. for overlapping
         communication and computation. '''
-        
+
         writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
                    MAPPING_REDUCTIONS["sum"]]
         readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]

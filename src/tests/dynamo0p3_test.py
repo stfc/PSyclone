@@ -5763,7 +5763,7 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth == '10'
 
 
-def test_haloexchange_correct_parent():
+def test_haloexchange_correct_parent():  # pylint: disable=invalid-name
     '''Test that a dynamo haloexchange has the correct parent once it has
     been added to a schedule.'''
     _, invoke_info = parse(
