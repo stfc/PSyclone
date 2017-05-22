@@ -17,8 +17,6 @@ program single_invoke
 
   a = 0.5
 
-  call invoke(                  &
-              axmy(a, f1, f2, f3)   &
-             )
+  call invoke( axmy(a, f1, f2, f3) )
 
 end program single_invoke
