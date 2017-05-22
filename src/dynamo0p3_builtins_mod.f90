@@ -4,6 +4,7 @@
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
+! Modified I. Kavcic Met Office
 !
 !>@brief Meta-data for the Dynamo 0.3 built-in operations.
 !>@details This meta-data is purely to provide psyclone with a
@@ -19,9 +20,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: axmy
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -33,10 +34,10 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: axpby
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -49,7 +50,7 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(4) = (/                              &
           arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
           arg_type(GH_REAL,  GH_READ             ),                   &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
@@ -62,9 +63,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: axpy
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -89,8 +90,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: copy_field
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                 &
-          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -114,8 +115,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: divide_fields
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -127,8 +128,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_divide_field
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INC, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -151,8 +152,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_multiply_field
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INC, ANY_SPACE_1),                   &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -163,7 +164,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_xpby
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
           arg_type(GH_REAL,  GH_READ             ),                   &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
@@ -201,8 +202,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: minus_fields
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -214,9 +215,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: multiply_fields
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                 &
-          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                 &
-          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -227,8 +228,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: plus_fields
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -252,7 +253,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: scale_field
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_REAL,  GH_READ),                                &
+          arg_type(GH_REAL,  GH_READ            ),                    &
           arg_type(GH_FIELD, GH_INC, ANY_SPACE_1)                     &
           /)
      integer :: iterates_over = DOFS
@@ -264,7 +265,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: set_field_scalar
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_REAL,  GH_READ),                                &
+          arg_type(GH_REAL,  GH_READ              ),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
