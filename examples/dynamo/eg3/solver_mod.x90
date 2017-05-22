@@ -4,6 +4,7 @@
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
+! Modified by I Kavcic, Met Office.
 !
 !> @brief Contains methods and algorithms for solving a system A.x = b for known
 !! input field b and matrix A and returns field x
