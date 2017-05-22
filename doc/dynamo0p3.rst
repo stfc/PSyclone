@@ -1,3 +1,4 @@
+.. Modified I. Kavcic Met Office
 .. _dynamo0.3-api:
 
 dynamo0.3 API
@@ -1032,8 +1033,9 @@ following four rules:
     means that we can determine the number of dofs uniquely when a
     scalar is written to.
 
-The built-ins supported for the Dynamo 0.3 API are
-listed in alphabetical order below. For clarity, the calculation
+The built-ins supported for the Dynamo 0.3 API are listed in alphabetical
+order below (apart from increment versions of built-ins which are paired
+with their corresponding non-increment versions). For clarity, the calculation
 performed by each built-in is described using Fortran array syntax; this
 does not necessarily reflect the actual implementation of the
 built-in (*e.g.* it could be implemented by PSyclone
@@ -1046,7 +1048,7 @@ axmy
 
 Performs: ::
    
-   field3(:) = a*field1(:) - field2(:)
+  field3(:) = a*field1(:) - field2(:)
 
 where:
 
@@ -1061,7 +1063,7 @@ axpby
 
 Performs: ::
    
-   field3(:) = a*field1(:) + b*field2(:)
+  field3(:) = a*field1(:) + b*field2(:)
 
 where:
 
@@ -1076,13 +1078,13 @@ inc_axpby
 
 Performs: ::
    
-   field1(:) = a*field1(:) + b*field2(:)
+  field1(:) = a*field1(:) + b*field2(:)
 
 where:
 
 * real(r_def), intent(in) :: *a*, *b*
 * type(field_type), intent(inout) :: *field1*
-* type(field_type),    intent(in) :: *field2*
+* type(field_type), intent(in) :: *field2*
 
 axpy
 ++++
@@ -1091,7 +1093,7 @@ axpy
 
 Performs: ::
    
-   field3(:) = a*field1(:) + field2(:)
+  field3(:) = a*field1(:) + field2(:)
 
 where:
 
@@ -1107,13 +1109,13 @@ inc_axpy
 Performs an AXPY and returns the result as an increment to the first
 field: ::
    
-   field1(:) = a*field1(:) + field2(:)
+  field1(:) = a*field1(:) + field2(:)
 
 where:
 
 * real(r_def), intent(in) :: *a*
 * type(field_type), intent(inout) :: *field1*
-* type(field_type),    intent(in) :: *field2*
+* type(field_type), intent(in) :: *field2*
 
 copy_field
 ++++++++++
@@ -1122,7 +1124,7 @@ copy_field
 
 Copy the values from *field1* into *field2*: ::
 
-   field2(:) = field1(:)
+  field2(:) = field1(:)
 
 where:
 
@@ -1136,7 +1138,7 @@ copy_scaled_field
 
 Multiplies a field by a scalar and stores the result in a second field: ::
   
-   field2(:) = value * field1(:)
+  field2(:) = value*field1(:)
 
 where:
 
@@ -1151,7 +1153,7 @@ divide_fields
 
 Divides the first field by the second and returns the result in the third: ::
 
-   field3(:) = field1(:) / field2(:)
+  field3(:) = field1(:)/field2(:)
 
 where:
 
@@ -1165,12 +1167,12 @@ inc_divide_field
 
 Divides the first field by the second and returns it: ::
 
-   field1(:) = field1(:) / field2(:)
+  field1(:) = field1(:)/field2(:)
 
 where:
 
 * type(field_type), intent(inout) :: *field1*
-* type(field_type),    intent(in) :: *field2*
+* type(field_type), intent(in) :: *field2*
 
 inc_field
 +++++++++
@@ -1179,26 +1181,12 @@ inc_field
 
 Adds the second field to the first and returns it: ::
 
-   field1(:) = field1(:) + field2(:)
+  field1(:) = field1(:) + field2(:)
 
 where:
 
 * type(field_type), intent(inout) :: *field1*
-* type(field_type),    intent(in) :: *field2*
-
-inc_multiply_field
-++++++++++++++++++
-
-**inc_multiply_field** (*field1*, *field2*)
-
-Multiplies the first field by the second and returns it: ::
-
-   field1(:) = field1(:) * field2(:)
-
-where:
-
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in)    :: *field2*
+* type(field_type), intent(in) :: *field2*
 
 inc_xpby
 ++++++++
@@ -1207,13 +1195,13 @@ inc_xpby
 
 Performs: ::
 
-   field1(:) = field1(:) + b*field2(:)
+  field1(:) = field1(:) + b*field2(:)
 
 where:
 
 * real(r_def), intent(in) :: *b*
 * type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in)    :: *field2*
+* type(field_type), intent(in) :: *field2*
 
 inner_product
 +++++++++++++
@@ -1222,14 +1210,14 @@ inner_product
 
 Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
 
-   sumval = SUM(field1(:)*field2(:))
+  sumval = SUM(field1(:)*field2(:))
 
 where:
 
 * type(field_type), intent(in) :: *field1*, *field2*
 * real(r_def), intent(out) :: *sumval*
 
-.. note:: when used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
@@ -1240,14 +1228,14 @@ inner_self_product
 
 Computes the inner product of the field *field1* by itself, *i.e.*: ::
 
-   sumval = SUM(field1(:)*field1(:))
+  sumval = SUM(field1(:)*field1(:))
 
 where:
 
 * type(field_type), intent(in) :: *field1*
 * real(r_def), intent(out) :: *sumval*
 
-.. note:: when used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
@@ -1259,7 +1247,7 @@ minus_fields
 Subtracts the second field from the first and stores the result in
 the third. *i.e.* performs the operation: ::
   
-   field3(:) = field1(:) - field2(:)
+  field3(:) = field1(:) - field2(:)
 
 where:
 
@@ -1274,12 +1262,26 @@ multiply_fields
 
 Multiplies two fields together and returns the result in a third field: ::
 
-   field3(:) = field1(:)*field2(:)
+  field3(:) = field1(:)*field2(:)
 
 where:
 
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
+
+inc_multiply_field
+++++++++++++++++++
+
+**inc_multiply_field** (*field1*, *field2*)
+
+Multiplies the first field by the second and returns it: ::
+
+  field1(:) = field1(:)*field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
 
 plus_fields
 +++++++++++
@@ -1288,7 +1290,7 @@ plus_fields
 
 Sums two fields: ::
   
-   field3(:) = field1(:) + field2(:)
+  field3(:) = field1(:) + field2(:)
 
 where:
 
@@ -1303,12 +1305,12 @@ raise_field
 
 Raises a field to a scalar value and returns the field: ::
 
-   field1(:) = field1(:) **  scalar
+  field1(:) = field1(:)**scalar
 
 where:
 
 * type(field_type), intent(inout) :: *field1*
-* real(r_def),      intent(in) :: *scalar*
+* real(r_def), intent(in) :: *scalar*
 
 scale_field
 +++++++++++
@@ -1317,11 +1319,11 @@ scale_field
 
 Multiplies a field by a scalar value and returns the field: ::
 
-   field1(:) = scalar * field1(:)
+  field1(:) = scalar*field1(:)
 
 where:
 
-* real(r_def),      intent(in) :: *scalar*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 
 set_field_scalar
@@ -1329,11 +1331,16 @@ set_field_scalar
 
 **set_field_scalar** (*value*, *field*)
 
-Set all elements of the field *field* to the value *value*.
-The field may be on any function space.
+Sets all elements of the field *field* to the value *value*: ::
+
+  field1(:) = value
+
+where:
 
 * type(field_type), intent(out) :: *field*
 * real(r_def), intent(in) :: *value*
+
+.. note:: The field may be on any function space.
 
 sum_field
 +++++++++
@@ -1343,14 +1350,14 @@ sum_field
 Sums all of the elements of the field *field* and returns the result
 in the scalar variable *sumval*: ::
   
-   sumval = SUM(field(:))
+  sumval = SUM(field(:))
 
 where:
 
 * type(field_type), intent(in) :: field
 * real(r_def), intent(out) :: sumval
 
-.. note:: when used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
