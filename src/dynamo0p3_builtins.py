@@ -3,6 +3,7 @@
 # Technology and Facilities Council, 2016.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone Dynamo 0.3 API. Each supported built-in is implemented as
@@ -56,7 +57,7 @@ class DynBuiltInCallFactory(object):
         # of the infrastructure kernel
         builtin.load(call, parent=dofloop)
 
-        # Check that our assumption that we're looping over DOFS is valid
+        # Check that our assumption that we're looping over DoFS is valid
         if builtin.iterates_over != "dofs":
             raise NotImplementedError(
                 "In the Dynamo 0.3 API built-in calls must iterate over "
@@ -327,7 +328,7 @@ class DynIncDivideFieldKern(DynBuiltIn):
     ''' Divide the first field by the second and return it '''
 
     def __str__(self):
-        return "Built-in: Divide field by another"
+        return "Built-in: Divide one field by another"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -508,7 +509,7 @@ class DynInnerProductKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We sum the dof-wise product of the supplied fields. The variable
+        # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
         sum_name = self._reduction_ref(self._arguments.args[2].name)
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
@@ -526,7 +527,7 @@ class DynInnerSelfProductKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We sum the dof-wise product of the supplied fields. The variable
+        # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
         sum_name = self._reduction_ref(self._arguments.args[1].name)
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
