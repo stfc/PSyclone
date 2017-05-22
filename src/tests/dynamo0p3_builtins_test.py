@@ -1,4 +1,5 @@
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' This module tests the support for built-in operations in the Dynamo 0.3 API
     using pytest. Currently all built-in operations are 'pointwise' in that
