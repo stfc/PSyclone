@@ -242,7 +242,7 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
-          arg_type(GH_REAL,  GH_READ)                                 &
+          arg_type(GH_REAL,  GH_READ            )                     &
           /)
      integer :: iterates_over = DOFS
    contains
