@@ -44,11 +44,13 @@ PSyclone is written in Python so needs Python to be installed on the
 target machine. PSyclone has been tested under Python 2.6.5 and 2.7.3.
 
 PSyclone immediately relies on two external Python packages; fparser
-and pyparsing. In addition, fparser requires numpy. To run the test
-suite you will require py.test. The easiest way to satisfy these
-dependencies is to use the Python Package Index (pypi.org) and
-``pip``. See https://packaging.python.org/installing/ for more
-information.
+and pyparsing. In addition, fparser requires numpy. If the visual
+representation of a schedule's dependency graph is required then the
+python package graphviz is necessary to provide python bindings as well
+as the graphviz package itself.  In order to run the test suite py.test is
+required. The easiest way to satisfy the Python dependencies is to use
+the Python Package Index (pypi.org) and ``pip``. See
+https://packaging.python.org/installing/ for more information.
 
 System-specific set-up
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -122,6 +124,40 @@ you can instruct pip to do a user-local install:
 
 Alternatively, you could follow the instructions here
 http://pyparsing.wikispaces.com/Download+and+Installation.
+
+graphviz
+^^^^^^^^
+
+The data dependencies of a PSy-layer schedule (see Section
+:ref:`psy-layer-schedule`) determine the validity of changes to a
+schedule. PSyclone supports the visualisation of these dependencies as
+a graph using graphviz. This visualisation is not needed to use
+PSyclone.
+
+If the Python bindings to graphviz are not installed on your system
+then it may be installed from the Python Package Index using ``pip``:
+::
+   > sudo pip install graphviz
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+    > sudo pip uninstall graphviz
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct pip to do a user-local install:
+::
+    > pip install --user graphviz
+
+If graphviz itself is not installed on your system and your system
+supports the ``apt`` package manager then see below, otherwise please
+refer to the download and install instructions which are available
+here http://www.graphviz.org/Download..php.
+
+If your system supports the ``apt`` package manager then it can be
+installed and removed in the following way:
+::
+   > sudo apt install graphviz
+   > sudo apt remove graphviz
 
 py.test
 ^^^^^^^

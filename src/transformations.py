@@ -1064,3 +1064,77 @@ class GOConstLoopBoundsTrans(Transformation):
         node.const_loop_bounds = const_bounds
 
         return node, keep
+
+
+class MoveTrans(Transformation):
+    '''Provides a transformation to move a node in the tree. For
+        example:
+
+        >>> from parse import parse
+        >>> from psyGen import PSyFactory
+        >>> ast,invokeInfo=parse("dynamo.F90")
+        >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+        >>> schedule.view()
+        >>>
+        >>> from transformations import MoveTrans
+        >>> trans=MoveTrans()
+        >>> new_schedule, memento = trans.apply(schedule.children[0],
+                                                schedule.children[2],
+                                                position="after")
+        >>> new_schedule.view()
+
+        Nodes may only be moved to a new location with the same parent
+    and must not break any dependencies otherwise an exception is
+    raised.'''
+
+    def __str__(self):
+        return "Move a node to a different location"
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "Move"
+
+    def _validate(self, node, location, position):
+        ''' validity checks for input arguments '''
+
+        # Check that the first argument is a Node
+        from psyGen import Node
+        if not isinstance(node, Node):
+            raise TransformationError(
+                "In the Move transformation apply method the first argument "
+                "is not a Node")
+
+        # Check new location conforms to any data dependencies
+        # This also checks the location and position arguments
+        if not node.is_valid_location(location, position=position):
+            raise TransformationError(
+                "In the Move transformation apply method, data dependencies "
+                "forbid the move to the new location")
+
+    def apply(self, node, location, position="before"):
+        '''Move the node represented by :py:obj:`node` before location
+        :py:obj:`location` (which as also a node) by default and after
+        if the optional `position` argument is set to 'after'. An
+        exception is raised if the move is invalid '''
+
+        self._validate(node, location, position)
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node, location])
+
+        parent = node.parent
+
+        my_node = parent.children.pop(node.position)
+
+        location_index = location.position
+        if position == "before":
+            schedule.children.insert(location_index, my_node)
+        else:
+            schedule.children.insert(location_index+1, my_node)
+
+        return schedule, keep

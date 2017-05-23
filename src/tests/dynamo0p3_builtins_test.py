@@ -75,7 +75,7 @@ def test_builtin_multiple_writes():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel axpy_code"
+            "one argument that is written to but found 2 for kernel axpy"
             in str(excinfo))
 
 
@@ -97,7 +97,7 @@ def test_builtin_write_and_inc():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
             "one argument that is written to but found 2 for kernel "
-            "inc_axpby_code" in str(excinfo))
+            "inc_axpby" in str(excinfo))
 
 
 def test_builtin_sum_and_inc():
@@ -118,7 +118,7 @@ def test_builtin_sum_and_inc():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
             "only one argument that is written to but found 2 for kernel "
-            "inc_axpy_code" in str(excinfo))
+            "inc_axpy" in str(excinfo))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -157,7 +157,7 @@ def test_builtin_no_field_args():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API "
             "must have at least one field as an argument but "
-            "kernel copy_field_code has none" in str(excinfo))
+            "kernel copy_field has none" in str(excinfo))
 
 
 def test_builtin_operator_arg():
@@ -179,7 +179,7 @@ def test_builtin_operator_arg():
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
             "must be one of ['gh_field', 'gh_real'] but kernel "
-            "copy_scaled_field_code has an argument of "
+            "copy_scaled_field has an argument of "
             "type gh_operator" in str(excinfo))
 
 
@@ -203,7 +203,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
                        distributed_memory=False).create(invoke_info)
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
             "must be on the same space. However, found spaces ['any_space_2', "
-            "'any_space_1'] for arguments to inc_divide_field_code" in
+            "'any_space_1'] for arguments to inc_divide_field" in
             str(excinfo))
 
 
@@ -938,7 +938,7 @@ def test_inc_divide_field_str():
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Divide field by another"
+        assert str(kern) == "Built-in: Divide one field by another"
 
 
 def test_inc_divide_field():
@@ -1244,7 +1244,7 @@ def test_axmy():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1403,7 +1403,7 @@ def test_inc_xpby():
                 "      INTEGER nlayers\n"
                 "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
                 "      !\n"
-                "      ! Initialise field proxies\n"
+                "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
@@ -2127,7 +2127,7 @@ def test_innerselfprod():
         print code
         output = (
             "      !\n"
-            "      ! Initialise field proxies\n"
+            "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
@@ -2391,5 +2391,5 @@ def test_scalar_int_builtin_error(monkeypatch):
             _ = PSyFactory("dynamo0.3",
                            distributed_memory=dist_mem).create(invoke_info)
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel set_field_scalar_code has an argument "
+                "'gh_real'] but kernel inner_product has an argument "
                 "of type gh_integer" in str(excinfo))

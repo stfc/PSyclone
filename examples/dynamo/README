@@ -5,6 +5,7 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 #-------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
 The dynamo examples in the eg1 and eg2 directories below the one
 containing this README use the Dynamo 0.1 API. Those in eg3 - eg7 use
@@ -62,7 +63,11 @@ algorithm layer.
     python ../../../src/generator.py alg.f90
 
 The sixth example illustrates the use and implementation of
-reductions. The example may be run so as to generate sequential code:
+reductions. It also demonstrates the generation of a schedule's
+dependence graph in svg format (see dag.svg). Note, that if graphviz
+and its Python bindings are not installed then no dag image will be
+generated and the dag method will silently return. The example may be
+run sequentially:
 ::
     cd eg6/ python
     python ../../../src/generator.py -nodm alg.x90

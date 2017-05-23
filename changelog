@@ -1,3 +1,8 @@
+        1) #20 and PR #28 add dependence analysis (and a Move
+        transformation) to PSyclone. This will subsequently allow for
+        the safe implementation of more complex schedule transformations
+        and optimisations.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in

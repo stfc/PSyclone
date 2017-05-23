@@ -18,7 +18,8 @@ from transformations import TransformationError, \
     Dynamo0p3OMPLoopTrans, \
     DynamoOMPParallelLoopTrans, \
     DynamoLoopFuseTrans, \
-    KernelModuleInlineTrans
+    KernelModuleInlineTrans, \
+    MoveTrans
 
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
@@ -622,6 +623,7 @@ def test_colouring_multi_kernel():
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
+        mtrans = MoveTrans()
 
         if dist_mem:
             # We have halo exchanges inbetween the two loops which we
@@ -630,9 +632,8 @@ def test_colouring_multi_kernel():
             # can be removed
             del schedule.children[8:13]
             # f is required but can be moved before the first loop
-            schedule.children.insert(6, schedule.children.pop(7))
-            # In the future we will have transformations to move
-            # elements around with checks for validity.
+            schedule, _ = mtrans.apply(schedule.children[7],
+                                       schedule.children[6])
             index = 7
         else:
             index = 0
@@ -837,6 +838,7 @@ def test_loop_fuse_different_spaces():
             schedule = invoke.schedule
 
             ftrans = DynamoLoopFuseTrans()
+            mtrans = MoveTrans()
             if dist_mem:
                 # b halo exchange between loops can be removed as access
                 # in both loops is read and it is already covered by the
@@ -844,8 +846,10 @@ def test_loop_fuse_different_spaces():
                 del schedule.children[7]
                 # c and g halo exchange between loops can be moved before
                 # 1st loop as they are not accessed in first loop
-                schedule.children.insert(6, schedule.children.pop(7))
-                schedule.children.insert(7, schedule.children.pop(8))
+                schedule, _ = mtrans.apply(schedule.children[7],
+                                           schedule.children[6])
+                schedule, _ = mtrans.apply(schedule.children[8],
+                                           schedule.children[7])
                 index = 8
             else:
                 index = 0
@@ -1061,6 +1065,7 @@ def test_fuse_colour_loops():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
+        mtrans = MoveTrans()
 
         if dist_mem:
             # We have halo exchanges inbetween the two loops which we
@@ -1069,9 +1074,8 @@ def test_fuse_colour_loops():
             # can be removed
             del schedule.children[8:13]
             # f is required but can be moved before the first loop
-            schedule.children.insert(6, schedule.children.pop(7))
-            # In the future we will have transformations to move
-            # elements around with checks for validity.
+            schedule, _ = mtrans.apply(schedule.children[7],
+                                       schedule.children[6])
             index = 7
         else:
             index = 0
@@ -1985,7 +1989,10 @@ def test_two_reductions_real_do():
         schedule = invoke.schedule
         if distmem:
             # move the first global sum after the second loop
-            schedule.children.insert(2, schedule.children.pop(1))
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
@@ -2061,7 +2068,10 @@ def test_two_reprod_reductions_real_do():
         schedule = invoke.schedule
         if distmem:
             # move the first global sum after the second loop
-            schedule.children.insert(2, schedule.children.pop(1))
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
@@ -2388,9 +2398,10 @@ def test_multi_builtins_reduction_then_standard_do():
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
-        schedule.view()
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2459,8 +2470,10 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         rtrans = DynamoOMPParallelLoopTrans()
         ftrans = DynamoLoopFuseTrans()
         schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
@@ -2521,8 +2534,10 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
         ftrans = DynamoLoopFuseTrans()
@@ -2971,8 +2986,10 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -3073,8 +3090,10 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         if distmem:
-            glob_sum = schedule.children.pop(1)
-            schedule.children.insert(2, glob_sum)
+            mtrans = MoveTrans()
+            schedule, _ = mtrans.apply(schedule.children[1],
+                                       schedule.children[2],
+                                       position="after")
         rtrans = OMPParallelTrans()
         otrans = Dynamo0p3OMPLoopTrans()
         ftrans = DynamoLoopFuseTrans()
@@ -3369,18 +3388,18 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call inner_product_code(f1,f2,asum)\n"
+                "                Call inner_product(f1,f2,asum)\n"
                 "    GlobalSum[scalar='asum']\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call scale_field_code(f1,asum)\n"
+                "                Call scale_field(f1,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_field_code(f2,bsum)\n"
+                "                Call sum_field(f2,bsum)\n"
                 "    GlobalSum[scalar='bsum']\n")
         else:
             expected = (
@@ -3389,17 +3408,17 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call inner_product_code(f1,f2,asum)\n"
+                "                Call inner_product(f1,f2,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call scale_field_code(f1,asum)\n"
+                "                Call scale_field(f1,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_field_code(f2,bsum)\n")
+                "                Call sum_field(f2,bsum)\n")
 
         print "Expected ..."
         print expected
@@ -3467,3 +3486,156 @@ def test_list_multiple_reductions():
         arg.descriptor._access = "gh_sum"
         result = omp_loop_directive._reduction_string()
         assert ", reduction(+:f2), reduction(+:asum)" in result
+
+
+def test_move_name():
+    ''' Test the name property of the MoveTrans class '''
+    move_trans = MoveTrans()
+    name = move_trans.name
+    assert name == "Move"
+
+
+def test_move_str():
+    ''' Test the str method of the MoveTrans class '''
+    move_trans = MoveTrans()
+    name = str(move_trans)
+    assert name == "Move a node to a different location"
+
+
+def test_move_valid_node():
+    '''Test that MoveTrans raises an exception if an invalid node
+    argument is passed'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.2_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(None, schedule.children[0])
+    assert ("In the Move transformation apply method the "
+            "first argument is not a Node") in str(excinfo)
+
+
+def test_move_back():
+    '''Test that MoveTrans moves the node backwards to the expected
+    location'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 2
+    target_index = 0
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index])
+
+    new_arg = schedule.children[target_index]
+    assert orig_arg == new_arg
+
+
+def test_move_back_after():
+    '''Test that MoveTrans moves the node backwards to the expected
+    location when location="after" '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 2
+    target_index = 0
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index],
+                     position="after")
+
+    new_arg = schedule.children[target_index+1]
+    assert orig_arg == new_arg
+
+
+def test_move_forward():
+    '''Test that MoveTrans moves the node forwards to the expected
+    location'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 0
+    target_index = 2
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    schedule.view()
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index])
+
+    new_arg = schedule.children[target_index-1]
+    schedule.view()
+    assert orig_arg == new_arg
+
+
+def test_move_forward_after():
+    '''Test that MoveTrans moves the node forwards to the expected
+    location when location="after" '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.2_multiple_set_kernels.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 0
+    target_index = 2
+    orig_arg = schedule.children[initial_index]
+    new_arg = schedule.children[target_index]
+    schedule.view()
+    assert orig_arg != new_arg
+
+    move_trans.apply(schedule.children[initial_index],
+                     schedule.children[target_index],
+                     position="after")
+
+    new_arg = schedule.children[target_index]
+    schedule.view()
+    assert orig_arg == new_arg
+
+
+# test that move with dependencies fails
+def test_move_fail():
+    '''Test that MoveTrans fails to move the node backwards and forwards
+    if there is a dependence. '''
+    _, info = parse(os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    move_trans = MoveTrans()
+    initial_index = 6
+    target_index = 0
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[initial_index],
+                         schedule.children[target_index])
+    assert "data dependencies forbid the move" in str(excinfo.value)
+
+    initial_index = 0
+    target_index = 6
+    with pytest.raises(TransformationError) as excinfo:
+        move_trans.apply(schedule.children[initial_index],
+                         schedule.children[target_index])
+    assert "data dependencies forbid the move" in str(excinfo.value)
