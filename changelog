@@ -1,7 +1,10 @@
-        1) #20 and PR #28 add dependence analysis (and a Move
+        1) #20 and PR #28 Add dependence analysis (and a Move
         transformation) to PSyclone. This will subsequently allow for
         the safe implementation of more complex schedule transformations
         and optimisations.
+
+	2) #16 and PR #29 Update and add new PSyclone-generated builtins
+	to support the functionaliity required by the current LFRic code.
 
 release 1.4.1
 
