@@ -4,6 +4,7 @@
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
+! Modified by I Kavcic, Met Office.
 !
 !> @brief Contains methods and algorithms for solving a system A.x = b for known
 !! input field b and matrix A and returns field x
@@ -437,7 +438,7 @@ contains
   call invoke_set_field_scalar(1.0_r_def, Ax)
   call invoke( matrix_vector_kernel_mm_type(lumped_weight,Ax,mm) )
 
-  !PSY call invoke ( divide_field(rhs, lumped_weight, lhs))
+  !PSY call invoke ( divide_fields(rhs, lumped_weight, lhs))
   call invoke_divide_field( rhs, lumped_weight, lhs )
 
 ! initial guess
@@ -450,7 +451,7 @@ contains
 
     !PSY call invoke ( minus_field_data(rhs,Ax,res))
     call invoke_minus_field_data( rhs, Ax, res )
-    !PSY call invoke ( divide_field(res, lumped_weight, res))
+    !PSY call invoke ( divide_fields(res, lumped_weight, res))
     call invoke_divide_field( res, lumped_weight, res )
     !PSY call invoke ( axpy(MU,res,lhs,lhs))
     call invoke_axpy( MU, res, lhs, lhs )

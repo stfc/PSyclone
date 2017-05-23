@@ -6,6 +6,7 @@
 !-------------------------------------------------------------------------------
 
 ! Modified by A Porter, STFC.
+! Modified by I Kavcic, Met Office.
 
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
@@ -138,7 +139,7 @@ contains
   res2     = field_type( vector_space = rhs_fs )
 
   call invoke( mm_diagonal_kernel_type(diagonal, mm), &
-               divide_fields( rhs, diagonal, lhs ),   &
+               divide_fields(rhs, diagonal, lhs),   &
                name="jacobi part 1")
 
   do iter = 1,n_iter
@@ -149,7 +150,7 @@ contains
                   matrix_vector_kernel_type(Ax,lhs,mm), &
                   enforce_bc_kernel_type(Ax),           &
                   minus_fields( rhs, Ax, res ),         &
-                  divide_field( res, diagonal ),  &
+                  inc_divide_field( res, diagonal ),  &
                   inc_axpy( MU, lhs, res ) )
 
 ! Ready for next iteration
