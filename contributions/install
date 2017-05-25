@@ -6,6 +6,9 @@
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ##############################################################################
+# Author M. Hambley, Met Office
+# Modified I. Kavcic, Met Office
+
 '''
 Installs PSyclone from a working copy to a specified location.
 
@@ -36,15 +39,18 @@ def install(workingcopy, installroot):
     else:
         raise Exception('Installation directory already exists')
 
-    ignores = shutil.ignore_patterns('tests', 'generator.py')
+    ignores = shutil.ignore_patterns('tests')
     shutil.copytree(os.path.join(workingcopy, 'src'),
                     os.path.join(installroot, 'psyclone'),
                     ignore=ignores)
 
     os.mkdir(os.path.join(installroot, 'bin'))
-    shutil.copyfile(os.path.join(workingcopy, 'src', 'generator.py'),
-                    os.path.join(installroot, 'bin', 'psyclone'))
-    os.chmod(os.path.join(installroot, 'bin', 'psyclone'),
+    os.symlink(os.path.join(
+                       os.path.relpath(os.path.join(installroot, 'psyclone'),
+                                       os.path.join(installroot, 'bin')), 
+                       'generator.py'),
+               os.path.join(installroot, 'bin', 'psyclone'))
+    os.chmod(os.path.join(installroot, 'psyclone', 'generator.py'),
              stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
              stat.S_IRGRP | stat.S_IXGRP |
              stat.S_IROTH | stat.S_IXOTH)
