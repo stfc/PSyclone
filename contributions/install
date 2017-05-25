@@ -46,9 +46,9 @@ def install(workingcopy, installroot):
 
     os.mkdir(os.path.join(installroot, 'bin'))
     os.symlink(os.path.join(
-                       os.path.relpath(os.path.join(installroot, 'psyclone'),
-                                       os.path.join(installroot, 'bin')), 
-                       'generator.py'),
+        os.path.relpath(os.path.join(installroot, 'psyclone'),
+                        os.path.join(installroot, 'bin')),
+        'generator.py'),
                os.path.join(installroot, 'bin', 'psyclone'))
     os.chmod(os.path.join(installroot, 'psyclone', 'generator.py'),
              stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
