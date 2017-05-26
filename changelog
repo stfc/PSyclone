@@ -6,6 +6,9 @@
 	2) #16 and PR #29 Update and add new PSyclone-generated builtins
 	to support the functionaliity required by the current LFRic code.
 
+        3) #43 and PR #44 Update of Met Office-specific install script to
+	symlink the generator.py file rather than copy it.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
