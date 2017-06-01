@@ -14,7 +14,7 @@
 !! solve a number of iterative solver algorithms are possible or for
 !! discontinuous systems an exact solver can be used
 module solver_mod
-  use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL, &
+  use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL,  &
                                       CG_SOLVER, BICG_SOLVER, JACOBI_SOLVER, &
                                       GMRES_SOLVER, GCR_SOLVER, NO_PRE_COND
   use log_mod,                 only : log_event,         &
@@ -24,14 +24,8 @@ module solver_mod
                                       LOG_LEVEL_DEBUG,   &
                                       LOG_LEVEL_TRACE
   use field_mod,               only : field_type
-  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, Wtheta, W2V, W2H
-  use psy,             only : invoke_inner_prod,              &
-                              invoke_axpy,                    &
-                              invoke_minus_field_data,        &
-                              invoke_copy_field_data,         &
-                              invoke_set_field_scalar,        &
-                              invoke_divide_field,            &
-                              invoke_copy_scaled_field_data
+  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, &
+                                      Wtheta, W2V, W2H
   use w3_solver_kernel_mod, only: w3_solver_kernel_type
   use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
 
@@ -90,15 +84,17 @@ contains
        ! quadrature present, only for W3
        if( (fs_l == W3) .and. (fs_r == W3) ) then
           ! we are on the right space
-          call invoke( w3_solver_kernel_type(lhs,rhs,chi,ascalar,qr) )
+          call invoke( w3_solver_kernel_type(lhs, rhs, chi, ascalar, qr) )
        else
-          write( log_scratch_space, '(A,I3,",",I3)' )  'quadrature required for w3 solver, stopping',fs_l,fs_r
+          write( log_scratch_space, '(A,I3,",",I3)' )  &
+                 "quadrature required for w3 solver, stopping",fs_l,fs_r
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
        end if
     else if( .not.present(qr) .and. present(mm) ) then
        ! mass matrix
        if(fs_l == W3) then
-          write(log_scratch_space,'(A)') "solver_algorithm: mass-matrix not implemented for W3, stopping"
+          write( log_scratch_space,'(A)' ) &
+                 "Solver_algorithm: mass-matrix not implemented for W3, stopping"
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
        else
        select case ( solver_type )
@@ -113,17 +109,22 @@ contains
           case ( GCR_SOLVER )
             call gcr_solver_algorithm(lhs, rhs, mm, mesh)
           case default
-            write( log_scratch_space, '(A)' )  'Invalid linear solver choice, stopping'
+            write( log_scratch_space, '(A)' )  &
+                   "Invalid linear solver choice, stopping"
             call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end select
        end if
     else if( present(qr) .and. present(mm) ) then
        ! both - bork
-       write( log_scratch_space, '(A)' )  'quadrature OR mass matrix required for solver not both. Whats a guy to do?, stopping'
+       write( log_scratch_space, '(A)' )                               &
+              "Quadrature OR mass matrix required for solver not both. &
+               Whats a guy to do?, stopping"
        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     else
        ! neither - bork
-       write( log_scratch_space, '(A)' )  'quadrature OR mass matrix required for solver. Gimme something to work with, stopping'
+       write( log_scratch_space, '(A)' )                      &
+              "Quadrature OR mass matrix required for solver. &
+               Gimme something to work with, stopping"
     end if
 
   end subroutine solver_algorithm
@@ -167,14 +168,16 @@ contains
 
     rhs_fs = rhs%which_function_space()
     v = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
-    call invoke( set_field_scalar(0.0_r_def, v) )
-    call invoke( matrix_vector_kernel_mm_type(v,lhs,mm) )
-
+    call invoke( name = "BICG_group1",           &
+                 set_field_scalar(0.0_r_def, v), &
+                 matrix_vector_kernel_mm_type(v, lhs, mm) )
 
     res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
-    call invoke( minus_fields(rhs,v,res) )
 
-    call invoke( inner_self_product(res, err) )
+    call invoke( name = "BICG_group2",      &
+                 minus_fields(rhs, v, res), &
+                 inner_self_product(res, err) )
+
     err = sqrt(err)/sc_err
     init_err=err
     if (err < SOLVER_TOL) then
@@ -214,31 +217,31 @@ contains
 
       call preconditioner( s, t, NO_PRE_COND )
 
-      call invoke( inc_axpy(beta, p, s) )
+      call invoke( name = "BICG_iter_group1",              &
+                   inc_axpy(beta, p, s),                   &
+                   set_field_scalar(0.0_r_def, v),         &
+                   matrix_vector_kernel_mm_type(v, p, mm), &
+                   inner_product(cr, v, norm) )
 
-      call invoke( set_field_scalar(0.0_r_def, v) )
-      call invoke( matrix_vector_kernel_mm_type(v,p,mm) )
-
-      call invoke( inner_product(cr, v, norm) )
       alpha = rho/norm
       const = -alpha
       call invoke( axpy(const, v, res, s) )
 
       call preconditioner( cs, s, NO_PRE_COND )
 
-      call invoke( set_field_scalar(0.0_r_def, t) )
-      call invoke( matrix_vector_kernel_mm_type(t,cs,mm) )
-
-      call invoke( inner_self_product(t, tt), &
+      call invoke( name = "BICG_iter_group2",               &
+                   set_field_scalar(0.0_r_def, t),          &
+                   matrix_vector_kernel_mm_type(t, cs, mm), &
+                   inner_self_product(t, tt),               &
                    inner_product(t, s, ts) )
 
       omega = ts/tt
-
       const = -omega
       !      lhs = lhs + omega * s + alpha * p
-      call invoke( inc_xpby(lhs, omega, s), &
-                   inc_xpby(lhs, alpha, p), &
-                   axpy(const, t, s, res) )
+      call invoke(  name = "BICG_iter_group3", &
+                    inc_xpby(lhs, omega, s),   &
+                    inc_xpby(lhs, alpha, p),   &
+                    axpy(const, t, s, res) )
       norm = rho
 
       ! check for convergence
@@ -333,18 +336,19 @@ contains
     end if
 
     do iter = 1, MAX_ITER
-      call invoke( set_field_scalar(0.0_r_def, Ap) )
-      call invoke( matrix_vector_kernel_mm_type(Ap,p,mm) )
+      call invoke( name = "CG_iter_group1",                 &
+                   set_field_scalar(0.0_r_def, Ap),         &
+                   matrix_vector_kernel_mm_type(Ap, p, mm), &
+                   inner_product(p, Ap, rs_new) )
 
-      call invoke( inner_product(p, Ap, rs_new) )
       alpha = rs_old/rs_new
-
       const = -alpha
-      call invoke( inc_xpby(lhs, alpha, p) )
-      call invoke( inc_xpby(res, const, Ap) )
 
+      call invoke( name = "CG_iter_group2",  &
+                   inc_xpby(lhs, alpha, p),  &
+                   inc_xpby(res, const, Ap), & 
       ! check for convergence
-      call invoke( inner_self_product(res, err) )
+                   inner_self_product(res, err) )
       err = sqrt(rs_new)/sc_err
 
       write( log_scratch_space, '(A, I2, A, E15.8)' ) &
@@ -420,13 +424,13 @@ contains
   call invoke( set_field_scalar(0.0_r_def, lhs) )
 
   do iter = 1,n_iter
-    call invoke( set_field_scalar(0.0_r_def, Ax) )
-    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
 
-    call invoke( minus_fields(rhs, Ax, res) )
-    call invoke( inc_divide_field(res, lumped_weight) )
-    call invoke( inc_xpby(lhs, MU, res) )
-
+    call invoke( name = "Jacobi_iter",                      &
+                 set_field_scalar(0.0_r_def, Ax),           &
+                 matrix_vector_kernel_mm_type(Ax, lhs, mm), &
+                 minus_fields(rhs, Ax, res),                &
+                 inc_divide_field(res, lumped_weight),      &
+                 inc_xpby(lhs, MU, res) )
 ! Ready for next iteration
   end do
 
@@ -489,15 +493,15 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
     end if
-    call invoke( set_field_scalar(0.0_r_def, Ax) )
-    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
 
-    call invoke( minus_fields(rhs, Ax, r) )
-
+    call invoke( name = "GMRES_group1",                     &
+                 set_field_scalar(0.0_r_def, Ax),           &
+                 matrix_vector_kernel_mm_type(Ax, lhs, mm), &
+                 minus_fields(rhs, Ax, r),                  &
 !    call Precon(s,r,preit,precnd)
-    call invoke( copy_field(r, s) )
+                 copy_field(r, s),                          &
+                 inner_self_product(s, err) )
 
-    call invoke( inner_self_product(s, err) )
     beta = sqrt(err)
 
     const = 1.0_r_def/beta
@@ -514,8 +518,9 @@ contains
 
 ! This is the correct settings => call Precon(w,v(:,:,j),pstit,pstcnd)
         call preconditioner( w, v(j), NO_PRE_COND )
-        call invoke( set_field_scalar(0.0_r_def, s) )
-        call invoke( matrix_vector_kernel_mm_type(s,w,mm) )
+        call invoke( name = "GMRES_iter_group1",     &
+                     set_field_scalar(0.0_r_def, s), &
+                     matrix_vector_kernel_mm_type(s, w, mm) )
 
 ! This is the correct settings => call Precon(w,s,preit,precnd)
         call preconditioner( w, s, NO_PRE_COND )
@@ -531,7 +536,6 @@ contains
         if( j < GCRk ) then
           const = 1.0_r_def/h(j+1,j)
           call invoke( copy_scaled_field(const, w, v(j+1)) )
-! ! ! ! !           call invoke_copy_scaled_field_data(1.0_r_def/h(j+1,j), w, v(j+1)) 
         end if
       end do
 
@@ -568,7 +572,7 @@ contains
       end do
 
 ! Check for convergence
-      call invoke( name = "GMRES_check_convergence",          &
+      call invoke( name = "GMRES_iter_group2",                &
                    set_field_scalar(0.0_r_def, Ax),           &
                    matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                    minus_fields(rhs, Ax, r),                  &
@@ -662,7 +666,7 @@ contains
       return
     end if
 
-    call invoke( name = "GCR_init_rhs_lhs",                 &
+    call invoke( name = "GCR_group1",                       &
                  set_field_scalar(0.0_r_def, Ax),           &
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                  minus_fields(rhs, Ax, r) )
@@ -671,27 +675,32 @@ contains
       do m = 1, GCRk
 ! This is the correct settings -> call Precon(s(:,:,m),r,prit,prec)
         call preconditioner( s(m), r, NO_PRE_COND )
-        call invoke( set_field_scalar(0.0_r_def, v(m)) )
-        call invoke( matrix_vector_kernel_mm_type(v(m), s(m), mm) )
-     
+
+        call invoke( name = "GCR_iter_group1",          &
+                     set_field_scalar(0.0_r_def, v(m)), &
+                     matrix_vector_kernel_mm_type(v(m), s(m), mm) )
 
         do n = 1, m-1
           call invoke( inner_product(v(m), v(n), alpha) )
           const = -alpha
-          call invoke( inc_xpby( v(m), const, v(n)) )
-          call invoke( inc_xpby( s(m), const, s(n)) )
+          call invoke( name = "GCR_iter_group2",     &
+                       inc_xpby( v(m), const, v(n)), &
+                       inc_xpby( s(m), const, s(n)) )
 ! ! ! ! !           call invoke_axpy( -alpha, v(n), v(m), v(m))   ! This requires inc_X_minus_bY (x = x - b*y) 
 ! ! ! ! !           call invoke_axpy( -alpha, s(n), s(m), s(m))   ! This requires inc_X_minus_bY (x = x - b*y) 
         end do
         call invoke( inner_self_product(v(m), err) )
         alpha = sqrt(err)
         const = 1.0_r_def/alpha
-        call invoke( scale_field(const, v(m)), &
+
+        call invoke( name = "GCR_iter_group3", &
+                     scale_field(const, v(m)), &
                      scale_field(const, s(m)), &
                      inner_product(r, v(m), alpha) )
 
         const = -alpha
-        call invoke( inc_xpby( lhs, alpha, s(m)), &
+        call invoke( name = "GCR_iter_group4",    &
+                     inc_xpby( lhs, alpha, s(m)), &
                      inc_xpby( r, const, v(m)) )
       end do
 
