@@ -629,7 +629,7 @@ class DynKernMetadata(KernelType):
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
-        self._eval_shape = self.get_integer_variable('evaluator_shape')
+        self._eval_shape = self.get_integer_variable('gh_shape')
 
         # parse the arg_type metadata
         self._arg_descriptors = []
@@ -688,14 +688,14 @@ class DynKernMetadata(KernelType):
                             "In the dynamo0.3 API any kernel requiring "
                             "quadrature or an evaluator ({0}) must also "
                             "supply the shape of that evaluator by setting "
-                            "'evaluator_shape' in the kernel meta-data but "
+                            "'gh_shape' in the kernel meta-data but "
                             "this is missing for kernel '{1}'".
                             format(VALID_EVALUATOR_NAMES, self.name))
                     if self._eval_shape not in VALID_EVALUATOR_SHAPES:
                         raise ParseError(
                             "In the dynamo0.3 API a kernel requiring either "
                             "quadrature or an evaluator must request a valid "
-                            "evaluator shape (one of {0}) but got '{1}' for "
+                            "gh_shape (one of {0}) but got '{1}' for "
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))

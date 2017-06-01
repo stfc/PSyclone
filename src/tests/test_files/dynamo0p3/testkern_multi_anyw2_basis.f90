@@ -38,7 +38,7 @@ module testkern_multi_anyw2_basis_mod
      type(func_type), dimension(1) :: meta_funcs = &
           (/ func_type(any_w2,gh_basis,gh_diff_basis) /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: evaluator_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_multi_anyw2_basis_code
   end type testkern_multi_anyw2_basis_type

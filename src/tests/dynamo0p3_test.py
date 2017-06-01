@@ -550,8 +550,8 @@ def test_invalid_shape():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     print str(excinfo)
-    assert ("request a valid evaluator shape (one of ['quadrature_xyoz', "
-            "'gh_xyz']) but got 'quadrature_wrong' for kernel "
+    assert ("request a valid gh_shape (one of ['quadrature_xyoz', "
+            "'evaluator_xyz']) but got 'quadrature_wrong' for kernel "
             "'testkern_qr_type'" in str(excinfo))
 
 

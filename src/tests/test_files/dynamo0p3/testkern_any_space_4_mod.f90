@@ -18,7 +18,7 @@ type, public, extends(kernel_type) :: testkern_any_space_4_type
        func_type(ANY_SPACE_4, GH_BASIS, GH_DIFF_BASIS)                 &
        /)
   integer :: iterates_over = CELLS
-  integer, parameter :: evaluator_shape = quadrature_XYoZ
+  integer, parameter :: gh_shape = quadrature_XYoZ
 contains
   procedure, public, nopass :: testkern_any_space_4_code
 end type testkern_any_space_4_type

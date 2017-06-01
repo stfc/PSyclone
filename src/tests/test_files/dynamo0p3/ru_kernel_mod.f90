@@ -16,7 +16,7 @@ type, public, extends(kernel_type) :: ru_kernel_type
        func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
        /)
   integer :: iterates_over = CELLS
-  integer, parameter :: evaluator_shape = quadrature_XYoZ
+  integer, parameter :: gh_shape = quadrature_XYoZ
 contains
   procedure, nopass ::ru_code
 end type
