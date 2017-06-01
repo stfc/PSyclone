@@ -95,7 +95,7 @@ module testkern_qr
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: evaluator_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_qr_code
   end type testkern_qr_type
@@ -470,24 +470,24 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo)
 
 
-def test_missing_evaluator_shape_both():  # pylint: disable=invalid-name
+def test_missing_shape_both():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
     # Remove the line specifying the shape of the evaluator
     code = CODE.replace(
-        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "     integer, parameter :: gh_shape = quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel meta-data but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def test_missing_evaluator_shape_basis_only():  # pylint: disable=invalid-name
+def test_missing_shape_basis_only():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -501,14 +501,14 @@ def test_missing_evaluator_shape_basis_only():  # pylint: disable=invalid-name
         "          (/ func_type(w1, gh_basis)                &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
-        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "     integer, parameter :: gh_shape = quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel meta-data but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
@@ -526,36 +526,36 @@ def test_missing_eval_shape_diff_basis_only():  # pylint: disable=invalid-name
         "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
-        "     integer, parameter :: evaluator_shape = quadrature_XYoZ\n",
+        "     integer, parameter :: gh_shape = quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'evaluator_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel meta-data but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def test_invalid_evaluator_shape():
+def test_invalid_shape():
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator specifies an unrecognised shape for the evaluator '''
     fparser.logging.disable('CRITICAL')
     # Specify an invalid shape for the evaluator
     code = CODE.replace(
-        "evaluator_shape = quadrature_XYoZ",
-        "evaluator_shape = quadrature_wrong", 1)
+        "gh_shape = quadrature_XYoZ",
+        "gh_shape = quadrature_wrong", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     print str(excinfo)
     assert ("request a valid evaluator shape (one of ['quadrature_xyoz', "
-            "'evaluator_xyz']) but got 'quadrature_wrong' for kernel "
+            "'gh_xyz']) but got 'quadrature_wrong' for kernel "
             "'testkern_qr_type'" in str(excinfo))
 
 
-def test_unecessary_eval_shape():
+def test_unecessary_shape():
     ''' Check that we raise the correct error if a kernel meta-data specifies
     an evaluator shape but does not require quadrature or an evaluator '''
     fparser.logging.disable('CRITICAL')
@@ -3188,7 +3188,7 @@ module dummy_mod
              func_type(w2v, gh_basis)     &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: evaluator_shape = quadrature_xyoz
+     integer, parameter :: gh_shape = quadrature_xyoz
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3287,7 +3287,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: evaluator_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3332,7 +3332,7 @@ module dummy_mod
              func_type(w2v, gh_diff_basis)     &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: evaluator_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3431,7 +3431,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: evaluator_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
