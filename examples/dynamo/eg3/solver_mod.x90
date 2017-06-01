@@ -522,14 +522,16 @@ contains
 
         do k = 1, j
           call invoke( inner_product(v(k), w, h(k,j)) )
-          !PSY call invoke ( axpy(-h(k,j),v(k),w,w))
-          call invoke_axpy( -h(k,j), v(k), w, w )
+          const = -h(k,j)
+          call invoke( inc_xpby(w, const, v(k)) )
+! ! ! ! !           call invoke_axpy( -h(k,j), v(k), w, w ) ! This requires inc_X_minus_bY (x = x - b*y) 
         end do
         call invoke( inner_self_product(w, err) )
         h(j+1,j) = sqrt( err )
         if( j < GCRk ) then
-          !PSY call invoke ( copy_scaled_field_data(1.0_r_def/h(j+1,j),w,v(j+1)))
-          call invoke_copy_scaled_field_data(1.0_r_def/h(j+1,j), w, v(j+1))
+          const = 1.0_r_def/h(j+1,j)
+          call invoke( copy_scaled_field(const, w, v(j+1)) )
+! ! ! ! !           call invoke_copy_scaled_field_data(1.0_r_def/h(j+1,j), w, v(j+1)) 
         end if
       end do
 
@@ -678,8 +680,8 @@ contains
           const = -alpha
           call invoke( inc_xpby( v(m), const, v(n)) )
           call invoke( inc_xpby( s(m), const, s(n)) )
-! ! ! ! !           call invoke_axpy( -alpha, v(n), v(m), v(m))  ! This would require INC_XMBY (x = x - b*y)
-! ! ! ! !           call invoke_axpy( -alpha, s(n), s(m), s(m))  ! This would require INC_XMBY (x = x - b*y)
+! ! ! ! !           call invoke_axpy( -alpha, v(n), v(m), v(m))   ! This requires inc_X_minus_bY (x = x - b*y) 
+! ! ! ! !           call invoke_axpy( -alpha, s(n), s(m), s(m))   ! This requires inc_X_minus_bY (x = x - b*y) 
         end do
         call invoke( inner_self_product(v(m), err) )
         alpha = sqrt(err)
