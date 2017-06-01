@@ -16,7 +16,7 @@ module testkern_operator_nofield_scalar_mod
           (/ func_type(w2, gh_basis)                &
           /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure() :: code => testkern_operator_code
   end type testkern_operator_nofield_scalar_type

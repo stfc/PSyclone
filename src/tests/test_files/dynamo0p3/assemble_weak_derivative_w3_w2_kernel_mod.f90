@@ -15,7 +15,7 @@ module assemble_weak_derivative_w3_w2_kernel_mod
          func_type(W2, GH_DIFF_BASIS, GH_ORIENTATION)          &
          /)
     integer :: iterates_over = CELLS
-    integer, parameter :: gh_shape = quadrature_XYoZ
+    integer, parameter :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure, nopass :: assemble_weak_derivative_w3_w2_kernel_code
   end type

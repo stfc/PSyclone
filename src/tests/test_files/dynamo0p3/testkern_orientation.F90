@@ -20,7 +20,7 @@ module testkern_orientation_mod
          func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
          /)
     integer :: iterates_over = CELLS
-    integer, parameter :: gh_shape = quadrature_XYoZ
+    integer, parameter :: gh_shape = gh_quadrature_XYoZ
   contains
     procedure() :: code => testkern_orientation_code
   end type testkern_orientation_type

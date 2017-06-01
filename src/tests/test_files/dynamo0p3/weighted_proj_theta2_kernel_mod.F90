@@ -36,7 +36,7 @@ type, public, extends(kernel_type) :: weighted_proj_theta2_kernel_type
        func_type(W2, GH_BASIS)                                         &
        /)
   integer :: iterates_over = CELLS
-  integer :: gh_shape = QUADRATURE_XYoZ
+  integer :: gh_shape = GH_QUADRATURE_XYoZ
 
 contains
   procedure, nopass ::weighted_proj_theta2_code

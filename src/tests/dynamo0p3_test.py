@@ -95,7 +95,7 @@ module testkern_qr
              func_type(w3, gh_basis, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure() :: code => testkern_qr_code
   end type testkern_qr_type
@@ -476,7 +476,7 @@ def test_missing_shape_both():  # pylint: disable=invalid-name
     fparser.logging.disable('CRITICAL')
     # Remove the line specifying the shape of the evaluator
     code = CODE.replace(
-        "     integer, parameter :: gh_shape = quadrature_XYoZ\n",
+        "     integer, parameter :: gh_shape = gh_quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -501,7 +501,7 @@ def test_missing_shape_basis_only():  # pylint: disable=invalid-name
         "          (/ func_type(w1, gh_basis)                &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
-        "     integer, parameter :: gh_shape = quadrature_XYoZ\n",
+        "     integer, parameter :: gh_shape = gh_quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -526,7 +526,7 @@ def test_missing_eval_shape_diff_basis_only():  # pylint: disable=invalid-name
         "          (/ func_type(w1, gh_diff_basis)           &\n", 1)
     # Remove the line specifying the shape of the evaluator
     code = code1.replace(
-        "     integer, parameter :: gh_shape = quadrature_XYoZ\n",
+        "     integer, parameter :: gh_shape = gh_quadrature_XYoZ\n",
         "", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -543,15 +543,15 @@ def test_invalid_shape():
     fparser.logging.disable('CRITICAL')
     # Specify an invalid shape for the evaluator
     code = CODE.replace(
-        "gh_shape = quadrature_XYoZ",
+        "gh_shape = gh_quadrature_XYoZ",
         "gh_shape = quadrature_wrong", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     print str(excinfo)
-    assert ("request a valid gh_shape (one of ['quadrature_xyoz', "
-            "'evaluator_xyz']) but got 'quadrature_wrong' for kernel "
+    assert ("request a valid gh_shape (one of ['gh_quadrature_xyoz', "
+            "'gh_evaluator']) but got 'quadrature_wrong' for kernel "
             "'testkern_qr_type'" in str(excinfo))
 
 
@@ -572,8 +572,8 @@ def test_unecessary_shape():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     print str(excinfo)
-    assert ("Kernel 'testkern_qr_type' specifies an evaluator shape "
-            "(quadrature_xyoz) but does not need an evaluator because no "
+    assert ("Kernel 'testkern_qr_type' specifies a gh_shape "
+            "(gh_quadrature_xyoz) but does not need an evaluator because no "
             "basis or differential basis functions are required"
             in str(excinfo))
 
@@ -3188,7 +3188,7 @@ module dummy_mod
              func_type(w2v, gh_basis)     &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = quadrature_xyoz
+     integer, parameter :: gh_shape = gh_quadrature_xyoz
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3287,7 +3287,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3332,7 +3332,7 @@ module dummy_mod
              func_type(w2v, gh_diff_basis)     &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -3431,7 +3431,7 @@ module dummy_mod
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = quadrature_XYoZ
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure() :: code => dummy_code
   end type dummy_type
