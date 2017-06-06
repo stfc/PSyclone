@@ -27,7 +27,6 @@ def trans(psy):
         # Then apply OpenMP to each of the colour loops
         schedule = cschedule
         for child in schedule.children:
-            print "child is of type ", type(child)
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
                     schedule, _ = otrans.apply(child.children[0])
