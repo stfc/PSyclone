@@ -17,16 +17,16 @@ def trans(psy):
         print "Transforming invoke '"+invoke.name+"'..."
         schedule = invoke.schedule
 
-        # Colour all of the loops unless they are on W3
+        # Colour all of the loops over cells unless they are on W3
         cschedule = schedule
         for child in schedule.children:
-            if isinstance(child, Loop) and child.field_space != "w3":
+            if isinstance(child, Loop) and child.field_space != "w3" \
+               and child.iteration_space == "cells":
                 cschedule, _ = ctrans.apply(child)
 
         # Then apply OpenMP to each of the colour loops
         schedule = cschedule
         for child in schedule.children:
-            print "child is of type ", type(child)
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
                     schedule, _ = otrans.apply(child.children[0])

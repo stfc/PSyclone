@@ -9,6 +9,9 @@
         3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
 
+	4) #40 and PR #47 Update example dynamo/eg3 to use builtins and to
+	merge invokes together as much as possible
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
