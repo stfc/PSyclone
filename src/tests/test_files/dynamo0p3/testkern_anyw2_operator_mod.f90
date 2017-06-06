@@ -41,7 +41,7 @@ module testkern_anyw2_operator_mod
           (/ func_type(any_w2, gh_basis) &
           /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_anyw2_operator_code
   end type testkern_anyw2_operator_type

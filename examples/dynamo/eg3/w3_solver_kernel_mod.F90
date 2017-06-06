@@ -35,7 +35,7 @@ type, public, extends(kernel_type) :: w3_solver_kernel_type
        func_type(W3, GH_BASIS),                                        &
        func_type(W0, GH_DIFF_BASIS)                                    &
        /)
-  integer :: gh_shape = gh_quadrature_XYoZ
+  integer :: evaluator_shape = quadrature_XYoZ
   integer :: iterates_over = CELLS
 contains
   procedure, nopass ::solver_w3_code
