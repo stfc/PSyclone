@@ -17,7 +17,7 @@ module testkern_operator_mod
           (/ func_type(w0, gh_basis, gh_diff_basis) &
           /)
      integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer, parameter :: evaluator_shape = quadrature_XYoZ
    contains
      procedure() :: code => testkern_operator_code
   end type testkern_operator_type
