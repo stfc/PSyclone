@@ -72,7 +72,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
-VALID_EVALUATOR_SHAPES = ["quadrature_xyoz", "evaluator_xyz"]
+VALID_EVALUATOR_SHAPES = ["gh_quadrature_xyoz", "gh_evaluator"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
@@ -629,7 +629,7 @@ class DynKernMetadata(KernelType):
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
-        self._eval_shape = self.get_integer_variable('evaluator_shape')
+        self._eval_shape = self.get_integer_variable('gh_shape')
 
         # parse the arg_type metadata
         self._arg_descriptors = []
@@ -678,7 +678,7 @@ class DynKernMetadata(KernelType):
                     "meta_funcs must be unique, but '{0}' is replicated."
                     .format(fs_name))
 
-            # Check that a valid evaluator shape has been specified if
+            # Check that a valid shape has been specified if
             # this function space requires a basis or differential basis
             for name in descriptor.operator_names:
                 if name in VALID_EVALUATOR_NAMES:
@@ -688,14 +688,14 @@ class DynKernMetadata(KernelType):
                             "In the dynamo0.3 API any kernel requiring "
                             "quadrature or an evaluator ({0}) must also "
                             "supply the shape of that evaluator by setting "
-                            "'evaluator_shape' in the kernel meta-data but "
+                            "'gh_shape' in the kernel meta-data but "
                             "this is missing for kernel '{1}'".
                             format(VALID_EVALUATOR_NAMES, self.name))
                     if self._eval_shape not in VALID_EVALUATOR_SHAPES:
                         raise ParseError(
                             "In the dynamo0.3 API a kernel requiring either "
                             "quadrature or an evaluator must request a valid "
-                            "evaluator shape (one of {0}) but got '{1}' for "
+                            "gh_shape (one of {0}) but got '{1}' for "
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
@@ -727,11 +727,11 @@ class DynKernMetadata(KernelType):
                              "argument that is updated (written to) but "
                              "found none for kernel {0}".format(self.name))
 
-        # Check that no evaluator shape has been supplied if no basis or
+        # Check that no shape has been supplied if no basis or
         # differential basis functions are required for the kernel
         if not need_evaluator and self._eval_shape:
             raise ParseError(
-                "Kernel '{0}' specifies an evaluator shape ({1}) but does not "
+                "Kernel '{0}' specifies a gh_shape ({1}) but does not "
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
 
