@@ -20,9 +20,9 @@ def trans(psy):
         # Colour all of the loops over cells unless they are on W3
         cschedule = schedule
         for child in schedule.children:
-             if isinstance(child, Loop) and child.field_space != "w3" \
-                and child.iteration_space == "cells":
-                 cschedule, _ = ctrans.apply(child)
+            if isinstance(child, Loop) and child.field_space != "w3" \
+               and child.iteration_space == "cells":
+                cschedule, _ = ctrans.apply(child)
 
         # Then apply OpenMP to each of the colour loops
         schedule = cschedule
