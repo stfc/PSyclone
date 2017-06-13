@@ -1,11 +1,41 @@
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# -------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-#        A. Porter STFC Daresbury Lab
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
@@ -1136,5 +1166,62 @@ class MoveTrans(Transformation):
             schedule.children.insert(location_index, my_node)
         else:
             schedule.children.insert(location_index+1, my_node)
+
+        return schedule, keep
+
+
+class DynamoRedundantComputationTrans(Transformation):
+    ''' '''
+    def __str__(self):
+        return "Change iteration space to perform redundant computation"
+    
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "Redundant Computation"
+
+    def _validate(self, node, depth):
+        ''' '''
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError(
+                "Error in DynamoRedundantComputation transformation. "
+                "The supplied node is not a loop")
+
+        # loop must iterate over cells or dofs. This currently
+        # precludes loops over colours. Note, an empty loop_type
+        # iterates over cells
+        if not node.loop_type in ["", "dofs"]:
+                raise TransformationError(
+                    "Error in DynamoRedundantComputation transformation. "
+                    "The loop must be over cells or dofs, but found "
+                    "'{0}'".format(node.loop_type))
+
+        if depth:
+            if depth < 1:
+                raise TransformationError(
+                    "Error in DynamoRedundantComputation transformation. "
+                    "The supplied depth is less than 1")
+            
+            if not node.field.discontinuous and depth == 1:
+                raise TransformationError(
+                    "Error in DynamoRedundantComputation transformation. "
+                    "The supplied depth must be greater than 1 as this loop  "
+                    "modifies a continuous field")                
+            # should we raise an error for a large depth value?
+
+    def apply(self, node, depth=None):
+        ''' '''
+
+        self._validate(node, depth)
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node, depth])
+
+        node.set_upper_bound("halo", depth)
 
         return schedule, keep
