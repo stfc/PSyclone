@@ -1194,20 +1194,20 @@ class DynamoRedundantComputationTrans(Transformation):
         # iterates over cells
         if not node.loop_type in ["", "dofs"]:
                 raise TransformationError(
-                    "Error in DynamoRedundantComputation transformation. "
-                    "The loop must be over cells or dofs, but found "
+                    "In the DynamoRedundantComputation transformation apply method "
+                    "the loop must iterate over cells or dofs, but found "
                     "'{0}'".format(node.loop_type))
 
-        if depth:
+        if depth is not None:
             if depth < 1:
                 raise TransformationError(
-                    "Error in DynamoRedundantComputation transformation. "
-                    "The supplied depth is less than 1")
+                    "In the DynamoRedundantComputation transformation apply method "
+                    "the supplied depth is less than 1")
             
             if not node.field.discontinuous and depth == 1:
                 raise TransformationError(
-                    "Error in DynamoRedundantComputation transformation. "
-                    "The supplied depth must be greater than 1 as this loop  "
+                    "In the DynamoRedundantComputation transformation apply method "
+                    "the supplied depth must be greater than 1 as this loop  "
                     "modifies a continuous field")                
             # should we raise an error for a large depth value?
 

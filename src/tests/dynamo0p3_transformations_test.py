@@ -3711,9 +3711,40 @@ def test_redundant_computation_invalid_loop(monkeypatch):
     loop = schedule.children[3]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
-    print type(loop)
-    exit(1)
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the DynamoRedundantComputation transformation apply method the "
-            "first argument is not a Loop") in str(excinfo)
+            "loop must iterate over cells or dofs, but found 'colours'") in str(excinfo)
+
+
+def test_redundant_computation_invalid_depth():
+    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    supplied depth is less than 1 '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, depth=0)
+    assert ("In the DynamoRedundantComputation transformation apply method the "
+            "supplied depth is less than 1") in str(excinfo)
+
+def test_redundant_computation_invalid_depth_continuous():
+    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    supplied depth equals 1 when modifying a continuous field '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, depth=1)
+    assert ("In the DynamoRedundantComputation transformation apply method the "
+            "supplied depth must be greater than 1") in str(excinfo)
