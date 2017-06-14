@@ -2,6 +2,11 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2016.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -12,7 +17,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-#
+
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -1181,8 +1186,8 @@ class DynamoRedundantComputationTrans(Transformation):
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError(
-                "Error in DynamoRedundantComputation transformation. "
-                "The supplied node is not a loop")
+                "In the DynamoRedundantComputation transformation apply method "
+                "the first argument is not a Loop")
 
         # loop must iterate over cells or dofs. This currently
         # precludes loops over colours. Note, an empty loop_type

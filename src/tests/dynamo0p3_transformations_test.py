@@ -3671,8 +3671,8 @@ def test_move_fail():
 def test_redundant_computation_str():
     '''Test the str method of the DynamoRedundantComputationTrans class'''
     rc_trans = DynamoRedundantComputationTrans()
-    rc_name = str(rctrans)
-    assert rcname == "Change iteration space to perform redundant computation"
+    rc_name = str(rc_trans)
+    assert rc_name == "Change iteration space to perform redundant computation"
 
 
 def test_redundant_computation_name():
@@ -3680,3 +3680,40 @@ def test_redundant_computation_name():
     rc_trans = DynamoRedundantComputationTrans()
     name = rc_trans.name
     assert name == "RedundantComputation"
+
+
+def test_redundant_computation_node_not_loop():
+    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    node argument is not a loop'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[0])
+    assert ("In the DynamoRedundantComputation transformation apply method the "
+            "first argument is not a Loop") in str(excinfo)
+
+
+def test_redundant_computation_invalid_loop(monkeypatch):
+    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    supplied loop does not iterate over cells or dofs'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    # set the loop to a type that should raise an exception
+    monkeypatch.setattr(loop, "loop_type", value="colours")
+    print type(loop)
+    exit(1)
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("In the DynamoRedundantComputation transformation apply method the "
+            "first argument is not a Loop") in str(excinfo)
