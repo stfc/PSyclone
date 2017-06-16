@@ -3748,3 +3748,31 @@ def test_redundant_computation_invalid_depth_continuous():
         rc_trans.apply(loop, depth=1)
     assert ("In the DynamoRedundantComputation transformation apply method the "
             "supplied depth must be greater than 1") in str(excinfo)
+
+def test_redundant_computation_continuous_bounds_depth():
+    '''Test that the loop bounds for a continuous function (iterating over
+    cells) are modified appropriately after applying the redundant
+    computation transformation with a fixed value for bounds'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+
+    
+# todo checks
+# check works with iterations over dofs
+# check works with iterations over cells for discontinuous
+# check works with stencil
+
+# todo coding (then checks)
+# generate set field clean as appropriate
+# runtime checks that not beyond max halo
