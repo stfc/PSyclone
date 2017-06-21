@@ -101,7 +101,7 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
-VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "halo", "ncolour",
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "cell_halo", "ncolour",
                            "ncolours", "ncells", "ndofs"]
 
 # The mapping from meta-data strings to field-access types
@@ -2305,18 +2305,18 @@ class DynLoop(Loop):
                 if self._field.type in VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
-                    self.set_upper_bound("halo", index=1)
+                    self.set_upper_bound("cell_halo", index=1)
                 elif (self.field_space.orig_name in
                       DISCONTINUOUS_FUNCTION_SPACES):
                     self.set_upper_bound("ncells")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
-                    self.set_upper_bound("halo", index=1)
+                    self.set_upper_bound("cell_halo", index=1)
                 elif self.field_space.orig_name in VALID_ANY_SPACE_NAMES:
                     # We don't know whether any-space is continuous or not
                     # so we have to err on the side of caution and assume that
                     # it is.
-                    self.set_upper_bound("halo", index=1)
+                    self.set_upper_bound("cell_halo", index=1)
                 else:
                     raise GenerationError(
                         "Unexpected function space found. Expecting one of "
@@ -2331,7 +2331,7 @@ class DynLoop(Loop):
         if name not in VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
                 "The specified lower bound loop name is invalid")
-        if name in ["inner", "halo"] and index < 1:
+        if name in ["inner", "cell_halo"] and index < 1:
             raise GenerationError(
                 "The specified index '{0}' for this lower loop bound is "
                 "invalid".format(str(index)))
@@ -2345,7 +2345,7 @@ class DynLoop(Loop):
                 "The specified upper bound loop name is invalid")
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "halo"] and index < 1:
+        if name in ["inner", "cell_halo"] and index < 1:
             raise GenerationError(
                 "The specified index '{0}' for this upper loop bound is "
                 "invalid".format(str(index)))
@@ -2360,7 +2360,7 @@ class DynLoop(Loop):
     @property
     def upper_bound_index(self):
         ''' Returns the index of the upper loop bound. Is None if upper
-        bound name is not "inner" or "halo" '''
+        bound name is not "inner" or "cell_halo" '''
         return self._upper_bound_index
 
     def _lower_bound_fortran(self):
@@ -2379,11 +2379,11 @@ class DynLoop(Loop):
             elif self._lower_bound_name == "ncells":
                 prev_space_name = "inner"
                 prev_space_index_str = "1"
-            elif (self._lower_bound_name == "halo" and
+            elif (self._lower_bound_name == "cell_halo" and
                   self._lower_bound_index == 1):
                 prev_space_name = "ncells"
                 prev_space_index_str = ""
-            elif (self._lower_bound_name == "halo" and
+            elif (self._lower_bound_name == "cell_halo" and
                   self._lower_bound_index > 1):
                 prev_space_name = self._lower_bound_name
                 prev_space_index_str = str(self._lower_bound_index - 1)
@@ -2418,9 +2418,12 @@ class DynLoop(Loop):
                     "but got '{0}'".format(self._upper_bound_name))
             return result
         else:
-            if self._upper_bound_name in ["inner", "halo"]:
+            if self._upper_bound_name in ["inner", "cell_halo"]:
                 index = self._upper_bound_index
-                lookup_name = self._upper_bound_name
+                if self._upper_bound_name == "cell_halo":
+                    lookup_name = "halo"
+                else: # inner
+                    lookup_name = "inner"
             else:
                 index = ""
                 lookup_name = "edge"
@@ -2457,11 +2460,11 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            if self._upper_bound_name not in ["halo", "ncells"]:
+            if self._upper_bound_name not in ["cell_halo", "ncells"]:
                 raise GenerationError(
-                    "Loop bounds other than halo and ncells are currently "
+                    "Loop bounds other than cell_halo and ncells are currently "
                     "unsupported. Found '{0}'.".format(self._upper_bound_name))
-            return self._upper_bound_name in ["halo", "ncells"]
+            return self._upper_bound_name in ["cell_halo", "ncells"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
@@ -2471,14 +2474,14 @@ class DynLoop(Loop):
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
-            return self._upper_bound_name == "halo"
+            return self._upper_bound_name == "cell_halo"
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # it is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness. There may be shared dofs so only access to
             # inner is local so we care about reads in both the ncells
             # (annexed dofs) and the halo
-            return self._upper_bound_name in ["halo", "ncells"]
+            return self._upper_bound_name in ["cell_halo", "ncells"]
         else:
             # access is neither a read nor an inc so does not need halo
             return False
@@ -2764,7 +2767,7 @@ class DynKern(Kern):
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if self.parent.upper_bound_name == "halo" and \
+            if self.parent.upper_bound_name == "cell_halo" and \
                self.parent.upper_bound_index > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "

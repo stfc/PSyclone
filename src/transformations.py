@@ -1222,6 +1222,6 @@ class DynamoRedundantComputationTrans(Transformation):
         from undoredo import Memento
         keep = Memento(schedule, self, [node, depth])
 
-        node.set_upper_bound("halo", depth)
+        node.set_upper_bound("cell_halo", depth)
 
         return schedule, keep

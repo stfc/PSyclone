@@ -1929,7 +1929,7 @@ def test_operator_read_level1_halo():
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
     # (of the operator)
-    loop.set_upper_bound("halo", index=2)
+    loop.set_upper_bound("cell_halo", index=2)
     # Attempt to generate the code
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
@@ -4729,7 +4729,7 @@ def test_lower_bound_fortran():
         _ = my_loop._lower_bound_fortran()
     assert ("lower bound must be 'start' if we are sequential" in
             str(excinfo.value))
-    my_loop.set_upper_bound("halo", index=1)
+    my_loop.set_upper_bound("cell_halo", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
     assert ("For sequential/shared-memory code, the upper loop bound must "
@@ -6144,7 +6144,7 @@ def test_unsupported_halo_read_access():
     # call our method
     with pytest.raises(GenerationError) as err:
         _ = loop._halo_read_access(stencil_arg)
-    assert ("Loop bounds other than halo and ncells are currently unsupported. "
+    assert ("Loop bounds other than cell_halo and ncells are currently unsupported. "
             "Found 'inner'." in str(err))
 
 
