@@ -102,7 +102,7 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
-                           "ncolours", "cells", "dofs"]
+                           "ncolours", "ncells", "ndofs"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -2299,7 +2299,7 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            self.set_upper_bound("dofs")
+            self.set_upper_bound("ndofs")
         else:
             if config.DISTRIBUTED_MEMORY:
                 if self._field.type in VALID_OPERATOR_NAMES:
@@ -2324,7 +2324,7 @@ class DynLoop(Loop):
                             str(VALID_FUNCTION_SPACES),
                             self.field_space.orig_name))
             else:  # sequential
-                self.set_upper_bound("cells")
+                self.set_upper_bound("ncells")
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
@@ -2400,7 +2400,7 @@ class DynLoop(Loop):
             return "ncolour"
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
-        elif self._upper_bound_name == "dofs":
+        elif self._upper_bound_name == "ndofs":
             if config.DISTRIBUTED_MEMORY:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_last_dof_owned()"
@@ -2408,13 +2408,13 @@ class DynLoop(Loop):
                 result = self._kern.undf_name
             return result
         elif not config.DISTRIBUTED_MEMORY:
-            if self._upper_bound_name == "cells":
+            if self._upper_bound_name == "ncells":
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             else:
                 raise GenerationError(
                     "For sequential/shared-memory code, the upper loop "
-                    "bound must be one of ncolours, ncolour, cells or dofs "
+                    "bound must be one of ncolours, ncolour, ncells or ndofs "
                     "but got '{0}'".format(self._upper_bound_name))
             return result
         else:
