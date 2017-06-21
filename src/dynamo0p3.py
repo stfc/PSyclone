@@ -102,7 +102,7 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "cell_halo", "ncolour",
-                           "ncolours", "ncells", "ndofs"]
+                           "ncolours", "ncells", "ndofs", "dof_halo"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -2346,7 +2346,7 @@ class DynLoop(Loop):
                 "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "cell_halo"] and index < 1:
+        if name in ["inner", "cell_halo", "dof_halo"] and index < 1:
             raise GenerationError(
                 "The specified index '{0}' for this upper loop bound is "
                 "invalid".format(str(index)))
@@ -2365,6 +2365,7 @@ class DynLoop(Loop):
         return self._upper_bound_index
 
     def _lower_bound_fortran(self):
+        print self._lower_bound_name
         ''' Create the associated fortran code for the type of lower bound '''
         if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
             raise GenerationError(
@@ -2389,7 +2390,9 @@ class DynLoop(Loop):
                 prev_space_name = self._lower_bound_name
                 prev_space_index_str = str(self._lower_bound_index - 1)
             else:
-                raise GenerationError("Unsupported lower bound name found")
+                raise GenerationError(
+                    "Unsupported lower bound name '{0}' "
+                    "found".format(self._lower_bound_name))
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
@@ -2408,30 +2411,48 @@ class DynLoop(Loop):
             else:
                 result = self._kern.undf_name
             return result
-        elif not config.DISTRIBUTED_MEMORY:
-            if self._upper_bound_name == "ncells":
+        elif  self._upper_bound_name == "ncells":
+            if config.DISTRIBUTED_MEMORY:
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                result = mesh_obj_name + "%get_last_edge_cell()"
+            else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
+            return result
+        elif self._upper_bound_name == "cell_halo":
+            if config.DISTRIBUTED_MEMORY:
+                index = self._upper_bound_index
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
+                                                            str(index))
             else:
                 raise GenerationError(
-                    "For sequential/shared-memory code, the upper loop "
-                    "bound must be one of ncolours, ncolour, ncells or ndofs "
-                    "but got '{0}'".format(self._upper_bound_name))
-            return result
-        else:
-            if self._upper_bound_name in ["inner", "cell_halo"]:
-                index = self._upper_bound_index
-                if self._upper_bound_name == "cell_halo":
-                    lookup_name = "halo"
-                else: # inner
-                    lookup_name = "inner"
+                    "'cell_halo' is not a valid loop upper bound for "
+                    "sequential/shared-memory code")
+        elif self._upper_bound_name == "dof_halo":
+            if config.DISTRIBUTED_MEMORY:
+                return "DO_HALO_UPPER_BOUND_TODO"
             else:
-                index = ""
-                lookup_name = "edge"
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            return mesh_obj_name + "%get_last_" + lookup_name + \
-                "_cell(" + str(index) + ")"
+                raise GenerationError(
+                    "'dof_halo' is not a valid loop upper bound for "
+                    "sequential/shared-memory code")
+        elif self._upper_bound_name == "inner":
+            if config.DISTRIBUTED_MEMORY:
+                index = self._upper_bound_index
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
+                                                             str(index))
+            else:
+                raise GenerationError(
+                    "'inner' is not a valid loop upper bound for "
+                    "sequential/shared-memory code")
+        else:
+            raise GenerationError(
+                "Unsupported upper bound name '{0}' found in dynloop.upper_"
+                "bound_fortran()".format(self._upper_bound_name))
 
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop

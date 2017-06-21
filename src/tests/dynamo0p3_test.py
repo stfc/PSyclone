@@ -4694,9 +4694,9 @@ def test_mesh_mod():
 # object from an operator
 
 
-def test_set_bounds_functions():
+def test_set_lower_bound_functions():
     '''test that we raise appropriate exceptions when the lower bound of
-    a loop is set to an invalid value '''
+    a loop is set to invalid values '''
     my_loop = DynLoop()
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_lower_bound("invalid_loop_bounds_name")
@@ -4705,6 +4705,12 @@ def test_set_bounds_functions():
         my_loop.set_lower_bound("inner", index=0)
     assert "specified index" in str(excinfo.value)
     assert "lower loop bound is invalid" in str(excinfo.value)
+
+
+def test_set_upper_bound_functions():
+    '''test that we raise appropriate exceptions when the upper bound of
+    a loop is set to invalid values '''
+    my_loop = DynLoop()
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_upper_bound("invalid_loop_bounds_name")
     assert "upper bound loop name is invalid" in str(excinfo.value)
@@ -4717,9 +4723,9 @@ def test_set_bounds_functions():
     assert "upper loop bound is invalid" in str(excinfo.value)
 
 
-def test_lower_bound_fortran():
+def test_lower_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
-    method'''
+    method - first GenerationError'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -4729,12 +4735,52 @@ def test_lower_bound_fortran():
         _ = my_loop._lower_bound_fortran()
     assert ("lower bound must be 'start' if we are sequential" in
             str(excinfo.value))
-    my_loop.set_upper_bound("cell_halo", index=1)
+
+
+def test_lower_bound_fortran_2(monkeypatch):
+    '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    method - second GenerationError'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
+    # we can not use the standard set_lower_bound function as that checks for valid input
+    monkeypatch.setattr(my_loop, "_lower_bound_name", value="invalid")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop._lower_bound_fortran()
+    assert ("Unsupported lower bound name 'invalid' found" in
+            str(excinfo.value))
+
+
+def test_upper_bound_fortran_1(): 
+    '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
+    method whe 'cell_halo', 'dof_halo' or 'inner' are used'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    for option in ["cell_halo", "dof_halo", "inner"]:
+        my_loop.set_upper_bound(option, index=1)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = my_loop._upper_bound_fortran()
+            assert (
+                "'{0}' is not a valid loop upper bound for sequential/"
+                "shared-memory code".format(option) in
+                str(excinfo.value))
+
+
+def test_upper_bound_fortran_2(monkeypatch): 
+    '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
+    method if an invalid value is provided'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="invalid")
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert ("For sequential/shared-memory code, the upper loop bound must "
-            "be one of ncolours, ncolour, ncells or ndofs" in
-            str(excinfo.value))
+    assert (
+        "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
 
 
 def test_intent_multi_kern():
