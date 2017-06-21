@@ -3717,6 +3717,25 @@ def test_redundant_computation_invalid_loop(monkeypatch):
             "loop must iterate over cells or dofs, but found 'colours'") in str(excinfo)
 
 
+def test_redundant_computation_nodm(monkeypatch):
+    '''Test that DynamoRedundantComputationTrans raises an exception if
+    distributed memory is not set'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[0]
+    import config
+    monkeypatch.setattr(config, "DISTRIBUTED_MEMORY", False)
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("In the DynamoRedundantComputation transformation apply method "
+            "distributed memory must be switched on") in str(excinfo)
+
+
 def test_redundant_computation_invalid_depth():
     '''Test that DynamoRedundantComputationTrans raises an exception if the
     supplied depth is less than 1 '''
@@ -3846,9 +3865,7 @@ def test_redundant_computation_dofs_no_depth():
 
 # todo checks
 # check fails if distributed memory not set
-# check works with stencil???
-# check works without halo size (cells and dofs)
 
 # todo coding (then checks)
 # generate set field clean as appropriate
-# runtime checks that not beyond max halo
+# runtime checks that not beyond max halo, with and without stencil

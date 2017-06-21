@@ -1189,6 +1189,12 @@ class DynamoRedundantComputationTrans(Transformation):
                 "In the DynamoRedundantComputation transformation apply method "
                 "the first argument is not a Loop")
 
+        import config
+        if not config.DISTRIBUTED_MEMORY:
+            raise TransformationError(
+                "In the DynamoRedundantComputation transformation apply method "
+                "distributed memory must be switched on")
+
         # loop must iterate over cells or dofs. This currently
         # precludes loops over colours. Note, an empty loop_type
         # iterates over cells
