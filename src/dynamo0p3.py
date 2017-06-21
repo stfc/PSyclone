@@ -2433,7 +2433,10 @@ class DynLoop(Loop):
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
             if config.DISTRIBUTED_MEMORY:
-                return "DO_HALO_UPPER_BOUND_TODO"
+                index = self._upper_bound_index
+                return "{0}%{1}%get_last_dof_halo({2})".format(
+                    self.field.proxy_name_indexed, self.field.ref_name(),
+                    str(index))
             else:
                 raise GenerationError(
                     "'dof_halo' is not a valid loop upper bound for "

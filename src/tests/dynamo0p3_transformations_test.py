@@ -3752,7 +3752,7 @@ def test_redundant_computation_invalid_depth_continuous():
 def test_redundant_computation_continuous_bounds_depth():
     '''Test that the loop bounds for a continuous function (iterating over
     cells) are modified appropriately after applying the redundant
-    computation transformation with a fixed value for bounds'''
+    computation transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3790,7 +3790,7 @@ def test_redundant_computation_discontinuous_bounds_depth():
 def test_redundant_computation_dofs_depth():
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately after applying the redundant computation
-    transformation with a fixed value for bounds'''
+    transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.0.1_single_builtin_set_by_ref.f90"),
                     api=TEST_API)
@@ -3805,8 +3805,26 @@ def test_redundant_computation_dofs_depth():
     print result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
 
+
+def test_redundant_computation_dofs_no_depth():
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately after applying the redundant computation
+    transformation with no halo depth value'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.1_single_builtin_set_by_ref.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+
 # todo checks
-# check works with iterations over dofs
 # check fails if distributed memory not set
 # check works with stencil???
 # check works without halo size (cells and dofs)
