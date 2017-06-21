@@ -2346,10 +2346,11 @@ class DynLoop(Loop):
                 "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "cell_halo", "dof_halo"] and index < 1:
-            raise GenerationError(
-                "The specified index '{0}' for this upper loop bound is "
-                "invalid".format(str(index)))
+        if name in ["inner", "cell_halo", "dof_halo"] and index is not None:
+            if index < 1:
+                raise GenerationError(
+                    "The specified index '{0}' for this upper loop bound is "
+                    "invalid".format(str(index)))
         self._upper_bound_name = name
         self._upper_bound_index = index
 
@@ -2422,32 +2423,41 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "cell_halo":
             if config.DISTRIBUTED_MEMORY:
-                index = self._upper_bound_index
+                if self._upper_bound_index is None:
+                    index = ""
+                else:
+                    index = str(self._upper_bound_index)
                 mesh_obj_name = self._name_space_manager.create_name(
                     root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
-                                                            str(index))
+                                                            index)
             else:
                 raise GenerationError(
                     "'cell_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
             if config.DISTRIBUTED_MEMORY:
-                index = self._upper_bound_index
+                if self._upper_bound_index is None:
+                    index = ""
+                else:
+                    index = str(self._upper_bound_index)
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
-                    str(index))
+                    index)
             else:
                 raise GenerationError(
                     "'dof_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if config.DISTRIBUTED_MEMORY:
-                index = self._upper_bound_index
+                if self._upper_bound_index is None:
+                    index = ""
+                else:
+                    index = str(self._upper_bound_index)
                 mesh_obj_name = self._name_space_manager.create_name(
                     root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
-                                                             str(index))
+                                                             index)
             else:
                 raise GenerationError(
                     "'inner' is not a valid loop upper bound for "

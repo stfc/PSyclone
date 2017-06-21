@@ -3749,6 +3749,26 @@ def test_redundant_computation_invalid_depth_continuous():
     assert ("In the DynamoRedundantComputation transformation apply method the "
             "supplied depth must be greater than 1") in str(excinfo)
 
+
+def test_redundant_computation_continuous_bounds_no_depth():
+    '''Test that the loop bounds for a continuous function (iterating over
+    cells) are modified appropriately after applying the redundant
+    computation transformation with no value for halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+
+
 def test_redundant_computation_continuous_bounds_depth():
     '''Test that the loop bounds for a continuous function (iterating over
     cells) are modified appropriately after applying the redundant
