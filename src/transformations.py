@@ -1222,6 +1222,9 @@ class DynamoRedundantComputationTrans(Transformation):
         from undoredo import Memento
         keep = Memento(schedule, self, [node, depth])
 
-        node.set_upper_bound("cell_halo", depth)
+        if node.loop_type == "":  # iteration space is cells
+            node.set_upper_bound("cell_halo", depth)
+        else:  # iteration space is dofs
+            node.set_upper_bound("dof_halo", depth)
 
         return schedule, keep

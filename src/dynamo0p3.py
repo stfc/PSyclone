@@ -2342,7 +2342,8 @@ class DynLoop(Loop):
         ''' Set the upper bounds of this loop '''
         if name not in VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
-                "The specified upper bound loop name is invalid")
+                "The specified upper bound loop name is invalid. Expected one "
+                "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
         if name in ["inner", "cell_halo"] and index < 1:
