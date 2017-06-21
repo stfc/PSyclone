@@ -4733,7 +4733,7 @@ def test_lower_bound_fortran():
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
     assert ("For sequential/shared-memory code, the upper loop bound must "
-            "be one of ncolours, ncolour, cells or dofs" in
+            "be one of ncolours, ncolour, ncells or ndofs" in
             str(excinfo.value))
 
 
@@ -6123,7 +6123,7 @@ def test_dynkernelarguments_unexpected_stencil_extent():
 
 def test_unsupported_halo_read_access():
     '''This test checks that we raise an error if the halo_read_access
-    method finds an upper bound other than halo or edge. The
+    method finds an upper bound other than halo or ncells. The
     particular issue at the moment is that if inner is specified we do
     not know whether the stencil accesses the halo or not. However,
     this limitation is not going to affect anyone until we add in loop
@@ -6144,7 +6144,7 @@ def test_unsupported_halo_read_access():
     # call our method
     with pytest.raises(GenerationError) as err:
         _ = loop._halo_read_access(stencil_arg)
-    assert ("Loop bounds other than halo and edge are currently unsupported. "
+    assert ("Loop bounds other than halo and ncells are currently unsupported. "
             "Found 'inner'." in str(err))
 
 

@@ -101,7 +101,7 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
-VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "halo", "ncolour",
                            "ncolours", "ncells", "ndofs"]
 
 # The mapping from meta-data strings to field-access types
@@ -2308,7 +2308,7 @@ class DynLoop(Loop):
                     self.set_upper_bound("halo", index=1)
                 elif (self.field_space.orig_name in
                       DISCONTINUOUS_FUNCTION_SPACES):
-                    self.set_upper_bound("edge")
+                    self.set_upper_bound("ncells")
                 elif self.field_space.orig_name in CONTINUOUS_FUNCTION_SPACES:
                     # Must iterate out to L1 halo for continuous quantities
                     self.set_upper_bound("halo", index=1)
@@ -2376,12 +2376,12 @@ class DynLoop(Loop):
             if self._lower_bound_name == "inner":
                 prev_space_name = self._lower_bound_name
                 prev_space_index_str = str(self._lower_bound_index + 1)
-            elif self._lower_bound_name == "edge":
+            elif self._lower_bound_name == "ncells":
                 prev_space_name = "inner"
                 prev_space_index_str = "1"
             elif (self._lower_bound_name == "halo" and
                   self._lower_bound_index == 1):
-                prev_space_name = "edge"
+                prev_space_name = "ncells"
                 prev_space_index_str = ""
             elif (self._lower_bound_name == "halo" and
                   self._lower_bound_index > 1):
@@ -2420,11 +2420,13 @@ class DynLoop(Loop):
         else:
             if self._upper_bound_name in ["inner", "halo"]:
                 index = self._upper_bound_index
+                lookup_name = self._upper_bound_name
             else:
                 index = ""
+                lookup_name = "edge"
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
-            return mesh_obj_name + "%get_last_" + self._upper_bound_name + \
+            return mesh_obj_name + "%get_last_" + lookup_name + \
                 "_cell(" + str(index) + ")"
 
     def has_inc_arg(self, mapping=None):
@@ -2455,11 +2457,11 @@ class DynLoop(Loop):
         '''Determines whether this argument reads from the halo for this
         loop'''
         if arg.descriptor.stencil:
-            if self._upper_bound_name not in ["halo", "edge"]:
+            if self._upper_bound_name not in ["halo", "ncells"]:
                 raise GenerationError(
-                    "Loop bounds other than halo and edge are currently "
+                    "Loop bounds other than halo and ncells are currently "
                     "unsupported. Found '{0}'.".format(self._upper_bound_name))
-            return self._upper_bound_name in ["halo", "edge"]
+            return self._upper_bound_name in ["halo", "ncells"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
@@ -2467,16 +2469,16 @@ class DynLoop(Loop):
             # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
-            # there are no shared dofs so access to inner and edge are
+            # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name == "halo"
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # it is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness. There may be shared dofs so only access to
-            # inner is local so we care about reads in both the edge
+            # inner is local so we care about reads in both the ncells
             # (annexed dofs) and the halo
-            return self._upper_bound_name in ["halo", "edge"]
+            return self._upper_bound_name in ["halo", "ncells"]
         else:
             # access is neither a read nor an inc so does not need halo
             return False
