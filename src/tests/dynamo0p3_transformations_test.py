@@ -3788,10 +3788,11 @@ def test_redundant_computation_continuous_bounds_no_depth():
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
 
 
-def test_redundant_computation_continuous_bounds_depth():
+def test_redundant_computation_continuous_depth():
     '''Test that the loop bounds for a continuous function (iterating over
-    cells) are modified appropriately after applying the redundant
-    computation transformation with a fixed value for halo depth'''
+    cells) are modified appropriately and set_clean() added
+    appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3805,6 +3806,8 @@ def test_redundant_computation_continuous_bounds_depth():
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(2)" in result
 
 
 def test_redundant_computation_discontinuous_bounds_depth():
@@ -3824,6 +3827,8 @@ def test_redundant_computation_discontinuous_bounds_depth():
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "CALL m2_proxy%set_dirty()" in result
+    assert "CALL m2_proxy%set_clean(3)" in result
 
 
 def test_redundant_computation_dofs_depth():
@@ -3863,9 +3868,19 @@ def test_redundant_computation_dofs_no_depth():
     print result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
 
-# todo checks
-# check fails if distributed memory not set
+# todo
+# 1) generate set field clean as appropriate
+# a) continuous fixed bounds > 1 ::: done
+# b) none with continuous fixed bounds =1 - other tests will check?
+# c) with discontinuous fixed bounds >= 1 ::: done
+# d) with dofs fixed bounds >= 1
+# e) continuous not fixed bounds?
+# f) discontinuous not fixed bounds?
+# g) dofs not fixed bounds?
+# h) field vectors
 
-# todo coding (then checks)
-# generate set field clean as appropriate
-# runtime checks that not beyond max halo, with and without stencil
+# 2) modify halo_exchange(depth=x) values
+
+# 3) runtime checks that redundant compuration is not beyond max halo (with and without stencil)
+
+# 4) add check for discontinuous function and check its existing use as this was incorrect

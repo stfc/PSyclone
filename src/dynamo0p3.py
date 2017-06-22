@@ -2366,7 +2366,6 @@ class DynLoop(Loop):
         return self._upper_bound_index
 
     def _lower_bound_fortran(self):
-        print self._lower_bound_name
         ''' Create the associated fortran code for the type of lower bound '''
         if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
             raise GenerationError(
@@ -2539,14 +2538,14 @@ class DynLoop(Loop):
         Loop.gen_code(self, parent)
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
-            # Set halo dirty for all fields that are modified
+            # Set halo clean/dirty for all fields that are modified
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
             if fields:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
-                                      " Set halos dirty for fields modified "
-                                      "in the above loop"))
+                                      " Set halos dirty for fields "
+                                      "modified in the above loop"))
                 parent.add(CommentGen(parent, ""))
                 from psyGen import OMPParallelDoDirective
                 from f2pygen import DirectiveGen
@@ -2555,9 +2554,10 @@ class DynLoop(Loop):
                     if not self.ancestor(OMPParallelDoDirective):
                         use_omp_master = True
                         # I am within an OpenMP Do directive so protect
-                        # set_dirty() with OpenMP Master
+                        # set_dirty() and set_clean() with OpenMP Master
                         parent.add(DirectiveGen(parent, "omp", "begin",
                                                 "master", ""))
+                # first set all of the halo dirty
                 for field in fields:
                     if field.vector_size > 1:
                         # the range function below returns values from
@@ -2570,9 +2570,23 @@ class DynLoop(Loop):
                     else:
                         parent.add(CallGen(parent, name=field.proxy_name +
                                            "%set_dirty()"))
+                # now set appropriate parts of the halo clean where
+                # redundant computation has been performed
+                if self._upper_bound_name in ["cell_halo", "dof_halo"]:
+                    for field in fields:
+                        if self._upper_bound_index:
+                            halo_depth = self._upper_bound_index
+                            if not field.discontinuous and self._upper_bound_name == "cell_halo":
+                                halo_depth -= 1
+                            if halo_depth > 0:
+                                parent.add(CallGen(parent, name="{0}%set_clean({1})".
+                                                   format(field.proxy_name, halo_depth)))
+                        else:
+                            parent.add(CallGen(parent, name="xxx%set_clean(xxx)"))
+                    
                 if use_omp_master:
                     # I am within an OpenMP Do directive so protect
-                    # set_dirty() with OpenMP Master
+                    # set_dirty() and set_clean() with OpenMP Master
                     parent.add(DirectiveGen(parent, "omp", "end",
                                             "master", ""))
                 parent.add(CommentGen(parent, ""))
@@ -4407,9 +4421,9 @@ class DynKernelArgument(KernelArgument):
     def discontinuous(self):
         '''Returns True if this argument is known to be on a discontinuous
         function space, otherwise returns False.'''
-        if self.function_space in DISCONTINUOUS_FUNCTION_SPACES:
+        if self.function_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
             return True
-        elif self.function_space in VALID_ANY_SPACE_NAMES:
+        elif self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
             # we will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False
