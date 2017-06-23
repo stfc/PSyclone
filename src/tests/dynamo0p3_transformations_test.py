@@ -3769,27 +3769,6 @@ def test_redundant_computation_invalid_depth_continuous():
             "supplied depth must be greater than 1") in str(excinfo)
 
 
-def test_redundant_computation_continuous_bounds_no_depth():
-    '''Test that the loop bounds for a continuous function (iterating over
-    cells) are modified appropriately after applying the redundant
-    computation transformation with no value for halo depth'''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
-    loop = schedule.children[3]
-    schedule, _ = rc_trans.apply(loop)
-    invoke.schedule = schedule
-    result = str(psy.gen)
-    print result
-    assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth()-1)" in result
-
-
 def test_redundant_computation_continuous_depth():
     '''Test that the loop bounds for a continuous function (iterating over
     cells) are modified appropriately and set_clean() added
@@ -3812,11 +3791,32 @@ def test_redundant_computation_continuous_depth():
     assert "CALL f1_proxy%set_clean(2)" in result
 
 
+def test_redundant_computation_continuous_no_depth():
+    '''Test that the loop bounds for a continuous function (iterating over
+    cells) are modified appropriately after applying the redundant
+    computation transformation with no value for halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth()-1)" in result
+
+
 def test_redundant_computation_discontinuous_depth():
     '''Test that the loop bounds for a discontinuous function (iterating
     over cells) are modified appropriately and set_clean() added
     correctly after applying the redundant computation transformation
-    with a fixed value for bounds '''
+    with a fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -3832,6 +3832,28 @@ def test_redundant_computation_discontinuous_depth():
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     assert "CALL m2_proxy%set_dirty()" in result
     assert "CALL m2_proxy%set_clean(3)" in result
+
+
+def test_redundant_computation_discontinuous_no_depth():
+    '''Test that the loop bounds for a discontinuous function (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly after applying the redundant computation transformation
+    with no halo depth value '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "CALL m2_proxy%set_dirty()" not in result
+    assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
 def test_redundant_computation_dofs_depth():
@@ -3876,16 +3898,58 @@ def test_redundant_computation_dofs_no_depth():
     assert "CALL f1_proxy%set_dirty()" not in result
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
+
+def test_continuous_no_set_clean():
+    '''Test that set_clean is not added for the default iteration space of
+    a continuous loop. This is probably covered from tests in
+    dynamo0p3_test.py but it is good to have a specific test'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(" not in result
+
+
+def test_discontinuous_no_set_clean():
+    '''Test that set_clean is not added for the default iteration space of
+    a discontinuous loop. This is probably covered from tests in
+    dynamo0p3_test.py but it is good to have a specific test'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_edge_cell()" in result
+    assert "CALL m2_proxy%set_dirty()" in result
+    assert "CALL m2_proxy%set_clean(" not in result
+
+
+def test_dofs_no_set_clean():
+    '''Test that set_clean is not added for the default iteration space of
+    a loop over dofs. This is probably covered from tests in
+    dynamo0p3_builtins_test.py but it is good to have a specific test'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.0.1_single_builtin_set_by_ref.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    print result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_owned()" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(" not in result
+
+
 # todo
 # 1) generate set field clean as appropriate
-# b) none with continuous fixed bounds =1 - other tests will check?
-# e) continuous not fixed bounds?
-# f) discontinuous not fixed bounds?
-# g) dofs not fixed bounds?
 # h) field vectors
 
 # 2) modify halo_exchange(depth=x) values
 
-# 3) runtime checks that redundant compuration is not beyond max halo (with and without stencil)
+# 3) runtime checks that redundant computation is not beyond max halo (with and without stencil)
 
-# 4) add check for discontinuous function and check its existing use as this was incorrect
+# 4) add check for discontinuous() function and check its existing use as this was incorrect
