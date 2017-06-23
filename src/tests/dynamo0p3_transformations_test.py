@@ -3946,10 +3946,15 @@ def test_dofs_no_set_clean():
 
 # todo
 # 1) generate set field clean as appropriate
-# h) field vectors
+# h) field vectors 8_ vector, 14.4_halo_vector,
+#   i) continuous with and without depth
+#   ii) dicontinuous with and without depth
+#   iii) dofs with and without depth
 
 # 2) modify halo_exchange(depth=x) values
 
 # 3) runtime checks that redundant computation is not beyond max halo (with and without stencil)
 
 # 4) add check for discontinuous() function and check its existing use as this was incorrect
+
+# 5) change comment to clean/dirty (affects many tests)
