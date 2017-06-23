@@ -3786,6 +3786,8 @@ def test_redundant_computation_continuous_bounds_no_depth():
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth()-1)" in result
 
 
 def test_redundant_computation_continuous_depth():
@@ -3810,10 +3812,11 @@ def test_redundant_computation_continuous_depth():
     assert "CALL f1_proxy%set_clean(2)" in result
 
 
-def test_redundant_computation_discontinuous_bounds_depth():
-    '''Test that the loop bounds for a discontinuous function (iterating over
-    cells) are modified appropriately after applying the redundant
-    computation transformation with a fixed value for bounds'''
+def test_redundant_computation_discontinuous_depth():
+    '''Test that the loop bounds for a discontinuous function (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly after applying the redundant computation transformation
+    with a fixed value for bounds '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -3833,8 +3836,9 @@ def test_redundant_computation_discontinuous_bounds_depth():
 
 def test_redundant_computation_dofs_depth():
     '''Test that the loop bounds when iterating over dofs are modified
-    appropriately after applying the redundant computation
-    transformation with a fixed value for halo depth'''
+    appropriately and set_clean() added correctly after applying the
+    redundant computation transformation with a fixed value for halo
+    depth '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.0.1_single_builtin_set_by_ref.f90"),
                     api=TEST_API)
@@ -3848,6 +3852,8 @@ def test_redundant_computation_dofs_depth():
     result = str(psy.gen)
     print result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(3)" in result
 
 
 def test_redundant_computation_dofs_no_depth():
@@ -3867,13 +3873,12 @@ def test_redundant_computation_dofs_no_depth():
     result = str(psy.gen)
     print result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "CALL f1_proxy%set_dirty()" not in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 # todo
 # 1) generate set field clean as appropriate
-# a) continuous fixed bounds > 1 ::: done
 # b) none with continuous fixed bounds =1 - other tests will check?
-# c) with discontinuous fixed bounds >= 1 ::: done
-# d) with dofs fixed bounds >= 1
 # e) continuous not fixed bounds?
 # f) discontinuous not fixed bounds?
 # g) dofs not fixed bounds?

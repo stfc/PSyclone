@@ -2557,32 +2557,43 @@ class DynLoop(Loop):
                         # set_dirty() and set_clean() with OpenMP Master
                         parent.add(DirectiveGen(parent, "omp", "begin",
                                                 "master", ""))
-                # first set all of the halo dirty
+                # first set all of the halo dirty unless we are
+                # subsequently going to set all of the halo clean
                 for field in fields:
-                    if field.vector_size > 1:
-                        # the range function below returns values from
-                        # 1 to the vector size which is what we
-                        # require in our Fortran code
-                        for index in range(1, field.vector_size+1):
-                            parent.add(CallGen(parent, name=field.proxy_name +
-                                               "(" + str(index) +
-                                               ")%set_dirty()"))
+                    if not self._upper_bound_index and (self._upper_bound_name == "dof_halo" or (self._upper_bound_name == "cell_halo" and field.discontinuous)):
+                        # do not output set dirty as it will all be set to clean
+                        pass
                     else:
-                        parent.add(CallGen(parent, name=field.proxy_name +
-                                           "%set_dirty()"))
+                        if field.vector_size > 1:
+                            # the range function below returns values from
+                            # 1 to the vector size which is what we
+                            # require in our Fortran code
+                            for index in range(1, field.vector_size+1):
+                                parent.add(CallGen(parent, name=field.proxy_name +
+                                                   "(" + str(index) +
+                                                   ")%set_dirty()"))
+                        else:
+                            parent.add(CallGen(parent, name=field.proxy_name +
+                                               "%set_dirty()"))
                 # now set appropriate parts of the halo clean where
                 # redundant computation has been performed
                 if self._upper_bound_name in ["cell_halo", "dof_halo"]:
                     for field in fields:
                         if self._upper_bound_index:
                             halo_depth = self._upper_bound_index
-                            if not field.discontinuous and self._upper_bound_name == "cell_halo":
+                            if not field.discontinuous and \
+                               self._upper_bound_name == "cell_halo":
                                 halo_depth -= 1
                             if halo_depth > 0:
                                 parent.add(CallGen(parent, name="{0}%set_clean({1})".
                                                    format(field.proxy_name, halo_depth)))
                         else:
-                            parent.add(CallGen(parent, name="xxx%set_clean(xxx)"))
+                            halo_depth = "mesh%get_last_halo_depth()"
+                            if self._upper_bound_name == "cell_halo" and not field.discontinuous:
+                                halo_depth += "-1"
+                            parent.add(CallGen(parent, name="{0}%set_clean({1})".
+                                               format(field.proxy_name,
+                                                      halo_depth)))
                     
                 if use_omp_master:
                     # I am within an OpenMP Do directive so protect
