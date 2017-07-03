@@ -10,9 +10,9 @@
 
 import os
 import pytest
-from parse import parse
-from psyGen import PSyFactory, GenerationError
-from transformations import TransformationError, \
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
     Dynamo0p3OMPLoopTrans, \
@@ -1739,7 +1739,7 @@ def test_multi_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child)
@@ -1814,7 +1814,7 @@ def test_reduction_after_normal_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
@@ -1891,7 +1891,7 @@ def test_reprod_reduction_after_normal_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
@@ -1996,7 +1996,7 @@ def test_two_reductions_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
@@ -2075,7 +2075,7 @@ def test_two_reprod_reductions_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
@@ -2184,7 +2184,7 @@ def test_multi_reduction_same_name_real_do():
             otrans = Dynamo0p3OMPLoopTrans()
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do to the loop
-            from psyGen import Loop
+            from psyclone.psyGen import Loop
             for child in schedule.children:
                 if isinstance(child, Loop):
                     schedule, _ = otrans.apply(child, reprod=reprod)
@@ -2251,7 +2251,7 @@ def test_multi_different_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child)
@@ -2325,7 +2325,7 @@ def test_multi_builtins_reduction_then_standard_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child)
@@ -2393,7 +2393,7 @@ def test_multi_builtins_reduction_then_standard_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
@@ -2599,7 +2599,7 @@ def test_multi_builtins_standard_then_reduction_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child)
@@ -2951,7 +2951,7 @@ def test_no_global_sum_in_parallel_region():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
@@ -2981,7 +2981,7 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
@@ -3264,8 +3264,8 @@ def test_reprod_three_builtins_two_reductions_do():
     '''test that we generate correct reproducible OpenMP do reductions
     when we have three different builtins, first a reduction, then a
     normal builtin then a reduction. '''
-    from dynamo0p3 import DynLoop
-    from psyGen import OMPDoDirective
+    from psyclone.dynamo0p3 import DynLoop
+    from psyclone.psyGen import OMPDoDirective
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3357,8 +3357,8 @@ def test_reprod_three_builtins_two_reductions_do():
 
 def test_reprod_view(capsys):
     '''test that we generate a correct view() for OpenMP do reductions '''
-    from dynamo0p3 import DynLoop
-    from psyGen import OMPDoDirective
+    from psyclone.dynamo0p3 import DynLoop
+    from psyclone.psyGen import OMPDoDirective
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3451,7 +3451,7 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert len(schedule.reductions(reprod=not reprod)) == 0
             assert len(schedule.reductions()) == 1
-            from dynamo0p3_builtins import DynInnerProductKern
+            from psyclone.dynamo0p3_builtins import DynInnerProductKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
                                DynInnerProductKern))
 

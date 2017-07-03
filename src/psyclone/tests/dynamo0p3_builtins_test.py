@@ -13,8 +13,9 @@
 # imports
 import os
 import pytest
-from parse import parse, ParseError
-from psyGen import PSyFactory, GenerationError
+from psyclone.parse import parse, ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone import dynamo0p3_builtins
 
 
 # constants
@@ -27,7 +28,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_dynbuiltin_missing_defs():
     ''' Check that we raise an appropriate error if we cannot find the
     file specifying meta-data for built-in kernels '''
-    import dynamo0p3_builtins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
     with pytest.raises(ParseError) as excinfo:
@@ -42,7 +42,6 @@ def test_dynbuiltin_missing_defs():
 def test_dynbuiltin_not_over_dofs():
     ''' Check that we raise an appropriate error if we encounter a
     built-in that does not iterate over dofs '''
-    import dynamo0p3_builtins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
@@ -62,7 +61,6 @@ def test_dynbuiltin_not_over_dofs():
 def test_builtin_multiple_writes():
     ''' Check that we raise an appropriate error if we encounter a built-in
     that writes to more than one argument '''
-    import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -83,7 +81,6 @@ def test_builtin_write_and_inc():
     ''' Check that we raise an appropriate error if we encounter a built-in
     that updates more than one argument where one is gh_write and one is
     gh_inc '''
-    import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -104,7 +101,6 @@ def test_builtin_sum_and_inc():
     ''' Check that we raise an appropriate error if we encounter a built-in
     that updates more than one argument where one is gh_sum and one is
     gh_inc '''
-    import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -124,7 +120,6 @@ def test_builtin_sum_and_inc():
 def test_builtin_zero_writes(monkeypatch):
     ''' Check that we raise an appropriate error if we encounter a built-in
     that does not write to any field '''
-    import dynamo0p3_builtins
     # Use pytest's monkeypatch support to change our configuration to
     # point to a file containing broken meta-data for the
     # built-ins. The definition for axpby that it contains erroneously
@@ -144,7 +139,6 @@ def test_builtin_zero_writes(monkeypatch):
 def test_builtin_no_field_args():
     ''' Check that we raise appropriate error if we encounter a built-in
     that does not have any field arguments '''
-    import dynamo0p3_builtins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
@@ -163,7 +157,6 @@ def test_builtin_no_field_args():
 def test_builtin_operator_arg():
     ''' Check that we raise appropriate error if we encounter a built-in
     that takes something other than a field or scalar argument '''
-    import dynamo0p3_builtins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
@@ -186,7 +179,6 @@ def test_builtin_operator_arg():
 def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if we encounter a built-in
     that has arguments on different function spaces '''
-    import dynamo0p3_builtins
     # Save the name of the actual builtin-definitions file
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
@@ -210,7 +202,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
 def test_dynbuiltincallfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected '''
-    from dynamo0p3_builtins import DynBuiltInCallFactory
+    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
     assert str(dyninf) == "Factory for a call to a Dynamo built-in"
 
@@ -218,7 +210,7 @@ def test_dynbuiltincallfactory_str():
 def test_dynbuiltin_wrong_name():
     ''' Check that DynInfCallFactory.create() raises an error if it
     doesn't recognise the name of the kernel it is passed '''
-    from dynamo0p3_builtins import DynBuiltInCallFactory
+    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
     # We use 'duck-typing' - rather than attempt to create a rather
     # complex Kernel object we use a ParseError object and monkey
@@ -246,7 +238,7 @@ def test_invalid_builtin_kernel():
 def test_dynbuiltin_str():
     ''' Check that we raise an error if we attempt to call the __str__
     method on the parent DynBuiltIn class '''
-    from dynamo0p3_builtins import DynBuiltIn
+    from psyclone.dynamo0p3_builtins import DynBuiltIn
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
@@ -263,7 +255,7 @@ def test_dynbuiltin_str():
 def test_dynbuiltin_gen_code():
     ''' Check that we raise an error if we attempt to call the gen_code()
     method on the parent DynBuiltIn class '''
-    from dynamo0p3_builtins import DynBuiltIn
+    from psyclone.dynamo0p3_builtins import DynBuiltIn
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
@@ -295,7 +287,7 @@ def test_dynbuiltin_cma():
 def test_dynbuiltfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected. '''
-    from dynamo0p3_builtins import DynBuiltInCallFactory
+    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
     factory = DynBuiltInCallFactory()
     assert "Factory for a call to a Dynamo built-in" in str(factory)
 
@@ -2378,7 +2370,6 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
 def test_scalar_int_builtin_error(monkeypatch):
     ''' Test that specifying that a built-in has an integer scalar
     argument raises the expected error '''
-    import dynamo0p3_builtins
     # Point to fake built-in kernel metadata
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,

@@ -42,6 +42,7 @@
     particular API and implementation. '''
 
 import abc
+import psyclone
 import config
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -78,10 +79,10 @@ def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
     the supplied API is valid. '''
     if api == "":
-        from config import DEFAULTAPI
+        from psyclone.config import DEFAULTAPI
         api = DEFAULTAPI
     else:
-        from config import SUPPORTEDAPIS as supported_types
+        from psyclone.config import SUPPORTEDAPIS as supported_types
         if api not in supported_types:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "

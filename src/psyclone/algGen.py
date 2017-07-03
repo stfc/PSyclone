@@ -64,7 +64,7 @@ class Alg(object):
 
         '''
         from fparser import api
-        from f2pygen import adduse
+        from psyclone.f2pygen import adduse
         psy_name = self._psy.name
         # run through all statements looking for procedure calls
         idx = 0

@@ -11,8 +11,8 @@
 
 import os
 import pytest
-from generator import generate, GenerationError
-from algGen import NoInvokesError
+from psyclone.generator import generate, GenerationError
+from psyclone.algGen import NoInvokesError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
