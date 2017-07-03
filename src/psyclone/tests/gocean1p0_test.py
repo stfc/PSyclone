@@ -9,11 +9,11 @@
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-from parse import parse
-from psyGen import PSyFactory
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
 import pytest
 import os
-from generator import GenerationError, ParseError
+from psyclone.generator import GenerationError, ParseError
 
 API = "gocean1.0"
 
@@ -886,7 +886,7 @@ def test_gosched_ijstop():
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOSchedule
     as a parent '''
-    from gocean1p0 import GOLoop
+    from psyclone.gocean1p0 import GOLoop
     goloop = GOLoop(loop_type="inner")
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
@@ -897,7 +897,7 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    from gocean1p0 import GOLoop, GOSchedule
+    from psyclone.gocean1p0 import GOLoop, GOSchedule
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -912,7 +912,7 @@ def test_goloop_no_children():
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
-    from gocean1p0 import GOLoop, GOSchedule, GOKern
+    from psyclone.gocean1p0 import GOLoop, GOSchedule, GOKern
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -930,7 +930,7 @@ def test_goloop_unsupp_offset():
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
-    from gocean1p0 import GOLoop, GOSchedule, GOKern
+    from psyclone.gocean1p0 import GOLoop, GOSchedule, GOKern
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -1140,7 +1140,7 @@ def test13_kernel_invalid_fortran():
 def test14_no_builtins():
     ''' Check that we raise an error if we attempt to create a
     built-in '''
-    from gocean1p0 import GOBuiltInCallFactory
+    from psyclone.gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
     assert ("Built-ins are not supported for the GOcean" in str(excinfo.value))

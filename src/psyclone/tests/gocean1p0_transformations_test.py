@@ -9,12 +9,13 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
-from parse import parse
-from psyGen import PSyFactory
-from transformations import TransformationError, GOConstLoopBoundsTrans,\
-    LoopFuseTrans, OMPParallelTrans, GOceanOMPParallelLoopTrans,\
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.transformations import TransformationError, \
+    GOConstLoopBoundsTrans, LoopFuseTrans, OMPParallelTrans, \
+    GOceanOMPParallelLoopTrans,\
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
-from generator import GenerationError
+from psyclone.generator import GenerationError
 import os
 from utils import count_lines
 import pytest
@@ -735,7 +736,7 @@ def test_omp_loop_applied_to_non_loop():
     _, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
     schedule = invoke.schedule
 
-    from transformations import OMPLoopTrans
+    from psyclone.transformations import OMPLoopTrans
     ompl = OMPLoopTrans()
     omp_schedule, _ = ompl.apply(schedule.children[0])
 
