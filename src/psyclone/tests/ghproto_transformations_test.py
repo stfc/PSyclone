@@ -8,9 +8,9 @@
 
 ''' Tests for transformations applied to the GH-proto API '''
 
-from parse import parse
-from psyGen import PSyFactory
-from transformations import LoopFuseTrans
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
+from psyclone.transformations import LoopFuseTrans
 import os
 import pytest
 
