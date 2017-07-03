@@ -9,7 +9,7 @@
 def trans(psy):
     ''' a test loop fusion transformation for use with the transformation
     unit tests '''
-    from transformations import LoopFuseTrans
+    from psyclone.transformations import LoopFuseTrans
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     del schedule.children[4:7]

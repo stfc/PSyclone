@@ -8,8 +8,8 @@
 def trans(psy):
     ''' a valid trans function which produces an attribute error as
     we have mistyped apply()'''
-    from psyGen import Loop
-    from transformations import ColourTrans
+    from psyclone.psyGen import Loop
+    from psyclone.transformations import ColourTrans
     ctrans = ColourTrans()
     schedule = psy.invokes.get("invoke_0_testkern_type").schedule
     for child in schedule.children:
