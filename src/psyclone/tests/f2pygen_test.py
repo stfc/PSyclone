@@ -8,8 +8,8 @@
 
 ''' Tests for the f2pygen module of PSyclone '''
 
-from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen,\
-    AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
+from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
+    CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
 from utils import line_number, count_lines
 import pytest
@@ -505,7 +505,7 @@ def test_subgen_args():
 def test_directive_wrong_type():
     ''' Check that we raise an error if we request a Directive of
     unrecognised type '''
-    from psyGen import Node
+    from psyclone.psyGen import Node
     parent = Node()
     with pytest.raises(RuntimeError) as err:
         _ = DirectiveGen(parent,
@@ -517,7 +517,7 @@ def test_directive_wrong_type():
 def test_ompdirective_wrong():
     ''' Check that we raise an error if we request an OMP Directive of
     unrecognised type '''
-    from psyGen import Node
+    from psyclone.psyGen import Node
     parent = Node()
     with pytest.raises(RuntimeError) as err:
         _ = DirectiveGen(parent,
@@ -529,7 +529,7 @@ def test_ompdirective_wrong():
 def test_ompdirective_wrong_posn():
     ''' Check that we raise an error if we request an OMP Directive with
     an invalid position '''
-    from psyGen import Node
+    from psyclone.psyGen import Node
     parent = Node()
     with pytest.raises(RuntimeError) as err:
         _ = DirectiveGen(parent,
@@ -540,7 +540,7 @@ def test_ompdirective_wrong_posn():
 
 def test_ompdirective_type():
     ''' Check that we can query the type of an OMP Directive '''
-    from psyGen import Node
+    from psyclone.psyGen import Node
     parent = Node()
     dirgen = DirectiveGen(parent,
                           "omp", "begin", "do",
@@ -552,8 +552,8 @@ def test_ompdirective_type():
 def test_basegen_add_auto():
     ''' Check that attempting to call add on BaseGen raises an error if
     position is "auto"'''
-    from psyGen import Node
-    from f2pygen import BaseGen
+    from psyclone.psyGen import Node
+    from psyclone.f2pygen import BaseGen
     parent = Node()
     bgen = BaseGen(parent, parent)
     obj = Node()
@@ -565,8 +565,8 @@ def test_basegen_add_auto():
 def test_basegen_add_invalid_posn():
     '''Check that attempting to call add on BaseGen with an invalid
     position argument raises an error'''
-    from psyGen import Node
-    from f2pygen import BaseGen
+    from psyclone.psyGen import Node
+    from psyclone.f2pygen import BaseGen
     parent = Node()
     bgen = BaseGen(parent, parent)
     obj = Node()
@@ -590,7 +590,7 @@ def test_basegen_append():
 def test_basegen_append_default():
     ''' Check if no position argument is supplied to BaseGen.add() then it
     defaults to appending '''
-    from f2pygen import BaseGen
+    from psyclone.f2pygen import BaseGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -849,7 +849,7 @@ def test_adduse_empty_only():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
-    from f2pygen import adduse
+    from psyclone.f2pygen import adduse
     # Add a use statement with only=True but an empty list of entities
     adduse("fred", sub.root, only=True, funcnames=[])
     assert count_lines(sub.root, "USE fred") == 1
@@ -864,7 +864,7 @@ def test_adduse():
     module.add(sub)
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
-    from f2pygen import adduse
+    from psyclone.f2pygen import adduse
     adduse("fred", call.root, only=True, funcnames=["astaire"])
     gen = str(sub.root)
     expected = ("    SUBROUTINE testsubroutine()\n"
@@ -880,7 +880,7 @@ def test_adduse_default_funcnames():
     module.add(sub)
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
-    from f2pygen import adduse
+    from psyclone.f2pygen import adduse
     adduse("fred", call.root)
     gen = str(sub.root)
     expected = ("    SUBROUTINE testsubroutine()\n"
@@ -1044,7 +1044,7 @@ def test_declgen_multiple_use2():
 @pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
 def test_selectiongen():
     ''' Check that SelectionGen works as expected '''
-    from f2pygen import SelectionGen
+    from psyclone.f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -1068,7 +1068,7 @@ def test_selectiongen():
 def test_selectiongen_addcase():
     ''' Check that SelectionGen.addcase() works as expected when no
     content is supplied'''
-    from f2pygen import SelectionGen
+    from psyclone.f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -1086,7 +1086,7 @@ def test_selectiongen_addcase():
 @pytest.mark.xfail(reason="Adding a CASE to a SELECT TYPE does not work")
 def test_typeselectiongen():
     ''' Check that SelectionGen works as expected for a type '''
-    from f2pygen import SelectionGen
+    from psyclone.f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
