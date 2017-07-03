@@ -1,7 +1,7 @@
 
 ''' Module containing tests for the Fortran expression parser '''
 
-from expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
+from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
 
 
 def my_test(name, parser, test_string, names=None):
@@ -11,8 +11,8 @@ def my_test(name, parser, test_string, names=None):
     the whitespace conventions of the unparser for the test to succeed.'''
     # These imports are required in order for the exec in the code below
     # to work
-    from expression import Grouping, BinaryOperator, FunctionVar, Slicing, \
-        LiteralArray, NamedArg
+    from psyclone.expression import Grouping, BinaryOperator, FunctionVar, \
+        Slicing, LiteralArray, NamedArg
     pstr = parser.parseString(test_string)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
     # ast.literal_eval can't be used here as the generated expression
