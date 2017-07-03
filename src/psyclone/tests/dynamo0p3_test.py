@@ -47,15 +47,15 @@
 # imports
 import os
 import pytest
-from parse import parse, ParseError
-from psyGen import PSyFactory, GenerationError
+from psyclone.parse import parse, ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
     DynGlobalSum
-from transformations import LoopFuseTrans
-from genkernelstub import generate
+from psyclone.transformations import LoopFuseTrans
+from psyclone.genkernelstub import generate
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -65,7 +65,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_get_op_wrong_name():  # pylint: disable=invalid-name
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
-    from dynamo0p3 import get_fs_operator_name
+    from psyclone.dynamo0p3 import get_fs_operator_name
     with pytest.raises(GenerationError) as err:
         get_fs_operator_name("not_an_op", FunctionSpace("w3", None))
     assert "Unsupported name 'not_an_op' found" in str(err)
@@ -73,7 +73,7 @@ def test_get_op_wrong_name():  # pylint: disable=invalid-name
 
 def test_get_op_orientation_name():  # pylint: disable=invalid-name
     ''' Test that get_operator_name() works for the orientation operator '''
-    from dynamo0p3 import get_fs_operator_name
+    from psyclone.dynamo0p3 import get_fs_operator_name
     name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
     assert name == "orientation_w3"
 
@@ -2685,14 +2685,15 @@ def test_stub_non_existant_filename():
 def test_stub_invalid_api():
     ''' fail if the specified api is not supported '''
     with pytest.raises(GenerationError) as excinfo:
-        generate("test_files/dynamo0p3/ru_kernel_mod.f90", api="dynamo0.1")
+        generate(os.path.join(BASE_PATH, "ru_kernel_mod.f90"), api="dynamo0.1")
     assert "Unsupported API 'dynamo0.1' specified" in str(excinfo.value)
 
 
 def test_stub_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
     with pytest.raises(ParseError) as excinfo:
-        generate("dynamo0p3_test.py", api="dynamo0.3")
+        generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "dynamo0p3_test.py"), api="dynamo0.3")
     assert 'the file does not contain a module. Is it a Kernel file?' \
         in str(excinfo.value)
 
@@ -2700,7 +2701,7 @@ def test_stub_file_content_not_fortran():
 def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
-        generate("test_files/dynamo0p3/testkern_invalid_fortran.F90",
+        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
                  api="dynamo0.3")
     assert 'invalid Fortran' in str(excinfo.value)
 
@@ -2708,7 +2709,8 @@ def test_stub_file_fortran_invalid():
 def test_file_fortran_not_kernel():
     ''' fail if file is valid fortran but is not a kernel file '''
     with pytest.raises(ParseError) as excinfo:
-        generate("test_files/dynamo0p3/1_single_invoke.f90", api="dynamo0.3")
+        generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                 api="dynamo0.3")
     assert 'file does not contain a module. Is it a Kernel file?' \
         in str(excinfo.value)
 
@@ -2716,7 +2718,7 @@ def test_file_fortran_not_kernel():
 def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError) as excinfo:
-        generate("test_files/dynamo0p3/testkern_short_name.F90",
+        generate(os.path.join(BASE_PATH, "testkern_short_name.F90"),
                  api="dynamo0.3")
     assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
@@ -2724,14 +2726,14 @@ def test_module_name_too_short():
 def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
     with pytest.raises(ParseError) as excinfo:
-        generate("test_files/dynamo0p3/testkern.F90", api="dynamo0.3")
+        generate(os.path.join(BASE_PATH, "testkern.F90"), api="dynamo0.3")
     assert "does not have '_mod' as an extension" in str(excinfo.value)
 
 
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(RuntimeError) as excinfo:
-        generate("test_files/dynamo0p3/testkern_no_datatype.F90",
+        generate(os.path.join(BASE_PATH, "testkern_no_datatype.F90"),
                  api="dynamo0.3")
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
@@ -2755,7 +2757,7 @@ SIMPLE = (
 
 def test_stub_generate_working():
     ''' check that the stub generate produces the expected output '''
-    result = generate("test_files/dynamo0p3/simple.f90",
+    result = generate(os.path.join(BASE_PATH, "simple.f90"),
                       api="dynamo0.3")
     print SIMPLE
     print result
@@ -2765,7 +2767,7 @@ def test_stub_generate_working():
 def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
-    result = generate("test_files/dynamo0p3/simple.f90")
+    result = generate(os.path.join(BASE_PATH, "simple.f90"))
     print result
     assert str(result).find(SIMPLE) != -1
 
@@ -2792,7 +2794,7 @@ SIMPLE_WITH_SCALARS = (
 def test_stub_generate_with_scalars():
     ''' check that the stub generate produces the expected output when
     the kernel has scalar arguments '''
-    result = generate("test_files/dynamo0p3/simple_with_scalars.f90",
+    result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
                       api="dynamo0.3")
     print result
     assert str(result).find(SIMPLE_WITH_SCALARS) != -1
@@ -2824,7 +2826,7 @@ def test_stub_generate_with_scalar_sums():
     a reduction (since these are not permitted for user-supplied kernels)'''
     with pytest.raises(ParseError) as err:
         _ = generate(
-            "test_files/dynamo0p3/simple_with_reduction.f90",
+            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
             api="dynamo0.3")
     assert (
         "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
@@ -3638,12 +3640,12 @@ def test_kernel_stub_usage():
     from subprocess import Popen, STDOUT, PIPE
 
     usage_msg = (
-        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] [-l] filename\n"
-        "genkernelstub.py: error: too few arguments")
+        "usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename\n"
+        "genkernelstub: error: too few arguments")
 
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
-    out = Popen(['python', '../genkernelstub.py'],
+    out = Popen(['genkernelstub'],
                 stdout=PIPE,
                 stderr=STDOUT).communicate()[0]
     assert usage_msg in out
@@ -3655,7 +3657,7 @@ def test_kernel_stub_gen_cmd_line():
     from subprocess import Popen, PIPE
     # We use the Popen constructor here rather than check_output because
     # the latter is only available in Python 2.7 onwards.
-    out = Popen(["python", "../genkernelstub.py",
+    out = Popen(["genkernelstub",
                  os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
                 stdout=PIPE).communicate()[0]
 
@@ -4153,8 +4155,8 @@ def test_mangle_no_space_error():
     ''' Tests that an error is raised in mangle_fs_name()
     when none of the provided kernel arguments are on the
     specified space '''
-    from dynamo0p3 import mangle_fs_name
-    from psyGen import FieldNotFoundError
+    from psyclone.dynamo0p3 import mangle_fs_name
+    from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
                            api="dynamo0.3")
@@ -4169,7 +4171,7 @@ def test_mangle_no_space_error():
 
 def test_mangle_function_space():
     ''' Tests that we correctly mangle the function space name '''
-    from dynamo0p3 import mangle_fs_name
+    from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
                            api="dynamo0.3")
@@ -4183,7 +4185,7 @@ def test_mangle_function_space():
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
     any_space '''
-    from dynamo0p3 import mangle_fs_name
+    from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api="dynamo0.3")
@@ -4224,7 +4226,7 @@ def test_arg_descriptor_init_error():
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that GH_INVALID is actually valid
-    from dynamo0p3 import VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    from psyclone.dynamo0p3 import VALID_ARG_TYPE_NAMES, DynArgDescriptor03
     keep = []
     keep.extend(VALID_ARG_TYPE_NAMES)
     VALID_ARG_TYPE_NAMES.append("GH_INVALID")
@@ -4288,8 +4290,8 @@ def test_dynkern_op_name():
 
 def test_dist_memory_true():
     ''' test that the distributed memory flag is on by default '''
-    import config
-    assert config.DISTRIBUTED_MEMORY
+    import psyclone.config
+    assert psyclone.config.DISTRIBUTED_MEMORY
 
 
 def test_halo_dirty_1():
@@ -5736,7 +5738,7 @@ def test_stencil_extent_specified():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
-    from dynamo0p3 import stencil_unique_str
+    from psyclone.dynamo0p3 import stencil_unique_str
     with pytest.raises(GenerationError) as err:
         stencil_unique_str(stencil_arg, "")
     assert ("found a stencil with an extent specified in the metadata. "
@@ -6115,7 +6117,7 @@ def test_dynkernelarguments_unexpected_stencil_extent():
     # to be passed so an associated error will be raised)
     del call.args[2]
     # finally call our object to raise the error
-    from dynamo0p3 import DynKernelArguments
+    from psyclone.dynamo0p3 import DynKernelArguments
     with pytest.raises(GenerationError) as err:
         _ = DynKernelArguments(call, None)
     assert "extent metadata not yet supported" in str(err)
@@ -6409,7 +6411,7 @@ def test_unexpected_type_error():
         # sabotage one of the arguments to make it have an invalid type.
         kernel.arguments.args[0]._type = "invalid"
         # Now call KernCallArgList to raise an exception
-        from dynamo0p3 import KernCallArgList
+        from psyclone.dynamo0p3 import KernCallArgList
         create_arg_list = KernCallArgList(kernel)
         with pytest.raises(GenerationError) as excinfo:
             create_arg_list.generate()
@@ -6435,7 +6437,7 @@ def test_argordering_exceptions():
             index = 0
         loop = schedule.children[index]
         kernel = loop.children[0]
-        from dynamo0p3 import ArgOrdering
+        from psyclone.dynamo0p3 import ArgOrdering
         create_arg_list = ArgOrdering(kernel)
         for method in [create_arg_list.cell_position,
                        create_arg_list.mesh_height,
@@ -6472,7 +6474,7 @@ def test_kernel_args_has_op():
         api="dynamo0.3")
     # find the parsed code's call class
     call = invoke_info.calls.values()[0].kcalls[0]
-    from dynamo0p3 import DynKernelArguments
+    from psyclone.dynamo0p3 import DynKernelArguments
     dka = DynKernelArguments(call, None)
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
@@ -6492,10 +6494,10 @@ def test_kernel_stub_invalid_scalar_argument():  # pylint: disable=invalid-name
     arg = kernel.arguments.args[1]
     arg._type = "invalid"
     # create a temporary module to add code into
-    from f2pygen import ModuleGen
+    from psyclone.f2pygen import ModuleGen
     module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
-    from dynamo0p3 import KernStubArgList
+    from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel, module)
     with pytest.raises(GenerationError) as excinfo:
         create_arg_list.scalar(arg)
@@ -6514,10 +6516,10 @@ def test_kernel_stub_ind_dofmap_errors():  # pylint: disable=invalid-name
     kernel = DynKern()
     kernel.load_meta(metadata)
     # create a temporary module to add code into
-    from f2pygen import ModuleGen
+    from psyclone.f2pygen import ModuleGen
     module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
-    from dynamo0p3 import KernStubArgList
+    from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel, module)
     # First call it without an argument object
     with pytest.raises(GenerationError) as excinfo:
@@ -6548,7 +6550,7 @@ def test_kerncallarglist_arglist_error():
             index = 0
         loop = schedule.children[index]
         kernel = loop.children[0]
-        from dynamo0p3 import KernCallArgList
+        from psyclone.dynamo0p3 import KernCallArgList
         create_arg_list = KernCallArgList(kernel)
         with pytest.raises(GenerationError) as excinfo:
             _ = create_arg_list.arglist
@@ -6568,10 +6570,10 @@ def test_kernstubarglist_arglist_error():
     kernel = DynKern()
     kernel.load_meta(metadata)
     # create a temporary module to add code into
-    from f2pygen import ModuleGen
+    from psyclone.f2pygen import ModuleGen
     module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
-    from dynamo0p3 import KernStubArgList
+    from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel, module)
     with pytest.raises(GenerationError) as excinfo:
         _ = create_arg_list.arglist
@@ -6754,7 +6756,8 @@ def test_stub_generate_with_anyw2():
     '''check that the stub generate produces the expected output when we
     have any_w2 fields. In particular, check basis functions as these
     have specific sizes associated with the particular function space'''
-    result = generate("test_files/dynamo0p3/testkern_multi_anyw2_basis.f90",
+    result = generate(os.path.join(BASE_PATH,
+                                   "testkern_multi_anyw2_basis.f90"),
                       api="dynamo0.3")
     print result
     expected_output = (

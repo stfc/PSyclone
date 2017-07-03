@@ -44,14 +44,14 @@
 import argparse
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKern, DynKernMetadata
-from psyGen import GenerationError
-from parse import ParseError
-from config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.psyGen import GenerationError
+from psyclone.parse import ParseError
+from psyclone.config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
+from psyclone.line_length import FortLineLength
 import os
 import sys
 import traceback
-from line_length import FortLineLength
 
 
 def generate(filename, api=""):
