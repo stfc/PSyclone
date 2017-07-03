@@ -14,20 +14,17 @@ the "bin" directory to PATH.
 
 # Structure #
 
-bin/           	    : top-level driver scripts for PSyclone and the Kernel
-               	      stub generator
-changelog      	    : information on changes between releases
-contributions/ 	    : Unsupported additional material
-doc/           	    : documentation source using sphinx
-examples/      	    : simple examples
-psyclone.pdf   	    : generated documentation
-README.md      	    : this file
-README.gource  	    : information on how to generate a gource video from the
-               	      repository
-README.uml     	    : information on how to create UML class diagrams from the
-                      source using pyreverse
-src/psyclone   	    : the python source code
-src/psyclone/tests/ : unit and functional tests using pytest
+| bin/           	    | top-level driver scripts for PSyclone and the Kernel stub generator |
+| changelog      	    | information on changes between releases |
+| contributions/ 	    | Unsupported additional material |
+| doc/           	    | documentation source using sphinx |
+| examples/      	    | simple examples |
+| psyclone.pdf   	    | generated documentation |
+| README.md      	    | this file |
+| README.gource  	    | information on how to generate a gource video from the repository |
+| README.uml     	    | information on how to create UML class diagrams from the source using pyreverse |
+| src/psyclone   	    | the python source code |
+| src/psyclone/tests/ | unit and functional tests using pytest |
 
 # Status #
 
