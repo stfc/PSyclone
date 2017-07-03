@@ -44,14 +44,14 @@
 
 # imports
 import os
-from parse import Descriptor, KernelType, ParseError
-import expression as expr
+from psyclone.parse import Descriptor, KernelType, ParseError
+import psyclone.expression as expr
 import fparser
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
-import psyGen
-import config
+from psyclone import psyGen, config
+
 
 # first section : Parser specialisations and classes
 
