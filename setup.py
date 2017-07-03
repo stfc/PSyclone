@@ -93,5 +93,5 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser'],
-        include_package_data=True)
-
+        include_package_data=True,
+        scripts=['bin/psyclone'])
