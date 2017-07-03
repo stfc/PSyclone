@@ -94,4 +94,4 @@ if __name__ == '__main__':
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser'],
         include_package_data=True,
-        scripts=['bin/psyclone'])
+        scripts=['bin/psyclone', 'bin/genkernelstub'])
