@@ -11,8 +11,8 @@
 # imports
 import os
 import pytest
-from line_length import FortLineLength
-from generator import generate
+from psyclone.line_length import FortLineLength
+from psyclone.generator import generate
 
 # functions
 

@@ -11,7 +11,7 @@ function. '''
 
 import os
 import pytest
-from parse import parse, ParseError
+from psyclone.parse import parse, ParseError
 
 
 def test_continuators_kernel():
@@ -37,7 +37,7 @@ def test_continuators_algorithm():
 def test_get_builtin_defs_wrong_api():
     ''' Check that we raise an appropriate error if we call
     get_builtin_defs() with an invalid API '''
-    import parse as pparse
+    import psyclone.parse as pparse
     with pytest.raises(ParseError) as excinfo:
         _, _ = pparse.get_builtin_defs('invalid_api')
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
@@ -46,7 +46,7 @@ def test_get_builtin_defs_wrong_api():
 def test_kerneltypefactory_wrong_api():
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
-    from parse import KernelTypeFactory
+    from psyclone.parse import KernelTypeFactory
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
@@ -55,8 +55,8 @@ def test_kerneltypefactory_wrong_api():
 def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
-    from parse import KernelTypeFactory
-    from config import DEFAULTAPI
+    from psyclone.parse import KernelTypeFactory
+    from psyclone.config import DEFAULTAPI
     factory = KernelTypeFactory(api="")
     assert factory._type == DEFAULTAPI
 
@@ -64,7 +64,7 @@ def test_kerneltypefactory_default_api():
 def test_kerneltypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
-    from parse import KernelTypeFactory
+    from psyclone.parse import KernelTypeFactory
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
@@ -77,12 +77,12 @@ def test_kerneltypefactory_create_broken_type():
 def test_broken_builtin_metadata():
     ''' Check that we raise an appropriate error if there is a problem
     with the meta-data describing the built-ins for a given API '''
-    import dynamo0p3_builtins
+    from psyclone import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
     defs_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3", "broken_builtins_mod.f90")
-    from parse import BuiltInKernelTypeFactory
+    from psyclone.parse import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -94,8 +94,8 @@ def test_broken_builtin_metadata():
 def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
-    import dynamo0p3_builtins
-    from parse import BuiltInKernelTypeFactory
+    from psyclone import dynamo0p3_builtins
+    from psyclone.parse import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -122,7 +122,7 @@ def test_builtin_with_use():
 def test_element_unpack():
     ''' Check that the unpack method of the Element class behaves as
     expected when passed a string '''
-    from parse import Element
+    from psyclone.parse import Element
     ele = Element()
     output = ele.unpack("andy")
     assert str(output) == "andy"

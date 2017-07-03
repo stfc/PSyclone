@@ -23,14 +23,14 @@
 import os
 import pytest
 from fparser import api as fpapi
-from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
+from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
-from psyGen import GenerationError, FieldNotFoundError, HaloExchange
-from dynamo0p3 import DynKern, DynKernMetadata
-from parse import parse
-from transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
-from generator import generate
+from psyclone.psyGen import GenerationError, FieldNotFoundError, HaloExchange
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.parse import parse
+from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
+from psyclone.generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -50,7 +50,7 @@ def test_psyfactory_valid_return_object():  # pylint: disable=invalid-name
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from config import SUPPORTEDAPIS
+    from psyclone.config import SUPPORTEDAPIS
     apis = SUPPORTEDAPIS
     apis.insert(0, "")
     for api in apis:
@@ -480,7 +480,7 @@ def test_kern_class_view(capsys):
 def test_call_local_vars():
     ''' Check that calling the abstract local_vars() method of Call raises
     the expected exception '''
-    from psyGen import Call, Arguments
+    from psyclone.psyGen import Call, Arguments
     my_arguments = Arguments(None)
 
     class KernType(object):
@@ -506,7 +506,7 @@ def test_written_arg():
     ''' Check that we raise the expected exception when Kern.written_arg()
     is called for a kernel that doesn't have an argument that is written
     to '''
-    from psyGen import Kern
+    from psyclone.psyGen import Kern
     # Change the kernel metadata so that the only kernel argument has
     # read access
     import fparser
@@ -575,7 +575,7 @@ def test_ompdo_directive_class_view(capsys):
 def test_call_abstract_methods():
     ''' Check that calling __str__() and gen_code() on the base Call
     class raises the expected exception '''
-    from psyGen import Call
+    from psyclone.psyGen import Call
     # Monkey-patch a GenerationError object to mock-up suitable
     # arguments to create a Call
     fake_call = GenerationError("msg")
@@ -583,7 +583,7 @@ def test_call_abstract_methods():
     fake_ktype.iterates_over = "something"
     fake_call.ktype = fake_ktype
     fake_call.module_name = "a_name"
-    from psyGen import Arguments
+    from psyclone.psyGen import Arguments
     fake_arguments = Arguments(None)
     my_call = Call(fake_call, fake_call, name="a_name",
                    arguments=fake_arguments)
@@ -717,7 +717,7 @@ def test_call_multi_reduction_error(monkeypatch):
     Kernel or a Builtin) with more than one reduction in it. Since we have
     a rule that only Builtins can write to scalars we need a built-in that
     attempts to perform two reductions. '''
-    import dynamo0p3_builtins
+    from psyclone import dynamo0p3_builtins
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "multi_reduction_builtins_mod.f90"))
@@ -788,7 +788,7 @@ def test_named_invoke_name_clash():
 def test_invalid_reprod_pad_size():
     '''Check that we raise an exception if the pad size in config.py is
     set to an invalid value '''
-    import config
+    from psyclone import config
     keep = config.REPROD_PAD_SIZE
     config.REPROD_PAD_SIZE = 0
     for distmem in [True, False]:
@@ -801,7 +801,8 @@ def test_invalid_reprod_pad_size():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
-        from transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans
+        from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
+            OMPParallelTrans
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do directive to the loop
@@ -1348,7 +1349,7 @@ def test_omp_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from transformations import DynamoOMPParallelLoopTrans
+    from psyclone.transformations import DynamoOMPParallelLoopTrans
     otrans = DynamoOMPParallelLoopTrans()
     for child in schedule.children:
         schedule, _ = otrans.apply(child)
@@ -1399,7 +1400,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from transformations import DynamoOMPParallelLoopTrans
+    from psyclone.transformations import DynamoOMPParallelLoopTrans
     otrans = DynamoOMPParallelLoopTrans()
     for child in schedule.children:
         schedule, _ = otrans.apply(child)
@@ -1515,7 +1516,7 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from psyGen import Schedule
+    from psyclone.psyGen import Schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
@@ -1546,7 +1547,7 @@ def test_openmp_pdo_dag_name():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from transformations import DynamoOMPParallelLoopTrans
+    from psyclone.transformations import DynamoOMPParallelLoopTrans
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP parallelisation to the loop
     schedule, _ = otrans.apply(schedule.children[0])
@@ -1563,7 +1564,8 @@ def test_omp_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
-    from transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans
+    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
+        OMPParallelTrans
     olooptrans = Dynamo0p3OMPLoopTrans()
     ptrans = OMPParallelTrans()
     # Put an OMP PARALLEL around this loop
