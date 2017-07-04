@@ -80,9 +80,13 @@ SHORT_VERSION = "{0:d}.{1:d}".format(MAJOR, MINOR)
 VERSION = "{0:d}.{1:d}.{2:d}".format(MAJOR, MINOR, MICRO)
 
 
-def write_version_py(filename='src/psyclone/version.py'):
+def write_version_py(filename=None):
     ''' Write a python module containing the current version
     of PSyclone. This is used when generating documentation. '''
+    import os
+    if not filename:
+        filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "src", "psyclone", "version.py")
     content = '''
 # This file is GENERATED from PSyclone setup.py
 short_version="{short_version:s}"
