@@ -7,7 +7,24 @@ Please see psyclone.pdf in this directory for more information. If you would
 prefer to build the documentation, please see the README file in the "doc"
 directory.
 
-There is a simple installer (contributions/install) which creates a
+# Installation #
+
+If you are reading this then you have presumably not already installed
+PSyclone from the Python Package Index (https://pypi.python.org/pypi).
+That being so, you can install this copy of PSyclone by doing:
+
+    $ python setup.py install
+
+or, if you have pip:
+
+    $ pip install .
+
+The latter attempts to perform a system-wide install. For a user-local
+installation simply add the --user flag:
+
+    $ pip install --user .
+
+There is also a simple installer (contributions/install) which creates a
 stand-alone tree containing the functional components. To make use of the
 result add the python package directories to PYTHONPATH and consider adding
 the "bin" directory to PATH.
@@ -17,16 +34,16 @@ the "bin" directory to PATH.
 Path | Description
 ---- | -----------
 bin/ | top-level driver scripts for PSyclone and the Kernel stub generator
-changelog      	    | information on changes between releases
+changelog      	    | Information on changes between releases
 contributions/ 	    | Unsupported additional material
-doc/           	    | documentation source using sphinx
-examples/      	    | simple examples
-psyclone.pdf   	    | generated documentation
-README.md      	    | this file
-README.gource  	    | information on how to generate a gource video from the repository
-README.uml     	    | information on how to create UML class diagrams from the source using pyreverse
-src/psyclone   	    | the python source code
-src/psyclone/tests/ | unit and functional tests using pytest
+doc/           	    | Documentation source using sphinx
+examples/      	    | Simple examples
+psyclone.pdf   	    | Generated documentation
+README.md      	    | This file
+README.gource  	    | Information on how to generate a gource video from the repository
+README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
+src/psyclone   	    | The python source code
+src/psyclone/tests/ | Unit and functional tests using pytest
 
 # Status #
 
