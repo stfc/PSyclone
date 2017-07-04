@@ -76,9 +76,33 @@ CLASSIFIERS = [
 MAJOR = 1
 MINOR = 4
 MICRO = 1
-VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
+SHORT_VERSION = "{0:d}.{1:d}".format(MAJOR, MINOR)
+VERSION = "{0:d}.{1:d}.{2:d}".format(MAJOR, MINOR, MICRO)
+
+
+def write_version_py(filename='src/psyclone/version.py'):
+    ''' Write a python module containing the current version
+    of PSyclone. This is used when generating documentation. '''
+    content = '''
+# This file is GENERATED from PSyclone setup.py
+short_version="{short_version:s}"
+version="{version:s}"
+'''
+    vfile = open(filename, 'w')
+    try:
+        vfile.write(content.format(short_version=SHORT_VERSION,
+                                   version=VERSION))
+    finally:
+        vfile.close()
+
 
 if __name__ == '__main__':
+
+    # Rewrite the version file everytime
+    import os
+    if os.path.exists('src/psyclone/version.py'):
+        os.remove('src/psyclone/version.py')
+    write_version_py()
 
     setup(
         name=NAME,

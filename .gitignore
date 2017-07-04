@@ -8,3 +8,4 @@ htmlcov
 dag
 dag.png
 dag.svg
+src/psyclone/version.py
