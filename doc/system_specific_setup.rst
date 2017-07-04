@@ -28,21 +28,22 @@ Change directory to where you would like to place the code (where
 
    > cd <PSYCLONEHOME>
 
-Now download and extract the latest release of PSyclone:
+Now download and extract the latest release of PSyclone, e.g.:
 ::
 
-   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
-   > gunzip 1.4.1.tar.gz
-   > tar xf 1.4.1.tar
-   > rm 1.4.1.tar
+   > wget https://github.com/stfc/PSyclone/archive/1.4.2.tar.gz
+   > gunzip 1.4.2.tar.gz
+   > tar xf 1.4.2.tar
+   > rm 1.4.2.tar
 
-Set your python path appropriately:
+Set your python path and path appropriately:
 ::
 
-   > cd PSyclone-1.4.1
+   > cd PSyclone-1.4.2
    > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
+   > export PATH=`pwd`/bin:${PATH}
 
-You may want to set your python path permanently (e.g. by editing your
+You may want to set these paths permanently (e.g. by editing your
 ${HOME}/.bashrc file if you run the BASH shell).
 
 Install Python packages using apt package manager
@@ -138,7 +139,7 @@ Install pytest for running python tests
 You can now run the PSyclone python tests
 ::
 
-   > cd PSyclone_trunk/src/tests
+   > cd PSyclone-1.4.2/src/psyclone/tests
    > py.test
 
 Documentation

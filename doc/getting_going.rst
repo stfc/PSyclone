@@ -10,19 +10,20 @@ PSyclone is available on github.
 
 ``https://github.com/stfc/PSyclone``
 
-The latest release is 1.4.1 and the latest stable version is on the master branch.
+The latest release is |release| and the latest stable version is on
+the master branch.
 
-PSyclone releases can be downloaded (see ``1.4.1`` in the releases tab
-on the website) or you can download and extract the latest release of
-PSyclone directly
+PSyclone releases can be downloaded (see |release| in the ``releases`` tab
+on the github website) or you can download and extract the latest release of
+PSyclone directly, e.g.
 ::
 
-   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
-   > gunzip 1.4.1.tar.gz
-   > tar xf 1.4.1.tar
-   > rm 1.4.1.tar
+   > wget https://github.com/stfc/PSyclone/archive/1.4.2.tar.gz
+   > gunzip 1.4.2.tar.gz
+   > tar xf 1.4.2.tar
+   > rm 1.4.2.tar
    > ls
-   PSyclone-1.4.1
+   PSyclone-1.4.2
    
 
 Alternatively PSyclone can be cloned:
@@ -32,10 +33,10 @@ Alternatively PSyclone can be cloned:
 By default you will have access to the master branch if you clone. To
 change to the latest release then subsequently do the following
 
-``git checkout tags/1.4.1``
+``git checkout tags/1.4.2``
 
 Hereon the location where you download or clone PSyclone (including the
-PSyclone directory itself) will be refered to as <PSYCLONEHOME>
+PSyclone directory itself) will be referred to as <PSYCLONEHOME>
 
 Dependencies
 ------------
@@ -180,10 +181,24 @@ Environment
 
 In order to use PSyclone (including running the test suite and
 building documentation) you will need to tell Python where to find the
-PSyclone source:
+PSyclone source modules and the driver script (``psyclone``) must be
+in your PATH. The simplest way to do this is to use pip with the
+supplied ``setup.py`` file:
+::
+    > cd <PSYCLONEHOME>
+    > pip install .
+
+By default pip will attempt a system-wide install. If you wish to do
+a user-local install instead then supply the ``--user`` flag:
+::
+    > pip install --user .
+
+If for some reason you'd rather not use pip then you can set your
+PYTHONPATH and PATH variables manually:
 ::
 
     > export PYTHONPATH=<PSYCLONEHOME>/src:${PYTHONPATH}
+    > export PATH=<PSYCLONEHOME>/bin:${PATH}
 
 Test
 ----
@@ -194,7 +209,7 @@ the PSyclone test suite. These tests are not required and can be
 skipped if preferred:
 ::
 
-    > cd <PSYCLONEHOME>/src/tests
+    > cd <PSYCLONEHOME>/src/psyclone/tests
     > py.test
 
 If everything is working as expected then you should see output similar to:
@@ -224,17 +239,17 @@ Run
 ---
 
 You are now ready to try running PSyclone on the examples. One way of
-doing this is to use the generator.py script:
+doing this is to use the ``psyclone`` driver script. Assuming it is
+on your PATH:
 ::
 
-    > cd <PSYCLONEHOME>/src
-    > python ./generator.py 
-    usage: generator.py [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
-                        [-d DIRECTORY] [-l]
-                        filename
-    generator.py: error: too few arguments
+    > psyclone
+    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
+                    [-d DIRECTORY] [-l] [-dm] [-nodm]
+                    filename
+    psyclone: error: too few arguments
 
-As indicated above, the generator.py script takes the name of the
+As indicated above, the psyclone script takes the name of the
 Fortran source file containing the algorithm specification (in terms
 of calls to invoke()). It parses this, finds the necessary kernel
 source files and produces two Fortran files. The first contains the
@@ -251,7 +266,7 @@ one of the dynamo examples
 ::
 
     > cd <PSYCLONEHOME>/examples/dynamo/eg1
-    > python ../../../src/generator.py -api dynamo0.1 \
+    > psyclone -api dynamo0.1 \
     > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
 You should see two new files created called dynamo_alg.f90 (containing
@@ -264,8 +279,8 @@ You can also use the runme.py example to see the interactive
 API in action. This script contains:
 ::
 
-    from parse import parse
-    from psyGen import PSyFactory
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory
     
     # This example uses version 0.1 of the Dynamo API
     api="dynamo0.1"
@@ -319,7 +334,7 @@ of runme.py (above) and is therefore omitted here:
     schedule.view()
 
     # Get the list of possible loop transformations
-    from psyGen import TransInfo
+    from psyclone.psyGen import TransInfo
     t=TransInfo()
     print t.list
 
