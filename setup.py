@@ -44,7 +44,7 @@ PACKAGES = find_packages(where="src")
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
-          "Andrew Porter <andrew.porter@stfc.ac.uk")
+          "Andrew Porter <andrew.porter@stfc.ac.uk>")
 AUTHOR_EMAIL = 'rupert.ford@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
