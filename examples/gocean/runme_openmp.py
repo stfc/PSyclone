@@ -40,8 +40,8 @@ been loop-fused and then parallelised:
 
 '''
 
-from parse import parse
-from psyGen import PSyFactory, TransInfo
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory, TransInfo
 
 API = "gocean1.0"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
