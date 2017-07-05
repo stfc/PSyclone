@@ -110,10 +110,14 @@ meta-data (see :ref:`cma_meta_data_rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
-Quadrature rule
-+++++++++++++++
+Basis/Differential Basis Functions
+++++++++++++++++++++++++++++++++++
 
-.. note:: To be written.
+Kernels conforming to the Dynamo 0.3 API may require basis functions
+and/or differential basis functions. The points at which these functions
+are required is specified by the ``gh_shape`` component of the kernel
+meta-data. However, none of this is visible in the Algorithm layer - the
+necessary kernel arguments are obtained within the generated PSy layer.
 
 .. _dynamo0.3-alg-stencil:
 
@@ -262,7 +266,7 @@ types.
 
  4) Operators do not have halo operations operating on them as they
     are either cell- (LMA) or column-based (CMA) and therefore act
-    like discontinous fields.
+    like discontinuous fields.
 
  5) Any Kernel that writes to an operator will have its iteration
     space expanded such that valid values for the operator are
