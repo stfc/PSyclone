@@ -31,19 +31,14 @@
 
 module testkern_eval_mod
   type, extends(kernel_type) :: testkern_eval_type
-     type(arg_type), dimension(6) :: meta_args =    &
-          (/ arg_type(gh_field,  gh_write,w1), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_field,  gh_read, w2), &
-             arg_type(gh_real,   gh_read),     &
-             arg_type(gh_field,  gh_read, w3), &
-             arg_type(gh_integer,gh_read)      &
-           /)
-     type(func_type), dimension(3) :: meta_funcs =    &
-          (/ func_type(w1, gh_basis), &
-             func_type(w2, gh_diff_basis), &
-             func_type(w3, gh_basis, gh_diff_basis)  &
-           /)
+     type(arg_type)  :: meta_args(2) =  (/    &
+       arg_type(GH_FIELD,   GH_INC,  W0),             &
+       arg_type(GH_FIELD,   GH_READ, W1)              &
+       /)
+     type(func_type) :: meta_funcs(2) = (/                             &
+       func_type(W0, GH_BASIS),                                        &
+       func_type(W1, GH_DIFF_BASIS)                                  &
+       /)
      integer, parameter :: iterates_over = cells
      integer, parameter :: gh_shape = gh_evaluator
    contains

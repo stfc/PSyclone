@@ -45,6 +45,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -93,4 +94,44 @@ def test_single_kern_eval():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = psy.gen
     print gen_code
-    assert 0
+    expected = (
+        "  USE evaluate_function_mod, only : BASIS, DIFF_BASIS\n"
+        "\n"
+        "! declarations\n"
+        "real(kind=r_def), allocatable  :: diff_basis_w1(:,:,:), basis_w0(:,:,:)\n"
+        "integer(kind=i_def) :: ndf_w0, dim_w0, ndf_w1, diff_dim_w1\n"
+        "integer(kind=i_def) :: df_w0, df_w1\n"
+        "integer(kind=i_def) :: ndf_nodal, df_nodal\n"
+        "real(kind=r_def), pointer :: nodes(:,:) => null()\n"
+        "\n"
+        "! Get the nodes and number of degrees of freedom from the write field\n"
+        "ndf_nodal  = w0_field_proxy%vspace%get_ndf()\n"
+        "nodes => w0_field_proxy%vspace%get_nodes()\n"
+        "\n"
+        "! w0 GH_BASIS\n"
+        "ndf_w0  = w0_field_proxy%vspace%get_ndf( )\n"
+        "dim_w0  = w0_field_proxy%vspace%get_dim_space( )\n"
+        "allocate( basis_w0(dim_w0, ndf_w0, ndf_nodal) )\n"
+        "do df_nodal = 1, ndf_nodal\n"
+        "  do df_w0 = 1, ndf_w0\n"
+        "    basis_w0(:,df_w0,df_nodal) = w0_field_proxy%vspace%evaluate_function(BASIS,df_w0,nodes(:,df_nodal))\n"
+        "  end do\n"
+        "end do\n"
+        "\n"
+        "! w1 GH_DIFF_BASIS\n"
+        "ndf_w1  = w1_field_proxy%vspace%get_ndf()\n"
+        "diff_dim_w1  = w1_field_proxy%vspace%get_dim_space_diff()\n"
+        "allocate( diff_basis_w1(diff_dim_w1, ndf_w1, ndf_nodal) )\n"
+        "do df_nodal = 1, ndf_nodal\n"
+        "  do df_w1 = 1, ndf_w1\n"
+        "    diff_basis_w1(:,df_w1,df_nodal) = w1_field_proxy%vspace%evaluate_function(DIFF_BASIS,df_w1,nodes(:,df_nodal))\n"
+        "  end do\n"
+        "end do\n"
+        "\n"
+        "! calls\n"
+        "call kernel( ARGS....\n"
+        "             basis_w0, &\n"
+        "             diff_basis_w1, &\n"
+        "             ndf_nodal)\n")
+    print gen_code
+    assert expected in gen_code
