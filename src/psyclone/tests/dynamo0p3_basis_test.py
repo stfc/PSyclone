@@ -92,17 +92,23 @@ def test_single_kern_eval():
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1_eval_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen_code = psy.gen
+    gen_code = str(psy.gen)
     print gen_code
     expected = (
-        "  USE evaluate_function_mod, only : BASIS, DIFF_BASIS\n"
-        "\n"
-        "! declarations\n"
-        "real(kind=r_def), allocatable  :: diff_basis_w1(:,:,:), basis_w0(:,:,:)\n"
-        "integer(kind=i_def) :: ndf_w0, dim_w0, ndf_w1, diff_dim_w1\n"
-        "integer(kind=i_def) :: df_w0, df_w1\n"
-        "integer(kind=i_def) :: ndf_nodal, df_nodal\n"
-        "real(kind=r_def), pointer :: nodes(:,:) => null()\n"
+        "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
+        "      USE testkern_eval, ONLY: testkern_eval_code\n"
+        "      USE evaluate_function_mod, ONLY: BASIS, DIFF_BASIS\n"
+        "      TYPE(field_type), intent(inout) :: f0\n"
+        "      TYPE(field_type), intent(in) :: f1\n"
+        "      INTEGER cell\n"
+        "      REAL(KIND=r_def), allocatable  :: diff_basis_w1(:,:,:), "
+        "basis_w0(:,:,:)\n"
+        "      INTEGER :: dim_w0, diff_dim_w1\n"
+        "      INTEGER :: ndf_w0, undf_w0, ndf_w1, undf_w1\n"
+        "      INTEGER :: nlayers\n"
+        "      TYPE(field_proxy_type) f0_proxy, f1_proxy\n"
+        "      INTEGER, pointer :: map_w0(:,:) => null(), "
+        "map_w1(:,:) => null()\n"
         "\n"
         "! Get the nodes and number of degrees of freedom from the write field\n"
         "ndf_nodal  = w0_field_proxy%vspace%get_ndf()\n"
@@ -133,5 +139,4 @@ def test_single_kern_eval():
         "             basis_w0, &\n"
         "             diff_basis_w1, &\n"
         "             ndf_nodal)\n")
-    print gen_code
     assert expected in gen_code
