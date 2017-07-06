@@ -140,3 +140,25 @@ def test_single_kern_eval():
         "             diff_basis_w1, &\n"
         "             ndf_nodal)\n")
     assert expected in gen_code
+
+
+def test_two_qr():
+    ''' Check that we handle an invoke containing two kernels that each
+    require quadrature '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.2_single_invoke_2qr.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+
+
+def test_qr_plus_eval():
+    ''' Check that we handle an invoke containing two kernels, one
+    requiring quadrature and one requiring an evaluator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+
