@@ -1492,18 +1492,19 @@ class DynInvokeBasisFns(object):
             # Does this kernel require basis/diff basis functions?
             if call.eval_shape:
                 # It does. Need to figure out what they are and which
-                # function spaces they are on.
+                # kernel arguments they are associated with.
                 for fsd in call.fs_descriptors.descriptors:
+                    # We need the full FS object, not just the name
+                    arg = call.arguments.get_arg_on_space(fsd.fs_name,
+                                                          mangled=False)
                     # Which FS is this on and is it a basis or diff-basis
                     # function that is required?
                     entry = {"shape": call.eval_shape,
                              "write_space": call.updated_arg.function_space,
-                             "fspace": fsd.fs_name}
+                             "fspace": arg.function_space,
+                             "arg": arg}
                     if call.eval_shape in QUADRATURE_SHAPES:
-                        print dir(call)
-                        print "ARPDBG"
-                        exit(1)
-                        entry["qr_var"] = call
+                        entry["qr_var"] = call.qr_name
                     if fsd.requires_basis:
                         self._basis_fns.append(entry)
                     if fsd.requires_diff_basis:
@@ -1511,11 +1512,13 @@ class DynInvokeBasisFns(object):
 
     def initialise_basis_fns(self, parent):
         ''' '''
+        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, AllocateGen
+        var_dim_list = []
+        operator_declarations = []
         if self._basis_fns:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub,
-                                      " Initialise basis functions"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Initialise basis functions"))
+            parent.add(CommentGen(parent, ""))
             for fn in self._basis_fns:
                 if fn["shape"] in QUADRATURE_SHAPES:
                     # TODO Generate unique names for the integers holding the
@@ -1536,34 +1539,34 @@ class DynInvokeBasisFns(object):
                                    "wv": "wqp_v"}
                     qr_vars = ["nqp_h", "nqp_v"]
                     for qr_var in qr_ptr_vars.keys():
-                        invoke_sub.add(
+                        parent.add(
                             AssignGen(parent, pointer=True, lhs=qr_var,
                                       rhs=qr_var_name + "%get_" +
                                       qr_ptr_vars[qr_var] + "()"))
                     for qr_var in qr_vars:
-                        invoke_sub.add(
+                        parent.add(
                             AssignGen(parent, lhs=qr_var,
                                       rhs=qr_var_name + "%get_" + qr_var + "()"))
         if self._diff_basis_fns:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(
-                CommentGen(invoke_sub,
+            parent.add(CommentGen(parent, ""))
+            parent.add(
+                CommentGen(parent,
                            " Initialise differential basis functions"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
+            parent.add(CommentGen(parent, ""))
             for fn in self._diff_basis_fns:
                 # initialise 'dim' variable for this function space
                 # and add name to list to declare later
-                lhs = "_".join(["dim", shape, fn["fspace"].mangled_name])
+                lhs = "_".join(["dim", fn["shape"], fn["fspace"].mangled_name])
                 var_dim_list.append(lhs)
-                rhs = name+"%"+arg.ref_name(function_space)+"%get_dim_space()"
+                rhs = fn["arg"].name + "%" + fn["arg"].ref_name(fn["fspace"]) + "%get_dim_space()"
                 parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
                 
                 if fn["shape"] in QUADRATURE_SHAPES:
                     # allocate the basis function variable
                     alloc_args = "dim_" + fn["fspace"].mangled_name + ", " + \
                                  get_fs_ndf_name(fn["fspace"]) + ", nqp_h, nqp_v"
-                    op_name = self.get_fs_operator_name("gh_basis",
-                                                        fn["fspace"])
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   fn["fspace"])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
                     # add basis function variable to list to declare later
@@ -1587,24 +1590,20 @@ class DynInvokeBasisFns(object):
                 # space and add name to list to declare later
                 lhs = "diff_dim_" + fn["fspace"].mangled_name
                 var_dim_list.append(lhs)
-                rhs = name+"%" + arg.ref_name(fn["fspace"]) + \
+                rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
                     "%get_dim_space_diff()"
                 parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
                 # allocate the diff basis function variable
                 alloc_args = ("diff_dim_" + fn["fspace"].mangled_name +
                               ", " + get_fs_ndf_name(fn["fspace"]) +
                               ", nqp_h, nqp_v")
-                op_name = self.get_fs_operator_name("gh_diff_basis",
-                                                    function_space)
-                invoke_sub.add(AllocateGen(invoke_sub,
-                                           op_name+"("+alloc_args+")"))
+                op_name = get_fs_operator_name("gh_diff_basis",
+                                               fn["fspace"])
+                parent.add(AllocateGen(parent,
+                                       op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
 
-        if var_list:
-            # declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=var_list))
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
@@ -4172,15 +4171,23 @@ class DynKernelArguments(Arguments):
                     self._unique_fs_names.append(function_space.mangled_name)
                     self._unique_fss.append(function_space)
 
-    def get_arg_on_space(self, func_space):
+    def get_arg_on_space(self, func_space, mangled=True):
         '''Returns the first argument (field or operator) found that
         is on the specified function space. If no field or operator is
-        found an exception is raised.'''
+        found an exception is raised. If mangled is True then func_space
+        is a FunctionSpace object whose mangled name is to be used
+        for comparison. If it is false then func_space is just the
+        name of the function space as specified in the kernel metadata. '''
         for arg in self._args:
             for function_space in arg.function_spaces:
-                if function_space and \
-                   func_space.mangled_name == function_space.mangled_name:
-                    return arg
+                if function_space:
+                    if mangled:
+                        if func_space.mangled_name == function_space.mangled_name:
+                            return arg
+                    else:
+                        if func_space == function_space.orig_name:
+                            return arg
+                    
         raise FieldNotFoundError("DynKernelArguments:get_arg_on_space: there "
                                  "is no field or operator with function space "
                                  "{0}".format(func_space.mangled_name))
