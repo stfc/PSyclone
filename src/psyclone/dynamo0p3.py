@@ -1488,7 +1488,12 @@ class DynInvokeBasisFns(object):
         # of the corresponding kernel argument that is being updated.
         self._basis_fns = []
         self._diff_basis_fns = []
+        self._qr_vars = set()
         for call in schedule.kern_calls():
+            # Keep a list of the quadrature objects passed to this
+            # invoke
+            if call.eval_shape in QUADRATURE_SHAPES:
+                self._qr_vars.add(call.qr_name)
             # Does this kernel require basis/diff basis functions?
             if call.eval_shape:
                 # It does. Need to figure out what they are and which
@@ -1516,6 +1521,30 @@ class DynInvokeBasisFns(object):
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, AllocateGen
         var_dim_list = []
         basis_declarations = []
+
+        for qr_var_name in self._qr_vars:
+            print "Quadrature object is: ", qr_var_name
+            # We generate unique names for the integers holding the
+            # numbers of quadrature points by appending the name
+            # of the quadrature argument
+            qr_vars = ["nqp_h", "nqp_v"]
+            qr_ptr_vars = {"zp": "xqp_v", "xp": "xqp_h", "wh": "wqp_h",
+                           "wv": "wqp_v"}
+            parent.add(
+                DeclGen(parent, datatype="integer",
+                        entity_decls=[name+"_"+qr_var_name for name in qr_vars]))
+            parent.add(
+                DeclGen(parent, datatype="real", pointer=True,
+                        kind="r_def", entity_decls=["xp"+"_"+qr_var_name+"(:,:) => null()"]))
+            decl_list = [name+"_"+qr_var_name+"(:) => null()" for name in qr_ptr_vars]
+            parent.add(
+                DeclGen(parent, datatype="real", pointer=True,
+                        kind="r_def", entity_decls=decl_list))
+            for qr_var in qr_vars:
+                parent.add(
+                    AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
+                              rhs=qr_var_name + "%get_" + qr_var + "()"))
+
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise basis functions"))
@@ -1532,32 +1561,6 @@ class DynInvokeBasisFns(object):
                     # add basis function variable to list to declare later
                     basis_declarations.append(op_name+"(:,:,:,:)")
 
-                    # TODO Generate unique names for the integers holding the
-                    # numbers of quadrature points
-                    parent.add(
-                        DeclGen(parent, datatype="integer",
-                                entity_decls=["nqp_h", "nqp_v"]))
-                    parent.add(
-                        DeclGen(parent, datatype="real", pointer=True,
-                                kind="r_def", entity_decls=["xp(:,:) => null()"]))
-                    decl_list = ["zp(:) => null()", "wh(:) => null()",
-                                 "wv(:) => null()"]
-                    parent.add(
-                        DeclGen(parent, datatype="real", pointer=True,
-                                kind="r_def", entity_decls=decl_list))
-                    qr_var_name = fn["qr_var"]
-                    qr_ptr_vars = {"zp": "xqp_v", "xp": "xqp_h", "wh": "wqp_h",
-                                   "wv": "wqp_v"}
-                    qr_vars = ["nqp_h", "nqp_v"]
-                    for qr_var in qr_ptr_vars.keys():
-                        parent.add(
-                            AssignGen(parent, pointer=True, lhs=qr_var,
-                                      rhs=qr_var_name + "%get_" +
-                                      qr_ptr_vars[qr_var] + "()"))
-                    for qr_var in qr_vars:
-                        parent.add(
-                            AssignGen(parent, lhs=qr_var,
-                                      rhs=qr_var_name + "%get_" + qr_var + "()"))
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
             parent.add(
@@ -1606,9 +1609,6 @@ class DynInvokeBasisFns(object):
                     #alloc_args = ",".join(["dim_"+function_space.mangled_name,
                     #                       get_fs_ndf_name(function_space),
                     #                       ndf_nodal_name])
-                    
-                                   
-
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
