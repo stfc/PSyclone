@@ -1494,6 +1494,7 @@ class DynInvokeBasisFns(object):
                 # It does. Need to figure out what they are and which
                 # kernel arguments they are associated with.
                 for fsd in call.fs_descriptors.descriptors:
+
                     # We need the full FS object, not just the name
                     arg = call.arguments.get_arg_on_space(fsd.fs_name,
                                                           mangled=False)
@@ -1514,13 +1515,23 @@ class DynInvokeBasisFns(object):
         ''' '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, AllocateGen
         var_dim_list = []
-        operator_declarations = []
+        basis_declarations = []
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise basis functions"))
             parent.add(CommentGen(parent, ""))
             for fn in self._basis_fns:
+                print "Basis required for: ", fn["fspace"].orig_name, fn["arg"].name
                 if fn["shape"] in QUADRATURE_SHAPES:
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   fn["fspace"])
+                    alloc_args="an_int"
+                    parent.add(AllocateGen(parent,
+                                           op_name+"("+alloc_args+")"))
+
+                    # add basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:,:)")
+
                     # TODO Generate unique names for the integers holding the
                     # numbers of quadrature points
                     parent.add(
@@ -1554,6 +1565,7 @@ class DynInvokeBasisFns(object):
                            " Initialise differential basis functions"))
             parent.add(CommentGen(parent, ""))
             for fn in self._diff_basis_fns:
+                print "Diff basis required for: ", fn["fspace"].orig_name, fn["arg"].name
                 # initialise 'dim' variable for this function space
                 # and add name to list to declare later
                 lhs = "_".join(["dim", fn["shape"], fn["fspace"].mangled_name])
@@ -1563,14 +1575,24 @@ class DynInvokeBasisFns(object):
                 
                 if fn["shape"] in QUADRATURE_SHAPES:
                     # allocate the basis function variable
-                    alloc_args = "dim_" + fn["fspace"].mangled_name + ", " + \
-                                 get_fs_ndf_name(fn["fspace"]) + ", nqp_h, nqp_v"
-                    op_name = get_fs_operator_name("gh_basis",
+                    alloc_args = ("diff_dim_" + fn["fspace"].mangled_name +
+                                  ", " + get_fs_ndf_name(fn["fspace"]) +
+                                  ", nqp_h, nqp_v")
+                    op_name = get_fs_operator_name("gh_diff_basis",
                                                    fn["fspace"])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
                     # add basis function variable to list to declare later
-                    operator_declarations.append(op_name+"(:,:,:,:)")
+                    basis_declarations.append(op_name+"(:,:,:,:)")
+                    
+                    # initialise 'diff_dim' variable for this function
+                    # space and add name to list to declare later
+                    lhs = "diff_dim_" + fn["fspace"].mangled_name
+                    var_dim_list.append(lhs)
+                    rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
+                    "%get_dim_space_diff()"
+                    parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+
                 else:
                     # Have an evaluator.
                     # Need the number of dofs in the field being written by
@@ -1586,78 +1608,64 @@ class DynInvokeBasisFns(object):
                     #                       ndf_nodal_name])
                     
                                    
-                # initialise 'diff_dim' variable for this function
-                # space and add name to list to declare later
-                lhs = "diff_dim_" + fn["fspace"].mangled_name
-                var_dim_list.append(lhs)
-                rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
-                    "%get_dim_space_diff()"
-                parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-                # allocate the diff basis function variable
-                alloc_args = ("diff_dim_" + fn["fspace"].mangled_name +
-                              ", " + get_fs_ndf_name(fn["fspace"]) +
-                              ", nqp_h, nqp_v")
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               fn["fspace"])
-                parent.add(AllocateGen(parent,
-                                       op_name+"("+alloc_args+")"))
-                # add diff basis function variable to list to declare later
-                operator_declarations.append(op_name+"(:,:,:,:)")
+
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=var_dim_list))
-        if operator_declarations:
-            # declare the basis function operators
+        if basis_declarations:
+            # declare the basis function arrays
             parent.add(DeclGen(parent, datatype="real",
                                allocatable=True,
                                kind="r_def",
-                               entity_decls=operator_declarations))
+                               entity_decls=basis_declarations))
 
 
     def compute_basis_fns(self, parent):
-            # add calls to compute the values of any basis arrays
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Compute basis arrays"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            # only look at function spaces that are used by the
-            # kernels in this invoke
-            for function_space in self.unique_fss():
-                # see if a basis function is needed for this function space
-                if self.basis_required(function_space):
-                    # Create the argument list
-                    args = []
-                    op_name = self.get_fs_operator_name("gh_basis",
-                                                        function_space)
-                    args.append(op_name)
-                    args.append(get_fs_ndf_name(function_space))
-                    args.extend(["nqp_h", "nqp_v", "xp", "zp"])
-                    # find an appropriate field to access
-                    arg = self.arg_for_funcspace(function_space)
-                    name = arg.proxy_name_indexed
-                    # insert the basis array call
-                    invoke_sub.add(CallGen(invoke_sub,
-                                           name=name + "%" +
-                                           arg.ref_name(function_space) +
-                                           "%compute_basis_function",
-                                           args=args))
-                if self.diff_basis_required(function_space):
-                    # Create the argument list
-                    args = []
-                    op_name = self.get_fs_operator_name("gh_diff_basis",
-                                                        function_space)
-                    args.append(op_name)
-                    args.append(get_fs_ndf_name(function_space))
-                    args.extend(["nqp_h", "nqp_v", "xp", "zp"])
-                    # find an appropriate field to access
-                    arg = self.arg_for_funcspace(function_space)
-                    name = arg.proxy_name_indexed
-                    # insert the diff basis array call
-                    invoke_sub.add(
-                        CallGen(invoke_sub, name=name + "%" +
-                                arg.ref_name(function_space) +
-                                "%compute_diff_basis_function", args=args))
+        ''' Generates the necessary Fortran to compute the values of
+        any basis/diff-basis arrays required '''
+        from psyclone.f2pygen import CommentGen, AssignGen, CallGen
+        # add calls to compute the values of any basis arrays
+
+        if self._basis_fns:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Compute basis arrays"))
+            parent.add(CommentGen(parent, ""))
+            for fn in self._basis_fns:
+                # Create the argument list
+                args = []
+                op_name = get_fs_operator_name("gh_basis",
+                                               fn["fspace"])
+                args.append(op_name)
+                args.append(get_fs_ndf_name(fn["fspace"]))
+                args.extend(["nqp_h", "nqp_v", "xp", "zp"])
+                name = fn["arg"].proxy_name_indexed
+                # insert the basis array call
+                parent.add(CallGen(parent,
+                                   name=name + "%" +
+                                   fn["arg"].ref_name(fn["fspace"]) +
+                                   "%compute_basis_function",
+                                   args=args))
+        if self._diff_basis_fns:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Compute differential basis arrays"))
+            parent.add(CommentGen(parent, ""))
+            for fn in self._diff_basis_fns:
+                # Create the argument list
+                args = []
+                op_name = get_fs_operator_name("gh_diff_basis",
+                                               fn["fspace"])
+                args.append(op_name)
+                args.append(get_fs_ndf_name(fn["fspace"]))
+                args.extend(["nqp_h", "nqp_v", "xp", "zp"])
+                # find an appropriate field to access
+                name = fn["arg"].proxy_name_indexed
+                # insert the diff basis array call
+                parent.add(
+                    CallGen(parent, name=name + "%" +
+                            fn["arg"].ref_name(fn["fspace"]) +
+                            "%compute_diff_basis_function", args=args))
 
 
 class DynInvoke(Invoke):
@@ -1836,7 +1844,6 @@ class DynInvoke(Invoke):
                     # found a kernel that requires a basis function
                     # for this function space
                     shapes.add(kern_call.eval_shape)
-        print "shapes: ", shapes
         return shapes
 
     def diff_basis_required(self, func_space):
@@ -2178,7 +2185,7 @@ class DynInvoke(Invoke):
                                    entity_decls=["ncolour"]))
 
         # add calls to compute the values of any basis arrays
-        self.basis_fns.compute_basis_fns(invoke_sub)
+        self.evaluators.compute_basis_fns(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if config.DISTRIBUTED_MEMORY:

@@ -956,7 +956,7 @@ def test_field_qr():
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1(:,:,:,:), "
-        "diff_basis_w2(:,:,:,:), basis_w3(:,:,:,:), diff_basis_w3(:,:,:,:)\n"
+        "basis_w3(:,:,:,:), diff_basis_w2(:,:,:,:), diff_basis_w3(:,:,:,:)\n"
         "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
         "      REAL(KIND=r_def), pointer :: zp(:) => null(), wh(:) => null(), "
