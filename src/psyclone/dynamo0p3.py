@@ -1522,6 +1522,11 @@ class DynInvokeBasisFns(object):
         var_dim_list = []
         basis_declarations = []
 
+        if self._qr_vars:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Look-up quadrature variables"))
+            parent.add(CommentGen(parent, ""))
+
         for qr_var_name in self._qr_vars:
             print "Quadrature object is: ", qr_var_name
             # We generate unique names for the integers holding the
@@ -1540,6 +1545,11 @@ class DynInvokeBasisFns(object):
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind="r_def", entity_decls=decl_list))
+            for qr_var in qr_ptr_vars:
+                parent.add(
+                    AssignGen(parent, pointer=True, lhs=qr_var+"_"+qr_var_name,
+                              rhs=qr_var_name + "%get_" +
+                              qr_ptr_vars[qr_var] + "()"))
             for qr_var in qr_vars:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
@@ -1549,66 +1559,67 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise basis functions"))
             parent.add(CommentGen(parent, ""))
-            for fn in self._basis_fns:
-                print "Basis required for: ", fn["fspace"].orig_name, fn["arg"].name
-                if fn["shape"] in QUADRATURE_SHAPES:
-                    op_name = get_fs_operator_name("gh_basis",
-                                                   fn["fspace"])
-                    alloc_args="an_int"
-                    parent.add(AllocateGen(parent,
-                                           op_name+"("+alloc_args+")"))
 
-                    # add basis function variable to list to declare later
-                    basis_declarations.append(op_name+"(:,:,:,:)")
+        for fn in self._basis_fns:
+            print "Basis required for: ", fn["fspace"].orig_name, fn["arg"].name
+            if fn["shape"] in QUADRATURE_SHAPES:
+                op_name = get_fs_operator_name("gh_basis",
+                                               fn["fspace"])
+                alloc_args="an_int"
+                parent.add(AllocateGen(parent,
+                                       op_name+"("+alloc_args+")"))
+
+                # add basis function variable to list to declare later
+                basis_declarations.append(op_name+"(:,:,:,:)")
 
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(
-                CommentGen(parent,
-                           " Initialise differential basis functions"))
+            parent.add(CommentGen(parent,
+                                  " Initialise differential basis functions"))
             parent.add(CommentGen(parent, ""))
-            for fn in self._diff_basis_fns:
-                print "Diff basis required for: ", fn["fspace"].orig_name, fn["arg"].name
-                # initialise 'dim' variable for this function space
-                # and add name to list to declare later
-                lhs = "_".join(["dim", fn["shape"], fn["fspace"].mangled_name])
+
+        for fn in self._diff_basis_fns:
+            print "Diff basis required for: ", fn["fspace"].orig_name, fn["arg"].name
+            # initialise 'dim' variable for this function space
+            # and add name to list to declare later
+            lhs = "_".join(["dim", fn["shape"], fn["fspace"].mangled_name])
+            var_dim_list.append(lhs)
+            rhs = fn["arg"].name + "%" + fn["arg"].ref_name(fn["fspace"]) + "%get_dim_space()"
+            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+
+            if fn["shape"] in QUADRATURE_SHAPES:
+                # allocate the basis function variable
+                alloc_args = ("diff_dim_" + fn["fspace"].mangled_name +
+                              ", " + get_fs_ndf_name(fn["fspace"]) +
+                              ", nqp_h, nqp_v")
+                op_name = get_fs_operator_name("gh_diff_basis",
+                                               fn["fspace"])
+                # initialise 'diff_dim' variable for this function
+                # space and add name to list to declare later
+                lhs = "diff_dim_" + fn["fspace"].mangled_name
                 var_dim_list.append(lhs)
-                rhs = fn["arg"].name + "%" + fn["arg"].ref_name(fn["fspace"]) + "%get_dim_space()"
+                rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
+                "%get_dim_space_diff()"
                 parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-                
-                if fn["shape"] in QUADRATURE_SHAPES:
-                    # allocate the basis function variable
-                    alloc_args = ("diff_dim_" + fn["fspace"].mangled_name +
-                                  ", " + get_fs_ndf_name(fn["fspace"]) +
-                                  ", nqp_h, nqp_v")
-                    op_name = get_fs_operator_name("gh_diff_basis",
-                                                   fn["fspace"])
-                    parent.add(AllocateGen(parent,
-                                           op_name+"("+alloc_args+")"))
-                    # add basis function variable to list to declare later
-                    basis_declarations.append(op_name+"(:,:,:,:)")
-                    
-                    # initialise 'diff_dim' variable for this function
-                    # space and add name to list to declare later
-                    lhs = "diff_dim_" + fn["fspace"].mangled_name
-                    var_dim_list.append(lhs)
-                    rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
-                    "%get_dim_space_diff()"
-                    parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
-                else:
-                    # Have an evaluator.
-                    # Need the number of dofs in the field being written by
-                    # the kernel that requires this evaluator
+                parent.add(AllocateGen(parent,
+                                       op_name+"("+alloc_args+")"))
+                # add basis function variable to list to declare later
+                basis_declarations.append(op_name+"(:,:,:,:)")
 
-                    # ...and the list of nodes for that field
-                    parent.add(AssignGen(parent, lhs="nodes",
-                                         rhs="w0_field_proxy%vspace%get_nodes()",
-                                         pointer=True))
-                    # Allocate the basis function.
-                    #alloc_args = ",".join(["dim_"+function_space.mangled_name,
-                    #                       get_fs_ndf_name(function_space),
-                    #                       ndf_nodal_name])
+            else:
+                # Have an evaluator.
+                # Need the number of dofs in the field being written by
+                # the kernel that requires this evaluator
+
+                # ...and the list of nodes for that field
+                parent.add(AssignGen(parent, lhs="nodes",
+                                     rhs="w0_field_proxy%vspace%get_nodes()",
+                                     pointer=True))
+                # Allocate the basis function.
+                #alloc_args = ",".join(["dim_"+function_space.mangled_name,
+                #                       get_fs_ndf_name(function_space),
+                #                       ndf_nodal_name])
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
@@ -1666,6 +1677,31 @@ class DynInvokeBasisFns(object):
                     CallGen(parent, name=name + "%" +
                             fn["arg"].ref_name(fn["fspace"]) +
                             "%compute_diff_basis_function", args=args))
+
+    def deallocate(self, parent):
+        ''' Add code to deallocate all basis function arrays '''
+        from psyclone.f2pygen import CommentGen, DeallocateGen
+        if self._qr_vars:
+            # deallocate all allocated basis function arrays
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Deallocate basis arrays"))
+            parent.add(CommentGen(parent, ""))
+            func_space_var_names = []
+            return # ARPDBG
+            # loop over all function spaces used by the kernels in this invoke
+            for function_space in self.unique_fss():
+                if self.basis_required(function_space):
+                    # add the basis array name to the list to use later
+                    op_name = self.get_fs_operator_name("gh_basis",
+                                                        function_space)
+                    func_space_var_names.append(op_name)
+                if self.diff_basis_required(function_space):
+                    # add the diff_basis array name to the list to use later
+                    op_name = self.get_fs_operator_name("gh_diff_basis",
+                                                        function_space)
+                    func_space_var_names.append(op_name)
+            # add the required deallocate call
+            parent.add(DeallocateGen(parent, func_space_var_names))
 
 
 class DynInvoke(Invoke):
@@ -2172,6 +2208,10 @@ class DynInvoke(Invoke):
                                          rhs=name + "%" +
                                          arg.ref_name(function_space) +
                                          "%get_undf()"))
+        if var_list:
+            # declare ndf and undf for all function spaces
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=var_list))
 
         if self.is_coloured():
             # Add declarations of the colour map and array holding the
@@ -2196,26 +2236,10 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
-        if self.qr_required:
-            # deallocate all allocated basis function arrays
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Deallocate basis arrays"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            func_space_var_names = []
-            # loop over all function spaces used by the kernels in this invoke
-            for function_space in self.unique_fss():
-                if self.basis_required(function_space):
-                    # add the basis array name to the list to use later
-                    op_name = self.get_fs_operator_name("gh_basis",
-                                                        function_space)
-                    func_space_var_names.append(op_name)
-                if self.diff_basis_required(function_space):
-                    # add the diff_basis array name to the list to use later
-                    op_name = self.get_fs_operator_name("gh_diff_basis",
-                                                        function_space)
-                    func_space_var_names.append(op_name)
-            # add the required deallocate call
-            invoke_sub.add(DeallocateGen(invoke_sub, func_space_var_names))
+
+        # Deallocate any basis arrays
+        self.evaluators.deallocate(invoke_sub)
+
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # finally, add me to my parent
         parent.add(invoke_sub)
