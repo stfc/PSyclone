@@ -1532,8 +1532,11 @@ class DynInvokeBasisFns(object):
             # of quadrature points by appending the name of the quadrature
             # argument
             qr_vars = ["nqp_h", "nqp_v"]
-            qr_ptr_vars = {"zp": "xqp_v", "xp": "xqp_h", "wh": "wqp_h",
-                           "wv": "wqp_v"}
+            qr_ptr_vars_1d = {"zp": "xqp_v", "wh": "wqp_h",
+                              "wv": "wqp_v"}
+            # Python 2 has no one-line way of combining dicts
+            qr_ptr_vars = qr_ptr_vars_1d.copy()
+            qr_ptr_vars.update({"xp": "xqp_h"})
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
@@ -1542,7 +1545,7 @@ class DynInvokeBasisFns(object):
                 DeclGen(
                     parent, datatype="real", pointer=True, kind="r_def",
                     entity_decls=["xp"+"_"+qr_var_name+"(:,:) => null()"]))
-            decl_list = [name+"_"+qr_var_name+"(:) => null()" for name in qr_ptr_vars]
+            decl_list = [name+"_"+qr_var_name+"(:) => null()" for name in qr_ptr_vars_1d]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind="r_def", entity_decls=decl_list))
