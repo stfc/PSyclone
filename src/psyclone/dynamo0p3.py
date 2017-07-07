@@ -1560,7 +1560,7 @@ class DynInvokeBasisFns(object):
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Allocate basis functions"))
+            parent.add(CommentGen(parent, " Allocate basis arrays"))
             parent.add(CommentGen(parent, ""))
 
         for fn in self._basis_fns:
@@ -1591,7 +1591,7 @@ class DynInvokeBasisFns(object):
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
-                                  " Allocate differential basis functions"))
+                                  " Allocate differential basis arrays"))
             parent.add(CommentGen(parent, ""))
 
         for fn in self._diff_basis_fns:
@@ -1608,8 +1608,9 @@ class DynInvokeBasisFns(object):
                 # space and add name to list to declare later
                 lhs = "diff_dim_" + fn["fspace"].mangled_name
                 var_dim_list.append(lhs)
-                rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
-                      "%get_dim_space_diff()"
+                rhs = "%".join([fn["arg"].proxy_name_indexed,
+                                fn["arg"].ref_name(fn["fspace"]),
+                                "get_dim_space_diff()"])
                 parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
                 parent.add(AllocateGen(parent,
