@@ -1578,7 +1578,7 @@ class DynInvokeBasisFns(object):
                 print "RHS = ", rhs
                 parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
-                alloc_args = ",".join(["dim_" + fn["fspace"].mangled_name,
+                alloc_args = ", ".join(["dim_" + fn["fspace"].mangled_name,
                                        get_fs_ndf_name(fn["fspace"]),
                                        "nqp_h"+"_"+fn["qr_var"],
                                        "nqp_v"+"_"+fn["qr_var"]])
@@ -1598,7 +1598,7 @@ class DynInvokeBasisFns(object):
             print "Diff basis required for: ", fn["fspace"].orig_name, fn["arg"].name
             if fn["shape"] in QUADRATURE_SHAPES:
                 # allocate the basis function variable
-                alloc_args = ",".join(["diff_dim_" + fn["fspace"].mangled_name,
+                alloc_args = ", ".join(["diff_dim_" + fn["fspace"].mangled_name,
                                        get_fs_ndf_name(fn["fspace"]),
                                        "nqp_h"+"_"+fn["qr_var"],
                                        "nqp_v"+"_"+fn["qr_var"]])
@@ -1649,7 +1649,7 @@ class DynInvokeBasisFns(object):
         any basis/diff-basis arrays required '''
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen
         # add calls to compute the values of any basis arrays
-
+        qr_vars = ["nqp_h", "nqp_v", "xp", "zp"]
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Compute basis arrays"))
@@ -1661,7 +1661,7 @@ class DynInvokeBasisFns(object):
                                                fn["fspace"])
                 args.append(op_name)
                 args.append(get_fs_ndf_name(fn["fspace"]))
-                args.extend(["nqp_h", "nqp_v", "xp", "zp"])
+                args.extend([name +"_"+fn["qr_var"] for name in qr_vars])
                 name = fn["arg"].proxy_name_indexed
                 # insert the basis array call
                 parent.add(CallGen(parent,
@@ -1680,7 +1680,7 @@ class DynInvokeBasisFns(object):
                                                fn["fspace"])
                 args.append(op_name)
                 args.append(get_fs_ndf_name(fn["fspace"]))
-                args.extend(["nqp_h", "nqp_v", "xp", "zp"])
+                args.extend([name +"_"+fn["qr_var"] for name in qr_vars])
                 # find an appropriate field to access
                 name = fn["arg"].proxy_name_indexed
                 # insert the diff basis array call
