@@ -119,8 +119,6 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 psyGen.MAPPING_ACCESSES = FIELD_ACCESS_MAP
-#{"inc": "gh_inc", "write": "gh_write",
-#                           "read": "gh_read"}
 psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
 psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 
@@ -1518,7 +1516,8 @@ class DynInvokeBasisFns(object):
 
     def initialise_basis_fns(self, parent):
         ''' '''
-        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, AllocateGen
+        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
+            AllocateGen
         var_dim_list = []
         basis_declarations = []
 
@@ -1529,18 +1528,20 @@ class DynInvokeBasisFns(object):
 
         for qr_var_name in self._qr_vars:
             print "Quadrature object is: ", qr_var_name
-            # We generate unique names for the integers holding the
-            # numbers of quadrature points by appending the name
-            # of the quadrature argument
+            # We generate unique names for the integers holding the numbers
+            # of quadrature points by appending the name of the quadrature
+            # argument
             qr_vars = ["nqp_h", "nqp_v"]
             qr_ptr_vars = {"zp": "xqp_v", "xp": "xqp_h", "wh": "wqp_h",
                            "wv": "wqp_v"}
             parent.add(
-                DeclGen(parent, datatype="integer",
-                        entity_decls=[name+"_"+qr_var_name for name in qr_vars]))
+                DeclGen(
+                    parent, datatype="integer",
+                    entity_decls=[name+"_"+qr_var_name for name in qr_vars]))
             parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind="r_def", entity_decls=["xp"+"_"+qr_var_name+"(:,:) => null()"]))
+                DeclGen(
+                    parent, datatype="real", pointer=True, kind="r_def",
+                    entity_decls=["xp"+"_"+qr_var_name+"(:,:) => null()"]))
             decl_list = [name+"_"+qr_var_name+"(:) => null()" for name in qr_ptr_vars]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
@@ -1548,8 +1549,7 @@ class DynInvokeBasisFns(object):
             for qr_var in qr_ptr_vars:
                 parent.add(
                     AssignGen(parent, pointer=True, lhs=qr_var+"_"+qr_var_name,
-                              rhs=qr_var_name + "%get_" +
-                              qr_ptr_vars[qr_var] + "()"))
+                              rhs=qr_var_name + "%get_" + qr_ptr_vars[qr_var] + "()"))
             for qr_var in qr_vars:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
@@ -1557,15 +1557,28 @@ class DynInvokeBasisFns(object):
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Initialise basis functions"))
+            parent.add(CommentGen(parent, " Allocate basis functions"))
             parent.add(CommentGen(parent, ""))
 
         for fn in self._basis_fns:
-            print "Basis required for: ", fn["fspace"].orig_name, fn["arg"].name
+            print "Basis required for: ", fn["fspace"].orig_name, \
+                fn["arg"].name, fn["shape"]
             if fn["shape"] in QUADRATURE_SHAPES:
                 op_name = get_fs_operator_name("gh_basis",
                                                fn["fspace"])
-                alloc_args="an_int"
+                lhs = "dim_" + fn["fspace"].mangled_name
+                var_dim_list.append(lhs)
+                rhs = "%".join([fn["arg"].proxy_name_indexed,
+                                fn["arg"].ref_name(fn["fspace"]),
+                                "get_dim_space()"])
+                print "LHS = ", lhs
+                print "RHS = ", rhs
+                parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+
+                alloc_args = ",".join(["dim_" + fn["fspace"].mangled_name,
+                                       get_fs_ndf_name(fn["fspace"]),
+                                       "nqp_h"+"_"+fn["qr_var"],
+                                       "nqp_v"+"_"+fn["qr_var"]])
                 parent.add(AllocateGen(parent,
                                        op_name+"("+alloc_args+")"))
 
@@ -1575,23 +1588,17 @@ class DynInvokeBasisFns(object):
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
-                                  " Initialise differential basis functions"))
+                                  " Allocate differential basis functions"))
             parent.add(CommentGen(parent, ""))
 
         for fn in self._diff_basis_fns:
             print "Diff basis required for: ", fn["fspace"].orig_name, fn["arg"].name
-            # initialise 'dim' variable for this function space
-            # and add name to list to declare later
-            lhs = "_".join(["dim", fn["shape"], fn["fspace"].mangled_name])
-            var_dim_list.append(lhs)
-            rhs = fn["arg"].name + "%" + fn["arg"].ref_name(fn["fspace"]) + "%get_dim_space()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-
             if fn["shape"] in QUADRATURE_SHAPES:
                 # allocate the basis function variable
-                alloc_args = ("diff_dim_" + fn["fspace"].mangled_name +
-                              ", " + get_fs_ndf_name(fn["fspace"]) +
-                              ", nqp_h, nqp_v")
+                alloc_args = ",".join(["diff_dim_" + fn["fspace"].mangled_name,
+                                       get_fs_ndf_name(fn["fspace"]),
+                                       "nqp_h"+"_"+fn["qr_var"],
+                                       "nqp_v"+"_"+fn["qr_var"]])
                 op_name = get_fs_operator_name("gh_diff_basis",
                                                fn["fspace"])
                 # initialise 'diff_dim' variable for this function
@@ -1599,7 +1606,7 @@ class DynInvokeBasisFns(object):
                 lhs = "diff_dim_" + fn["fspace"].mangled_name
                 var_dim_list.append(lhs)
                 rhs = fn["arg"].name+"%" + fn["arg"].ref_name(fn["fspace"]) + \
-                "%get_dim_space_diff()"
+                      "%get_dim_space_diff()"
                 parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
                 parent.add(AllocateGen(parent,
@@ -2171,9 +2178,6 @@ class DynInvoke(Invoke):
         # Initialise CMA operators and associated parameters
         self.cma_ops.initialise_cma_ops(invoke_sub)
 
-        # Initialise basis and/or differential-basis functions
-        self.evaluators.initialise_basis_fns(invoke_sub)
-
         operator_declarations = []
         var_list = []
         var_dim_list = []
@@ -2183,8 +2187,7 @@ class DynInvoke(Invoke):
             # Initialise information associated with this function space
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(
-                CommentGen(invoke_sub, " Initialise sizes and "
-                           "allocate any basis arrays for " +
+                CommentGen(invoke_sub, " Initialise number of DoFs for " +
                            function_space.mangled_name))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             # Find an argument on this space to use to dereference
@@ -2212,6 +2215,9 @@ class DynInvoke(Invoke):
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_list))
+
+        # Initialise basis and/or differential-basis functions
+        self.evaluators.initialise_basis_fns(invoke_sub)
 
         if self.is_coloured():
             # Add declarations of the colour map and array holding the
@@ -2739,15 +2745,13 @@ class DynKern(Kern):
         # parsing the kernel meta-data
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
-        # dynamo 0.3 api kernels require quadrature rule arguments to be
-        # passed in if one or more basis functions are used by the kernel and
-        # gh_shape == "gh_quadrature_***".
-        self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
 
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
         self._qr_name = ""
+        self._qr_args = {}
+
         if self._basis_required and self._eval_shape in QUADRATURE_SHAPES:
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
@@ -2758,6 +2762,13 @@ class DynKern(Kern):
             self._qr_name = self._name_space_manager.create_name(
                 root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
+            # dynamo 0.3 api kernels require quadrature rule arguments to be
+            # passed in if one or more basis functions are used by the kernel and
+            # gh_shape == "gh_quadrature_***".
+            self._qr_args = {"nh": "nqp_h"+"_"+self._qr_name,
+                             "nv": "nqp_v"+"_"+self._qr_name,
+                             "h": "wh"+"_"+self._qr_name,
+                             "v": "wv"+"_"+self._qr_name}
 
     @property
     def cma_operation(self):
