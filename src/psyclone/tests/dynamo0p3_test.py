@@ -1074,7 +1074,7 @@ def test_field_qr():
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w1, diff_basis_w2, basis_w3, diff_basis_w3)\n"
+        "      DEALLOCATE (basis_w1, basis_w3. diff_basis_w2, diff_basis_w3)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_qr_type"
     )

@@ -1694,19 +1694,17 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, " Deallocate basis arrays"))
             parent.add(CommentGen(parent, ""))
             func_space_var_names = []
-            return # ARPDBG
-            # loop over all function spaces used by the kernels in this invoke
-            for function_space in self.unique_fss():
-                if self.basis_required(function_space):
-                    # add the basis array name to the list to use later
-                    op_name = self.get_fs_operator_name("gh_basis",
-                                                        function_space)
-                    func_space_var_names.append(op_name)
-                if self.diff_basis_required(function_space):
-                    # add the diff_basis array name to the list to use later
-                    op_name = self.get_fs_operator_name("gh_diff_basis",
-                                                        function_space)
-                    func_space_var_names.append(op_name)
+
+            for fn in self._basis_fns:
+                # add the basis array name to the list to use later
+                op_name = get_fs_operator_name("gh_basis",
+                                               fn["fspace"])
+                func_space_var_names.append(op_name)
+            for fn in self._diff_basis_fns:
+                # add the diff_basis array name to the list to use later
+                op_name = get_fs_operator_name("gh_diff_basis",
+                                               fn["fspace"])
+                func_space_var_names.append(op_name)
             # add the required deallocate call
             parent.add(DeallocateGen(parent, func_space_var_names))
 
