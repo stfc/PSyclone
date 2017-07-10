@@ -181,10 +181,8 @@ Environment
 -----------
 
 In order to use PSyclone (including running the test suite and
-building documentation) you will need to tell Python where to find the
-PSyclone source modules and the driver script (``psyclone``) must be
-in your PATH. The simplest way to do this is to use pip with the
-supplied ``setup.py`` file:
+building documentation) you will need to install it. The simplest way to
+do this is to use pip with the supplied ``setup.py`` file:
 ::
     > cd <PSYCLONEHOME>
     > pip install .
@@ -194,12 +192,22 @@ a user-local install instead then supply the ``--user`` flag:
 ::
     > pip install --user .
 
-If for some reason you'd rather not use pip then you can set your
-PYTHONPATH and PATH variables manually:
+This installs the PSyclone modules in
+~/.local/lib/pythonX.Y/site-packages (where X.Y is the version of
+Python that you are using) and the 'psyclone' script in
+~/.local/bin. Depending on your linux distribution, you may need to
+add the latter location to your $PATH.
+
+If for some reason you'd rather not use pip then you can run the setup
+manually:
 ::
 
-    > export PYTHONPATH=<PSYCLONEHOME>/src:${PYTHONPATH}
-    > export PATH=<PSYCLONEHOME>/bin:${PATH}
+    > python setup.py install
+
+or, if you don't have root access:
+::
+    > python setup.py install --prefix /my/install/path
+
 
 Test
 ----

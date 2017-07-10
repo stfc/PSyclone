@@ -15,14 +15,23 @@ That being so, you can install this copy of PSyclone by doing:
 
     $ python setup.py install
 
-or, if you have pip:
+or, if you do not have root access:
+
+    $ python setup.py install --prefix /my/install/path
+
+Alternatively, if you have pip:
 
     $ pip install .
 
-The latter attempts to perform a system-wide install. For a user-local
-installation simply add the --user flag:
+For a user-local installation simply add the --user flag:
 
     $ pip install --user .
+
+This installs the PSyclone modules in
+~/.local/lib/pythonX.Y/site-packages (where X.Y is the version of
+Python that you are using) and the 'psyclone' script in
+~/.local/bin. Depending on your linux distribution, you may need to
+add the latter location to your PATH.
 
 # Structure #
 

@@ -39,7 +39,7 @@ Now download and extract the latest release of PSyclone, e.g.:
 
 Set your python path and path appropriately:
 
-.. parsed-litera::
+.. parsed-literal::
 
    > cd PSyclone-\ |release|\ 
    > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
