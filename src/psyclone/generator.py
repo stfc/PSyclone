@@ -9,11 +9,12 @@
 # Author R. Ford STFC Daresbury Lab
 
 '''
-    This module provides the main PSyclone command line script which
+    This module provides the PSyclone 'main' routine which is intended
+    to be driven from the bin/psyclone executable script. 'main'
     takes an algorithm file as input and produces modified algorithm
-    code and generated PSy code. A function is also provided which has
-    the same functionality as the command line script but can be
-    called from within another Python program.
+    code and generated PSy code. A function, 'generate', is also provided
+    which has the same functionality as 'main' but can be called
+    from within another Python program.
 '''
 
 import argparse
