@@ -1741,7 +1741,7 @@ class DynInvokeBasisFns(object):
                     rhs = "%".join([fn["arg"].proxy_name_indexed,
                                     fn["arg"].ref_name(fn["fspace"]),
                                     "evaluate_function(BASIS,"+dof_loop_var+
-                                    ",nodes(:,"+nodal_loop_var+"))"])
+                                    ",nodes_"+fn["write_arg"].function_space.mangled_name+"(:,"+nodal_loop_var+"))"])
                     dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
         if self._diff_basis_fns:
@@ -1784,7 +1784,8 @@ class DynInvokeBasisFns(object):
                       +","+"df_nodal)"
                 rhs = "%".join([fn["arg"].proxy_name_indexed,
                                 fn["arg"].ref_name(fn["fspace"]),
-                                "evaluate_function(DIFF_BASIS,"+df_loop_var+",nodes_"+fn["fspace"].mangled_name+"(:,"+nodal_loop_var+"))"])
+                                "evaluate_function(DIFF_BASIS,"+df_loop_var+
+                                ",nodes_"+fn["write_arg"].function_space.mangled_name+"(:,"+nodal_loop_var+"))"])
                 dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
         if loop_var_list:

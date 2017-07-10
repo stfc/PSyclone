@@ -92,6 +92,7 @@ def test_single_kern_eval():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+    # First, check the declarations
     expected_decl = (
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
         "      USE testkern_eval, ONLY: testkern_eval_code\n"
@@ -110,7 +111,7 @@ def test_single_kern_eval():
         "      INTEGER, pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null()\n")
     assert expected_decl in gen_code
-
+    # Second, check the executable statements
     expected_code = (
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
@@ -132,20 +133,25 @@ def test_single_kern_eval():
         "      ndf_w0 = f0_proxy%vspace%get_ndf()\n"
         "      undf_w0 = f0_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise number of DoFs for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Initialise evaluator-related quantities using the field(s) "
         "that are written to\n"
         "      !\n"
-        "      ndf_nodal_w0  = f0_field_proxy%vspace%get_ndf()\n"
-        "      nodes_w0 => f0_field_proxy%vspace%get_nodes()\n"
+        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
+        "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
-        "      dim_w0  = f0_field_proxy%vspace%get_dim_space()\n"
+        "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
         "      ALLOCATE (basis_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
-        "      diff_dim_w1  = w1_field_proxy%vspace%get_dim_space_diff()\n"
+        "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w1(diff_dim_w1, ndf_w1, ndf_nodal_w0))\n"
         "      !\n"
         "      ! Compute basis arrays\n"
@@ -153,18 +159,18 @@ def test_single_kern_eval():
         "      DO df_nodal=1,ndf_nodal_w0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0(:,df_w0,df_nodal) = "
-        "f0_field_proxy%vspace%evaluate_function(BASIS,df_w0,"
-        "nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
+        "f0_proxy%vspace%evaluate_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n"
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal\n"
+        "      DO df_nodal=1,ndf_nodal_w0\n"
         "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1(:,df_w1,df_nodal) = w1_field_proxy%vspace%evaluate_function(DIFF_BASIS,df_w1,nodes(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
+        "          diff_basis_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
+        "evaluate_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
@@ -172,7 +178,9 @@ def test_single_kern_eval():
         "        !\n"
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
         "      END DO \n"
-        "      !\n")
+        "      !\n"
+    )
+    print expected_code
     assert expected_code in gen_code
 
 
