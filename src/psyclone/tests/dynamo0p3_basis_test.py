@@ -44,7 +44,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.parse import parse
+from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory
 
 # constants
@@ -81,6 +81,27 @@ def test_eval_mdata():
     ast = fpapi.parse(CODE, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
+
+
+def test_single_updated_arg():
+    ''' Check that we reject any kernel requiring either an evaluator or
+    quadrature if it writes to more than one argument '''
+    from psyclone.dynamo0p3 import DynKernMetadata
+    fparser.logging.disable('CRITICAL')
+    # Change the access of the read-only argument
+    code = CODE.replace("GH_READ", "GH_WRITE", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    assert ("kernel testkern_eval_type requires gh_evaluator and updates "
+            "2 arguments") in str(excinfo)
+    # Change the gh_shape element to specify quadrature and then test again
+    qr_code = code.replace("gh_evaluator","gh_quadrature_xyoz")
+    ast = fpapi.parse(qr_code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    assert ("kernel testkern_eval_type requires gh_quadrature_xyoz and "
+            "updates 2 arguments") in str(excinfo)
 
 
 def test_single_kern_eval():
@@ -176,11 +197,12 @@ def test_single_kern_eval():
         "      !\n"
         "      DO cell=1,f0_proxy%vspace%get_ncell()\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
+        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
+        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
+        "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
         "      END DO \n"
         "      !\n"
     )
-    print expected_code
     assert expected_code in gen_code
 
 
@@ -193,6 +215,41 @@ def test_two_qr():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+    expected_code = (
+        "      !\n"
+        "      ! Compute differential basis arrays\n"
+        "      !\n"
+        "      CALL f2_proxy%vspace%compute_diff_basis_function(diff_basis_w2_qr, ndf_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL m2_proxy%vspace%compute_diff_basis_function(diff_basis_w3_qr, ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL g2_proxy%vspace%compute_diff_basis_function(diff_basis_w2_qr2, ndf_w2, nqp_h_qr2, nqp_v_qr2, xp_qr2, zp_qr2)\n"
+        "      CALL n2_proxy%vspace%compute_diff_basis_function(diff_basis_w3_qr2, ndf_w3, nqp_h_qr2, nqp_v_qr2, xp_qr2, zp_qr2)\n"
+        "      DO df_nodal=1,ndf_nodal_w1\n"
+        "        DO df_w3=1,ndf_w3\n"
+        "          diff_basis_w3(:,df_w3,df_nodal) = n2_proxy%vspace%evaluate_function(DIFF_BASIS,df_w3,nodes_w1(:,df_nodal))\n"
+        "      END DO \n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, a, m2_proxy%data, istp, "
+        "ndf_w1, undf_w1, map_w1(:,cell), basis_w1, "
+        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2, "
+        "ndf_w3, undf_w3, map_w3(:,cell), basis_w3, diff_basis_w3, "
+        "nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)\n"
+        "      END DO \n"
+        "      DO cell=1,g1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_qr_code(nlayers, g1_proxy%data, g2_proxy%data, "
+        "n1_proxy%data, b, n2_proxy%data, istp, "
+        "ndf_w1, undf_w1, map_w1(:,cell), basis_w1, "
+        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2, ndf_w3, undf_w3, "
+        "map_w3(:,cell), basis_w3, diff_basis_w3, "
+        "nqp_h_qr2, nqp_v_qr2, wh_qr2, wv_qr2)\n"
+        "      END DO \n"
+        "      !\n")
+    assert expected_code in gen_code
 
 
 def test_qr_plus_eval():

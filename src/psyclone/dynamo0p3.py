@@ -736,6 +736,15 @@ class DynKernMetadata(KernelType):
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
 
+        # Check that this kernel only updates a single argument if a
+        # shape has been supplied
+        if self._eval_shape and write_count > 1:
+            raise ParseError(
+                "A Dynamo 0.3 kernel requiring quadrature/evaluator must "
+                "only write to one argument but kernel {0} requires {1} and "
+                "updates {2} arguments".format(self.name,
+                                               self._eval_shape, write_count))
+
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)

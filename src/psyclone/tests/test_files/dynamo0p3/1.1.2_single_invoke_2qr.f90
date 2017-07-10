@@ -42,8 +42,8 @@ program single_invoke
   real(r_def) :: a, b
   integer :: istp
 
-  call invoke(                   &
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr)   &
+  call invoke(                                    &
+       testkern_qr_type(f1,f2,m1,a,m2,istp,qr),   &
        testkern_qr_type(g1,g2,n1,b,n2,istp,qr2)   &
           )
 
