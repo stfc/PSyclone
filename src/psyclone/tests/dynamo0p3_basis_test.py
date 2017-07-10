@@ -80,9 +80,7 @@ def test_eval_mdata():
     fparser.logging.disable('CRITICAL')
     ast = fpapi.parse(CODE, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
-    print dir(dkm)
-    print str(dkm)
-    assert 0
+    assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
 
 
 def test_single_kern_eval():
@@ -94,52 +92,88 @@ def test_single_kern_eval():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
-    expected = (
+    expected_decl = (
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
         "      USE testkern_eval, ONLY: testkern_eval_code\n"
         "      USE evaluate_function_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      TYPE(field_type), intent(inout) :: f0\n"
         "      TYPE(field_type), intent(in) :: f1\n"
         "      INTEGER cell\n"
-        "      REAL(KIND=r_def), allocatable  :: diff_basis_w1(:,:,:), "
-        "basis_w0(:,:,:)\n"
-        "      INTEGER :: dim_w0, diff_dim_w1\n"
-        "      INTEGER :: ndf_w0, undf_w0, ndf_w1, undf_w1\n"
-        "      INTEGER :: nlayers\n"
+        "      INTEGER df_w1, df_w0, df_nodal\n"
+        "      REAL(KIND=r_def), allocatable :: basis_w0(:,:,:,:), "
+        "diff_basis_w1(:,:,:,:)\n"
+        "      INTEGER ndf_nodal_w0, dim_w0, diff_dim_w1\n"
+        "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
+        "      INTEGER ndf_w0, undf_w0, ndf_w1, undf_w1\n"
+        "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f0_proxy, f1_proxy\n"
         "      INTEGER, pointer :: map_w0(:,:) => null(), "
-        "map_w1(:,:) => null()\n"
-        "\n"
-        "! Get the nodes and number of degrees of freedom from the write field\n"
-        "ndf_nodal  = w0_field_proxy%vspace%get_ndf()\n"
-        "nodes => w0_field_proxy%vspace%get_nodes()\n"
-        "\n"
-        "! w0 GH_BASIS\n"
-        "ndf_w0  = w0_field_proxy%vspace%get_ndf( )\n"
-        "dim_w0  = w0_field_proxy%vspace%get_dim_space( )\n"
-        "allocate( basis_w0(dim_w0, ndf_w0, ndf_nodal) )\n"
-        "do df_nodal = 1, ndf_nodal\n"
-        "  do df_w0 = 1, ndf_w0\n"
-        "    basis_w0(:,df_w0,df_nodal) = w0_field_proxy%vspace%evaluate_function(BASIS,df_w0,nodes(:,df_nodal))\n"
-        "  end do\n"
-        "end do\n"
-        "\n"
-        "! w1 GH_DIFF_BASIS\n"
-        "ndf_w1  = w1_field_proxy%vspace%get_ndf()\n"
-        "diff_dim_w1  = w1_field_proxy%vspace%get_dim_space_diff()\n"
-        "allocate( diff_basis_w1(diff_dim_w1, ndf_w1, ndf_nodal) )\n"
-        "do df_nodal = 1, ndf_nodal\n"
-        "  do df_w1 = 1, ndf_w1\n"
-        "    diff_basis_w1(:,df_w1,df_nodal) = w1_field_proxy%vspace%evaluate_function(DIFF_BASIS,df_w1,nodes(:,df_nodal))\n"
-        "  end do\n"
-        "end do\n"
-        "\n"
-        "! calls\n"
-        "call kernel( ARGS....\n"
-        "             basis_w0, &\n"
-        "             diff_basis_w1, &\n"
-        "             ndf_nodal)\n")
-    assert expected in gen_code
+        "map_w1(:,:) => null()\n")
+    assert expected_decl in gen_code
+
+    expected_code = (
+        "      !\n"
+        "      ! Initialise field and/or operator proxies\n"
+        "      !\n"
+        "      f0_proxy = f0%get_proxy()\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f0_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+        "      map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w0\n"
+        "      !\n"
+        "      ndf_w0 = f0_proxy%vspace%get_ndf()\n"
+        "      undf_w0 = f0_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise evaluator-related quantities using the field(s) "
+        "that are written to\n"
+        "      !\n"
+        "      ndf_nodal_w0  = f0_field_proxy%vspace%get_ndf()\n"
+        "      nodes_w0 => f0_field_proxy%vspace%get_nodes()\n"
+        "      !\n"
+        "      ! Allocate basis arrays\n"
+        "      !\n"
+        "      dim_w0  = f0_field_proxy%vspace%get_dim_space()\n"
+        "      ALLOCATE (basis_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      !\n"
+        "      ! Allocate differential basis arrays\n"
+        "      !\n"
+        "      diff_dim_w1  = w1_field_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w1(diff_dim_w1, ndf_w1, ndf_nodal_w0))\n"
+        "      !\n"
+        "      ! Compute basis arrays\n"
+        "      !\n"
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w0=1,ndf_w0\n"
+        "          basis_w0(:,df_w0,df_nodal) = "
+        "f0_field_proxy%vspace%evaluate_function(BASIS,df_w0,"
+        "nodes_w0(:,df_nodal))\n"
+        "        END DO\n"
+        "      END DO\n"
+        "      !\n"
+        "      ! Compute differential basis arrays\n"
+        "      !\n"
+        "      DO df_nodal=1,ndf_nodal\n"
+        "        DO df_w1=1,ndf_w1\n"
+        "          diff_basis_w1(:,df_w1,df_nodal) = w1_field_proxy%vspace%evaluate_function(DIFF_BASIS,df_w1,nodes(:,df_nodal))\n"
+        "        END DO\n"
+        "      END DO\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f0_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
+        "      END DO \n"
+        "      !\n")
+    assert expected_code in gen_code
 
 
 def test_two_qr():
