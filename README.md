@@ -24,18 +24,12 @@ installation simply add the --user flag:
 
     $ pip install --user .
 
-There is also a simple installer (contributions/install) which creates a
-stand-alone tree containing the functional components. To make use of the
-result add the python package directories to PYTHONPATH and consider adding
-the "bin" directory to PATH.
-
 # Structure #
 
-Path | Description
----- | -----------
-bin/ | top-level driver scripts for PSyclone and the Kernel stub generator
+Path                | Description
+------------------- | -----------
+bin/                | top-level driver scripts for PSyclone and the Kernel stub generator
 changelog      	    | Information on changes between releases
-contributions/ 	    | Unsupported additional material
 doc/           	    | Documentation source using sphinx
 examples/      	    | Simple examples
 psyclone.pdf   	    | Generated documentation
