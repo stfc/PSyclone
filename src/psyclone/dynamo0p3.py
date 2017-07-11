@@ -745,9 +745,9 @@ class DynKernMetadata(KernelType):
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
 
-        # Check that this kernel only updates a single argument if a
-        # shape has been supplied
-        if self._eval_shape and write_count > 1:
+        # Check that this kernel only updates a single argument if an
+        # evaluator is required
+        if self._eval_shape == "gh_evaluator" and write_count > 1:
             raise ParseError(
                 "A Dynamo 0.3 kernel requiring quadrature/evaluator must "
                 "only write to one argument but kernel {0} requires {1} and "

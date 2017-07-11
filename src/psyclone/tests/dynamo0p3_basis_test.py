@@ -84,24 +84,22 @@ def test_eval_mdata():
 
 
 def test_single_updated_arg():
-    ''' Check that we reject any kernel requiring either an evaluator or
-    quadrature if it writes to more than one argument '''
+    ''' Check that we reject any kernel requiring an evaluator
+    if it writes to more than one argument '''
     from psyclone.dynamo0p3 import DynKernMetadata
     fparser.logging.disable('CRITICAL')
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_WRITE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        dkm = DynKernMetadata(ast, name="testkern_eval_type")
+        _ = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("kernel testkern_eval_type requires gh_evaluator and updates "
             "2 arguments") in str(excinfo)
     # Change the gh_shape element to specify quadrature and then test again
     qr_code = code.replace("gh_evaluator","gh_quadrature_xyoz")
     ast = fpapi.parse(qr_code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        dkm = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("kernel testkern_eval_type requires gh_quadrature_xyoz and "
-            "updates 2 arguments") in str(excinfo)
+    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
 
 
 def test_single_kern_eval():
