@@ -2926,12 +2926,18 @@ class DynKern(Kern):
                 root_name=qr_arg.varName, context="AlgArgs",
                 label=self._qr_text)
             # dynamo 0.3 api kernels require quadrature rule arguments to be
-            # passed in if one or more basis functions are used by the kernel and
-            # gh_shape == "gh_quadrature_***".
-            self._qr_args = {"nh": "nqp_h"+"_"+self._qr_name,
-                             "nv": "nqp_v"+"_"+self._qr_name,
-                             "h": "wh"+"_"+self._qr_name,
-                             "v": "wv"+"_"+self._qr_name}
+            # passed in if one or more basis functions are used by the kernel
+            # and gh_shape == "gh_quadrature_***".
+            self._qr_args = {"nh": "nqp_h",
+                             "nv": "nqp_v",
+                             "h": "wh",
+                             "v": "wv"}
+            # If we're not a kernel stub then we will have a name for the qr
+            # argument. We append this to the names of the qr-related
+            # variables.
+            if qr_arg.varName:
+                for arg in self._qr_args:
+                    self._qr_args[arg] += "_" + self._qr_name
 
     @property
     def cma_operation(self):

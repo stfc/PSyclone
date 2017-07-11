@@ -1987,28 +1987,27 @@ def test_any_space_1():
             "map_any_space_2_b(:,:) => null(), "
             "map_any_space_1_a(:,:) => null()\n" in generated_code)
     assert generated_code.find(
-        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a(:,:,:,:), "
-        "basis_any_space_2_b(:,:,:,:)") != -1
+        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a_qr(:,:,:,:), "
+        "basis_any_space_2_b_qr(:,:,:,:)") != -1
     assert generated_code.find(
-        "ALLOCATE (basis_any_space_1_a(dim_any_space_1_a, ndf_any_space_1_a, "
-        "nqp_h, nqp_v))") != -1
+        "ALLOCATE (basis_any_space_1_a_qr(dim_any_space_1_a, "
+        "ndf_any_space_1_a, nqp_h_qr, nqp_v_qr))") != -1
     assert generated_code.find(
-        "ALLOCATE (basis_any_space_2_b(dim_any_space_2_b, ndf_any_space_2_b, "
-        "nqp_h, nqp_v))") != -1
+        "ALLOCATE (basis_any_space_2_b_qr(dim_any_space_2_b, "
+        "ndf_any_space_2_b, nqp_h_qr, nqp_v_qr))") != -1
     assert generated_code.find(
         "map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()") != -1
     assert generated_code.find(
         "map_any_space_2_b => b_proxy%vspace%get_whole_dofmap()") != -1
-    assert generated_code.find(
-        "CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, b_proxy%"
-        "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
-        "ny_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell), "
-        "basis_any_space_1_a, ndf_any_space_2_b, undf_any_space_2_b, "
-        "map_any_space_2_b(:,cell), basis_any_space_2_b, ndf_w0, undf_w0, "
-        "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
-    assert generated_code.find(
-        "DEALLOCATE (basis_any_space_1_a, basis_any_space_2_b, diff_basis_w"
-        "0)") != -1
+    assert ("CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, "
+            "b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, "
+            "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell),"
+            " basis_any_space_1_a_qr, ndf_any_space_2_b, undf_any_space_2_b, "
+            "map_any_space_2_b(:,cell), basis_any_space_2_b_qr, ndf_w0, "
+            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, "
+            "wh_qr, wv_qr)" in generated_code)
+    assert ("DEALLOCATE (basis_any_space_1_a_qr, basis_any_space_2_b_qr, "
+            "diff_basis_w0_qr)" in generated_code)
 
 
 def test_any_space_2():
@@ -2612,16 +2611,17 @@ def test_multikern_invoke_any_space():
             "map_any_space_2_f1(:,:) => null(), "
             "map_any_space_2_f2(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), map_w0(:,:) => null()" in gen)
-    assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_f1(:,:,:,:), "
-            "basis_any_space_2_f2(:,:,:,:), diff_basis_w0(:,:,:,:), "
-            "basis_any_space_1_f2(:,:,:,:), basis_any_space_2_f1(:,:,:,:)"
-            in gen)
+    assert (
+        "REAL(KIND=r_def), allocatable :: basis_any_space_1_f1_qr(:,:,:,:), "
+        "basis_any_space_2_f2_qr(:,:,:,:), basis_any_space_1_f2_qr(:,:,:,:), "
+        "basis_any_space_2_f1_qr(:,:,:,:), diff_basis_w0_qr(:,:,:,:)"in gen)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_1_f2,"
-            " ndf_any_space_1_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("CALL f2_proxy%vspace%compute_basis_function("
+            "basis_any_space_1_f2_qr, ndf_any_space_1_f2, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
     assert (
         "      map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
@@ -2631,11 +2631,11 @@ def test_multikern_invoke_any_space():
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
             "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
-            "map_any_space_1_f1(:,cell), basis_any_space_1_f1, "
+            "map_any_space_1_f1(:,cell), basis_any_space_1_f1_qr, "
             "ndf_any_space_2_f2, undf_any_space_2_f2, "
-            "map_any_space_2_f2(:,cell), basis_any_space_2_f2, ndf_w0, "
-            "undf_w0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, "
-            "wh, wv" in gen)
+            "map_any_space_2_f2(:,cell), basis_any_space_2_f2_qr, ndf_w0, "
+            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, "
+            "wh_qr, wv_qr" in gen)
 
 
 def test_mkern_invoke_multiple_any_spaces():
@@ -2649,11 +2649,13 @@ def test_mkern_invoke_multiple_any_spaces():
     gen = str(psy.gen)
     print gen
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f1_proxy%vspace%compute_basis_function(basis_any_space_1_f1,"
-            " ndf_any_space_1_f1, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("CALL f1_proxy%vspace%compute_basis_function("
+            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_2_f2,"
-            " ndf_any_space_2_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("CALL f2_proxy%vspace%compute_basis_function("
+            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
     assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
@@ -2662,12 +2664,28 @@ def test_mkern_invoke_multiple_any_spaces():
     assert gen.count("ndf_any_space_4_op4 = op4_proxy%fs_from%get_ndf()") == 1
     assert "ndf_any_space_3_op5" not in gen
     assert "ndf_any_space_4_f1" not in gen
-    assert ("CALL op2_proxy%fs_from%compute_basis_function("
-            "basis_any_space_2_op2, ndf_any_space_2_op2, nqp_h, "
-            "nqp_v, xp, zp)" in gen)
+    # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
+    # DIFF_BASIS on w0
+    # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
+    assert ("CALL f1_proxy%vspace%compute_basis_function("
+            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL f2_proxy%vspace%compute_basis_function("
+            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+    # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
+    # to-space of op2
+    assert ("CALL op2_proxy%fs_to%compute_basis_function("
+            "basis_any_space_1_op2_qr, ndf_any_space_1_op2, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+    # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
+    # of op4
+    assert ("CALL op4_proxy%fs_from%compute_basis_function("
+            "basis_any_space_4_op4_qr, ndf_any_space_4_op4, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
     assert ("CALL op4_proxy%fs_from%compute_diff_basis_function("
-            "diff_basis_any_space_4_op4, ndf_any_space_4_op4, nqp_h, "
-            "nqp_v, xp, zp)" in gen)
+            "diff_basis_any_space_4_op4_qr, ndf_any_space_4_op4, nqp_h_qr, "
+            "nqp_v_qr, xp_qr, zp_qr)" in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
