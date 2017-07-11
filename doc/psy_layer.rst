@@ -90,17 +90,17 @@ from the source code with pyreverse and edited with inkscape.
 API
 ---
 
-.. autoclass:: psyGen.PSy
+.. autoclass:: psyclone.psyGen.PSy
     :members:
     :noindex:
 
-.. autoclass:: psyGen.Invokes
+.. autoclass:: psyclone.psyGen.Invokes
     :members:
 
-.. autoclass:: psyGen.Invoke
+.. autoclass:: psyclone.psyGen.Invoke
     :members:
 
-.. autoclass:: psyGen.Schedule
+.. autoclass:: psyclone.psyGen.Schedule
     :members:
 
 .. _psy-layer-schedule:
@@ -140,6 +140,7 @@ PSyclone supports visualising a schedule in two ways. Firstly the
 schedule. If we were to look at the dynamo eg6 example we would see
 the following output:
 ::
+
    >>> schedule.view()
    Schedule[invoke='invoke_0' dm=True]
        Directive[OMP parallel do]
@@ -165,6 +166,7 @@ changed using the ``file_format`` optional argument. The file_format
 value is simply passed on to graphviz so the graphviz documentation
 should be consulted for valid formats if svg is not required.
 ::
+
    >>> schedule.dag(file_name="lovely", file_format="png")
 
 .. note:: The dag method can be called from any node and will
