@@ -1544,12 +1544,22 @@ class DynInvokeBasisFns(object):
                     # We need the full FS object, not just the name
                     arg = call.arguments.get_arg_on_space(fsd.fs_name,
                                                           mangled=False)
+                    # Take care that we get the right space if this
+                    # argument is an operator
+                    if arg.type in VALID_OPERATOR_NAMES:
+                        if fsd.fs_name == arg.function_space_to.orig_name:
+                            fspace = arg.function_space_to
+                        else:
+                            fspace = arg.function_space_from
+                    else:
+                        fspace = arg.function_space
+
                     # Which FS is this on and is it a basis or diff-basis
                     # function that is required?
                     # TODO should this dictionary be a class, e.g. 'DynBasisFn'?
                     entry = {"shape": call.eval_shape,
                              "write_arg": call.updated_arg,
-                             "fspace": arg.function_space,
+                             "fspace": fspace,
                              "arg": arg}
                     if call.eval_shape in QUADRATURE_SHAPES:
                         entry["qr_var"] = call.qr_name
@@ -1620,6 +1630,8 @@ class DynInvokeBasisFns(object):
             # is an evaluator
             ndf_nodal_name = "ndf_nodal_" + arg.function_space.mangled_name
             rhs = "%".join([arg.proxy_name_indexed,
+                            # TODO make sure we get the right function space
+                            # if arg is an operator!
                             arg.ref_name(arg.function_space),
                             "get_ndf()"])
             parent.add(AssignGen(parent, lhs=ndf_nodal_name, rhs=rhs))
@@ -1641,30 +1653,32 @@ class DynInvokeBasisFns(object):
 
         for fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array
-            lhs = "dim_" + fn["fspace"].mangled_name
-            if lhs not in var_dim_list:
-                var_dim_list.append(lhs)
+            first_dim = "_".join(["dim", fn["fspace"].mangled_name])
+            if fn["shape"] in QUADRATURE_SHAPES:
+                # If this basis function is for quadrature then append the
+                # name of the quadrature object
+                first_dim += "_" + fn["qr_var"]
+            if first_dim not in var_dim_list:
+                var_dim_list.append(first_dim)
                 rhs = "%".join([fn["arg"].proxy_name_indexed,
                                 fn["arg"].ref_name(fn["fspace"]),
                                 "get_dim_space()"])
-                parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
+            op_name = get_fs_operator_name("gh_basis", fn["fspace"],
+                                           qr_var=fn["qr_var"])
 
             if fn["shape"] in QUADRATURE_SHAPES:
-                op_name = get_fs_operator_name("gh_basis", fn["fspace"],
-                                               qr_var=fn["qr_var"])
-                alloc_args = ", ".join(["dim_"+fn["fspace"].mangled_name,
-                                       get_fs_ndf_name(fn["fspace"]),
-                                       "nqp_h"+"_"+fn["qr_var"],
-                                       "nqp_v"+"_"+fn["qr_var"]])
+                alloc_args = ", ".join([first_dim,
+                                        get_fs_ndf_name(fn["fspace"]),
+                                        "nqp_h"+"_"+fn["qr_var"],
+                                        "nqp_v"+"_"+fn["qr_var"]])
                 parent.add(AllocateGen(parent,
                                        op_name+"("+alloc_args+")"))
             else:
                 # Have an evaluator
-                op_name = get_fs_operator_name("gh_basis",
-                                               fn["fspace"])
                 ndf_nodal_name = "ndf_nodal_" + \
                                  fn["write_arg"].function_space.mangled_name
-                alloc_args = ", ".join(["dim_"+fn["fspace"].mangled_name,
+                alloc_args = ", ".join([first_dim,
                                         get_fs_ndf_name(fn["fspace"]),
                                         ndf_nodal_name])
                 parent.add(AllocateGen(parent,
@@ -1681,23 +1695,25 @@ class DynInvokeBasisFns(object):
         for fn in self._diff_basis_fns:
             # initialise 'diff_dim' variable for this function
             # space and add name to list to declare later
-            lhs = "diff_dim_" + fn["fspace"].mangled_name
-            if lhs not in var_dim_list:
-                var_dim_list.append(lhs)
+            first_dim = "diff_dim_" + fn["fspace"].mangled_name
+            if fn["shape"] in QUADRATURE_SHAPES:
+                first_dim += "_" + fn["qr_var"]
+            if first_dim not in var_dim_list:
+                var_dim_list.append(first_dim)
                 rhs = "%".join([fn["arg"].proxy_name_indexed,
                                 fn["arg"].ref_name(fn["fspace"]),
                                 "get_dim_space_diff()"])
-                parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
 
             if fn["shape"] in QUADRATURE_SHAPES:
                 op_name = get_fs_operator_name("gh_diff_basis",
                                                fn["fspace"],
                                                qr_var=fn["qr_var"])
                 # allocate the basis function variable
-                alloc_args = ", ".join(["diff_dim_" + fn["fspace"].mangled_name,
-                                       get_fs_ndf_name(fn["fspace"]),
-                                       "nqp_h"+"_"+fn["qr_var"],
-                                       "nqp_v"+"_"+fn["qr_var"]])
+                alloc_args = ", ".join([first_dim,
+                                        get_fs_ndf_name(fn["fspace"]),
+                                        "nqp_h"+"_"+fn["qr_var"],
+                                        "nqp_v"+"_"+fn["qr_var"]])
                 parent.add(AllocateGen(parent,
                                        op_name+"("+alloc_args+")"))
 
