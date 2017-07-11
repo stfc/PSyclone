@@ -90,17 +90,17 @@ from the source code with pyreverse and edited with inkscape.
 API
 ---
 
-.. autoclass:: psyGen.PSy
+.. autoclass:: psyclone.psyGen.PSy
     :members:
     :noindex:
 
-.. autoclass:: psyGen.Invokes
+.. autoclass:: psyclone.psyGen.Invokes
     :members:
 
-.. autoclass:: psyGen.Invoke
+.. autoclass:: psyclone.psyGen.Invoke
     :members:
 
-.. autoclass:: psyGen.Schedule
+.. autoclass:: psyclone.psyGen.Schedule
     :members:
 
 .. _psy-layer-schedule:
