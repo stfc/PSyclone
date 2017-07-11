@@ -1643,7 +1643,7 @@ def test_operator_different_spaces():
         "      INTEGER cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w3_qr(:,:,:,:), "
         "diff_basis_w0_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
-        "      INTEGER dim_w3_qr, diff_dim_w0_qr, diff_dim_w2_qr\n"
+        "      INTEGER dim_w3, diff_dim_w0, diff_dim_w2\n"
         "      REAL(KIND=r_def), pointer :: wv_qr(:) => null(), zp_qr(:) => null(), "
         "wh_qr(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp_qr(:,:) => null()\n"
@@ -1689,7 +1689,7 @@ def test_operator_different_spaces():
         "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
         "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
         "      !\n"
-        "      ! Look-up quadrature values\n"
+        "      ! Look-up quadrature variables\n"
         "      !\n"
         "      wv_qr => qr%get_wqp_v()\n"
         "      xp_qr => qr%get_xqp_h()\n"
@@ -1776,11 +1776,11 @@ def test_operator_nofield():
     assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
     assert gen_code_str.find("undf_w2") == -1
     assert gen_code_str.find("map_w2") == -1
-    assert gen_code_str.find(
-        "CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
-        " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
-        ", chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, "
-        "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert ("CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
+            " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
+            ", chi_proxy(3)%data, ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
+            "map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, "
+            "wv_qr)" in gen_code_str)
 
 
 def test_operator_nofield_different_space():  # pylint: disable=invalid-name
@@ -1816,9 +1816,9 @@ def test_operator_nofield_scalar():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
-    assert (
-        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-        "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+            "local_stencil, b, ndf_w2, basis_w2_qr, nqp_h_qr, nqp_v_qr, "
+            "wh_qr, wv_qr)" in gen)
 
 
 def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
@@ -1839,7 +1839,9 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
         assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
         assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
         assert ("CALL opbox_my_mapping_proxy%fs_from%compute_basis_function("
-                "basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)" in gen)
+                "basis_w2_qr_get_instance, ndf_w2, nqp_h_qr_get_instance, "
+                "nqp_v_qr_get_instance, xp_qr_get_instance, "
+                "zp_qr_get_instance)" in gen)
         if dist_mem:
             assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
         else:
@@ -1847,8 +1849,10 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
                 "DO cell=1,opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
         assert (
             "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
-            "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, basis_w2, "
-            "nqp_h, nqp_v, wh, wv)" in gen)
+            "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
+            "basis_w2_qr_get_instance, nqp_h_qr_get_instance, "
+            "nqp_v_qr_get_instance, wh_qr_get_instance,"
+            " wv_qr_get_instance)" in gen)
 
 
 def test_operator_orientation():
@@ -1870,11 +1874,11 @@ def test_operator_orientation():
     assert gen_str.find(
         "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
         "(cell)") != -1
-    assert gen_str.find(
-        "CALL testkern_operator_orient_code(cell, nlayers, mm_w1_proxy%ncell_"
-        "3d, mm_w1_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data,"
-        " chi_proxy(3)%data, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w"
-        "0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert ("CALL testkern_operator_orient_code(cell, nlayers, "
+            "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
+            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
+            "basis_w1_qr, orientation_w1, ndf_w0, undf_w0, map_w0(:,cell), "
+            "diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)" in gen_str)
 
 
 def test_op_orient_different_space():  # pylint: disable=invalid-name
@@ -1893,21 +1897,20 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
     assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
     assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
-    assert (
-        "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
-        " nqp_h, nqp_v, xp, zp)" in gen_str)
+    assert ("CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1_qr, "
+            "ndf_w1, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)" in gen_str)
     assert (
         "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
         "cell)" in gen_str)
     assert (
         "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)"
         in gen_str)
-    assert (
-        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
-        "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
-        "ndf_w1, basis_w1, orientation_w1, ndf_w2, orientation_w2, ndf_w0, "
-        "undf_w0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)"
-        in gen_str)
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, "
+            "my_mapping_proxy%local_stencil, chi_proxy(1)%data, "
+            "chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, basis_w1_qr, "
+            "orientation_w1, ndf_w2, orientation_w2, ndf_w0, undf_w0, "
+            "map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, "
+            "wv_qr)" in gen_str)
 
 
 def test_operator_deref():
@@ -1932,8 +1935,8 @@ def test_operator_deref():
             "CALL testkern_operator_code(cell, nlayers, "
             "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
-            "ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
-            "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+            "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
+            "diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)") != -1
 
 
 def test_operator_no_dofmap_lookup():

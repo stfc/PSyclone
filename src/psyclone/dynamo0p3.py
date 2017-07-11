@@ -1654,10 +1654,6 @@ class DynInvokeBasisFns(object):
         for fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array
             first_dim = "_".join(["dim", fn["fspace"].mangled_name])
-            if fn["shape"] in QUADRATURE_SHAPES:
-                # If this basis function is for quadrature then append the
-                # name of the quadrature object
-                first_dim += "_" + fn["qr_var"]
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
                 rhs = "%".join([fn["arg"].proxy_name_indexed,
@@ -1696,8 +1692,6 @@ class DynInvokeBasisFns(object):
             # initialise 'diff_dim' variable for this function
             # space and add name to list to declare later
             first_dim = "diff_dim_" + fn["fspace"].mangled_name
-            if fn["shape"] in QUADRATURE_SHAPES:
-                first_dim += "_" + fn["qr_var"]
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
                 rhs = "%".join([fn["arg"].proxy_name_indexed,
