@@ -3516,8 +3516,7 @@ ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
     "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
-    "nqp_v, wh, wv)\n"
+    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3)\n"
     "      USE constants_mod, ONLY: r_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: cell\n"
@@ -3544,9 +3543,6 @@ ORIENTATION_OUTPUT = (
     "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
-    "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-    "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-    "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
     "    END SUBROUTINE dummy_orientation_code\n"
     "  END MODULE dummy_orientation_mod")
 
@@ -6731,19 +6727,20 @@ def test_anyw2_basis():
             "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
             "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
             "      dim_any_w2 = f1_proxy%vspace%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2(dim_any_w2, ndf_any_w2, nqp_h, "
-            "nqp_v))\n"
+            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
+            "nqp_h_qr, nqp_v_qr))\n"
             "      diff_dim_any_w2 = f1_proxy%vspace%"
             "get_dim_space_diff()\n"
-            "      ALLOCATE (diff_basis_any_w2(diff_dim_any_w2, "
-            "ndf_any_w2, nqp_h, nqp_v))\n"
+            "      ALLOCATE (diff_basis_any_w2_qr(diff_dim_any_w2, "
+            "ndf_any_w2_qr, nqp_h_qr, nqp_v_qr))\n"
             "      !\n"
             "      ! Compute basis arrays\n"
             "      !\n"
             "      CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)\n"
+            "basis_any_w2_qr, ndf_any_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
             "      CALL f1_proxy%vspace%compute_diff_basis_function("
-            "diff_basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)")
+            "diff_basis_any_w2_qr, ndf_any_w2, nqp_h_qr, nqp_v_qr, xp_qr, "
+            "zp_qr)")
         assert output in generated_code
 
 
@@ -6780,13 +6777,13 @@ def test_anyw2_operators():
             "      ndf_any_w2 = mm_w2_proxy%fs_from%get_ndf()\n"
             "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n"
             "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2(dim_any_w2, ndf_any_w2, nqp_h, "
-            "nqp_v))\n"
+            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, nqp_h_qr, "
+            "nqp_v_qr))\n"
             "      !\n"
             "      ! Compute basis arrays\n"
             "      !\n"
             "      CALL mm_w2_proxy%fs_from%compute_basis_function("
-            "basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)")
+            "basis_any_w2_qr, ndf_any_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)")
         assert output in generated_code
 
 
