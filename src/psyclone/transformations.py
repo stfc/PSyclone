@@ -1068,23 +1068,23 @@ class GOConstLoopBoundsTrans(Transformation):
 
 class MoveTrans(Transformation):
     '''Provides a transformation to move a node in the tree. For
-        example:
+    example:
 
-        >>> from parse import parse
-        >>> from psyGen import PSyFactory
-        >>> ast,invokeInfo=parse("dynamo.F90")
-        >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
-        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> schedule.view()
-        >>>
-        >>> from transformations import MoveTrans
-        >>> trans=MoveTrans()
-        >>> new_schedule, memento = trans.apply(schedule.children[0],
-                                                schedule.children[2],
-                                                position="after")
-        >>> new_schedule.view()
+    >>> from parse import parse
+    >>> from psyGen import PSyFactory
+    >>> ast,invokeInfo=parse("dynamo.F90")
+    >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
+    >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+    >>> schedule.view()
+    >>>
+    >>> from transformations import MoveTrans
+    >>> trans=MoveTrans()
+    >>> new_schedule, memento = trans.apply(schedule.children[0],
+                                            schedule.children[2],
+                                            position="after")
+    >>> new_schedule.view()
 
-        Nodes may only be moved to a new location with the same parent
+    Nodes may only be moved to a new location with the same parent
     and must not break any dependencies otherwise an exception is
     raised.'''
 
