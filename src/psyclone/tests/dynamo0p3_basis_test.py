@@ -518,7 +518,7 @@ def test_two_eval_same_space():
         "      !\n"
         "      DO df_nodal=1,ndf_nodal_w0\n"
         "        DO df_w0=1,ndf_w0\n"
-        "          basis_w0(:,df_w0,df_nodal) = f2_proxy%vspace%"
+        "          basis_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "evaluate_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
@@ -545,7 +545,8 @@ def test_two_eval_same_space():
         "        CALL testkern_eval_code(nlayers, f2_proxy%data, "
         "f3_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
-        "      END DO \n")
+        "      END DO \n"
+    )
     assert output_code in gen_code
 
 
