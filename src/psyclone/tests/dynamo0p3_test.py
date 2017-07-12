@@ -6709,58 +6709,6 @@ def test_multi_anyw2():
             assert output in generated_code
 
 
-def test_anyw2_basis():
-    '''Check generated code works correctly when we have any_w2 fields
-    and basis functions'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
-        api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        print generated_code
-        output = (
-            "      ! Initialise number of DoFs for any_w2\n"
-            "      !\n"
-            "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Look-up quadrature variables\n"
-            "      !\n"
-            "      wv_qr => qr%get_wqp_v()\n"
-            "      xp_qr => qr%get_xqp_h()\n"
-            "      zp_qr => qr%get_xqp_v()\n"
-            "      wh_qr => qr%get_wqp_h()\n"
-            "      nqp_h_qr = qr%get_nqp_h()\n"
-            "      nqp_v_qr = qr%get_nqp_v()\n"
-            "      !\n"
-            "      ! Allocate basis arrays\n"
-            "      !\n"
-            "      dim_any_w2 = f1_proxy%vspace%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
-            "nqp_h_qr, nqp_v_qr))\n"
-            "      !\n"
-            "      ! Allocate differential basis arrays\n"
-            "      !\n"
-            "      diff_dim_any_w2 = f1_proxy%vspace%"
-            "get_dim_space_diff()\n"
-            "      ALLOCATE (diff_basis_any_w2_qr(diff_dim_any_w2, "
-            "ndf_any_w2, nqp_h_qr, nqp_v_qr))\n"
-            "      !\n"
-            "      ! Compute basis arrays\n"
-            "      !\n"
-            "      CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_w2_qr, ndf_any_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
-            "      !\n"
-            "      ! Compute differential basis arrays\n"
-            "      !\n"
-            "      CALL f1_proxy%vspace%compute_diff_basis_function("
-            "diff_basis_any_w2_qr, ndf_any_w2, nqp_h_qr, nqp_v_qr, xp_qr, "
-            "zp_qr)")
-        assert output in generated_code
-
-
 def test_anyw2_vectors():
     '''Check generated code works correctly when we have any_w2 field
     vectors'''
