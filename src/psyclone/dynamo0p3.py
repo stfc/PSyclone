@@ -1530,7 +1530,8 @@ class DynInvokeBasisFns(object):
                 elif call.eval_shape == "gh_evaluator":
                     # Keep a set of the unique evaluators we require. We do
                     # this as a list of the kernel arguments to which they
-                    # correspond.
+                    # correspond. (A kernel requiring an evaluator is only
+                    # permitted to update a single argument.)
                     if call.updated_arg.function_space.mangled_name not in \
                        _fs_eval_list:
                         _fs_eval_list.add(
@@ -1577,6 +1578,7 @@ class DynInvokeBasisFns(object):
             AllocateGen, UseGen
         var_dim_list = []
         basis_declarations = []
+        op_name_list = []
 
         if self._qr_vars:
             parent.add(CommentGen(parent, ""))
@@ -1662,25 +1664,28 @@ class DynInvokeBasisFns(object):
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
             op_name = get_fs_operator_name("gh_basis", fn["fspace"],
                                            qr_var=fn["qr_var"])
-
-            if fn["shape"] in QUADRATURE_SHAPES:
-                alloc_args = ", ".join([first_dim,
-                                        get_fs_ndf_name(fn["fspace"]),
-                                        "nqp_h"+"_"+fn["qr_var"],
-                                        "nqp_v"+"_"+fn["qr_var"]])
-                parent.add(AllocateGen(parent,
-                                       op_name+"("+alloc_args+")"))
-            else:
-                # Have an evaluator
-                ndf_nodal_name = "ndf_nodal_" + \
-                                 fn["write_arg"].function_space.mangled_name
-                alloc_args = ", ".join([first_dim,
-                                        get_fs_ndf_name(fn["fspace"]),
-                                        ndf_nodal_name])
-                parent.add(AllocateGen(parent,
-                                       op_name+"("+alloc_args+")"))
-            # add basis function variable to list to declare later
-            basis_declarations.append(op_name+"(:,:,:,:)")
+            if op_name not in op_name_list:
+                # We haven't seen a basis with this name before so
+                # need to declare it and add allocate statement
+                op_name_list.append(op_name)
+                if fn["shape"] in QUADRATURE_SHAPES:
+                    alloc_args = ", ".join([first_dim,
+                                            get_fs_ndf_name(fn["fspace"]),
+                                            "nqp_h"+"_"+fn["qr_var"],
+                                            "nqp_v"+"_"+fn["qr_var"]])
+                    parent.add(AllocateGen(parent,
+                                           op_name+"("+alloc_args+")"))
+                else:
+                    # Have an evaluator
+                    ndf_nodal_name = "ndf_nodal_" + \
+                                     fn["write_arg"].function_space.mangled_name
+                    alloc_args = ", ".join([first_dim,
+                                            get_fs_ndf_name(fn["fspace"]),
+                                            ndf_nodal_name])
+                    parent.add(AllocateGen(parent,
+                                           op_name+"("+alloc_args+")"))
+                # add basis function variable to list to declare later
+                basis_declarations.append(op_name+"(:,:,:,:)")
 
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -1698,33 +1703,34 @@ class DynInvokeBasisFns(object):
                                 fn["arg"].ref_name(fn["fspace"]),
                                 "get_dim_space_diff()"])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
+            op_name = get_fs_operator_name("gh_diff_basis",
+                                           fn["fspace"],
+                                           qr_var=fn["qr_var"])
+            if op_name not in op_name_list:
+                # We haven't seen a differential basis with this name before so
+                # need to declare it and add allocate statement
+                op_name_list.append(op_name)
+                if fn["shape"] in QUADRATURE_SHAPES:
+                    # allocate the basis function variable
+                    alloc_args = ", ".join([first_dim,
+                                            get_fs_ndf_name(fn["fspace"]),
+                                            "nqp_h"+"_"+fn["qr_var"],
+                                            "nqp_v"+"_"+fn["qr_var"]])
+                    parent.add(AllocateGen(parent,
+                                           op_name+"("+alloc_args+")"))
 
-            if fn["shape"] in QUADRATURE_SHAPES:
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               fn["fspace"],
-                                               qr_var=fn["qr_var"])
-                # allocate the basis function variable
-                alloc_args = ", ".join([first_dim,
-                                        get_fs_ndf_name(fn["fspace"]),
-                                        "nqp_h"+"_"+fn["qr_var"],
-                                        "nqp_v"+"_"+fn["qr_var"]])
-                parent.add(AllocateGen(parent,
-                                       op_name+"("+alloc_args+")"))
-
-            else:
-                # Have an evaluator.
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               fn["fspace"])
-                # Need the number of dofs in the field being written by
-                # the kernel that requires this evaluator
-                ndf_nodal_name = "ndf_nodal_" + \
-                                 fn["write_arg"].function_space.mangled_name
-                alloc_args = ", ".join(["diff_dim_" + fn["fspace"].mangled_name,
-                                       get_fs_ndf_name(fn["fspace"]),
-                                       ndf_nodal_name])
-                parent.add(AllocateGen(parent, op_name+"("+alloc_args+")"))
-            # Add diff-basis function variable to list to declare later
-            basis_declarations.append(op_name+"(:,:,:,:)")
+                else:
+                    # Have an evaluator.
+                    # Need the number of dofs in the field being written by
+                    # the kernel that requires this evaluator
+                    ndf_nodal_name = "ndf_nodal_" + \
+                                     fn["write_arg"].function_space.mangled_name
+                    alloc_args = ", ".join(["diff_dim_" + fn["fspace"].mangled_name,
+                                           get_fs_ndf_name(fn["fspace"]),
+                                           ndf_nodal_name])
+                    parent.add(AllocateGen(parent, op_name+"("+alloc_args+")"))
+                # Add diff-basis function variable to list to declare later
+                basis_declarations.append(op_name+"(:,:,:,:)")
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
