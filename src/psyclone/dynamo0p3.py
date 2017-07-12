@@ -1677,8 +1677,8 @@ class DynInvokeBasisFns(object):
                                            op_name+"("+alloc_args+")"))
                 else:
                     # Have an evaluator
-                    ndf_nodal_name = "ndf_nodal_" + \
-                                     fn["write_arg"].function_space.mangled_name
+                    ndf_nodal_name = "ndf_nodal_" + fn["write_arg"].\
+                                     function_space.mangled_name
                     alloc_args = ", ".join([first_dim,
                                             get_fs_ndf_name(fn["fspace"]),
                                             ndf_nodal_name])
@@ -1707,8 +1707,8 @@ class DynInvokeBasisFns(object):
                                            fn["fspace"],
                                            qr_var=fn["qr_var"])
             if op_name not in op_name_list:
-                # We haven't seen a differential basis with this name before so
-                # need to declare it and add allocate statement
+                # We haven't seen a differential basis with this name before
+                # so need to declare it and add allocate statement
                 op_name_list.append(op_name)
                 if fn["shape"] in QUADRATURE_SHAPES:
                     # allocate the basis function variable
@@ -1723,9 +1723,10 @@ class DynInvokeBasisFns(object):
                     # Have an evaluator.
                     # Need the number of dofs in the field being written by
                     # the kernel that requires this evaluator
-                    ndf_nodal_name = "ndf_nodal_" + \
-                                     fn["write_arg"].function_space.mangled_name
-                    alloc_args = ", ".join(["diff_dim_" + fn["fspace"].mangled_name,
+                    ndf_nodal_name = "ndf_nodal_" +fn["write_arg"].\
+                                     function_space.mangled_name
+                    alloc_args = ", ".join(["diff_dim_" + fn["fspace"].
+                                            mangled_name,
                                            get_fs_ndf_name(fn["fspace"]),
                                            ndf_nodal_name])
                     parent.add(AllocateGen(parent, op_name+"("+alloc_args+")"))
@@ -1750,6 +1751,7 @@ class DynInvokeBasisFns(object):
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen, DoGen, \
             DeclGen
         loop_var_list = set()
+        op_name_list = []
         # add calls to compute the values of any basis arrays
         qr_vars = ["nqp_h", "nqp_v", "xp", "zp"]
         if self._basis_fns:
@@ -1760,6 +1762,11 @@ class DynInvokeBasisFns(object):
                 op_name = get_fs_operator_name("gh_basis",
                                                fn["fspace"],
                                                qr_var=fn["qr_var"])
+                if op_name in op_name_list:
+                    # Jump over any basis arrays we've seen before
+                    continue
+                op_name_list.append(op_name)
+
                 if fn["shape"] in QUADRATURE_SHAPES:
                     # Create the argument list
                     args = []
@@ -1809,6 +1816,11 @@ class DynInvokeBasisFns(object):
             op_name = get_fs_operator_name("gh_diff_basis",
                                            fn["fspace"],
                                            qr_var=fn["qr_var"])
+            if op_name in op_name_list:
+                # Jump over any differential basis arrays we've seen before
+                continue
+            op_name_list.append(op_name)
+
             if fn["shape"] in QUADRATURE_SHAPES:
                 # Create the argument list
                 args = []
