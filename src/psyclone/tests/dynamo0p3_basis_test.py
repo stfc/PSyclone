@@ -559,4 +559,41 @@ def test_two_eval_diff_space():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+    expected_init = (
+        "      ! Initialise evaluator-related quantities using the field(s) "
+        "that are written to\n"
+        "      !\n"
+        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
+        "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
+        "      ndf_nodal_w2 = op1_proxy%fs_from%get_ndf()\n"
+        "      nodes_w2 => op1_proxy%fs_from%get_nodes()\n"
+        "      !\n"
+        "      ! Allocate basis arrays\n"
+        "      !\n"
+        "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
+        "      ALLOCATE (basis_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
+        "      ALLOCATE (basis_w2(dim_w2, ndf_w2, ndf_nodal_w2))\n"
+        "      !\n"
+        "      ! Allocate differential basis arrays\n"
+        "      !\n"
+        "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w1(diff_dim_w1, ndf_w1, ndf_nodal_w0))\n"
+        "      diff_dim_w3 = f2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w3(diff_dim_w3, ndf_w3, ndf_nodal_w2))\n")
+    assert expected_init in gen_code
+    expected_code = ("hello")
+    assert expected_code in gen_code
+
+
+def test_two_eval_op_to_space():
+    ''' Check that we generate correct code when two kernels in an invoke
+    both require evaluators and the arguments that are written to are on
+    different spaces, one of which is the 'to' space of an operator. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "6.5_2eval_op_to_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
     assert 0

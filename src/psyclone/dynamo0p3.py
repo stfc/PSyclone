@@ -1642,7 +1642,9 @@ class DynInvokeBasisFns(object):
             nodes_name = "nodes_" + arg.function_space.mangled_name
             parent.add(AssignGen(
                 parent, lhs=nodes_name,
-                rhs=arg.proxy_name_indexed+"%vspace%get_nodes()",
+                rhs="%".join([arg.proxy_name_indexed,
+                              arg.ref_name(arg.function_space),
+                              "get_nodes()"]),
                 pointer=True))
             parent.add(DeclGen(parent, datatype="real", kind="r_def",
                                pointer=True,
