@@ -1,6 +1,11 @@
 Generating Documentation
 ========================
 
+PSyclone must be installed (see the top-level README.md file) before
+attempting to generate the documentation. This is because installation
+creates a 'psyclone.version' module which is used during creation of
+the documentation.
+
 The documentation for PSyclone is created by
 Sphinx (http://sphinx-doc.org). Documentation can be created in a
 number of formats, such as html, latex and pdf. To see the options

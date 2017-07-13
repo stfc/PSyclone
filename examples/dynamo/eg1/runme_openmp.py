@@ -6,8 +6,8 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-from parse import parse
-from psyGen import PSyFactory
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
 api="dynamo0.1"
 
 # Parse the algorithm specification and return the Abstract Syntax Tree and
@@ -28,7 +28,7 @@ schedule=psy.invokes.get('invoke_0_v3_kernel_type').schedule
 schedule.view()
 
 # Get the list of possible loop transformations
-from psyGen import TransInfo
+from psyclone.psyGen import TransInfo
 t=TransInfo()
 print t.list
 

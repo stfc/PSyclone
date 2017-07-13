@@ -28,21 +28,24 @@ Change directory to where you would like to place the code (where
 
    > cd <PSYCLONEHOME>
 
-Now download and extract the latest release of PSyclone:
-::
+Now download and extract the latest release of PSyclone, e.g.:
 
-   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
-   > gunzip 1.4.1.tar.gz
-   > tar xf 1.4.1.tar
-   > rm 1.4.1.tar
+.. parsed-literal::
 
-Set your python path appropriately:
-::
+   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > gunzip \ |release|\ .tar.gz
+   > tar xf \ |release|\ .tar
+   > rm \ |release|\ .tar
 
-   > cd PSyclone-1.4.1
+Set your python path and path appropriately:
+
+.. parsed-literal::
+
+   > cd PSyclone-\ |release|\ 
    > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
+   > export PATH=`pwd`/bin:${PATH}
 
-You may want to set your python path permanently (e.g. by editing your
+You may want to set these paths permanently (e.g. by editing your
 ${HOME}/.bashrc file if you run the BASH shell).
 
 Install Python packages using apt package manager
@@ -66,7 +69,8 @@ Install pip
 The pip tool enables Python packages to be installed from the Python
 Package Index (https://packaging.python.org/installing/). Install it like so:
 ::
-     > sudo apt-get install python-pip
+
+   > sudo apt-get install python-pip
 
 .. _install_fparser:
 
@@ -78,17 +82,18 @@ Ubuntu software centre. It can instead be installed from the
 Python Package Index using pip:
 ::
 
-    > sudo pip install fparser
+   > sudo pip install fparser
 
 Uninstalling is simply a matter of doing:
 ::
-    > sudo pip uninstall fparser
+
+   > sudo pip uninstall fparser
 
 If you do not have sufficient privileges for a system-wide install then
 you can do:
 ::
 
-    > pip install --user fparser
+   > pip install --user fparser
 
 (The ``--user`` flag requests that the packages be installed locally for
 the current user rather than requiring root access.) In order for Python
@@ -96,7 +101,7 @@ to find such locally-installed packages the necessary directory must be
 added to the PYTHONPATH, e.g.:
 ::
 
-    > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
+   > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
 
 Alternatively, if pip is not an option, a tarball of the latest release
 may be downloaded from https://github.com/stfc/fparser/releases. Simply
@@ -135,10 +140,11 @@ Install pytest for running python tests
 
    > sudo apt-get install python-pytest
 
-You can now run the PSyclone python tests
-::
+You can now run the PSyclone python tests:
 
-   > cd PSyclone_trunk/src/tests
+.. parsed-literal::
+
+   > cd PSyclone-\ |release|\ /src/psyclone/tests
    > py.test
 
 Documentation
@@ -178,33 +184,33 @@ Static code tests and style checking
 Install the standalone pep8 tool
 ::
 
-    > sudo apt-get install pep8
+   > sudo apt-get install pep8
 
 You can now test whether the Python code conforms to the pep8
 standards
 ::
 
-    > pep8 code.py
+   > pep8 code.py
 
 Install the standalone pylint tool
 ::
 
-    > sudo apt-get install pylint
+   > sudo apt-get install pylint
 
 You can now test how well the Python code conforms to the pylint
 standards
 ::
 
-    > pylint code.py
+   > pylint code.py
 
 Finally, install useful pytest extensions using pip:
 ::
 
-    > sudo pip install pytest-cov
-    > sudo pip install pytest-pep8
-    > sudo pip install pytest-pylint
-    > sudo pip install pytest-flakes
-    > sudo pip install pytest-pep257
+   > sudo pip install pytest-cov
+   > sudo pip install pytest-pep8
+   > sudo pip install pytest-pylint
+   > sudo pip install pytest-flakes
+   > sudo pip install pytest-pep257
 
 If you don't have root access then you can specify the ``--user`` argument to
 install packages in a user-local directory -- see the instructions on
@@ -213,6 +219,7 @@ install packages in a user-local directory -- see the instructions on
 Should you wish to remove the above packages at any point, simply instruct
 pip to uninstall them, e.g.:
 ::
-    > sudo pip uninstall pytest-cov
+   
+   > sudo pip uninstall pytest-cov
 
 OK, you're all set up.

@@ -16,7 +16,7 @@ Transformations can be imported directly, but the user needs to know
 what transformations are available. A helper class **TransInfo** is
 provided to show the available transformations
 
-.. autoclass:: psyGen.TransInfo
+.. autoclass:: psyclone.psyGen.TransInfo
     :members:
 
 .. _sec_transformations_available:
@@ -35,31 +35,31 @@ The generic transformations currently available are given below (a
 number of these have specialisations which can be found in the
 API-specific sections).
 
-.. autoclass:: transformations.KernelModuleInlineTrans
+.. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.LoopFuseTrans
+.. autoclass:: psyclone.transformations.LoopFuseTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.MoveTrans
+.. autoclass:: psyclone.transformations.MoveTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.ColourTrans
+.. autoclass:: psyclone.transformations.ColourTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.OMPLoopTrans
+.. autoclass:: psyclone.transformations.OMPLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.OMPParallelTrans
+.. autoclass:: psyclone.transformations.OMPParallelTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.OMPParallelLoopTrans
+.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members:
     :noindex:
 
@@ -188,7 +188,7 @@ example ...
 PSyclone also provides the same functionality via a function (which is
 what the **generator.py** script calls internally)
 
-.. autofunction:: generator.generate
+.. autofunction:: psyclone.generator.generate
 		  :noindex:
 
 A valid script file must contain a **trans** function which accepts a **PSy**
