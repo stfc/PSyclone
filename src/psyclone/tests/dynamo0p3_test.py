@@ -771,7 +771,7 @@ def test_field_deref():
         if dist_mem:
             output = (
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -916,7 +916,7 @@ def test_field_fs():
         "map_any_w2(:,cell))\n"
         "      END DO \n"
         "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
@@ -1052,7 +1052,7 @@ def test_field_qr():
         "diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
         "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"
@@ -4304,7 +4304,7 @@ def test_halo_dirty_1():
     expected = (
         "     END DO \n"
         "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n")
     assert expected in generated_code
@@ -4320,7 +4320,7 @@ def test_halo_dirty_2():
     expected = (
         "      END DO \n"
         "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
@@ -4353,7 +4353,7 @@ def test_halo_dirty_4():
     expected = (
         "      END DO \n"
         "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL chi_proxy(1)%set_dirty()\n"
         "      CALL chi_proxy(2)%set_dirty()\n"
@@ -4371,7 +4371,7 @@ def test_halo_dirty_5():
     generated_code = str(psy.gen)
     print generated_code
     assert "set_dirty()" not in generated_code
-    assert "! Set halos dirty" not in generated_code
+    assert "! Set halos dirty/clean" not in generated_code
 
 
 def test_no_halo_dirty():
@@ -4383,7 +4383,7 @@ def test_no_halo_dirty():
     generated_code = str(psy.gen)
     print generated_code
     assert "set_dirty()" not in generated_code
-    assert "! Set halos dirty" not in generated_code
+    assert "! Set halos dirty/clean" not in generated_code
 
 
 def test_halo_exchange():
@@ -4746,7 +4746,8 @@ def test_lower_bound_fortran_2(monkeypatch):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[3]
-    # we can not use the standard set_lower_bound function as that checks for valid input
+    # we can not use the standard set_lower_bound function as that
+    # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value="invalid")
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._lower_bound_fortran()
@@ -4754,7 +4755,7 @@ def test_lower_bound_fortran_2(monkeypatch):
             str(excinfo.value))
 
 
-def test_upper_bound_fortran_1(): 
+def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method whe 'cell_halo', 'dof_halo' or 'inner' are used'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4771,7 +4772,7 @@ def test_upper_bound_fortran_1():
                 str(excinfo.value))
 
 
-def test_upper_bound_fortran_2(monkeypatch): 
+def test_upper_bound_fortran_2(monkeypatch):
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method if an invalid value is provided'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -6192,8 +6193,8 @@ def test_unsupported_halo_read_access():
     # call our method
     with pytest.raises(GenerationError) as err:
         _ = loop._halo_read_access(stencil_arg)
-    assert ("Loop bounds other than cell_halo and ncells are currently unsupported. "
-            "Found 'inner'." in str(err))
+    assert ("Loop bounds other than cell_halo and ncells are currently "
+            "unsupported. Found 'inner'." in str(err))
 
 
 def test_dynglobalsum_unsupported_scalar():
@@ -6669,8 +6670,8 @@ def test_multi_anyw2():
                 "undf_any_w2, map_any_w2(:,cell))\n"
                 "      END DO \n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()")
             assert output in generated_code

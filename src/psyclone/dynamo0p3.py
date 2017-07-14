@@ -2545,7 +2545,7 @@ class DynLoop(Loop):
             if fields:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
-                                      " Set halos dirty for fields "
+                                      " Set halos dirty/clean for fields "
                                       "modified in the above loop"))
                 parent.add(CommentGen(parent, ""))
                 from psyGen import OMPParallelDoDirective

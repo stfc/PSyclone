@@ -157,7 +157,7 @@ def test_colour_trans():
             dirty_str = (
                 "      end do \n"
                 "      !\n"
-                "      ! set halos dirty for fields modified in the "
+                "      ! set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      call f1_proxy%set_dirty()\n")
@@ -1176,8 +1176,8 @@ def test_fuse_colour_loops():
 
         if dist_mem:
             set_dirty_str = (
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL a_proxy%set_dirty()\n"
                 "      CALL f_proxy%set_dirty()\n")
@@ -1329,8 +1329,8 @@ def test_builtin_single_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()") in result
 
@@ -1370,7 +1370,7 @@ def test_builtin_multiple_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1382,7 +1382,7 @@ def test_builtin_multiple_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
@@ -1394,7 +1394,7 @@ def test_builtin_multiple_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()") in result
@@ -1453,7 +1453,7 @@ def test_builtin_loop_fuse_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1501,7 +1501,7 @@ def test_builtin_single_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1551,7 +1551,7 @@ def test_builtin_multiple_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1564,7 +1564,7 @@ def test_builtin_multiple_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1577,7 +1577,7 @@ def test_builtin_multiple_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1644,7 +1644,7 @@ def test_builtin_loop_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1863,8 +1863,8 @@ def test_reduction_after_normal_real_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1943,8 +1943,8 @@ def test_reprod_reduction_after_normal_real_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -2380,8 +2380,8 @@ def test_multi_builtins_reduction_then_standard_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL bsum_proxy%set_dirty()\n") in code
         else:
@@ -2451,8 +2451,8 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL bsum_proxy%set_dirty()\n"
@@ -2523,7 +2523,7 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL bsum_proxy%set_dirty()\n"
@@ -2587,7 +2587,7 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -2642,8 +2642,8 @@ def test_multi_builtins_standard_then_reduction_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
@@ -2718,8 +2718,8 @@ def test_multi_builtins_standard_then_reduction_fuse_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
@@ -2777,8 +2777,8 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -3055,8 +3055,8 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL bsum_proxy%set_dirty()\n"
@@ -3161,7 +3161,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -3245,7 +3245,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -3694,8 +3694,8 @@ def test_redundant_computation_node_not_loop():
     rc_trans = DynamoRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("In the DynamoRedundantComputation transformation apply method the "
-            "first argument is not a Loop") in str(excinfo)
+    assert ("In the DynamoRedundantComputation transformation apply method "
+            "the first argument is not a Loop") in str(excinfo)
 
 
 def test_redundant_computation_invalid_loop(monkeypatch):
@@ -3713,8 +3713,9 @@ def test_redundant_computation_invalid_loop(monkeypatch):
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the DynamoRedundantComputation transformation apply method the "
-            "loop must iterate over cells or dofs, but found 'colours'") in str(excinfo)
+    assert ("In the DynamoRedundantComputation transformation apply "
+            "method the loop must iterate over cells or dofs, but "
+            "found 'colours'") in str(excinfo)
 
 
 def test_redundant_computation_nodm(monkeypatch):
@@ -3749,8 +3750,9 @@ def test_redundant_computation_invalid_depth():
     loop = schedule.children[3]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=0)
-    assert ("In the DynamoRedundantComputation transformation apply method the "
-            "supplied depth is less than 1") in str(excinfo)
+    assert ("In the DynamoRedundantComputation transformation apply method "
+            "the supplied depth is less than 1") in str(excinfo)
+
 
 def test_redundant_computation_invalid_depth_continuous():
     '''Test that DynamoRedundantComputationTrans raises an exception if the
@@ -3765,8 +3767,8 @@ def test_redundant_computation_invalid_depth_continuous():
     loop = schedule.children[3]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=1)
-    assert ("In the DynamoRedundantComputation transformation apply method the "
-            "supplied depth must be greater than 1") in str(excinfo)
+    assert ("In the DynamoRedundantComputation transformation apply method "
+            "the supplied depth must be greater than 1") in str(excinfo)
 
 
 def test_redundant_computation_continuous_depth():
@@ -3963,9 +3965,9 @@ def test_redundant_computation_vector_depth():
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
-    for index in range(1,4):
+    for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
-    for index in range(1,4):
+    for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
 
 
@@ -3986,9 +3988,9 @@ def test_redundant_computation_vector_no_depth():
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    for index in range(1,4):
+    for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
-    for index in range(1,4):
+    for index in range(1, 4):
         assert ("CALL chi_proxy({0})%set_clean(mesh%get_last_halo_depth()"
                 "-1)".format(index) in result)
 
@@ -4001,6 +4003,7 @@ def test_redundant_computation_vector_no_depth():
 #      if so, is there an existing halo exchange
 #      if so, modify it
 #      if not, create a new one.
-# 3) runtime checks that redundant computation is not beyond max halo (with and without stencil)
-# 4) add check for discontinuous() function and check its existing use as this was incorrect
-
+# 3) runtime checks that redundant computation is not beyond max halo
+#    (with and without stencil)
+# 4) add check for discontinuous() function and check its existing use
+#    as this was incorrect
