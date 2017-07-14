@@ -3945,17 +3945,62 @@ def test_dofs_no_set_clean():
     assert "CALL f1_proxy%set_clean(" not in result
 
 
+def test_redundant_computation_vector_depth():
+    '''Test that the loop bounds for a (continuous) vector are modified
+    appropriately and set_clean() added correctly after applying the
+    redundant computation transformation with a fixed value for halo
+    depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8_vector_field.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    for index in range(1,4):
+        assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
+    for index in range(1,4):
+        assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
+
+
+def test_redundant_computation_vector_no_depth():
+    '''Test that the loop bounds for a (continuous) vector are modified
+    appropriately and set_clean() added correctly after applying the
+    redundant computation transformation with no halo depth value'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8_vector_field.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    for index in range(1,4):
+        assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
+    for index in range(1,4):
+        assert ("CALL chi_proxy({0})%set_clean(mesh%get_last_halo_depth()"
+                "-1)".format(index) in result)
+
+
 # todo
-# h) field vectors 8_ vector, 14.4_halo_vector,
-#   i) continuous with and without depth
-#   ii) dicontinuous with and without depth
-#   iii) dofs with and without depth
-
-# 5) change comment to clean/dirty (affects many tests)
-
-
-
-# 2) modify halo_exchange(depth=x) values
+# 1) change comment to clean/dirty (affects many tests)
+# 2) add/modify halo_exchange(depth=x) values - needed for correctness
+#    is there redundant computation?
+#    if so, for each field that is read
+#      if so, is there an existing halo exchange
+#      if so, modify it
+#      if not, create a new one.
 # 3) runtime checks that redundant computation is not beyond max halo (with and without stencil)
 # 4) add check for discontinuous() function and check its existing use as this was incorrect
 

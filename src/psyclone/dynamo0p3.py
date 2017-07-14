@@ -2411,7 +2411,7 @@ class DynLoop(Loop):
             else:
                 result = self._kern.undf_name
             return result
-        elif  self._upper_bound_name == "ncells":
+        elif self._upper_bound_name == "ncells":
             if config.DISTRIBUTED_MEMORY:
                 mesh_obj_name = self._name_space_manager.create_name(
                     root_name="mesh", context="PSyVars", label="mesh")
@@ -2496,8 +2496,9 @@ class DynLoop(Loop):
         if arg.descriptor.stencil:
             if self._upper_bound_name not in ["cell_halo", "ncells"]:
                 raise GenerationError(
-                    "Loop bounds other than cell_halo and ncells are currently "
-                    "unsupported. Found '{0}'.".format(self._upper_bound_name))
+                    "Loop bounds other than cell_halo and ncells are "
+                    "currently unsupported. Found '{0}'.".format(
+                        self._upper_bound_name))
             return self._upper_bound_name in ["cell_halo", "ncells"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
@@ -2560,8 +2561,12 @@ class DynLoop(Loop):
                 # first set all of the halo dirty unless we are
                 # subsequently going to set all of the halo clean
                 for field in fields:
-                    if not self._upper_bound_index and (self._upper_bound_name == "dof_halo" or (self._upper_bound_name == "cell_halo" and field.discontinuous)):
-                        # do not output set dirty as it will all be set to clean
+                    if not self._upper_bound_index and \
+                       (self._upper_bound_name == "dof_halo" or
+                        (self._upper_bound_name == "cell_halo" and
+                         field.discontinuous)):
+                        # do not output set dirty as it will all be
+                        # set to clean
                         pass
                     else:
                         if field.vector_size > 1:
@@ -2569,7 +2574,8 @@ class DynLoop(Loop):
                             # 1 to the vector size which is what we
                             # require in our Fortran code
                             for index in range(1, field.vector_size+1):
-                                parent.add(CallGen(parent, name=field.proxy_name +
+                                parent.add(CallGen(parent,
+                                                   name=field.proxy_name +
                                                    "(" + str(index) +
                                                    ")%set_dirty()"))
                         else:
@@ -2585,16 +2591,45 @@ class DynLoop(Loop):
                                self._upper_bound_name == "cell_halo":
                                 halo_depth -= 1
                             if halo_depth > 0:
-                                parent.add(CallGen(parent, name="{0}%set_clean({1})".
-                                                   format(field.proxy_name, halo_depth)))
+                                if field.vector_size > 1:
+                                    # the range function below returns
+                                    # values from 1 to the vector size
+                                    # which is what we require in our
+                                    # Fortran code
+                                    for index in range(1, field.vector_size+1):
+                                        parent.add(
+                                            CallGen(parent,
+                                                    name="{0}({1})%set_clean"
+                                                    "({2})".format(
+                                                        field.proxy_name,
+                                                        str(index),
+                                                        halo_depth)))
+                                else:
+                                    parent.add(
+                                        CallGen(parent,
+                                                name="{0}%set_clean({1})".
+                                                format(field.proxy_name,
+                                                       halo_depth)))
                         else:
                             halo_depth = "mesh%get_last_halo_depth()"
-                            if self._upper_bound_name == "cell_halo" and not field.discontinuous:
+                            if self._upper_bound_name == "cell_halo" and not \
+                               field.discontinuous:
                                 halo_depth += "-1"
-                            parent.add(CallGen(parent, name="{0}%set_clean({1})".
-                                               format(field.proxy_name,
-                                                      halo_depth)))
-                    
+                            if field.vector_size > 1:
+                                # the range function below returns
+                                # values from 1 to the vector size
+                                # which is what we require in our
+                                # Fortran code
+                                for index in range(1, field.vector_size+1):
+                                    parent.add(CallGen(parent, name="{0}({1})%set_clean("
+                                                       "{2})".format(field.proxy_name,
+                                                                     str(index),
+                                                                     halo_depth)))
+                            else:
+                                parent.add(CallGen(parent, name="{0}%set_clean("
+                                                   "{1})".format(field.proxy_name,
+                                                                 halo_depth)))
+
                 if use_omp_master:
                     # I am within an OpenMP Do directive so protect
                     # set_dirty() and set_clean() with OpenMP Master
