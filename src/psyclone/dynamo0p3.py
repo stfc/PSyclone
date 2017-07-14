@@ -2148,8 +2148,8 @@ class DynSchedule(Schedule):
         '''a method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
         method to include distributed memory information '''
-        print self.indent(indent) + "Schedule[invoke='" + self.invoke.name + \
-            "' dm="+str(config.DISTRIBUTED_MEMORY)+"]"
+        print self.indent(indent) + self.name_str + "[invoke='" + \
+            self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2274,8 +2274,8 @@ class DynLoop(Loop):
         this method from the Loop class because, in Dynamo0.3, the
         function space is now an object and we need to call orig_name on
         it '''
-        print self.indent(indent) +\
-            "Loop[type='{0}',field_space='{1}',it_space='{2}']".\
+        print self.indent(indent) + self.name_str + \
+            "[type='{0}',field_space='{1}',it_space='{2}']".\
             format(self._loop_type, self._field_space.orig_name,
                    self.iteration_space)
         for entity in self._children:
