@@ -3728,8 +3728,8 @@ def test_redundant_computation_nodm(monkeypatch):
     schedule = invoke.schedule
     rc_trans = DynamoRedundantComputationTrans()
     loop = schedule.children[0]
-    import config
-    monkeypatch.setattr(config, "DISTRIBUTED_MEMORY", False)
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "DISTRIBUTED_MEMORY", False)
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the DynamoRedundantComputation transformation apply method "
@@ -3772,7 +3772,7 @@ def test_redundant_computation_invalid_depth_continuous():
 def test_redundant_computation_continuous_depth():
     '''Test that the loop bounds for a continuous function (iterating over
     cells) are modified appropriately and set_clean() added
-    appropriately after applying the redundant computation
+    correctly after applying the redundant computation
     transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3793,8 +3793,9 @@ def test_redundant_computation_continuous_depth():
 
 def test_redundant_computation_continuous_no_depth():
     '''Test that the loop bounds for a continuous function (iterating over
-    cells) are modified appropriately after applying the redundant
-    computation transformation with no value for halo depth'''
+    cells) are modified appropriately and set_clean() added
+    correctly after applying the redundant computation
+    transformation with no value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3880,8 +3881,8 @@ def test_redundant_computation_dofs_depth():
 
 def test_redundant_computation_dofs_no_depth():
     '''Test that the loop bounds when iterating over dofs are modified
-    appropriately after applying the redundant computation
-    transformation with no halo depth value'''
+    appropriately and set_clean() added correctly after applying the
+    redundant computation transformation with no halo depth value'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.0.1_single_builtin_set_by_ref.f90"),
                     api=TEST_API)
@@ -3945,16 +3946,16 @@ def test_dofs_no_set_clean():
 
 
 # todo
-# 1) generate set field clean as appropriate
 # h) field vectors 8_ vector, 14.4_halo_vector,
 #   i) continuous with and without depth
 #   ii) dicontinuous with and without depth
 #   iii) dofs with and without depth
 
+# 5) change comment to clean/dirty (affects many tests)
+
+
+
 # 2) modify halo_exchange(depth=x) values
-
 # 3) runtime checks that redundant computation is not beyond max halo (with and without stencil)
-
 # 4) add check for discontinuous() function and check its existing use as this was incorrect
 
-# 5) change comment to clean/dirty (affects many tests)
