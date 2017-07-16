@@ -3788,6 +3788,11 @@ def test_redundant_computation_continuous_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    for field_name in ["f2", "m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
+                format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=3)".
+                format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(2)" in result
@@ -3810,6 +3815,11 @@ def test_redundant_computation_continuous_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    for field_name in ["f2", "m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
+                "get_last_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth()-1)" in result
@@ -3826,6 +3836,8 @@ def test_redundant_computation_discontinuous_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    schedule.view()
+    exit(1)
     rc_trans = DynamoRedundantComputationTrans()
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop, depth=3)
@@ -3996,14 +4008,20 @@ def test_redundant_computation_vector_no_depth():
 
 
 # todo
-# 1) change comment to clean/dirty (affects many tests)
-# 2) add/modify halo_exchange(depth=x) values - needed for correctness
+# 1) add/modify halo_exchange(depth=x) values - needed for correctness
 #    is there redundant computation?
 #    if so, for each field that is read
 #      if so, is there an existing halo exchange
 #      if so, modify it
 #      if not, create a new one.
-# 3) runtime checks that redundant computation is not beyond max halo
+# a) ensure existing tests work
+# b) no halo before but now there is one i.e. a new halo exchange - implies update of dependencies?
+# c) correct halo exchange with stencil accesses
+#
+# 2) runtime checks that redundant computation is not beyond max halo
 #    (with and without stencil)
-# 4) add check for discontinuous() function and check its existing use
+#
+# 3) add check for discontinuous() function and check its existing use
 #    as this was incorrect
+#
+# 4) add tests for the new halo exchange depth property and setter in psyGen.py

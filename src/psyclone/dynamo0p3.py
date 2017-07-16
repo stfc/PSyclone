@@ -1471,6 +1471,31 @@ class DynInvokeCMAOperators(object):
                                entity_decls=param_names))
 
 
+def update_loop_halo_exchanges(loop):
+    # first check this is a loop
+    # loop over all unique fields that may require a halo exchange
+    loop.root.view()
+    print "iteration space: {0}".format(loop.iteration_space)
+    print "Upper bound name: {0}".format(loop.upper_bound_name)
+    print "Upper bound index: {0}".format(loop.upper_bound_index)
+    for halo_field in loop.unique_fields_with_halo_reads():
+        print "    read field: {0}".format(halo_field.name)
+        prev_arg = halo_field.backward_dependence()
+        if not prev_arg:
+            print "    unsupported: no previous dependent argument found"
+            exit(1)
+        else:
+            prev_node = prev_arg.call
+            if isinstance(prev_node, DynHaloExchange):
+                if loop.upper_bound_index:
+                    prev_node.depth = str(loop.upper_bound_index)
+                else:
+                    prev_node.depth = "mesh%get_last_halo_depth()"
+            else:
+                print "    unsupported: previous dependent argument is not a halo exchange"
+                exit(1)
+
+
 class DynInvoke(Invoke):
     ''' The Dynamo specific invoke class. This passes the Dynamo
     specific schedule class to the base class so it creates the one we

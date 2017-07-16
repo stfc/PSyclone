@@ -6813,3 +6813,17 @@ def test_stub_generate_with_anyw2():
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
         "nqp_h,nqp_v) :: diff_basis_any_w2")
     assert expected_output in str(result)
+
+
+def test_no_halo_for_w3():
+    '''Test that we do not create halo exchange calls when our loop only
+    iterates over owned cells (e.g. it writes to a discontinuous
+    field), we only read from a discontinoust field and there are no
+    stencil accesses'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    result = str(psy.gen)
+    print result
+    assert "halo_exchange" not in result
