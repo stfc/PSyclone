@@ -1529,10 +1529,12 @@ def test_vector_field():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    print str(generated_code)
     assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
-                                    "type(f1, chi)") != -1
+                                    "type(f1, chi, f2)") != -1
     assert str(generated_code).find("TYPE(field_type), intent(inout)"
                                     " :: f1, chi(3)") != -1
+    assert "TYPE(field_type), intent(in) :: f2" in str(generated_code)
 
 
 def test_vector_field_2():
@@ -1562,9 +1564,10 @@ def test_vector_field_deref():
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = psy.gen
         assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
-                                        "type(f1, box_chi)") != -1
+                                        "type(f1, box_chi, f2)") != -1
         assert str(generated_code).find("TYPE(field_type), intent(inout)"
                                         " :: f1, box_chi(3)") != -1
+        assert "TYPE(field_type), intent(in) :: f2" in str(generated_code)
 
 
 def test_orientation():

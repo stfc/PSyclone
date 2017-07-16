@@ -3773,9 +3773,10 @@ def test_redundant_computation_invalid_depth_continuous():
 
 def test_redundant_computation_continuous_depth():
     '''Test that the loop bounds for a continuous function (iterating over
-    cells) are modified appropriately and set_clean() added
-    correctly after applying the redundant computation
-    transformation with a fixed value for halo depth'''
+    cells) are modified appropriately and set_clean() added correctly
+    and halo_exchange added/modified appropriately after applying the
+    redundant computation transformation with a fixed value for halo
+    depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3800,9 +3801,10 @@ def test_redundant_computation_continuous_depth():
 
 def test_redundant_computation_continuous_no_depth():
     '''Test that the loop bounds for a continuous function (iterating over
-    cells) are modified appropriately and set_clean() added
-    correctly after applying the redundant computation
-    transformation with no value for halo depth'''
+    cells) are modified appropriately and set_clean() added correctly
+    and halo_exchange added/modified appropriately after applying the
+    redundant computation transformation with no value for halo
+    depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3828,22 +3830,26 @@ def test_redundant_computation_continuous_no_depth():
 def test_redundant_computation_discontinuous_depth():
     '''Test that the loop bounds for a discontinuous function (iterating
     over cells) are modified appropriately and set_clean() added
-    correctly after applying the redundant computation transformation
-    with a fixed value for halo depth '''
+    correctly and halo_exchange added/modified appropriately after
+    applying the redundant computation transformation with a fixed
+    value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
-    exit(1)
     rc_trans = DynamoRedundantComputationTrans()
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    for field_name in ["f1", "f2", "m1"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
+                format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=3)".
+                format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     assert "CALL m2_proxy%set_dirty()" in result
     assert "CALL m2_proxy%set_clean(3)" in result
@@ -3852,8 +3858,9 @@ def test_redundant_computation_discontinuous_depth():
 def test_redundant_computation_discontinuous_no_depth():
     '''Test that the loop bounds for a discontinuous function (iterating
     over cells) are modified appropriately and set_clean() added
-    correctly after applying the redundant computation transformation
-    with no halo depth value '''
+    correctly and halo_exchange added/modified appropriately after
+    applying the redundant computation transformation with no halo
+    depth value'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -3866,6 +3873,11 @@ def test_redundant_computation_discontinuous_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    for field_name in ["f1", "f2", "m1"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
+                "get_last_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL m2_proxy%set_dirty()" not in result
     assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
@@ -3961,9 +3973,9 @@ def test_dofs_no_set_clean():
 
 def test_redundant_computation_vector_depth():
     '''Test that the loop bounds for a (continuous) vector are modified
-    appropriately and set_clean() added correctly after applying the
-    redundant computation transformation with a fixed value for halo
-    depth'''
+    appropriately and set_clean() added correctly and halo_exchange
+    added/modified appropriately after applying the redundant
+    computation transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "8_vector_field.f90"),
                     api=TEST_API)
@@ -3971,11 +3983,13 @@ def test_redundant_computation_vector_depth():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = DynamoRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
@@ -3985,8 +3999,9 @@ def test_redundant_computation_vector_depth():
 
 def test_redundant_computation_vector_no_depth():
     '''Test that the loop bounds for a (continuous) vector are modified
-    appropriately and set_clean() added correctly after applying the
-    redundant computation transformation with no halo depth value'''
+    appropriately and set_clean() added correctly and halo_exchange
+    added/modified appropriately after applying the redundant
+    computation transformation with no halo depth value'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "8_vector_field.f90"),
                     api=TEST_API)
@@ -3994,11 +4009,15 @@ def test_redundant_computation_vector_no_depth():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = DynamoRedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
+            "get_last_halo_depth())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
@@ -4015,6 +4034,7 @@ def test_redundant_computation_vector_no_depth():
 #      if so, modify it
 #      if not, create a new one.
 # a) ensure existing tests work
+# *** need a dofs example with a reader so we can check for halo exchanges
 # b) no halo before but now there is one i.e. a new halo exchange - implies update of dependencies?
 # c) correct halo exchange with stencil accesses
 #
