@@ -11,7 +11,7 @@ Ubuntu 14.04.3
 
 This guide has been tested with a vanilla installation of Ubuntu 14.04.3.
 
-.. _users:
+.. _users_ubuntu14:
 
 User set-up
 +++++++++++
@@ -125,7 +125,7 @@ Developer set-up
 
 This section adds software that is used to develop and test
 PSyclone. Note, we assume you have already installed the software
-described in the :ref:`users` section.
+described in the :ref:`users_ubuntu14` section.
 
 pytest
 ^^^^^^
@@ -205,6 +205,194 @@ Finally, install useful pytest extensions using pip:
     > sudo pip install pytest-pylint
     > sudo pip install pytest-flakes
     > sudo pip install pytest-pep257
+
+If you don't have root access then you can specify the ``--user`` argument to
+install packages in a user-local directory -- see the instructions on
+:ref:`install_fparser` above.
+
+Should you wish to remove the above packages at any point, simply instruct
+pip to uninstall them, e.g.:
+::
+    > sudo pip uninstall pytest-cov
+
+OK, you're all set up.
+
+.. _openSUSE42.2:
+
+openSUSE 42.2
+-------------
+This guide has been tested with a vanilla installation of openSUSE 42.2.
+
+.. _users_opensuse42:
+
+User set-up
++++++++++++
+
+Open a terminal or konsole.
+
+Installation of  required tools
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The default openSUSE 42.2 installation only installs pip for python3,
+so the python2 versison needs to be installed manually:
+::
+
+    > zypper install python-pip
+    > sudo pip2.7 install --upgrade pip
+
+The update of pip is only necessary to remove a warning message
+that would otherwise be printed.
+
+For developers the following packages are also required:
+::
+
+    > zypper install git
+    > zypper install gcc
+
+
+Installation of PSyclone
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Now download and extract the latest release of PSyclone:
+::
+
+   > wget https://github.com/stfc/PSyclone/archive/1.4.1.tar.gz
+   > gunzip 1.4.1.tar.gz
+   > tar xf 1.4.1.tar
+   > rm 1.4.1.tar
+
+Set your python path appropriately:
+::
+
+   > cd PSyclone-1.4.1
+   > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
+
+You may want to set your python path permanently (e.g. by editing your
+${HOME}/.bashrc file if you run the BASH shell).
+
+Install Python packages using pip package manager
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Using pip2.7 to install all required dependencies. Note that some
+packages will install additional dependencies.
+::
+    > sudo pip2.7 install fparser
+    > sudo pip2.7 install pyparsing
+
+If you need to remove any of those packages, just use
+::
+    > sudo pip uninstall <packagename>
+
+If you do not have sufficient privileges for a system-wide install then
+you can do:
+::
+
+    > pip install --user fparser
+
+(The ``--user`` flag requests that the packages be installed locally for
+the current user rather than requiring root access.) In order for Python
+to find such locally-installed packages the necessary directory must be
+added to the PYTHONPATH, e.g.:
+::
+
+    > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
+
+
+PSyclone supports the ability to output a schedule dependency graph
+using the graphviz package. This is optional and the associated
+routine will silently return if the graphviz bindings are not
+installed. To output a graph you need to install the python bindings
+to the graphviz package
+::
+
+    > sudo pip2.7 install graphviz
+If you just want to use PSyclone then you've installed all you need
+and you're ready to go to the getting-going :ref:`getting-going-run`
+section.
+
+Developer set-up
+++++++++++++++++
+
+This section adds software that is used to develop and test
+PSyclone. Note, we assume you have already installed the software
+described in the :ref:`users_opensuse42` section.
+
+pytest
+^^^^^^
+
+Install pytest for running python tests
+::
+
+   > sudo pip2.7 install pytest
+
+You can now run the PSyclone python tests
+::
+
+   > cd PSyclone_trunk/src/tests
+   > py.test
+
+Documentation
+^^^^^^^^^^^^^
+
+Install Sphinx for creating PSyclone documentation 
+::
+    > sudo zypper install python-sphinx
+
+You can now build html and latex documentation (but not pdf)
+::
+
+   > cd doc
+   > make html
+   > make latex
+Install texlive for the PSyclone pdf documentation.
+
+.. warning:
+    These installs are large (over 1600 packages). It may 
+    be possible to install a subset of texlive-latex-extra but 
+    the authors do not know what this subset is.
+
+::
+
+   > sudo zypper install texlive
+
+You can now build the pdf documentation
+::
+
+   > cd doc
+   > make latexpdf
+
+Static code tests and style checking
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Install the standalone pep8 tool
+::
+
+    > sudo pip2.7 install pep8
+
+You can now test whether the Python code conforms to the pep8
+standards
+::
+
+    > pep8 code.py
+
+Install the standalone pylint tool
+::
+
+    > sudo pip2.7 install pylint
+
+You can now test how well the Python code conforms to the pylint
+standards
+::
+
+    > pylint code.py
+
+Finally, install useful pytest extensions using pip:
+::
+
+    > sudo pip2.7 install pytest-cov
+    > sudo pip2.7 install pytest-pep8
+    > sudo pip2.7 install pytest-pylint
+    > sudo pip2.7 install pytest-flakes
+    > sudo pip2.7 install pytest-pep257
 
 If you don't have root access then you can specify the ``--user`` argument to
 install packages in a user-local directory -- see the instructions on
