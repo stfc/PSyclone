@@ -1488,9 +1488,9 @@ def update_loop_halo_exchanges(loop):
             prev_node = prev_arg.call
             if isinstance(prev_node, DynHaloExchange):
                 if loop.upper_bound_index:
-                    prev_node.depth = str(loop.upper_bound_index)
+                    prev_node.halo_depth = str(loop.upper_bound_index)
                 else:
-                    prev_node.depth = "mesh%get_last_halo_depth()"
+                    prev_node.halo_depth = "mesh%get_last_halo_depth()"
             else:
                 print "    unsupported: previous dependent argument is not a halo exchange"
                 exit(1)

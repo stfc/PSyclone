@@ -1553,12 +1553,12 @@ class HaloExchange(Node):
         self._check_dirty = check_dirty
 
     @property
-    def depth(self):
+    def halo_depth(self):
         ''' Return the depth of the halo exchange '''
         return self._halo_depth
 
-    @depth.setter
-    def depth(self, value):
+    @halo_depth.setter
+    def halo_depth(self, value):
         ''' Set the depth of the halo exchange '''
         self._halo_depth = value
     
