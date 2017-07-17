@@ -3,13 +3,13 @@
 
 def inline():
     ''' function exercising the module-inline transformation '''
-    from parse import parse
-    from psyGen import PSyFactory
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory
     import os
-    from transformations import KernelModuleInlineTrans
+    from psyclone.transformations import KernelModuleInlineTrans
 
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "tests",
+                                 "..", "..", "..", "src", "psyclone", "tests",
                                  "test_files", "dynamo0p1", "algorithm",
                                  "1_single_function.f90"),
                     api="dynamo0.1")

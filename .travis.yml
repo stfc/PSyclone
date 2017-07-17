@@ -1,0 +1,57 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+
+language: python
+python:
+  - 2.7
+# command to install dependencies
+before_install:
+  - pip install coveralls
+install:
+  - "pip install ."
+script:
+  - coverage run --source=psyclone -m py.test
+  - coverage report -m
+after_success:
+  - coveralls
+# Configure travis to deploy to the pypi server when a new
+# version is tagged on master
+deploy:
+  provider: pypi
+  user: "trackstand"
+  password:
+    secure: "kEiFKUygfvS7Q0EpZnx3GwYtwP6CXEfJ0DcUtc3I/73dv8Vn4Kif0LtO3yT8/ED5qepT/5S270K/jmfIStOTOak7aLjePaSESftPg51UxU6cKT6G5N/I3kmN+oqVjXbNXFlVzSBIPphegpNxPKyszeXha0XRZ36gUEjPFbimE5OSz991WLdPNkHiDSMOKkXgRwn5R8328lgbV8AjQKlfrEZCVSYBzUrcuXSaN3z3qrtCDhtY8M+xG3e3KyM3NmEG4hl5Ie4DFfArN4IiR6HMSMvFlZJOOJVMEwueYlfBaZWxwCYUMpShSpM++lM5mJHGXiHe1tCP+EqOvp4ZECQWVhZe+N7O8yDKQxer6xm42aTCv2IEPv2aqQjkvSWebvdzi7uG6fArfSuqVM4WwecgHJzxYnx5BGybVhGXI/8CJjDxnnDu/l91PrYEoh45zgY0G9BJpNmSA1eV5ZjqIUqFE4E2TW7ovW5RA8X9zIk3VA7bsxvT695ymsf12QVTjn3smQTSnrFsEczt/BtYlNS35jMP/N1Ma3b+rP2fIU20sAPjXZs9D6KIJQgYuZQ7l6QRVmSImvt8Evo9fJIPq+92RnM5mLGRpKWosHGItHUp2T4Utymdk98oJbXD4g6SuzFu4tKWXRspjt9x9aLbxW4GLIYnjZ8t48oHXgfBuFUW/sI="
+  on:
+    tags: true
+

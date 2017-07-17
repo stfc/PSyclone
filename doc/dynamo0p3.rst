@@ -681,25 +681,28 @@ Column-wise operators are constructed from cell-wise (local) operators.
 Therefore, in order to **assemble** a CMA operator, a kernel must have at
 least one read-only LMA operator, e.g.:
 ::
-  type(arg_type) :: meta_args(2) = (/                                       &
-       arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
-       /)
+   
+   type(arg_type) :: meta_args(2) = (/                                       &
+        arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2),&
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
+        /)
 
 CMA operators (and their inverse) are **applied** to fields. Therefore any
 kernel of this type must have one read-only CMA operator, one read-only
 field and a field that is updated, e.g.:
 ::
-  type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
-       /)
+   
+   type(arg_type) :: meta_args(3) = (/                                      &
+        arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &
+        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
+        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
+        /)
 
 **Matrix-matrix** kernels compute the product/linear combination of CMA
 operators. They must therefore have one such operator that is updated while
 the rest are read-only. They may also have read-only scalar arguments, e.g.:
 ::
+   
    type(arg_type) :: meta_args(3) = (/                                        &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
@@ -1444,18 +1447,18 @@ that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
 all versions of the Dynamo API.
 
-.. autoclass:: transformations.DynamoLoopFuseTrans
+.. autoclass:: psyclone.transformations.DynamoLoopFuseTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.DynamoOMPParallelLoopTrans
+.. autoclass:: psyclone.transformations.DynamoOMPParallelLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.Dynamo0p3OMPLoopTrans
+.. autoclass:: psyclone.transformations.Dynamo0p3OMPLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: transformations.Dynamo0p3ColourTrans
+.. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
     :members:
     :noindex:

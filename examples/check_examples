@@ -1,7 +1,51 @@
 #!/bin/bash
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: R. Ford and A. R. Porter, STFC Daresbury Laboratory
+
+# This is a simple bash script that executes all of the examples that
+# are distributed with PSyclone. Note that PSyclone must be installed
+# for this script to work - i.e. the 'psyclone' directory must be on
+# your PYTHONPATH.
 
 # abort if a command fails
 set -e
+
+# The location of the driver scripts for psyclone and the
+# kernel-stub generator
+export PSYCLONE=${PWD}/../bin/psyclone
+export KSTUBGEN=${PWD}/../bin/genkernelstub
 
 echo "Running examples dynamo/eg1"
 cd dynamo/eg1
@@ -18,33 +62,33 @@ cd -
 
 echo "Running example dynamo/eg3"
 cd dynamo/eg3
-python ../../../src/generator.py solver_mod.x90
-python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90
+${PSYCLONE} solver_mod.x90
+${PSYCLONE} -s ./colouring_and_omp.py -nodm solver_mod.x90
 cd -
 
 echo "Running example dynamo/eg4"
 cd dynamo/eg4
-python ../../../src/generator.py -nodm solver_mod.x90
-python ../../../src/generator.py solver_mod.x90
+${PSYCLONE} -nodm solver_mod.x90
+${PSYCLONE} solver_mod.x90
 cd -
 
 echo "Running example dynamo/eg5"
 cd dynamo/eg5
-python ../../../src/generator.py alg.f90
+${PSYCLONE} alg.f90
 cd -
 
 echo "Running example dynamo/eg6"
 cd dynamo/eg6
-python ../../../src/generator.py -nodm alg.x90
-python ../../../src/generator.py alg.x90
-python ../../../src/generator.py -nodm -s ./omp_script.py alg.x90
-python ../../../src/generator.py -s ./omp_script.py alg.x90
-python ../../../src/generator.py -s ./omp_reprod_script.py alg.x90
+${PSYCLONE} -nodm alg.x90
+${PSYCLONE} alg.x90
+${PSYCLONE} -nodm -s ./omp_script.py alg.x90
+${PSYCLONE} -s ./omp_script.py alg.x90
+${PSYCLONE} -s ./omp_reprod_script.py alg.x90
 cd -
 
 echo "Running example dynamo/eg7"
 cd dynamo/eg7
-python ../../../src/generator.py alg.x90
+${PSYCLONE} alg.x90
 cd -
 
 echo "Running gocean examples"
@@ -66,5 +110,5 @@ cd -
 
 echo "Running stub generation examples"
 cd stub_generation
-python ../../src/genkernelstub.py testkern_stencil_multi_mod.f90
+${KSTUBGEN} testkern_stencil_multi_mod.f90
 cd -

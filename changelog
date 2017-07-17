@@ -15,6 +15,13 @@
 	5) #45 and PR #49 Change of kernel metadata names from
 	evaluator_shape to gh_shape and modifications to its values.
 
+	6) #3 and PR #51 Restructure repository to allow installation via
+	pip. Due to this change we can now use travis and coveralls within
+	github for automated testing. Also, new releases are now
+	automatically uploaded to pypi (via travis) and status badges can
+	now be used so have been added to the README.md file (which is
+	shown on the main github page).
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
