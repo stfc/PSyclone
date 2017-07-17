@@ -3885,11 +3885,12 @@ def test_redundant_computation_discontinuous_no_depth():
 
 def test_redundant_computation_dofs_depth():
     '''Test that the loop bounds when iterating over dofs are modified
-    appropriately and set_clean() added correctly after applying the
-    redundant computation transformation with a fixed value for halo
-    depth '''
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth where the halo
+    fields have no previous dependence'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.1_single_builtin_set_by_ref.f90"),
+                                 "15.4_inc_axpy_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3900,6 +3901,11 @@ def test_redundant_computation_dofs_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    for field_name in ["f1", "f2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=3"
+                ")".format(field_name)) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
@@ -3907,10 +3913,12 @@ def test_redundant_computation_dofs_depth():
 
 def test_redundant_computation_dofs_no_depth():
     '''Test that the loop bounds when iterating over dofs are modified
-    appropriately and set_clean() added correctly after applying the
-    redundant computation transformation with no halo depth value'''
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with no halo depth value where the halo fields have
+    no previous dependence'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.1_single_builtin_set_by_ref.f90"),
+                                 "15.4_inc_axpy_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3921,8 +3929,85 @@ def test_redundant_computation_dofs_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    for field_name in ["f1", "f2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
+                "get_last_halo_depth())".format(field_name)) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" not in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+
+
+def test_redundant_computation_dofs_depth_prev_dep():
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth where the halo
+    fields have a previous (non-halo-exchange) dependence'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    # check the f1 halo exchange is added and the f2 halo exchange is
+    # modified
+    for field_name in ["f1", "f2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=3"
+                ")".format(field_name)) in result
+    # check the existing m1 and m2 halo exchanges remain unchanged
+    for field_name in ["m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=1"
+                ")".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(3)" in result
+
+
+def test_redundant_computation_dofs_no_depth_prev_dep():
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with no halo depth value where the halo
+    fields have a previous (non-halo-exchange) dependence'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    # check the f1 halo exchange is added and the f2 halo exchange is
+    # modified
+    for field_name in ["f1", "f2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_last_halo_depth()"
+                ")".format(field_name)) in result
+    # check the existing m1 and m2 halo exchanges remain unchanged
+    for field_name in ["m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=1"
+                ")".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
@@ -3966,6 +4051,7 @@ def test_dofs_no_set_clean():
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
     print result
+    assert "halo_exchange" not in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_owned()" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(" not in result
@@ -4027,15 +4113,27 @@ def test_redundant_computation_vector_no_depth():
 
 
 # todo
-# 1) add/modify halo_exchange(depth=x) values - needed for correctness
-#    is there redundant computation?
-#    if so, for each field that is read
-#      if so, is there an existing halo exchange
-#      if so, modify it
-#      if not, create a new one.
-# a) ensure existing tests work
-# *** need a dofs example with a reader so we can check for halo exchanges
-# b) no halo before but now there is one i.e. a new halo exchange - implies update of dependencies?
+
+#  [done] 1) no previous halo exchange, iterate over dofs,  no previous dependence, depth,    no vector
+#  [done] 2) no previous halo exchange, iterate over dofs,  no previous dependence, no depth, no vector
+#  [done] 5) no previous halo exchange, iterate over dofs,  previous dependence,    depth,    no vector
+#  [done] 6) no previous halo exchange, iterate over dofs,  previous dependence,    no depth, no vector
+
+#  9) no previous halo exchange, iterate over cells, no previous dependence, depth,    no vector
+# 10) no previous halo exchange, iterate over cells, no previous dependence, no depth, no vector
+# 11) no previous halo exchange, iterate over cells, no previous dependence, depth,    vector
+# 12) no previous halo exchange, iterate over cells, no previous dependence, no depth, vector
+# 13) no previous halo exchange, iterate over cells, previous dependence,    depth,    no vector
+# 14) no previous halo exchange, iterate over cells, previous dependence,    no depth, no vector
+# 15) no previous halo exchange, iterate over cells, previous dependence,    depth,    vector
+# 16) no previous halo exchange, iterate over cells, previous dependence,    no depth, vector
+
+# check we don't accidentally decrease the halo_exchange size. This might happen with multiple readers as they all depend on the same halo_exchange
+
+# d) check adding new halos works with directives (they won't!!!) ** limit to before directives with a test????
+# e) check adding new halos doesn't break dependence analysis (they will!!!)
+#
+#
 # c) correct halo exchange with stencil accesses
 #
 # 2) runtime checks that redundant computation is not beyond max halo

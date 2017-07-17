@@ -1482,8 +1482,26 @@ def update_loop_halo_exchanges(loop):
         print "    read field: {0}".format(halo_field.name)
         prev_arg = halo_field.backward_dependence()
         if not prev_arg:
-            print "    unsupported: no previous dependent argument found"
-            exit(1)
+            if loop.upper_bound_index:
+                my_depth = str(loop.upper_bound_index)
+            else:
+                my_depth = "mesh%get_last_halo_depth()"
+            if halo_field.vector_size > 1:
+                # the range function below returns values from
+                # 1 to the vector size which is what we
+                # require in our Fortran code
+                for idx in range(1, halo_field.vector_size+1):
+                    exchange = DynHaloExchange(halo_field,
+                                               parent=loop.parent,
+                                               vector_index=idx,
+                                               depth=my_depth)
+                    loop.parent.children.insert(loop.position,
+                                                exchange)
+            else:
+                exchange = DynHaloExchange(halo_field,
+                                           parent=loop.parent,
+                                           depth=my_depth)
+                loop.parent.children.insert(loop.position, exchange)
         else:
             prev_node = prev_arg.call
             if isinstance(prev_node, DynHaloExchange):
@@ -1492,8 +1510,26 @@ def update_loop_halo_exchanges(loop):
                 else:
                     prev_node.halo_depth = "mesh%get_last_halo_depth()"
             else:
-                print "    unsupported: previous dependent argument is not a halo exchange"
-                exit(1)
+                if loop.upper_bound_index:
+                    my_depth = str(loop.upper_bound_index)
+                else:
+                    my_depth = "mesh%get_last_halo_depth()"
+                if halo_field.vector_size > 1:
+                    # the range function below returns values from
+                    # 1 to the vector size which is what we
+                    # require in our Fortran code
+                    for idx in range(1, halo_field.vector_size+1):
+                        exchange = DynHaloExchange(halo_field,
+                                                   parent=loop.parent,
+                                                   vector_index=idx,
+                                                   depth=my_depth)
+                        loop.parent.children.insert(loop.position,
+                                                    exchange)
+                else:
+                    exchange = DynHaloExchange(halo_field,
+                                               parent=loop.parent,
+                                               depth=my_depth)
+                    loop.parent.children.insert(loop.position, exchange)
 
 
 class DynInvoke(Invoke):
@@ -2215,7 +2251,7 @@ class DynHaloExchange(HaloExchange):
     manipulated in, a schedule '''
 
     def __init__(self, field, check_dirty=True, parent=None,
-                 vector_index=None, inc=False):
+                 vector_index=None, inc=False, depth=None):
 
         self._vector_index = vector_index
         if field.descriptor.stencil:
@@ -2232,7 +2268,10 @@ class DynHaloExchange(HaloExchange):
                 halo_depth += "+1"
         else:
             halo_type = 'region'
-            halo_depth = "1"
+            if depth:
+                halo_depth = depth
+            else:
+                halo_depth = "1"
         HaloExchange.__init__(self, field, halo_type, halo_depth,
                               check_dirty, parent=parent)
 
@@ -2534,14 +2573,15 @@ class DynLoop(Loop):
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
-            return self._upper_bound_name == "cell_halo"
+            return self._upper_bound_name in ["cell_halo", "dof_halo"]
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # it is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness. There may be shared dofs so only access to
             # inner is local so we care about reads in both the ncells
             # (annexed dofs) and the halo
-            return self._upper_bound_name in ["cell_halo", "ncells"]
+            return self._upper_bound_name in ["cell_halo", "ncells",
+                                              "dof_halo"]
         else:
             # access is neither a read nor an inc so does not need halo
             return False
