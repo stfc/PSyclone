@@ -335,7 +335,7 @@ Documentation
 
 Install Sphinx for creating PSyclone documentation 
 ::
-    > sudo zypper install python-sphinx
+    > sudo pip2.7 install sphinx
 
 You can now build html and latex documentation (but not pdf)
 ::
@@ -346,13 +346,18 @@ You can now build html and latex documentation (but not pdf)
 Install texlive for the PSyclone pdf documentation.
 
 .. warning:
-    These installs are large (over 1600 packages). It may 
-    be possible to install a subset of texlive-latex-extra but 
+    These installs are large (over 1600 packages, approximately 1.6GB). 
+    It may be possible to install a subset of texlive-latex-extra but 
     the authors do not know what this subset is.
 
 ::
 
    > sudo zypper install texlive
+   > sudo zypper install texlive-fncychap
+   > sudo zypper install texlive-wrapfig
+   > sudo zypper install texlive-upquote
+   > sudo zypper install texlive-capt-of
+   > sudo zypper install texlive-needspace
 
 You can now build the pdf documentation
 ::
