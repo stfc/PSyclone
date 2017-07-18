@@ -34,11 +34,11 @@ module testkern_eval_op_to_mod
   ! a space corresponding to the 'to' space of the operator.
   type, extends(kernel_type) :: testkern_eval_op_to_type
      type(arg_type)  :: meta_args(2) =  (/        &
-       arg_type(GH_OPERATOR, GH_WRITE, W2, W0),   &
-       arg_type(GH_FIELD,    GH_READ, W3)         &
+       arg_type(GH_OPERATOR, GH_READ, W2, W0),   &
+       arg_type(GH_FIELD,    GH_WRITE, W3)         &
        /)
      type(func_type) :: meta_funcs(2) = (/                             &
-       func_type(W2, GH_BASIS),                                        &
+       func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
        func_type(W3, GH_DIFF_BASIS)                                    &
        /)
      integer, parameter :: iterates_over = cells
