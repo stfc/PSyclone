@@ -253,7 +253,6 @@ For developers the following packages are also required:
 ::
 
     > zypper install git
-    > zypper install gcc
 
 
 Installation of PSyclone
@@ -353,18 +352,40 @@ You can now build html and latex documentation (but not pdf)
 Install texlive for the PSyclone pdf documentation.
 
 .. warning:
-    These installs are large (over 1600 packages, approximately 1.6GB). 
+    The full texlive-latex install is large (over 1600 packages,
+    approximately 1.6GB). 
     It may be possible to install a subset of texlive-latex-extra but 
     the authors do not know what this subset is.
 
 ::
 
-   > sudo zypper install texlive
+   > sudo zypper install texlive-latex
+   > sudo zypper install --no-recommends texlive-latex
+   > sudo zypper install --no-recommends texlive-latexmk
+   > sudo zypper install --no-recommends texlive-babel-english
+   > sudo zypper install texlive-cmap
+   > sudo zypper install texlive-psnfss
    > sudo zypper install texlive-fncychap
+   > sudo zypper install texlive-fancyhdf
+   > sudo zypper install texlive-titlesec
+   > sudo zypper install texlive-tabulary
+   > sudo zypper install texlive-varwidth
+   > sudo zypper install texlive-framed
+   > sudo zypper install texlive-fancyvrb
+   > sudo zypper install texlive-float
    > sudo zypper install texlive-wrapfig
+   > sudo zypper install texlive-parskip
    > sudo zypper install texlive-upquote
    > sudo zypper install texlive-capt-of
    > sudo zypper install texlive-needspace
+   > sudo zypper install texlive-metafont   -bin????
+   > sudo zypper install texlive-makeindex-bind
+   > sudo zypper install texlive-times
+   > sudo zypper install texlive-helvetic
+   > sudo zypper install texlive-courier
+   > sudo zypper install texlive-dvips
+
+
 
 You can now build the pdf documentation
 ::
