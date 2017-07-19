@@ -4040,6 +4040,64 @@ def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
     assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
+def test_redundant_computation_all_discontinuous_prev_dependence_depth():
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with discontinuous reads are modified appropriately
+    and set_clean() added correctly and halo_exchange added
+    appropriately in the case where the field requiring a halo
+    exchange has a previous non-halo dependence, after applying the
+    redundant computation transformation with a fixed value for halo
+    depth '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for idx in range(1,4):
+        assert "IF (f1_proxy({0})%is_dirty(depth=3)) THEN".format(idx) in result
+        assert "CALL f1_proxy({0})%halo_exchange(depth=3)".format(idx) in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    for idx in range(1,4):
+        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
+        assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
+        assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
+
+
+def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly and halo_exchange added appropriately in the case where
+    the field now requiring a halo exchange has a previous non-halo
+    dependence after applying the redundant computation transformation
+    with no halo depth value '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for idx in range(1,4):
+        assert "IF (f1_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth())) THEN".format(idx) in result
+        assert "CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_depth())".format(idx) in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    for idx in range(1,4):
+        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
+        assert "CALL f3_proxy({0})%set_clean(mesh%get_last_halo_depth())".format(idx) in result
+
+
 def test_redundant_computation_dofs_depth():
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
@@ -4282,14 +4340,14 @@ def test_redundant_computation_vector_no_depth():
 #  [done] 12) no previous halo exchange, iterate over cells, no previous dependence, no depth, vector
 #  [done] 13) no previous halo exchange, iterate over cells, previous dependence,    depth,    no vector
 #  [done] 14) no previous halo exchange, iterate over cells, previous dependence,    no depth, no vector
-# 15) no previous halo exchange, iterate over cells, previous dependence,    depth,    vector
-# 16) no previous halo exchange, iterate over cells, previous dependence,    no depth, vector
+#  [done] 15) no previous halo exchange, iterate over cells, previous dependence,    depth,    vector
+#  [done] 16) no previous halo exchange, iterate over cells, previous dependence,    no depth, vector
 
 # check we don't accidentally decrease the halo_exchange size. This might happen with multiple readers as they all depend on the same halo_exchange
 
 # d) check adding new halos works with directives (they won't!!!) ** limit to before directives with a test????
 # e) check adding new halos doesn't break dependence analysis (they will!!!)
-#
+# f) add loop bounds output to schedule (now that we change them)
 #
 # c) correct halo exchange with stencil accesses
 #
