@@ -50,32 +50,18 @@ ${HOME}/.bashrc file if you run the BASH shell).
 
 Install Python packages using apt package manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-numpy is required to run PSyclone
-::
-
-   > sudo apt-get install python-numpy
-
-pyparsing is required by PSyclone
-::
-
-   > sudo apt-get install python-pyparsing
-
-.. _install_pip:
-
-Install pip
-^^^^^^^^^^^
-
 The pip tool enables Python packages to be installed from the Python
 Package Index (https://packaging.python.org/installing/). Install it like so:
 ::
 
    > sudo apt-get install python-pip
 
-.. _install_fparser:
 
-Install fparser
-^^^^^^^^^^^^^^^
+
+fparser and pyparsing is required by PSyclone
+::
+
+   > sudo pip install pyparsing fparser
 
 fparser is also required by PSyclone but is not available from the
 Ubuntu software centre. It can instead be installed from the
@@ -138,7 +124,7 @@ pytest
 Install pytest for running python tests
 ::
 
-   > sudo apt-get install python-pytest
+   > sudo pip install pytest
 
 You can now run the PSyclone python tests:
 
@@ -153,7 +139,7 @@ Documentation
 Install Sphinx for creating PSyclone documentation 
 ::
 
-   > sudo apt-get install python-sphinx
+   > sudo pip install sphinx
 
 You can now build html and latex documentation (but not pdf)
 ::
@@ -169,8 +155,9 @@ Install texlive for the PSyclone pdf documentation.
 
 ::
 
-   > sudo apt-get install texlive
-   > sudo apt-get install texlive-latex-extra
+   > sudo apt-get install --no-install-recommends texlive
+   > sudo apt-get install --no-install-recommends texlive-latex-extra
+   > sudo apt-get install --no-install-recommends texlive-latexmk
 
 You can now build the pdf documentation
 ::
@@ -343,6 +330,10 @@ Install Sphinx for creating PSyclone documentation
 ::
     > sudo pip2.7 install sphinx
 
+CHECK!!!  now you need install psyclone before html.
+When installing locally, you need to add the dir to PYTHONPATH!!!!!!!!
+$HOME/local/lib/python2.7/site-packages
+
 You can now build html and latex documentation (but not pdf)
 ::
 
@@ -352,38 +343,25 @@ You can now build html and latex documentation (but not pdf)
 Install texlive for the PSyclone pdf documentation.
 
 .. warning:
-    The full texlive-latex install is large (over 1600 packages,
-    approximately 1.6GB). 
-    It may be possible to install a subset of texlive-latex-extra but 
-    the authors do not know what this subset is.
+    The following command installs the minimum number of packages
+    in order to create the pdf documentation. It is important to
+    install the packages in one zypper command, since otherwise
+    depending on used file system snapshots might be created after
+    each package, which can add up to several GB of data.
+    The minimum installation installs around 130 packages,
+    requiring around 300 MB.
 
 ::
 
    > sudo zypper install texlive-latex
-   > sudo zypper install --no-recommends texlive-latex
-   > sudo zypper install --no-recommends texlive-latexmk
-   > sudo zypper install --no-recommends texlive-babel-english
-   > sudo zypper install texlive-cmap
-   > sudo zypper install texlive-psnfss
-   > sudo zypper install texlive-fncychap
-   > sudo zypper install texlive-fancyhdf
-   > sudo zypper install texlive-titlesec
-   > sudo zypper install texlive-tabulary
-   > sudo zypper install texlive-varwidth
-   > sudo zypper install texlive-framed
-   > sudo zypper install texlive-fancyvrb
-   > sudo zypper install texlive-float
-   > sudo zypper install texlive-wrapfig
-   > sudo zypper install texlive-parskip
-   > sudo zypper install texlive-upquote
-   > sudo zypper install texlive-capt-of
-   > sudo zypper install texlive-needspace
-   > sudo zypper install texlive-metafont   -bin????
-   > sudo zypper install texlive-makeindex-bind
-   > sudo zypper install texlive-times
-   > sudo zypper install texlive-helvetic
-   > sudo zypper install texlive-courier
-   > sudo zypper install texlive-dvips
+
+   > sudo zypper install --no-recommends texlive-latex texlive-latexmk \
+   texlive-babel-english texlive-cmap texlive-psnfss texlive-fncychap  \
+   texlive-fancyhdr texlive-titlesec texlive-tabulary texlive-varwidth \
+   texlive-framed texlive-fancyvrb texlive-float texlive-wrapfig       \
+   texlive-parskip texlive-upquote texlive-capt-of texlive-needspace   \
+   texlive-metafont texlive-makeindex texlive-times texlive-helvetic   \
+   texlive-courier texlive-dvips
 
 
 
