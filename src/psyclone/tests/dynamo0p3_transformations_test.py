@@ -4329,25 +4329,45 @@ def test_redundant_computation_vector_no_depth():
 
 # todo
 
-#  [done] 1) no previous halo exchange, iterate over dofs,  no previous dependence, depth,    no vector
-#  [done] 2) no previous halo exchange, iterate over dofs,  no previous dependence, no depth, no vector
-#  [done] 5) no previous halo exchange, iterate over dofs,  previous dependence,    depth,    no vector
-#  [done] 6) no previous halo exchange, iterate over dofs,  previous dependence,    no depth, no vector
-
-#  [done] 9) no previous halo exchange, iterate over cells, no previous dependence, depth,    no vector
-#  [done] 10) no previous halo exchange, iterate over cells, no previous dependence, no depth, no vector
-#  [done] 11) no previous halo exchange, iterate over cells, no previous dependence, depth,    vector
-#  [done] 12) no previous halo exchange, iterate over cells, no previous dependence, no depth, vector
-#  [done] 13) no previous halo exchange, iterate over cells, previous dependence,    depth,    no vector
-#  [done] 14) no previous halo exchange, iterate over cells, previous dependence,    no depth, no vector
-#  [done] 15) no previous halo exchange, iterate over cells, previous dependence,    depth,    vector
-#  [done] 16) no previous halo exchange, iterate over cells, previous dependence,    no depth, vector
-
 # check we don't accidentally decrease the halo_exchange size. This might happen with multiple readers as they all depend on the same halo_exchange
+def test_redundant_computation_no_halo_decrease():
+    '''Test that we do not decrease an existing halo size when setting it
+    to a particular value. This situation may happen when the
+    redundant computation affects the same field in two different
+    loops and both depend on the same halo exchange'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    rc_trans = DynamoRedundantComputationTrans()
+    # first change the size of the f2 halo exchange to 3 by performing
+    # redundant computation in the first loop
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    # second try to change the size of the f2 halo exchange to 2 by
+    # performing redundant computation in the second loop
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+
+
+# check full halo not reduced by a value
+# check that full halo replaces a value
 
 # d) check adding new halos works with directives (they won't!!!) ** limit to before directives with a test????
 # e) check adding new halos doesn't break dependence analysis (they will!!!)
 # f) add loop bounds output to schedule (now that we change them)
+# g) remove comment code in new halo function
+# h) use new halo function when we first compute halo locations
+# i) tidy new halo function
 #
 # c) correct halo exchange with stencil accesses
 #

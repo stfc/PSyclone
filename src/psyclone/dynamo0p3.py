@@ -1471,65 +1471,66 @@ class DynInvokeCMAOperators(object):
                                entity_decls=param_names))
 
 
+def compute_halo_depth(loop, halo_exchange=None):
+    ''' xxx '''
+    if loop.upper_bound_index:
+        if halo_exchange:
+            if halo_exchange.halo_depth == "mesh%get_last_halo_depth()":
+                depth = halo_exchange.halo_depth
+            else:
+                depth = str(max(int(halo_exchange.halo_depth), loop.upper_bound_index))
+        else:
+            depth = str(loop.upper_bound_index)
+    else:
+        depth = "mesh%get_last_halo_depth()"
+    return depth
+
+
+def add_halo_exchange(loop, halo_field, depth):
+    ''' xxx '''
+    if halo_field.vector_size > 1:
+        # the range function below returns values from
+        # 1 to the vector size which is what we
+        # require in our Fortran code
+        for idx in range(1, halo_field.vector_size+1):
+            exchange = DynHaloExchange(halo_field,
+                                       parent=loop.parent,
+                                       vector_index=idx,
+                                       depth=depth)
+            loop.parent.children.insert(loop.position,
+                                        exchange)
+    else:
+        exchange = DynHaloExchange(halo_field,
+                                   parent=loop.parent,
+                                   depth=depth)
+        loop.parent.children.insert(loop.position, exchange)
+
+
 def update_loop_halo_exchanges(loop):
-    # first check this is a loop
-    # loop over all unique fields that may require a halo exchange
+    ''' xxx '''
+    # first check this is a loop ...
     loop.root.view()
     print "iteration space: {0}".format(loop.iteration_space)
     print "Upper bound name: {0}".format(loop.upper_bound_name)
     print "Upper bound index: {0}".format(loop.upper_bound_index)
     for halo_field in loop.unique_fields_with_halo_reads():
+        # for each unique field in this loop that requires a halo exchange
         print "    read field: {0}".format(halo_field.name)
         prev_arg = halo_field.backward_dependence()
         if not prev_arg:
-            if loop.upper_bound_index:
-                my_depth = str(loop.upper_bound_index)
-            else:
-                my_depth = "mesh%get_last_halo_depth()"
-            if halo_field.vector_size > 1:
-                # the range function below returns values from
-                # 1 to the vector size which is what we
-                # require in our Fortran code
-                for idx in range(1, halo_field.vector_size+1):
-                    exchange = DynHaloExchange(halo_field,
-                                               parent=loop.parent,
-                                               vector_index=idx,
-                                               depth=my_depth)
-                    loop.parent.children.insert(loop.position,
-                                                exchange)
-            else:
-                exchange = DynHaloExchange(halo_field,
-                                           parent=loop.parent,
-                                           depth=my_depth)
-                loop.parent.children.insert(loop.position, exchange)
+            # field has no previous dependence so create a new halo exchange
+            my_depth = compute_halo_depth(loop)
+            add_halo_exchange(loop, halo_field, my_depth)
         else:
+            # field has a previous dependence
             prev_node = prev_arg.call
             if isinstance(prev_node, DynHaloExchange):
-                if loop.upper_bound_index:
-                    prev_node.halo_depth = str(loop.upper_bound_index)
-                else:
-                    prev_node.halo_depth = "mesh%get_last_halo_depth()"
+                # previous dependence is a halo exchange so update its depth
+                prev_node.halo_depth = compute_halo_depth(loop, halo_exchange=prev_node)
             else:
-                if loop.upper_bound_index:
-                    my_depth = str(loop.upper_bound_index)
-                else:
-                    my_depth = "mesh%get_last_halo_depth()"
-                if halo_field.vector_size > 1:
-                    # the range function below returns values from
-                    # 1 to the vector size which is what we
-                    # require in our Fortran code
-                    for idx in range(1, halo_field.vector_size+1):
-                        exchange = DynHaloExchange(halo_field,
-                                                   parent=loop.parent,
-                                                   vector_index=idx,
-                                                   depth=my_depth)
-                        loop.parent.children.insert(loop.position,
-                                                    exchange)
-                else:
-                    exchange = DynHaloExchange(halo_field,
-                                               parent=loop.parent,
-                                               depth=my_depth)
-                    loop.parent.children.insert(loop.position, exchange)
+                # previous dependence is not a halo exchange so create a new halo exchange
+                my_depth = compute_halo_depth(loop)
+                add_halo_exchange(loop, halo_field, my_depth)
 
 
 class DynInvoke(Invoke):
