@@ -505,6 +505,20 @@ def test_kern_class_view(capsys):
     assert expected_output in out
 
 
+def test_kern_name_str():
+    '''Check that the name_str method of Kern returns what we expect '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ret_str = my_kern.coloured_text
+    print repr(ret_str)
+    # Note that we should check for the colour control codes here but,
+    # when run under pytest, these appear to be missing. Maybe because
+    # numpy cannot access the terminal environment?
+    assert "Kern" in ret_str
+
+
 def test_call_local_vars():
     ''' Check that calling the abstract local_vars() method of Call raises
     the expected exception '''
@@ -644,6 +658,16 @@ def test_globalsum_view(capsys):
     print output
     expected_output = ("GlobalSum[scalar='asum']")
     assert expected_output in output
+    from psyclone import dynamo0p3
+    from psyclone.psyGen import GlobalSum
+    gsum = None
+    for child in psy.invokes.invoke_list[0].schedule.children:
+        if isinstance(child, dynamo0p3.DynGlobalSum):
+            gsum = child
+            break
+    assert gsum
+    ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_text
+    assert "GlobalSum" in repr(ret_str)
 
 
 def test_args_filter():
@@ -1693,6 +1717,8 @@ def test_node_dag(tmpdir):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
+    print EXPECTED2
+    print result
     assert EXPECTED2 in result
     my_file = tmpdir.join('test.svg')
     result = my_file.read()

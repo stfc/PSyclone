@@ -1158,13 +1158,15 @@ class Schedule(Node):
         self._invoke = None
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str + \
+        print self.indent(indent) + self.coloured_text + \
             "[invoke='" + self.invoke.name + "']"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     @property
-    def name_str(self):
+    def coloured_text(self):
+        ''' Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it'''
         from numpy.distutils.misc_util import yellow_text
         return yellow_text("Schedule")
 
@@ -1183,12 +1185,12 @@ class Schedule(Node):
 class Directive(Node):
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str
+        print self.indent(indent) + self.coloured_text
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     @property
-    def name_str(self):
+    def coloured_text(self):
         return "Directive"
 
     @property
@@ -1205,7 +1207,7 @@ class OMPDirective(Directive):
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str + "[OMP]"
+        print self.indent(indent) + self.coloured_text + "[OMP]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1231,7 +1233,7 @@ class OMPParallelDirective(OMPDirective):
         return "OMP_parallel_" + str(self.abs_position)
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str + "[OMP parallel]"
+        print self.indent(indent) + self.coloured_text + "[OMP parallel]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1389,7 +1391,7 @@ class OMPDoDirective(OMPDirective):
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        print self.indent(indent) + self.name_str + \
+        print self.indent(indent) + self.coloured_text + \
             "[OMP do]{0}".format(reprod)
 
         for entity in self._children:
@@ -1475,7 +1477,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def view(self, indent=0):
         ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
-        print self.indent(indent) + self.name_str + \
+        print self.indent(indent) + self.coloured_text + \
             "[OMP parallel do]"
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1537,10 +1539,10 @@ class GlobalSum(Node):
     def view(self, indent):
         ''' Class specific view  '''
         print self.indent(indent) + (
-            "{0}[scalar='{1}']".format(self.name_str, self._scalar.name))
+            "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name))
 
     @property
-    def name_str(self):
+    def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node type '''
         from numpy.distutils.misc_util import cyan_text
         return cyan_text("GlobalSum")
@@ -1591,12 +1593,12 @@ class HaloExchange(Node):
         ''' Class specific view  '''
         print self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.name_str, self._field.name,
+            "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._halo_type,
                                       self._halo_depth, self._check_dirty))
 
     @property
-    def name_str(self):
+    def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node type '''
         from numpy.distutils.misc_util import green_text
         return green_text("HaloExchange")
@@ -1658,14 +1660,14 @@ class Loop(Node):
         self._canvas = None
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str + \
+        print self.indent(indent) + self.coloured_text + \
             "[type='{0}',field_space='{1}',it_space='{2}']".\
             format(self._loop_type, self._field_space, self.iteration_space)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     @property
-    def name_str(self):
+    def coloured_text(self):
         from numpy.distutils.misc_util import blue_text
         return blue_text("Loop")
 
@@ -1826,13 +1828,13 @@ class Call(Node):
         return self.arguments.args
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str, \
+        print self.indent(indent) + self.coloured_text, \
             self.name + "(" + str(self.arguments.raw_arg_list) + ")"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     @property
-    def name_str(self):
+    def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node type '''
         from numpy.distutils.misc_util import red_text
         return red_text("Call")
@@ -2104,14 +2106,14 @@ class Kern(Call):
                 kernel._module_inline = value
 
     def view(self, indent=0):
-        print self.indent(indent) + self.name_str, \
+        print self.indent(indent) + self.coloured_text, \
             self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
             "[module_inline=" + str(self._module_inline) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     @property
-    def name_str(self):
+    def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node
         type '''
         from numpy.distutils.misc_util import red_text
