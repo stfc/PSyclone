@@ -951,21 +951,15 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f1_first_read = schedule.children[0].children[0].arguments.args[1]
-    # 1: internal var computed set to False
-    assert not f1_first_read._fd_computed
-    # 2: initial internal value set to None
-    assert not f1_first_read._fd_value
-    # 3: returns none if none found (check many reads)
+    # 1: returns none if none found (check many reads)
     assert not f1_first_read.forward_dependence()
-    # 4: computed set to True once run
-    assert f1_first_read._fd_computed
-    # 5: returns first dependent kernel arg when there are many
+    # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
     f3_write = schedule.children[3].children[0].arguments.args[3]
     f3_next_read = schedule.children[4].children[0].arguments.args[2]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
-    # 6: haloexchange dependencies
+    # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -981,7 +975,7 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     # b) halo arg depends on following kern arg
     result = f2_halo_field.forward_dependence()
     assert result == f2_next_arg
-    # 7: globalsum dependencies
+    # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1014,21 +1008,15 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f1_last_read = schedule.children[6].children[0].arguments.args[1]
-    # 1: internal var computed set to False
-    assert not f1_last_read._bd_computed
-    # 2: initial internal value set to None
-    assert not f1_last_read._bd_value
-    # 3: returns none if none found (check many reads)
+    # 1: returns none if none found (check many reads)
     assert not f1_last_read.backward_dependence()
-    # 4: computed set to True once run
-    assert f1_last_read._bd_computed
-    # 5: returns first dependent kernel arg when there are many
+    # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
     f3_write = schedule.children[3].children[0].arguments.args[3]
     f3_prev_read = schedule.children[2].children[0].arguments.args[2]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
-    # 6: haloexchange dependencies
+    # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1044,7 +1032,7 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     # b) halo arg depends on previous kern arg
     result = f2_halo_field.backward_dependence()
     assert result == f2_prev_arg
-    # 7: globalsum dependencies
+    # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")

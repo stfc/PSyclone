@@ -2209,11 +2209,6 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
-        # forward and backward dependence values
-        self._bd_computed = False
-        self._bd_value = None
-        self._fd_computed = False
-        self._fd_value = None
 
     def __str__(self):
         return self._name
@@ -2264,29 +2259,22 @@ class Argument(object):
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum. For performance
-        reasons only compute once then store the result. '''
-        if not self._bd_computed:
-            self._bd_computed = True
-            all_nodes = self._call.walk(self._call.root.children, Node)
-            position = all_nodes.index(self._call)
-            all_prev_nodes = all_nodes[:position]
-            all_prev_nodes.reverse()
-            self._bd_value = self._find_argument(all_prev_nodes)
-        return self._bd_value
+        exist in a call, a haloexchange, or a globalsum. '''
+        all_nodes = self._call.walk(self._call.root.children, Node)
+        position = all_nodes.index(self._call)
+        all_prev_nodes = all_nodes[:position]
+        all_prev_nodes.reverse()
+        return self._find_argument(all_prev_nodes)
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum. For performance
         reasons only compute once, then store the result.'''
-        if not self._fd_computed:
-            self._fd_computed = True
-            all_nodes = self._call.walk(self._call.root.children, Node)
-            position = all_nodes.index(self._call)
-            all_following_nodes = all_nodes[position+1:]
-            self._fd_value = self._find_argument(all_following_nodes)
-        return self._fd_value
+        all_nodes = self._call.walk(self._call.root.children, Node)
+        position = all_nodes.index(self._call)
+        all_following_nodes = all_nodes[position+1:]
+        return self._find_argument(all_following_nodes)
 
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a

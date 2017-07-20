@@ -1171,7 +1171,7 @@ class MoveTrans(Transformation):
 
 
 class DynamoRedundantComputationTrans(Transformation):
-    ''' '''
+    ''' XXX '''
     def __str__(self):
         return "Change iteration space to perform redundant computation"
     
@@ -1181,7 +1181,7 @@ class DynamoRedundantComputationTrans(Transformation):
         return "RedundantComputation"
 
     def _validate(self, node, depth):
-        ''' '''
+        ''' XXX '''
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
@@ -1204,7 +1204,14 @@ class DynamoRedundantComputationTrans(Transformation):
                     "the loop must iterate over cells or dofs, but found "
                     "'{0}'".format(node.loop_type))
 
-        if depth is not None:
+        if depth is None:
+            if node.upper_bound_name in ["cell_halo", "dof_halo"]:
+                if not node.upper_bound_index:
+                    raise TransformationError(
+                        "In the DynamoRedundantComputation transformation "
+                        "apply method the loop is already set to the maximum "
+                        "halo depth so this transformation does nothing")
+        else:
             if depth < 1:
                 raise TransformationError(
                     "In the DynamoRedundantComputation transformation apply method "
@@ -1215,10 +1222,23 @@ class DynamoRedundantComputationTrans(Transformation):
                     "In the DynamoRedundantComputation transformation apply method "
                     "the supplied depth must be greater than 1 as this loop  "
                     "modifies a continuous field")                
-            # should we raise an error for a large depth value?
+
+            if node.upper_bound_name in ["cell_halo", "dof_halo"]:
+                if node.upper_bound_index:
+                    if node.upper_bound_index >= depth:
+                        raise TransformationError(
+                            "In the DynamoRedundantComputation transformation "
+                            "apply method the supplied depth ({0}) must be "
+                            "greater than the existing halo depth ({1})".
+                            format(depth, node.upper_bound_index))
+                else:
+                    raise TransformationError(
+                        "In the DynamoRedundantComputation transformation apply method "
+                        "the loop is already set to the maximum halo depth so can't be "
+                        "set to a fixed value")
 
     def apply(self, node, depth=None):
-        ''' '''
+        ''' XXX '''
 
         self._validate(node, depth)
 

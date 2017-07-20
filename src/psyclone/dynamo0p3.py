@@ -1508,14 +1508,9 @@ def add_halo_exchange(loop, halo_field, depth):
 
 def update_loop_halo_exchanges(loop):
     ''' xxx '''
-    # first check this is a loop ...
-    loop.root.view()
-    print "iteration space: {0}".format(loop.iteration_space)
-    print "Upper bound name: {0}".format(loop.upper_bound_name)
-    print "Upper bound index: {0}".format(loop.upper_bound_index)
+    # first check this is a loop TBD
     for halo_field in loop.unique_fields_with_halo_reads():
         # for each unique field in this loop that requires a halo exchange
-        print "    read field: {0}".format(halo_field.name)
         prev_arg = halo_field.backward_dependence()
         if not prev_arg:
             # field has no previous dependence so create a new halo exchange
