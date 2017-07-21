@@ -1913,29 +1913,32 @@ class DynInvokeBasisFns(object):
                                entity_decls=list(loop_var_list)))
 
     def deallocate(self, parent):
-        ''' Add code to deallocate all basis function arrays '''
+        ''' Add code to deallocate all basis/diff-basis function arrays '''
         from psyclone.f2pygen import CommentGen, DeallocateGen
-        if self._qr_vars:
+
+        if self._basis_fns or self._diff_basis_fns:
             # deallocate all allocated basis function arrays
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Deallocate basis arrays"))
             parent.add(CommentGen(parent, ""))
-            func_space_var_names = []
 
-            for fn in self._basis_fns:
-                # add the basis array name to the list to use later
-                op_name = get_fs_operator_name("gh_basis",
-                                               fn["fspace"],
-                                               qr_var=fn["qr_var"],
-                                               on_space=fn["nodal_fspace"])
-                func_space_var_names.append(op_name)
-            for fn in self._diff_basis_fns:
-                # add the diff_basis array name to the list to use later
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               fn["fspace"],
-                                               qr_var=fn["qr_var"],
-                                               on_space=fn["nodal_fspace"])
-                func_space_var_names.append(op_name)
+        func_space_var_names = []
+        for fn in self._basis_fns:
+            # add the basis array name to the list to use later
+            op_name = get_fs_operator_name("gh_basis",
+                                           fn["fspace"],
+                                           qr_var=fn["qr_var"],
+                                           on_space=fn["nodal_fspace"])
+            func_space_var_names.append(op_name)
+        for fn in self._diff_basis_fns:
+            # add the diff_basis array name to the list to use later
+            op_name = get_fs_operator_name("gh_diff_basis",
+                                           fn["fspace"],
+                                           qr_var=fn["qr_var"],
+                                           on_space=fn["nodal_fspace"])
+            func_space_var_names.append(op_name)
+
+        if func_space_var_names:
             # add the required deallocate call
             parent.add(DeallocateGen(parent, func_space_var_names))
 
