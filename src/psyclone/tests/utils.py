@@ -70,8 +70,8 @@ def find_fortran_file(path, root_name):
         if os.path.isfile(str(name)+"."+suffix):
             name += "." + suffix
             return name
-    raise IOError("Cannot find a Fortran file {0} with suffix in {1}".
-                  format(name), FORTRAN_SUFFIXES)
+    raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
+                  format(name, FORTRAN_SUFFIXES))
 
 
 def compile_file(filename):

@@ -115,3 +115,20 @@ def test_build_invalid_fortran(tmpdir):
     finally:
         os.chdir(str(old_pwd))
     assert "Compile error" in str(excinfo)
+
+
+def test_find_fortran_file(tmpdir):
+    ''' Check that our find_fortran_file routine raises the expected
+    error if it can't find a matching file. Also check that it returns
+    the correct name if the file does exist. '''
+    with pytest.raises(IOError) as excinfo:
+        utils.find_fortran_file(str(tmpdir), "missing_file")
+    assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo)
+    old_pwd = tmpdir.chdir()
+    try:
+        with open("hello_world.f90", "w") as ffile:
+            ffile.write(HELLO_CODE)
+        name = utils.find_fortran_file(str(tmpdir), "hello_world")
+        assert name.endswith("hello_world.f90")
+    finally:
+        os.chdir(str(old_pwd))
