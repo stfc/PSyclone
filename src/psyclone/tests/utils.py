@@ -115,7 +115,7 @@ def code_compiles(base_path, module_files, psy_ast, tmpdir):
         # If no Fortran compiler is set-up then we quietly skip this test
         return True
 
-    import f2pygen
+    from psyclone import f2pygen
     kernel_modules = []
     # Get the list of Use statements in the generated code
     use_stmts = walk(psy_ast.psy_module, f2pygen.UseGen)
@@ -136,7 +136,7 @@ def code_compiles(base_path, module_files, psy_ast, tmpdir):
     with open(psy_filename, 'w') as psy_file:
         # We limit the line lengths of the generated code so that
         # we don't trip over compiler limits.
-        from line_length import FortLineLength
+        from psyclone.line_length import FortLineLength
         fll = FortLineLength()
         psy_file.write(fll.process(str(psy_ast.gen)))
 
