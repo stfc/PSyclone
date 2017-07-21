@@ -1530,23 +1530,31 @@ class DynInvokeBasisFns(object):
                 elif call.eval_shape == "gh_evaluator":
                     # Keep a set of the unique evaluators we require. We do
                     # this as a list of the kernel arguments to which they
-                    # correspond. (A kernel requiring an evaluator is only
-                    # permitted to update a single argument.)
-                    if call.updated_arg.function_space.mangled_name not in \
-                       _fs_eval_list:
-                        _fs_eval_list.add(
-                            call.updated_arg.function_space.mangled_name)
-                        self._evaluator_args.append(call.updated_arg)
+                    # correspond. A kernel requiring an evaluator is only
+                    # permitted to update a single argument and the function
+                    # space of this argument determines which nodes the basis
+                    # functions must be evaluated upon. If this argument is an
+                    # operator then the 'to' space is used.
+                    arg = call.updated_arg
+                    if arg.type in VALID_OPERATOR_NAMES:
+                        fname = arg.function_space_to.mangled_name
+                    else:
+                        fname = arg.function_space.mangled_name
+                    if fname not in _fs_eval_list:
+                        _fs_eval_list.add(fname)
+                        self._evaluator_args.append(arg)
 
-                # It does. Need to figure out what they are and which
-                # kernel arguments they are associated with.
+                # For each FS descriptor, we need a full function-space object
                 for fsd in call.fs_descriptors.descriptors:
 
-                    # We need the full FS object, not just the name
+                    # We need the full FS object, not just the name. Therefore
+                    # we first have to get a kernel argument that is on this
+                    # space...
                     arg = call.arguments.get_arg_on_space(fsd.fs_name,
                                                           mangled=False)
-                    # Take care that we get the right space if this
-                    # argument is an operator
+                    # ...and then use that to get the appropriate function
+                    # space object. We have to take care that we get the
+                    # right object if this argument is an operator
                     if arg.type in VALID_OPERATOR_NAMES:
                         if fsd.fs_name == arg.function_space_to.orig_name:
                             fspace = arg.function_space_to
@@ -1566,6 +1574,14 @@ class DynInvokeBasisFns(object):
                         entry["qr_var"] = call.qr_name
                     else:
                         entry["qr_var"] = None
+                        # Store the function space upon which the basis
+                        # functions are to be evaluated
+                        if call.updated_arg.is_operator:
+                            entry["nodal_fspace"] = call.updated_arg.\
+                                                    function_space_to
+                        else:
+                            entry["nodal_fspace"] = call.updated_arg.\
+                                                    function_space
                     if fsd.requires_basis:
                         self._basis_fns.append(entry)
                     if fsd.requires_diff_basis:
@@ -1627,23 +1643,35 @@ class DynInvokeBasisFns(object):
                                   "using the field(s) that are written to"))
             parent.add(CommentGen(parent, ""))
 
+        _node_lists = []
         for arg in self._evaluator_args:
             # We need an 'ndf_nodal' for each unique FS for which there
             # is an evaluator
-            ndf_nodal_name = "ndf_nodal_" + arg.function_space.mangled_name
-            rhs = "%".join([arg.proxy_name_indexed,
-                            # TODO make sure we get the right function space
-                            # if arg is an operator!
-                            arg.ref_name(arg.function_space),
+
+            if arg.is_operator:
+                # If the argument being updated is an operator then we need
+                # to evaluate the basis functions on the nodes of the
+                # 'to' space
+                fspace = arg.function_space_to
+            else:
+                fspace = arg.function_space
+
+            ndf_nodal_name = "ndf_nodal_" + fspace.mangled_name
+
+            if ndf_nodal_name in _node_lists:
+                # Skip this space if we've already got an evaluator on it
+                continue
+            _node_lists.append(ndf_nodal_name)
+
+            rhs = "%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                             "get_ndf()"])
             parent.add(AssignGen(parent, lhs=ndf_nodal_name, rhs=rhs))
             var_dim_list.append(ndf_nodal_name)
             # ...and the list of nodes for that field
-            nodes_name = "nodes_" + arg.function_space.mangled_name
+            nodes_name = "nodes_" + fspace.mangled_name
             parent.add(AssignGen(
                 parent, lhs=nodes_name,
-                rhs="%".join([arg.proxy_name_indexed,
-                              arg.ref_name(arg.function_space),
+                rhs="%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                               "get_nodes()"]),
                 pointer=True))
             parent.add(DeclGen(parent, datatype="real", kind="r_def",
@@ -1655,35 +1683,35 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, " Allocate basis arrays"))
             parent.add(CommentGen(parent, ""))
 
-        for fn in self._basis_fns:
+        for basis_fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array
-            first_dim = "_".join(["dim", fn["fspace"].mangled_name])
+            first_dim = "_".join(["dim", basis_fn["fspace"].mangled_name])
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
-                rhs = "%".join([fn["arg"].proxy_name_indexed,
-                                fn["arg"].ref_name(fn["fspace"]),
+                rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
+                                basis_fn["arg"].ref_name(basis_fn["fspace"]),
                                 "get_dim_space()"])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-            op_name = get_fs_operator_name("gh_basis", fn["fspace"],
-                                           qr_var=fn["qr_var"])
+            op_name = get_fs_operator_name("gh_basis", basis_fn["fspace"],
+                                           qr_var=basis_fn["qr_var"])
             if op_name not in op_name_list:
                 # We haven't seen a basis with this name before so
                 # need to declare it and add allocate statement
                 op_name_list.append(op_name)
-                if fn["shape"] in QUADRATURE_SHAPES:
+                if basis_fn["shape"] in QUADRATURE_SHAPES:
                     alloc_args = ", ".join([first_dim,
-                                            get_fs_ndf_name(fn["fspace"]),
-                                            "nqp_h"+"_"+fn["qr_var"],
-                                            "nqp_v"+"_"+fn["qr_var"]])
+                                            get_fs_ndf_name(basis_fn["fspace"]),
+                                            "nqp_h"+"_"+basis_fn["qr_var"],
+                                            "nqp_v"+"_"+basis_fn["qr_var"]])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
                 else:
                     # Have an evaluator
-                    ndf_nodal_name = "ndf_nodal_" + fn["write_arg"].\
-                                     function_space.mangled_name
-                    alloc_args = ", ".join([first_dim,
-                                            get_fs_ndf_name(fn["fspace"]),
-                                            ndf_nodal_name])
+                    ndf_nodal_name = "ndf_nodal_" + basis_fn["nodal_fspace"].\
+                                     mangled_name
+                    alloc_args = ", ".join(
+                        [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+                         ndf_nodal_name])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
                 # add basis function variable to list to declare later
@@ -1725,8 +1753,8 @@ class DynInvokeBasisFns(object):
                     # Have an evaluator.
                     # Need the number of dofs in the field being written by
                     # the kernel that requires this evaluator
-                    ndf_nodal_name = "ndf_nodal_" +fn["write_arg"].\
-                                     function_space.mangled_name
+                    ndf_nodal_name = "ndf_nodal_" +fn["nodal_fspace"].\
+                                     mangled_name
                     alloc_args = ", ".join(["diff_dim_" + fn["fspace"].
                                             mangled_name,
                                            get_fs_ndf_name(fn["fspace"]),
@@ -1789,8 +1817,7 @@ class DynInvokeBasisFns(object):
 
                     nodal_dof_loop = DoGen(
                         parent, nodal_loop_var, "1",
-                        "ndf_nodal_"+fn["write_arg"].
-                        function_space.mangled_name)
+                        "ndf_nodal_"+fn["nodal_fspace"].mangled_name)
                     parent.add(nodal_dof_loop)
 
                     dof_loop_var = "df_"+fn["fspace"].mangled_name
@@ -1805,7 +1832,7 @@ class DynInvokeBasisFns(object):
                         [fn["arg"].proxy_name_indexed,
                          fn["arg"].ref_name(fn["fspace"]),
                          "evaluate_function(BASIS,"+dof_loop_var+
-                         ",nodes_"+fn["write_arg"].function_space.mangled_name+
+                         ",nodes_"+fn["nodal_fspace"].mangled_name+
                          "(:,"+nodal_loop_var+"))"])
                     dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
@@ -1814,27 +1841,27 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, " Compute differential basis arrays"))
             parent.add(CommentGen(parent, ""))
 
-        for fn in self._diff_basis_fns:
+        for dbasis_fn in self._diff_basis_fns:
             op_name = get_fs_operator_name("gh_diff_basis",
-                                           fn["fspace"],
-                                           qr_var=fn["qr_var"])
+                                           dbasis_fn["fspace"],
+                                           qr_var=dbasis_fn["qr_var"])
             if op_name in op_name_list:
                 # Jump over any differential basis arrays we've seen before
                 continue
             op_name_list.append(op_name)
 
-            if fn["shape"] in QUADRATURE_SHAPES:
+            if dbasis_fn["shape"] in QUADRATURE_SHAPES:
                 # Create the argument list
                 args = []
                 args.append(op_name)
-                args.append(get_fs_ndf_name(fn["fspace"]))
-                args.extend([name +"_"+fn["qr_var"] for name in qr_vars])
+                args.append(get_fs_ndf_name(dbasis_fn["fspace"]))
+                args.extend([name +"_"+dbasis_fn["qr_var"] for name in qr_vars])
                 # find an appropriate field to access
-                name = fn["arg"].proxy_name_indexed
+                name = dbasis_fn["arg"].proxy_name_indexed
                 # insert the diff basis array call
                 parent.add(
                     CallGen(parent, name=name + "%" +
-                            fn["arg"].ref_name(fn["fspace"]) +
+                            dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]) +
                             "%compute_diff_basis_function", args=args))
             else:
                 # Have an evaluator
@@ -1843,22 +1870,22 @@ class DynInvokeBasisFns(object):
 
                 nodal_dof_loop = DoGen(
                     parent, "df_nodal", "1",
-                    "ndf_nodal_"+fn["write_arg"].function_space.mangled_name)
+                    "ndf_nodal_"+dbasis_fn["nodal_fspace"].mangled_name)
                 parent.add(nodal_dof_loop)
 
-                df_loop_var = "df_"+fn["fspace"].mangled_name
+                df_loop_var = "df_"+dbasis_fn["fspace"].mangled_name
                 loop_var_list.add(df_loop_var)
 
                 dof_loop = DoGen(nodal_dof_loop, df_loop_var,
-                                 "1", get_fs_ndf_name(fn["fspace"]))
+                                 "1", get_fs_ndf_name(dbasis_fn["fspace"]))
                 nodal_dof_loop.add(dof_loop)
-                lhs = op_name + "(:," + "df_" + fn["fspace"].mangled_name \
-                      +","+"df_nodal)"
+                lhs = op_name + "(:," + "df_" + \
+                      dbasis_fn["fspace"].mangled_name +","+"df_nodal)"
                 rhs = "%".join(
-                    [fn["arg"].proxy_name_indexed,
-                     fn["arg"].ref_name(fn["fspace"]),
+                    [dbasis_fn["arg"].proxy_name_indexed,
+                     dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]),
                      "evaluate_function(DIFF_BASIS,"+df_loop_var+
-                     ",nodes_"+fn["write_arg"].function_space.mangled_name+
+                     ",nodes_"+dbasis_fn["nodal_fspace"].mangled_name+
                      "(:,"+nodal_loop_var+"))"])
                 dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
@@ -2762,7 +2789,7 @@ class DynLoop(Loop):
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
-        elif arg.type in VALID_OPERATOR_NAMES:
+        elif arg.is_operator:
             # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
@@ -4534,7 +4561,7 @@ class DynKernelArgument(KernelArgument):
         fs1 = None
         fs2 = None
 
-        if self._type in VALID_OPERATOR_NAMES:
+        if self.is_operator:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
                                 self._kernel_args)
@@ -4555,7 +4582,7 @@ class DynKernelArgument(KernelArgument):
     def ref_name(self, function_space=None):
         ''' Returns the name used to dereference this type of argument. '''
         if not function_space:
-            if self._type in VALID_OPERATOR_NAMES:
+            if self.is_operator:
                 # For an operator we use the 'from' FS
                 function_space = self._function_spaces[1]
             else:
@@ -4577,7 +4604,7 @@ class DynKernelArgument(KernelArgument):
                         self.function_space_names))
         if self._type == "gh_field":
             return "vspace"
-        elif self._type in VALID_OPERATOR_NAMES:
+        elif self.is_operator:
             if function_space.orig_name == self.descriptor.function_space_from:
                 return "fs_from"
             elif function_space.orig_name == self.descriptor.function_space_to:
@@ -4655,7 +4682,8 @@ class DynKernelArgument(KernelArgument):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata. '''
         if self._type == "gh_operator":
-            return self.function_spaces[1]
+            # We return the 'from' space for an operator argument
+            return self.function_space_from
         else:
             return self._function_spaces[0]
 
@@ -4727,6 +4755,12 @@ class DynKernelArgument(KernelArgument):
         '''Set stencil information for this kernel argument. The information
         should be provided as a DynStencil object. '''
         self._stencil = value
+
+    @property
+    def is_operator(self):
+        ''' Returns True if this kernel argument represents an operator.
+        False otherwise. '''
+        return (self._type in VALID_OPERATOR_NAMES)
 
 
 class DynKernCallFactory(object):

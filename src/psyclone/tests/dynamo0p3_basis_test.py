@@ -561,32 +561,33 @@ def test_two_eval_diff_space():
     print gen_code
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
-    # arguments, respectively.
+    # arguments, respectively. It writes to a field on W0 and therefore
+    # the basis functions must be evaluated on the nodes of the W0 space.
     # The second kernel in the invoke (testkern_eval_op_type) requires basis
     # functions on the 'from' space of the operator and differential basis
-    # functions for the space of the field argument.
+    # functions for the space of the field argument. Since it writes to the op
+    # arg we require basis functions on the nodal points of the 'to' space
+    # of that operator (W0 in this case).
     expected_init = (
         "      ! Initialise evaluator-related quantities using the field(s) "
         "that are written to\n"
         "      !\n"
         "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
         "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
-        "      ndf_nodal_w2 = op1_proxy%fs_from%get_ndf()\n"
-        "      nodes_w2 => op1_proxy%fs_from%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
         "      ALLOCATE (basis_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
         "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
-        "      ALLOCATE (basis_w2(dim_w2, ndf_w2, ndf_nodal_w2))\n"
+        "      ALLOCATE (basis_w2(dim_w2, ndf_w2, ndf_nodal_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w1(diff_dim_w1, ndf_w1, ndf_nodal_w0))\n"
         "      diff_dim_w3 = f2_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w3(diff_dim_w3, ndf_w3, ndf_nodal_w2))\n")
+        "      ALLOCATE (diff_basis_w3(diff_dim_w3, ndf_w3, ndf_nodal_w0))\n")
     assert expected_init in gen_code
     expected_code = (
         "      ! Compute basis arrays\n"
@@ -597,10 +598,10 @@ def test_two_eval_diff_space():
         "evaluate_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w2\n"
+        "      DO df_nodal=1,ndf_nodal_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2(:,df_w2,df_nodal) = op1_proxy%fs_from%"
-        "evaluate_function(BASIS,df_w2,nodes_w2(:,df_nodal))\n"
+        "evaluate_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
         "      !\n"
@@ -612,10 +613,10 @@ def test_two_eval_diff_space():
         "evaluate_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w2\n"
+        "      DO df_nodal=1,ndf_nodal_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3(:,df_w3,df_nodal) = f2_proxy%vspace%"
-        "evaluate_function(DIFF_BASIS,df_w3,nodes_w2(:,df_nodal))\n"
+        "evaluate_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
         "      !\n"
@@ -623,14 +624,16 @@ def test_two_eval_diff_space():
         "      !\n"
         "      DO cell=1,f0_proxy%vspace%get_ncell()\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
+        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
+        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
+        "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1)\n"
         "      END DO \n"
         "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
         "        !\n"
-        "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d, op1_proxy%local_stencil, f2_proxy%data, ndf_w0, ndf_w2, basis_w2, ndf_w3, undf_w3, map_w3(:,cell), diff_basis_w3)\n"
+        "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
+        " op1_proxy%local_stencil, f2_proxy%data, ndf_w0, ndf_w2, basis_w2, "
+        "ndf_w3, undf_w3, map_w3(:,cell), diff_basis_w3)\n"
         "      END DO \n")
-    assert 0 # TODO, establish whether a kernel that writes to an operator
-             # is permitted to request an evaluator
     assert expected_code in gen_code
 
 
