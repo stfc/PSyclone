@@ -55,9 +55,9 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
     DynGlobalSum
 from psyclone.transformations import LoopFuseTrans
-from psyclone.genkernelstub import generate
-from psyclone.dynamo0p3_build import INFRASTRUCTURE_MODULES
-import psyclone.utils
+from psyclone.gen_kernel_stub import generate
+from dynamo0p3_build import INFRASTRUCTURE_MODULES
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
