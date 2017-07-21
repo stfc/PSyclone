@@ -2,7 +2,7 @@
 api to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
-from transformations import OMPParallelTrans, DynamoLoopFuseTrans, \
+from psyclone.transformations import OMPParallelTrans, DynamoLoopFuseTrans, \
     Dynamo0p3OMPLoopTrans
 
 

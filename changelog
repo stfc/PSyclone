@@ -1,7 +1,26 @@
-        1) #20 and PR #28 add dependence analysis (and a Move
+        1) #20 and PR #28 Add dependence analysis (and a Move
         transformation) to PSyclone. This will subsequently allow for
         the safe implementation of more complex schedule transformations
         and optimisations.
+
+	2) #16 and PR #29 Update and add new PSyclone-generated builtins
+	to support the functionaliity required by the current LFRic code.
+
+        3) #43 and PR #44 Update of Met Office-specific install script to
+	symlink the generator.py file rather than copy it.
+
+	4) #40 and PR #47 Update example dynamo/eg3 to use builtins and to
+	merge invokes together as much as possible
+
+	5) #45 and PR #49 Change of kernel metadata names from
+	evaluator_shape to gh_shape and modifications to its values.
+
+	6) #3 and PR #51 Restructure repository to allow installation via
+	pip. Due to this change we can now use travis and coveralls within
+	github for automated testing. Also, new releases are now
+	automatically uploaded to pypi (via travis) and status badges can
+	now be used so have been added to the README.md file (which is
+	shown on the main github page).
 
 release 1.4.1
 

@@ -6,8 +6,8 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-from parse import parse
-from psyGen import PSyFactory
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
 
 # This example uses version 0.1 of the Dynamo API
 api="dynamo0.1"
