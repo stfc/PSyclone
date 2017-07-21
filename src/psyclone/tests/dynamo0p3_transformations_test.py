@@ -4437,9 +4437,35 @@ def test_redundant_computation_no_loop_decrease():
             "transformation does nothing") in str(excinfo)
 
 
+def test_redundant_computation_no_directive():
+    '''Test that we raise an exception if we try to use the redundant
+    computation transformation after adding parallel directives (or in
+    general anything that becomes a parent of the loop). This is a
+    limitation that could be fixed and is down to the way we place new
+    halos (we put them before the loop and don't check whether there are
+    any parent directives). However this is not an unreasonable constraint
+    as we would expect to perform loop optimisations before adding
+    directives.'''
+
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    loop = schedule.children[0]
+    schedule, _ = otrans.apply(loop)
+    invoke.schedule = schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[0].children[0]
+    with pytest.raises(TransformationError) as excinfo:    
+        rc_trans.apply(loop)
+    assert ("the parent must be the schedule") in str(excinfo)
+
+
 # todo
 
-# d) check adding new halos works with directives (they won't!!!) ** limit to before directives with a test????
 # f) add loop bounds output to schedule (now that we change them)
 # h) use new halo function when we first compute halo locations
 # i) incorporate new functionality into the loop class
@@ -4454,3 +4480,13 @@ def test_redundant_computation_no_loop_decrease():
 #    as this was incorrect
 #
 # 4) add tests for the new halo exchange depth property and setter in psyGen.py
+# add test for Tom's example - ensure that no halo exchange is generated 
+
+# example of redundant computation transformation in action.
+
+# documentation on redundant computation transformation.
+#   Include constraint info on no transformations
+#   Include constraint info on no reduction in loop bounds (or same size)
+#   ...
+
+# add new issue to add annexed dofs transformation optimisation

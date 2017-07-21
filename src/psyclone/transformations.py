@@ -1189,6 +1189,15 @@ class DynamoRedundantComputationTrans(Transformation):
                 "In the DynamoRedundantComputation transformation apply method "
                 "the first argument is not a Loop")
 
+        # check loop's parent is the schedule otherwise halo exchange
+        # placement fails. The only current example when this would be
+        # the case is when directives have been added.
+        from psyGen import Schedule
+        if not isinstance(node.parent, Schedule):
+            raise TransformationError(
+                "In the DynamoRedundantComputation transformation apply method "
+                "the parent must be the schedule, but found {0}".format(type(node.parent)))
+
         import config
         if not config.DISTRIBUTED_MEMORY:
             raise TransformationError(
