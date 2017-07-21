@@ -56,6 +56,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     DynGlobalSum
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
+# Modules used to test that generated code compiles
 from dynamo0p3_build import INFRASTRUCTURE_MODULES
 import utils
 
