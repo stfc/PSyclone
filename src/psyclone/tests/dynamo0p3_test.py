@@ -4655,7 +4655,8 @@ def test_halo_exchange_view(capsys):
         "check_dirty=True]\n"
         "    HaloExchange[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    Loop[type='',field_space='w1',it_space='cells']\n"
+        "    Loop[type='',field_space='w1',it_space='cells', "
+        "upper_bound='cell_halo(1)']\n"
         "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
     print expected

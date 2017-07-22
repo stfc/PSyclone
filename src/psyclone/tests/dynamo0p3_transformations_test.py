@@ -3414,18 +3414,18 @@ def test_reprod_view(capsys):
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
+                "it_space='dofs', upper_bound='ndofs']\n"
                 "                Call inner_product(f1,f2,asum)\n"
                 "    GlobalSum[scalar='asum']\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
+                "it_space='dofs', upper_bound='ndofs']\n"
                 "                Call scale_field(f1,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
+                "it_space='dofs', upper_bound='ndofs']\n"
                 "                Call sum_field(f2,bsum)\n"
                 "    GlobalSum[scalar='bsum']\n")
         else:
@@ -3434,17 +3434,17 @@ def test_reprod_view(capsys):
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
+                "it_space='dofs', upper_bound='ndofs']\n"
                 "                Call inner_product(f1,f2,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
+                "it_space='dofs', upper_bound='ndofs']\n"
                 "                Call scale_field(f1,asum)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
+                "it_space='dofs', upper_bound='ndofs']\n"
                 "                Call sum_field(f2,bsum)\n")
 
         print "Expected ..."
@@ -4466,12 +4466,12 @@ def test_redundant_computation_no_directive():
 
 # todo
 
-# f) add loop bounds output to schedule (now that we change them)
+# g) add loop bounds output to schedule (now that we change them)
 # h) use new halo function when we first compute halo locations
 # i) incorporate new functionality into the loop class
 # j) add documentation strings
 #
-# c) check correct halo exchange with stencil accesses
+# k) check correct halo exchange with stencil accesses
 #
 # 2) runtime checks that redundant computation is not beyond max halo
 #    (with and without stencil)
@@ -4488,5 +4488,7 @@ def test_redundant_computation_no_directive():
 #   Include constraint info on no transformations
 #   Include constraint info on no reduction in loop bounds (or same size)
 #   ...
+
+# changes pass pylint and pep8
 
 # add new issue to add annexed dofs transformation optimisation

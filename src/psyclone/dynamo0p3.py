@@ -2333,11 +2333,15 @@ class DynLoop(Loop):
         ''' Print out a textual representation of this loop. We override
         this method from the Loop class because, in Dynamo0.3, the
         function space is now an object and we need to call orig_name on
-        it '''
-        print self.indent(indent) +\
-            "Loop[type='{0}',field_space='{1}',it_space='{2}']".\
-            format(self._loop_type, self._field_space.orig_name,
-                   self.iteration_space)
+        it. We also output the upper loop bound as this can now be modified. '''
+        if self._upper_bound_index:
+            upper_bound = "{0}({1})".format(self._upper_bound_name, self._upper_bound_index)
+        else:
+            upper_bound = self._upper_bound_name
+        print (self.indent(indent) + "Loop[type='{0}',field_space='{1}',"
+               "it_space='{2}', upper_bound='{3}']".\
+               format(self._loop_type, self._field_space.orig_name,
+                      self.iteration_space, upper_bound))
         for entity in self._children:
             entity.view(indent=indent + 1)
 

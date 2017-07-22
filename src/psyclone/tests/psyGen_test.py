@@ -565,10 +565,12 @@ def test_ompdo_directive_class_view(capsys):
             out, _ = capsys.readouterr()
             expected_output = (
                 "Directive" + case["current_string"] + "\n"
-                "    Loop[type='',field_space='w1',it_space='cells']\n"
+                "    Loop[type='',field_space='w1',it_space='cells', "
+                "upper_bound='ncells']\n"
                 "        KernCall testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
-
+            print out
+            print expected_output
             assert expected_output in out
 
 
