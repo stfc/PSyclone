@@ -1475,14 +1475,32 @@ def compute_halo_depth(loop, halo_exchange=None):
     ''' xxx '''
     if loop.upper_bound_index:
         if halo_exchange:
+            # there is an existing halo exchange so ensure that we do
+            # not make it smaller than it already is
             if halo_exchange.halo_depth == "mesh%get_last_halo_depth()":
+                # depth is already maximum
                 depth = halo_exchange.halo_depth
             else:
+                # return the larger of the existing depth and the
+                # specified depth
                 depth = str(max(int(halo_exchange.halo_depth), loop.upper_bound_index))
         else:
+            # this will be a new halo exchange so return the loop halo size
             depth = str(loop.upper_bound_index)
-    else:
+    elif loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+        # this will be a new halo exchange and there is no index
+        # specified which means the loop iterates to the maximum halo
+        # depth
         depth = "mesh%get_last_halo_depth()"
+    else:
+        # the loop does not iterate over the halo, however a stencil
+        # access means this field still requires a halo exchange
+        if halo_exchange:
+            # the loop has no halo so use the existing halo's depth
+            depth = halo_exchange.halo_depth
+        else:
+            # there is no existing halo and the loop has no halo
+            depth = None
     return depth
 
 
@@ -1508,7 +1526,7 @@ def add_halo_exchange(loop, halo_field, depth):
 
 def update_loop_halo_exchanges(loop):
     ''' xxx '''
-    # first check this is a loop TBD
+    # first check this is a loop : TBD
     for halo_field in loop.unique_fields_with_halo_reads():
         # for each unique field in this loop that requires a halo exchange
         prev_arg = halo_field.backward_dependence()
@@ -1587,26 +1605,8 @@ class DynInvoke(Invoke):
         # which have a gh_sum access.
         if config.DISTRIBUTED_MEMORY:
             # halo exchange calls
-            # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
-                inc = loop.has_inc_arg()
-                for halo_field in loop.unique_fields_with_halo_reads():
-                    if halo_field.vector_size > 1:
-                        # the range function below returns values from
-                        # 1 to the vector size which is what we
-                        # require in our Fortran code
-                        for idx in range(1, halo_field.vector_size+1):
-                            exchange = DynHaloExchange(halo_field,
-                                                       parent=loop.parent,
-                                                       vector_index=idx,
-                                                       inc=inc)
-                            loop.parent.children.insert(loop.position,
-                                                        exchange)
-                    else:
-                        exchange = DynHaloExchange(halo_field,
-                                                   parent=loop.parent,
-                                                   inc=inc)
-                        loop.parent.children.insert(loop.position, exchange)
+                update_loop_halo_exchanges(loop)
             # global sum calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
@@ -2258,10 +2258,8 @@ class DynHaloExchange(HaloExchange):
                 halo_depth = stencil_extent_value(field)
             else:
                 halo_depth = str(halo_depth)
-            if inc:
-                # there is an inc writer which needs redundant
-                # computation so our halo depth must be increased by 1
-                halo_depth += "+1"
+            if depth:
+                halo_depth += "+{0}".format(depth)
         else:
             halo_type = 'region'
             if depth:

@@ -653,11 +653,6 @@ def test_colouring_multi_kernel():
         mtrans = MoveTrans()
 
         if dist_mem:
-            # We have halo exchanges inbetween the two loops which we
-            # are going to get rid of for simplicity. Fields b, d and
-            # the 3e's are already covered before the first loop so
-            # can be removed
-            del schedule.children[8:13]
             # f is required but can be moved before the first loop
             schedule, _ = mtrans.apply(schedule.children[7],
                                        schedule.children[6])
@@ -759,11 +754,6 @@ def test_multi_kernel_single_omp_region():
         schedule = invoke.schedule
 
         if dist_mem:
-            # We have halo exchanges inbetween the two loops which we
-            # are going to get rid of for simplicity. Fields f2, m1 and m2
-            # are already covered before the first loop so
-            # can be removed
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -828,7 +818,7 @@ def test_multi_different_kernel_omp():
 
         if dist_mem:
             index1 = 6
-            index2 = 10
+            index2 = 9
         else:
             index1 = 0
             index2 = 1
@@ -867,10 +857,6 @@ def test_loop_fuse_different_spaces():
             ftrans = DynamoLoopFuseTrans()
             mtrans = MoveTrans()
             if dist_mem:
-                # b halo exchange between loops can be removed as access
-                # in both loops is read and it is already covered by the
-                # first loop
-                del schedule.children[7]
                 # c and g halo exchange between loops can be moved before
                 # 1st loop as they are not accessed in first loop
                 schedule, _ = mtrans.apply(schedule.children[7],
@@ -911,10 +897,6 @@ def test_loop_fuse_unexpected_error():
         schedule = invoke.schedule
 
         if dist_mem:
-            # remove unecessary halos between loops. At the moment we have no
-            # intra halo analysis so we add them before all loops just in
-            # case.
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -942,10 +924,6 @@ def test_loop_fuse():
         schedule = invoke.schedule
 
         if dist_mem:
-            # remove unecessary halos between loops. At the moment we have no
-            # intra halo analysis so we add them before all loops just in
-            # case.
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -994,12 +972,6 @@ def test_loop_fuse_set_dirty():
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule.view()
-    # remove unecessary halos between loops. At the moment we have no
-    # intra halo analysis so we add them before all loops just in
-    # case.
-    del schedule.children[4:7]
-    schedule.view()
     # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[3],
                                schedule.children[4])
@@ -1022,10 +994,6 @@ def test_loop_fuse_omp():
         schedule = invoke.schedule
 
         if dist_mem:
-            # remove unecessary halos between loops. At the moment we have no
-            # intra halo analysis so we add them before all loops just in
-            # case.
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -1095,11 +1063,6 @@ def test_fuse_colour_loops():
         mtrans = MoveTrans()
 
         if dist_mem:
-            # We have halo exchanges inbetween the two loops which we
-            # are going to get rid of for simplicity. Fields b, d and
-            # the 3e's are already covered before the first loop so
-            # can be removed
-            del schedule.children[8:13]
             # f is required but can be moved before the first loop
             schedule, _ = mtrans.apply(schedule.children[7],
                                        schedule.children[6])
@@ -1193,17 +1156,19 @@ def test_loop_fuse_cma():
                                  "20.6_multi_invoke_with_cma.f90"),
                     api=TEST_API)
     ftrans = DynamoLoopFuseTrans()
+    mtrans = MoveTrans()
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
         if dist_mem:
-            # We have halo-swaps between the two loops but these can
-            # all be moved before the first loop since the first
-            # kernel doesn't look at the corresponding fields
-            schedule.children.insert(1, schedule.children.pop(2))
-            schedule.children.insert(2, schedule.children.pop(3))
-            schedule.children.insert(3, schedule.children.pop(4))
+            # move halo exchanges before the first loop
+            schedule, _ = mtrans.apply(schedule.children[2],
+                                       schedule.children[1])
+            schedule, _ = mtrans.apply(schedule.children[3],
+                                       schedule.children[2])
+            schedule, _ = mtrans.apply(schedule.children[4],
+                                       schedule.children[3])
             index = 4
         else:
             index = 0
@@ -1268,7 +1233,7 @@ def test_omp_parallel_and_halo_exchange_error():
 
     # Apply OpenMP to each of the loops
     schedule, _ = otrans.apply(schedule.children[3])
-    schedule, _ = otrans.apply(schedule.children[7])
+    schedule, _ = otrans.apply(schedule.children[4])
 
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
@@ -1290,8 +1255,7 @@ def test_module_inline():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
         if dist_mem:
-            schedule.view()
-            index = 13
+            index = 8
         else:
             index = 1
         kern_call = schedule.children[index].children[0]
@@ -4466,12 +4430,14 @@ def test_redundant_computation_no_directive():
 
 # todo
 
-# g) add loop bounds output to schedule (now that we change them)
 # h) use new halo function when we first compute halo locations
-# i) incorporate new functionality into the loop class
+# i) incorporate new functionality into the loop class - no need for a loop check in update_loop_halo_exchanges????
 # j) add documentation strings
 #
 # k) check correct halo exchange with stencil accesses
+#      stencil access with loop not over halo - correct result?
+#      stencil access with request for loop over whole halo - raise exception
+#      check reducing size fails but increasing works
 #
 # 2) runtime checks that redundant computation is not beyond max halo
 #    (with and without stencil)

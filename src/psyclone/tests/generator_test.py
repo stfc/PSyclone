@@ -280,10 +280,6 @@ def test_script_trans():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    # remove unecessary halos between loops. At the moment we have no
-    # intra halo analysis so we add them before all loops just in
-    # case.
-    del schedule.children[4:7]
     loop1 = schedule.children[3]
     loop2 = schedule.children[4]
     trans = LoopFuseTrans()

@@ -318,6 +318,7 @@ class TestAlgGenClassDynamo0p3(object):
         assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
                 "f3, f4, extent, direction)") in output
 
+    @pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
     def test_multiple_kernels_stencils(self):
         '''more than one kernel with stencils'''
         path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")

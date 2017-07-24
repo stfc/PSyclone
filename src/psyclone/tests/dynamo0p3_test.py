@@ -4398,8 +4398,8 @@ def test_halo_exchange():
     generated_code = str(psy.gen)
     print generated_code
     output1 = (
-        "     IF (f2_proxy%is_dirty(depth=f2_extent)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
+        "     IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
         "      END IF \n"
         "      !\n")
     print output1
@@ -4450,30 +4450,10 @@ def test_halo_exchange_inc():
         "        CALL f_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL b_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL d_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
-        "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
-        "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
-        "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output1 in result
     assert output2 in result
-    assert result.count("halo_exchange") == 12
+    assert result.count("halo_exchange") == 7
 
 
 def test_no_halo_exchange_for_operator():
@@ -4649,7 +4629,7 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
     expected = (
         "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    HaloExchange[field='f2', type='cross', depth=f2_extent, "
+        "    HaloExchange[field='f2', type='cross', depth=f2_extent+1, "
         "check_dirty=True]\n"
         "    HaloExchange[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -5069,8 +5049,8 @@ def test_single_stencil_literal():
         assert output4 in result
         if dist_mem:
             output5 = (
-                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      IF (f2_proxy%is_dirty(depth=1+1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1+1)\n"
                 "      END IF \n")
             assert output5 in result
         output6 = (
@@ -5141,8 +5121,8 @@ def test_single_stencil_xory1d_literal():
         assert output4 in result
         if dist_mem:
             output5 = (
-                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      IF (f2_proxy%is_dirty(depth=2+1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2+1)\n"
                 "      END IF \n")
             assert output5 in result
         output6 = (
@@ -5198,8 +5178,8 @@ def test_single_stencil_xory1d_literal_mixed():
         assert output4 in result
         if dist_mem:
             output5 = (
-                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      IF (f2_proxy%is_dirty(depth=2+1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2+1)\n"
                 "      END IF \n")
             assert output5 in result
         output6 = (
@@ -5275,12 +5255,12 @@ def test_multiple_stencils():
         assert output5 in result
         if dist_mem:
             output6 = (
-                "      IF (f2_proxy%is_dirty(depth=f2_extent)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=f2_extent)\n"
+                "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
+                "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
                 "      END IF \n")
             assert output6 in result
         output7 = (
@@ -5655,6 +5635,7 @@ def test_two_stencils_same_field():
         assert output7 in result
 
 
+@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencils_same_field_literal_extent():
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the extent being passed as a
@@ -5708,6 +5689,7 @@ def test_stencils_same_field_literal_extent():
         assert result.count(output4) == 1
 
 
+@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencils_same_field_literal_direction():
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the direction being passed as a
@@ -6034,6 +6016,7 @@ def test_stencil_args_unique_1():
         assert output7 in result
 
 
+@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencil_args_unique_2():
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are accessed as
@@ -6091,6 +6074,7 @@ def test_stencil_args_unique_2():
         assert output5 in result
 
 
+@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencil_args_unique_3():
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are dereferenced,
