@@ -4008,8 +4008,9 @@ class KernStubArgList(ArgOrdering):
                                  self._kern.qr_args["nh"],
                                  self._kern.qr_args["nv"]])
         else:
-            nodal_ndf_name = "ndf_nodal_" + \
-                             self._kern._nodal_fspace.mangled_name
+            # Need the ndf for the space on which the basis functions
+            # have been evaluated
+            nodal_ndf_name = get_fs_ndf_name(self._kern._nodal_fspace)
             dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
         self._parent.add(DeclGen(self._parent, datatype="real",
                                  kind="r_def", intent="in",
@@ -4040,12 +4041,15 @@ class KernStubArgList(ArgOrdering):
                 "function, expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
-        self._parent.add(DeclGen(self._parent, datatype="real",
-                                 kind="r_def", intent="in",
-                                 dimension=",".join(
-                                     [first_dim, ndf_name,
-                                      self._kern.qr_args["nh"],
-                                      self._kern.qr_args["nv"]]),
+        if self._kern.eval_shape in QUADRATURE_SHAPES:
+            dim_list = ",".join([first_dim, ndf_name,
+                                 self._kern.qr_args["nh"],
+                                 self._kern.qr_args["nv"]])
+        else:
+            nodal_ndf_name = get_fs_ndf_name(self._kern._nodal_fspace)
+            dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
+                                 intent="in", dimension=dim_list,
                                  entity_decls=[diff_basis_name]))
 
     def orientation(self, function_space):
