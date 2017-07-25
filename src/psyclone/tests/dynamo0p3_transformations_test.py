@@ -4430,9 +4430,6 @@ def test_redundant_computation_no_directive():
 
 # todo
 
-# i) incorporate new functionality into the loop class - no need for a loop check in update_loop_halo_exchanges????
-# j) add documentation strings
-#
 # k) check correct halo exchange with stencil accesses
 #      stencil access with loop not over halo - correct result?
 #      stencil access with request for loop over whole halo - raise exception

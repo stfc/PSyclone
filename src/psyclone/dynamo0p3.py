@@ -2510,7 +2510,12 @@ class DynLoop(Loop):
             return False
 
     def _add_halo_exchange(self, halo_field, depth):
-        ''' xxx '''
+        '''Internal helper method to add a halo exchange call immediately
+        before this loop. Use the halo_field argument for the
+        associated field information and the depth argument for the
+        required depth of the halo. If the field is a vector then add
+        the appropriate number of halo exchange calls.'''
+
         if halo_field.vector_size > 1:
             # the range function below returns values from
             # 1 to the vector size which is what we
@@ -2529,7 +2534,12 @@ class DynLoop(Loop):
             self.parent.children.insert(self.position, exchange)
 
     def _compute_halo_depth(self, halo_exchange=None):
-        ''' xxx '''
+        '''Internal helper method to determine the depth of a halo based on
+        the extent of this loops bounds and the stencil of the argument (if it
+        ha one). If this is an update to an existing halo_exchange then the
+        argument halo_exchange should contain the halo exchange object and
+        this method will return the larger of the halo depths.'''
+
         if self.upper_bound_index:
             if halo_exchange:
                 # there is an existing halo exchange so ensure that we do
@@ -2562,7 +2572,13 @@ class DynLoop(Loop):
 
 
     def update_halo_exchanges(self):
-        ''' xxx '''
+        '''add any new halo exchanges before this loop as required by fields
+        within this loop and/or update existing halo exchanges if
+        necesary. This routine can be used to create initial halo exchange and
+        also to update halo exchanges when the loop is modified (e.g. when the
+        loop bounds are changed). The routine uses the dependence analysis
+        support to avoid adding redundant halo exchanges.'''
+
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that requires a halo exchange
             prev_arg = halo_field.backward_dependence()
