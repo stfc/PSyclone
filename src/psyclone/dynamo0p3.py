@@ -1720,6 +1720,8 @@ class DynInvokeBasisFns(object):
                                             "nqp_v"+"_"+basis_fn["qr_var"]])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
+                    # add basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:,:)")
                 else:
                     # Have an evaluator
                     ndf_nodal_name = "ndf_nodal_" + basis_fn["nodal_fspace"].\
@@ -1729,8 +1731,8 @@ class DynInvokeBasisFns(object):
                          ndf_nodal_name])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
-                # add basis function variable to list to declare later
-                basis_declarations.append(op_name+"(:,:,:,:)")
+                    # add basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:)")
 
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -1763,7 +1765,8 @@ class DynInvokeBasisFns(object):
                                             "nqp_v"+"_"+fn["qr_var"]])
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args+")"))
-
+                    # Add diff-basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:,:)")
                 else:
                     # Have an evaluator.
                     # Need the number of dofs in the field being written by
@@ -1775,8 +1778,8 @@ class DynInvokeBasisFns(object):
                                            get_fs_ndf_name(fn["fspace"]),
                                            ndf_nodal_name])
                     parent.add(AllocateGen(parent, op_name+"("+alloc_args+")"))
-                # Add diff-basis function variable to list to declare later
-                basis_declarations.append(op_name+"(:,:,:,:)")
+                    # Add diff-basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:)")
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
