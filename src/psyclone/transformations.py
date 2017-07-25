@@ -1262,7 +1262,6 @@ class DynamoRedundantComputationTrans(Transformation):
         else:  # iteration space is dofs
             node.set_upper_bound("dof_halo", depth)
 
-        from psyclone.dynamo0p3 import update_loop_halo_exchanges
-        update_loop_halo_exchanges(node)
+        node.update_halo_exchanges()
         
         return schedule, keep
