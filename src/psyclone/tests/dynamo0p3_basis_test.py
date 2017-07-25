@@ -983,6 +983,59 @@ def test_basis():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+BASIS_EVAL = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(7) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_read,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_read,w3, w3),  &
+             arg_type(gh_field,   gh_read, wtheta), &
+             arg_type(gh_operator,gh_read, w2h, w2h), &
+             arg_type(gh_field,   gh_read, w2v)  &
+           /)
+     type(func_type), meta_funcs(7) =     &
+          (/ func_type(w0, gh_basis),     &
+             func_type(w1, gh_basis),     &
+             func_type(w2, gh_basis),     &
+             func_type(w3, gh_basis),     &
+             func_type(wtheta, gh_basis), &
+             func_type(w2h, gh_basis),    &
+             func_type(w2v, gh_basis)     &
+           /)
+     integer, parameter :: iterates_over = cells
+     integer, parameter :: gh_shape = gh_evaluator
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_basis_evaluator():
+    ''' Check that basis functions for an evaluator are handled correctly for
+    kernel stubs '''
+    ast = fpapi.parse(BASIS_EVAL, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print generated_code
+    output_arg_list = (
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
+        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
+        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
+        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
+        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
+        "basis_w2v)\n")
+    assert output_arg_list in generated_code
+
+
 BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type

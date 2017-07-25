@@ -1771,7 +1771,7 @@ class DynInvokeBasisFns(object):
                     # Have an evaluator.
                     # Need the number of dofs in the field being written by
                     # the kernel that requires this evaluator
-                    ndf_nodal_name = "ndf_nodal_" +fn["nodal_fspace"].\
+                    ndf_nodal_name = "ndf_nodal_" + fn["nodal_fspace"].\
                                      mangled_name
                     alloc_args = ", ".join(["diff_dim_" + fn["fspace"].
                                             mangled_name,
@@ -4003,12 +4003,17 @@ class KernStubArgList(ArgOrdering):
                 "expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
+        if self._kern.eval_shape in QUADRATURE_SHAPES:
+            dim_list = ",".join([first_dim, ndf_name,
+                                 self._kern.qr_args["nh"],
+                                 self._kern.qr_args["nv"]])
+        else:
+            nodal_ndf_name = "ndf_nodal_" + \
+                             self._kern._nodal_fspace.mangled_name
+            dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
         self._parent.add(DeclGen(self._parent, datatype="real",
                                  kind="r_def", intent="in",
-                                 dimension=",".join(
-                                     [first_dim, ndf_name,
-                                      self._kern.qr_args["nh"],
-                                      self._kern.qr_args["nv"]]),
+                                 dimension=dim_list,
                                  entity_decls=[basis_name]))
 
     def diff_basis(self, function_space):
