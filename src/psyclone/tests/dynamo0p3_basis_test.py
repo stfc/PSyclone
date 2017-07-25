@@ -45,7 +45,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -867,3 +868,294 @@ def test_eval_diff_nodal_space():
         "diff_basis_w3_on_w0)\n"
     )
     assert expected_dealloc in gen_code
+
+
+
+# basis function : spaces
+BASIS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(7) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_inc,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_write,w3, w3),  &
+             arg_type(gh_field,   gh_write, wtheta), &
+             arg_type(gh_operator,gh_inc, w2h, w2h), &
+             arg_type(gh_field,   gh_read, w2v)  &
+           /)
+     type(func_type), meta_funcs(7) =     &
+          (/ func_type(w0, gh_basis),     &
+             func_type(w1, gh_basis),     &
+             func_type(w2, gh_basis),     &
+             func_type(w3, gh_basis),     &
+             func_type(wtheta, gh_basis), &
+             func_type(w2h, gh_basis),    &
+             func_type(w2v, gh_basis)     &
+           /)
+     integer, parameter :: iterates_over = cells
+     integer, parameter :: gh_shape = gh_quadrature_xyoz
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_basis():
+    ''' Test that basis functions are handled correctly for kernel stubs '''
+    ast = fpapi.parse(BASIS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = (
+        "  MODULE dummy_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
+        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
+        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
+        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
+        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
+        "basis_w2v, nqp_h, nqp_v, wh, wv)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in) :: undf_w2v\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
+        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
+        ":: basis_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
+        ":: basis_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
+        ":: basis_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        ":: basis_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,nqp_h,"
+        "nqp_v) :: basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,nqp_h,nqp_v) "
+        ":: basis_w2h\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,nqp_h,nqp_v) "
+        ":: basis_w2v\n"
+        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
+
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+BASIS_UNSUPPORTED_SPACE = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write, any_space_1) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(any_space_1, gh_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_basis_unsupported_space():
+    ''' test that an error is raised when a basis function is on an
+    unsupported space (currently any_space_*) '''
+    ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert 'Unsupported space for basis function' in str(excinfo.value)
+
+# diff basis function : spaces
+DIFF_BASIS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(7) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_inc,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_write,w3, w3),  &
+             arg_type(gh_field,   gh_write, wtheta), &
+             arg_type(gh_operator,gh_inc, w2h, w2h), &
+             arg_type(gh_field,   gh_read, w2v)  &
+           /)
+     type(func_type), meta_funcs(7) =          &
+          (/ func_type(w0, gh_diff_basis),     &
+             func_type(w1, gh_diff_basis),     &
+             func_type(w2, gh_diff_basis),     &
+             func_type(w3, gh_diff_basis),     &
+             func_type(wtheta, gh_diff_basis), &
+             func_type(w2h, gh_diff_basis),    &
+             func_type(w2v, gh_diff_basis)     &
+           /)
+     integer, parameter :: iterates_over = cells
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_diff_basis():
+    ''' Test that differential basis functions are handled correctly
+    for kernel stubs '''
+    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = (
+        "  MODULE dummy_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
+        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
+        "diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, "
+        "diff_basis_w2, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
+        "undf_w2v, map_w2v, diff_basis_w2v, nqp_h, nqp_v, wh, wv)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in) :: undf_w2v\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
+        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
+        ":: diff_basis_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
+        ":: diff_basis_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
+        ":: diff_basis_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,nqp_h,nqp_v) "
+        ":: diff_basis_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
+        "nqp_v) :: diff_basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,nqp_h,nqp_v) "
+        ":: diff_basis_w2h\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,nqp_h,nqp_v) "
+        ":: diff_basis_w2v\n"
+        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+DIFF_BASIS_UNSUPPORTED_SPACE = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write, any_space_1) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(any_space_1, gh_diff_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_diff_basis_unsupp_space():
+    ''' test that an error is raised when a differential basis
+    function is on an unsupported space (currently any_space_*)'''
+    ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert 'Unsupported space for differential basis function' \
+        in str(excinfo.value)
