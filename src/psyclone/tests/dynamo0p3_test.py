@@ -56,8 +56,6 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     DynGlobalSum
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
-# Modules used to test that generated code compiles
-from dynamo0p3_build import INFRASTRUCTURE_MODULES
 import utils
 
 # constants
@@ -581,6 +579,16 @@ def test_unecessary_shape():
             in str(excinfo))
 
 
+@utils.compile
+def test_field_compiles(tmpdir, f90, f90flags):
+    ''' Tests that a call with a set of fields, no basis functions and
+    no distributed memory, produces compilable code.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
 def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
@@ -652,10 +660,6 @@ def test_field(tmpdir):
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
-
-    assert utils.code_compiles(BASE_PATH,
-                               INFRASTRUCTURE_MODULES, psy, tmpdir)
-
     print output
     print generated_code
     assert str(generated_code).find(output) != -1

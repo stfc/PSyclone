@@ -16,8 +16,6 @@ import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone import dynamo0p3_builtins
-from dynamo0p3_build import INFRASTRUCTURE_PATH, \
-    INFRASTRUCTURE_MODULES
 import utils
 
 # constants
@@ -323,6 +321,21 @@ def test_builtin_set_str():
         assert str(kern) == "Built-in: Set field to a scalar value"
 
 
+@utils.compile
+def test_builtin_set_compiles(tmpdir, f90, f90flags):
+    ''' Tests that we generate compilable code for a serial builtin
+    set operation with a scalar passed by value'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
 def test_builtin_set(tmpdir):
     ''' Tests that we generate correct code for a serial builtin
     set operation with a scalar passed by value'''
@@ -334,9 +347,6 @@ def test_builtin_set(tmpdir):
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
-
-        assert utils.code_compiles(BASE_PATH, INFRASTRUCTURE_MODULES,
-                                   psy, tmpdir)
 
         if not distmem:
             output_seq = (

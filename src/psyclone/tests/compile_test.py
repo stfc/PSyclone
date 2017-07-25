@@ -48,70 +48,61 @@ end program hello
 '''
 
 
-def test_no_compiler(monkeypatch):
-    ''' Check that attempting to build a file when no Fortran
-    compiler has been set returns success '''
-    # Use monkeypatch to mock the case where the F90 environment
-    # variable has not been set
-    monkeypatch.setattr(utils, "F90_COMPILER", value=None)
-    success = utils.compile_file("a_file.f90")
-    assert success
-
-
-def test_compiler_works(tmpdir):
+@utils.compile
+def test_compiler_works(tmpdir, f90, f90flags):
     ''' Check that the specified compiler works for a hello-world
     example '''
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-            success = utils.compile_file("hello_world.f90")
+            success = utils.compile_file("hello_world.f90", f90, f90flags)
     finally:
         os.chdir(str(old_pwd))
     assert success
 
 
-def test_compiler_with_flags(tmpdir, monkeypatch):
+def code_compiles_invalid_api(tmpdir, f90, f90flags):
+    ''' Check that utils.code_compiles() reject an unrecognised API '''
+    with pytest.raises(CompileError) as excinfo:
+        utils.code_compiles("not_an_api", "fake_psy", tmpdir, f90, f90flags)
+    assert "Unsupported API in " in str(excinfo)
+
+
+@utils.compile
+def test_compiler_with_flags(tmpdir, f90, f90flags):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
-    the compiler complains. This test is skipped if no Fortran
-    compiler has been specified. '''
-    if not utils.F90_COMPILER:
-        return
-    # Use monkeypatch for this so that we don't mess with any
-    # real F90_FLAGS setting in the environment.
-    monkeypatch.setattr(utils, "F90_FLAGS", value="not-a-flag")
+    the compiler complains. This test is skipped if no compilation
+    tests have been requested (--compile flag to py.test). '''
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
         with pytest.raises(utils.CompileError) as excinfo:
-            _ = utils.compile_file("hello_world.f90")
+            _ = utils.compile_file("hello_world.f90", f90, "not-a-flag")
         assert "not-a-flag" in str(excinfo)
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
-        monkeypatch.setattr(utils, "F90_FLAGS", value="-g")
-        success = utils.compile_file("hello_world.f90")
+        success = utils.compile_file("hello_world.f90", f90, "-g")
     finally:
         os.chdir(str(old_pwd))
     assert success
 
 
-def test_build_invalid_fortran(tmpdir):
+@utils.compile
+def test_build_invalid_fortran(tmpdir, f90, f90flags):
     ''' Check that we raise the expected error when attempting
-    to compile some invalid Fortran. Skips test if no Fortran
-    compiler has been specified (F90 environment variable). '''
-    if not utils.F90_COMPILER:
-        return
-
+    to compile some invalid Fortran. Skips test if --compile not
+    supplied to py.test on command-line. '''
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(invalid_code)
         with pytest.raises(utils.CompileError) as excinfo:
-            _ = utils.compile_file("hello_world.f90")
+            _ = utils.compile_file("hello_world.f90", f90, f90flags)
     finally:
         os.chdir(str(old_pwd))
     assert "Compile error" in str(excinfo)

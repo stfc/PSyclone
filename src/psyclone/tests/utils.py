@@ -9,13 +9,16 @@
 ''' test utilities '''
 
 import os
+import pytest
 
-# The Fortran compiler to use is picked up from the F90
-# environment variable
-F90_COMPILER = os.environ.get('F90')
-F90_FLAGS = os.environ.get('F90FLAGS')
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
+
+# Whether or not we run tests requiring code compilation is picked-up
+# from a command-line flag. (This is set-up in conftest.py.)
+compile = pytest.mark.skipif(
+    not pytest.config.getoption("--compile"),
+    reason="Need --compile option to run")
 
 
 class CompileError(Exception):
@@ -74,25 +77,30 @@ def find_fortran_file(path, root_name):
                   format(name, FORTRAN_SUFFIXES))
 
 
-def compile_file(filename):
+def compile_file(filename, f90, f90flags):
     ''' Compiles the specified Fortran file into an object file (in
-    the current working directory) using the compiler
-    previously picked-up from the F90 environment variable. Raises
-    a CompileError if the compilation fails. '''
+    the current working directory) using the specified Fortran compiler
+    and flags. Raises a CompileError if the compilation fails. '''
 
-    if not F90_COMPILER:
-        return True
-
-    if F90_FLAGS:
-        arg_list = [F90_COMPILER, F90_FLAGS, '-c', filename]
+    # Build the command to execute
+    if f90flags:
+        arg_list = [f90, f90flags, '-c', filename]
     else:
-        arg_list = [F90_COMPILER, '-c', filename]
+        arg_list = [f90, '-c', filename]
 
+    # Attempt to execute it using subprocess
     import subprocess
-    build = subprocess.Popen(arg_list,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-    (output, error) = build.communicate()
+    try:
+        build = subprocess.Popen(arg_list,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT)
+        (output, error) = build.communicate()
+    except OSError as err:
+        print "Failed to run: {0}: ".format(" ".join(arg_list))
+        print "Error was: ", str(err)
+        raise CompileError(str(err))
+
+    # Check the return code
     stat = build.returncode
     if stat != 0:
         print output
@@ -104,18 +112,25 @@ def compile_file(filename):
         return True
 
 
-def code_compiles(base_path, module_files, psy_ast, tmpdir):
+def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     '''Attempts to build the Fortran code supplied as an AST of
     f2pygen objects. Returns True for success, False otherwise.
     If no Fortran compiler is available then returns True. All files
     produced are deleted. '''
-
-    if not F90_COMPILER:
-        # TODO Log the fact that we have no Fortran compiler setup?
-        # If no Fortran compiler is set-up then we quietly skip this test
-        return True
-
     from psyclone import f2pygen
+
+    # API-specific set-up - where to find infrastructure source files
+    # and which ones to build
+    supported_apis = ["dynamo0.3"]
+    if api not in supported_apis:
+        raise CompileError("Unsupported API in code_compiles. Got {0} but "
+                           "only support {1}".format(api, supported_apis))
+
+    if api == "dynamo0.3":
+        base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3")
+        from dynamo0p3_build import INFRASTRUCTURE_MODULES as module_files
+
     kernel_modules = []
     # Get the list of Use statements in the generated code
     use_stmts = walk(psy_ast.psy_module, f2pygen.UseGen)
@@ -151,15 +166,15 @@ def code_compiles(base_path, module_files, psy_ast, tmpdir):
             name = find_fortran_file(module_path, fort_file)
             # We don't have to copy the source file - just compile it in the
             # current working directory.
-            success = compile_file(name)
+            success = compile_file(name, f90, f90flags)
 
         # Next, build the kernels
         for fort_file in kernel_modules:
             name = find_fortran_file(kernel_path, fort_file)
-            success = compile_file(name)
+            success = compile_file(name, f90, f90flags)
 
         # Finally, we can build the psy file we have generated
-        success = compile_file(psy_filename)
+        success = compile_file(psy_filename, f90, f90flags)
 
     except CompileError:
         # Failed to compile one of the files
