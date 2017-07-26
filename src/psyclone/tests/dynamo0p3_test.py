@@ -4036,18 +4036,6 @@ def test_dynkern_arg_for_fs():
     assert "No argument found on 'waah' space" in str(err)
 
 
-def test_dynkern_op_name():
-    ''' Test that DynInvoke.get_operator_name() raises an error if
-    passed an invalid function space '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    with pytest.raises(GenerationError) as err:
-        _ = first_invoke.get_fs_operator_name("gh_orientation", "w3")
-    assert "no kern call with function space 'w3' and" in str(err)
-
-
 def test_dist_memory_true():
     ''' test that the distributed memory flag is on by default '''
     import psyclone.config

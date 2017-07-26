@@ -2040,15 +2040,6 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
-    @property
-    def qr_required(self):
-        ''' Returns True if at least one of the kernels in this invoke
-        requires QR, otherwise returns False. '''
-        for call in self.schedule.calls():
-            if call.qr_required:
-                return True
-        return False
-
     def unique_proxy_declarations(self, datatype, access=None):
         ''' Returns a list of all required proxy declarations for the
         specified datatype.  If access is supplied (e.g. "gh_write")
@@ -2098,44 +2089,6 @@ class DynInvoke(Invoke):
                     unique_fs_names.append(fspace.mangled_name)
         return unique_fs
 
-    def basis_required(self, func_space):
-        ''' Returns true if at least one of the kernels in this invoke
-        requires a basis function for this function space, otherwise
-        it returns False. '''
-        shapes = set()
-        # look in each kernel
-        for kern_call in self.schedule.kern_calls():
-            # is there a descriptor for this function space?
-            if kern_call.fs_descriptors.exists(func_space):
-                descriptor = kern_call.fs_descriptors.\
-                    get_descriptor(func_space)
-                # does this descriptor specify that a basis function
-                # is required?
-                if descriptor.requires_basis:
-                    # found a kernel that requires a basis function
-                    # for this function space
-                    shapes.add(kern_call.eval_shape)
-        return shapes
-
-    def diff_basis_required(self, func_space):
-        ''' Returns true if at least one of the kernels in this invoke
-        requires a differential basis function for this function
-        space, otherwise it returns False.'''
-        shapes = set()
-        # look in each kernel
-        for kern_call in self.schedule.kern_calls():
-            # is there a descriptor for this function space?
-            if kern_call.fs_descriptors.exists(func_space):
-                descriptor = kern_call.fs_descriptors.\
-                    get_descriptor(func_space)
-                # does this descriptor specify that a basis function
-                # is required?
-                if descriptor.requires_diff_basis:
-                    # found a kernel that requires a diff basis
-                    # function for this function space
-                    shapes.add(kern_call.eval_shape)
-        return shapes
-
     def is_coloured(self):
         ''' Returns true if at least one of the loops in the
         schedule of this invoke has been coloured '''
@@ -2143,22 +2096,6 @@ class DynInvoke(Invoke):
             if loop.loop_type == "colours":
                 return True
         return False
-
-    def get_fs_operator_name(self, operator_name, function_space):
-        ''' A convenience method that returns an operator name for a
-        particular operator on a particular function space. These
-        names are specified in function_space_descriptors objects
-        contained within Kernel objects. The first Kernel which uses
-        the specified function space is used to return the name. If no
-        Kernel using this function space exists in this invoke, an
-        error is thrown. '''
-        for kern_call in self.schedule.kern_calls():
-            if kern_call.fs_descriptors.exists(function_space):
-                return get_fs_operator_name(operator_name, function_space)
-        raise GenerationError(
-            "Dyn_invoke:get_fs_operator_name: no kern call with function "
-            "space '{0}' and operator '{1}'".format(function_space,
-                                                    operator_name))
 
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
