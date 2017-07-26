@@ -1730,8 +1730,10 @@ class Loop(Node):
 
     @loop_type.setter
     def loop_type(self, value):
-        assert value in self._valid_loop_types, \
-            "Error, loop_type value is invalid"
+        if value not in self._valid_loop_types:
+            raise GenerationError(
+                "Error, loop_type value ({0}) is invalid. Must be one of "
+                "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
     def __init__(self, parent=None,

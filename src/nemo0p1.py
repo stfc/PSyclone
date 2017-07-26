@@ -66,7 +66,7 @@ VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers"]
 
 # Mapping from loop variable to loop type
 NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
-                          "jt": "tracers"}
+                          "jt": "tracers", "jn": "tracers"}
 
 class NEMOPSy(PSy):
     ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
