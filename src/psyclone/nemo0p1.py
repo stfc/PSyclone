@@ -12,8 +12,8 @@
 
 '''
 
-from parse import Descriptor, KernelType, ParseError
-from psyGen import PSy, Invokes, Invoke, Schedule, Node, \
+from psyclone.parse import Descriptor, KernelType, ParseError
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, Arguments, KernelArgument, GenerationError
 
 # The different grid-point types that a field can live on
@@ -86,7 +86,7 @@ class NEMOPSy(PSy):
         :rtype: ast
 
         '''
-        from f2pygen import ModuleGen, UseGen
+        from psyclone.f2pygen import ModuleGen, UseGen
 
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
@@ -191,8 +191,8 @@ class GOInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, DeclGen, TypeDeclGen, CommentGen,\
-            AssignGen
+        from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
+            CommentGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
