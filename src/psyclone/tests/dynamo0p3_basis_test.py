@@ -77,7 +77,6 @@ end module testkern_eval
 
 def test_eval_mdata():
     ''' Check that we recognise "evaluator" as a valid gh_shape '''
-    from psyclone.dynamo0p3 import DynKernMetadata
     fparser.logging.disable('CRITICAL')
     ast = fpapi.parse(CODE, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
@@ -87,7 +86,6 @@ def test_eval_mdata():
 def test_single_updated_arg():
     ''' Check that we reject any kernel requiring an evaluator
     if it writes to more than one argument '''
-    from psyclone.dynamo0p3 import DynKernMetadata
     fparser.logging.disable('CRITICAL')
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_WRITE", 1)
@@ -97,7 +95,7 @@ def test_single_updated_arg():
     assert ("kernel testkern_eval_type requires gh_evaluator and updates "
             "2 arguments") in str(excinfo)
     # Change the gh_shape element to specify quadrature and then test again
-    qr_code = code.replace("gh_evaluator","gh_quadrature_xyoz")
+    qr_code = code.replace("gh_evaluator", "gh_quadrature_xyoz")
     ast = fpapi.parse(qr_code, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
@@ -432,7 +430,8 @@ def test_qr_plus_eval():
         "      TYPE(field_proxy_type) f0_proxy, f1_proxy, f2_proxy, "
         "m1_proxy, m2_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_w0(:,:) => null(), map_w1(:,:) => null()\n")
+        "map_w3(:,:) => null(), map_w0(:,:) => null(), map_w1(:,:) => "
+        "null()\n")
     assert output_decls in gen_code
     output_setup = (
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
@@ -482,8 +481,10 @@ def test_qr_plus_eval():
         "evaluate_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      CALL f1_proxy%vspace%compute_basis_function(basis_w1_qr, ndf_w1, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
-        "      CALL m2_proxy%vspace%compute_basis_function(basis_w3_qr, ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL f1_proxy%vspace%compute_basis_function(basis_w1_qr, "
+        "ndf_w1, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL m2_proxy%vspace%compute_basis_function(basis_w3_qr, "
+        "ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
@@ -493,8 +494,31 @@ def test_qr_plus_eval():
         "evaluate_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      CALL f2_proxy%vspace%compute_diff_basis_function(diff_basis_w2_qr, ndf_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
-        "      CALL m2_proxy%vspace%compute_diff_basis_function(diff_basis_w3_qr, ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n")
+        "      CALL f2_proxy%vspace%compute_diff_basis_function("
+        "diff_basis_w2_qr, ndf_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL m2_proxy%vspace%compute_diff_basis_function("
+        "diff_basis_w3_qr, ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n")
+    assert output_setup in gen_code
+    output_kern_call = (
+        "      DO cell=1,f0_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
+        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
+        "      END DO \n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
+        "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
+        "diff_basis_w3_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)\n"
+        "      END DO \n")
+    assert output_kern_call in gen_code
+    output_dealloc = (
+        "      DEALLOCATE (basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
+        "diff_basis_w1_on_w0, diff_basis_w2_qr, diff_basis_w3_qr)\n")
+    assert output_dealloc in gen_code
 
 
 def test_two_eval_same_space():
@@ -738,6 +762,7 @@ def test_two_eval_op_to_space():
         "        END DO \n"
         "      END DO \n"
     )
+    assert diff_basis_comp in gen_code
     kernel_calls = (
         "      DO cell=1,f0_proxy%vspace%get_ncell()\n"
         "        !\n"
@@ -749,8 +774,8 @@ def test_two_eval_op_to_space():
         "        !\n"
         "        CALL testkern_eval_op_to_code(cell, nlayers, "
         "op1_proxy%ncell_3d, op1_proxy%local_stencil, f2_proxy%data, "
-        "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, undf_w3, "
-        "map_w3(:,cell), diff_basis_w3_on_w3)\n"
+        "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
+        "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "      END DO \n"
     )
     assert kernel_calls in gen_code
@@ -870,7 +895,6 @@ def test_eval_diff_nodal_space():
     assert expected_dealloc in gen_code
 
 
-
 # basis function : spaces
 BASIS = '''
 module dummy_mod
@@ -906,7 +930,8 @@ end module dummy_mod
 
 
 def test_basis():
-    ''' Test that basis functions are handled correctly for kernel stubs '''
+    ''' Test that basis functions for quadrature are handled correctly for
+    kernel stubs '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -1048,27 +1073,41 @@ def test_basis_evaluator():
         "      INTEGER, intent(in) :: ndf_w2h\n"
         "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in) :: undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
         "      INTEGER, intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
         "      INTEGER, intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_5_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
         "      INTEGER, intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d) :: op_6\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: field_7_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
+        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) :: basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) :: basis_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) :: "
+        "basis_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) :: "
+        "basis_w1\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) :: basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) :: basis_w3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) :: "
+        "basis_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) :: "
+        "basis_w3\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) :: basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) :: basis_w2h\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) ::"
+        " basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) :: "
+        "basis_w2h\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) :: basis_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) :: "
+        "basis_w2v\n"
     )
     assert output_declns in generated_code
 
@@ -1104,6 +1143,7 @@ def test_basis_unsupported_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert 'Unsupported space for basis function' in str(excinfo.value)
+
 
 # diff basis function : spaces
 DIFF_BASIS = '''
@@ -1249,6 +1289,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_diff_basis_eval():
     ''' Test that differential basis functions are handled correctly
     for kernel stubs with an evaluator '''
@@ -1266,9 +1307,9 @@ def test_diff_basis_eval():
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
         "diff_basis_w0, ndf_w2, undf_w2, map_w2, diff_basis_w2, "
-        "ndf_w1, diff_basis_w1, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
-        "undf_w2v, map_w2v, diff_basis_w2v)\n"
+        "ndf_w1, diff_basis_w1, ndf_w3, diff_basis_w3, ndf_wtheta, "
+        "undf_wtheta, map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h,"
+        " ndf_w2v, undf_w2v, map_w2v, diff_basis_w2v)\n"
     )
     assert output_args in generated_code
     output_declns = (
