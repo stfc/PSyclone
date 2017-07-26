@@ -210,6 +210,79 @@ def test_single_kern_eval():
     assert dealloc_code in gen_code
 
 
+def test_single_kern_eval_op():
+    ''' Check that we generate correct code for a single kernel which
+    writes to an operator and requires both basis and differential basis
+    functions for an evaluator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "6.1.1_eval_op_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+    # Kernel writes to an operator, the 'to' space of which is W0. Kernel
+    # requires basis on W2 ('from'-space of operator) and diff-basis on
+    # W3 (space of the field).
+    decln_output = (
+        "      USE evaluate_function_mod, ONLY: BASIS, DIFF_BASIS\n"
+        "      TYPE(field_type), intent(in) :: f1\n"
+        "      TYPE(operator_type), intent(inout) :: op1\n"
+        "      INTEGER cell\n"
+        "      INTEGER df_w3, df_nodal, df_w2\n"
+        "      REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
+        "diff_basis_w3_on_w0(:,:,:)\n"
+        "      INTEGER ndf_nodal_w0, dim_w2, diff_dim_w3\n"
+        "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
+        "      INTEGER ndf_w0, ndf_w2, ndf_w3, undf_w3\n"
+        )
+    assert decln_output in gen_code
+    init_output = (
+        "      ndf_nodal_w0 = op1_proxy%fs_to%get_ndf()\n"
+        "      nodes_w0 => op1_proxy%fs_to%get_nodes()\n"
+        "      !\n"
+        "      ! Allocate basis arrays\n"
+        "      !\n"
+        "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
+        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_nodal_w0))\n"
+        "      !\n"
+        "      ! Allocate differential basis arrays\n"
+        "      !\n"
+        "      diff_dim_w3 = f1_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, "
+        "ndf_nodal_w0))\n"
+        "      !\n"
+        "      ! Compute basis arrays\n"
+        "      !\n"
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w2=1,ndf_w2\n"
+        "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
+        "evaluate_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n"
+        "      !\n"
+        "      ! Compute differential basis arrays\n"
+        "      !\n"
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w3=1,ndf_w3\n"
+        "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
+        "evaluate_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n"
+    )
+    assert init_output in gen_code
+    kern_call = (
+        "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
+        " op1_proxy%local_stencil, f1_proxy%data, ndf_w0, ndf_w2, "
+        "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
+        "diff_basis_w3_on_w0)\n"
+        "      END DO \n"
+         )
+    assert kern_call in gen_code
+    dealloc = ("      DEALLOCATE (basis_w2_on_w0, diff_basis_w3_on_w0)\n")
+    assert dealloc in gen_code
+
+
 def test_two_qr():
     ''' Check that we handle an invoke containing two kernels that each
     require quadrature '''

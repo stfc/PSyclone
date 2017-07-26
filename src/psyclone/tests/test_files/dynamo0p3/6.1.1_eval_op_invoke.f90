@@ -28,26 +28,16 @@
 !
 ! Author: A. R. Porter STFC Daresbury Lab
 !-------------------------------------------------------------------------------
+program eval_invoke
 
-module testkern_eval_op_mod
-  use kernel_mod
-  ! Test kernel that writes to an operator and requires an evaluator
-  type, extends(kernel_type) :: testkern_eval_op_type
-     type(arg_type)  :: meta_args(2) =  (/        &
-       arg_type(GH_OPERATOR, GH_WRITE, W0, W2),   &
-       arg_type(GH_FIELD,    GH_READ, W3)         &
-       /)
-     type(func_type) :: meta_funcs(2) = (/                             &
-       func_type(W2, GH_BASIS),                                        &
-       func_type(W3, GH_DIFF_BASIS)                                    &
-       /)
-     integer :: iterates_over = cells
-     integer :: gh_shape = gh_evaluator
-   contains
-     procedure, nopass :: code => testkern_eval_op_code
-  end type testkern_eval_op_type
-contains
+  ! Test program containing a single invoke of a kernel that
+  ! requires an evaluator
+  use testkern_eval_op, only: testkern_eval_op_type
+  implicit none
+  type(field_type)      :: f1
+  type(operator_type)   :: op1
 
-  subroutine testkern_eval_op_code()
-  end subroutine testkern_eval_op_code
-end module testkern_eval_op_mod
+  call invoke( testkern_eval_op_type(op1,f1) )
+
+
+end program eval_invoke
