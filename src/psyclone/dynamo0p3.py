@@ -1526,7 +1526,7 @@ class DynInvokeBasisFns(object):
         # The set of quadrature objects passed to this invoke
         self._qr_vars = set()
         # The list of kernel args for which we require evaluators
-        self._evaluator_args = []
+        self._unique_evaluator_args = []
         # Corresponding set of unique function spaces (to ensure we don't
         # duplicate anything)
         _fs_eval_list = set()
@@ -1539,7 +1539,7 @@ class DynInvokeBasisFns(object):
                 if call.eval_shape in QUADRATURE_SHAPES:
                     self._qr_vars.add(call.qr_name)
                 elif call.eval_shape == "gh_evaluator":
-                    # Keep a set of the unique evaluators we require. We do
+                    # Keep a list of the unique evaluators we require. We do
                     # this as a list of the kernel arguments to which they
                     # correspond. A kernel requiring an evaluator is only
                     # permitted to update a single argument and the function
@@ -1553,7 +1553,7 @@ class DynInvokeBasisFns(object):
                         fname = arg.function_space.mangled_name
                     if fname not in _fs_eval_list:
                         _fs_eval_list.add(fname)
-                        self._evaluator_args.append(arg)
+                        self._unique_evaluator_args.append(arg)
 
                 # For each FS descriptor, we need a full function-space object
                 for fsd in call.fs_descriptors.descriptors:
@@ -1647,7 +1647,7 @@ class DynInvokeBasisFns(object):
                     AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
                               rhs=qr_var_name + "%get_" + qr_var + "()"))
 
-        if self._evaluator_args:
+        if self._unique_evaluator_args:
             parent.add(UseGen(parent, name="evaluate_function_mod",
                               only=True, funcnames=["BASIS", "DIFF_BASIS"]))
             parent.add(CommentGen(parent, ""))
@@ -1656,8 +1656,7 @@ class DynInvokeBasisFns(object):
                                   "using the field(s) that are written to"))
             parent.add(CommentGen(parent, ""))
 
-        _node_lists = []
-        for arg in self._evaluator_args:
+        for arg in self._unique_evaluator_args:
             # We need an 'ndf_nodal' for each unique FS for which there
             # is an evaluator
 
@@ -1670,11 +1669,6 @@ class DynInvokeBasisFns(object):
                 fspace = arg.function_space
 
             ndf_nodal_name = "ndf_nodal_" + fspace.mangled_name
-
-            if ndf_nodal_name in _node_lists:
-                # Skip this space if we've already got an evaluator on it
-                continue
-            _node_lists.append(ndf_nodal_name)
 
             rhs = "%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
                             "get_ndf()"])

@@ -30,6 +30,7 @@
 !-------------------------------------------------------------------------------
 
 module testkern_eval_mod
+  use kernel_mod
   type, extends(kernel_type) :: testkern_eval_type
      type(arg_type)  :: meta_args(2) =  (/    &
        arg_type(GH_FIELD,   GH_INC,  W0),             &
@@ -39,10 +40,10 @@ module testkern_eval_mod
        func_type(W0, GH_BASIS),                                        &
        func_type(W1, GH_DIFF_BASIS)                                  &
        /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_evaluator
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
    contains
-     procedure() :: code => testkern_eval_code
+     procedure, nopass :: code => testkern_eval_code
   end type testkern_eval_type
 contains
 
