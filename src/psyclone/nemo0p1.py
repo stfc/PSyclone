@@ -470,8 +470,9 @@ class NEMOLoop(Loop):
         ''' Print a representation of this Loop to stdout '''
         from numpy.distutils.misc_util import blue_text
         print self.indent(indent) +\
-            blue_text("Loop[type='{0}',field_space='{1}',it_space='{2}']".\
-            format(self._loop_type, self._field_space, self.iteration_space))
+            blue_text("Loop[") + "type='{0}',field_space='{1}',it_space='{2}'".\
+            format(self._loop_type, self._field_space, self.iteration_space) \
+            + blue_text("]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
