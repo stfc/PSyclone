@@ -130,29 +130,26 @@ def translate_ast(node, parent, indent=0, debug=False):
 
             # TODO check for perfect nesting (i.e. no statements between
             # the nested DO's or END DO's)
-            if is_kern and (loop_var == "jk" and len(nested_loops) == 2):
-                kern = NEMOKern()
-                kern.load(child, parent=node)
-                node.addchild(kern)
-                # We don't want to create kernels for any of the loops
-                # nested within this loop so we don't carry on any
-                # further down the tree
+            if is_kern and ((loop_var == "jk" and len(nested_loops) == 2) or
+                            (loop_var == "jj" and len(nested_loops) == 1)):
+                depth = 0
+                ploop = NEMOLoop(parent=node, loop_ast=ctrl[depth],
+                                 loop_var=loop_var, contains_kern=True)
+                node.addchild(ploop)
+                for loop in nested_loops:
+                    depth += 1
+                    loop_var = str(ctrl[depth].items[0])
+                    nloop = NEMOLoop(parent=ploop, loop_ast=ctrl[depth],
+                                     loop_var=loop_var)
+                    ploop.addchild(nloop)
+                    ploop = nloop
 
-            elif is_kern and (loop_var == "jj" and len(nested_loops) == 1):
                 kern = NEMOKern()
-                kern.load(child, parent=node)
-                node.addchild(kern)
-                # We don't want to create kernels for any of the loops
-                # nested within this loop so we don't carry on any
-                # further down the tree
-            
+                kern.load(child, parent=ploop)
+                ploop.addchild(kern)
             else:
-                # TODO identify correct loop type
-                if loop_var in NEMO_LOOP_TYPE_MAPPING:
-                    ltype = NEMO_LOOP_TYPE_MAPPING[loop_var]
-                else:
-                    ltype = "unknown"
-                loop = NEMOLoop(parent=node, loop_ast=ctrl[0], loop_type=ltype)
+                loop = NEMOLoop(parent=node, loop_ast=ctrl[0],
+                                loop_var=loop_var)
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
         elif isinstance(child, Fortran2003.BlockBase):
@@ -433,11 +430,19 @@ class NEMOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, parent=None,
-                 topology_name="", loop_type="", loop_ast=None):
+    def __init__(self, parent=None, topology_name="", loop_type="",
+                 loop_ast=None, loop_var=None, contains_kern=False):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
-        self.loop_type = loop_type
+
+        # Whether or not this Loop is associated with a kernel
+        self._contains_kern = contains_kern
+        
+        # TODO identify correct loop type
+        if loop_var in NEMO_LOOP_TYPE_MAPPING:
+            self.loop_type = NEMO_LOOP_TYPE_MAPPING[loop_var]
+        else:
+            self.loop_type = "unknown"
 
         # We set the loop variable name in the constructor so that it is
         # available when we're determining which vars should be OpenMP
@@ -484,6 +489,24 @@ class NEMOLoop(Loop):
         result += "EndLoop"
         return result
 
+    @property
+    def contains_kern(self):
+        ''' Returns True if this loop is associated with a kernel,
+        False otherwise. '''
+        return self._contains_kern
+
+    @property
+    def kernel(self):
+        ''' Returns the kernel object if one is associated with this loop,
+        None otherwise. '''
+        kernels = self.walk(self.children, NEMOKern)
+        if kernels:
+            # TODO cope with case where loop contains >1 kernel (e.g.
+            # following loop fusion)
+            return kernels[0]
+        else:
+            return None
+        
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
@@ -554,6 +577,11 @@ class NEMOKern(Node):
         # Type of kernel (2D, 3D..)
         self._kernel_type = ""
         self._body = []
+
+    @property
+    def type(self):
+        ''' Returns what type of kernel this is '''
+        return self._kernel_type
 
     def load(self, loop, parent=None):
         ''' Populate the state of this NEMOKern object '''

@@ -36,8 +36,15 @@ print TRANS_INFO.list
 FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
 OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
 
-OL_SCHEDULE, _ = OMP_TRANS.apply(SCHEDULE.children[1])
-OL_SCHEDULE.view()
+for loop in SCHEDULE.loops():
+    kernel = loop.kernel
+    if kernel:
+        if kernel.type == "3D" and loop.loop_type == "levels":
+            SCHEDULE, _ = OMP_TRANS.apply(loop)
+        elif kernel.type == "2D" and loop.loop_type == "lat":
+            SCHEDULE, _ = OMP_TRANS.apply(loop)
+     
+SCHEDULE.view()
 
-PSY.invokes.get('invoke_0').schedule = OL_SCHEDULE
+PSY.invokes.get('tra_adv').schedule = SCHEDULE
 print PSY.gen
