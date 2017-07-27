@@ -253,8 +253,21 @@ class NEMOInvoke(Invoke):
 
     def gen_code(self, parent):
         ''' Generates the Fortran code for this invoke '''
-        if self._schedule:
-            self.schedule.gen_code(parent)
+        from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
+            CommentGen, AssignGen
+
+        if not self._schedule:
+            return
+        
+        # create the subroutine
+        invoke_sub = SubroutineGen(parent, name=self.name,
+                                   args=self.psy_unique_var_names)
+        parent.add(invoke_sub)
+        self.schedule.gen_code(invoke_sub)
+
+    @property
+    def psy_unique_var_names(self):
+        return self._psy_unique_vars
 
 
 class NEMOInvokes(Invokes):
@@ -297,7 +310,7 @@ class NEMOInvokes(Invokes):
     @property
     def invoke_list(self):
         return self._invoke_list
-
+        
 
 class NEMOPSy(PSy):
     ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
@@ -412,7 +425,6 @@ class NEMOSchedule(Schedule):
     def gen_code(self, parent):
         ''' Generates the Fortran for this Schedule '''
         for entity in self._children:
-            print type(entity)
             entity.gen_code(parent)
 
 
@@ -508,7 +520,12 @@ class NEMOCodeBlock(Node):
     def gen_code(self, parent):
         ''' Convert this code block back to Fortran '''
         for statement in self._statements:
-            statement.tofortran()
+            # TODO each statement is an item from the fparser2 AST but
+            # parent.add expects an f2pygen object.
+            #parent.add(statement)
+            pass
+        for entity in self._children:
+            entity.gen_code(parent)
 
 
 class NEMOKern(Node):
@@ -537,6 +554,7 @@ class NEMOKern(Node):
         self._shared_vars = None
         # Type of kernel (2D, 3D..)
         self._kernel_type = ""
+        self._body = []
 
     def load(self, loop, parent=None):
         ''' Populate the state of this NEMOKern object '''
@@ -545,9 +563,9 @@ class NEMOKern(Node):
             Assignment_Stmt
         
         if isinstance(loop, Block_Nonlabel_Do_Construct):
-            self._load_from_loop(loop, parent)
+            self._load_from_loop(loop, parent=parent)
         elif isinstance(loop, Assignment_Stmt):
-            self._load_from_implicit_loop(loop, parent)
+            self._load_from_implicit_loop(loop, parent=parent)
         else:
             raise ParseError(
                 "Internal error: expecting either "
@@ -668,4 +686,5 @@ class NEMOKern(Node):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        pass
+        print self.tofortran()
+        #print str(self.loop)
