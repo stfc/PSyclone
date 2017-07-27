@@ -76,7 +76,6 @@ def translate_ast(node, parent, indent=0, debug=False):
     import fparser
     from fparser import Fortran2003
     from habakkuk.parse2003 import walk_ast
-    from nemo0p1 import NEMOLoop, NEMOKern, NEMO_LOOP_TYPE_MAPPING
     cblock_list = []
     # Depending on their level in the tree produced by fparser2003,
     # some nodes have children listed in .content and some have them
@@ -153,7 +152,7 @@ def translate_ast(node, parent, indent=0, debug=False):
                     ltype = NEMO_LOOP_TYPE_MAPPING[loop_var]
                 else:
                     ltype = "unknown"
-                loop = NEMOLoop(parent=node, loop_type=ltype)
+                loop = NEMOLoop(parent=node, loop_ast=ctrl[0], loop_type=ltype)
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
         elif isinstance(child, Fortran2003.BlockBase):
@@ -253,7 +252,9 @@ class NEMOInvoke(Invoke):
         self._schedule.view()
 
     def gen_code(self, parent):
-        pass
+        ''' Generates the Fortran code for this invoke '''
+        if self._schedule:
+            self.schedule.gen_code(parent)
 
 
 class NEMOInvokes(Invokes):
@@ -343,7 +344,7 @@ class NEMOSchedule(Schedule):
 
     def __init__(self):
         Node.__init__(self)
-        #Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+        #Schedule.__init__(self, NEMOKernCallFactory, GOBuiltInCallFactory,
         #                  alg_calls)
 
         # Configuration of this Schedule - we default to having
@@ -360,8 +361,8 @@ class NEMOSchedule(Schedule):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        ''' Returns the string representation of this GOSchedule '''
-        result = "GOSchedule(Constant loop bounds=" + \
+        ''' Returns the string representation of this NEMOSchedule '''
+        result = "NEMOSchedule(Constant loop bounds=" + \
                  str(self._const_loop_bounds) + "):\n"
         for entity in self._children:
             result += str(entity)+"\n"
@@ -408,6 +409,12 @@ class NEMOSchedule(Schedule):
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
+    def gen_code(self, parent):
+        ''' Generates the Fortran for this Schedule '''
+        for entity in self._children:
+            print type(entity)
+            entity.gen_code(parent)
+
 
 class NEMOLoop(Loop):
     ''' The NEMO-specific Loop class. This passes the GOcean specific
@@ -416,7 +423,7 @@ class NEMOLoop(Loop):
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
     def __init__(self, parent=None,
-                 topology_name="", loop_type=""):
+                 topology_name="", loop_type="", loop_ast=None):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -440,79 +447,8 @@ class NEMOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
-
-        # Create a dictionary to simplify the business of looking-up
-        # loop bounds
-        self._bounds_lookup = {}
-        for grid_offset in SUPPORTED_OFFSETS:
-            self._bounds_lookup[grid_offset] = {}
-            for gridpt_type in VALID_FIELD_GRID_TYPES:
-                self._bounds_lookup[grid_offset][gridpt_type] = {}
-                for itspace in VALID_ITERATES_OVER:
-                    self._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
-
-        # Loop bounds for a mesh with NE offset
-        self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "-1"},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "-1"}}
-        self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
-            {'inner': {'start': "1", 'stop': "-1"},
-             'outer': {'start': "1", 'stop': "-1"}}
-        # Loop bounds for a mesh with SE offset
-        self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': "+1"}}
-        # For offset 'any'
-        for gridpt_type in VALID_FIELD_GRID_TYPES:
-            for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
-                    {'inner': {'start': "1", 'stop': ""},
-                     'outer': {'start': "1", 'stop': ""}}
-        # For 'every' grid-point type
-        for offset in SUPPORTED_OFFSETS:
-            for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup[offset]['every'][itspace] = \
-                    {'inner': {'start': "1", 'stop': "+1"},
-                     'outer': {'start': "1", 'stop': "+1"}}
+        self._lower_bound = str(loop_ast.items[1][0])
+        self._upper_bound = str(loop_ast.items[1][1])
 
     def view(self, indent=0):
         ''' Print a representation of this Loop to stdout '''
@@ -522,102 +458,6 @@ class NEMOLoop(Loop):
             format(self._loop_type, self._field_space, self.iteration_space))
         for entity in self._children:
             entity.view(indent=indent + 1)
-
-    def _upper_bound(self):
-        ''' Returns the upper bound of this loop as a string '''
-        schedule = self.ancestor(GOSchedule)
-        if schedule.const_loop_bounds:
-            index_offset = ""
-            # Look for a child kernel in order to get the index offset.
-            # Since this is the __str__ method we have no guarantee
-            # what state we expect our object to be in so we allow
-            # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
-            if go_kernels:
-                index_offset = go_kernels[0].index_offset
-
-            if self._loop_type == "inner":
-                stop = schedule.iloop_stop
-            else:
-                stop = schedule.jloop_stop
-
-            if index_offset:
-                stop += (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["stop"])
-            else:
-                stop = "not yet set"
-        else:
-            if self.field_space == "every":
-                # Bounds are independent of the grid-offset convention in use
-
-                # We look-up the upper bounds by enquiring about the SIZE of
-                # the array itself
-                if self._loop_type == "inner":
-                    stop = "SIZE("+self.field_name+"%data, 1)"
-                elif self._loop_type == "outer":
-                    stop = "SIZE("+self.field_name+"%data, 2)"
-
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                stop = self.field_name
-
-                if self._iteration_space.lower() == "internal_pts":
-                    stop += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
-                    stop += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    stop += "%xstop"
-                elif self._loop_type == "outer":
-                    stop += "%ystop"
-        return stop
-
-    def _lower_bound(self):
-        ''' Returns a string containing the expression for the lower
-        bound of the loop '''
-        schedule = self.ancestor(GOSchedule)
-        if schedule.const_loop_bounds:
-            index_offset = ""
-            # Look for a child kernel in order to get the index offset.
-            # Since this is the __str__ method we have no guarantee
-            # what state we expect our object to be in so we allow
-            # for the case where we don't have any child kernels.
-            go_kernels = self.walk(self.children, GOKern)
-            if go_kernels:
-                index_offset = go_kernels[0].index_offset
-
-            if index_offset:
-                start = (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["start"])
-            else:
-                start = "not yet set"
-        else:
-            if self.field_space == "every":
-                # Bounds are independent of the grid-offset convention in use
-                start = "1"
-            else:
-                # loop bounds are pulled from the field object which
-                # is more straightforward for us but provides the
-                # Fortran compiler with less information.
-                start = self.field_name
-                if self._iteration_space.lower() == "internal_pts":
-                    start += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
-                    start += "%whole"
-                else:
-                    raise GenerationError("Unrecognised iteration space, {0}. "
-                                          "Cannot generate loop bounds.".
-                                          format(self._iteration_space))
-                if self._loop_type == "inner":
-                    start += "%xstart"
-                elif self._loop_type == "outer":
-                    start += "%ystart"
-        return start
 
     def __str__(self):
         ''' Returns a string describing this Loop object '''
@@ -637,38 +477,14 @@ class NEMOLoop(Loop):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing Schedule
-        schedule = self.ancestor(GOSchedule)
-        if schedule is None or not isinstance(schedule, GOSchedule):
+        schedule = self.ancestor(NEMOSchedule)
+        if schedule is None or not isinstance(schedule, NEMOSchedule):
             raise GenerationError("Internal error: cannot find parent"
-                                  " GOSchedule for this Do loop")
+                                  " NEMOSchedule for this Do loop")
 
-        # Walk down the tree looking for a kernel so that we can
-        # look-up what index-offset convention we are to use
-        go_kernels = self.walk(self.children, GOKern)
-        if len(go_kernels) == 0:
-            raise GenerationError("Internal error: cannot find the "
-                                  "GOcean Kernel enclosed by this loop")
-        index_offset = go_kernels[0].index_offset
-        if schedule.const_loop_bounds and \
-           index_offset not in SUPPORTED_OFFSETS:
-            raise GenerationError("Constant bounds generation"
-                                  " not implemented for a grid offset "
-                                  "of {0}. Supported offsets are {1}".
-                                  format(index_offset,
-                                         SUPPORTED_OFFSETS))
-        # Check that all kernels enclosed by this loop expect the same
-        # grid offset
-        for kernel in go_kernels:
-            if kernel.index_offset != index_offset:
-                raise GenerationError("All Kernels must expect the same "
-                                      "grid offset but kernel {0} has offset "
-                                      "{1} which does not match {2}".
-                                      format(kernel.name,
-                                             kernel.index_offset,
-                                             index_offset))
         # Generate the upper and lower loop bounds
-        self._start = self._lower_bound()
-        self._stop = self._upper_bound()
+        self._start = self._lower_bound
+        self._stop = self._upper_bound
         Loop.gen_code(self, parent)
 
 
@@ -688,6 +504,11 @@ class NEMOCodeBlock(Node):
             str(type(self._statements[0])) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def gen_code(self, parent):
+        ''' Convert this code block back to Fortran '''
+        for statement in self._statements:
+            statement.tofortran()
 
 
 class NEMOKern(Node):
@@ -845,3 +666,6 @@ class NEMOKern(Node):
         print self.indent(indent) + yellow_text("NEMOKern[" + self._kernel_type + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def gen_code(self, parent):
+        pass
