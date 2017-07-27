@@ -214,18 +214,53 @@ def _add_code_block(parent, statements):
     return code_block
 
 
-class NEMOPSy(PSy):
-    ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOcean-
-        specific PSy module code. '''
-    
-    def __init__(self, ast):
+class NEMOInvoke(Invoke):
+
+    def __init__(self, ast, name):
+        self._name = name
+
         from habakkuk.parse2003 import walk_ast, Loop, get_child, ParseError
         from fparser.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
             Name
+
+        # Find the section of the tree containing the execution part
+        # of the code
+        try:
+            exe_part = get_child(ast, Execution_Part)
+        except ParseError:
+            # This subroutine has no execution part so we skip it
+            # TODO log this event
+            return
+
+        # Make a list of all Do loops in the routine
+        loops = walk_ast(exe_part.content,
+                         [Block_Nonlabel_Do_Construct])
+
+        if not loops:
+            print "Routine {0} contains no DO loops - skipping".\
+                format(name)
+            return
+
+        # Since this subroutine contains loops we now walk through
+        # the AST produced by fparser2 and construct a new AST
+        # using objects from the nemo0p1 module.
+        self._schedule = NEMOSchedule()
+        translate_ast(self._schedule, exe_part, debug=True)
+        self._schedule.view()
+
+
+
+class NEMOInvokes(Invokes):
+
+    def __init__(self, ast):
+        from habakkuk.parse2003 import walk_ast, get_child, ParseError
+        from fparser.Fortran2003 import Main_Program, Program_Stmt, \
+            Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
+            Subroutine_Stmt
+        self._invoke_list = []
+        
         # Find all the subroutines contained in the file
         routines = walk_ast(ast.content, [Subroutine_Subprogram,
                                           Function_Subprogram])
@@ -250,39 +285,21 @@ class NEMOPSy(PSy):
                         sub_name = str(item)
             else:
                 sub_name = str(substmt[0].get_name())
-            print "routine name: ", sub_name
 
-            # Find the section of the tree containing the execution part
-            # of the code
-            try:
-                exe_part = get_child(subroutine, Execution_Part)
-            except ParseError:
-                # This subroutine has no execution part so we skip it
-                # TODO log this event
-                continue
+            self._invoke_list.append(NEMOInvoke(subroutine,
+                                                name=sub_name))
 
-            # Make a list of all Do loops in the routine
-            loops = walk_ast(exe_part.content,
-                             [Block_Nonlabel_Do_Construct])
 
-            if not loops:
-                print "Routine {0} contains no DO loops - skipping".\
-                    format(sub_name)
-                continue
+class NEMOPSy(PSy):
+    ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
+        invokes object (which controls all the required invocation calls).
+        Also overrides the PSy gen method so that we generate GOcean-
+        specific PSy module code. '''
+    
+    def __init__(self, ast):
 
-            # Since this subroutine contains loops we now walk through
-            # the AST produced by fparser2 and construct a new AST
-            # using objects from the nemo0p1 module.
-            sched = NEMOSchedule()
-            translate_ast(sched, exe_part, debug=True)
-            sched.view()
-            print ast.tofortran()
-
-        print "ARPDBG, deliberate early exit from NEMOPSy"
-        exit(1)
-        # TODO pass back list of Kernel objects instead of inner_loops?
-        return ast, sched
-
+        self._invokes = NEMOInvokes(ast)
+        
 
     @property
     def gen(self):
