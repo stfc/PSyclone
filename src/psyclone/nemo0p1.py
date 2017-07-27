@@ -277,8 +277,10 @@ class NEMOInvokes(Invokes):
         from fparser.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt
-        self._invoke_list = []
         
+        self.invoke_map = {}
+        self.invoke_list = []
+
         # Find all the subroutines contained in the file
         routines = walk_ast(ast.content, [Subroutine_Subprogram,
                                           Function_Subprogram])
@@ -304,13 +306,10 @@ class NEMOInvokes(Invokes):
             else:
                 sub_name = str(substmt[0].get_name())
 
-            self._invoke_list.append(NEMOInvoke(subroutine,
-                                                name=sub_name))
+            my_invoke = NEMOInvoke(subroutine, name=sub_name)
+            self.invoke_map[sub_name] = my_invoke
+            self.invoke_list.append(my_invoke)
 
-    @property
-    def invoke_list(self):
-        return self._invoke_list
-        
 
 class NEMOPSy(PSy):
     ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
