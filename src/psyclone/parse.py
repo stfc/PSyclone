@@ -802,10 +802,6 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     '''
 
-    if api == "nemo0.1":
-        ast, kernel_info = parse_nemo(alg_filename)
-        return ast, kernel_info
-
     if distributed_memory not in [True, False]:
         raise ParseError(
             "The distributed_memory flag in parse() must be set to"
@@ -816,6 +812,12 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         api = DEFAULTAPI
     else:
         check_api(api)
+
+    if api == "nemo0.1":
+        # For this API we just parse the NEMO code and return the resulting
+        # fparser2 AST
+        ast = parse_nemo(alg_filename)
+        return ast, ast
 
     # Get the names of the supported Built-in operations for this API
     builtin_names, builtin_defs_file = get_builtin_defs(api)
@@ -1055,213 +1057,8 @@ def parse_nemo(filename):
     ''' Parse a NEMO routine and identify kernels '''
     from fparser.api import Fortran2003
     from fparser.readfortran import FortranFileReader
-    from habakkuk.parse2003 import walk_ast, Loop, get_child, ParseError
-    from fparser.Fortran2003 import Main_Program, Program_Stmt, \
-        Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
-        Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
-        Name
-    from nemo0p1 import NEMOSchedule
 
     reader = FortranFileReader(filename)
     ast = Fortran2003.Program(reader)
 
-    # Find all the subroutines contained in the file
-    routines = walk_ast(ast.content, [Subroutine_Subprogram,
-                                      Function_Subprogram])
-    # Add the main program as a routine to analyse - take care
-    # here as the Fortran source file might not contain a
-    # main program (might just be a subroutine in a module)
-    try:
-        main_prog = get_child(ast, Main_Program)
-        routines.append(main_prog)
-    except ParseError:
-        pass
-
-    # Analyse each routine we've found
-    for subroutine in routines:
-        # Get the name of this (sub)routine
-        substmt = walk_ast(subroutine.content,
-                           [Subroutine_Stmt, Function_Stmt,
-                            Program_Stmt])
-        if isinstance(substmt[0], Function_Stmt):
-            for item in substmt[0].items:
-                if isinstance(item, Name):
-                    sub_name = str(item)
-        else:
-            sub_name = str(substmt[0].get_name())
-        print "routine name: ", sub_name
-
-        # Find the section of the tree containing the execution part
-        # of the code
-        try:
-            exe_part = get_child(subroutine, Execution_Part)
-        except ParseError:
-            # This subroutine has no execution part so we skip it
-            # TODO log this event
-            continue
-
-        # Make a list of all Do loops in the routine
-        loops = walk_ast(exe_part.content,
-                         [Block_Nonlabel_Do_Construct])
-
-        if not loops:
-            print "Routine {0} contains no DO loops - skipping".\
-                format(sub_name)
-            continue
-
-        # Since this subroutine contains loops we now walk through
-        # the AST produced by fparser2 and construct a new AST
-        # using objects from the nemo0p1 module.
-        sched = NEMOSchedule()
-        translate_ast(sched, exe_part, debug=True)
-        sched.view()
-        print ast.tofortran()
-        print "ARPDBG: early exit from parse_nemo()"
-        exit(1)
-
-    # TODO pass back list of Kernel objects instead of inner_loops?
-    return ast, inner_loops
-
-
-def translate_ast(node, parent, indent=0, debug=False):
-    '''' Walk down the tree produced by the f2003 parser where children
-    are listed under 'content'.  Replace any loop nests that we've
-    identified as kernels with the corresponding Kernel object. '''
-    from fparser import Fortran2003
-    from habakkuk.parse2003 import walk_ast
-    from nemo0p1 import NEMOLoop, NEMOKern, NEMO_LOOP_TYPE_MAPPING
-    cblock_list = []
-    # Depending on their level in the tree produced by fparser2003,
-    # some nodes have children listed in .content and some have them
-    # listed under .items. If a node has neither then it has no
-    # children.
-    if hasattr(parent, "content"):
-        children = parent.content
-    elif hasattr(parent, "items"):
-        children = parent.items
-    else:
-        return
-
-    code_block_statements = []
-
-    for idx, child in enumerate(children[:]):
-        if debug:
-            print indent*"  " + "child type = ", type(child)
-            
-        if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
-
-            # The start of a loop is taken as the end of any exising
-            # code block so we create that now
-            _add_code_block(node, code_block_statements)
-
-            ctrl = walk_ast(child.content, [Fortran2003.Loop_Control])
-            # items member of Loop Control contains:
-            #   Loop variable, start value expression, end value expression
-            # Loop variable will be an instance of Fortran2003.Name
-            loop_var = str(ctrl[0].items[0])
-
-            nested_loops = walk_ast(child.content,
-                                   [Fortran2003.Block_Nonlabel_Do_Construct])
-            is_kern = True
-            io_statements = []
-            if not nested_loops:
-                # A Kernel must be a loop nest
-                is_kern = False
-            else:
-                # Check the content of the innermost loop
-                io_statements = walk_ast(nested_loops[-1].content,
-                                         [Fortran2003.Write_Stmt,
-                                          Fortran2003.Read_Stmt])
-                if io_statements:
-                    # A kernel cannot contain IO statements
-                    is_kern = False
-
-            if not nested_loops and not io_statements:
-                # Does this loop itself contain an implicit loop?
-                # TODO implement this!
-                pass
-                #walk_ast(, [Fortran2003.Section_Subscript_List])
-
-            # TODO check for perfect nesting (i.e. no statements between
-            # the nested DO's or END DO's)
-            if is_kern and (loop_var == "jk" and len(nested_loops) == 2):
-                kern = NEMOKern()
-                kern.load(child, parent=node)
-                node.addchild(kern)
-                # We don't want to create kernels for any of the loops
-                # nested within this loop so we don't carry on any
-                # further down the tree
-
-            elif is_kern and (loop_var == "jj" and len(nested_loops) == 1):
-                kern = NEMOKern()
-                kern.load(child, parent=node)
-                node.addchild(kern)
-                # We don't want to create kernels for any of the loops
-                # nested within this loop so we don't carry on any
-                # further down the tree
-            
-            else:
-                # TODO identify correct loop type
-                if loop_var in NEMO_LOOP_TYPE_MAPPING:
-                    ltype = NEMO_LOOP_TYPE_MAPPING[loop_var]
-                else:
-                    ltype = "unknown"
-                loop = NEMOLoop(parent=node, loop_type=ltype)
-                node.addchild(loop)
-                translate_ast(loop, child, indent+1, debug)
-        elif isinstance(child, Fortran2003.BlockBase):
-            code_block_statements.append(child)
-            loops = walk_ast(child.content,
-                             [Fortran2003.Block_Nonlabel_Do_Construct])
-            if loops:
-                # It contains one or more loops so we walk further down
-                # the tree
-                block = _add_code_block(node, code_block_statements)
-                if block:
-                    translate_ast(block, child, indent+1, debug)
-                else:
-                    translate_ast(node, child, indent+1, debug)
-        else:
-            # Check whether this is an implicit loop
-            arr_sections = []
-            if isinstance(child, Fortran2003.Assignment_Stmt):
-                arr_sections = walk_ast(child.items,
-                                        [Fortran2003.Section_Subscript_List],
-                                        debug=True)
-                if arr_sections:
-                    # An implicit loop marks the end of any current
-                    # code block
-                    _add_code_block(node, code_block_statements)
-                        
-                    # Create a kernel for this implicit loop
-                    kern = NEMOKern()
-                    kern.load(child, parent=node)
-                    node.addchild(kern)
-
-            # Add this node in the AST to our list for the current
-            # code block (unless it is loop-related in which case we
-            # ignore it)
-            if (not arr_sections) and \
-               type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
-                                   fparser.Fortran2003.End_Do_Stmt]:
-                code_block_statements.append(child)
-
-    # Finish any open code block
-    _add_code_block(node, code_block_statements)
-
-    return
-
-
-def _add_code_block(parent, statements):
-    ''' Create a NEMOCodeBlock for the supplied list of statements
-    and then wipe the list of statements '''
-    from nemo0p1 import NEMOCodeBlock
-
-    if not statements:
-        return None
-    
-    code_block = NEMOCodeBlock(statements,
-                               parent=parent)
-    parent.addchild(code_block)
-    statements = []
-    return code_block
+    return ast

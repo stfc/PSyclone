@@ -216,6 +216,8 @@ class PSyFactory(object):
             return GOPSy(invoke_info)
         elif self._type == "nemo0.1":
             from nemo0p1 import NEMOPSy
+            # For this API, the 'invoke_info' is actually the fparser2 AST
+            # of the Fortran file being processed
             return NEMOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
