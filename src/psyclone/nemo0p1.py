@@ -217,7 +217,9 @@ def _add_code_block(parent, statements):
 class NEMOInvoke(Invoke):
 
     def __init__(self, ast, name):
+        self._schedule = None
         self._name = name
+        self._psy_unique_vars = ["a_variable"]
 
         from habakkuk.parse2003 import walk_ast, Loop, get_child, ParseError
         from fparser.Fortran2003 import Main_Program, Program_Stmt, \
@@ -250,6 +252,8 @@ class NEMOInvoke(Invoke):
         translate_ast(self._schedule, exe_part, debug=True)
         self._schedule.view()
 
+    def gen_code(self, parent):
+        pass
 
 
 class NEMOInvokes(Invokes):
@@ -289,6 +293,10 @@ class NEMOInvokes(Invokes):
             self._invoke_list.append(NEMOInvoke(subroutine,
                                                 name=sub_name))
 
+    @property
+    def invoke_list(self):
+        return self._invoke_list
+
 
 class NEMOPSy(PSy):
     ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
@@ -298,8 +306,12 @@ class NEMOPSy(PSy):
     
     def __init__(self, ast):
 
+        self._name = "NEMO-PSY"  # TODO use a meaningful name
         self._invokes = NEMOInvokes(ast)
         
+    def inline(self, module):
+        # Override base-class method because we don't yet support it
+        pass
 
     @property
     def gen(self):
@@ -322,156 +334,6 @@ class NEMOPSy(PSy):
         # inline kernels where requested
         self.inline(psy_module)
         return psy_module.root
-
-
-class GOInvokes(Invokes):
-    ''' The GOcean specific invokes class. This passes the GOcean specific
-        invoke class to the base class so it creates the one we require. '''
-    def __init__(self, alg_calls):
-        if False:
-            self._0_to_n = GOInvoke(None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, GOInvoke)
-
-        index_offsets = []
-        # Loop over all of the kernels in all of the invoke() calls
-        # and check that they work on compatible grid-index offsets.
-        # Strictly speaking this check should be done in the parsing
-        # code since it is a check on the correctness of the meta-data.
-        # However, that would require a fundamental change to the parsing
-        # code since it requires information  on all of the invokes and
-        # kernels in an application. Therefore it is much simpler to
-        # do it here where we have easy access to that information.
-        for invoke in self.invoke_list:
-            for kern_call in invoke.schedule.kern_calls():
-                # We only care if the index offset is not offset_any (since
-                # that is compatible with any other offset)
-                if kern_call.index_offset != "offset_any":
-                    # Loop over the offsets we've seen so far
-                    for offset in index_offsets:
-                        if offset != kern_call.index_offset:
-                            raise GenerationError(
-                                "Meta-data error in kernel {0}: "
-                                "INDEX_OFFSET of '{1}' does not match that "
-                                "({2}) of other kernels. This is not "
-                                "supported.".format(kern_call.name,
-                                                    kern_call.index_offset,
-                                                    offset))
-                    # Append the index-offset of this kernel to the list of
-                    # those seen so far
-                    index_offsets.append(kern_call.index_offset)
-
-
-class GOInvoke(Invoke):
-    ''' The GOcean specific invoke class. This passes the GOcean specific
-        schedule class to the base class so it creates the one we require.
-        A set of GOcean infrastructure reserved names are also passed to
-        ensure that there are no name clashes. Also overrides the gen_code
-        method so that we generate GOcean specific invocation code and
-        provides three methods which separate arguments that are arrays from
-        arguments that are {integer, real} scalars. '''
-    def __init__(self, alg_invocation, idx):
-        if False:
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule)
-
-    @property
-    def unique_args_arrays(self):
-        ''' find unique arguments that are arrays (defined as those that are
-            field objects as opposed to scalars or properties of the grid). '''
-        result = []
-        for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'field' and arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    @property
-    def unique_args_rscalars(self):
-        ''' find unique arguments that are scalars of type real (defined
-            as those that are r_scalar 'space'. '''
-        result = []
-        for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'scalar' and \
-                   arg.space.lower() == "r_scalar" and arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    @property
-    def unique_args_iscalars(self):
-        ''' find unique arguments that are scalars of type integer (defined
-            as those that are i_scalar 'space'). '''
-        result = []
-        for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'scalar' and \
-                   arg.space.lower() == "i_scalar" and arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    def gen_code(self, parent):
-        ''' Generates GOcean specific invocation code (the subroutine called
-            by the associated invoke call in the algorithm layer). This
-            consists of the PSy invocation subroutine and the declaration of
-            its arguments.'''
-        from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
-            CommentGen, AssignGen
-        # create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names)
-        parent.add(invoke_sub)
-
-        # add declarations for the variables holding the upper bounds
-        # of loops in i and j
-        if self.schedule.const_loop_bounds:
-            invoke_sub.add(DeclGen(invoke_sub, datatype="INTEGER",
-                                   entity_decls=[self.schedule.iloop_stop,
-                                                 self.schedule.jloop_stop]))
-
-        # Generate the code body of this subroutine
-        self.schedule.gen_code(invoke_sub)
-
-        # add the subroutine argument declarations for fields
-        if len(self.unique_args_arrays) > 0:
-            my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
-                                         intent="inout",
-                                         entity_decls=self.unique_args_arrays)
-            invoke_sub.add(my_decl_arrays)
-
-        # add the subroutine argument declarations for real scalars
-        if len(self.unique_args_rscalars) > 0:
-            my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
-                                       intent="inout", kind="wp",
-                                       entity_decls=self.unique_args_rscalars)
-            invoke_sub.add(my_decl_rscalars)
-        # add the subroutine argument declarations for integer scalars
-        if len(self.unique_args_iscalars) > 0:
-            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
-                                       intent="inout",
-                                       entity_decls=self.unique_args_iscalars)
-            invoke_sub.add(my_decl_iscalars)
-
-        if self._schedule.const_loop_bounds and \
-           len(self.unique_args_arrays) > 0:
-
-            # Look-up the loop bounds using the first field object in the
-            # list
-            sim_domain = self.unique_args_arrays[0] +\
-                "%grid%simulation_domain%"
-            position = invoke_sub.last_declaration()
-
-            invoke_sub.add(CommentGen(invoke_sub, ""),
-                           position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.jloop_stop,
-                                     rhs=sim_domain+"ystop"),
-                           position=["after", position])
-            invoke_sub.add(AssignGen(invoke_sub, lhs=self.schedule.iloop_stop,
-                                     rhs=sim_domain+"xstop"),
-                           position=["after", position])
-            invoke_sub.add(CommentGen(invoke_sub, " Look-up loop bounds"),
-                           position=["after", position])
-            invoke_sub.add(CommentGen(invoke_sub, ""),
-                           position=["after", position])
 
 
 class NEMOSchedule(Schedule):
@@ -827,37 +689,6 @@ class NEMOCodeBlock(Node):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    
-class GOKernCallFactory(object):
-    ''' A GOcean-specific kernel-call factory. A standard kernel call in
-    GOcean consists of a doubly-nested loop (over i and j) and a call to
-    the user-supplied kernel routine. '''
-    @staticmethod
-    def create(call, parent=None):
-        ''' Create a new instance of a call to a GO kernel. Includes the
-        looping structure as well as the call to the kernel itself. '''
-        outer_loop = GOLoop(parent=parent,
-                            loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop,
-                            loop_type="inner")
-        outer_loop.addchild(inner_loop)
-        gocall = GOKern()
-        gocall.load(call, parent=inner_loop)
-        inner_loop.addchild(gocall)
-        # determine inner and outer loops space information from the
-        # child kernel call. This is only picked up automatically (by
-        # the inner loop) if the kernel call is passed into the inner
-        # loop.
-        inner_loop.iteration_space = gocall.iterates_over
-        outer_loop.iteration_space = inner_loop.iteration_space
-        inner_loop.field_space = gocall.\
-            arguments.iteration_space_arg().function_space
-        outer_loop.field_space = inner_loop.field_space
-        inner_loop.field_name = gocall.\
-            arguments.iteration_space_arg().name
-        outer_loop.field_name = inner_loop.field_name
-        return outer_loop
-
 
 class NEMOKern(Node):
     ''' Stores information about NEMO kernels as extracted from the
@@ -1014,301 +845,3 @@ class NEMOKern(Node):
         print self.indent(indent) + yellow_text("NEMOKern[" + self._kernel_type + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
-
-
-class GOKernelArguments(Arguments):
-    '''Provides information about GOcean kernel-call arguments
-        collectively, as specified by the kernel argument
-        metadata. This class ensures that initialisation is performed
-        correctly. It also overrides the iteration_space_arg method to
-        supply a GOcean-specific dictionary for the mapping of
-        argument-access types.
-
-    '''
-    def __init__(self, call, parent_call):
-        if False:
-            self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
-        Arguments.__init__(self, parent_call)
-
-        self._args = []
-        # Loop over the kernel arguments obtained from the meta data
-        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
-            # arg is a GO1p0Descriptor object
-            if arg.type == "grid_property":
-                # This is an argument supplied by the psy layer
-                self._args.append(GOKernelGridArgument(arg))
-            elif arg.type == "scalar" or arg.type == "field":
-                # This is a kernel argument supplied by the Algorithm layer
-                self._args.append(GOKernelArgument(arg, call.args[idx],
-                                                   parent_call))
-            else:
-                raise ParseError("Invalid kernel argument type. Found '{0}' "
-                                 "but must be one of {1}".
-                                 format(arg.type, ["grid_property", "scalar",
-                                                   "field"]))
-        self._dofs = []
-
-    @property
-    def dofs(self):
-        ''' Currently required for invoke base class although this makes no
-            sense for GOcean. Need to refactor the invoke class and pull out
-            dofs into the gunghoproto api '''
-        return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            # We provide an empty mapping for inc as it is not supported
-            # in the GOcean 1.0 API. However, the entry has to be there
-            # in the dictionary as a field that has read access causes
-            # the code (that checks that a kernel has at least one argument
-            # that is written to) to attempt to lookup "inc".
-            my_mapping = {"write": "write", "read": "read",
-                          "readwrite": "readwrite", "inc": ""}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
-
-
-class GOKernelArgument(KernelArgument):
-    ''' Provides information about individual GOcean kernel call arguments
-        as specified by the kernel argument metadata. '''
-    def __init__(self, arg, arg_info, call):
-
-        self._arg = arg
-        KernelArgument.__init__(self, arg, arg_info, call)
-
-    @property
-    def type(self):
-        ''' Return the type of this kernel argument - whether it is a field,
-            a scalar or a grid_property (to be supplied by the PSy layer) '''
-        return self._arg.type
-
-    @property
-    def function_space(self):
-        ''' Returns the expected finite difference space for this
-            argument as specified by the kernel argument metadata.'''
-        return self._arg.function_space
-
-
-class GOKernelGridArgument(object):
-    ''' Describes arguments that supply grid properties to a kernel.
-        These arguments are provided by the PSy layer rather than in
-        the Algorithm layer. '''
-
-    def __init__(self, arg):
-
-        if arg.grid_prop in GRID_PROPERTY_DICT:
-            self._name = GRID_PROPERTY_DICT[arg.grid_prop]
-        else:
-            raise GenerationError("Unrecognised grid property specified. "
-                                  "Expected one of {0} but found '{1}'".
-                                  format(str(GRID_PROPERTY_DICT.keys()),
-                                         arg.grid_prop))
-
-        # This object always represents an argument that is a grid_property
-        self._type = "grid_property"
-
-    @property
-    def name(self):
-        ''' Returns the Fortran name of the grid property. This name is
-            used in the generated code like so: <fld>%grid%name '''
-        return self._name
-
-    @property
-    def type(self):
-        ''' The type of this argument. We have this for compatibility with
-            GOKernelArgument objects since, for this class, it will always be
-            "grid_property". '''
-        return self._type
-
-    @property
-    def text(self):
-        ''' The raw text used to pass data from the algorithm layer
-            for this argument. Grid properties are not passed from the
-            algorithm layer so None is returned.'''
-        return None
-
-
-class GO1p0Descriptor(Descriptor):
-    '''Description of a GOcean 1.0 kernel argument, as obtained by
-        parsing the kernel meta-data
-
-    '''
-
-    def __init__(self, kernel_name, kernel_arg):
-
-        nargs = len(kernel_arg.args)
-
-        if nargs == 3:
-            # This kernel argument is supplied by the Algorithm layer
-            # and is either a field or a scalar
-
-            access = kernel_arg.args[0].name
-            funcspace = kernel_arg.args[1].name
-            stencil = kernel_arg.args[2].name
-
-            # Valid values for the grid-point type that a kernel argument
-            # may have. (We use the funcspace argument for this as it is
-            # similar to the space in Finite-Element world.)
-            valid_func_spaces = VALID_FIELD_GRID_TYPES + VALID_SCALAR_TYPES
-
-            self._grid_prop = ""
-            if funcspace.lower() in VALID_FIELD_GRID_TYPES:
-                self._type = "field"
-            elif funcspace.lower() in VALID_SCALAR_TYPES:
-                self._type = "scalar"
-            else:
-                raise ParseError("Meta-data error in kernel {0}: argument "
-                                 "grid-point type is '{1}' but must be one "
-                                 "of {2} ".format(kernel_name, funcspace,
-                                                  valid_func_spaces))
-
-            if stencil.lower() not in VALID_STENCILS:
-                raise ParseError("Meta-data error in kernel {0}: 3rd "
-                                 "descriptor (stencil) of field argument "
-                                 "is '{1}' but must be one of {2}".
-                                 format(kernel_name, stencil, VALID_STENCILS))
-
-        elif nargs == 2:
-            # This kernel argument is a property of the grid
-            access = kernel_arg.args[0].name
-            grid_var = kernel_arg.args[1].name
-            funcspace = ""
-            stencil = ""
-
-            self._grid_prop = grid_var
-            self._type = "grid_property"
-
-            if grid_var.lower() not in GRID_PROPERTY_DICT:
-                raise ParseError(
-                    "Meta-data error in kernel {0}: un-recognised grid "
-                    "property '{1}' requested. Must be one of {2}".
-                    format(kernel_name,
-                           grid_var,
-                           str(GRID_PROPERTY_DICT.keys())))
-        else:
-            raise ParseError(
-                "Meta-data error in kernel {0}: 'arg' type expects 2 or 3 "
-                "arguments but found '{1}' in '{2}'".
-                format(kernel_name,
-                       str(len(kernel_arg.args)),
-                       kernel_arg.args))
-
-        if access.lower() not in VALID_ARG_ACCESSES:
-            raise ParseError("Meta-data error in kernel {0}: argument "
-                             "access  is given as '{1}' but must be "
-                             "one of {2}".
-                             format(kernel_name, access, VALID_ARG_ACCESSES))
-
-        # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil)
-
-    def __str__(self):
-        return repr(self)
-
-    @property
-    def grid_prop(self):
-        ''' The name of the grid-property that this argument is to supply
-            to the kernel '''
-        return self._grid_prop
-
-    @property
-    def type(self):
-        ''' The type of this argument - whether it is a scalar, a field or
-            a grid-property. The latter are special because they must be
-            supplied by the PSy layer. '''
-        return self._type
-
-
-class GOKernelType1p0(KernelType):
-    ''' Description of a kernel including the grid index-offset it
-        expects and the region of the grid that it expects to
-        operate upon '''
-
-    def __str__(self):
-        return ('GOcean 1.0 kernel ' + self._name + ', index-offset = ' +
-                self._index_offset + ', iterates-over = ' +
-                self._iterates_over)
-
-    def __init__(self, ast, name=None):
-        # Initialise the base class
-        KernelType.__init__(self, ast, name=name)
-
-        # What grid offset scheme this kernel expects
-        self._index_offset = self._ktype.get_variable('index_offset').init
-
-        if self._index_offset is None:
-            raise ParseError("Meta-data error in kernel {0}: an INDEX_OFFSET "
-                             "must be specified and must be one of {1}".
-                             format(name, VALID_OFFSET_NAMES))
-
-        if self._index_offset.lower() not in VALID_OFFSET_NAMES:
-            raise ParseError("Meta-data error in kernel {0}: INDEX_OFFSET "
-                             "has value '{1}' but must be one of {2}".
-                             format(name,
-                                    self._index_offset,
-                                    VALID_OFFSET_NAMES))
-
-        # Check that the meta-data for this kernel is valid
-        if self._iterates_over is None:
-            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
-                             "is missing. (Valid values are: {1})".
-                             format(name, VALID_ITERATES_OVER))
-
-        if self._iterates_over.lower() not in VALID_ITERATES_OVER:
-            raise ParseError("Meta-data error in kernel {0}: ITERATES_OVER "
-                             "has value '{1}' but must be one of {2}".
-                             format(name,
-                                    self._iterates_over.lower(),
-                                    VALID_ITERATES_OVER))
-
-        # The list of kernel arguments
-        self._arg_descriptors = []
-        have_grid_prop = False
-        for init in self._inits:
-            if init.name != 'arg':
-                raise ParseError("Each meta_arg value must be of type " +
-                                 "'arg' for the gocean1.0 api, but " +
-                                 "found '{0}'".format(init.name))
-            # Pass in the name of this kernel for the purposes
-            # of error reporting
-            new_arg = GO1p0Descriptor(name, init)
-            # Keep track of whether this kernel requires any
-            # grid properties
-            have_grid_prop = (have_grid_prop or
-                              (new_arg.type == "grid_property"))
-            self._arg_descriptors.append(new_arg)
-
-        # If this kernel expects a grid property then check that it
-        # has at least one field object as an argument (which we
-        # can use to access the grid)
-        if have_grid_prop:
-            have_fld = False
-            for arg in self.arg_descriptors:
-                if arg.type == "field":
-                    have_fld = True
-                    break
-            if not have_fld:
-                raise ParseError(
-                    "Kernel {0} requires a property of the grid but does "
-                    "not have any field objects as arguments.".format(name))
-
-    # Override nargs from the base class so that it returns the no.
-    # of args specified in the algorithm layer (and thus excludes those
-    # that must be added in the PSy layer). This is done to simplify the
-    # check on the no. of arguments supplied in any invoke of the kernel.
-    @property
-    def nargs(self):
-        ''' Count and return the number of arguments that this kernel
-            expects the Algorithm layer to provide '''
-        count = 0
-        for arg in self.arg_descriptors:
-            if arg.type != "grid_property":
-                count += 1
-        return count
-
-    @property
-    def index_offset(self):
-        ''' Return the grid index-offset that this kernel expects '''
-        return self._index_offset

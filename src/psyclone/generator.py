@@ -148,10 +148,15 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 raise msg
             if sys_path_appended:
                 os.sys.path.pop()
-        alg = Alg(ast, psy)
+        if api != "nemo0.1":
+            alg = Alg(ast, psy)
     except Exception:
         raise
-    return alg.gen, psy.gen
+
+    if api == "nemo0.1":
+        return None, psy.gen
+    else:
+        return alg.gen, psy.gen
 
 
 def main(args):
