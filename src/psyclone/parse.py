@@ -1209,6 +1209,18 @@ def translate_ast(node, parent, indent=0, debug=False):
                 loop = NEMOLoop(parent=node, loop_type=ltype)
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
+        elif isinstance(child, Fortran2003.BlockBase):
+            code_block_statements.append(child)
+            loops = walk_ast(child.content,
+                             [Fortran2003.Block_Nonlabel_Do_Construct])
+            if loops:
+                # It contains one or more loops so we walk further down
+                # the tree
+                block = _add_code_block(node, code_block_statements)
+                if block:
+                    translate_ast(block, child, indent+1, debug)
+                else:
+                    translate_ast(node, child, indent+1, debug)
         else:
             # Check whether this is an implicit loop
             arr_sections = []
@@ -1246,10 +1258,10 @@ def _add_code_block(parent, statements):
     from nemo0p1 import NEMOCodeBlock
 
     if not statements:
-        return
+        return None
     
     code_block = NEMOCodeBlock(statements,
                                parent=parent)
     parent.addchild(code_block)
     statements = []
-    return
+    return code_block
