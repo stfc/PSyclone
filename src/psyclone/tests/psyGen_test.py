@@ -505,18 +505,15 @@ def test_kern_class_view(capsys):
     assert expected_output in out
 
 
-def test_kern_name_str():
-    '''Check that the name_str method of Kern returns what we expect '''
+def test_kern_coloured_text(monkeypatch):
+    '''Check that the coloured_text method of Kern returns what we expect '''
+    from psyclone.psyGen import colored
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     ret_str = my_kern.coloured_text
-    print repr(ret_str)
-    # Note that we should check for the colour control codes here but,
-    # when run under pytest, these appear to be missing. Maybe because
-    # numpy cannot access the terminal environment?
-    assert "Kern" in ret_str
+    assert colored("KernCall", "red") in ret_str
 
 
 def test_call_local_vars():

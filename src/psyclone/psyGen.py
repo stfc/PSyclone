@@ -45,6 +45,16 @@ import abc
 import psyclone
 import config
 
+try:
+    from termcolor import colored
+except:
+    # We don't have the termcolor package available so provide
+    # alternative routine
+    def colored(text, color):
+        ''' Returns the supplied text argument unchanged. Is a swap-in
+        replacement for when termcolor.colored is not available. '''
+        return text
+
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
@@ -1167,8 +1177,7 @@ class Schedule(Node):
     def coloured_text(self):
         ''' Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it'''
-        from numpy.distutils.misc_util import yellow_text
-        return yellow_text("Schedule")
+        return colored("Schedule", "yellow")
 
     def __str__(self):
         result = "Schedule:\n"
@@ -1544,9 +1553,7 @@ class GlobalSum(Node):
     @property
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node type '''
-        from numpy.distutils.misc_util import cyan_text
-        return cyan_text("GlobalSum")
-
+        return colored("GlobalSum", "cyan")
 
 class HaloExchange(Node):
 
@@ -1600,9 +1607,7 @@ class HaloExchange(Node):
     @property
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node type '''
-        from numpy.distutils.misc_util import green_text
-        return green_text("HaloExchange")
-        
+        return colored("HaloExchange", "green")
 
 class Loop(Node):
 
@@ -1668,8 +1673,7 @@ class Loop(Node):
 
     @property
     def coloured_text(self):
-        from numpy.distutils.misc_util import blue_text
-        return blue_text("Loop")
+        return colored("Loop", "blue")
 
     @property
     def height(self):
@@ -1836,8 +1840,7 @@ class Call(Node):
     @property
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node type '''
-        from numpy.distutils.misc_util import red_text
-        return red_text("Call")
+        return colored("Call", "red")
 
     @property
     def width(self):
@@ -2116,8 +2119,7 @@ class Kern(Call):
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node
         type '''
-        from numpy.distutils.misc_util import red_text
-        return red_text("KernCall")
+        return colored("KernCall", "red")
 
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
