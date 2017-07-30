@@ -5635,13 +5635,12 @@ def test_two_stencils_same_field():
         assert output7 in result
 
 
-@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencils_same_field_literal_extent():
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the extent being passed as a
     literal value. Extent is the same in two kernels and different in
     the third. '''
-    for dist_mem in [False, True]:
+    for dist_mem in [False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.15_stencils_same_field_literal_extent.f90"),
@@ -5688,14 +5687,26 @@ def test_stencils_same_field_literal_extent():
             "map_w3(:,cell))")
         assert result.count(output4) == 1
 
+    for dist_mem in [True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.15_stencils_same_field_literal_extent.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as excinfo:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=dist_mem).create(invoke_info)
+        assert ("Complex halo exchange depths not currently supported"
+                in str(excinfo))
+        assert ("invalid literal for int() with base 10: '1+1'"
+                in str(excinfo))
 
-@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
+
 def test_stencils_same_field_literal_direction():
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the direction being passed as a
     literal value. In two kernels the direction value is the same and
     in the third it is different. '''
-    for dist_mem in [False, True]:
+    for dist_mem in [False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.16_stencils_same_field_literal_direction.f90"),
@@ -5753,6 +5764,18 @@ def test_stencils_same_field_literal_direction():
             "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
             "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert result.count(output4) == 1
+    for dist_mem in [True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.16_stencils_same_field_literal_direction.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as excinfo:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=dist_mem).create(invoke_info)
+        assert ("Complex halo exchange depths not currently supported"
+                in str(excinfo))
+        assert ("invalid literal for int() with base 10: '2+1'"
+                in str(excinfo))
 
 
 def test_stencil_extent_specified():
@@ -6016,13 +6039,12 @@ def test_stencil_args_unique_1():
         assert output7 in result
 
 
-@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencil_args_unique_2():
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are accessed as
     indexed arrays, with the same array name, from the algorithm
     layer.'''
-    for dist_mem in [False, True]:
+    for dist_mem in [False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.22_stencil_names_indexed.f90"),
@@ -6072,14 +6094,25 @@ def test_stencil_args_unique_2():
             "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
             "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output5 in result
+    for dist_mem in [True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.22_stencil_names_indexed.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as excinfo:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=dist_mem).create(invoke_info)
+        assert ("Complex halo exchange depths not currently supported"
+                in str(excinfo))
+        assert ("invalid literal for int() with base 10: 'f2_info+1'"
+                in str(excinfo))
 
 
-@pytest.mark.xfail(reason="multiple stencils in an invoke currently broken")
 def test_stencil_args_unique_3():
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are dereferenced,
     with the same type/class name, from the algorithm layer. '''
-    for dist_mem in [False, True]:
+    for dist_mem in [False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.23_stencil_names_deref.f90"),
@@ -6096,6 +6129,18 @@ def test_stencil_args_unique_3():
         assert (
             "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
             "my_info_f2_info)" in result)
+    for dist_mem in [True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "19.23_stencil_names_deref.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(GenerationError) as excinfo:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=dist_mem).create(invoke_info)
+        assert ("Complex halo exchange depths not currently supported"
+                in str(excinfo))
+        assert ("invalid literal for int() with base 10: 'my_info_f2_info+1'"
+                in str(excinfo))
 
 
 def test_dynloop_load_unexpected_function_space():

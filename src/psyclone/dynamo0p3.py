@@ -2550,7 +2550,12 @@ class DynLoop(Loop):
                 else:
                     # return the larger of the existing depth and the
                     # specified depth
-                    depth = str(max(int(halo_exchange.halo_depth), self.upper_bound_index))
+                    try:
+                        depth = str(max(int(halo_exchange.halo_depth), self.upper_bound_index))
+                    except ValueError as e:
+                        raise GenerationError(
+                            "Complex halo exchange depths not currently suppo"
+                            "rted. Error reported is '{0}'".format(str(e)))
             else:
                 # this will be a new halo exchange so return the loop halo size
                 depth = str(self.upper_bound_index)

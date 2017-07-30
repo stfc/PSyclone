@@ -4430,18 +4430,15 @@ def test_redundant_computation_no_directive():
 
 # todo
 
-# k) check correct halo exchange with stencil accesses
-#      stencil access with loop not over halo - correct result?
-#      stencil access with request for loop over whole halo - raise exception
-#      check reducing size fails but increasing works
-#
-# 2) runtime checks that redundant computation is not beyond max halo
-#    (with and without stencil)
-#
+# 2) runtime checks that redundant computation is not beyond max halo  *** created a discussion ticket
+
+# raise exception if unsupported stencil's/halo depths are found - temporary until fixed in issue #62.
+
 # 3) add check for discontinuous() kernel and check its existing use
 #    as this was incorrect
 #
 # 4) add tests for the new halo exchange depth property and setter in psyGen.py
+#
 # add test for Tom's example - ensure that no halo exchange is generated 
 
 # example of redundant computation transformation in action.
