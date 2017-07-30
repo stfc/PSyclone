@@ -6860,3 +6860,42 @@ def test_no_halo_for_w3():
     result = str(psy.gen)
     print result
     assert "halo_exchange" not in result
+
+
+def test_arg_discontinous():
+    '''test that the discontinuous method in the dynamo argument class
+    returns the correct values '''
+    
+    # 1 discontinuous field returns true
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0]
+    field = kernel.arguments.args[0]
+    assert field.space == 'w3'
+    assert field.discontinuous
+
+    # 2 any_space field returns false
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "11_any_space.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[5].children[0]
+    field = kernel.arguments.args[0]
+    assert field.space == 'any_space_1'
+    assert not field.discontinuous
+    
+    # 3 continuous field returns false
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    kernel = schedule.children[3].children[0]
+    field = kernel.arguments.args[1]
+    assert field.space == 'w1'
+    assert not field.discontinuous
