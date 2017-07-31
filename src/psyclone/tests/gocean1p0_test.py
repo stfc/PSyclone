@@ -796,6 +796,7 @@ def test_goschedule_view(capsys):
     # by default. We have to query this captured output.
     out, _ = capsys.readouterr()
 
+    # Ensure we check for the correct (colour) control codes in the output
     sched = colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])

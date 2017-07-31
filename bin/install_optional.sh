@@ -39,7 +39,7 @@
 # any optional dependencies.
 
 # Which packages are installed is controlled by environment variables that
-# can be set using the Travis 'env' option.
+# can be set using the Travis 'env' section in .travis.yml.
 
 if [ "$WITH_TERMCOLOR" = "1" ]; then
     echo "Installing termcolor package..."

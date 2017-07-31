@@ -665,7 +665,7 @@ def test_globalsum_view(capsys):
                        + "[scalar='asum']")
     assert expected_output in output
     from psyclone import dynamo0p3
-    from psyclone.psyGen import GlobalSum
+    from psyclone.psyGen import GlobalSum, colored, SCHEDULE_COLOUR_MAP
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
         if isinstance(child, dynamo0p3.DynGlobalSum):
@@ -673,7 +673,7 @@ def test_globalsum_view(capsys):
             break
     assert gsum
     ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_text
-    assert "GlobalSum" in repr(ret_str)
+    assert colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"]) in ret_str
 
 
 def test_args_filter():

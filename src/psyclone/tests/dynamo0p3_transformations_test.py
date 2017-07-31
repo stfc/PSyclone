@@ -3387,6 +3387,7 @@ def test_reprod_view(capsys):
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
 
+    # Ensure we check to text containing the correct (colour) control codes
     sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
