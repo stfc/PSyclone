@@ -3385,7 +3385,14 @@ def test_reprod_three_builtins_two_reductions_do():
 def test_reprod_view(capsys):
     '''test that we generate a correct view() for OpenMP do reductions '''
     from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
+    from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
+
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+    gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3410,48 +3417,48 @@ def test_reprod_view(capsys):
         result, _ = capsys.readouterr()
         if distmem:
             expected = (
-                "Schedule[invoke='invoke_0' dm=True]\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call x_innerproduct_y(asum,f1,f2)\n"
-                "    GlobalSum[scalar='asum']\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call inc_a_times_x(asum,f1)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call sum_x(bsum,f2)\n"
-                "    GlobalSum[scalar='bsum']\n")
+                sched + "[invoke='invoke_0' dm=True]\n"
+                "    " + directive+"[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs']\n"
+                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+                "    " + gsum + "[scalar='asum']\n"
+                "    " + directive +"[OMP parallel]\n"
+                "        " + directive + "[OMP do]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs']\n"
+                "                " + call + " inc_a_times_x(asum,f1)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs']\n"
+                "                " + call + " sum_x(bsum,f2)\n"
+                "    " + gsum + "[scalar='bsum']\n")
         else:
             expected = (
-                "Schedule[invoke='invoke_0' dm=False]\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call x_innerproduct_y(asum,f1,f2)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call inc_a_times_x(asum,f1)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call sum_x(bsum,f2)\n")
-
-        print "Expected ..."
-        print expected
-        print "Found ..."
-        print result
-        assert expected in result
+                sched + "[invoke='invoke_0' dm=False]\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs']\n"
+                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs']\n"
+                "                " + call + " inc_a_times_x(asum,f1)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs']\n"
+                "                " + call + " sum_x(bsum,f2)\n")
+        if expected not in result:
+            print "Expected ..."
+            print expected
+            print "Found ..."
+            print result
+            assert 0
 
 
 def test_reductions_reprod():

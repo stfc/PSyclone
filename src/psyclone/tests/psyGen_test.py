@@ -494,26 +494,28 @@ end module dummy_mod
 def test_kern_class_view(capsys):
     ''' tests the view method in the Kern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     my_kern.view()
     out, _ = capsys.readouterr()
-    expected_output = \
-        "KernCall dummy_code(field_1) [module_inline=False]"
+    expected_output = (
+        colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) +
+        " dummy_code(field_1) [module_inline=False]")
     assert expected_output in out
 
 
-def test_kern_coloured_text(monkeypatch):
+def test_kern_coloured_text():
     '''Check that the coloured_text method of Kern returns what we expect '''
-    from psyclone.psyGen import colored
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     ret_str = my_kern.coloured_text
-    assert colored("KernCall", "red") in ret_str
+    assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
 
 
 def test_call_local_vars():
@@ -570,6 +572,7 @@ def test_written_arg():
 def test_ompdo_directive_class_view(capsys):
     '''tests the view method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
 
@@ -603,9 +606,13 @@ def test_ompdo_directive_class_view(capsys):
 
             out, _ = capsys.readouterr()
             expected_output = (
-                "Directive" + case["current_string"] + "\n"
-                "    Loop[type='',field_space='w1',it_space='cells']\n"
-                "        KernCall testkern_code(a,f1,f2,m1,m2) "
+                colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
+                case["current_string"] + "\n"
+                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) + 
+                "[type='',field_space='w1',it_space='cells']\n"
+                "        "+colored("KernCall",
+                                   SCHEDULE_COLOUR_MAP["KernCall"]) + 
+                " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
 
             assert expected_output in out
@@ -646,6 +653,7 @@ def test_globalsum_view(capsys):
     '''test the view method in the GlobalSum class. The simplest way to do
     this is to use a dynamo0p3 builtin example which contains a scalar and
     then call view() on that.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -653,7 +661,8 @@ def test_globalsum_view(capsys):
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
     print output
-    expected_output = ("GlobalSum[scalar='asum']")
+    expected_output = (colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
+                       + "[scalar='asum']")
     assert expected_output in output
     from psyclone import dynamo0p3
     from psyclone.psyGen import GlobalSum
