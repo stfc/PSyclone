@@ -35,8 +35,13 @@
 language: python
 python:
   - 2.7
+env:
+  matrix:
+    - WITH_TERMCOLOR=0
+    - WITH_TERMCOLOR=1
 # command to install dependencies
 before_install:
+  - ./bin/install_optional.sh
   - pip install coveralls
 install:
   - "pip install ."
