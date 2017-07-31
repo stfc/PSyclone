@@ -17,7 +17,7 @@
 module dynamo0p3_builtins_mod
 
   !> field3 = a*field1 - field2
-  type, public, extends(kernel_type) :: axmy
+  type, public, extends(kernel_type) :: aX_minus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
           arg_type(GH_REAL,  GH_READ              ),                  &
@@ -27,8 +27,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: axmy_code
-  end type axmy
+     procedure, nopass :: aX_minus_Y_code
+  end type aX_minus_Y
 
   !> field3 = a*field1 + b*field2
   type, public, extends(kernel_type) :: axpby
@@ -287,8 +287,8 @@ module dynamo0p3_builtins_mod
 
 contains
 
-  subroutine axmy_code()
-  end subroutine axmy_code
+  subroutine aX_minus_Y_code()
+  end subroutine aX_minus_Y_code
 
   subroutine axpby_code()
   end subroutine axpby_code

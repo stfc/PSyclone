@@ -1042,10 +1042,10 @@ does not necessarily reflect the actual implementation of the
 built-in (*e.g.* it could be implemented by PSyclone
 generating a call to an optimised maths library).
 
-axmy
+aX_minus_Y
 ++++
 
-**axmy** (*a*, *field1*, *field2*, *field3*)
+**aX_minus_Y** (*a*, *field1*, *field2*, *field3*)
 
 Performs: ::
    

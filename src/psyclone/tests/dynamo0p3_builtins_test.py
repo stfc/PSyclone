@@ -1200,25 +1200,25 @@ def test_axpy_by_value():
             assert output_dm_2 in code
 
 
-def test_axmy_field_str():
-    ''' Test that the str method of DynAXMYKern returns the
+def test_aX_minus_Y_field_str():
+    ''' Test that the str method of DynAXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.5_axmy_invoke.f90"),
+                                        "15.3.5_aX_minus_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: AXMY"
+        assert str(kern) == "Built-in: AXMinusY"
 
 
-def test_axmy():
+def test_aX_minus_Y():
     ''' Test that we generate correct code for the builtin
     operation f = a*x - y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.5_axmy_invoke.f90"),
+                                        "15.3.5_aX_minus_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
