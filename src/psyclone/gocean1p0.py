@@ -267,7 +267,7 @@ class GOSchedule(Schedule):
 
     def view(self, indent=0):
         ''' Print a representation of this GOSchedule '''
-        print self.indent(indent) + "GOSchedule[invoke='" + \
+        print self.indent(indent) + self.coloured_text + "[invoke='" + \
             self.invoke.name + "',Constant loop bounds=" + \
             str(self._const_loop_bounds) + "]"
         for entity in self._children:
@@ -281,6 +281,13 @@ class GOSchedule(Schedule):
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
+
+    @property
+    def coloured_text(self):
+        ''' Return the name of this object with control-codes for
+        display in terminals that support colour '''
+        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+        return colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):

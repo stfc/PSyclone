@@ -45,6 +45,9 @@ import abc
 import psyclone
 import config
 
+# We use the termcolor module (if available) to enable us to produce
+# coloured, textual representations of Invoke schedules. If it's not
+# available then we don't use colour.
 try:
     from termcolor import colored
 except:
@@ -83,6 +86,17 @@ MAPPING_ACCESSES = {"inc": "inc", "write": "write", "read": "read"}
 VALID_ARG_TYPE_NAMES = []
 # List of all valid access types for a kernel argument
 VALID_ACCESS_DESCRIPTOR_NAMES = []
+
+# Colour map to use when writing Invoke schedule to terminal. (Requires
+# that the termcolor package be installed. If it isn't then output is not
+# coloured.) See https://pypi.python.org/pypi/termcolor for details.
+SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
+                       "Loop": "blue",
+                       "GlobalSum": "cyan",
+                       "Directive": "green",
+                       "HaloExchange": "magenta",
+                       "Call": "red",
+                       "KernCall": "red"}
 
 
 def get_api(api):
@@ -1177,7 +1191,7 @@ class Schedule(Node):
     def coloured_text(self):
         ''' Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it'''
-        return colored("Schedule", "yellow")
+        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
         result = "Schedule:\n"
@@ -1200,7 +1214,7 @@ class Directive(Node):
 
     @property
     def coloured_text(self):
-        return "Directive"
+        return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
 
     @property
     def dag_name(self):
@@ -1552,8 +1566,10 @@ class GlobalSum(Node):
 
     @property
     def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node type '''
-        return colored("GlobalSum", "cyan")
+        ''' Return a string containing the (coloured) name of this node
+        type '''
+        return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
+
 
 class HaloExchange(Node):
 
@@ -1606,8 +1622,10 @@ class HaloExchange(Node):
 
     @property
     def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node type '''
-        return colored("HaloExchange", "green")
+        ''' Return a string containing the (coloured) name of this node
+        type '''
+        return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+
 
 class Loop(Node):
 
@@ -1673,7 +1691,7 @@ class Loop(Node):
 
     @property
     def coloured_text(self):
-        return colored("Loop", "blue")
+        return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
 
     @property
     def height(self):
@@ -1839,8 +1857,9 @@ class Call(Node):
 
     @property
     def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node type '''
-        return colored("Call", "red")
+        ''' Return a string containing the (coloured) name of this node
+        type '''
+        return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
 
     @property
     def width(self):
@@ -2119,7 +2138,7 @@ class Kern(Call):
     def coloured_text(self):
         ''' Return a string containing the (coloured) name of this node
         type '''
-        return colored("KernCall", "red")
+        return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
