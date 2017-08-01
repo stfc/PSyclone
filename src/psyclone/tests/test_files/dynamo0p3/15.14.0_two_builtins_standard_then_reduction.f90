@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -15,6 +16,6 @@ program single_invoke
   real(r_def) :: asum, bvalue
 
   call invoke( scale_field(bvalue, f1), &
-               sum_X(f1, asum) )
+               sum_X(asum, f1) )
 
 end program single_invoke

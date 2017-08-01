@@ -213,8 +213,8 @@ class DynSumXKern(DynBuiltIn):
         from f2pygen import AssignGen
         # Sum all the elements of a field. The variable holding the
         # sum is initialised to zero in the psy layer.
-        fld_name = self.array_ref(self._arguments.args[0].proxy_name)
-        sum_name = self._reduction_ref(self._arguments.args[1].name)
+        fld_name = self.array_ref(self._arguments.args[1].proxy_name)
+        sum_name = self._reduction_ref(self._arguments.args[0].name)
         rhs_expr = sum_name + "+" + fld_name
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 

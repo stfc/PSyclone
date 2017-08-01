@@ -990,7 +990,7 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_arg = schedule.children[0].children[0].arguments.args[0]
-    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    sum_arg = schedule.children[1].children[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
     next_arg = schedule.children[3].children[0].arguments.args[0]
     # a) prev kern arg depends on sum
@@ -1053,7 +1053,7 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_arg = schedule.children[0].children[0].arguments.args[0]
-    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    sum_arg = schedule.children[1].children[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
     next_arg = schedule.children[3].children[0].arguments.args[0]
     # a) next kern arg depends on global sum arg

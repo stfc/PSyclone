@@ -1346,17 +1346,17 @@ where:
 sum_X
 +++++++++
 
-**sum_X** (*field*, *sumval*)
+**sum_X** (*sumfld*, *field*)
 
 Sums all of the elements of the field *field* and returns the result
-in the scalar variable *sumval*: ::
+in the scalar variable *sumfld*: ::
   
-  sumval = SUM(field(:))
+  sumfld = SUM(field(:))
 
 where:
 
+* real(r_def), intent(out) :: sumfld
 * type(field_type), intent(in) :: field
-* real(r_def), intent(out) :: sumval
 
 .. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the

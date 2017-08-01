@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -15,6 +16,6 @@ program single_invoke
   type(field_type) :: f1
   real(r_def) :: asum
 
-  call invoke( sum_X(f1, asum) )
+  call invoke( sum_X(asum, f1) )
 
 end program single_invoke

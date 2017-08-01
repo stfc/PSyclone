@@ -3400,7 +3400,7 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_x(f2,bsum)\n"
+                "                Call sum_x(bsum,f2)\n"
                 "    GlobalSum[scalar='bsum']\n")
         else:
             expected = (
@@ -3419,7 +3419,7 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_x(f2,bsum)\n")
+                "                Call sum_x(bsum,f2)\n")
 
         print "Expected ..."
         print expected

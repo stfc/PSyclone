@@ -277,8 +277,8 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: sum_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_REAL,  GH_SUM              )                    &
+          arg_type(GH_REAL,  GH_SUM              ),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
