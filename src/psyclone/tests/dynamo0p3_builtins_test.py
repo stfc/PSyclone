@@ -851,11 +851,11 @@ def test_add_fields():
             assert output_dm_2 in code
 
 
-def test_divide_fields_str():
-    ''' Test that the str method of DynDivideFieldsKern returns the
+def test_X_divideby_Y_str():
+    ''' Test that the str method of DynXDividebyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.0_divide_fields_invoke.f90"),
+                                        "15.6.0_X_divideby_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -865,11 +865,11 @@ def test_divide_fields_str():
         assert str(kern) == "Built-in: Divide fields"
 
 
-def test_divide_fields():
+def test_X_divideby_Y():
     ''' Test that we generate correct code for the divide fields
     infrastructure kernel '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.0_divide_fields_invoke.f90"),
+                                        "15.6.0_X_divideby_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

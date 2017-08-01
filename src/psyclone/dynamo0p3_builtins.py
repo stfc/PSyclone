@@ -317,7 +317,7 @@ class DynAddFieldsKern(DynBuiltIn):
                              rhs=invar_name1 + " + " + invar_name2))
 
 
-class DynDivideFieldsKern(DynBuiltIn):
+class DynXDividebyYKern(DynBuiltIn):
     ''' Divide the first field by the second and return the result as
     a third field '''
 
@@ -555,7 +555,7 @@ BUILTIN_MAP = {"aX_minus_Y": DynAXMinusYKern,
                "axpby": DynAXPBYKern, "inc_axpby": DynIncAXPBYKern,
                "copy_field": DynCopyFieldKern,
                "copy_scaled_field": DynCopyScaledFieldKern,
-               "divide_fields": DynDivideFieldsKern,
+               "X_divideby_Y": DynXDividebyYKern,
                "inc_divide_field": DynIncDivideFieldKern,
                "inc_field": DynIncFieldKern,
                "inc_multiply_field": DynIncMultiplyFieldKern,

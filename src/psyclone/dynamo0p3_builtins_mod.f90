@@ -112,7 +112,7 @@ module dynamo0p3_builtins_mod
   end type copy_scaled_field
 
   !> field3 = field1 / field2
-  type, public, extends(kernel_type) :: divide_fields
+  type, public, extends(kernel_type) :: X_divideby_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
@@ -121,8 +121,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: divide_fields_code
-  end type divide_fields
+     procedure, nopass :: X_divideby_Y_code
+  end type X_divideby_Y
 
   !> field1 = field1 / field2
   type, public, extends(kernel_type) :: inc_divide_field
@@ -308,8 +308,8 @@ contains
   subroutine copy_scaled_field_code()
   end subroutine copy_scaled_field_code
 
-  subroutine divide_fields_code()
-  end subroutine divide_fields_code
+  subroutine X_divideby_Y_code()
+  end subroutine X_divideby_Y_code
 
   subroutine inc_divide_field_code()
   end subroutine inc_divide_field_code

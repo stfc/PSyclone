@@ -10,7 +10,7 @@ program single_invoke
   type(field_type) :: f1, f2, f3
 
   call invoke(                            &
-              divide_fields(f1, f2, f3)   &
+              X_divideby_Y(f1, f2, f3)   &
              )
 
 end program single_invoke
