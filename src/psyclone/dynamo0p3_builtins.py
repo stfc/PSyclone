@@ -265,7 +265,7 @@ class DynMultiplyFieldsKern(DynBuiltIn):
         parent.add(assign)
 
 
-class DynIncMultiplyFieldKern(DynBuiltIn):
+class DynIncXMultiplyYKern(DynBuiltIn):
     ''' Multiply the first field by the second and return it '''
 
     def __str__(self):
@@ -558,7 +558,7 @@ BUILTIN_MAP = {"aX_minus_Y": DynAXMinusYKern,
                "X_divideby_Y": DynXDividebyYKern,
                "inc_X_divideby_Y": DynIncDivideFieldKern,
                "inc_field": DynIncFieldKern,
-               "inc_multiply_field": DynIncMultiplyFieldKern,
+               "inc_X_multiply_Y": DynIncXMultiplyYKern,
                "inc_xpby": DynIncXPBYKern,
                "inner_product": DynInnerProductKern,
                "inner_self_product": DynInnerSelfProductKern,

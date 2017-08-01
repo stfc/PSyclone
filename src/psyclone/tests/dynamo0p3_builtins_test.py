@@ -1825,12 +1825,12 @@ def test_multiply_fields():
             assert output in code
 
 
-def test_inc_multiply_field_str():
-    ''' Test that the str method of DynIncMultiplyFieldKern returns the
+def test_inc_X_multiply_Y_str():
+    ''' Test that the str method of DynIncXMultiplyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         (r"15.3.4_"
-                                         r"inc_multiply_field_invoke.f90")),
+                                         r"inc_X_multiply_Y_invoke.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1840,12 +1840,12 @@ def test_inc_multiply_field_str():
         assert str(kern) == "Built-in: Multiply field by another"
 
 
-def test_inc_multiply_field():
+def test_inc_X_multiply_Y():
     ''' Test that we generate correct code for the multiply field
     infrastructure kernel (x = x*y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         (r"15.3.4_"
-                                         r"inc_multiply_field_invoke.f90")),
+                                         r"inc_X_multiply_Y_invoke.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

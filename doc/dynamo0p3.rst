@@ -1270,10 +1270,10 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
-inc_multiply_field
+inc_X_multiply_Y
 ++++++++++++++++++
 
-**inc_multiply_field** (*field1*, *field2*)
+**inc_X_multiply_Y** (*field1*, *field2*)
 
 Multiplies the first field by the second and returns it: ::
 

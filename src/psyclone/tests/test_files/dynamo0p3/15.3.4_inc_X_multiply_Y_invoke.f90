@@ -15,6 +15,6 @@ program single_invoke
   implicit none
   type(field_type) :: f1, f2
 
-  call invoke( inc_multiply_field(f1, f2) )
+  call invoke( inc_X_multiply_Y(f1, f2) )
 
 end program single_invoke
