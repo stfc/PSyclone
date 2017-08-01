@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -20,7 +21,7 @@ program single_invoke
 
   call invoke(                                             &
               testkern_fs_type(f2, f3, f4, f5,f6, f7, f8), &
-              multiply_field(a, f4, f3)                    &
+              X_multiply_Y(a, f4, f3)                      &
              )
 
 end program single_invoke

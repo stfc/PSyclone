@@ -1256,10 +1256,10 @@ where:
 * type(field_type), intent(in) :: *field2*
 * type(field_type), intent(out) :: *field3*
 
-multiply_fields
+X_multiply_Y
 +++++++++++++++
 
-**multiply_fields** (*field1*, *field2*, *field3*)
+**X_multiply_Y** (*field1*, *field2*, *field3*)
 
 Multiplies two fields together and returns the result in a third field: ::
 

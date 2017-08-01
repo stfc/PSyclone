@@ -246,7 +246,7 @@ class DynCopyFieldKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=invar_name))
 
 
-class DynMultiplyFieldsKern(DynBuiltIn):
+class DynXMultiplyYKern(DynBuiltIn):
     ''' DoF-wise product of one field with another with the result
     returned as a third field '''
 
@@ -563,7 +563,7 @@ BUILTIN_MAP = {"aX_minus_Y": DynAXMinusYKern,
                "inner_product": DynInnerProductKern,
                "inner_self_product": DynInnerSelfProductKern,
                "minus_fields": DynSubtractFieldsKern,
-               "multiply_fields": DynMultiplyFieldsKern,
+               "X_multiply_Y": DynXMultiplyYKern,
                "plus_fields": DynAddFieldsKern,
                "raise_field": DynRaiseFieldKern,
                "scale_field": DynScaleFieldKern,
