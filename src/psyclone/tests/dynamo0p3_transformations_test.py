@@ -3425,7 +3425,7 @@ def test_reprod_view(capsys):
                 "field_space='any_space_1',it_space='dofs']\n"
                 "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
                 "    " + gsum + "[scalar='asum']\n"
-                "    " + directive +"[OMP parallel]\n"
+                "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do]\n"
                 "            " + loop + "[type='dofs',"
                 "field_space='any_space_1',it_space='dofs']\n"

@@ -625,10 +625,10 @@ def test_ompdo_directive_class_view(capsys):
             expected_output = (
                 colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
                 case["current_string"] + "\n"
-                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) + 
+                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
                 "[type='',field_space='w1',it_space='cells']\n"
                 "        "+colored("KernCall",
-                                   SCHEDULE_COLOUR_MAP["KernCall"]) + 
+                                   SCHEDULE_COLOUR_MAP["KernCall"]) +
                 " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
 
@@ -671,6 +671,7 @@ def test_globalsum_view(capsys):
     this is to use a dynamo0p3 builtin example which contains a scalar and
     then call view() on that.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone import dynamo0p3
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -678,11 +679,10 @@ def test_globalsum_view(capsys):
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
     print output
-    expected_output = (colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
-                       + "[scalar='asum']")
+    expected_output = (colored("GlobalSum",
+                               SCHEDULE_COLOUR_MAP["GlobalSum"]) +
+                       "[scalar='asum']")
     assert expected_output in output
-    from psyclone import dynamo0p3
-    from psyclone.psyGen import GlobalSum, colored, SCHEDULE_COLOUR_MAP
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
         if isinstance(child, dynamo0p3.DynGlobalSum):
