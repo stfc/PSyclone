@@ -938,7 +938,6 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName,
                                                variableName))
                 if argname in builtin_names:
-##                if argname in builtin_names.keys().lower():
                     if argname in name_to_module:
                         raise ParseError("A built-in cannot be named in a use "
                                          "statement but '{0}' is used from "
