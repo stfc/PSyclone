@@ -4430,12 +4430,6 @@ def test_redundant_computation_no_directive():
 
 # todo
 
-# 2) runtime checks that redundant computation is not beyond max halo  *** created a discussion ticket
-
-# 4) add tests for the new halo exchange depth property and setter in psyGen.py
-#
-# add test for Tom's example - ensure that no halo exchange is generated 
-
 # example of redundant computation transformation in action.
 
 # documentation on redundant computation transformation.

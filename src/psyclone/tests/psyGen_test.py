@@ -1665,3 +1665,15 @@ def test_node_dag(tmpdir):
     with pytest.raises(GenerationError) as excinfo:
         schedule.dag(file_name=my_file.strpath, file_format="rubbish")
     assert "unsupported graphviz file format" in str(excinfo.value)
+
+
+def test_haloexchange_halo_depth_getter_setter():  # pylint: disable=invalid-name
+    '''test that the halo_exchange getter and setter work correctly '''
+    halo_depth = 4
+    halo_depth_2 = 5
+    halo_exchange = HaloExchange(None, None, halo_depth, None, None)
+    # getter
+    assert halo_exchange.halo_depth == 4
+    # setter
+    halo_exchange.halo_depth = halo_depth_2
+    assert halo_exchange.halo_depth == halo_depth_2
