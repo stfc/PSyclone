@@ -17,8 +17,8 @@
 
 '''
 
-from parse import Descriptor, KernelType, ParseError
-from psyGen import PSy, Invokes, Invoke, Schedule, \
+from psyclone.parse import Descriptor, KernelType, ParseError
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, KernelArgument, GenerationError
 
 # The different grid-point types that a field can live on
@@ -85,7 +85,7 @@ class GOPSy(PSy):
         :rtype: ast
 
         '''
-        from f2pygen import ModuleGen, UseGen
+        from psyclone.f2pygen import ModuleGen, UseGen
 
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
@@ -104,7 +104,7 @@ class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls):
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._0_to_n = GOInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke)
 
@@ -146,7 +146,7 @@ class GOInvoke(Invoke):
         provides three methods which separate arguments that are arrays from
         arguments that are {integer, real} scalars. '''
     def __init__(self, alg_invocation, idx):
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)
 
@@ -190,8 +190,8 @@ class GOInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, DeclGen, TypeDeclGen, CommentGen,\
-            AssignGen
+        from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
+            CommentGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
@@ -628,7 +628,7 @@ class GOKern(Kern):
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
         # Create those member variables required for testing and to keep
         # pylint happy
@@ -674,7 +674,7 @@ class GOKern(Kern):
     def gen_code(self, parent):
         ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
             kernel instance. '''
-        from f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen
 
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
@@ -728,7 +728,7 @@ class GOKernelArguments(Arguments):
 
     '''
     def __init__(self, call, parent_call):
-        if False:
+        if False:  # pylint: disable=using-constant-test
             self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
 

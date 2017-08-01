@@ -707,7 +707,7 @@ class DynKernMetadata(KernelType):
     def _validate(self, need_evaluator):
         ''' Check that the meta-data conforms to Dynamo 0.3 rules for a
         user-provided kernel or a built-in '''
-        from dynamo0p3_builtins import BUILTIN_MAP
+        from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
         for arg in self._arg_descriptors:
@@ -922,7 +922,7 @@ class DynamoPSy(PSy):
         :rtype: ast
 
         '''
-        from f2pygen import ModuleGen, UseGen
+        from psyclone.f2pygen import ModuleGen, UseGen
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
         # include required infrastructure modules
@@ -1085,7 +1085,7 @@ class DynInvokeStencil(object):
         add the declaration as a child of the parent argument passed
         in. The parent argument should be an appropriate f2pygen
         object. '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=self._unique_extent_vars,
@@ -1105,7 +1105,7 @@ class DynInvokeStencil(object):
         and add the declaration as a child of the parent argument
         passed in. The parent argument should be an appropriate
         f2pygen object. '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=self._unique_direction_vars,
@@ -1125,8 +1125,8 @@ class DynInvokeStencil(object):
 
     def initialise_stencil_maps(self, parent):
         '''adds in the required stencil dofmap code to the PSy layer'''
-        from f2pygen import AssignGen, IfThenGen, TypeDeclGen, UseGen, \
-            CommentGen, DeclGen
+        from psyclone.f2pygen import AssignGen, IfThenGen, TypeDeclGen, \
+            UseGen, CommentGen, DeclGen
         if self._kern_args:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
@@ -1294,7 +1294,7 @@ class DynInvokeDofmaps(object):
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
         f2pygen object. '''
-        from f2pygen import CommentGen, AssignGen
+        from psyclone.f2pygen import CommentGen, AssignGen
 
         # If we've got no dofmaps then we do nothing
         if self._unique_fs_maps:
@@ -1336,7 +1336,7 @@ class DynInvokeDofmaps(object):
         integer arrays of rank 2. The declarations are added as
         children of the supplied parent argument. This must be an
         appropriate f2pygen object. '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
 
         # Function space dofmaps
         decl_map_names = \
@@ -1412,7 +1412,7 @@ class DynInvokeCMAOperators(object):
         the various components of each CMA operator. Adds these as
         children of the supplied parent node. This must be an appropriate
         f2pygen object. '''
-        from f2pygen import CommentGen, AssignGen
+        from psyclone.f2pygen import CommentGen, AssignGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -1446,7 +1446,7 @@ class DynInvokeCMAOperators(object):
     def declare_cma_ops(self, parent):
         ''' Generate the necessary declarations for all column-wise operators
         and their associated parameters '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -1702,8 +1702,8 @@ class DynInvoke(Invoke):
         called by the associated invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments. '''
-        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
-            AllocateGen, DeallocateGen, CallGen, CommentGen
+        from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
+            DeclGen, AllocateGen, DeallocateGen, CallGen, CommentGen
         # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
         # Create the subroutine
@@ -1890,7 +1890,7 @@ class DynInvoke(Invoke):
 
         # declare and initialise a mesh object if required
         if config.DISTRIBUTED_MEMORY:
-            from f2pygen import UseGen
+            from psyclone.f2pygen import UseGen
             # we will need a mesh object for any loop bounds
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
@@ -1909,7 +1909,7 @@ class DynInvoke(Invoke):
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
-            from f2pygen import UseGen
+            from psyclone.f2pygen import UseGen
             omp_function_name = "omp_get_max_threads"
             nthreads_name = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
@@ -2141,7 +2141,7 @@ class DynSchedule(Schedule):
     to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
-        from dynamo0p3_builtins import DynBuiltInCallFactory
+        from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
         Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
@@ -2171,7 +2171,7 @@ class DynGlobalSum(GlobalSum):
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
-        from f2pygen import AssignGen, TypeDeclGen, UseGen
+        from psyclone.f2pygen import AssignGen, TypeDeclGen, UseGen
         name = self._scalar.name
         name_space_manager = NameSpaceFactory().create()
         sum_name = name_space_manager.create_name(
@@ -2213,7 +2213,7 @@ class DynHaloExchange(HaloExchange):
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
-        from f2pygen import IfThenGen, CallGen, CommentGen
+        from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self._vector_index:
             ref = "(" + str(self._vector_index) + ")"
         else:
@@ -2295,7 +2295,7 @@ class DynLoop(Loop):
         # Loop bounds
         self.set_lower_bound("start")
 
-        from dynamo0p3_builtins import DynBuiltIn
+        from psyclone.dynamo0p3_builtins import DynBuiltIn
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
@@ -2500,7 +2500,7 @@ class DynLoop(Loop):
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
             # Set halo dirty for all fields that are modified
-            from f2pygen import CallGen, CommentGen
+            from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
             if fields:
                 parent.add(CommentGen(parent, ""))
@@ -2508,8 +2508,7 @@ class DynLoop(Loop):
                                       " Set halos dirty for fields modified "
                                       "in the above loop"))
                 parent.add(CommentGen(parent, ""))
-                from psyGen import OMPParallelDoDirective
-                from f2pygen import DirectiveGen
+                from psyclone.psyGen import OMPParallelDoDirective
                 use_omp_master = False
                 if self.is_openmp_parallel():
                     if not self.ancestor(OMPParallelDoDirective):
@@ -2569,7 +2568,7 @@ class DynKern(Kern):
         metadata describing the kernel code '''
 
         # create a name for each argument
-        from parse import Arg
+        from psyclone.parse import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
             pre = None
@@ -2617,7 +2616,7 @@ class DynKern(Kern):
 
     def _setup(self, ktype, module_name, args, parent):
         ''' internal setup of kernel information. '''
-        from parse import KernelCall
+        from psyclone.parse import KernelCall
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
@@ -2698,7 +2697,7 @@ class DynKern(Kern):
     @property
     def gen_stub(self):
         ''' output a kernel stub '''
-        from f2pygen import ModuleGen, SubroutineGen
+        from psyclone.f2pygen import ModuleGen, SubroutineGen
 
         # remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
@@ -2752,7 +2751,8 @@ class DynKern(Kern):
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
-        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen
+        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, UseGen, \
+            CommentGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
@@ -3245,7 +3245,7 @@ class KernCallArgList(ArgOrdering):
 
     def field_bcs_kernel(self, function_space):
         ''' implement the boundary_dofs array fix for a field '''
-        from f2pygen import DeclGen, AssignGen
+        from psyclone.f2pygen import DeclGen, AssignGen
         self._arglist.append("boundary_dofs")
         parent = self._parent
         parent.add(DeclGen(parent, datatype="integer",
@@ -3273,7 +3273,7 @@ class KernCallArgList(ArgOrdering):
     def operator_bcs_kernel(self, function_space):
         ''' Supply necessary additional arguments for the kernel that
         applies boundary conditions to a LMA operator '''
-        from f2pygen import DeclGen, AssignGen
+        from psyclone.f2pygen import DeclGen, AssignGen
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
@@ -3333,7 +3333,7 @@ class KernStubArgList(ArgOrdering):
     of the arguments is captured by the base class '''
     def __init__(self, kern, parent):
 
-        from f2pygen import UseGen
+        from psyclone.f2pygen import UseGen
         parent.add(UseGen(parent, name="constants_mod", only=True,
                           funcnames=["r_def"]))
         self._first_arg = True
@@ -3345,14 +3345,14 @@ class KernStubArgList(ArgOrdering):
 
     def cell_position(self):
         ''' Add cell position to the argument list if required '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         self._arglist.append("cell")
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=["cell"]))
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list if required '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         self._arglist.append("nlayers")
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=["nlayers"]))
@@ -3360,7 +3360,7 @@ class KernStubArgList(ArgOrdering):
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list if
         required '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         self._arglist.append("ncell_2d")
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=["ncell_2d"]))
@@ -3369,7 +3369,7 @@ class KernStubArgList(ArgOrdering):
         '''add the field vector associated with the argument 'argvect' to the
         argument list '''
         undf_name = get_fs_undf_name(argvect.function_space)
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         # the range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
@@ -3390,7 +3390,7 @@ class KernStubArgList(ArgOrdering):
     def field(self, arg):
         '''add the field associated with the argument 'arg' to the argument
         list'''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         undf_name = get_fs_undf_name(arg.function_space)
         text = arg.name + "_" + arg.function_space.mangled_name
         intent = arg.intent
@@ -3406,7 +3406,7 @@ class KernStubArgList(ArgOrdering):
     def stencil_unknown_extent(self, arg):
         '''add stencil information associated with the argument 'arg' if the
         extent is unknown'''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         name = arg.name + "_stencil_size"
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=[name]))
@@ -3415,7 +3415,7 @@ class KernStubArgList(ArgOrdering):
     def stencil_unknown_direction(self, arg):
         '''add stencil information associated with the argument 'arg' if the
         direction is unknown'''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         name = arg.name+"_direction"
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=[name]))
@@ -3424,7 +3424,7 @@ class KernStubArgList(ArgOrdering):
     def stencil(self, arg):
         '''add general stencil information associated with the argument
         'arg' '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         name = arg.name+"_stencil_map"
         ndf_name = get_fs_ndf_name(arg.function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
@@ -3435,7 +3435,7 @@ class KernStubArgList(ArgOrdering):
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         size = arg.name + "_ncell_3d"
         self._arglist.append(size)
         decl = DeclGen(self._parent, datatype="integer", intent="in",
@@ -3460,7 +3460,7 @@ class KernStubArgList(ArgOrdering):
 
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         # The CMA operator itself
         self._arglist.append(arg.name)
         # Associated scalar parameters
@@ -3504,7 +3504,7 @@ class KernStubArgList(ArgOrdering):
     def banded_dofmap(self, function_space):
         ''' Declare the banded dofmap required for a CMA operator
         that maps to/from the specified function space '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         ndf = get_fs_ndf_name(function_space)
         dofmap = get_cbanded_map_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer",
@@ -3516,7 +3516,7 @@ class KernStubArgList(ArgOrdering):
     def indirection_dofmap(self, function_space, operator=None):
         ''' Declare the indirection dofmaps required when applying a
         CMA operator '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         if not operator:
             raise GenerationError("Internal error: no CMA operator supplied.")
         if operator.type != "gh_columnwise_operator":
@@ -3538,7 +3538,7 @@ class KernStubArgList(ArgOrdering):
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         if arg.type == "gh_real":
             decl = DeclGen(self._parent, datatype="real", kind="r_def",
                            intent=arg.intent,
@@ -3558,7 +3558,7 @@ class KernStubArgList(ArgOrdering):
     def fs_common(self, function_space):
         ''' Provide arguments common to LMA operators and
         fields on a space. There is one: "ndf". '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
         self._parent.add(
@@ -3569,7 +3569,7 @@ class KernStubArgList(ArgOrdering):
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
         function space'''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         undf_name = get_fs_undf_name(function_space)
         self._arglist.append(undf_name)
@@ -3592,7 +3592,7 @@ class KernStubArgList(ArgOrdering):
 
     def basis(self, function_space):
         ''' provide basis function information for the function space '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         basis_name = get_fs_basis_name(function_space)
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(basis_name)
@@ -3624,7 +3624,7 @@ class KernStubArgList(ArgOrdering):
     def diff_basis(self, function_space):
         '''provide differential basis function information for the function
         space'''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         diff_basis_name = get_fs_diff_basis_name(function_space)
         self._arglist.append(diff_basis_name)
@@ -3655,7 +3655,7 @@ class KernStubArgList(ArgOrdering):
 
     def orientation(self, function_space):
         ''' provide orientation information for the function space '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
@@ -3665,7 +3665,7 @@ class KernStubArgList(ArgOrdering):
 
     def field_bcs_kernel(self, function_space):
         ''' implement the boundary_dofs array fix for fields '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         self._arglist.append("boundary_dofs")
         ndf_name = get_fs_ndf_name(function_space)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
@@ -3680,7 +3680,7 @@ class KernStubArgList(ArgOrdering):
 
     def quad_rule(self):
         ''' provide qr information '''
-        from f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen
         self._arglist.extend([self._kern.qr_args["nh"],
                               self._kern.qr_args["nv"],
                               self._kern.qr_args["h"],
@@ -3816,7 +3816,7 @@ class KernStubArgList(ArgOrdering):
 #    def generate(self):
 #        '''perform any additional actions before and after kernel
 #        argument-list based generation'''
-#        from f2pygen import CommentGen
+#        from psyclone.f2pygen import CommentGen
 #        self._parent.add(CommentGen(self._parent, " dino output start"),
 #                         position=["before", self._position])
 #        scalar_comment = CommentGen(self._parent, " dino scalars")
@@ -3835,14 +3835,14 @@ class KernStubArgList(ArgOrdering):
 #
 #    def _add_dino_scalar(self, name):
 #        ''' add a dino output call for a scalar variable '''
-#        from f2pygen import CallGen
+#        from psyclone.f2pygen import CallGen
 #        self._parent.add(CallGen(self._parent, name="dino%output_scalar",
 #                                 args=[name]),
 #                         position=["after", self._scalar_position])
 #
 #    def _add_dino_array(self, name):
 #        ''' add a dino output call for an array variable '''
-#        from f2pygen import CallGen
+#        from psyclone.f2pygen import CallGen
 #        self._parent.add(CallGen(self._parent, name="dino%output_array",
 #                                 args=[name]),
 #                         position=["after", self._array_position])
