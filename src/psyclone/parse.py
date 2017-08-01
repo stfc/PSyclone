@@ -36,7 +36,7 @@ def get_builtin_defs(api):
     check_api(api)
 
     if api == "dynamo0.3":
-        from dynamo0p3_builtins import BUILTIN_MAP_LOWER as builtins
+        from dynamo0p3_builtins import BUILTIN_MAP as builtins
         from dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as fname
     else:
         # We don't support any built-ins for this API

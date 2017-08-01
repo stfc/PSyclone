@@ -15,7 +15,7 @@ program single_invoke
   real(r_def) :: asum = 1.0
 
   call invoke( set_field_scalar(asum, f1),   &
-               sum_field(f1, asum),         &
+               sum_X(f1, asum),         &
                set_field_scalar(asum, f1) )
 
 end program single_invoke

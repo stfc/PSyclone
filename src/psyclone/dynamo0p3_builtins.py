@@ -27,15 +27,19 @@ psyGen.REDUCTION_OPERATOR_MAPPING = {"gh_sum": "+"}
 VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
 
 
-def get_builtin_map_lower(BUILTIN_MAP):
+# Function to return the built-in operations that we support for this API. 
+# The meta-data describing these kernels is in dynamo0p3_builtins_mod.f90. 
+# The built-in operations F90 names are dictionary keys and need to be 
+# converted to lower case for invoke generation purpose.
+def get_builtin_map(BUILTIN_MAP_F90):
     '''Convert the names of the supported built-in operations to lowercase
     for comparison and invoke generation purpose'''
 
-    BUILTIN_MAP_LOWER = {}
-    for fortran_name in BUILTIN_MAP:
-        python_name = BUILTIN_MAP[fortran_name]
-        BUILTIN_MAP_LOWER[fortran_name.lower()] = python_name
-    return BUILTIN_MAP_LOWER
+    BUILTIN_MAP = {}
+    for fortran_name in BUILTIN_MAP_F90:
+        python_name = BUILTIN_MAP_F90[fortran_name]
+        BUILTIN_MAP[fortran_name.lower()] = python_name
+    return BUILTIN_MAP
 
 
 class DynBuiltInCallFactory(object):
@@ -50,15 +54,15 @@ class DynBuiltInCallFactory(object):
         ''' Create the objects needed for a call to the built-in
         described in the call (BuiltInCall) object '''
 
-        if call.func_name not in BUILTIN_MAP_LOWER:
+        if call.func_name not in BUILTIN_MAP:
             raise ParseError(
                 "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      BUILTIN_MAP.keys()))
+                                      BUILTIN_MAP_F90.keys()))
 
-        # Use our lowercase dictionary to get the correct Python object for
+        # Use our dictionary to get the correct Python object for
         # this built-in.
-        builtin = BUILTIN_MAP_LOWER[call.func_name]()
+        builtin = BUILTIN_MAP[call.func_name]()
 
         # Create the loop over DoFs
         dofloop = DynLoop(parent=parent,
@@ -199,11 +203,11 @@ class DynSetFieldScalarKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=var_name, rhs=value))
 
 
-class DynSumFieldKern(DynBuiltIn):
+class DynSumXKern(DynBuiltIn):
     ''' Computes the sum of the elements of a field '''
 
     def __str__(self):
-        return "Built-in: sum_field"
+        return "Built-in: sum a field"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -550,28 +554,29 @@ class DynInnerSelfProductKern(DynBuiltIn):
 # describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-BUILTIN_MAP = {"aX_minus_Y": DynAXMinusYKern,
-               "axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
-               "axpby": DynAXPBYKern, "inc_axpby": DynIncAXPBYKern,
-               "copy_field": DynCopyFieldKern,
-               "copy_scaled_field": DynCopyScaledFieldKern,
-               "X_divideby_Y": DynXDividebyYKern,
-               "inc_X_divideby_Y": DynIncDivideFieldKern,
-               "inc_field": DynIncFieldKern,
-               "inc_X_multiply_Y": DynIncXMultiplyYKern,
-               "inc_xpby": DynIncXPBYKern,
-               "inner_product": DynInnerProductKern,
-               "inner_self_product": DynInnerSelfProductKern,
-               "minus_fields": DynSubtractFieldsKern,
-               "X_multiply_Y": DynXMultiplyYKern,
-               "plus_fields": DynAddFieldsKern,
-               "raise_field": DynRaiseFieldKern,
-               "scale_field": DynScaleFieldKern,
-               "set_field_scalar": DynSetFieldScalarKern,
-               "sum_field": DynSumFieldKern}
+# Note: Issue #58 will introduce functionality to obtain list of supported
+# built-ins from dynamo0p3_builtins_mod.f90 instead of defining them here.
+BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
+                   "axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
+                   "axpby": DynAXPBYKern, "inc_axpby": DynIncAXPBYKern,
+                   "copy_field": DynCopyFieldKern,
+                   "copy_scaled_field": DynCopyScaledFieldKern,
+                   "X_divideby_Y": DynXDividebyYKern,
+                   "inc_X_divideby_Y": DynIncDivideFieldKern,
+                   "inc_field": DynIncFieldKern,
+                   "inc_X_multiply_Y": DynIncXMultiplyYKern,
+                   "inc_xpby": DynIncXPBYKern,
+                   "inner_product": DynInnerProductKern,
+                   "inner_self_product": DynInnerSelfProductKern,
+                   "minus_fields": DynSubtractFieldsKern,
+                   "X_multiply_Y": DynXMultiplyYKern,
+                   "plus_fields": DynAddFieldsKern,
+                   "raise_field": DynRaiseFieldKern,
+                   "scale_field": DynScaleFieldKern,
+                   "set_field_scalar": DynSetFieldScalarKern,
+                   "sum_X": DynSumXKern}
 
 
-# Built-in map dictionary in lowercase keys for invoke generation and 
-# comparison purposes. This does not enforce case sensitivity to Fortran 
-# built-in names.
-BUILTIN_MAP_LOWER = get_builtin_map_lower(BUILTIN_MAP)
+# Built-in map dictionary in lowercase keys for invoke generation and comparison
+# purposes. This does not enforce case sensitivity to Fortran built-in names.
+BUILTIN_MAP = get_builtin_map(BUILTIN_MAP_F90)

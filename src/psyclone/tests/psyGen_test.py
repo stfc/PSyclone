@@ -5,6 +5,7 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified by I. Kavcic Met Office
 
 ''' Performs py.test tests on the psygen module '''
 
@@ -893,7 +894,7 @@ def test_argument_find_argument():
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -913,7 +914,7 @@ def test_globalsum_arg():
     '''Check that the globalsum argument is defined as gh_readwrite and
     points to the globalsum node'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -983,7 +984,7 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     assert result == f2_next_arg
     # 7: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1046,7 +1047,7 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     assert result == f2_prev_arg
     # 7: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1160,7 +1161,7 @@ def test_globalsum_args():
     '''Test that the globalsum class args method returns the appropriate
     argument '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1212,7 +1213,7 @@ def test_node_forward_dependence():
 
     # 4: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1267,7 +1268,7 @@ def test_node_backward_dependence():
     assert result == loop13
     # 4: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1370,7 +1371,7 @@ def test_omp_forward_dependence():
     assert first_omp.forward_dependence() == writer
     # 3: directive and globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1416,7 +1417,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     assert prev_dep_omp_node.backward_dependence() == omp3
     # 3: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1527,7 +1528,7 @@ def test_dag_names():
     assert (schedule.children[3].children[0].dag_name ==
             "kernel_testkern_code_5")
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.1_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1535,7 +1536,7 @@ def test_dag_names():
     global_sum = schedule.children[2]
     assert global_sum.dag_name == "globalsum(asum)_2"
     builtin = schedule.children[1].children[0]
-    assert builtin.dag_name == "builtin_sum_field_4"
+    assert builtin.dag_name == "builtin_sum_x_4"
 
 
 def test_openmp_pdo_dag_name():

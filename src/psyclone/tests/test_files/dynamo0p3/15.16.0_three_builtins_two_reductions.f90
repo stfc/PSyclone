@@ -16,6 +16,6 @@ program single_invoke
 
   call invoke( inner_product(f1, f2, asum), &
                scale_field(f1, asum), &
-               sum_field(f2, bsum) )
+               sum_X(f2, bsum) )
 
 end program single_invoke

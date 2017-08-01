@@ -274,7 +274,7 @@ module dynamo0p3_builtins_mod
   end type set_field_scalar
 
   !> scalar = SUM(field1(:,:,...))
-  type, public, extends(kernel_type) :: sum_field
+  type, public, extends(kernel_type) :: sum_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
@@ -282,8 +282,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: sum_field_code
-  end type sum_field
+     procedure, nopass :: sum_X_code
+  end type sum_X
 
 contains
 
@@ -347,7 +347,7 @@ contains
   subroutine set_field_scalar_code()
   end subroutine set_field_scalar_code
 
-  subroutine sum_field_code()
-  end subroutine sum_field_code
+  subroutine sum_X_code()
+  end subroutine sum_X_code
 
 end module dynamo0p3_builtins_mod

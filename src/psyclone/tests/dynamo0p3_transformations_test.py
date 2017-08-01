@@ -5,6 +5,7 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by I. Kavcic Met Office
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -2238,7 +2239,7 @@ def test_multi_reduction_real_fuse():
 
 def test_multi_different_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
-    two different builtins. We use inner product and sum_field'''
+    two different builtins. We use inner product and sum_X'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3399,7 +3400,7 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_field(f2,bsum)\n"
+                "                Call sum_x(f2,bsum)\n"
                 "    GlobalSum[scalar='bsum']\n")
         else:
             expected = (
@@ -3418,7 +3419,7 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call sum_field(f2,bsum)\n")
+                "                Call sum_x(f2,bsum)\n")
 
         print "Expected ..."
         print expected

@@ -15,6 +15,6 @@ program single_invoke
   type(field_type) :: f1
   real(r_def) :: asum
 
-  call invoke( sum_field(f1, asum) )
+  call invoke( sum_X(f1, asum) )
 
 end program single_invoke

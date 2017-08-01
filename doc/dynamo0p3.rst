@@ -1343,10 +1343,10 @@ where:
 
 .. note:: The field may be on any function space.
 
-sum_field
+sum_X
 +++++++++
 
-**sum_field** (*field*, *sumval*)
+**sum_X** (*field*, *sumval*)
 
 Sums all of the elements of the field *field* and returns the result
 in the scalar variable *sumval*: ::
