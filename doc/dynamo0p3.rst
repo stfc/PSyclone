@@ -1161,10 +1161,10 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
-inc_divide_field
+inc_X_divideby_Y
 ++++++++++++++++
 
-**inc_divide_field** (*field1*, *field2*)
+**inc_X_divideby_Y** (*field1*, *field2*)
 
 Divides the first field by the second and returns it: ::
 

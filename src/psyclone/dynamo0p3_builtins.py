@@ -29,7 +29,7 @@ VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
 
 def get_builtin_map_lower(BUILTIN_MAP):
     '''Convert the names of the supported built-in operations to lowercase
-    for cmparison and invoke generation purpose'''
+    for comparison and invoke generation purpose'''
 
     BUILTIN_MAP_LOWER = {}
     for fortran_name in BUILTIN_MAP:
@@ -556,7 +556,7 @@ BUILTIN_MAP = {"aX_minus_Y": DynAXMinusYKern,
                "copy_field": DynCopyFieldKern,
                "copy_scaled_field": DynCopyScaledFieldKern,
                "X_divideby_Y": DynXDividebyYKern,
-               "inc_divide_field": DynIncDivideFieldKern,
+               "inc_X_divideby_Y": DynIncDivideFieldKern,
                "inc_field": DynIncFieldKern,
                "inc_multiply_field": DynIncMultiplyFieldKern,
                "inc_xpby": DynIncXPBYKern,

@@ -181,13 +181,17 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     that has arguments on different function spaces '''
     # Save the name of the actual builtin-definitions file
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Save the name of the actual builtin-definitions file
+    test_builtin_name = "inc_X_divideby_Y"
+    test_builtin_file = "15.6.1_" + test_builtin_name + "_invoke.f90"
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.6.1_inc_divide_field_invoke.f90"),
+                     ######"15.6.1_inc_X_divideby_Y_invoke.f90"),
+                     test_builtin_file),
         api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -195,7 +199,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
                        distributed_memory=False).create(invoke_info)
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
             "must be on the same space. However, found spaces ['any_space_2', "
-            "'any_space_1'] for arguments to inc_divide_field" in
+            "'any_space_1'] for arguments to " + test_builtin_name.lower() in
             str(excinfo))
 
 
@@ -919,11 +923,11 @@ def test_X_divideby_Y():
             assert output_dm_2 in code
 
 
-def test_inc_divide_field_str():
+def test_inc_X_divideby_Y_str():
     ''' Test that the str method of DynIncDivideFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_inc_divide_field_invoke.f90"),
+                                        "15.6.1_inc_X_divideby_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -933,11 +937,11 @@ def test_inc_divide_field_str():
         assert str(kern) == "Built-in: Divide one field by another"
 
 
-def test_inc_divide_field():
+def test_inc_X_divideby_Y():
     ''' Test that we generate correct code for the divide field
     infrastructure kernel (x = x/y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_inc_divide_field_invoke.f90"),
+                                        "15.6.1_inc_X_divideby_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

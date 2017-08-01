@@ -10,6 +10,6 @@ program single_invoke
   implicit none
   type(field_type) :: f1, f2
 
-  call invoke( inc_divide_field(f1, f2) )
+  call invoke( inc_X_divideby_Y(f1, f2) )
 
 end program single_invoke
