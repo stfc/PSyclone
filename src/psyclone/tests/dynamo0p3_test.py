@@ -1076,7 +1076,7 @@ def test_field_qr():
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
+        "      DEALLOCATE (diff_basis_w2_qr, basis_w1_qr, basis_w3_qr, "
         "diff_basis_w3_qr)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_qr_type"
@@ -1753,7 +1753,7 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w3_qr, diff_basis_w0_qr, diff_basis_w2_qr)\n"
+        "      DEALLOCATE (diff_basis_w2_qr, diff_basis_w0_qr, basis_w3_qr)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_"
         "type")
@@ -2006,8 +2006,8 @@ def test_any_space_1():
             "map_any_space_2_b(:,cell), basis_any_space_2_b_qr, ndf_w0, "
             "undf_w0, map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, "
             "wh_qr, wv_qr)" in generated_code)
-    assert ("DEALLOCATE (basis_any_space_1_a_qr, basis_any_space_2_b_qr, "
-            "diff_basis_w0_qr)" in generated_code)
+    assert ("DEALLOCATE (basis_any_space_2_b_qr, diff_basis_w0_qr, "
+            "basis_any_space_1_a_qr)" in generated_code)
 
 
 def test_any_space_2():
