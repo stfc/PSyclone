@@ -1922,25 +1922,25 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, " Deallocate basis arrays"))
             parent.add(CommentGen(parent, ""))
 
-        func_space_var_names = []
+        func_space_var_names = set()
         for basis_fn in self._basis_fns:
             # add the basis array name to the list to use later
             op_name = get_fs_operator_name("gh_basis",
                                            basis_fn["fspace"],
                                            qr_var=basis_fn["qr_var"],
                                            on_space=basis_fn["nodal_fspace"])
-            func_space_var_names.append(op_name)
+            func_space_var_names.add(op_name)
         for basis_fn in self._diff_basis_fns:
             # add the diff_basis array name to the list to use later
             op_name = get_fs_operator_name("gh_diff_basis",
                                            basis_fn["fspace"],
                                            qr_var=basis_fn["qr_var"],
                                            on_space=basis_fn["nodal_fspace"])
-            func_space_var_names.append(op_name)
+            func_space_var_names.add(op_name)
 
         if func_space_var_names:
             # add the required deallocate call
-            parent.add(DeallocateGen(parent, func_space_var_names))
+            parent.add(DeallocateGen(parent, list(func_space_var_names)))
 
 
 class DynInvoke(Invoke):

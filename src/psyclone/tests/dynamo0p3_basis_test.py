@@ -203,7 +203,7 @@ def test_single_kern_eval():
     )
     assert expected_code in gen_code
     dealloc_code = (
-        "      DEALLOCATE (basis_w0_on_w0, diff_basis_w1_on_w0)\n"
+        "      DEALLOCATE (diff_basis_w1_on_w0, basis_w0_on_w0)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_eval_type\n"
     )
@@ -279,7 +279,7 @@ def test_single_kern_eval_op():
         "      END DO \n"
          )
     assert kern_call in gen_code
-    dealloc = ("      DEALLOCATE (basis_w2_on_w0, diff_basis_w3_on_w0)\n")
+    dealloc = ("      DEALLOCATE (diff_basis_w3_on_w0, basis_w2_on_w0)\n")
     assert dealloc in gen_code
 
 
@@ -407,11 +407,88 @@ def test_two_qr():
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w1_qr, basis_w3_qr, basis_w1_qr2, "
-        "basis_w3_qr2, diff_basis_w2_qr, diff_basis_w3_qr, "
-        "diff_basis_w2_qr2, diff_basis_w3_qr2)\n"
+        "      DEALLOCATE (basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, "
+        "basis_w1_qr2, basis_w3_qr, diff_basis_w3_qr2, diff_basis_w3_qr, "
+        "basis_w1_qr)\n"
     )
     assert expected_code in gen_code
+
+
+def test_two_identical_qr():
+    ''' Check that we handle an invoke containing two kernels that each
+    require quadrature and are passed the same qr object '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.1.3_single_invoke_2_identical_qr.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+    expected_init = (
+        "      ! Look-up quadrature variables\n"
+        "      !\n"
+        "      wv_qr => qr%get_wqp_v()\n"
+        "      xp_qr => qr%get_xqp_h()\n"
+        "      zp_qr => qr%get_xqp_v()\n"
+        "      wh_qr => qr%get_wqp_h()\n"
+        "      nqp_h_qr = qr%get_nqp_h()\n"
+        "      nqp_v_qr = qr%get_nqp_v()\n"
+        "      !\n")
+    assert expected_init in gen_code
+    expected_alloc = (
+        "      !\n"
+        "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
+        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, nqp_h_qr, nqp_v_qr))\n"
+        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
+        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, nqp_h_qr, nqp_v_qr))\n"
+        "      !\n"
+        "      ! Allocate differential basis arrays\n"
+        "      !\n"
+        "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, nqp_h_qr, "
+        "nqp_v_qr))\n"
+        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w3_qr(diff_dim_w3, ndf_w3, nqp_h_qr, "
+        "nqp_v_qr))\n"
+        "      !\n"
+        )
+    assert expected_alloc in gen_code
+    expected_basis_init = (
+        "      !\n"
+        "      CALL f1_proxy%vspace%compute_basis_function(basis_w1_qr, "
+        "ndf_w1, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL m2_proxy%vspace%compute_basis_function(basis_w3_qr, "
+        "ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      !\n"
+        "      ! Compute differential basis arrays\n"
+        "      !\n"
+        "      CALL f2_proxy%vspace%compute_diff_basis_function("
+        "diff_basis_w2_qr, ndf_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL m2_proxy%vspace%compute_diff_basis_function("
+        "diff_basis_w3_qr, ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      !\n")
+    assert expected_basis_init in gen_code    
+    expected_kern_call = (
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data,"
+        " m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
+        "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
+        "diff_basis_w3_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)\n"
+        "      END DO \n"
+        "      DO cell=1,g1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_qr_code(nlayers, g1_proxy%data, g2_proxy%data, "
+        "n1_proxy%data, b, n2_proxy%data, istp, ndf_w1, undf_w1, "
+        "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
+        "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
+        "diff_basis_w3_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)\n"
+        "      END DO \n")
+    assert expected_kern_call in gen_code
+    expected_dealloc = (
+        "DEALLOCATE (diff_basis_w2_qr, basis_w1_qr, basis_w3_qr, "
+        "diff_basis_w3_qr)")
+    assert expected_dealloc in gen_code
 
 
 def test_anyw2():
@@ -589,8 +666,8 @@ def test_qr_plus_eval():
         "      END DO \n")
     assert output_kern_call in gen_code
     output_dealloc = (
-        "      DEALLOCATE (basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
-        "diff_basis_w1_on_w0, diff_basis_w2_qr, diff_basis_w3_qr)\n")
+        "      DEALLOCATE (diff_basis_w2_qr, basis_w0_on_w0, basis_w3_qr, "
+        "diff_basis_w3_qr, diff_basis_w1_on_w0, basis_w1_qr)\n")
     assert output_dealloc in gen_code
 
 
@@ -961,9 +1038,9 @@ def test_eval_diff_nodal_space():
     expected_dealloc = (
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w2_on_w3, basis_w2_on_w0, "
-        "diff_basis_w2_on_w3, diff_basis_w3_on_w3, diff_basis_w2_on_w0, "
-        "diff_basis_w3_on_w0)\n"
+        "      DEALLOCATE ("
+        "diff_basis_w2_on_w3, diff_basis_w2_on_w0, diff_basis_w3_on_w3, "
+        "diff_basis_w3_on_w0, basis_w2_on_w3, basis_w2_on_w0)\n"
     )
     assert expected_dealloc in gen_code
 
