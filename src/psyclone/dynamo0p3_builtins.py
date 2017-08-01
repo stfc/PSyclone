@@ -27,6 +27,17 @@ psyGen.REDUCTION_OPERATOR_MAPPING = {"gh_sum": "+"}
 VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
 
 
+def get_builtin_map_lower(BUILTIN_MAP):
+    '''Convert the names of the supported built-in operations to lowercase
+    for cmparison and invoke generation purpose'''
+
+    BUILTIN_MAP_LOWER = {}
+    for fortran_name in BUILTIN_MAP:
+        python_name = BUILTIN_MAP[fortran_name]
+        BUILTIN_MAP_LOWER[fortran_name.lower()] = python_name
+    return BUILTIN_MAP_LOWER
+
+
 class DynBuiltInCallFactory(object):
     ''' Creates the necessary framework for a call to a Dynamo built-in,
     This consists of the operation itself and the loop over unique DoFs. '''
@@ -39,15 +50,15 @@ class DynBuiltInCallFactory(object):
         ''' Create the objects needed for a call to the built-in
         described in the call (BuiltInCall) object '''
 
-        if call.func_name not in BUILTIN_MAP:
+        if call.func_name not in BUILTIN_MAP_LOWER:
             raise ParseError(
                 "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
                                       BUILTIN_MAP.keys()))
 
-        # Use our dictionary to get the correct Python object for
+        # Use our lowercase dictionary to get the correct Python object for
         # this built-in.
-        builtin = BUILTIN_MAP[call.func_name]()
+        builtin = BUILTIN_MAP_LOWER[call.func_name]()
 
         # Create the loop over DoFs
         dofloop = DynLoop(parent=parent,
@@ -558,3 +569,9 @@ BUILTIN_MAP = {"aX_minus_Y": DynAXMinusYKern,
                "scale_field": DynScaleFieldKern,
                "set_field_scalar": DynSetFieldScalarKern,
                "sum_field": DynSumFieldKern}
+
+
+# Built-in map dictionary in lowercase keys for invoke generation and 
+# comparison purposes. This does not enforce case sensitivity to Fortran 
+# built-in names.
+BUILTIN_MAP_LOWER = get_builtin_map_lower(BUILTIN_MAP)

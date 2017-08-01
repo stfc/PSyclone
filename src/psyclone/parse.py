@@ -36,14 +36,13 @@ def get_builtin_defs(api):
     check_api(api)
 
     if api == "dynamo0.3":
-        from dynamo0p3_builtins import BUILTIN_MAP as builtins
+        from dynamo0p3_builtins import BUILTIN_MAP_LOWER as builtins
         from dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as fname
     else:
         # We don't support any built-ins for this API
         builtins = []
         fname = None
     return builtins, fname
-
 
 class ParseError(Exception):
     def __init__(self, value):
@@ -939,6 +938,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName,
                                                variableName))
                 if argname in builtin_names:
+##                if argname in builtin_names.keys().lower():
                     if argname in name_to_module:
                         raise ParseError("A built-in cannot be named in a use "
                                          "statement but '{0}' is used from "
