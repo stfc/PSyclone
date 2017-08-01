@@ -45,13 +45,11 @@ Dependencies
 PSyclone is written in Python so needs Python to be installed on the
 target machine. PSyclone has been tested under Python 2.6.5 and 2.7.3.
 
-PSyclone immediately relies on two external Python packages; fparser
-and pyparsing. In addition, fparser requires numpy. If the visual
-representation of a schedule's dependency graph is required then the
-python package graphviz is necessary to provide python bindings as well
-as the graphviz package itself.  In order to run the test suite py.test is
-required. The easiest way to satisfy the Python dependencies is to use
-the Python Package Index (pypi.org) and ``pip``. See
+PSyclone immediately relies on two external Python packages;
+``fparser`` and ``pyparsing``. In addition, ``fparser`` requires
+``numpy``. In order to run the test suite ``py.test`` is required. The
+easiest way to satisfy the Python dependencies is to use the Python
+Package Index (pypi.org) and ``pip``. See
 https://packaging.python.org/installing/ for more information.
 Note that some Linux distributions install pip only for python 3 by
 default. In this case it is necessary to install pip for python 2. For
@@ -60,6 +58,17 @@ example in openSUSE 42.2:
    > zypper install python-pip
 
 and then use pip2.7 instead of pip.
+
+
+In addition to the mandatory dependencies just described, PSyclone
+also has optional dependencies on both ``graphviz`` and ``termcolor``.
+PSyclone can use graphviz to produce a visualisation of a schedule's
+dependency graph. If this is desired then the Python package ``graphviz``
+(for the Python bindings) as well as the graphviz package itself must
+be installed. The Python package ``termcolor`` is used for pretty-printing
+a schedule in terminals that support coloured text. If the package is
+not available then the schedule is simply printed in plain text without
+colour highlighting.
 
 
 System-specific set-up
@@ -178,6 +187,18 @@ installed and removed in the following way:
 
    > sudo apt install graphviz
    > sudo apt remove graphviz
+
+termcolor
+^^^^^^^^^
+
+By default, the ``view()`` method of a ``schedule`` object (representing
+the schedule of a PSy-layer routine) prints a plain-text representation
+to standard-out. However, if the ``termcolor`` package is available
+then PSyclone uses this to add colour highlighting to the output text.
+
+Installation (and uninstallation) of this package can be done via
+``pip`` in exactly the same way as for graphviz, as described above.
+
 
 py.test
 ^^^^^^^
