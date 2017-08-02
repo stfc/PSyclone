@@ -83,10 +83,13 @@ def test_builtin_write_and_inc():
     gh_inc '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Save the name of the actual builtin-definitions file
+    test_builtin_name = "inc_aX_plus_bY"
+    test_builtin_file = "15.8.2_" + test_builtin_name + "_invoke.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.2_inc_axpby_invoke.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -94,7 +97,7 @@ def test_builtin_write_and_inc():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
             "one argument that is written to but found 2 for kernel "
-            "inc_axpby" in str(excinfo))
+            + test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_sum_and_inc():
@@ -1590,27 +1593,27 @@ def test_axpby_by_value():
             assert output_dm_2 in code
 
 
-def test_inc_axpby_str():
-    ''' Test the str method of DynIncAXPBYKern '''
+def test_inc_aX_plus_bY_str():
+    ''' Test the str method of DynIncAXPlusBYKern '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.8.2_inc_axpby_invoke.f90"),
+                     "15.8.2_inc_aX_plus_bY_invoke.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: INC_AXPBY"
+        assert str(kern) == "Built-in: IncAXPlusBY"
 
 
-def test_inc_axpby():
+def test_inc_aX_plus_bY():
     ''' Test that we generate correct code for the built-in
     operation x = a*x + b*y where x and y are fields and a and b are
     scalars. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.8.2_inc_axpby_invoke.f90"),
+                     "15.8.2_inc_aX_plus_bY_invoke.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

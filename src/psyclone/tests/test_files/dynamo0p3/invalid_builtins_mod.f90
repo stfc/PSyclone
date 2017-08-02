@@ -56,7 +56,7 @@ module dynamo0p3_builtins_mod
 
   !> An invalid built-in that writes to two different
   !! args but with different access types - one is gh_write, one is gh_inc.
-  type, public, extends(kernel_type) :: inc_axpby
+  type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
           arg_type(GH_REAL,  GH_READ             ),                   &
@@ -66,8 +66,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: inc_axpby_code
-  end type inc_axpby
+     procedure, nopass :: inc_aX_plus_bY_code
+  end type inc_aX_plus_bY
 
   !> An invalid built-in that has no field arguments
   type, public, extends(kernel_type) :: copy_field
@@ -117,8 +117,8 @@ contains
   subroutine axpby_code()
   end subroutine axpby_code
 
-  subroutine inc_axpby_code()
-  end subroutine inc_axpby_code
+  subroutine inc_aX_plus_bY_code()
+  end subroutine inc_aX_plus_bY_code
 
   subroutine copy_field_code()
   end subroutine copy_field_code

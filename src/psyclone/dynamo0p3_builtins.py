@@ -474,12 +474,12 @@ class DynAXPBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
 
-class DynIncAXPBYKern(DynBuiltIn):
+class DynIncAXPlusBYKern(DynBuiltIn):
     ''' x = a.x + b.y where 'a' and 'b' are scalars and 'x' and 'y' are
     fields '''
 
     def __str__(self):
-        return "Built-in: INC_AXPBY"
+        return "Built-in: IncAXPlusBY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -558,7 +558,7 @@ class DynInnerSelfProductKern(DynBuiltIn):
 # built-ins from dynamo0p3_builtins_mod.f90 instead of defining them here.
 BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "axpy": DynAXPYKern, "inc_axpy": DynIncAXPYKern,
-                   "axpby": DynAXPBYKern, "inc_axpby": DynIncAXPBYKern,
+                   "axpby": DynAXPBYKern, "inc_aX_plus_bY": DynIncAXPlusBYKern,
                    "copy_field": DynCopyFieldKern,
                    "copy_scaled_field": DynCopyScaledFieldKern,
                    "X_divideby_Y": DynXDividebyYKern,

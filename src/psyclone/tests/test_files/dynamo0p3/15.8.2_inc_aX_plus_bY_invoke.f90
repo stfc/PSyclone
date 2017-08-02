@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -18,6 +19,6 @@ program single_invoke
   a = 0.5
   b = 0.8
   
-  call invoke( inc_axpby(a, f1, b, f2) )
+  call invoke( inc_aX_plus_bY(a, f1, b, f2) )
 
 end program single_invoke
