@@ -394,7 +394,7 @@ class DynAXMinusYKern(DynBuiltIn):
     'y' are fields '''
 
     def __str__(self):
-        return "Built-in: AXMinusY"
+        return "Built-in: aX_minus_Y"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -479,7 +479,7 @@ class DynIncAXPlusBYKern(DynBuiltIn):
     fields '''
 
     def __str__(self):
-        return "Built-in: IncAXPlusBY"
+        return "Built-in: inc_aX_plus_bY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen

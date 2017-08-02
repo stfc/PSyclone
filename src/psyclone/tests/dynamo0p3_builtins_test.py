@@ -1218,7 +1218,7 @@ def test_aX_minus_Y_field_str():
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: AXMinusY"
+        assert str(kern) == "Built-in: aX_minus_Y"
 
 
 def test_aX_minus_Y():
@@ -1604,7 +1604,7 @@ def test_inc_aX_plus_bY_str():
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: IncAXPlusBY"
+        assert str(kern) == "Built-in: inc_aX_plus_bY"
 
 
 def test_inc_aX_plus_bY():
