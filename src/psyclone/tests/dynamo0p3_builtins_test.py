@@ -800,11 +800,11 @@ def test_subtract_fields():
             assert output_dm_2 in code
 
 
-def test_add_fields_str():
-    ''' Test that the str method of DynSubtractFieldsKern returns the
+def test_X_plus_Y_str():
+    ''' Test that the str method of DynXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.0_add_invoke.f90"),
+                                        "15.5.0_X_plus_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -814,11 +814,11 @@ def test_add_fields_str():
         assert str(kern) == "Built-in: Add fields"
 
 
-def test_add_fields():
-    ''' Test that the str method of DynAddFieldsKern returns the
+def test_X_plus_Y():
+    ''' Test that the str method of DynXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.0_add_invoke.f90"),
+                                        "15.5.0_X_plus_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -827,29 +827,29 @@ def test_add_fields():
         print code
         if not distmem:
             output = (
+                "      f3_proxy = f3%get_proxy()\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
+                "any_space_1_f3\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f3\n"
                 "        f3_proxy%data(df) = f1_proxy%data(df) + "
                 "f2_proxy%data(df)\n"
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f3",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"

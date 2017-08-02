@@ -304,7 +304,7 @@ class DynSubtractFieldsKern(DynBuiltIn):
         parent.add(assign)
 
 
-class DynAddFieldsKern(DynBuiltIn):
+class DynXPlusYKern(DynBuiltIn):
     ''' Add one field to another and return the result as a third field '''
 
     def __str__(self):
@@ -314,9 +314,9 @@ class DynAddFieldsKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We add each element of f2 to the corresponding element of f1
         # and store the result in f3.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name,
                              rhs=invar_name1 + " + " + invar_name2))
 
@@ -570,7 +570,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "inner_self_product": DynInnerSelfProductKern,
                    "minus_fields": DynSubtractFieldsKern,
                    "X_multiply_Y": DynXMultiplyYKern,
-                   "plus_fields": DynAddFieldsKern,
+                   "X_plus_Y": DynXPlusYKern,
                    "raise_field": DynRaiseFieldKern,
                    "scale_field": DynScaleFieldKern,
                    "set_field_scalar": DynSetFieldScalarKern,

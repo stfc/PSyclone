@@ -225,17 +225,17 @@ module dynamo0p3_builtins_mod
   end type X_multiply_Y
 
   !> field3 = field1 + field2
-  type, public, extends(kernel_type) :: plus_fields
+  type, public, extends(kernel_type) :: X_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: plus_fields_code
-  end type plus_fields
+     procedure, nopass :: X_plus_Y_code
+  end type X_plus_Y
 
   !> field1 =  field1 ** ascalar
   type, public, extends(kernel_type) :: raise_field
@@ -335,8 +335,8 @@ contains
   subroutine X_multiply_Y_code()
   end subroutine X_multiply_Y_code
 
-  subroutine plus_fields_code()
-  end subroutine plus_fields_code
+  subroutine X_plus_Y_code()
+  end subroutine X_plus_Y_code
 
   subroutine raise_field_code()
   end subroutine raise_field_code

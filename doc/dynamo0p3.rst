@@ -1284,10 +1284,10 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-plus_fields
+X_plus_Y
 +++++++++++
 
-**plus_fields** (*field1*, *field2*, *field3*)
+**X_plus_Y** (*field3*, *field1*, *field2*)
 
 Sums two fields: ::
   
@@ -1295,9 +1295,9 @@ Sums two fields: ::
 
 where:
 
+* type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
-* type(field_type), intent(out) :: *field3*
 
 raise_field
 +++++++++++
