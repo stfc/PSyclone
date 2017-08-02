@@ -17,6 +17,6 @@ program single_invoke
 
   a = 0.5
 
-  call invoke( aX_minus_Y(a, f1, f2, f3) )
+  call invoke( aX_minus_Y(f3, a, f1, f2) )
 
 end program single_invoke

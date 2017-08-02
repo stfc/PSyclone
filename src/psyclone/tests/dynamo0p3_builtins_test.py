@@ -1231,34 +1231,34 @@ def test_aX_minus_Y():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(a, f1, f2, f3)\n"
+                "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
                 "      REAL(KIND=r_def), intent(in) :: a\n"
                 "      TYPE(field_type), intent(inout) :: f3\n"
                 "      TYPE(field_type), intent(in) :: f1, f2\n"
                 "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
                 "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
                 "      !\n"
                 "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
+                "any_space_1_f3\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f3\n"
                 "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1266,7 +1266,7 @@ def test_aX_minus_Y():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f3",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"

@@ -398,14 +398,14 @@ class DynAXMinusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We multiply one element of field f1 (2nd arg) by a scalar
-        # (1st arg), subtract it from the corresponding
-        # element of a second field (3rd arg)  and write the value to the
-        # corresponding element of field f3 (4th arg).
-        scalar_name = self._arguments.args[0].name
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[3].proxy_name)
+        # We multiply one element of field f1 (3rd arg) by a scalar
+        # (2nd arg), subtract it from the corresponding
+        # element of a second field (4th arg)  and write the value to the
+        # corresponding element of field f3 (1st arg).
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        invar_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
         rhs_expr = scalar_name + "*" + invar_name1 + " - " + invar_name2
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
