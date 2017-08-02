@@ -1724,12 +1724,12 @@ def test_X_multiply_Y_deduce_space():  # pylint: disable=invalid-name
         assert output in code
 
 
-def test_inc_field_str():
-    ''' Test that the str method of DynIncFieldKern returns the
+def test_inc_X_plus_Y_str():
+    ''' Test that the str method of DynIncXPlusYKern returns the
     expected string '''
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "15.7.0_inc_field_invoke.f90"),
+                                            "15.7.0_inc_X_plus_Y_invoke.f90"),
                                distributed_memory=distmem,
                                api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1739,13 +1739,13 @@ def test_inc_field_str():
         assert str(kern) == "Built-in: Increment field"
 
 
-def test_inc_field():
-    ''' Test that we generate correct code for the built-in y = y + x
+def test_inc_X_plus_Y():
+    ''' Test that we generate correct code for the built-in x = x + y
     where x and y are both fields '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.7.0_inc_field_invoke.f90"),
+                         "15.7.0_inc_X_plus_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

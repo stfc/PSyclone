@@ -1175,10 +1175,10 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inc_field
+inc_X_plus_Y
 +++++++++
 
-**inc_field** (*field1*, *field2*)
+**inc_X_plus_Y** (*field1*, *field2*)
 
 Adds the second field to the first and returns it: ::
 

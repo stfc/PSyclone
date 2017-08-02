@@ -355,7 +355,7 @@ class DynIncXDividebyYKern(DynBuiltIn):
                              rhs=invar_name1 + " / " + invar_name2))
 
 
-class DynIncFieldKern(DynBuiltIn):
+class DynIncXPlusYKern(DynBuiltIn):
     ''' Add the 2nd field to the first field and return it '''
 
     def __str__(self):
@@ -563,7 +563,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "copy_scaled_field": DynCopyScaledFieldKern,
                    "X_divideby_Y": DynXDividebyYKern,
                    "inc_X_divideby_Y": DynIncXDividebyYKern,
-                   "inc_field": DynIncFieldKern,
+                   "inc_X_plus_Y": DynIncXPlusYKern,
                    "inc_X_multiply_Y": DynIncXMultiplyYKern,
                    "inc_X_plus_bY": DynIncXPlusBYKern,
                    "inner_product": DynInnerProductKern,
