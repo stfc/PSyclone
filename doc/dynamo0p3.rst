@@ -1189,10 +1189,10 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inc_xpby
+inc_X_plus_bY
 ++++++++
 
-**inc_xpby** (*field1*, *b*, *field2*)
+**inc_X_plus_bY** (*field1*, *b*, *field2*)
 
 Performs: ::
 

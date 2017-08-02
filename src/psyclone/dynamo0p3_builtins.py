@@ -496,12 +496,12 @@ class DynIncAXPlusBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
 
 
-class DynIncXPBYKern(DynBuiltIn):
+class DynIncXPlusBYKern(DynBuiltIn):
     ''' x = x + b.y where 'b' is a scalar and 'x' and 'y' are
     fields '''
 
     def __str__(self):
-        return "Built-in: INC_XPBY"
+        return "Built-in: inc_X_plus_bY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -565,7 +565,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "inc_X_divideby_Y": DynIncXDividebyYKern,
                    "inc_field": DynIncFieldKern,
                    "inc_X_multiply_Y": DynIncXMultiplyYKern,
-                   "inc_xpby": DynIncXPBYKern,
+                   "inc_X_plus_bY": DynIncXPlusBYKern,
                    "inner_product": DynInnerProductKern,
                    "inner_self_product": DynInnerSelfProductKern,
                    "minus_fields": DynSubtractFieldsKern,

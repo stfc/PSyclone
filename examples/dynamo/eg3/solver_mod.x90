@@ -240,8 +240,8 @@ contains
       const = -omega
       !      lhs = lhs + omega * s + alpha * p
       call invoke(  name = "BICG_iterloop_group3", &
-                    inc_xpby(lhs, omega, s),       &
-                    inc_xpby(lhs, alpha, p),       &
+                    inc_X_plus_bY(lhs, omega, s),  &
+                    inc_X_plus_bY(lhs, alpha, p),  &
                     aX_plus_Y(res, const, t, s) )
       norm = rho
 
@@ -342,9 +342,9 @@ contains
       alpha = rs_old/rs_new
       const = -alpha
 
-      call invoke( name = "CG_iterloop_group2",  &
-                   inc_xpby(lhs, alpha, p),      &
-                   inc_xpby(res, const, Ap),     & 
+      call invoke( name = "CG_iterloop_group2",   &
+                   inc_X_plus_bY(lhs, alpha, p),  &
+                   inc_X_plus_bY(res, const, Ap), & 
       ! Check for convergence
                    inner_self_product(res, err) )
       err = sqrt(rs_new)/sc_err
@@ -428,7 +428,7 @@ contains
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                  minus_fields(rhs, Ax, res),                &
                  inc_X_divideby_Y(res, lumped_weight),      &
-                 inc_xpby(lhs, MU, res) )
+                 inc_X_plus_bY(lhs, MU, res) )
   ! Ready for next iteration
   end do
 
@@ -525,7 +525,7 @@ contains
         do k = 1, j
           call invoke( inner_product(v(k), w, h(k,j)) )
           const = -h(k,j)
-          call invoke( inc_xpby(w, const, v(k)) )
+          call invoke( inc_X_plus_bY(w, const, v(k)) )
         end do
         call invoke( inner_self_product(w, err) )
         h(j+1,j) = sqrt( err )
@@ -564,7 +564,7 @@ contains
       do i = 1, GCRK
         !  This is the correct settings => call Precon(s,v(:,:,i),pstit,pstcnd)
         call preconditioner( s, v(i), NO_PRE_COND )
-        call invoke( inc_xpby(lhs, u(i), s) )
+        call invoke( inc_X_plus_bY(lhs, u(i), s) )
       end do
 
       ! Check for convergence
@@ -679,9 +679,9 @@ contains
         do n = 1, m-1
           call invoke( inner_product(v(m), v(n), alpha) )
           const = -alpha
-          call invoke( name = "GCR_iterloop_group2", &
-                       inc_xpby( v(m), const, v(n)), &
-                       inc_xpby( s(m), const, s(n)) )
+          call invoke( name = "GCR_iterloop_group2",      &
+                       inc_X_plus_bY( v(m), const, v(n)), &
+                       inc_X_plus_bY( s(m), const, s(n)) )
         end do
         call invoke( inner_self_product(v(m), err) )
 
@@ -693,9 +693,9 @@ contains
                      inner_product(r, v(m), alpha) )
 
         const = -alpha
-        call invoke( name = "GCR_iterloop_group4", &
-                     inc_xpby( lhs, alpha, s(m)),  &
-                     inc_xpby( r, const, v(m)) )
+        call invoke( name = "GCR_iterloop_group4",     &
+                     inc_X_plus_bY( lhs, alpha, s(m)), &
+                     inc_X_plus_bY( r, const, v(m)) )
       end do
 
       call invoke( inner_self_product(r, err) )

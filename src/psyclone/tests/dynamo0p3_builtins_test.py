@@ -1377,24 +1377,24 @@ def test_inc_aX_plus_Y():
             assert output_dm_2 in code
 
 
-def test_inc_xpby_str():
-    ''' Test the str method of DynIncXPBYKern'''
+def test_inc_X_plus_bY_str():
+    ''' Test the str method of DynIncXPlusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.1_inc_xpby_invoke.f90"),
+                                        "15.4.1_inc_X_plus_bY_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: INC_XPBY"
+        assert str(kern) == "Built-in: inc_X_plus_bY"
 
 
-def test_inc_xpby():
+def test_inc_X_plus_bY():
     ''' Test that we generate correct code for the built-in
     operation x = x + b*y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.1_inc_xpby_invoke.f90"),
+                                        "15.4.1_inc_X_plus_bY_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
