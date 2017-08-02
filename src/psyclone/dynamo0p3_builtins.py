@@ -285,7 +285,7 @@ class DynIncXMultiplyYKern(DynBuiltIn):
                              rhs=invar_name1 + " * " + invar_name2))
 
 
-class DynSubtractFieldsKern(DynBuiltIn):
+class DynXMinusYKern(DynBuiltIn):
     ''' Subtract one field from another and return the result as a
     third field '''
 
@@ -296,9 +296,9 @@ class DynSubtractFieldsKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
         # of f1 and store the result in f3.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " - " + invar_name2)
         parent.add(assign)
@@ -568,7 +568,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "inc_X_plus_bY": DynIncXPlusBYKern,
                    "inner_product": DynInnerProductKern,
                    "inner_self_product": DynInnerSelfProductKern,
-                   "minus_fields": DynSubtractFieldsKern,
+                   "X_minus_Y": DynXMinusYKern,
                    "X_multiply_Y": DynXMultiplyYKern,
                    "X_plus_Y": DynXPlusYKern,
                    "raise_field": DynRaiseFieldKern,

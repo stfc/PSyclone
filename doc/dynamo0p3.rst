@@ -1240,10 +1240,10 @@ where:
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
-minus_fields
+X_minus_Y
 ++++++++++++
 
-**minus_fields** (*field1*, *field2*, *field3*)
+**X_minus_Y** (*field3*, *field1*, *field2*)
 
 Subtracts the second field from the first and stores the result in
 the third. *i.e.* performs the operation: ::
@@ -1252,9 +1252,9 @@ the third. *i.e.* performs the operation: ::
 
 where:
 
+* type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
-* type(field_type), intent(out) :: *field3*
 
 X_multiply_Y
 +++++++++++++++

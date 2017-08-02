@@ -175,8 +175,8 @@ contains
 
     res = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
 
-    call invoke( name = "BICG_group2",      &
-                 minus_fields(rhs, v, res), &
+    call invoke( name = "BICG_group2",   &
+                 X_minus_Y(res, rhs, v), &
                  inner_self_product(res, err) )
 
     err = sqrt(err)/sc_err
@@ -314,7 +314,7 @@ contains
     call invoke( name = "CG_first_guess",                   &
                  set_field_scalar(0.0_r_def, lhs),          &
                  matrix_vector_kernel_mm_type(Ap, lhs, mm), &
-                 minus_fields(rhs, Ap, res),                &
+                 X_minus_Y(res, rhs, Ap),                   &
                  copy_field(res, p),                        &
                  inner_self_product(res, rs_old) )
 
@@ -426,7 +426,7 @@ contains
     call invoke( name = "Jacobi_iterloop",                  &
                  set_field_scalar(0.0_r_def, Ax),           &
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
-                 minus_fields(rhs, Ax, res),                &
+                 X_minus_Y(res, rhs, Ax),                   &
                  inc_X_divideby_Y(res, lumped_weight),      &
                  inc_X_plus_bY(lhs, MU, res) )
   ! Ready for next iteration
@@ -495,7 +495,7 @@ contains
     call invoke( name = "GMRES_group1",                     &
                  set_field_scalar(0.0_r_def, Ax),           &
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
-                 minus_fields(rhs, Ax, r),                  &
+                 X_minus_Y(r, rhs, Ax),                     &
                  copy_field(r, s),                          &
                  inner_self_product(s, err) )
 
@@ -571,7 +571,7 @@ contains
       call invoke( name = "GMRES_iterloop_group2",            &
                    set_field_scalar(0.0_r_def, Ax),           &
                    matrix_vector_kernel_mm_type(Ax, lhs, mm), &
-                   minus_fields(rhs, Ax, r),                  &
+                   X_minus_Y(r, rhs, Ax),                     &
                    inner_self_product(r, err) )
 
       beta = sqrt(err)
@@ -665,7 +665,7 @@ contains
     call invoke( name = "GCR_group1",                       &
                  set_field_scalar(0.0_r_def, Ax),           &
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
-                 minus_fields(rhs, Ax, r) )
+                 X_minus_Y(r, rhs, Ax) )
 
     do iter = 1, MAX_ITER
       do m = 1, GCRk

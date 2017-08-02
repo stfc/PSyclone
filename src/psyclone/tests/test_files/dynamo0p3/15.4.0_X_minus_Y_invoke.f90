@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -15,8 +16,6 @@ program single_invoke
   implicit none
   type(field_type) :: f1, f2, f3
 
-  call invoke(                  &
-              minus_fields(f1, f2, f3)   &
-             )
+  call invoke( X_minus_Y(f3, f1, f2) )
 
 end program single_invoke

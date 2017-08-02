@@ -199,17 +199,17 @@ module dynamo0p3_builtins_mod
   end type inner_self_product
 
   !> field3 = field1 - field2
-  type, public, extends(kernel_type) :: minus_fields
+  type, public, extends(kernel_type) :: X_minus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: minus_fields_code
-  end type minus_fields
+     procedure, nopass :: X_minus_Y_code
+  end type X_minus_Y
 
   !> field3(:) = field1(:) * field2(:)
   type, public, extends(kernel_type) :: X_multiply_Y
@@ -329,8 +329,8 @@ contains
   subroutine inner_self_product_code()
   end subroutine inner_self_product_code
 
-  subroutine minus_fields_code()
-  end subroutine minus_fields_code
+  subroutine X_minus_Y_code()
+  end subroutine X_minus_Y_code
 
   subroutine X_multiply_Y_code()
   end subroutine X_multiply_Y_code
