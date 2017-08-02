@@ -45,7 +45,7 @@
 !> @brief Contains methods and algorithms for solving a system A.x = b for known
 !! input field b and matrix A and returns field x
 !!
-!! @details Contains a selction of solvers for inverting the matrix vector
+!! @details Contains a selection of solvers for inverting the matrix vector
 !! system A.x = b to return x = A^{-1}.b Depending upom the type of system to
 !! solve a number of iterative solver algorithms are possible or for
 !! discontinuous systems an exact solver can be used
@@ -139,7 +139,7 @@ contains
                   ! Scalar value is supplied by dereferencing
                   ! a derived type
     call invoke ( name = "jacobi iteration",            &
-                  set_field_scalar(flag_obj%rflag, Ax), &
+                  setval_c(Ax, flag_obj%rflag),         &
                   matrix_vector_kernel_type(Ax,lhs,mm), &
                   enforce_bc_kernel_type(Ax),           &
                   X_minus_Y(res, rhs, Ax),              &

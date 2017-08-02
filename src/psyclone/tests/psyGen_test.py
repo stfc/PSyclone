@@ -851,7 +851,7 @@ def test_argument_depends_on():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
-    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[1]
+    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[0]
     assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
@@ -900,7 +900,7 @@ def test_argument_find_argument():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
-    kern_asum_arg = schedule.children[3].children[0].arguments.args[0]
+    kern_asum_arg = schedule.children[3].children[0].arguments.args[1]
     glob_sum_arg = schedule.children[2].scalar
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
@@ -989,10 +989,10 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[0]
+    prev_arg = schedule.children[0].children[0].arguments.args[1]
     sum_arg = schedule.children[1].children[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[0]
+    next_arg = schedule.children[3].children[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
     assert result == sum_arg
@@ -1052,10 +1052,10 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[0]
+    prev_arg = schedule.children[0].children[0].arguments.args[1]
     sum_arg = schedule.children[1].children[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[0]
+    next_arg = schedule.children[3].children[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
     assert result == global_sum_arg

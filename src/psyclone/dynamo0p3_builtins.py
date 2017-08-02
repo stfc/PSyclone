@@ -188,7 +188,7 @@ class DynScaleFieldKern(DynBuiltIn):
                              rhs=value + "*" + var_name))
 
 
-class DynSetFieldScalarKern(DynBuiltIn):
+class DynSetvalCKern(DynBuiltIn):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
@@ -198,8 +198,8 @@ class DynSetFieldScalarKern(DynBuiltIn):
         from f2pygen import AssignGen
         # In this case we're assigning a single scalar value to all
         # elements of a field.
-        var_name = self.array_ref(self._arguments.args[1].proxy_name)
-        value = self._arguments.args[0]
+        var_name = self.array_ref(self._arguments.args[0].proxy_name)
+        value = self._arguments.args[1]
         parent.add(AssignGen(parent, lhs=var_name, rhs=value))
 
 
@@ -573,7 +573,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "X_plus_Y": DynXPlusYKern,
                    "raise_field": DynRaiseFieldKern,
                    "scale_field": DynScaleFieldKern,
-                   "set_field_scalar": DynSetFieldScalarKern,
+                   "setval_c": DynSetvalCKern,
                    "sum_X": DynSumXKern}
 
 

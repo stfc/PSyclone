@@ -119,7 +119,7 @@ def test_builtin_with_use():
                          "15.0.3_builtin_with_use.f90"),
             api="dynamo0.3")
     assert ("A built-in cannot be named in a use statement but "
-            "'set_field_scalar' is used from module 'fake_builtin_mod' in "
+            "'setval_c' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
 
 

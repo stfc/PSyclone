@@ -262,16 +262,16 @@ module dynamo0p3_builtins_mod
   end type scale_field
 
   !> field1 = ascalar
-  type, public, extends(kernel_type) :: set_field_scalar
+  type, public, extends(kernel_type) :: setval_c
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
+          arg_type(GH_REAL,  GH_READ              )                   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: set_field_scalar_code
-  end type set_field_scalar
+     procedure, nopass :: setval_c_code
+  end type setval_c
 
   !> scalar = SUM(field1(:,:,...))
   type, public, extends(kernel_type) :: sum_X
@@ -344,8 +344,8 @@ contains
   subroutine scale_field_code()
   end subroutine scale_field_code
 
-  subroutine set_field_scalar_code()
-  end subroutine set_field_scalar_code
+  subroutine setval_c_code()
+  end subroutine setval_c_code
 
   subroutine sum_X_code()
   end subroutine sum_X_code

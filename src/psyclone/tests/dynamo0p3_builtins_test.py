@@ -246,7 +246,7 @@ def test_invalid_builtin_kernel():
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.0.0_invalid_builtin_kernel.f90"),
                      api="dynamo0.3")
-    assert ("kernel call 'set_field_scala' must either be named in a "
+    assert ("kernel call 'setva_c' must either be named in a "
             "use statement or be a recognised built-in" in
             str(excinfo.value))
 
@@ -326,7 +326,7 @@ def mesh_code_present(field_str,code):
 
 
 def test_builtin_set_str():
-    ''' Check that the str method of DynSetFieldScalarKern returns the
+    ''' Check that the str method of DynSetvalCKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
@@ -416,7 +416,7 @@ def test_builtin_set_by_ref():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(fred, f1)\n"
+                "    SUBROUTINE invoke_0(f1, fred)\n"
                 "      REAL(KIND=r_def), intent(in) :: fred\n"
                 "      TYPE(field_type), intent(inout) :: f1\n"
                 "      INTEGER df\n"
@@ -477,7 +477,7 @@ def test_multiple_builtin_set():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(fred, f1, f2, ginger, f3)\n"
+                "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
                 "      REAL(KIND=r_def), intent(in) :: fred, ginger\n"
                 "      TYPE(field_type), intent(inout) :: f1, f2, f3\n"
                 "      INTEGER df\n"

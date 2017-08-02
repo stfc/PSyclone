@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -19,10 +20,10 @@ program single_invoke
   fred = 20.1_r_def
   ginger = 40.5_r_def
   
-  call invoke(                      &
-       set_field_scalar(fred, f1),  &
-       set_field_scalar(3.0, f2),   &
-       set_field_scalar(ginger, f3) &
+  call invoke(              &
+       setval_c(f1, fred),  &
+       setval_c(f2, 3.0),   &
+       setval_c(f3, ginger) &
           )
 
 end program single_invoke

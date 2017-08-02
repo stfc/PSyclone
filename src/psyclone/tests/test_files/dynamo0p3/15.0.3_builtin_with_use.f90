@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -12,7 +13,7 @@ program single_invoke
   ! with the scalar value passed by reference
   ! Forbidden use statement for the built-in operation - built-ins do
   ! not have associated use statements.
-  use fake_builtin_mod, only: set_field_scalar
+  use fake_builtin_mod, only: setval_c
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1
@@ -20,8 +21,6 @@ program single_invoke
 
   fred = 20.1_r_def
 
-  call invoke(                      &
-       set_field_scalar(fred, f1)   &
-          )
+  call invoke( setval_c(f1, fred) )
 
 end program single_invoke

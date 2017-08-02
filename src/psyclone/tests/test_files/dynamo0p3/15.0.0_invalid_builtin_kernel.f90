@@ -5,7 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
-
+! Modified I. Kavcic Met Office
 program single_invoke
 
   ! Description: single point-wise set operation with mis-spelt name
@@ -16,8 +16,8 @@ program single_invoke
 
   fred = 20.1_r_def
 
-  call invoke(                      &
-       set_field_scala(f1, fred)   &
+  call invoke(           &
+       setva_c(f1, fred) &
           )
 
 end program single_invoke

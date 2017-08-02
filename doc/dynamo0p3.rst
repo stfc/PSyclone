@@ -1327,10 +1327,10 @@ where:
 * real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 
-set_field_scalar
+setval_c
 ++++++++++++++++
 
-**set_field_scalar** (*value*, *field*)
+**setval_c** (*field*, *value*)
 
 Sets all elements of the field *field* to the value *value*: ::
 
