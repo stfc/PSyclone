@@ -295,17 +295,18 @@ def test_dynbuiltfactory_str():
     assert "Factory for a call to a Dynamo built-in" in str(factory)
 
 
-def mesh_code_present(code):
-    '''this test checks for the existance of mesh code. This exists for
+def mesh_code_present(field_str,code):
+    '''This test checks for the existance of mesh code. This exists for
     all builtins with dm = True (although it is not actually required!) so
-    each test can call this function'''
+    each test can call this function. Mesh code is generated from the first
+    field in a builtin arguments list, here denoted with field_str.'''
     assert "      USE mesh_mod, ONLY: mesh_type" in code
     assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
     output_dm_1 = (
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh => f1%get_mesh()\n"
+        "      mesh => " + field_str + "%get_mesh()\n"
         "      !\n")
     print output_dm_1
     assert output_dm_1 in code
@@ -370,7 +371,7 @@ def test_builtin_set():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -432,7 +433,7 @@ def test_builtin_set_by_ref():
             print output
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -514,7 +515,7 @@ def test_multiple_builtin_set():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -601,7 +602,7 @@ def test_builtin_set_plus_normal():
                 "      END DO ")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -700,7 +701,7 @@ def test_copy():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -767,7 +768,7 @@ def test_subtract_fields():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -835,7 +836,7 @@ def test_add_fields():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -903,7 +904,7 @@ def test_X_divideby_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -970,7 +971,7 @@ def test_inc_X_divideby_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1038,7 +1039,7 @@ def test_copy_scaled_field():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1118,7 +1119,7 @@ def test_axpy():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1184,7 +1185,7 @@ def test_axpy_by_value():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1265,7 +1266,7 @@ def test_aX_minus_Y():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1344,7 +1345,7 @@ def test_inc_axpy():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1423,7 +1424,7 @@ def test_inc_xpby():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1504,7 +1505,7 @@ def test_axpby():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1570,7 +1571,7 @@ def test_axpby_by_value():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1652,7 +1653,7 @@ def test_inc_axpby():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1751,7 +1752,7 @@ def test_inc_field():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -1808,7 +1809,7 @@ def test_X_multiply_Y():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -1874,7 +1875,7 @@ def test_inc_X_multiply_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1932,7 +1933,7 @@ def test_scale_field():
                 "      END DO \n"
                 "      !\n")
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -1987,7 +1988,7 @@ def test_raise_field():
                 "      END DO \n"
                 "      !\n")
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -2065,7 +2066,7 @@ def test_innerprod():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm = (
                 "      ! Initialise sizes and allocate any basis arrays for "
                 "any_space_1_f1\n"
@@ -2154,7 +2155,7 @@ def test_innerselfprod():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output_dm = (
                 "      ! Initialise sizes and allocate any basis arrays for "
                 "any_space_1_f1\n"
@@ -2236,7 +2237,7 @@ def test_sumfield():
                 "      END DO ")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1",code)
             output = (
                 "      ! Initialise sizes and allocate any basis arrays "
                 "for any_space_1_f1\n"
