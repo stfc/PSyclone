@@ -1,23 +1,28 @@
-.. _Ubuntu14.03.3:
-
-System-specific set-up
+System-Specific Set-up
 ======================
+This chapter is split into two sections: the first section
+describes the user setup. It includes all steps necessary
+to be able to use PSyclone. And while you could obviously do
+some development, none of the required tools for testing,
+documentation creation will be installed.
 
-This section provides system-specific information on how to set-up
-your system to use PSyclone.
+The second section describes the additional installation of
+all required tools to run tests, and create documentation.
 
-Ubuntu 14.04.3
---------------
+Both sections have detailled instructions for Ubuntu 16 and 
+OpenSUSE 42 - if you are working with a different Linux
+distribution some adjustments will be necessary.
 
-This guide has been tested with a vanilla installation of Ubuntu 14.04.3.
+User Set-up
+-----------
+This section provides system-specific information on how to
+set-up your system to use PSyclone for users.
+It has been tested with a vanilla installation of Ubuntu 16**
+and OpenSUSE 42****.
+You need a terminal window for entering the command into.
 
+.. _Ubuntu14.03.3:
 .. _users_ubuntu14:
-
-User set-up
-+++++++++++
-
-Get a terminal window. You can do this by pressing <ctrl><Alt><t>
-together, or click the top left "search" icon and type "terminal".
 
 Install PSyclone
 ^^^^^^^^^^^^^^^^
@@ -48,46 +53,66 @@ Set your python path and path appropriately:
 You may want to set these paths permanently (e.g. by editing your
 ${HOME}/.bashrc file if you run the BASH shell).
 
-Install Python packages using apt package manager
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The pip tool enables Python packages to be installed from the Python
+Most required dependencies are installed using the python
+pip tool. It enables Python packages to be installed from
+Python.
+
+
+Installing PIP on Ubuntu
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 Package Index (https://packaging.python.org/installing/). Install it like so:
 ::
 
    > sudo apt-get install python-pip
 
 
-
-fparser and pyparsing is required by PSyclone
+Installing PIP on OpenSUSE
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+While the vanilla OpenSUSE installation includes PIP,
+the version installed only works for Python 3. So the
+python 2 version of PIP still needs to be installed
 ::
 
-   > sudo pip install pyparsing fparser
+    > zypper install python-pip
 
-fparser is also required by PSyclone but is not available from the
-Ubuntu software centre. It can instead be installed from the
-Python Package Index using pip:
+Note: PIP for python2 on OpenSUSE is called pip2.7. So you need
+to replace the ``pip`` command with ``pip2.7`` in all commands further down!
+
+
+Installation of Other Dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To remove some warnings it is recommended to update PIP
+to the latest version
 ::
 
-   > sudo pip install fparser
+    > sudo pip install --upgrade pip
+
+Next you need to install the fparser and pyparsing packages
+::
+    > sudo pip install fparser pyparsing 
+
+PIP has the ability to install packages either system-wide
+(which requires root privileges) as above, or for a user only
+(in ~/.local). While the latter is only useful for one
+particular user, it means that PSyclone can be installed
+using PIP without needing root privileges. In order to install
+a package for a user, add the --user command line option to
+all pip commands, e.g.:
+::
+    > pip2 install --user fparser pyparsing
+
+The ``--user`` flag requests that the packages be installed locally for the current user rather than requiring root access.
+In order for Python to find such locally-installed packages the necessary directory must be added to the PYTHONPATH, e.g.:
+::
+
+   > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
 
 Uninstalling is simply a matter of doing:
 ::
 
-   > sudo pip uninstall fparser
+   > sudo pip uninstall fparser pyparsing
 
-If you do not have sufficient privileges for a system-wide install then
-you can do:
-::
-
-   > pip install --user fparser
-
-(The ``--user`` flag requests that the packages be installed locally for
-the current user rather than requiring root access.) In order for Python
-to find such locally-installed packages the necessary directory must be
-added to the PYTHONPATH, e.g.:
-::
-
-   > export PYTHONPATH=/home/a_user/.local/lib/python2.7/site-packages:${PYTHONPATH}
 
 Alternatively, if pip is not an option, a tarball of the latest release
 may be downloaded from https://github.com/stfc/fparser/releases. Simply
@@ -107,12 +132,10 @@ and the Python bindings to the graphviz package
 
    > sudo pip install graphviz
 
-If you just want to use PSyclone then you've installed all you need
-and you're ready to go to the getting-going :ref:`getting-going-run`
-section.
+If you just want to use PSyclone then you've installed all you need and you're ready to go to the getting-going :ref:`getting-going-run` section.
 
 Developer set-up
-++++++++++++++++
+----------------
 
 This section adds software that is used to develop and test
 PSyclone. Note, we assume you have already installed the software
