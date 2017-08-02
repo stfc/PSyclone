@@ -1259,7 +1259,7 @@ where:
 X_multiply_Y
 +++++++++++++++
 
-**X_multiply_Y** (*field1*, *field2*, *field3*)
+**X_multiply_Y** (*field3*, *field1*, *field2*)
 
 Multiplies two fields together and returns the result in a third field: ::
 
@@ -1267,8 +1267,8 @@ Multiplies two fields together and returns the result in a third field: ::
 
 where:
 
-* type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
 
 inc_X_multiply_Y
 ++++++++++++++++++

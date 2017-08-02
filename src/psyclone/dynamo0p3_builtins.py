@@ -261,9 +261,9 @@ class DynXMultiplyYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
         # of f1 and store the result in f3.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " * " + invar_name2)
         parent.add(assign)

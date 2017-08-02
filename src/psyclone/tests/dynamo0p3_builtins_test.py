@@ -1798,18 +1798,18 @@ def test_X_multiply_Y():
         print code
         if not distmem:
             output = (
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f3\n"
                 "        f3_proxy%data(df) = f1_proxy%data(df) * "
                 "f2_proxy%data(df)\n"
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f3",code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
