@@ -128,18 +128,22 @@ def test_builtin_zero_writes(monkeypatch):
     that does not write to any field '''
     # Use pytest's monkeypatch support to change our configuration to
     # point to a file containing broken meta-data for the
-    # built-ins. The definition for axpby that it contains erroneously
+    # built-ins. The definition for aX_plus_bY that it contains erroneously
     # has no argument that is written to.
+    # Save the name of the actual builtin-definitions file
+    test_builtin_name = "aX_plus_bY"
+    test_builtin_file = "15.8.0_" + test_builtin_name + "_invoke.f90"
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "invalid_builtins_mod.f90"))
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.8.0_axpby_invoke.f90"),
+                                  test_builtin_file),
                      api="dynamo0.3")
     assert ("A Dynamo 0.3 kernel must have at least one "
             "argument that is updated (written to) but "
-            "found none for kernel axpby" in str(excinfo))
+            "found none for kernel " + test_builtin_name.lower() 
+            in str(excinfo))
 
 
 def test_builtin_no_field_args():
@@ -1449,25 +1453,25 @@ def test_inc_xpby():
             assert output_dm_2 in code
 
 
-def test_axpby_field_str():
-    ''' Test that the str method of DynAXPBYKern returns the
+def test_aX_plus_bY_field_str():
+    ''' Test that the str method of DynAXPlusBYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_axpby_invoke.f90"),
+                                        "15.8.0_aX_plus_bY_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: AXPBY"
+        assert str(kern) == "Built-in: aX_plus_bY"
 
 
-def test_axpby():
+def test_aX_plus_bY():
     ''' Test that we generate correct code for the builtin
     operation f = a*x + b*y where 'a' and 'b' are scalars '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_axpby_invoke.f90"),
+                                        "15.8.0_aX_plus_bY_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1476,34 +1480,34 @@ def test_axpby():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(a, f1, b, f2, f3)\n"
+                "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
                 "      REAL(KIND=r_def), intent(in) :: a, b\n"
                 "      TYPE(field_type), intent(inout) :: f3\n"
                 "      TYPE(field_type), intent(in) :: f1, f2\n"
                 "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
                 "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
                 "      !\n"
                 "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
+                "for any_space_1_f3\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f3\n"
                 "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1511,7 +1515,7 @@ def test_axpby():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f3",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1530,11 +1534,11 @@ def test_axpby():
             assert output_dm_2 in code
 
 
-def test_axpby_by_value():
+def test_aX_plus_bY_by_value():
     ''' Test that we generate correct code for the builtin
     operation z = a*x + b*y when a and b are passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.1_axpby_invoke_by_value.f90"),
+                                        "15.8.1_aX_plus_bY_invoke_by_value.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1543,33 +1547,33 @@ def test_axpby_by_value():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(f1, f2, f3)\n"
+                "    SUBROUTINE invoke_0(f3, f1, f2)\n"
                 "      TYPE(field_type), intent(inout) :: f3\n"
                 "      TYPE(field_type), intent(in) :: f1, f2\n"
                 "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
                 "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
                 "      !\n"
                 "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
+                "for any_space_1_f3\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f3\n"
                 "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
                 "0.8*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1577,7 +1581,7 @@ def test_axpby_by_value():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f3",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"

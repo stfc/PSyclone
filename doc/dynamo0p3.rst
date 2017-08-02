@@ -1057,10 +1057,10 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
-axpby
+aX_plus_bY
 +++++
 
-**axpby** (*a*, *field1*, *b*, *field2*, *field3*)
+**aX_plus_bY** (*field3*, *a*, *field1*, *b*, *field2*)
 
 Performs: ::
    
@@ -1069,8 +1069,8 @@ Performs: ::
 where:
 
 * real(r_def), intent(in) :: *a*, *b*
-* type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
 
 inc_aX_plus_bY
 +++++++++

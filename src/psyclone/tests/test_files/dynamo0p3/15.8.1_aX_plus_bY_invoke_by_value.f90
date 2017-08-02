@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -13,13 +14,7 @@ program single_invoke
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2, f3
-  real(r_def) :: a, b
-
-  a = 0.5
-  b = 0.8
   
-  call invoke(                          &
-              axpby(a, f1, b, f2, f3)   &
-             )
+  call invoke( aX_plus_bY(f3, 0.5d0, f1, 0.8, f2) )
 
 end program single_invoke

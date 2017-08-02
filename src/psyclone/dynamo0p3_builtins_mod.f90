@@ -31,19 +31,19 @@ module dynamo0p3_builtins_mod
   end type aX_minus_Y
 
   !> field3 = a*field1 + b*field2
-  type, public, extends(kernel_type) :: axpby
+  type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
           arg_type(GH_REAL,  GH_READ              ),                  &
           arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: axpby_code
-  end type axpby
+     procedure, nopass :: aX_plus_bY_code
+  end type aX_plus_bY
 
   !> field1 = a*field1 + b*field2
   type, public, extends(kernel_type) :: inc_aX_plus_bY
@@ -290,8 +290,8 @@ contains
   subroutine aX_minus_Y_code()
   end subroutine aX_minus_Y_code
 
-  subroutine axpby_code()
-  end subroutine axpby_code
+  subroutine aX_plus_bY_code()
+  end subroutine aX_plus_bY_code
 
   subroutine inc_aX_plus_bY_code()
   end subroutine inc_aX_plus_bY_code

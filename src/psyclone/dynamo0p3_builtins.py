@@ -450,25 +450,25 @@ class DynIncAXPlusYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=fld_name1, rhs=rhs_expr))
 
 
-class DynAXPBYKern(DynBuiltIn):
+class DynAXPlusBYKern(DynBuiltIn):
     ''' f = a.x + b.y where 'a' and 'b' are scalars and 'f', 'x' and
     'y' are fields '''
 
     def __str__(self):
-        return "Built-in: AXPBY"
+        return "Built-in: aX_plus_bY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We multiply one element of field f1 (2nd arg) by the first
-        # scalar (1st arg), add it to the product of the corresponding
-        # element of a second field (4th arg) with the second scalar
-        # (4rd arg) and write the value to the corresponding element
-        # of field f3 (5th arg).
-        scalar_name1 = self._arguments.args[0].name
-        scalar_name2 = self._arguments.args[2].name
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[4].proxy_name)
+        # We multiply one element of field f1 (3rd arg) by the first
+        # scalar (2nd arg), add it to the product of the corresponding
+        # element of a second field (5th arg) with the second scalar
+        # (4th arg) and write the value to the corresponding element
+        # of field f3 (1st arg).
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name1 = self._arguments.args[1].name
+        scalar_name2 = self._arguments.args[3].name
+        invar_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[4].proxy_name)
         rhs_expr = (scalar_name1 + "*" + invar_name1 + " + " +
                     scalar_name2 + "*" + invar_name2)
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
@@ -558,7 +558,7 @@ class DynInnerSelfProductKern(DynBuiltIn):
 # built-ins from dynamo0p3_builtins_mod.f90 instead of defining them here.
 BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "axpy": DynAXPYKern, "inc_aX_plus_Y": DynIncAXPlusYKern,
-                   "axpby": DynAXPBYKern, "inc_aX_plus_bY": DynIncAXPlusBYKern,
+                   "aX_plus_bY": DynAXPlusBYKern, "inc_aX_plus_bY": DynIncAXPlusBYKern,
                    "copy_field": DynCopyFieldKern,
                    "copy_scaled_field": DynCopyScaledFieldKern,
                    "X_divideby_Y": DynXDividebyYKern,

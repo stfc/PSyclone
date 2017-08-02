@@ -29,10 +29,10 @@ module dynamo0p3_builtins_mod
   !! and the other is gh_inc
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
-     type(arg_type) :: meta_args(3) = (/                            &
-          arg_type(GH_REAL,  GH_SUM            ),                   &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                  &
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_REAL,  GH_SUM            ),                     &
+          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -40,19 +40,19 @@ module dynamo0p3_builtins_mod
   end type inc_aX_plus_Y
 
   !> An invalid built-in that doesn't write to any argument
-  type, public, extends(kernel_type) :: axpby
+  type, public, extends(kernel_type) :: aX_plus_bY
      private
-     type(arg_type) :: meta_args(5) = (/                             &
-          arg_type(GH_REAL,  GH_READ              ),                 &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                 &
-          arg_type(GH_REAL,  GH_READ              ),                 &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                   &
+     type(arg_type) :: meta_args(5) = (/                              &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: axpby_code
-  end type axpby
+     procedure, nopass :: aX_plus_bY_code
+  end type aX_plus_bY
 
   !> An invalid built-in that writes to two different
   !! args but with different access types - one is gh_write, one is gh_inc.
@@ -72,9 +72,9 @@ module dynamo0p3_builtins_mod
   !> An invalid built-in that has no field arguments
   type, public, extends(kernel_type) :: copy_field
      private
-     type(arg_type) :: meta_args(2) = (/               &
-          arg_type(GH_REAL, GH_READ),                  &
-          arg_type(GH_REAL, GH_SUM)                    &
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_REAL, GH_READ),                                 &
+          arg_type(GH_REAL, GH_SUM)                                   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -114,8 +114,8 @@ contains
   subroutine inc_aX_plus_Y_code()
   end subroutine inc_aX_plus_Y_code
 
-  subroutine axpby_code()
-  end subroutine axpby_code
+  subroutine aX_plus_bY_code()
+  end subroutine aX_plus_bY_code
 
   subroutine inc_aX_plus_bY_code()
   end subroutine inc_aX_plus_bY_code
