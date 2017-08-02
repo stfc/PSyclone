@@ -339,7 +339,7 @@ class DynXDividebyYKern(DynBuiltIn):
                              rhs=invar_name1 + " / " + invar_name2))
 
 
-class DynIncDivideFieldKern(DynBuiltIn):
+class DynIncXDividebyYKern(DynBuiltIn):
     ''' Divide the first field by the second and return it '''
 
     def __str__(self):
@@ -562,7 +562,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "copy_field": DynCopyFieldKern,
                    "copy_scaled_field": DynCopyScaledFieldKern,
                    "X_divideby_Y": DynXDividebyYKern,
-                   "inc_X_divideby_Y": DynIncDivideFieldKern,
+                   "inc_X_divideby_Y": DynIncXDividebyYKern,
                    "inc_field": DynIncFieldKern,
                    "inc_X_multiply_Y": DynIncXMultiplyYKern,
                    "inc_xpby": DynIncXPBYKern,

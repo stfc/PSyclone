@@ -923,7 +923,7 @@ def test_X_divideby_Y():
 
 
 def test_inc_X_divideby_Y_str():
-    ''' Test that the str method of DynIncDivideFieldKern returns the
+    ''' Test that the str method of DynIncXDividebyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.6.1_inc_X_divideby_Y_invoke.f90"),
