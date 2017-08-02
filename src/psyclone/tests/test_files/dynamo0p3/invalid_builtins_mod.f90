@@ -12,26 +12,26 @@
 module dynamo0p3_builtins_mod
 
   !> An invalid built-in that writes to more than one field
-  type, public, extends(kernel_type) :: axpy
+  type, public, extends(kernel_type) :: aX_plus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
           arg_type(GH_REAL,  GH_READ              ),                  &
           arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: axpy_code
-  end type axpy
+     procedure, nopass :: aX_plus_Y_code
+  end type aX_plus_Y
 
   !> An invalid built-in that updates two fields where one is gh_sum
   !! and the other is gh_inc
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_REAL,  GH_SUM            ),                     &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
+          arg_type(GH_REAL,  GH_SUM              ),                   &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
@@ -44,9 +44,9 @@ module dynamo0p3_builtins_mod
      private
      type(arg_type) :: meta_args(5) = (/                              &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_REAL,  GH_READ             ),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ             ),                   &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
@@ -59,9 +59,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_REAL,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
-          arg_type(GH_REAL,  GH_READ             ),                   &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_INC,   ANY_SPACE_1),                  &
+          arg_type(GH_REAL,  GH_READ              ),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -85,9 +85,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: copy_scaled_field
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_REAL,  GH_READ              ),                  &
-          arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1),   &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_REAL,     GH_READ                           ),  &
+          arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1),  &
+          arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_1             )   &
           /)
      integer :: iterates_over = DOFS
    contains
@@ -98,7 +98,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: inc_X_divideby_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD,  GH_INC, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD,  GH_INC,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD,  GH_READ, ANY_SPACE_2)                   &
           /)
      integer :: iterates_over = DOFS
@@ -108,8 +108,8 @@ module dynamo0p3_builtins_mod
 
 contains
 
-  subroutine axpy_code()
-  end subroutine axpy_code
+  subroutine aX_plus_Y_code()
+  end subroutine aX_plus_Y_code
 
   subroutine inc_aX_plus_Y_code()
   end subroutine inc_aX_plus_Y_code

@@ -214,7 +214,7 @@ contains
       call invoke( inner_product(cr, res, rho) )
       beta = (rho/norm) * (alpha/omega)
       const = -beta*omega
-      call invoke( axpy(const, v, res, t) )
+      call invoke( aX_plus_Y(t, const, v, res) )
 
       call preconditioner( s, t, NO_PRE_COND )
 
@@ -226,7 +226,7 @@ contains
 
       alpha = rho/norm
       const = -alpha
-      call invoke( axpy(const, v, res, s) )
+      call invoke( aX_plus_Y(s, const, v, res) )
 
       call preconditioner( cs, s, NO_PRE_COND )
 
@@ -242,7 +242,7 @@ contains
       call invoke(  name = "BICG_iterloop_group3", &
                     inc_xpby(lhs, omega, s),       &
                     inc_xpby(lhs, alpha, p),       &
-                    axpy(const, t, s, res) )
+                    aX_plus_Y(res, const, t, s) )
       norm = rho
 
       ! Check for convergence

@@ -410,23 +410,23 @@ class DynAXMinusYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
 
-class DynAXPYKern(DynBuiltIn):
+class DynAXPlusYKern(DynBuiltIn):
     ''' f = a.x + y where 'a' is a scalar and 'f', 'x' and
     'y' are fields '''
 
     def __str__(self):
-        return "Built-in: AXPY"
+        return "Built-in: aX_plus_Y"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We multiply one element of field f1 (2nd arg) by a scalar
-        # (1st arg), add it to the corresponding
-        # element of a second field (3rd arg)  and write the value to the
-        # corresponding element of field f3 (4th arg).
-        scalar_name = self._arguments.args[0].name
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[3].proxy_name)
+        # We multiply one element of field f1 (3rd arg) by a scalar
+        # (2nd arg), add it to the corresponding
+        # element of a second field (4th arg)  and write the value to the
+        # corresponding element of field f3 (1st arg).
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        invar_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
         rhs_expr = scalar_name + "*" + invar_name1 + " + " + invar_name2
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
@@ -557,7 +557,7 @@ class DynInnerSelfProductKern(DynBuiltIn):
 # Note: Issue #58 will introduce functionality to obtain list of supported
 # built-ins from dynamo0p3_builtins_mod.f90 instead of defining them here.
 BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
-                   "axpy": DynAXPYKern, "inc_aX_plus_Y": DynIncAXPlusYKern,
+                   "aX_plus_Y": DynAXPlusYKern, "inc_aX_plus_Y": DynIncAXPlusYKern,
                    "aX_plus_bY": DynAXPlusBYKern, "inc_aX_plus_bY": DynIncAXPlusBYKern,
                    "copy_field": DynCopyFieldKern,
                    "copy_scaled_field": DynCopyScaledFieldKern,

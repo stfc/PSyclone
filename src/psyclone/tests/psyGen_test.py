@@ -859,13 +859,13 @@ def test_argument_find_argument():
     '''Check that the find_argument method returns the first dependent
     argument in a list of nodes, or None if none are found'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns none if none found
-    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    f1_first_read = schedule.children[0].children[0].arguments.args[2]
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
@@ -873,8 +873,8 @@ def test_argument_find_argument():
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[3]
-    f3_first_read = schedule.children[0].children[0].arguments.args[2]
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_first_read = schedule.children[0].children[0].arguments.args[3]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
     # 3: haloexchange node
@@ -946,12 +946,12 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     argument after the current Node in the schedule or None if none
     are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    f1_first_read = schedule.children[0].children[0].arguments.args[2]
     # 1: internal var computed set to False
     assert not f1_first_read._fd_computed
     # 2: initial internal value set to None
@@ -962,8 +962,8 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     assert f1_first_read._fd_computed
     # 5: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[3]
-    f3_next_read = schedule.children[4].children[0].arguments.args[2]
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_next_read = schedule.children[4].children[0].arguments.args[3]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
     # 6: haloexchange dependencies
@@ -1009,12 +1009,12 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     argument before the current Node in the schedule or None if none
     are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_last_read = schedule.children[6].children[0].arguments.args[1]
+    f1_last_read = schedule.children[6].children[0].arguments.args[2]
     # 1: internal var computed set to False
     assert not f1_last_read._bd_computed
     # 2: initial internal value set to None
@@ -1025,8 +1025,8 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     assert f1_last_read._bd_computed
     # 5: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[3]
-    f3_prev_read = schedule.children[2].children[0].arguments.args[2]
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_prev_read = schedule.children[2].children[0].arguments.args[3]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
     # 6: haloexchange dependencies
@@ -1176,7 +1176,7 @@ def test_node_forward_dependence():
     closest dependent Node after the current Node in the schedule or
     None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1235,7 +1235,7 @@ def test_node_backward_dependence():
     closest dependent Node before the current Node in the schedule or
     None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1290,7 +1290,7 @@ def test_call_forward_dependence():
     closest dependent call after the current call in the schedule or
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1319,7 +1319,7 @@ def test_call_backward_dependence():
     closest dependent call before the current call in the schedule or
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1345,7 +1345,7 @@ def test_omp_forward_dependence():
     returning the closest dependent Node after the current Node in the
     schedule or None if none are found. '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1396,7 +1396,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     returning the closest dependent Node before the current Node in
     the schedule or None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1484,7 +1484,7 @@ def test_node_is_valid_location():
     assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]

@@ -5,6 +5,7 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by I. Kavcic Met Office
 
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
@@ -68,8 +69,10 @@ def test_kerneltypefactory_create_broken_type():
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
+    # The file containing broken meta-data for the built-ins
+    test_builtin_name = "aX_plus_Y"
     with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(None, name="axpy")
+        _ = factory.create(None, name=test_builtin_name.lower())
     assert ("KernelTypeFactory: Internal Error: Unsupported kernel type"
             in str(excinfo.value))
 
@@ -79,6 +82,7 @@ def test_broken_builtin_metadata():
     with the meta-data describing the built-ins for a given API '''
     from psyclone import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
+    test_builtin_name = "aX_plus_Y"
     defs_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3", "broken_builtins_mod.f90")
@@ -86,7 +90,7 @@ def test_broken_builtin_metadata():
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
-                           defs_file, name="axpy")
+                           defs_file, name=test_builtin_name.lower())
     assert ("Failed to parse the meta-data for PSyclone built-ins in" in
             str(excinfo.value))
 

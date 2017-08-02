@@ -66,7 +66,6 @@ module solver_mod
   use matrix_vector_kernel_mod,  only : matrix_vector_kernel_type
   use operator_mod,              only : operator_type
   use psykal_lite_mod,           only : invoke_inner_prod,              &
-                                        invoke_axpy,                    &
                                         invoke_minus_field_data,        &
                                         invoke_copy_field_data,         &
                                         invoke_set_field_scalar,        &
