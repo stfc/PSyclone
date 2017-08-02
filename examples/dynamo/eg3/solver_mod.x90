@@ -416,7 +416,7 @@ contains
   call invoke( name = "Jacobi_mass_lump",                           &
                set_field_scalar(1.0_r_def, Ax),                     &
                matrix_vector_kernel_mm_type(lumped_weight, Ax, mm), &
-               divide_fields(rhs, lumped_weight, lhs) )
+               X_divideby_Y(lhs, rhs, lumped_weight) )
 
   ! Initial guess
   call invoke( set_field_scalar(0.0_r_def, lhs) )
@@ -427,7 +427,7 @@ contains
                  set_field_scalar(0.0_r_def, Ax),           &
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                  minus_fields(rhs, Ax, res),                &
-                 inc_divide_field(res, lumped_weight),      &
+                 inc_X_divideby_Y(res, lumped_weight),      &
                  inc_xpby(lhs, MU, res) )
   ! Ready for next iteration
   end do

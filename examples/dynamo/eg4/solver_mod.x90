@@ -139,18 +139,18 @@ contains
   res2     = field_type( vector_space = rhs_fs )
 
   call invoke( mm_diagonal_kernel_type(diagonal, mm), &
-               divide_fields(rhs, diagonal, lhs),   &
-               name="jacobi part 1")
+               X_divideby_Y(lhs, rhs, diagonal),      &
+               name = "jacobi part 1")
 
   do iter = 1,n_iter
                   ! Scalar value is supplied by dereferencing
                   ! a derived type
-    call invoke ( name="jacobi iteration",              &
+    call invoke ( name = "jacobi iteration",            &
                   set_field_scalar(flag_obj%rflag, Ax), &
                   matrix_vector_kernel_type(Ax,lhs,mm), &
                   enforce_bc_kernel_type(Ax),           &
                   minus_fields( rhs, Ax, res ),         &
-                  inc_divide_field( res, diagonal ),  &
+                  inc_X_divideby_Y( res, diagonal ),    &
                   inc_axpy( MU, lhs, res ) )
 
 ! Ready for next iteration
