@@ -27,7 +27,7 @@ module dynamo0p3_builtins_mod
 
   !> An invalid built-in that updates two fields where one is gh_sum
   !! and the other is gh_inc
-  type, public, extends(kernel_type) :: inc_axpy
+  type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                            &
           arg_type(GH_REAL,  GH_SUM            ),                   &
@@ -36,8 +36,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: inc_axpy_code
-  end type inc_axpy
+     procedure, nopass :: inc_aX_plus_Y_code
+  end type inc_aX_plus_Y
 
   !> An invalid built-in that doesn't write to any argument
   type, public, extends(kernel_type) :: axpby
@@ -111,8 +111,8 @@ contains
   subroutine axpy_code()
   end subroutine axpy_code
 
-  subroutine inc_axpy_code()
-  end subroutine inc_axpy_code
+  subroutine inc_aX_plus_Y_code()
+  end subroutine inc_aX_plus_Y_code
 
   subroutine axpby_code()
   end subroutine axpby_code

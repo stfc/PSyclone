@@ -1102,10 +1102,10 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
-inc_axpy
+inc_aX_plus_Y
 ++++++++
 
-**inc_axpy** (*a*, *field1*, *field2*)
+**inc_aX_plus_Y** (*a*, *field1*, *field2*)
 
 Performs an AXPY and returns the result as an increment to the first
 field: ::

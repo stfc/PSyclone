@@ -106,10 +106,13 @@ def test_builtin_sum_and_inc():
     gh_inc '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Save the name of the actual builtin-definitions file
+    test_builtin_name = "inc_aX_plus_Y"
+    test_builtin_file = "15.4_" + test_builtin_name + "_invoke.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_axpy_invoke.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -117,7 +120,7 @@ def test_builtin_sum_and_inc():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
             "only one argument that is written to but found 2 for kernel "
-            "inc_axpy" in str(excinfo))
+            + test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -1288,24 +1291,24 @@ def test_aX_minus_Y():
             assert output_dm_2 in code
 
 
-def test_inc_axpy_str():
-    ''' Test the str method of DynIncAXPYKern'''
+def test_inc_aX_plus_Y_str():
+    ''' Test the str method of DynIncAXPlusYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_axpy_invoke.f90"),
+                                        "15.4_inc_aX_plus_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: INC_AXPY"
+        assert str(kern) == "Built-in: inc_aX_plus_Y"
 
 
-def test_inc_axpy():
+def test_inc_aX_plus_Y():
     ''' Test that we generate correct code for the built-in
     operation x = a*x + y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_axpy_invoke.f90"),
+                                        "15.4_inc_aX_plus_Y_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
