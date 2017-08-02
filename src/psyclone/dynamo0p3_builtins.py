@@ -332,9 +332,9 @@ class DynXDividebyYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
         # f2 and store the result in f3.
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name,
                              rhs=invar_name1 + " / " + invar_name2))
 

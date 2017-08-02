@@ -1150,7 +1150,7 @@ where:
 X_divideby_Y
 +++++++++++++
 
-**X_divideby_Y** (*field1*, *field2*, *field3*)
+**X_divideby_Y** (*field3*, *field1*, *field2*)
 
 Divides the first field by the second and returns the result in the third: ::
 
@@ -1158,8 +1158,8 @@ Divides the first field by the second and returns the result in the third: ::
 
 where:
 
-* type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
 
 inc_X_divideby_Y
 ++++++++++++++++
