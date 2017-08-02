@@ -219,7 +219,7 @@ contains
       call preconditioner( s, t, NO_PRE_COND )
 
       call invoke( name = "BICG_iterloop_group1",          &
-                   inc_axpy(beta, p, s),                   &
+                   inc_aX_plus_Y(beta, p, s),              &
                    set_field_scalar(0.0_r_def, v),         &
                    matrix_vector_kernel_mm_type(v, p, mm), &
                    inner_product(cr, v, norm) )
@@ -363,7 +363,7 @@ contains
 
       beta = rs_new/rs_old
       rs_old = rs_new
-      call invoke( inc_axpy(beta, p, res) )
+      call invoke( inc_aX_plus_Y(beta, p, res) )
 
     end do
 

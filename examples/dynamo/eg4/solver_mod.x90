@@ -151,7 +151,7 @@ contains
                   enforce_bc_kernel_type(Ax),           &
                   minus_fields( rhs, Ax, res ),         &
                   inc_X_divideby_Y( res, diagonal ),    &
-                  inc_axpy( MU, lhs, res ) )
+                  inc_aX_plus_Y( MU, lhs, res ) )
 
 ! Ready for next iteration
   end do
