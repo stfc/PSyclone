@@ -5,23 +5,16 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
-! Modified I. Kavcic Met Office
 
 program single_invoke
 
   ! Description: multiply-field point-wise operation specified in an invoke call
-  ! where the supplied fields can be deduced to be on the same space
+  ! where the supplied fields can be deduced to be on different spaces
   use testkern_fs, only: testkern_fs_type
   use inf,         only: field_type
   implicit none
-  type(field_type) :: f2, f3, f4, f5,f6, f7, f8
-  real :: a
+  type(field_type) :: f1, f2, f3
 
-  a = 0.5
-
-  call invoke(                                             &
-              testkern_fs_type(f2, f3, f4, f5,f6, f7, f8), &
-              X_multiply_Y(f3, a, f4)                      &
-             )
+  call invoke( X_times_Y(f3, f1, f2) )
 
 end program single_invoke

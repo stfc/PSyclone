@@ -4,17 +4,17 @@
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
+! Author I. Kavcic Met Office
 
 program single_invoke
 
-  ! Description: multiply-field point-wise operation specified in an invoke call
-  ! where the supplied fields can be deduced to be on different spaces
-  use testkern_fs, only: testkern_fs_type
-  use inf,         only: field_type
+  ! Description: single built-in operation (point-wise multiplication of a field
+  ! by another field) specified in an invoke call
+  use testkern, only: testkern_type
+  use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1, f2
 
-  call invoke( X_multiply_Y(f3, f1, f2) )
+  call invoke( inc_X_times_Y(f1, f2) )
 
 end program single_invoke

@@ -149,7 +149,7 @@ module dynamo0p3_builtins_mod
   end type inc_X_plus_Y
 
   !> field1 = field1 * field2
-  type, public, extends(kernel_type) :: inc_X_multiply_Y
+  type, public, extends(kernel_type) :: inc_X_times_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
@@ -157,8 +157,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: inc_X_multiply_Y_code
-  end type inc_X_multiply_Y
+     procedure, nopass :: inc_X_times_Y_code
+  end type inc_X_times_Y
 
   !> field1 = field1 + b*field2
   type, public, extends(kernel_type) :: inc_X_plus_bY
@@ -212,7 +212,7 @@ module dynamo0p3_builtins_mod
   end type X_minus_Y
 
   !> field3(:) = field1(:) * field2(:)
-  type, public, extends(kernel_type) :: X_multiply_Y
+  type, public, extends(kernel_type) :: X_times_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
@@ -221,8 +221,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: X_multiply_Y_code
-  end type X_multiply_Y
+     procedure, nopass :: X_times_Y_code
+  end type X_times_Y
 
   !> field3 = field1 + field2
   type, public, extends(kernel_type) :: X_plus_Y
@@ -317,8 +317,8 @@ contains
   subroutine inc_X_plus_Y_code()
   end subroutine inc_X_plus_Y_code
 
-  subroutine inc_X_multiply_Y_code()
-  end subroutine inc_X_multiply_Y_code
+  subroutine inc_X_times_Y_code()
+  end subroutine inc_X_times_Y_code
 
   subroutine inc_X_plus_bY_code()
   end subroutine inc_X_plus_bY_code
@@ -332,8 +332,8 @@ contains
   subroutine X_minus_Y_code()
   end subroutine X_minus_Y_code
 
-  subroutine X_multiply_Y_code()
-  end subroutine X_multiply_Y_code
+  subroutine X_times_Y_code()
+  end subroutine X_times_Y_code
 
   subroutine X_plus_Y_code()
   end subroutine X_plus_Y_code

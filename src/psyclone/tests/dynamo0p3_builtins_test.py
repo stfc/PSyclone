@@ -1707,14 +1707,14 @@ def test_multiply_fields_on_different_spaces():  # pylint: disable=invalid-name
 @pytest.mark.xfail(
     reason="Dependency analysis of kernel arguments within an invoke is "
     "not yet implemented")
-def test_X_multiply_Y_deduce_space():  # pylint: disable=invalid-name
-    ''' Test that we generate correct code if X_multiply_Y() is called
+def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
+    ''' Test that we generate correct code if X_times_Y() is called
     in an invoke containing another kernel that allows the space of the
     fields to be deduced '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.3.1_X_multiply_Y_deduce_space.f90"),
+                         "15.3.1_X_times_Y_deduce_space.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1784,12 +1784,12 @@ def test_inc_X_plus_Y():
             assert output in code
 
 
-def test_X_multiply_Y_str():
-    ''' Test the str method of DynXMultiplyYKern '''
+def test_X_times_Y_str():
+    ''' Test the str method of DynXTimesYKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.3.0_X_multiply_Y_invoke.f90"),
+                         "15.3.0_X_times_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1799,13 +1799,13 @@ def test_X_multiply_Y_str():
         assert str(kern) == "Built-in: Multiply fields"
 
 
-def test_X_multiply_Y():
+def test_X_times_Y():
     ''' Test that we generate correct code for the built-in z = x*y
     where x, y and z are fields '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.3.0_X_multiply_Y_invoke.f90"),
+                         "15.3.0_X_times_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1841,12 +1841,12 @@ def test_X_multiply_Y():
             assert output in code
 
 
-def test_inc_X_multiply_Y_str():
-    ''' Test that the str method of DynIncXMultiplyYKern returns the
+def test_inc_X_times_Y_str():
+    ''' Test that the str method of DynIncXTimesYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         (r"15.3.4_"
-                                         r"inc_X_multiply_Y_invoke.f90")),
+                                         r"inc_X_times_Y_invoke.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1856,12 +1856,12 @@ def test_inc_X_multiply_Y_str():
         assert str(kern) == "Built-in: Multiply field by another"
 
 
-def test_inc_X_multiply_Y():
+def test_inc_X_times_Y():
     ''' Test that we generate correct code for the multiply field
     infrastructure kernel (x = x*y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         (r"15.3.4_"
-                                         r"inc_X_multiply_Y_invoke.f90")),
+                                         r"inc_X_times_Y_invoke.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

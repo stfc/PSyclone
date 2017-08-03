@@ -250,7 +250,7 @@ class DynSetvalXKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=invar_name))
 
 
-class DynXMultiplyYKern(DynBuiltIn):
+class DynXTimesYKern(DynBuiltIn):
     ''' DoF-wise product of one field with another with the result
     returned as a third field '''
 
@@ -269,7 +269,7 @@ class DynXMultiplyYKern(DynBuiltIn):
         parent.add(assign)
 
 
-class DynIncXMultiplyYKern(DynBuiltIn):
+class DynIncXTimesYKern(DynBuiltIn):
     ''' Multiply the first field by the second and return it '''
 
     def __str__(self):
@@ -564,12 +564,12 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "X_divideby_Y": DynXDividebyYKern,
                    "inc_X_divideby_Y": DynIncXDividebyYKern,
                    "inc_X_plus_Y": DynIncXPlusYKern,
-                   "inc_X_multiply_Y": DynIncXMultiplyYKern,
+                   "inc_X_times_Y": DynIncXTimesYKern,
                    "inc_X_plus_bY": DynIncXPlusBYKern,
                    "inner_product": DynInnerProductKern,
                    "inner_self_product": DynInnerSelfProductKern,
                    "X_minus_Y": DynXMinusYKern,
-                   "X_multiply_Y": DynXMultiplyYKern,
+                   "X_times_Y": DynXTimesYKern,
                    "X_plus_Y": DynXPlusYKern,
                    "raise_field": DynRaiseFieldKern,
                    "inc_a_times_X": DynIncATimesXKern,
