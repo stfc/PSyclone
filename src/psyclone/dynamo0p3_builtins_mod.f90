@@ -87,16 +87,16 @@ module dynamo0p3_builtins_mod
   end type inc_aX_plus_Y
 
   !> field2 = field1
-  type, public, extends(kernel_type) :: copy_field
+  type, public, extends(kernel_type) :: setval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: copy_field_code
-  end type copy_field
+     procedure, nopass :: setval_X_code
+  end type setval_X
 
   !> field2 = a*field1
   type, public, extends(kernel_type) :: copy_scaled_field
@@ -302,8 +302,8 @@ contains
   subroutine inc_aX_plus_Y_code()
   end subroutine inc_aX_plus_Y_code
 
-  subroutine copy_field_code()
-  end subroutine copy_field_code
+  subroutine setval_X_code()
+  end subroutine setval_X_code
 
   subroutine copy_scaled_field_code()
   end subroutine copy_scaled_field_code

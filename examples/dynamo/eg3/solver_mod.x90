@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2014.
@@ -7,12 +8,13 @@
 ! Modified by I Kavcic, Met Office.
 !
 !> @brief Contains methods and algorithms for solving a system A.x = b for known
-!! input field b and matrix A and returns field x
+!! input field b and matrix A and returns field x.
 !!
 !! @details Contains a selction of solvers for inverting the matrix vector
 !! system A.x = b to return x = A^{-1}.b Depending upom the type of system to
 !! solve a number of iterative solver algorithms are possible or for
-!! discontinuous systems an exact solver can be used
+!! discontinuous systems an exact solver can be used.
+
 module solver_mod
   use constants_mod,           only : r_def, str_def, MAX_ITER, SOLVER_TOL,  &
                                       CG_SOLVER, BICG_SOLVER, JACOBI_SOLVER, &
@@ -196,7 +198,7 @@ contains
 
     cr = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
 
-    call invoke( copy_field(res, cr) )
+    call invoke( setval_X(cr, res) )
 
     p = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
     call invoke( setval_c(p, 0.0_r_def) )
@@ -315,7 +317,7 @@ contains
                  setval_c(lhs, 0.0_r_def),                  &
                  matrix_vector_kernel_mm_type(Ap, lhs, mm), &
                  X_minus_Y(res, rhs, Ap),                   &
-                 copy_field(res, p),                        &
+                 setval_X(p, res),                          &
                  inner_self_product(res, rs_old) )
 
     err = sqrt(rs_old)
@@ -496,7 +498,7 @@ contains
                  setval_c(Ax, 0.0_r_def),                   &
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                  X_minus_Y(r, rhs, Ax),                     &
-                 copy_field(r, s),                          &
+                 setval_X(s, r),                            &
                  inner_self_product(s, err) )
 
     beta = sqrt(err)
@@ -742,7 +744,7 @@ end subroutine gcr_solver_algorithm
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       case default
         ! Default - do nothing
-        call invoke( copy_field(x, y) )
+        call invoke( setval_X(y, x) )
     end select
 
     return

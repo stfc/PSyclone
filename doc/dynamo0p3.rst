@@ -1118,19 +1118,19 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-copy_field
+setval_X
 ++++++++++
 
-**copy_field** (*field1*, *field2*)
+**setval_X** (*field2*, *field1*)
 
-Copy the values from *field1* into *field2*: ::
+Sets a field *field2* equal to field *field1*: ::
 
   field2(:) = field1(:)
 
 where:
 
-* type(field_type), intent(in) :: *field1*
 * type(field_type), intent(out) :: *field2*
+* type(field_type), intent(in) :: *field1*
 
 copy_scaled_field
 +++++++++++++++++

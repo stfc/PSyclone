@@ -70,16 +70,16 @@ module dynamo0p3_builtins_mod
   end type inc_aX_plus_bY
 
   !> An invalid built-in that has no field arguments
-  type, public, extends(kernel_type) :: copy_field
+  type, public, extends(kernel_type) :: setval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_REAL, GH_READ),                                 &
-          arg_type(GH_REAL, GH_SUM)                                   &
+          arg_type(GH_REAL, GH_SUM),                                  &
+          arg_type(GH_REAL, GH_READ)                                  &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: copy_field_code
-  end type copy_field
+     procedure, nopass :: setval_X_code
+  end type setval_X
 
   !> Invalid built-in that claims to take an operator as an argument
   type, public, extends(kernel_type) :: copy_scaled_field
@@ -120,8 +120,8 @@ contains
   subroutine inc_aX_plus_bY_code()
   end subroutine inc_aX_plus_bY_code
 
-  subroutine copy_field_code()
-  end subroutine copy_field_code
+  subroutine setval_X_code()
+  end subroutine setval_X_code
 
   subroutine copy_scaled_field_code()
   end subroutine copy_scaled_field_code

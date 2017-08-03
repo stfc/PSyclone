@@ -63,7 +63,7 @@ def test_builtin_multiple_writes():
     that writes to more than one argument '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Save the name of the actual builtin-definitions file
+    # Define the built-in name and test file
     test_builtin_name = "aX_plus_Y"
     test_builtin_file = "15.3.2_" + test_builtin_name + "_invoke_by_value.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -86,7 +86,7 @@ def test_builtin_write_and_inc():
     gh_inc '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Save the name of the actual builtin-definitions file
+    # Define the built-in name and test file
     test_builtin_name = "inc_aX_plus_bY"
     test_builtin_file = "15.8.2_" + test_builtin_name + "_invoke.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -109,7 +109,7 @@ def test_builtin_sum_and_inc():
     gh_inc '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Save the name of the actual builtin-definitions file
+    # Define the built-in name and test file
     test_builtin_name = "inc_aX_plus_Y"
     test_builtin_file = "15.4_" + test_builtin_name + "_invoke.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -133,7 +133,7 @@ def test_builtin_zero_writes(monkeypatch):
     # point to a file containing broken meta-data for the
     # built-ins. The definition for aX_plus_bY that it contains erroneously
     # has no argument that is written to.
-    # Save the name of the actual builtin-definitions file
+    # Define the built-in name and test file
     test_builtin_name = "aX_plus_bY"
     test_builtin_file = "15.8.0_" + test_builtin_name + "_invoke.f90"
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
@@ -153,10 +153,13 @@ def test_builtin_no_field_args():
     ''' Check that we raise appropriate error if we encounter a built-in
     that does not have any field arguments '''
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "setval_X"
+    test_builtin_file = "15.2.0_" + test_builtin_name + "_invoke.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.0_copy_field_builtin.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -164,7 +167,7 @@ def test_builtin_no_field_args():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API "
             "must have at least one field as an argument but "
-            "kernel copy_field has none" in str(excinfo))
+            "kernel "+ test_builtin_name.lower() + " has none" in str(excinfo))
 
 
 def test_builtin_operator_arg():
@@ -194,7 +197,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     that has arguments on different function spaces '''
     # Save the name of the actual builtin-definitions file
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Save the name of the actual builtin-definitions file
+    # Define the built-in name and test file
     test_builtin_name = "inc_X_divideby_Y"
     test_builtin_file = "15.6.1_" + test_builtin_name + "_invoke.f90"
     # Change the builtin-definitions file to point to one that has
@@ -658,24 +661,24 @@ def test_builtin_set_plus_normal():
 
 
 def test_copy_str():
-    ''' Check that the str method of DynCopyFieldKern returns the
+    ''' Check that the str method of DynSetvalXKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.0_copy_field_builtin.f90"),
+                                        "15.2.0_setval_X_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Copy field"
+        assert str(kern) == "Built-in: Set a field equal to another field"
 
 
 def test_copy():
     ''' Tests that we generate correct code for a builtin
     copy field operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.0_copy_field_builtin.f90"),
+                                        "15.2.0_setval_X_invoke.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -684,37 +687,37 @@ def test_copy():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(f1, f2)\n"
+                "    SUBROUTINE invoke_0(f2, f1)\n"
                 "      TYPE(field_type), intent(inout) :: f2\n"
                 "      TYPE(field_type), intent(in) :: f1\n"
                 "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER ndf_any_space_1_f2, undf_any_space_1_f2\n"
                 "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
                 "      !\n"
                 "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f2_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
+                "any_space_1_f2\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f2",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"

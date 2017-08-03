@@ -235,18 +235,18 @@ class DynRaiseFieldKern(DynBuiltIn):
                              rhs=var_name + "**" + value))
 
 
-class DynCopyFieldKern(DynBuiltIn):
+class DynSetvalXKern(DynBuiltIn):
     ''' Set a field equal to another field '''
 
     def __str__(self):
-        return "Built-in: Copy field"
+        return "Built-in: Set a field equal to another field"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We copy one element of field A (first arg) to the
-        # corresponding element of field B (second arg).
-        invar_name = self.array_ref(self._arguments.args[0].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[1].proxy_name)
+        # We copy one element of field A (second arg) to the
+        # corresponding element of field B (first arg).
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=invar_name))
 
 
@@ -559,7 +559,7 @@ class DynInnerSelfProductKern(DynBuiltIn):
 BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "aX_plus_Y": DynAXPlusYKern, "inc_aX_plus_Y": DynIncAXPlusYKern,
                    "aX_plus_bY": DynAXPlusBYKern, "inc_aX_plus_bY": DynIncAXPlusBYKern,
-                   "copy_field": DynCopyFieldKern,
+                   "setval_X": DynSetvalXKern,
                    "copy_scaled_field": DynCopyScaledFieldKern,
                    "X_divideby_Y": DynXDividebyYKern,
                    "inc_X_divideby_Y": DynIncXDividebyYKern,

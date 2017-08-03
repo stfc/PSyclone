@@ -1,3 +1,14 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+! Modified by I Kavcic, Met Office.
+!
+!> @brief Tests code generation for solver preconditioner.
+
 module alg
 
 contains
@@ -12,7 +23,7 @@ contains
     type(field_type)                       :: res, p, z
 
     call precondition( z, res, precond_option, diagonal=mmd )
-    call invoke( copy_field( z, p ),                          &
+    call invoke( setval_X( p, z),  &
                  inner_product( res, z, rs_old ) )
 
   end subroutine example

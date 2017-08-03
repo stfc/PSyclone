@@ -1283,7 +1283,7 @@ def test_builtin_single_OpenMP_pdo():
     applied to a single builtin'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.2.0_copy_field_builtin.f90"),
+                                     "15.2.0_setval_X_invoke.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1312,7 +1312,7 @@ def test_builtin_single_OpenMP_pdo():
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do") in result
@@ -1450,7 +1450,7 @@ def test_builtin_single_OpenMP_do():
     OpenMP parallel) is applied to a single builtin '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.2.0_copy_field_builtin.f90"),
+                                     "15.2.0_setval_X_invoke.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1487,7 +1487,7 @@ def test_builtin_single_OpenMP_do():
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
