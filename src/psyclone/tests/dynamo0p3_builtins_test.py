@@ -1910,27 +1910,27 @@ def test_inc_X_multiply_Y():
             assert output_dm_2 in code
 
 
-def test_scale_field_str():
-    ''' Test the str method of DynScaleFieldKern '''
+def test_inc_a_times_X_str():
+    ''' Test the str method of DynIncATimesXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.2_scale_field_builtin.f90"),
+                         "15.2.2_inc_a_times_X_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: scale a field"
+        assert str(kern) == "Built-in: Scale a field"
 
 
-def test_scale_field():
-    ''' Test that DynScaleFieldKern generates correct code '''
+def test_inc_a_times_X():
+    ''' Test that DynIncATimesXKern generates correct code '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.2_scale_field_builtin.f90"),
+                         "15.2.2_inc_a_times_X_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

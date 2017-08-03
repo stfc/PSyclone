@@ -172,11 +172,11 @@ class DynBuiltIn(BuiltIn):
         return None
 
 
-class DynScaleFieldKern(DynBuiltIn):
+class DynIncATimesXKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''
 
     def __str__(self):
-        return "Built-in: scale a field"
+        return "Built-in: Scale a field"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -572,7 +572,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "X_multiply_Y": DynXMultiplyYKern,
                    "X_plus_Y": DynXPlusYKern,
                    "raise_field": DynRaiseFieldKern,
-                   "scale_field": DynScaleFieldKern,
+                   "inc_a_times_X": DynIncATimesXKern,
                    "setval_c": DynSetvalCKern,
                    "sum_X": DynSumXKern}
 

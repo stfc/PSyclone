@@ -690,8 +690,8 @@ contains
         alpha = sqrt(err)
         const = 1.0_r_def/alpha
         call invoke( name = "GCR_iterloop_group3", &
-                     scale_field(const, v(m)),     &
-                     scale_field(const, s(m)),     &
+                     inc_a_times_X(const, v(m)),   &
+                     inc_a_times_X(const, s(m)),   &
                      inner_product(r, v(m), alpha) )
 
         const = -alpha

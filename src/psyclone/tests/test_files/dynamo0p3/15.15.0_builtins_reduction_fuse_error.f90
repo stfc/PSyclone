@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -15,7 +16,7 @@ program single_invoke
   real(r_def) :: asum
 
   call invoke( inner_product(f1, f2, asum), &
-               scale_field(b, f1), &
-               scale_field(asum, f1) )
+               inc_a_times_X(b, f1),        &
+               inc_a_times_X(asum, f1) )
 
 end program single_invoke

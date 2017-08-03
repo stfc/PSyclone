@@ -15,7 +15,7 @@ program single_invoke
   type(field_type) :: f1
   real(r_def) :: asum, bvalue
 
-  call invoke( scale_field(bvalue, f1), &
+  call invoke( inc_a_times_X(bvalue, f1), &
                sum_X(asum, f1) )
 
 end program single_invoke

@@ -16,7 +16,7 @@ program single_invoke
   real(r_def) :: asum, bsum
 
   call invoke( inner_product(f1, f2, asum), &
-               scale_field(f1, asum),       &
+               inc_a_times_X(asum, f1),     &
                sum_X(bsum, f2) )
 
 end program single_invoke

@@ -1313,10 +1313,10 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * real(r_def), intent(in) :: *scalar*
 
-scale_field
+inc_a_times_X
 +++++++++++
 
-**scale_field** (*scalar*, *field1*)
+**inc_a_times_X** (*scalar*, *field1*)
 
 Multiplies a field by a scalar value and returns the field: ::
 
