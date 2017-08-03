@@ -2,6 +2,7 @@
 ! (c) Copyright Science and Technology Facilities Council 2016
 !-------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -11,6 +12,6 @@ program single_invoke
   integer(i_def)   :: isum
   type(field_type) :: f1
 
-  call invoke( inner_product(isum, f1) )
+  call invoke( X_innerproduct_Y(isum, f1) )
 
 end program single_invoke

@@ -2,6 +2,7 @@
 ! (c) Copyright Science and Technology Facilities Council 2016
 !-------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -11,6 +12,6 @@ program single_invoke
   integer(r_def)   :: rsum1, rsum2
   type(field_type) :: f1
 
-  call invoke( inner_product(rsum1, rsum2, f1) )
+  call invoke( X_innerproduct_Y(f1, rsum1, rsum2) )
 
 end program single_invoke

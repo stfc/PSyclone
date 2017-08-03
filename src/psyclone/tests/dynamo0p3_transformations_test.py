@@ -1647,7 +1647,7 @@ def test_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1687,7 +1687,7 @@ def test_reduction_real_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2834,7 +2834,7 @@ def test_reprod_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2856,7 +2856,7 @@ def test_reprod_reduction_real_do():
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3389,7 +3389,7 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call inner_product(f1,f2,asum)\n"
+                "                Call x_innerproduct_y(asum,f1,f2)\n"
                 "    GlobalSum[scalar='asum']\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
@@ -3409,7 +3409,7 @@ def test_reprod_view(capsys):
                 "        Directive[OMP do][reprod=True]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
                 "it_space='dofs']\n"
-                "                Call inner_product(f1,f2,asum)\n"
+                "                Call x_innerproduct_y(asum,f1,f2)\n"
                 "    Directive[OMP parallel]\n"
                 "        Directive[OMP do]\n"
                 "            Loop[type='dofs',field_space='any_space_1',"
@@ -3435,7 +3435,7 @@ def test_reductions_reprod():
         for distmem in [True, False]:
             _, invoke_info = parse(
                 os.path.join(BASE_PATH,
-                             "15.9.0_inner_prod_builtin.f90"),
+                             "15.9.0_X_innerproduct_Y_invoke.f90"),
                 distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory("dynamo0.3",
@@ -3452,9 +3452,9 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert len(schedule.reductions(reprod=not reprod)) == 0
             assert len(schedule.reductions()) == 1
-            from psyclone.dynamo0p3_builtins import DynInnerProductKern
+            from psyclone.dynamo0p3_builtins import DynXInnerproductXKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               DynInnerProductKern))
+                               DynXInnerproductXKern))
 
 
 def test_list_multiple_reductions():
@@ -3466,7 +3466,7 @@ def test_list_multiple_reductions():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3482,11 +3482,11 @@ def test_list_multiple_reductions():
         invoke.schedule = schedule
         omp_loop_directive = schedule.children[0].children[0]
         call = omp_loop_directive.children[0].children[0]
-        arg = call.arguments.args[1]
+        arg = call.arguments.args[2]
         arg._type = "gh_real"
         arg.descriptor._access = "gh_sum"
         result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:f2), reduction(+:asum)" in result
+        assert ", reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():

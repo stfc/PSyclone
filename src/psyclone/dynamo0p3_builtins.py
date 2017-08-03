@@ -515,20 +515,20 @@ class DynIncXPlusBYKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
 
 
-class DynInnerProductKern(DynBuiltIn):
+class DynXInnerproductXKern(DynBuiltIn):
     ''' Calculates the inner product of two fields,
     asum = SUM( field1(:)*field2(:) ) '''
 
     def __str__(self):
-        return "Built-in: inner_product"
+        return "Built-in: X_innerproduct_Y"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sum_name = self._reduction_ref(self._arguments.args[2].name)
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        sum_name = self._reduction_ref(self._arguments.args[0].name)
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
@@ -566,7 +566,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "inc_X_plus_Y": DynIncXPlusYKern,
                    "inc_X_times_Y": DynIncXTimesYKern,
                    "inc_X_plus_bY": DynIncXPlusBYKern,
-                   "inner_product": DynInnerProductKern,
+                   "X_innerproduct_Y": DynXInnerproductXKern,
                    "inner_self_product": DynInnerSelfProductKern,
                    "X_minus_Y": DynXMinusYKern,
                    "X_times_Y": DynXTimesYKern,

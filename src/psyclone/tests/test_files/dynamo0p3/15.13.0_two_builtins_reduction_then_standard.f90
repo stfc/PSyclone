@@ -15,7 +15,7 @@ program single_invoke
   type(field_type) :: f1, f2
   real(r_def) :: asum, bsum
 
-  call invoke( inner_product(f1, f2, asum), &
+  call invoke( X_innerproduct_Y(asum, f1, f2), &
                inc_a_times_X(bsum, f1) )
 
 end program single_invoke

@@ -1204,19 +1204,19 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inner_product
+X_innerproduct_Y
 +++++++++++++
 
-**inner_product** (*field1*, *field2*, *sumval*)
+**X_innerproduct_Y** (*innprod*, *field1*, *field2*)
 
 Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
 
-  sumval = SUM(field1(:)*field2(:))
+  innprod = SUM(field1(:)*field2(:))
 
 where:
 
 * type(field_type), intent(in) :: *field1*, *field2*
-* real(r_def), intent(out) :: *sumval*
+* real(r_def), intent(out) :: *innprod*
 
 .. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the

@@ -2023,27 +2023,27 @@ def test_raise_field():
             assert output in code
 
 
-def test_innerprod_str():
-    ''' Test the str method of DynInnerProductKern '''
+def test_X_innerproduct_Y_str():
+    ''' Test the str method of DynXInnerproductXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: inner_product"
+        assert str(kern) == "Built-in: X_innerproduct_Y"
 
 
-def test_innerprod():
+def test_X_innerproduct_Y():
     ''' Test that we produce correct code for the inner product built-in '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2295,7 +2295,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
         print code
         if distmem:
             assert(
-                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
                 "      USE scalar_mod, ONLY: scalar_type\n"
                 "      USE mesh_mod, ONLY: mesh_type\n"
                 "      REAL(KIND=r_def), intent(out) :: asum\n"
@@ -2353,7 +2353,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
                 "      CALL f1_proxy%set_dirty()\n") in code
         else:
             assert (
-                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
                 "      REAL(KIND=r_def), intent(out) :: asum\n"
                 "      REAL(KIND=r_def), intent(in) :: b\n"
                 "      TYPE(field_type), intent(inout) :: f1\n"
@@ -2397,6 +2397,8 @@ def test_scalar_int_builtin_error(monkeypatch):
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
+    # Define the built-in name and test file
+    test_builtin_name = "X_innerproduct_Y"
     for dist_mem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
@@ -2405,5 +2407,5 @@ def test_scalar_int_builtin_error(monkeypatch):
             _ = PSyFactory("dynamo0.3",
                            distributed_memory=dist_mem).create(invoke_info)
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel inner_product has an argument "
-                "of type gh_integer" in str(excinfo))
+                "'gh_real'] but kernel " + test_builtin_name.lower() + " has an "
+                "argument of type gh_integer" in str(excinfo))

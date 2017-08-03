@@ -609,7 +609,7 @@ def test_globalsum_view(capsys):
     this is to use a dynamo0p3 builtin example which contains a scalar and
     then call view() on that.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.0_inner_prod_builtin.f90"),
+                                        "15.9.0_X_innerproduct_Y_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
@@ -795,7 +795,7 @@ def test_invalid_reprod_pad_size():
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.0_X_innerproduct_Y_invoke.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

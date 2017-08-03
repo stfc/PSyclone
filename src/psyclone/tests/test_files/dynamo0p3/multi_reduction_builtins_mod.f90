@@ -10,7 +10,7 @@
 !>@details This meta-data is broken for testing purposes
 module dynamo0p3_builtins_mod
   !> Fake built-in that purports to do two reductions
-  type, public, extends(kernel_type) :: inner_product
+  type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
           arg_type(GH_REAL,  GH_SUM               ),                  &
@@ -20,7 +20,7 @@ module dynamo0p3_builtins_mod
      integer :: iterates_over = DOFS
    contains
      procedure, nopass :: setval_c_code
-  end type inner_product
+  end type X_innerproduct_Y
 
 contains
 
