@@ -15,9 +15,7 @@ program single_invoke
   type(field_type) :: f1, f2
   real(r_def) :: asum, bsum
 
-  ! IK: Left the incorrect argument ordering in inc_a_times_X to pass tests 
-  ! in dynamo0p3_transformations_test.py 
   call invoke( inner_product(f1, f2, asum), &
-               inc_a_times_X(f1, bsum) )
+               inc_a_times_X(bsum, f1) )
 
 end program single_invoke
