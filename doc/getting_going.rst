@@ -65,10 +65,8 @@ and then use pip2.7 instead of pip.
 System-specific set-up
 ^^^^^^^^^^^^^^^^^^^^^^
 
-System-specific set-up instructions are available for the following systems
-
-* Ubuntu 14.03.3 :ref:`Ubuntu14.03.3`
-* openSUSE 42.2  :ref:`openSUSE42.2`
+:ref:`system_specific_setup` instructions are available for Ubuntu 14.04.2 and
+OpenSUSE 42.2.
 
 fparser
 ^^^^^^^
