@@ -371,7 +371,7 @@ class DynIncXPlusYKern(DynBuiltIn):
                              rhs=invar_name1 + " + " + invar_name2))
 
 
-class DynCopyScaledFieldKern(DynBuiltIn):
+class DynATimesXKern(DynBuiltIn):
     ''' Multiply the first field by a scalar and return the result as
     a second field (y = a*x) '''
 
@@ -382,9 +382,9 @@ class DynCopyScaledFieldKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We multiply each element of f1 by the scalar argument and
         # store the result in f2.
-        scalar_name = self._arguments.args[0].name
-        invar_name = self.array_ref(self._arguments.args[1].proxy_name)
-        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_name = self._arguments.args[1].name
+        invar_name = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name,
                              rhs=scalar_name + " * " + invar_name))
 
@@ -560,7 +560,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "aX_plus_Y": DynAXPlusYKern, "inc_aX_plus_Y": DynIncAXPlusYKern,
                    "aX_plus_bY": DynAXPlusBYKern, "inc_aX_plus_bY": DynIncAXPlusBYKern,
                    "setval_X": DynSetvalXKern,
-                   "copy_scaled_field": DynCopyScaledFieldKern,
+                   "a_times_X": DynATimesXKern,
                    "X_divideby_Y": DynXDividebyYKern,
                    "inc_X_divideby_Y": DynIncXDividebyYKern,
                    "inc_X_plus_Y": DynIncXPlusYKern,

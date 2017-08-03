@@ -504,7 +504,7 @@ contains
     beta = sqrt(err)
 
     const = 1.0_r_def/beta
-    call invoke( copy_scaled_field(const, s, v(1)) )
+    call invoke( a_times_X(v(1), const, s) )
 
 
     h(:,:) = 0.0_r_def
@@ -533,7 +533,7 @@ contains
         h(j+1,j) = sqrt( err )
         if( j < GCRk ) then
           const = 1.0_r_def/h(j+1,j)
-          call invoke( copy_scaled_field(const, w, v(j+1)) )
+          call invoke( a_times_X(v(j+1), const, w) )
         end if
       end do
 
@@ -591,7 +591,7 @@ contains
       !  This is the correct settings => call Precon(s,r,preit,precnd)
       call preconditioner( s, r, NO_PRE_COND )
       const = 1.0_r_def/beta
-      call invoke( copy_scaled_field(const, s, v(1)) )
+      call invoke( a_times_X(v(1), const, s) )
 
       g(:) = 0.0_r_def
       g(1) = beta

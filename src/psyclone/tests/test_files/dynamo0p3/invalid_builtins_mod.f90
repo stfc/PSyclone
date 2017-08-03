@@ -82,17 +82,17 @@ module dynamo0p3_builtins_mod
   end type setval_X
 
   !> Invalid built-in that claims to take an operator as an argument
-  type, public, extends(kernel_type) :: copy_scaled_field
+  type, public, extends(kernel_type) :: a_times_X
      private
      type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_1             ),  &
           arg_type(GH_REAL,     GH_READ                           ),  &
-          arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1),  &
-          arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_1             )   &
+          arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1)   &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: copy_scaled_field_code
-  end type copy_scaled_field
+     procedure, nopass :: a_times_X_code
+  end type a_times_X
 
   !> Invalid built-in that has arguments on different spaces
   type, public, extends(kernel_type) :: inc_X_divideby_Y
@@ -123,8 +123,8 @@ contains
   subroutine setval_X_code()
   end subroutine setval_X_code
 
-  subroutine copy_scaled_field_code()
-  end subroutine copy_scaled_field_code
+  subroutine a_times_X_code()
+  end subroutine a_times_X_code
 
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code

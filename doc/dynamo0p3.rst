@@ -1132,20 +1132,20 @@ where:
 * type(field_type), intent(out) :: *field2*
 * type(field_type), intent(in) :: *field1*
 
-copy_scaled_field
+a_times_X
 +++++++++++++++++
 
-**copy_scaled_field** (*value*, *field1*, *field2*)
+**a_times_X** (*field2*, *scalar*, *field1*)
 
 Multiplies a field by a scalar and stores the result in a second field: ::
   
-  field2(:) = value*field1(:)
+  field2(:) = scalar*field1(:)
 
 where:
 
-* real(r_def), intent(in) :: *value*
-* type(field_type), intent(in) :: *field1*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(out) :: *field2*
+* type(field_type), intent(in) :: *field1*
 
 X_divideby_Y
 +++++++++++++
@@ -1256,10 +1256,10 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-X_multiply_Y
+X_times_Y
 +++++++++++++++
 
-**X_multiply_Y** (*field3*, *field1*, *field2*)
+**X_times_Y** (*field3*, *field1*, *field2*)
 
 Multiplies two fields together and returns the result in a third field: ::
 
@@ -1270,10 +1270,10 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
-inc_X_multiply_Y
+inc_X_times_Y
 ++++++++++++++++++
 
-**inc_X_multiply_Y** (*field1*, *field2*)
+**inc_X_times_Y** (*field1*, *field2*)
 
 Multiplies the first field by the second and returns it: ::
 

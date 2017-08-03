@@ -176,19 +176,22 @@ def test_builtin_operator_arg():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
+    # Define the built-in name and test file
+    test_builtin_name = "a_times_X"
+    test_builtin_file = "15.2.1_" + test_builtin_name + "_invoke.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.2.1_copy_scaled_field_builtin.f90"),
+                     test_builtin_file),
         api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real'] but kernel "
-            "copy_scaled_field has an argument of "
+            "must be one of ['gh_field', 'gh_real'] but kernel " +
+            test_builtin_name.lower() + " has an argument of "
             "type gh_operator" in str(excinfo))
 
 
@@ -1006,12 +1009,12 @@ def test_inc_X_divideby_Y():
             assert output_dm_2 in code
 
 
-def test_copy_scaled_field_str():
-    ''' Test that the str method of DynCopyScaledFieldKern returns the
+def test_a_times_X_str():
+    ''' Test that the str method of DynATimesXKern returns the
     expected string '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.2.1_copy_scaled_field_builtin.f90"),
+                     "15.2.1_a_times_X_invoke.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1021,12 +1024,12 @@ def test_copy_scaled_field_str():
         assert str(kern) == "Built-in: Copy scaled field"
 
 
-def test_copy_scaled_field():
+def test_a_times_X():
     ''' Test that we generate correct code for the CopyScaledField
     (y = a*x) built-in '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.2.1_copy_scaled_field_builtin.f90"),
+                     "15.2.1_a_times_X_invoke.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1035,27 +1038,27 @@ def test_copy_scaled_field():
         print code
         if not distmem:
             output = (
-                "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f2_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
+                "any_space_1_f2\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f2",code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"

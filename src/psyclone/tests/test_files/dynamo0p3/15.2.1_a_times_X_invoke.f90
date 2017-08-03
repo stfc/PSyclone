@@ -5,6 +5,7 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
@@ -15,8 +16,6 @@ program single_invoke
   type(field_type) :: f1, f2
   real(r_def) :: a_scalar
 
-  call invoke(                                      &
-              copy_scaled_field(a_scalar, f1, f2)   &
-             )
+  call invoke( a_times_X(f2, a_scalar, f1) )
 
 end program single_invoke
