@@ -21,7 +21,7 @@ program single_invoke
 
   call invoke(                                             &
               testkern_fs_type(f2, f3, f4, f5,f6, f7, f8), &
-              aX_plus_Y(f3, a, f2)                         &
+              X_times_Y(f3, a, f2)                         &
              )
 
 end program single_invoke
