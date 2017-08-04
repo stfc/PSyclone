@@ -1694,12 +1694,12 @@ def test_inc_aX_plus_bY():
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
     "spaces of the fields passed to the built-in kernel")
-def test_multiply_fields_on_different_spaces():  # pylint: disable=invalid-name
-    ''' Test that we raise an error if multiply_fields() is called for
+def test_X_times_Y_on_different_spaces():  # pylint: disable=invalid-name
+    ''' Test that we raise an error if X_times_Y() is called for
     two fields that are on different spaces '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.3.3_multiply_fields_different_spaces.f90"),
+                     "15.3.3_X_times_Y_different_spaces.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
