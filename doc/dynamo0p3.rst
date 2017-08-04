@@ -1042,48 +1042,34 @@ does not necessarily reflect the actual implementation of the
 built-in (*e.g.* it could be implemented by PSyclone
 generating a call to an optimised maths library).
 
-aX_minus_Y
-++++
+Built-ins which add (scaled) fields are denoted with keyword *plus*.
 
-**aX_minus_Y** (*field3*, *a*, *field1*, *field2*)
+X_plus_Y
++++++++++++
 
-Performs: ::
-   
-  field3(:) = a*field1(:) - field2(:)
+**X_plus_Y** (*field3*, *field1*, *field2*)
 
-where:
-
-* real(r_def), intent(in) :: *a*
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
-
-aX_plus_bY
-+++++
-
-**aX_plus_bY** (*field3*, *a*, *field1*, *b*, *field2*)
-
-Performs: ::
-   
-  field3(:) = a*field1(:) + b*field2(:)
+Sums two fields: ::
+  
+  field3(:) = field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*, *b*
 * type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
 
-inc_aX_plus_bY
+inc_X_plus_Y
 +++++++++
 
-**inc_aX_plus_bY** (*a*, *field1*, *b*, *field2*)
+**inc_X_plus_Y** (*field1*, *field2*)
 
-Performs: ::
-   
-  field1(:) = a*field1(:) + b*field2(:)
+Adds the second field to the first and returns it: ::
+
+  field1(:) = field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*, *b*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
@@ -1118,19 +1104,116 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-setval_X
-++++++++++
+inc_X_plus_bY
+++++++++
 
-**setval_X** (*field2*, *field1*)
+**inc_X_plus_bY** (*field1*, *b*, *field2*)
 
-Sets a field *field2* equal to field *field1*: ::
+Performs: ::
 
-  field2(:) = field1(:)
+  field1(:) = field1(:) + b*field2(:)
 
 where:
 
-* type(field_type), intent(out) :: *field2*
+* real(r_def), intent(in) :: *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+aX_plus_bY
++++++
+
+**aX_plus_bY** (*field3*, *a*, *field1*, *b*, *field2*)
+
+Performs: ::
+   
+  field3(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
+
+inc_aX_plus_bY
++++++++++
+
+**inc_aX_plus_bY** (*a*, *field1*, *b*, *field2*)
+
+Performs: ::
+   
+  field1(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+Built-ins which add (scaled) fields are denoted with keyword *minus*.
+
+X_minus_Y
+++++++++++++
+
+**X_minus_Y** (*field3*, *field1*, *field2*)
+
+Subtracts the second field from the first and stores the result in
+the third. *i.e.* performs the operation: ::
+  
+  field3(:) = field1(:) - field2(:)
+
+where:
+
+* type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+aX_minus_Y
+++++
+
+**aX_minus_Y** (*field3*, *a*, *field1*, *field2*)
+
+Performs: ::
+   
+  field3(:) = a*field1(:) - field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
+
+Built-ins which multiply (scaled) fields are denoted with keyword *times*.
+
+X_times_Y
++++++++++++++++
+
+**X_times_Y** (*field3*, *field1*, *field2*)
+
+Multiplies two fields together and returns the result in a third field: ::
+
+  field3(:) = field1(:)*field2(:)
+
+where:
+
+* type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
+
+inc_X_times_Y
+++++++++++++++++++
+
+**inc_X_times_Y** (*field1*, *field2*)
+
+Multiplies the first field by the second and returns it: ::
+
+  field1(:) = field1(:)*field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+Built-ins which scale fields are technically cases of multiplying field by a 
+scalar and are hence also denoted with keyword *times*.
 
 a_times_X
 +++++++++++++++++
@@ -1146,6 +1229,22 @@ where:
 * real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(out) :: *field2*
 * type(field_type), intent(in) :: *field1*
+
+inc_a_times_X
++++++++++++
+
+**inc_a_times_X** (*scalar*, *field1*)
+
+Multiplies a field by a scalar value and returns the field: ::
+
+  field1(:) = scalar*field1(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+
+Built-ins which divide (scaled) fields are denoted with keyword *divideby*.
 
 X_divideby_Y
 +++++++++++++
@@ -1175,34 +1274,58 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inc_X_plus_Y
-+++++++++
+Built-ins which set field elements to some value and hence are denoted with 
+keyword *setval*.
 
-**inc_X_plus_Y** (*field1*, *field2*)
+setval_c
+++++++++++++++++
 
-Adds the second field to the first and returns it: ::
+**setval_c** (*field*, *value*)
 
-  field1(:) = field1(:) + field2(:)
+Sets all elements of the field *field* to the value *value*: ::
+
+  field1(:) = value
+
+where:
+
+* type(field_type), intent(out) :: *field*
+* real(r_def), intent(in) :: *value*
+
+.. note:: The field may be on any function space.
+
+setval_X
+++++++++++
+
+**setval_X** (*field2*, *field1*)
+
+Sets a field *field2* equal to field *field1*: ::
+
+  field2(:) = field1(:)
+
+where:
+
+* type(field_type), intent(out) :: *field2*
+* type(field_type), intent(in) :: *field1*
+
+Built-ins which raise field elements to an exponent are denoted with keywords
+*powreal* for real and *powint* for integer exponent.
+
+inc_X_powreal_a
++++++++++++
+
+**inc_X_powreal_a** (*field1*, *scalar*)
+
+Raises a field to a real scalar value and returns the field: ::
+
+  field1(:) = field1(:)**scalar
 
 where:
 
 * type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+* real(r_def), intent(in) :: *scalar*
 
-inc_X_plus_bY
-++++++++
-
-**inc_X_plus_bY** (*field1*, *b*, *field2*)
-
-Performs: ::
-
-  field1(:) = field1(:) + b*field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *b*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
+Built-ins which calculate inner product of two fields or of a field with itself
+are denoted with keyword *innerproduct*.
 
 X_innerproduct_Y
 +++++++++++++
@@ -1240,108 +1363,7 @@ where:
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
-X_minus_Y
-++++++++++++
-
-**X_minus_Y** (*field3*, *field1*, *field2*)
-
-Subtracts the second field from the first and stores the result in
-the third. *i.e.* performs the operation: ::
-  
-  field3(:) = field1(:) - field2(:)
-
-where:
-
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
-
-X_times_Y
-+++++++++++++++
-
-**X_times_Y** (*field3*, *field1*, *field2*)
-
-Multiplies two fields together and returns the result in a third field: ::
-
-  field3(:) = field1(:)*field2(:)
-
-where:
-
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*, *field2*
-
-inc_X_times_Y
-++++++++++++++++++
-
-**inc_X_times_Y** (*field1*, *field2*)
-
-Multiplies the first field by the second and returns it: ::
-
-  field1(:) = field1(:)*field2(:)
-
-where:
-
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
-
-X_plus_Y
-+++++++++++
-
-**X_plus_Y** (*field3*, *field1*, *field2*)
-
-Sums two fields: ::
-  
-  field3(:) = field1(:) + field2(:)
-
-where:
-
-* type(field_type), intent(out) :: *field3*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(in) :: *field2*
-
-inc_X_powreal_a
-+++++++++++
-
-**inc_X_powreal_a** (*field1*, *scalar*)
-
-Raises a field to a real scalar value and returns the field: ::
-
-  field1(:) = field1(:)**scalar
-
-where:
-
-* type(field_type), intent(inout) :: *field1*
-* real(r_def), intent(in) :: *scalar*
-
-inc_a_times_X
-+++++++++++
-
-**inc_a_times_X** (*scalar*, *field1*)
-
-Multiplies a field by a scalar value and returns the field: ::
-
-  field1(:) = scalar*field1(:)
-
-where:
-
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-
-setval_c
-++++++++++++++++
-
-**setval_c** (*field*, *value*)
-
-Sets all elements of the field *field* to the value *value*: ::
-
-  field1(:) = value
-
-where:
-
-* type(field_type), intent(out) :: *field*
-* real(r_def), intent(in) :: *value*
-
-.. note:: The field may be on any function space.
+Built-in which sums element of a field is denoted with keyword *sum*.
 
 sum_X
 +++++++++
