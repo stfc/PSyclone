@@ -219,11 +219,11 @@ class DynSumXKern(DynBuiltIn):
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
-class DynRaiseFieldKern(DynBuiltIn):
+class DynIncXPowrealAKern(DynBuiltIn):
     ''' Raise a field to an exponent and return it '''
 
     def __str__(self):
-        return "Built-in: raise a field to an exponent"
+        return "Built-in: raise a field to a real exponent"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -571,7 +571,7 @@ BUILTIN_MAP_F90 = {"aX_minus_Y": DynAXMinusYKern,
                    "X_minus_Y": DynXMinusYKern,
                    "X_times_Y": DynXTimesYKern,
                    "X_plus_Y": DynXPlusYKern,
-                   "raise_field": DynRaiseFieldKern,
+                   "inc_X_powreal_a": DynIncXPowrealAKern,
                    "inc_a_times_X": DynIncATimesXKern,
                    "setval_c": DynSetvalCKern,
                    "sum_X": DynSumXKern}

@@ -1299,12 +1299,12 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-raise_field
+inc_X_powreal_a
 +++++++++++
 
-**raise_field** (*field1*, *scalar*)
+**inc_X_powreal_a** (*field1*, *scalar*)
 
-Raises a field to a scalar value and returns the field: ::
+Raises a field to a real scalar value and returns the field: ::
 
   field1(:) = field1(:)**scalar
 

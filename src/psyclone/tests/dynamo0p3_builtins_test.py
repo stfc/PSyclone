@@ -1968,27 +1968,27 @@ def test_inc_a_times_X():
             assert output in code
 
 
-def test_raise_field_str():
-    ''' Test the str method of DynRaiseFieldKern '''
+def test_inc_X_powreal_astr():
+    ''' Test the str method of DynIncXPowrealAKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.3_raise_field_builtin.f90"),
+                         "15.2.3_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: raise a field to an exponent"
+        assert str(kern) == "Built-in: raise a field to a real exponent"
 
 
-def test_raise_field():
-    ''' Test that DynRaiseFieldKern generates correct code '''
+def test_inc_X_powreal_a():
+    ''' Test that DynIncXPowrealAKern generates correct code '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.3_raise_field_builtin.f90"),
+                         "15.2.3_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

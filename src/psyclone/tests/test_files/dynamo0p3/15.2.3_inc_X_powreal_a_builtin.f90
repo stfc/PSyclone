@@ -15,6 +15,6 @@ program single_invoke
   type(field_type) :: f1
   real(r_def) :: a_scalar
 
-  call invoke( raise_field(f1, a_scalar) )
+  call invoke( inc_X_powreal_a(f1, a_scalar) )
 
 end program single_invoke

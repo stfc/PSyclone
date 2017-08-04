@@ -238,7 +238,7 @@ module dynamo0p3_builtins_mod
   end type X_plus_Y
 
   !> field1 =  field1 ** ascalar
-  type, public, extends(kernel_type) :: raise_field
+  type, public, extends(kernel_type) :: inc_X_powreal_a
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                    &
@@ -246,8 +246,8 @@ module dynamo0p3_builtins_mod
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: raise_field_code
-  end type raise_field
+     procedure, nopass :: inc_X_powreal_a_code
+  end type inc_X_powreal_a
 
   !> field1 = ascalar * field1
   type, public, extends(kernel_type) :: inc_a_times_X
@@ -338,8 +338,8 @@ contains
   subroutine X_plus_Y_code()
   end subroutine X_plus_Y_code
 
-  subroutine raise_field_code()
-  end subroutine raise_field_code
+  subroutine inc_X_powreal_a_code()
+  end subroutine inc_X_powreal_a_code
 
   subroutine inc_a_times_X_code()
   end subroutine inc_a_times_X_code
