@@ -24,7 +24,7 @@ contains
 
     call precondition( z, res, precond_option, diagonal=mmd )
     call invoke( setval_X( p, z),  &
-                 inner_product( res, z, rs_old ) )
+                 X_innerproduct_Y( rs_old, res, z ) )
 
   end subroutine example
 

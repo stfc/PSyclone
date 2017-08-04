@@ -213,7 +213,7 @@ contains
 
     do iter = 1, MAX_ITER
 
-      call invoke( inner_product(cr, res, rho) )
+      call invoke( X_innerproduct_Y(rho, cr, res) )
       beta = (rho/norm) * (alpha/omega)
       const = -beta*omega
       call invoke( aX_plus_Y(t, const, v, res) )
@@ -224,7 +224,7 @@ contains
                    inc_aX_plus_Y(beta, p, s),              &
                    setval_c(v, 0.0_r_def),                 &
                    matrix_vector_kernel_mm_type(v, p, mm), &
-                   inner_product(cr, v, norm) )
+                   X_innerproduct_Y(norm, cr, v) )
 
       alpha = rho/norm
       const = -alpha
@@ -236,7 +236,7 @@ contains
                    setval_c(t, 0.0_r_def),                  &
                    matrix_vector_kernel_mm_type(t, cs, mm), &
                    inner_self_product(t, tt),               &
-                   inner_product(t, s, ts) )
+                   X_innerproduct_Y(ts, t, s) )
 
       omega = ts/tt
       const = -omega
@@ -339,7 +339,7 @@ contains
       call invoke( name = "CG_iterloop_group1",             &
                    setval_c(Ap, 0.0_r_def),                 &
                    matrix_vector_kernel_mm_type(Ap, p, mm), &
-                   inner_product(p, Ap, rs_new) )
+                   X_innerproduct_Y(rs_new, p, Ap) )
 
       alpha = rs_old/rs_new
       const = -alpha
@@ -525,7 +525,7 @@ contains
         call preconditioner( w, s, NO_PRE_COND )
 
         do k = 1, j
-          call invoke( inner_product(v(k), w, h(k,j)) )
+          call invoke( X_innerproduct_Y(h(k,j), v(k), w) )
           const = -h(k,j)
           call invoke( inc_X_plus_bY(w, const, v(k)) )
         end do
@@ -679,7 +679,7 @@ contains
                      matrix_vector_kernel_mm_type(v(m), s(m), mm) )
 
         do n = 1, m-1
-          call invoke( inner_product(v(m), v(n), alpha) )
+          call invoke( X_innerproduct_Y(alpha, v(m), v(n)) )
           const = -alpha
           call invoke( name = "GCR_iterloop_group2",      &
                        inc_X_plus_bY( v(m), const, v(n)), &
@@ -692,7 +692,7 @@ contains
         call invoke( name = "GCR_iterloop_group3", &
                      inc_a_times_X(const, v(m)),   &
                      inc_a_times_X(const, s(m)),   &
-                     inner_product(r, v(m), alpha) )
+                     X_innerproduct_Y(alpha, r, v(m)) )
 
         const = -alpha
         call invoke( name = "GCR_iterloop_group4",     &
