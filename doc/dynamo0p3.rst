@@ -1215,26 +1215,26 @@ Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
 
 where:
 
-* type(field_type), intent(in) :: *field1*, *field2*
 * real(r_def), intent(out) :: *innprod*
+* type(field_type), intent(in) :: *field1*, *field2*
 
 .. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
-inner_self_product
+X_innerproduct_X
 ++++++++++++++++++
 
-**inner_self_product** (*field1*, *sumval*)
+**X_innerproduct_X** (*innprod*, *field1*)
 
 Computes the inner product of the field *field1* by itself, *i.e.*: ::
 
-  sumval = SUM(field1(:)*field1(:))
+  innprod = SUM(field1(:)*field1(:))
 
 where:
 
+* real(r_def), intent(out) :: *innprod*
 * type(field_type), intent(in) :: *field1*
-* real(r_def), intent(out) :: *sumval*
 
 .. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the

@@ -187,16 +187,16 @@ module dynamo0p3_builtins_mod
   end type X_innerproduct_Y
 
   !> sum = sum + field1(i,j,..) * field1(i,j,...)
-  type, public, extends(kernel_type) :: inner_self_product
+  type, public, extends(kernel_type) :: X_innerproduct_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_REAL,  GH_SUM              )                    &
+          arg_type(GH_REAL,  GH_SUM              ),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
           /)
      integer :: iterates_over = DOFS
    contains
-     procedure, nopass :: inner_self_product_code
-  end type inner_self_product
+     procedure, nopass :: X_innerproduct_X_code
+  end type X_innerproduct_X
 
   !> field3 = field1 - field2
   type, public, extends(kernel_type) :: X_minus_Y
@@ -326,8 +326,8 @@ contains
   subroutine X_innerproduct_Y_code()
   end subroutine X_innerproduct_Y_code
 
-  subroutine inner_self_product_code()
-  end subroutine inner_self_product_code
+  subroutine X_innerproduct_X_code()
+  end subroutine X_innerproduct_X_code
 
   subroutine X_minus_Y_code()
   end subroutine X_minus_Y_code

@@ -15,6 +15,6 @@ program single_invoke
   type(field_type) :: f1
   real(r_def) :: asum
 
-  call invoke( inner_self_product(f1, asum) )
+  call invoke( X_innerproduct_X(asum, f1) )
 
 end program single_invoke

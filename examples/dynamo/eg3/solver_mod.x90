@@ -162,7 +162,7 @@ contains
     type(function_space_type)          :: fs
 
     ! Compute the residual this is a global sum to the PSy ---
-    call invoke( inner_self_product(rhs, sc_err) )
+    call invoke( X_innerproduct_X(sc_err, rhs) )
     sc_err = max(sqrt(sc_err), 0.1_r_def)
     write( log_scratch_space, '(A,E15.8)' ) &
          "Solver_algorithm: BICGstab starting ... ||b|| = ", sc_err
@@ -179,7 +179,7 @@ contains
 
     call invoke( name = "BICG_group2",   &
                  X_minus_Y(res, rhs, v), &
-                 inner_self_product(res, err) )
+                 X_innerproduct_X(err, res) )
 
     err = sqrt(err)/sc_err
     init_err=err
@@ -235,7 +235,7 @@ contains
       call invoke( name = "BICG_iterloop_group2",           &
                    setval_c(t, 0.0_r_def),                  &
                    matrix_vector_kernel_mm_type(t, cs, mm), &
-                   inner_self_product(t, tt),               &
+                   X_innerproduct_X(tt, t),                 &
                    X_innerproduct_Y(ts, t, s) )
 
       omega = ts/tt
@@ -248,7 +248,7 @@ contains
       norm = rho
 
       ! Check for convergence
-      call invoke( inner_self_product(res, err) )
+      call invoke( X_innerproduct_X(err, res) )
       err = sqrt(err)/sc_err
 
       write( log_scratch_space, '(A,I2,A, E15.8)' ) "solver_algorithm[", iter, &
@@ -302,7 +302,7 @@ contains
     integer                            :: rhs_fs
     type(function_space_type)          :: fs
 
-    call invoke( inner_self_product(rhs, rs_old) )
+    call invoke( X_innerproduct_X(rs_old, rhs) )
 
     ! Compute the residual this is a global sum to the PSy ---
 
@@ -318,7 +318,7 @@ contains
                  matrix_vector_kernel_mm_type(Ap, lhs, mm), &
                  X_minus_Y(res, rhs, Ap),                   &
                  setval_X(p, res),                          &
-                 inner_self_product(res, rs_old) )
+                 X_innerproduct_X(rs_old, res) )
 
     err = sqrt(rs_old)
     sc_err = max(err, 0.1_r_def)
@@ -348,7 +348,7 @@ contains
                    inc_X_plus_bY(lhs, alpha, p),  &
                    inc_X_plus_bY(res, const, Ap), & 
       ! Check for convergence
-                   inner_self_product(res, err) )
+                   X_innerproduct_X(err, res) )
       err = sqrt(rs_new)/sc_err
 
       write( log_scratch_space, '(A, I2, A, E15.8)' ) &
@@ -481,7 +481,7 @@ contains
       v(iter) = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
     end do
 
-    call invoke( inner_self_product(rhs, err) )
+    call invoke( X_innerproduct_X(err, rhs) )
     sc_err = max( sqrt(err), 0.01_r_def )
     init_err = sc_err
 
@@ -499,7 +499,7 @@ contains
                  matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                  X_minus_Y(r, rhs, Ax),                     &
                  setval_X(s, r),                            &
-                 inner_self_product(s, err) )
+                 X_innerproduct_X(err, s) )
 
     beta = sqrt(err)
 
@@ -529,7 +529,7 @@ contains
           const = -h(k,j)
           call invoke( inc_X_plus_bY(w, const, v(k)) )
         end do
-        call invoke( inner_self_product(w, err) )
+        call invoke( X_innerproduct_X(err, w) )
         h(j+1,j) = sqrt( err )
         if( j < GCRk ) then
           const = 1.0_r_def/h(j+1,j)
@@ -574,7 +574,7 @@ contains
                    setval_c(Ax, 0.0_r_def),                   &
                    matrix_vector_kernel_mm_type(Ax, lhs, mm), &
                    X_minus_Y(r, rhs, Ax),                     &
-                   inner_self_product(r, err) )
+                   X_innerproduct_X(err, r) )
 
       beta = sqrt(err)
 
@@ -651,7 +651,7 @@ contains
 
       v(iter)  = field_type(vector_space = fs%get_instance(mesh, rhs_fs) )
     end do
-    call invoke( inner_self_product(rhs, err) )
+    call invoke( X_innerproduct_X(err, rhs) )
     sc_err = max( sqrt(err), 0.01_r_def )
     init_err = sc_err
 
@@ -685,7 +685,7 @@ contains
                        inc_X_plus_bY( v(m), const, v(n)), &
                        inc_X_plus_bY( s(m), const, s(n)) )
         end do
-        call invoke( inner_self_product(v(m), err) )
+        call invoke( X_innerproduct_X(err, v(m)) )
 
         alpha = sqrt(err)
         const = 1.0_r_def/alpha
@@ -700,7 +700,7 @@ contains
                      inc_X_plus_bY( r, const, v(m)) )
       end do
 
-      call invoke( inner_self_product(r, err) )
+      call invoke( X_innerproduct_X(err, r) )
       err = sqrt( err )/sc_err
       if( err <  SOLVER_TOL ) then
         write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &

@@ -3452,9 +3452,9 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert len(schedule.reductions(reprod=not reprod)) == 0
             assert len(schedule.reductions()) == 1
-            from psyclone.dynamo0p3_builtins import DynXInnerproductXKern
+            from psyclone.dynamo0p3_builtins import DynXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               DynXInnerproductXKern))
+                               DynXInnerproductYKern))
 
 
 def test_list_multiple_reductions():

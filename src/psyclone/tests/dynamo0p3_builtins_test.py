@@ -2024,7 +2024,7 @@ def test_raise_field():
 
 
 def test_X_innerproduct_Y_str():
-    ''' Test the str method of DynXInnerproductXKern '''
+    ''' Test the str method of DynXInnerproductYKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2112,28 +2112,28 @@ def test_X_innerproduct_Y():
             assert "      TYPE(scalar_type) global_sum\n" in code
 
 
-def test_innerselfprod_str():
-    ''' Test the str method of DynInnerSelfProductKern '''
+def test_X_innerproduct_X_str():
+    ''' Test the str method of DynXInnerproductXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.1_inner_self_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: inner_self_product"
+        assert str(kern) == "Built-in: X_innerproduct_X"
 
 
-def test_innerselfprod():
+def test_X_innerproduct_X():
     ''' Test that we produce correct code for the inner product of
     a vector by itself built-in '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.1_inner_self_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
