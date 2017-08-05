@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2015.
@@ -9,13 +10,17 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (addition of fields)
+  ! Description: single point-wise operation (X = aX + bY)
   ! specified in an invoke call
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1, f2
+  real(r_def) :: a, b
 
-  call invoke( X_plus_Y(f3, f1, f2) )
+  a = 0.5
+  b = 0.8
+  
+  call invoke( inc_aX_plus_bY(a, f1, b, f2) )
 
 end program single_invoke

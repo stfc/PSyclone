@@ -88,7 +88,7 @@ def test_builtin_write_and_inc():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_aX_plus_bY"
-    test_builtin_file = "15.8.2_" + test_builtin_name + "_invoke.f90"
+    test_builtin_file = "15.1.7_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -111,7 +111,7 @@ def test_builtin_sum_and_inc():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_aX_plus_Y"
-    test_builtin_file = "15.4_" + test_builtin_name + "_invoke.f90"
+    test_builtin_file = "15.1.4_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -135,7 +135,7 @@ def test_builtin_zero_writes(monkeypatch):
     # has no argument that is written to.
     # Define the built-in name and test file
     test_builtin_name = "aX_plus_bY"
-    test_builtin_file = "15.8.0_" + test_builtin_name + "_invoke.f90"
+    test_builtin_file = "15.1.6_" + test_builtin_name + "_builtin.f90"
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "invalid_builtins_mod.f90"))
@@ -810,7 +810,7 @@ def test_X_plus_Y_str():
     ''' Test that the str method of DynXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.0_X_plus_Y_invoke.f90"),
+                                        "15.1.1_X_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -824,7 +824,7 @@ def test_X_plus_Y():
     ''' Test that the str method of DynXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.0_X_plus_Y_invoke.f90"),
+                                        "15.1.1_X_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1080,7 +1080,7 @@ def test_aX_plus_Y_field_str():
     ''' Test that the str method of DynAXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3_aX_plus_Y_invoke.f90"),
+                                        "15.1.3_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1094,7 +1094,7 @@ def test_aX_plus_Y():
     ''' Test that we generate correct code for the builtin
     operation f = a*x + y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3_aX_plus_Y_invoke.f90"),
+                                        "15.1.3_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1307,7 +1307,7 @@ def test_aX_minus_Y():
 def test_inc_aX_plus_Y_str():
     ''' Test the str method of DynIncAXPlusYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_aX_plus_Y_invoke.f90"),
+                                        "15.1.4_inc_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1321,7 +1321,7 @@ def test_inc_aX_plus_Y():
     ''' Test that we generate correct code for the built-in
     operation x = a*x + y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_aX_plus_Y_invoke.f90"),
+                                        "15.1.4_inc_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1386,7 +1386,7 @@ def test_inc_aX_plus_Y():
 def test_inc_X_plus_bY_str():
     ''' Test the str method of DynIncXPlusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.1_inc_X_plus_bY_invoke.f90"),
+                                        "15.1.5_inc_X_plus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1400,7 +1400,7 @@ def test_inc_X_plus_bY():
     ''' Test that we generate correct code for the built-in
     operation x = x + b*y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.1_inc_X_plus_bY_invoke.f90"),
+                                        "15.1.5_inc_X_plus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1466,7 +1466,7 @@ def test_aX_plus_bY_field_str():
     ''' Test that the str method of DynAXPlusBYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_aX_plus_bY_invoke.f90"),
+                                        "15.1.6_aX_plus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1480,7 +1480,7 @@ def test_aX_plus_bY():
     ''' Test that we generate correct code for the builtin
     operation f = a*x + b*y where 'a' and 'b' are scalars '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_aX_plus_bY_invoke.f90"),
+                                        "15.1.6_aX_plus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1613,7 +1613,7 @@ def test_inc_aX_plus_bY_str():
     ''' Test the str method of DynIncAXPlusBYKern '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.8.2_inc_aX_plus_bY_invoke.f90"),
+                     "15.1.7_inc_aX_plus_bY_builtin.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1629,7 +1629,7 @@ def test_inc_aX_plus_bY():
     scalars. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.8.2_inc_aX_plus_bY_invoke.f90"),
+                     "15.1.7_inc_aX_plus_bY_builtin.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1735,7 +1735,7 @@ def test_inc_X_plus_Y_str():
     expected string '''
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "15.7.0_inc_X_plus_Y_invoke.f90"),
+                                            "15.1.2_inc_X_plus_Y_builtin.f90"),
                                distributed_memory=distmem,
                                api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1751,7 +1751,7 @@ def test_inc_X_plus_Y():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.7.0_inc_X_plus_Y_invoke.f90"),
+                         "15.1.2_inc_X_plus_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
