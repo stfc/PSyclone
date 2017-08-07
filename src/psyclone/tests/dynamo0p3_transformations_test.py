@@ -1647,7 +1647,7 @@ def test_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1687,7 +1687,7 @@ def test_reduction_real_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2834,7 +2834,7 @@ def test_reprod_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2856,7 +2856,7 @@ def test_reprod_reduction_real_do():
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3435,7 +3435,7 @@ def test_reductions_reprod():
         for distmem in [True, False]:
             _, invoke_info = parse(
                 os.path.join(BASE_PATH,
-                             "15.9.0_X_innerproduct_Y_invoke.f90"),
+                             "15.9.1_X_innerproduct_Y_builtin.f90"),
                 distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory("dynamo0.3",
@@ -3466,7 +3466,7 @@ def test_list_multiple_reductions():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

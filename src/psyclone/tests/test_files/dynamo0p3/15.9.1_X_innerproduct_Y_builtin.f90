@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2015.
@@ -9,7 +10,8 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation specified in an invoke call
+  ! Description: single point-wise operation (inner product of two fields)
+  ! specified in an invoke call
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none

@@ -2028,7 +2028,7 @@ def test_X_innerproduct_Y_str():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2043,7 +2043,7 @@ def test_X_innerproduct_Y():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_X_innerproduct_Y_invoke.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2117,7 +2117,7 @@ def test_X_innerproduct_X_str():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.1_X_innerproduct_X_builtin.f90"),
+                         "15.9.2_X_innerproduct_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2133,7 +2133,7 @@ def test_X_innerproduct_X():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.1_X_innerproduct_X_builtin.f90"),
+                         "15.9.2_X_innerproduct_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
