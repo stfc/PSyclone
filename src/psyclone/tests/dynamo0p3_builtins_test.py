@@ -413,7 +413,7 @@ def test_builtin_set_by_ref():
     set operation with a scalar passed by reference '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.0.1_single_builtin_set_by_ref.f90"),
+                     "15.13.1_single_builtin_set_by_ref.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
