@@ -1699,7 +1699,7 @@ def test_X_times_Y_on_different_spaces():  # pylint: disable=invalid-name
     two fields that are on different spaces '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.3.3_X_times_Y_different_spaces.f90"),
+                     "15.11.2_X_times_Y_different_spaces.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
@@ -1717,7 +1717,7 @@ def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.3.1_X_times_Y_deduce_space.f90"),
+                         "15.11.1_X_times_Y_deduce_space.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
