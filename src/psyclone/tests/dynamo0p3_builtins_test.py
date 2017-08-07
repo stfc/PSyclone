@@ -202,7 +202,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "inc_X_divideby_Y"
-    test_builtin_file = "15.6.1_" + test_builtin_name + "_invoke.f90"
+    test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
@@ -878,7 +878,7 @@ def test_X_divideby_Y_str():
     ''' Test that the str method of DynXDividebyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.0_X_divideby_Y_invoke.f90"),
+                                        "15.5.1_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -892,7 +892,7 @@ def test_X_divideby_Y():
     ''' Test that we generate correct code for the divide fields
     infrastructure kernel '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.0_X_divideby_Y_invoke.f90"),
+                                        "15.5.1_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -946,7 +946,7 @@ def test_inc_X_divideby_Y_str():
     ''' Test that the str method of DynIncXDividebyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_inc_X_divideby_Y_invoke.f90"),
+                                        "15.5.2_inc_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -960,7 +960,7 @@ def test_inc_X_divideby_Y():
     ''' Test that we generate correct code for the divide field
     infrastructure kernel (x = x/y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_inc_X_divideby_Y_invoke.f90"),
+                                        "15.5.2_inc_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
