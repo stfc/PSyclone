@@ -65,7 +65,8 @@ def test_builtin_multiple_writes():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "aX_plus_Y"
-    test_builtin_file = "15.3.2_" + test_builtin_name + "_invoke_by_value.f90"
+    test_builtin_file = "15.14.1_" + test_builtin_name + 
+                        "_builtin_set_by_value.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1161,7 +1162,7 @@ def test_aX_plus_Y_by_value():
     ''' Test that we generate correct code for the builtin
     operation y = a*x + y when a is passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.2_aX_plus_Y_invoke_by_value.f90"),
+                                        "15.14.1_aX_plus_Y_builtin_set_by_value.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1547,7 +1548,7 @@ def test_aX_plus_bY_by_value():
     ''' Test that we generate correct code for the builtin
     operation z = a*x + b*y when a and b are passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.1_aX_plus_bY_invoke_by_value.f90"),
+                                        "15.14.2_aX_plus_bY_builtin_set_by_value.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
