@@ -155,7 +155,7 @@ def test_builtin_no_field_args():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
-    test_builtin_file = "15.6.2_" + test_builtin_name + "_builtin.f90"
+    test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -667,7 +667,7 @@ def test_copy_str():
     ''' Check that the str method of DynSetvalXKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.2_setval_X_builtin.f90"),
+                                        "15.7.2_setval_X_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -681,7 +681,7 @@ def test_copy():
     ''' Tests that we generate correct code for a builtin
     copy field operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.2_setval_X_builtin.f90"),
+                                        "15.7.2_setval_X_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

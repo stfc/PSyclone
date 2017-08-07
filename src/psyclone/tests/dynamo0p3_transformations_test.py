@@ -1283,7 +1283,7 @@ def test_builtin_single_OpenMP_pdo():
     applied to a single builtin'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.6.2_setval_X_builtin.f90"),
+                                     "15.7.2_setval_X_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1450,7 +1450,7 @@ def test_builtin_single_OpenMP_do():
     OpenMP parallel) is applied to a single builtin '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.6.2_setval_X_builtin.f90"),
+                                     "15.7.2_setval_X_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
