@@ -1543,7 +1543,7 @@ def test_openmp_pdo_dag_name():
     '''Test that we generate the correct dag name for the OpenMP parallel
     do node'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.2.0_setval_X_invoke.f90"),
+                                 "15.6.2_setval_X_builtin.f90"),
                     api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
