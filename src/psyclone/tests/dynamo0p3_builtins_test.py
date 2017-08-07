@@ -178,7 +178,7 @@ def test_builtin_operator_arg():
     # various invalid definitions
     # Define the built-in name and test file
     test_builtin_name = "a_times_X"
-    test_builtin_file = "15.2.1_" + test_builtin_name + "_invoke.f90"
+    test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
@@ -1014,7 +1014,7 @@ def test_a_times_X_str():
     expected string '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.2.1_a_times_X_invoke.f90"),
+                     "15.4.1_a_times_X_builtin.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1029,7 +1029,7 @@ def test_a_times_X():
     (y = a*x) built-in '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.2.1_a_times_X_invoke.f90"),
+                     "15.4.1_a_times_X_builtin.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1918,7 +1918,7 @@ def test_inc_a_times_X_str():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.2_inc_a_times_X_invoke.f90"),
+                         "15.4.2_inc_a_times_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1933,7 +1933,7 @@ def test_inc_a_times_X():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.2_inc_a_times_X_invoke.f90"),
+                         "15.4.2_inc_a_times_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
