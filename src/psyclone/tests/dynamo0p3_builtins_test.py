@@ -742,7 +742,7 @@ def test_subtract_fields_str():
     ''' Test that the str method of DynXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.0_X_minus_Y_invoke.f90"),
+                                        "15.2.1_X_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -756,7 +756,7 @@ def test_subtract_fields():
     ''' Test that the str method of DynXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.0_X_minus_Y_invoke.f90"),
+                                        "15.2.1_X_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1227,7 +1227,7 @@ def test_aX_minus_Y_field_str():
     ''' Test that the str method of DynAXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.5_aX_minus_Y_invoke.f90"),
+                                        "15.2.2_aX_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1241,7 +1241,7 @@ def test_aX_minus_Y():
     ''' Test that we generate correct code for the builtin
     operation f = a*x - y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.5_aX_minus_Y_invoke.f90"),
+                                        "15.2.2_aX_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
