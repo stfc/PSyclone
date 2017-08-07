@@ -2206,7 +2206,7 @@ def test_sumfield_str():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.10.0_sum_X_builtin.f90"),
+                         "15.8.1_sum_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2221,7 +2221,7 @@ def test_sumfield():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.10.0_sum_X_builtin.f90"),
+                         "15.8.1_sum_X_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
