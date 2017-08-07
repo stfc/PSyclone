@@ -1792,7 +1792,7 @@ def test_X_times_Y_str():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.3.0_X_times_Y_invoke.f90"),
+                         "15.3.1_X_times_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1808,7 +1808,7 @@ def test_X_times_Y():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.3.0_X_times_Y_invoke.f90"),
+                         "15.3.1_X_times_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1848,8 +1848,8 @@ def test_inc_X_times_Y_str():
     ''' Test that the str method of DynIncXTimesYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        (r"15.3.4_"
-                                         r"inc_X_times_Y_invoke.f90")),
+                                        (r"15.3.2_"
+                                         r"inc_X_times_Y_builtin.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -1863,8 +1863,8 @@ def test_inc_X_times_Y():
     ''' Test that we generate correct code for the multiply field
     infrastructure kernel (x = x*y) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        (r"15.3.4_"
-                                         r"inc_X_times_Y_invoke.f90")),
+                                        (r"15.3.2_"
+                                         r"inc_X_times_Y_builtin.f90")),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
