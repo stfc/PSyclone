@@ -1973,7 +1973,7 @@ def test_inc_X_powreal_astr():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.3_inc_X_powreal_a_builtin.f90"),
+                         "15.6.2_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1988,7 +1988,7 @@ def test_inc_X_powreal_a():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.2.3_inc_X_powreal_a_builtin.f90"),
+                         "15.6.2_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
