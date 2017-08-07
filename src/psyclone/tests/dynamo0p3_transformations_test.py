@@ -285,7 +285,7 @@ def test_no_colour_dofs():
     cells. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "15_single_pointwise_invoke.f90"),
+                                 "15.12.3_single_pointwise_builtin.f90"),
                     api=TEST_API)
     ctrans = Dynamo0p3ColourTrans()
     for dist_mem in [False, True]:

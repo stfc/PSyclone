@@ -32,7 +32,7 @@ def test_dynbuiltin_missing_defs():
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15_single_pointwise_invoke.f90"),
+                                  "15.12.3_single_pointwise_builtin.f90"),
                      api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     assert ("broken' containing the meta-data describing the "
@@ -46,7 +46,7 @@ def test_dynbuiltin_not_over_dofs():
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     # Restore the original file name before doing the assert in case
     # it fails
@@ -251,7 +251,7 @@ def test_invalid_builtin_kernel():
     built-in is specified in the algorithm layer '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.0.0_invalid_builtin_kernel.f90"),
+                                  "15.12.1_invalid_builtin_kernel.f90"),
                      api="dynamo0.3")
     assert ("kernel call 'setva_c' must either be named in a "
             "use statement or be a recognised built-in" in
@@ -263,7 +263,7 @@ def test_dynbuiltin_str():
     method on the parent DynBuiltIn class '''
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [True, False]:
         psy = PSyFactory("dynamo0.3",
@@ -280,7 +280,7 @@ def test_dynbuiltin_gen_code():
     method on the parent DynBuiltIn class '''
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -296,7 +296,7 @@ def test_dynbuiltin_cma():
     ''' Check that a DynBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -336,7 +336,7 @@ def test_builtin_set_str():
     ''' Check that the str method of DynSetvalCKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -350,7 +350,7 @@ def test_builtin_set():
     ''' Tests that we generate correct code for a serial builtin
     set operation with a scalar passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

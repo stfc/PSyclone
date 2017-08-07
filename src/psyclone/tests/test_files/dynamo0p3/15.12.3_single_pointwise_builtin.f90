@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2015.
@@ -6,18 +7,24 @@
 !-------------------------------------------------------------------------------
 ! Author A. R. Porter STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
+
 program single_invoke
 
-  ! Description: single point-wise set operation with mis-spelt name
+  ! Description: single point-wise operation specified in an invoke call.
+  ! Check that we raise an appropriate error for mising definitions.
+
+  use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1
-  real(r_def) :: fred
 
-  fred = 20.1_r_def
-
-  call invoke(           &
-       setva_c(f1, fred) &
-          )
+  call invoke( setval_c(f1, 0.0) )
 
 end program single_invoke
+
+subroutine expected_code(fld, value)
+        do df1 = 1, ndf_w3
+           idx = ((cell-1)*nlayers + (k-1))*ndf_w3 + df1
+           fld(idx) = value
+        end do
+end subroutine expected_code

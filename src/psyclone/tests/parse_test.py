@@ -116,7 +116,7 @@ def test_builtin_with_use():
         _, _ = parse(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3",
-                         "15.0.3_builtin_with_use.f90"),
+                         "15.12.2_builtin_with_use.f90"),
             api="dynamo0.3")
     assert ("A built-in cannot be named in a use statement but "
             "'setval_c' is used from module 'fake_builtin_mod' in "
