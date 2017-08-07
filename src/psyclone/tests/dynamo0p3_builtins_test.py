@@ -65,7 +65,7 @@ def test_builtin_multiple_writes():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "aX_plus_Y"
-    test_builtin_file = "15.14.1_" + test_builtin_name + 
+    test_builtin_file = "15.14.1_" + test_builtin_name + \
                         "_builtin_set_by_value.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
