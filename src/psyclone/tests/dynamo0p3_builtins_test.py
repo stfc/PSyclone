@@ -664,7 +664,81 @@ def test_builtin_set_plus_normal():
             assert output_dm_2 in code
 
 
-def test_copy_str():
+def test_setval_c_str():
+    ''' Check that the str method of DynSetvalCKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.1_setval_c_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Set field to a scalar value"
+
+
+def test_setval_c():
+    ''' Tests that we generate correct code for a builtin
+    setting field to a constant scalar value '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.1_setval_c_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f1, c)\n"
+                "      REAL(KIND=r_def), intent(in) :: c\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = c\n"
+                "      END DO")
+            assert output in code
+        if distmem:
+            mesh_code_present("f1",code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = c\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_setval_X_str():
     ''' Check that the str method of DynSetvalXKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -678,7 +752,7 @@ def test_copy_str():
         assert str(kern) == "Built-in: Set a field equal to another field"
 
 
-def test_copy():
+def test_setval_X():
     ''' Tests that we generate correct code for a builtin
     copy field operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
