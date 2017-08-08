@@ -10,8 +10,8 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (set field values to another field) 
-  ! specified in an invoke call
+  ! Description: single point-wise operation (set field values to another field)
+  ! specified in an invoke call.
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none

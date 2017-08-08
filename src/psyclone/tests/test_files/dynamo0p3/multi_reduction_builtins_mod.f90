@@ -7,8 +7,8 @@
 !-------------------------------------------------------------------------------
 ! Modified I. Kavcic Met Office
 !
-!>@brief Meta-data for the Dynamo 0.3 built-in operations.
-!>@details This meta-data is broken for testing purposes
+!> @brief Meta-data for the Dynamo 0.3 built-in operations.
+!> @details This meta-data is broken for testing purposes.
 module dynamo0p3_builtins_mod
   !> Fake built-in that purports to do two reductions
   type, public, extends(kernel_type) :: X_innerproduct_Y

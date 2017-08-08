@@ -17,7 +17,6 @@ program single_invoke
   implicit none
   type(field_type) :: f1, f2, f3
 
-
   call invoke( aX_plus_Y(f3, 0.5_r_def, f1, f2) )
 
 end program single_invoke

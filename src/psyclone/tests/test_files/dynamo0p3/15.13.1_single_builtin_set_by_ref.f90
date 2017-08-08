@@ -11,7 +11,7 @@
 program single_invoke
 
   ! Description: single point-wise set operation specified in an invoke call
-  ! with the scalar value passed by reference
+  ! with the scalar value passed by reference.
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none

@@ -11,7 +11,7 @@
 program single_invoke
 
   ! Description: single built-in operation (divide field by another field)
-  ! specified in an invoke call
+  ! specified in an invoke call.
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none

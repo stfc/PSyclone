@@ -12,7 +12,6 @@ program single_invoke
 
   ! Description: single point-wise operation specified in an invoke call.
   ! Check that we raise an appropriate error for mising definitions.
-
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none

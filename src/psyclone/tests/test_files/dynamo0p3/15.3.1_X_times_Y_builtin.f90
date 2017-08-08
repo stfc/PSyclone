@@ -11,7 +11,7 @@
 program single_invoke
 
   ! Description: single point-wise operation (multiplication of a field
-  ! by another field) specified in an invoke call
+  ! by another field) specified in an invoke call.
   use testkern_fs, only: testkern_fs_type
   use inf,         only: field_type
   implicit none

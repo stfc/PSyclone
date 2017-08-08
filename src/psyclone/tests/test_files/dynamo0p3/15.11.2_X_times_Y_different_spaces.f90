@@ -11,7 +11,7 @@
 program single_invoke
 
   ! Description: multiply-field point-wise operation specified in an invoke call
-  ! where the supplied fields can be deduced to be on different spaces
+  ! where the supplied fields can be deduced to be on different spaces.
   use testkern_fs, only: testkern_fs_type
   use inf,         only: field_type
   implicit none

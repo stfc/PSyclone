@@ -10,7 +10,7 @@
 program single_invoke
 
   ! Description: single point-wise operation (inner product of one field by
-  ! itself) specified in an invoke call
+  ! itself) specified in an invoke call.
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none

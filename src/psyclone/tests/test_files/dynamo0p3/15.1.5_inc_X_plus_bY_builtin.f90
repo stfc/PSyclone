@@ -9,8 +9,8 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (X = X + bY) 
-  ! specified in an invoke call
+  ! Description: single point-wise operation (X = X + bY)
+  ! specified in an invoke call.
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
