@@ -2287,7 +2287,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.15.0_builtins_reduction_fuse_error.f90"),
+                         "15.19.1_builtins_reduction_fuse_error.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

@@ -1,3 +1,4 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
 ! Met Office and NERC 2015.
@@ -9,13 +10,14 @@
 
 program single_invoke
 
-  ! Description: two different builtin reductions specified in an invoke call
+  ! Description: two different builtin reductions specified in an invoke call.
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2
   real(r_def) :: asum, bsum
 
   call invoke( X_innerproduct_Y(asum, f1, f2), &
-               sum_X(bsum, f1) )
+               inc_a_times_X(asum, f1),     &
+               sum_X(bsum, f2) )
 
 end program single_invoke
