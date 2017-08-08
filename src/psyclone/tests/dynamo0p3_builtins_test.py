@@ -475,7 +475,7 @@ def test_multiple_builtin_set():
     ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.0.2_multiple_set_kernels.f90"),
+                                        "15.15.2_multiple_set_kernels.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory(
@@ -575,7 +575,7 @@ def test_builtin_set_plus_normal():
     set operation when the invoke also contains a normal kernel '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.1_builtin_and_normal_kernel_invoke.f90"),
+                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
 
     for distmem in [False, True]:

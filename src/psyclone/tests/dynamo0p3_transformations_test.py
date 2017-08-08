@@ -1323,7 +1323,7 @@ def test_builtin_multiple_OpenMP_pdo():
     applied to multiple builtins'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.15.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1400,7 +1400,7 @@ def test_builtin_loop_fuse_pdo():
     is safe to loop fuse. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.15.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1499,7 +1499,7 @@ def test_builtin_multiple_OpenMP_do():
     applied to multiple builtins'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.15.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1586,7 +1586,7 @@ def test_builtin_loop_fuse_do():
     perform loop fusion. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.15.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -2812,7 +2812,7 @@ def test_loop_fuse_error():
     the loops has an any_space iteration space'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.15.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -3523,7 +3523,7 @@ def test_move_back():
     '''Test that MoveTrans moves the node backwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.15.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3546,7 +3546,7 @@ def test_move_back_after():
     '''Test that MoveTrans moves the node backwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.15.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3570,7 +3570,7 @@ def test_move_forward():
     '''Test that MoveTrans moves the node forwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.15.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3595,7 +3595,7 @@ def test_move_forward_after():
     '''Test that MoveTrans moves the node forwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.15.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3621,7 +3621,7 @@ def test_move_forward_after():
 def test_move_fail():
     '''Test that MoveTrans fails to move the node backwards and forwards
     if there is a dependence. '''
-    _, info = parse(os.path.join(BASE_PATH, "15.3.4_multi_aX_plus_Y_invoke.f90"),
+    _, info = parse(os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
