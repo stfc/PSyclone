@@ -183,11 +183,11 @@ class DynXPlusYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We add each element of f2 to the corresponding element of f1
         # and store the result in f3.
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=outvar_name,
-                             rhs=invar_name1 + " + " + invar_name2))
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name3,
+                             rhs=field_name1 + " + " + field_name2))
 
 
 class DynIncXPlusYKern(DynBuiltIn):
@@ -200,10 +200,10 @@ class DynIncXPlusYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We add each element of f1 to the corresponding element of f2
         # and store the result back in f1.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        parent.add(AssignGen(parent, lhs=invar_name1,
-                             rhs=invar_name1 + " + " + invar_name2))
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name1,
+                             rhs=field_name1 + " + " + field_name2))
 
 
 class DynAXPlusYKern(DynBuiltIn):
@@ -219,12 +219,12 @@ class DynAXPlusYKern(DynBuiltIn):
         # (2nd arg), add it to the corresponding
         # element of a second field (4th arg)  and write the value to the
         # corresponding element of field f3 (1st arg).
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[1].name
-        invar_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = scalar_name + "*" + invar_name1 + " + " + invar_name2
-        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = scalar_name + "*" + field_name1 + " + " + field_name2
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
 class DynIncAXPlusYKern(DynBuiltIn):
@@ -240,10 +240,10 @@ class DynIncAXPlusYKern(DynBuiltIn):
         # second field (3rd arg) and write the value back into
         # the element of field f1.
         scalar_name = self._arguments.args[0].name
-        fld_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        fld_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = scalar_name + "*" + fld_name1 + " + " + fld_name2
-        parent.add(AssignGen(parent, lhs=fld_name1, rhs=rhs_expr))
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = scalar_name + "*" + field_name1 + " + " + field_name2
+        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
 class DynIncXPlusBYKern(DynBuiltIn):
@@ -259,10 +259,10 @@ class DynIncXPlusBYKern(DynBuiltIn):
         # add it to the corresponding element of a first field f1 (1st arg)
         # and write the value back into the element of field f1.
         scalar_name = self._arguments.args[1].name
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = invar_name1 + " + " + scalar_name + "*" + invar_name2
-        parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = field_name1 + " + " + scalar_name + "*" + field_name2
+        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 
 
 class DynAXPlusBYKern(DynBuiltIn):
@@ -279,14 +279,14 @@ class DynAXPlusBYKern(DynBuiltIn):
         # element of a second field (5th arg) with the second scalar
         # (4th arg) and write the value to the corresponding element
         # of field f3 (1st arg).
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name3  = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name1 = self._arguments.args[1].name
         scalar_name2 = self._arguments.args[3].name
-        invar_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[4].proxy_name)
-        rhs_expr = (scalar_name1 + "*" + invar_name1 + " + " +
-                    scalar_name2 + "*" + invar_name2)
-        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
+        field_name1  = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2  = self.array_ref(self._arguments.args[4].proxy_name)
+        rhs_expr = (scalar_name1 + "*" + field_name1 + " + " +
+                    scalar_name2 + "*" + field_name2)
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 
 
 class DynIncAXPlusBYKern(DynBuiltIn):
@@ -304,11 +304,11 @@ class DynIncAXPlusBYKern(DynBuiltIn):
         # write the value back into the element of field f1.
         scalar_name1 = self._arguments.args[0].name
         scalar_name2 = self._arguments.args[2].name
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = (scalar_name1 + "*" + invar_name1 + " + " +
-                    scalar_name2 + "*" + invar_name2)
-        parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
+        field_name1  = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2  = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = (scalar_name1 + "*" + field_name1 + " + " +
+                    scalar_name2 + "*" + field_name2)
+        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 #---------------------------------------------------------------------#
 #=============== Subtracting (scaled) fields =========================#
 #---------------------------------------------------------------------#
@@ -323,11 +323,11 @@ class DynXMinusYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
         # of f1 and store the result in f3.
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        assign = AssignGen(parent, lhs=outvar_name,
-                           rhs=invar_name1 + " - " + invar_name2)
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        assign = AssignGen(parent, lhs=field_name3,
+                           rhs=field_name1 + " - " + field_name2)
         parent.add(assign)
 
 
@@ -344,12 +344,12 @@ class DynAXMinusYKern(DynBuiltIn):
         # (2nd arg), subtract it from the corresponding
         # element of a second field (4th arg)  and write the value to the
         # corresponding element of field f3 (1st arg).
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[1].name
-        invar_name1 = self.array_ref(self._arguments.args[2].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
-        rhs_expr = scalar_name + "*" + invar_name1 + " - " + invar_name2
-        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = scalar_name + "*" + field_name1 + " - " + field_name2
+        parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
 #---------------------------------------------------------------------#
 #=============== Multiplying (scaled) fields =========================#
 #---------------------------------------------------------------------#
@@ -364,11 +364,11 @@ class DynXTimesYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We subtract each element of f2 from the corresponding element
         # of f1 and store the result in f3.
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        assign = AssignGen(parent, lhs=outvar_name,
-                           rhs=invar_name1 + " * " + invar_name2)
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        assign = AssignGen(parent, lhs=field_name3,
+                           rhs=field_name1 + " * " + field_name2)
         parent.add(assign)
 
 
@@ -382,10 +382,10 @@ class DynIncXTimesYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We multiply each element of f1 by the corresponding element of
         # f2 and store the result back in f1.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        parent.add(AssignGen(parent, lhs=invar_name1,
-                             rhs=invar_name1 + " * " + invar_name2))
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name1,
+                             rhs=field_name1 + " * " + field_name2))
 #---------------------------------------------------------------------#
 #=============== Scaling fields ======================================#
 #---------------------------------------------------------------------#
@@ -400,11 +400,11 @@ class DynATimesXKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We multiply each element of f1 by the scalar argument and
         # store the result in f2.
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
         scalar_name = self._arguments.args[1].name
-        invar_name = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=outvar_name,
-                             rhs=scalar_name + " * " + invar_name))
+        field_name1 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name2,
+                             rhs=scalar_name + " * " + field_name1))
 
 
 class DynIncATimesXKern(DynBuiltIn):
@@ -417,10 +417,10 @@ class DynIncATimesXKern(DynBuiltIn):
         from f2pygen import AssignGen
         # In this case we're multiplying each element of a field by the
         # supplied scalar value.
-        var_name = self.array_ref(self._arguments.args[1].proxy_name)
-        value = self._arguments.args[0].name
-        parent.add(AssignGen(parent, lhs=var_name,
-                             rhs=value + "*" + var_name))
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        scalar_name = self._arguments.args[0].name
+        parent.add(AssignGen(parent, lhs=field_name1,
+                             rhs=scalar_name + "*" + field_name1))
 #---------------------------------------------------------------------#
 #=============== Dividing (scaled) fields ============================#
 #---------------------------------------------------------------------#
@@ -435,11 +435,11 @@ class DynXDividebyYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
         # f2 and store the result in f3.
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        parent.add(AssignGen(parent, lhs=outvar_name,
-                             rhs=invar_name1 + " / " + invar_name2))
+        field_name3 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name3,
+                             rhs=field_name1 + " / " + field_name2))
 
 
 class DynIncXDividebyYKern(DynBuiltIn):
@@ -452,10 +452,10 @@ class DynIncXDividebyYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We divide each element of f1 by the corresponding element of
         # f2 and store the result back in f1.
-        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        parent.add(AssignGen(parent, lhs=invar_name1,
-                             rhs=invar_name1 + " / " + invar_name2))
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name1,
+                             rhs=field_name1 + " / " + field_name2))
 #---------------------------------------------------------------------#
 #=============== Raising field to a scalar ===========================#
 #---------------------------------------------------------------------#
@@ -469,10 +469,10 @@ class DynIncXPowrealAKern(DynBuiltIn):
         from f2pygen import AssignGen
         # In this case we're raising each element of a field to a
         # supplied scalar value.
-        var_name = self.array_ref(self._arguments.args[0].proxy_name)
-        value = self._arguments.args[1].name
-        parent.add(AssignGen(parent, lhs=var_name,
-                             rhs=var_name + "**" + value))
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        real_power  = self._arguments.args[1].name
+        parent.add(AssignGen(parent, lhs=field_name1,
+                             rhs=field_name1 + "**" + real_power))
 #---------------------------------------------------------------------#
 #=============== Setting field elements to a value  ==================#
 #---------------------------------------------------------------------#
@@ -486,9 +486,9 @@ class DynSetvalCKern(DynBuiltIn):
         from f2pygen import AssignGen
         # In this case we're assigning a single scalar value to all
         # elements of a field.
-        var_name = self.array_ref(self._arguments.args[0].proxy_name)
-        value = self._arguments.args[1]
-        parent.add(AssignGen(parent, lhs=var_name, rhs=value))
+        field_name1  = self.array_ref(self._arguments.args[0].proxy_name)
+        scalar_value = self._arguments.args[1]
+        parent.add(AssignGen(parent, lhs=field_name1, rhs=scalar_value))
 
 
 class DynSetvalXKern(DynBuiltIn):
@@ -499,17 +499,17 @@ class DynSetvalXKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We copy one element of field A (second arg) to the
-        # corresponding element of field B (first arg).
-        outvar_name = self.array_ref(self._arguments.args[0].proxy_name)
-        invar_name = self.array_ref(self._arguments.args[1].proxy_name)
-        parent.add(AssignGen(parent, lhs=outvar_name, rhs=invar_name))
+        # We copy one element of field X (second arg) to the
+        # corresponding element of field Y (first arg).
+        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name2, rhs=field_name1))
 #---------------------------------------------------------------------#
 #=============== Inner product of fields =============================#
 #---------------------------------------------------------------------#
 class DynXInnerproductYKern(DynBuiltIn):
     ''' Calculates the inner product of two fields,
-    asum = SUM( field1(:)*field2(:) ) '''
+    innprod = SUM( field1(:)*field2(:) ) '''
 
     def __str__(self):
         return "Built-in: X_innerproduct_Y"
@@ -518,16 +518,16 @@ class DynXInnerproductYKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sum_name = self._reduction_ref(self._arguments.args[0].name)
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2
-        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+        innprod_name = self._reduction_ref(self._arguments.args[0].name)
+        field_name1  = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2  = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = innprod_name + "+" + field_name1 + "*" + field_name2
+        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
 class DynXInnerproductXKern(DynBuiltIn):
     ''' Calculates the inner product of one field by itself,
-    asum = SUM( field1(:)*field1(:) ) '''
+    innprod = SUM( field1(:)*field1(:) ) '''
 
     def __str__(self):
         return "Built-in: X_innerproduct_X"
@@ -536,10 +536,10 @@ class DynXInnerproductXKern(DynBuiltIn):
         from f2pygen import AssignGen
         # We sum the DoF-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sum_name = self._reduction_ref(self._arguments.args[0].name)
-        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name1
-        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+        innprod_name = self._reduction_ref(self._arguments.args[0].name)
+        field_name1  = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = innprod_name + "+" + field_name1 + "*" + field_name1
+        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 #---------------------------------------------------------------------#
 #=============== Sum field elements ==================================#
 #---------------------------------------------------------------------#
@@ -553,9 +553,9 @@ class DynSumXKern(DynBuiltIn):
         from f2pygen import AssignGen
         # Sum all the elements of a field. The variable holding the
         # sum is initialised to zero in the psy layer.
-        fld_name = self.array_ref(self._arguments.args[1].proxy_name)
-        sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = sum_name + "+" + fld_name
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        sum_name    = self._reduction_ref(self._arguments.args[0].name)
+        rhs_expr = sum_name + "+" + field_name1
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
