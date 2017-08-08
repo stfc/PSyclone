@@ -23,7 +23,31 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 # functions
-############### DynBuiltInCallFactory test #####################################
+############### DynBuiltInCallFactory tests ####################################
+
+def test_dynbuiltincallfactory_str():
+    ''' Check that the str method of DynBuiltInCallFactory works as
+    expected '''
+    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
+    dyninf = DynBuiltInCallFactory()
+    assert str(dyninf) == "Factory for a call to a Dynamo built-in"
+
+
+def test_dynbuiltin_wrong_name():
+    ''' Check that DynInfCallFactory.create() raises an error if it
+    doesn't recognise the name of the kernel it is passed '''
+    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
+    dyninf = DynBuiltInCallFactory()
+    # We use 'duck-typing' - rather than attempt to create a rather
+    # complex Kernel object we use a ParseError object and monkey
+    # patch it so that it has a func_name member.
+    fake_kern = ParseError("blah")
+    fake_kern.func_name = "pw_blah"
+    with pytest.raises(ParseError) as excinfo:
+        _ = dyninf.create(fake_kern)
+    assert ("Unrecognised built-in call. Found 'pw_blah' but "
+            "expected one of '[" in str(excinfo.value))
+
 
 def test_dynbuiltfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
@@ -1484,7 +1508,7 @@ def test_X_innerproduct_X():
 
 ############### Sum field elements ############################################
 # sumfld = sum(X(:))
-def test_sumfield_str():
+def test_sum_X_str():
     ''' Test the str method of DynSumXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1499,7 +1523,7 @@ def test_sumfield_str():
         assert str(kern) == "Built-in: sum a field"
 
 
-def test_sumfield():
+def test_sum_X():
     ''' Test that the DynSumXKern produces correct code '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1860,22 +1884,6 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
             "must be on the same space. However, found spaces ['any_space_2', "
             "'any_space_1'] for arguments to " + test_builtin_name.lower() in
             str(excinfo))
-
-
-def test_dynbuiltin_wrong_name():
-    ''' Check that DynInfCallFactory.create() raises an error if it
-    doesn't recognise the name of the kernel it is passed '''
-    from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-    dyninf = DynBuiltInCallFactory()
-    # We use 'duck-typing' - rather than attempt to create a rather
-    # complex Kernel object we use a ParseError object and monkey
-    # patch it so that it has a func_name member.
-    fake_kern = ParseError("blah")
-    fake_kern.func_name = "pw_blah"
-    with pytest.raises(ParseError) as excinfo:
-        _ = dyninf.create(fake_kern)
-    assert ("Unrecognised built-in call. Found 'pw_blah' but "
-            "expected one of '[" in str(excinfo.value))
 
 
 def test_scalar_int_builtin_error(monkeypatch):
