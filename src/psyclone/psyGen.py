@@ -2276,6 +2276,17 @@ class Argument(object):
         all_following_nodes = all_nodes[position+1:]
         return self._find_argument(all_following_nodes)
 
+    def forward_read_dependencies(self):
+        '''Returns a list of following read arguments that this argument has
+        dependencies with. The arguments may exist in a call, a
+        haloexchange, or a globalsum. If none are not found then
+        return an empty list. If self is not a writer then return an
+        empty list.'''
+        all_nodes = self._call.walk(self._call.root.children, Node)
+        position = all_nodes.index(self._call)
+        all_following_nodes = all_nodes[position+1:]
+        return self._find_read_arguments(all_following_nodes)
+
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a
         dependency with self. If one is not found return None'''
@@ -2287,6 +2298,28 @@ class Argument(object):
                     if self._depends_on(argument):
                         return argument
         return None
+
+    def _find_read_arguments(self, nodes):
+        '''Return a list of arguments from the list of nodes that have a read
+        dependency with self. If none are not found then return an
+        empty list. If self is not a writer then return an empty
+        list.'''
+        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
+                   MAPPING_REDUCTIONS["sum"]]
+        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        arguments = []
+        if self.access not in writers:
+            return arguments
+        for node in nodes:
+            if isinstance(node, Call) or isinstance(node, HaloExchange) \
+               or isinstance(node, GlobalSum):
+                for argument in node.args:
+                    if argument.name == self.name:
+                        if argument.access in readers:
+                            arguments.append(argument)
+                        if argument.access in writers:
+                            return arguments
+        return arguments
 
     def _depends_on(self, argument):
         '''If there is a dependency between the argument and self then return

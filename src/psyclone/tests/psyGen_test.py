@@ -910,6 +910,39 @@ def test_argument_find_argument():
     assert result == kern_asum_arg
 
 
+def test_argument_find_read_arguments():
+    '''Check that the find_read_arguments method returns the appropriate 
+    arguments in a list of nodes.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    # 1: returns [] if not a writer. f1 is read, not written.
+    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    call_nodes = schedule.calls()
+    assert f1_first_read._find_read_arguments(call_nodes) == []
+    # 2: return list of readers (f3 is written to and then read by
+    # three following calls)
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    result = f3_write._find_read_arguments(call_nodes[4:])
+    assert len(result) == 3
+    for idx in range(3):
+        assert result[idx] == schedule.children[idx+4].children[0].arguments.args[2]
+    # 3: Return empty list if no readers (f2 is written to but not
+    # read)
+    f2_write = schedule.children[0].children[0].arguments.args[3]
+    assert f2_write._find_read_arguments(call_nodes[1:]) == []
+    # 4: Return list of readers before a subsequent writer
+    f3_write = schedule.children[3].children[0].arguments.args[3]
+    result = f3_write._find_read_arguments(call_nodes)
+    assert len(result) == 3
+    for idx in range(3):
+        assert result[idx] == schedule.children[idx].children[0].arguments.args[2]
+
+
 @pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_globalsum_arg():
     '''Check that the globalsum argument is defined as gh_readwrite and
