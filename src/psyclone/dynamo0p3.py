@@ -1531,7 +1531,7 @@ class DynInvoke(Invoke):
         if config.DISTRIBUTED_MEMORY:
             # halo exchange calls
             for loop in self.schedule.loops():
-                loop.update_halo_exchanges()
+                loop.create_halo_exchanges()
             # global sum calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
@@ -2175,24 +2175,62 @@ class DynHaloExchange(HaloExchange):
                  vector_index=None, inc=False, depth=None):
 
         self._vector_index = vector_index
-        if field.descriptor.stencil:
-            halo_type = field.descriptor.stencil['type']
-            halo_depth = field.descriptor.stencil['extent']
-            if not halo_depth:
-                # halo_depth is provided by the algorithm layer
-                halo_depth = stencil_extent_value(field)
-            else:
-                halo_depth = str(halo_depth)
-            if depth:
-                halo_depth += "+{0}".format(depth)
-        else:
-            halo_type = 'region'
-            if depth:
-                halo_depth = depth
-            else:
-                halo_depth = "1"
+        halo_type = None
+        halo_depth = None
         HaloExchange.__init__(self, field, halo_type, halo_depth,
                               check_dirty, parent=parent)
+
+    @property
+    def _compute_halo_depth(self):
+        ''' xxx '''
+        read_dependencies = self.field.forward_read_dependencies()
+        if len(read_dependencies)>1:
+            raise GenerationError("multiple reads depending on a halo exchange not yet supported")
+        read_dependency = read_dependencies[0]
+        literal_depth = 0
+        var_depth = None
+        max_depth = False
+        stencil_type = None
+        loop = read_dependency.call.parent
+        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+            # loop does redundant computation
+            if loop.upper_bound_index:
+                # loop redundant computation is to a fixed literal depth
+                literal_depth += loop.upper_bound_index
+            else:
+                # loop redundant computation is to the maximum depth
+                max_depth = True
+        if read_dependency.descriptor.stencil:
+            # field has a stencil access
+            if max_depth:
+                raise exception("redundant computation to max depth with a stencil is invalid")
+            else:
+                stencil_type = read_dependency.descriptor.stencil['type']
+                if literal_depth:
+                    # halo exchange does not support mixed accesses to the halo
+                    stencil_type = "region"
+                stencil_depth = read_dependency.descriptor.stencil['extent']
+                if stencil_depth:
+                    # stencil_depth is provided in the kernel metadata
+                    literal_depth += stencil_depth
+                else:
+                    # stencil_depth is provided by the algorithm layer
+                    if read_dependency.stencil.extent_arg.is_literal():
+                        # a literal is specified
+                        literal_depth += int(read_dependency.stencil.extent_arg.text)
+                    else:
+                        # a variable is specified
+                        var_depth = read_dependency.stencil.extent_arg.varName
+        if max_depth:
+            return "mesh%get_last_halo_depth()"
+        if var_depth:
+            result = var_depth
+            if literal_depth:
+                result += "+"+str(literal_depth)
+            return result
+        if literal_depth:
+            return str(literal_depth)
+        raise GenerationError("Error in halo exchange logic. Should not get to here")
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -2203,7 +2241,7 @@ class DynHaloExchange(HaloExchange):
             ref = ""
         if self._check_dirty:
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" + self._halo_depth +
+                                "%is_dirty(depth=" + self._compute_halo_depth +
                                 ")")
             parent.add(if_then)
             halo_parent = if_then
@@ -2212,7 +2250,7 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + self._halo_depth + ")"))
+                "%halo_exchange(depth=" + self._compute_halo_depth + ")"))
         parent.add(CommentGen(parent, ""))
 
 
@@ -2509,7 +2547,7 @@ class DynLoop(Loop):
             # access is neither a read nor an inc so does not need halo
             return False
 
-    def _add_halo_exchange(self, halo_field, depth):
+    def _add_halo_exchange(self, halo_field, check_dirty=True):
         '''Internal helper method to add a halo exchange call immediately
         before this loop. Use the halo_field argument for the
         associated field information and the depth argument for the
@@ -2524,83 +2562,33 @@ class DynLoop(Loop):
                 exchange = DynHaloExchange(halo_field,
                                            parent=self.parent,
                                            vector_index=idx,
-                                           depth=depth)
+                                           check_dirty=check_dirty)
                 self.parent.children.insert(self.position,
                                             exchange)
         else:
             exchange = DynHaloExchange(halo_field,
                                        parent=self.parent,
-                                       depth=depth)
+                                       check_dirty=check_dirty)
             self.parent.children.insert(self.position, exchange)
 
-    def _compute_halo_depth(self, halo_exchange=None):
-        '''Internal helper method to determine the depth of a halo based on
-        the extent of this loops bounds and the stencil of the argument (if it
-        ha one). If this is an update to an existing halo_exchange then the
-        argument halo_exchange should contain the halo exchange object and
-        this method will return the larger of the halo depths.'''
 
-        if self.upper_bound_index:
-            if halo_exchange:
-                # there is an existing halo exchange so ensure that we do
-                # not make it smaller than it already is
-                if halo_exchange.halo_depth == "mesh%get_last_halo_depth()":
-                    # depth is already maximum
-                    depth = halo_exchange.halo_depth
-                else:
-                    # return the larger of the existing depth and the
-                    # specified depth
-                    try:
-                        depth = str(max(int(halo_exchange.halo_depth), self.upper_bound_index))
-                    except ValueError as e:
-                        raise GenerationError(
-                            "Complex halo exchange depths not currently suppo"
-                            "rted. Error reported is '{0}'".format(str(e)))
-            else:
-                # this will be a new halo exchange so return the loop halo size
-                depth = str(self.upper_bound_index)
-        elif self.upper_bound_name in ["cell_halo", "dof_halo"]:
-            # this will be a new halo exchange and there is no index
-            # specified which means the loop iterates to the maximum halo
-            # depth
-            depth = "mesh%get_last_halo_depth()"
-        else:
-            # the loop does not iterate over the halo, however a stencil
-            # access means this field still requires a halo exchange
-            if halo_exchange:
-                # the loop has no halo so use the existing halo's depth
-                depth = halo_exchange.halo_depth
-            else:
-                # there is no existing halo and the loop has no halo
-                depth = None
-        return depth
-
-
-    def update_halo_exchanges(self):
-        '''add any new halo exchanges before this loop as required by fields
-        within this loop and/or update existing halo exchanges if
-        necesary. This routine can be used to create initial halo exchange and
-        also to update halo exchanges when the loop is modified (e.g. when the
-        loop bounds are changed). The routine uses the dependence analysis
-        support to avoid adding redundant halo exchanges.'''
-
+    def create_halo_exchanges(self):
+        '''add initial halo exchanges before this loop as required by fields
+        within this loop. This can be kept simple as we know that any
+        field that accesses the halo will require a halo exchange at
+        this point'''
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that requires a halo exchange
             prev_arg = halo_field.backward_dependence()
             if not prev_arg:
                 # field has no previous dependence so create a new halo exchange
-                my_depth = self._compute_halo_depth()
-                self._add_halo_exchange(halo_field, my_depth)
+                self._add_halo_exchange(halo_field)
             else:
                 # field has a previous dependence
                 prev_node = prev_arg.call
-                if isinstance(prev_node, DynHaloExchange):
-                    # previous dependence is a halo exchange so update its depth
-                    prev_node.halo_depth = self._compute_halo_depth(halo_exchange=prev_node)
-                else:
+                if not isinstance(prev_node, DynHaloExchange):
                     # previous dependence is not a halo exchange so create a new halo exchange
-                    my_depth = self._compute_halo_depth()
-                    self._add_halo_exchange(halo_field, my_depth)
+                    self._add_halo_exchange(halo_field, check_dirty=False)
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
