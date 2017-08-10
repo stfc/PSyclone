@@ -1536,7 +1536,8 @@ class HaloExchange(Node):
     ''' Generic Halo Exchange class which can be added to and
     manipulated in, a schedule. '''
 
-    def __init__(self, field, halo_type, halo_depth, check_dirty, parent=None):
+    def __init__(self, field, halo_type, halo_depth, check_dirty,
+                 vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._field = copy.copy(field)
@@ -1551,6 +1552,13 @@ class HaloExchange(Node):
         else:
             self._halo_depth = "unknown"
         self._check_dirty = check_dirty
+        self._vector_index = vector_index
+
+    @property
+    def vector_index(self):
+        '''If the field is a vector then return the vector index associated
+        with this halo exchange. Otherwise return None'''
+        return self._vector_index
 
     @property
     def halo_depth(self):
@@ -2315,10 +2323,19 @@ class Argument(object):
                or isinstance(node, GlobalSum):
                 for argument in node.args:
                     if argument.name == self.name:
-                        if argument.access in readers:
-                            arguments.append(argument)
-                        if argument.access in writers:
-                            return arguments
+                        if isinstance(node, HaloExchange) and \
+                           node.vector_index and isinstance(self.call, HaloExchange) and \
+                           self.call.vector_index and \
+                           node.vector_index != self.call.vector_index:
+                            # this is a vector field and the two halos
+                            # are accessing different vectors so there
+                            # is no dependence.
+                            pass
+                        else:
+                            if argument.access in readers:
+                                arguments.append(argument)
+                            if argument.access in writers:
+                                return arguments
         return arguments
 
     def _depends_on(self, argument):

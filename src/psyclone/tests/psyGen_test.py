@@ -1737,3 +1737,23 @@ def test_haloexchange_halo_depth_getter_setter():  # pylint: disable=invalid-nam
     # setter
     halo_exchange.halo_depth = halo_depth_2
     assert halo_exchange.halo_depth == halo_depth_2
+
+
+def test_haloexchange_vector_index_dependence():
+    '''check that _find_read_arguments does not return a haloexchange as
+    a read dependence if the source node is a halo exchange and its field
+    is a vector and the other halo exchange accesses a different vector
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    first_d_field_halo_exchange = schedule.children[3]
+    field = first_d_field_halo_exchange.field
+    from psyclone.psyGen import Node
+    all_nodes = schedule.walk(schedule.children, Node)
+    following_nodes = all_nodes[4:]
+    result_list = field._find_read_arguments(following_nodes)
+    assert len(result_list) == 1
+    assert result_list[0].call.name == 'ru_code'

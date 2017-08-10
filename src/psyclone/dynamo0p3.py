@@ -2174,11 +2174,11 @@ class DynHaloExchange(HaloExchange):
     def __init__(self, field, check_dirty=True, parent=None,
                  vector_index=None, inc=False, depth=None):
 
-        self._vector_index = vector_index
         halo_type = None
         halo_depth = None
         HaloExchange.__init__(self, field, halo_type, halo_depth,
-                              check_dirty, parent=parent)
+                              check_dirty, vector_index=vector_index,
+                              parent=parent)
 
     @property
     def _compute_halo_depth(self):
@@ -2251,8 +2251,8 @@ class DynHaloExchange(HaloExchange):
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
         from f2pygen import IfThenGen, CallGen, CommentGen
-        if self._vector_index:
-            ref = "(" + str(self._vector_index) + ")"
+        if self.vector_index:
+            ref = "(" + str(self.vector_index) + ")"
         else:
             ref = ""
         if self._check_dirty:
