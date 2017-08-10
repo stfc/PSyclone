@@ -2184,14 +2184,39 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_depth(self):
         ''' xxx '''
         read_dependencies = self.field.forward_read_dependencies()
-        if len(read_dependencies)>1:
-            raise GenerationError("multiple reads depending on a halo exchange not yet supported")
-        read_dependency = read_dependencies[0]
+
+        depth_info_list = []
+        for idx, read_dependency in enumerate(read_dependencies):
+            depth_info_list.append(self._compute_single_halo_depth(read_dependency))
+        # if any reader reads to max depth then return max_depth
+        for depth_info in depth_info_list:
+            if depth_info["max_depth"]:
+                return "mesh%get_last_halo_depth()"
+        # if at least one read field has a variable depth then
+        # raise an exception for the moment
+        for depth_info in depth_info_list:
+            print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
+            if depth_info["var_depth"]:
+                raise GenerationError("variable depths not yet supported")
+        # return the maximum depth
+        depth = 0
+        for depth_info in depth_info_list:
+            if depth_info["literal_depth"] > depth:
+                depth = depth_info["literal_depth"]
+        if depth == 0:
+            raise GenerationError("Error in logic, should not get to here")
+        return str(depth)
+
+    def _compute_single_halo_depth(self, read_dependency):
         literal_depth = 0
         var_depth = None
         max_depth = False
         stencil_type = None
-        loop = read_dependency.call.parent
+        call = read_dependency.call
+        if not isinstance(call, DynKern):
+            call.root.view()
+            raise GenerationError("read dependence should be from a call but found {0}".format(type(call)))
+        loop = call.parent
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
             # loop does redundant computation
             if loop.upper_bound_index:
@@ -2221,16 +2246,7 @@ class DynHaloExchange(HaloExchange):
                     else:
                         # a variable is specified
                         var_depth = read_dependency.stencil.extent_arg.varName
-        if max_depth:
-            return "mesh%get_last_halo_depth()"
-        if var_depth:
-            result = var_depth
-            if literal_depth:
-                result += "+"+str(literal_depth)
-            return result
-        if literal_depth:
-            return str(literal_depth)
-        raise GenerationError("Error in halo exchange logic. Should not get to here")
+        return {"max_depth":max_depth, "var_depth":var_depth, "literal_depth":literal_depth}
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
