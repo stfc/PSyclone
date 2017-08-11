@@ -2192,12 +2192,21 @@ class DynHaloExchange(HaloExchange):
         for depth_info in depth_info_list:
             if depth_info["max_depth"]:
                 return "mesh%get_last_halo_depth()"
-        # if at least one read field has a variable depth then
-        # raise an exception for the moment
-        for depth_info in depth_info_list:
-            print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
+        if len(depth_info_list) == 1:
+            depth_info = depth_info_list[0]
             if depth_info["var_depth"]:
-                raise GenerationError("variable depths not yet supported")
+                depth = depth_info["var_depth"]
+                if depth_info["literal_depth"]:
+                    depth += "+{0}".format(str(depth_info["literal_depth"]))
+                return depth
+        else:
+            # if at least one read field has a variable depth and there is
+            # more than one read field in the list then raise an exception
+            # for the moment
+            for depth_info in depth_info_list:
+                print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
+                if depth_info["var_depth"]:
+                    raise GenerationError("multiple depths with at least one variable depth not yet supported")
         # return the maximum depth
         depth = 0
         for depth_info in depth_info_list:
