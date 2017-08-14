@@ -2185,9 +2185,13 @@ class DynHaloExchange(HaloExchange):
         ''' xxx '''
         read_dependencies = self.field.forward_read_dependencies()
 
+        if len(read_dependencies) == 0:
+            raise GenerationError("Internal logic error. There should be at least one read dependence for a halo exchange")
         depth_info_list = []
         for idx, read_dependency in enumerate(read_dependencies):
             depth_info_list.append(self._compute_single_halo_depth(read_dependency))
+        for depth_info in depth_info_list:
+            print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
         # if any reader reads to max depth then return max_depth
         for depth_info in depth_info_list:
             if depth_info["max_depth"]:
@@ -2224,7 +2228,9 @@ class DynHaloExchange(HaloExchange):
         call = read_dependency.call
         if not isinstance(call, DynKern):
             call.root.view()
-            raise GenerationError("read dependence should be from a call but found {0}".format(type(call)))
+            raise GenerationError(
+                "internal error: read dependence should be from a call but "
+                "found {0}".format(type(call)))
         loop = call.parent
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
             # loop does redundant computation
@@ -2234,6 +2240,34 @@ class DynHaloExchange(HaloExchange):
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
+        elif (loop.upper_bound_name == "ncells" and
+              not read_dependency.descriptor.stencil):
+            # if the dependency analysis is working correctly then
+            # this is continuous field which therefore accesses
+            # annexed dofs and the previous writer does not write
+            # redundantly to annexed dofs or is unknown so a halo
+            # exchange is required.
+            
+            # 1) check field is continuous
+            if read_dependency.discontinuous:
+                raise GenerationError(
+                    "Internal error, a dependency should not exist")
+            # 2) check previous writer (ignoring halo exchange)
+            # iterates over dofs or is unknown
+            prev_dependencies = read_dependency.backward_write_dependencies(ignore_halos=True)
+            if len(prev_dependencies) > 1:
+                raise GenerationError("Internal error, we should only return at most one write dependence")
+            it_space = ""
+            if prev_dependencies:
+                it_space = prev_dependencies[0].call.parent.iteration_space
+            if it_space == "ndofs" or not prev_dependencies:
+                literal_depth = 1
+            else:
+                raise GenerationError("Internal error, previous writer is known but is not ndofs")
+        else:
+            print "internal error if we get to here"
+            exit(1)
+        
         if read_dependency.descriptor.stencil:
             # field has a stencil access
             if max_depth:
@@ -2543,7 +2577,10 @@ class DynLoop(Loop):
     def _halo_read_access(self, arg):
         '''Determines whether this argument reads from the halo for this
         loop'''
+        print "looking at arg {0}".format(arg.name)
+        print "arg type is {0}".format(arg.type)
         if arg.descriptor.stencil:
+            print "this arg has a stencil"
             if self._upper_bound_name not in ["cell_halo", "ncells"]:
                 raise GenerationError(
                     "Loop bounds other than cell_halo and ncells are "
@@ -2552,22 +2589,59 @@ class DynLoop(Loop):
             return self._upper_bound_name in ["cell_halo", "ncells"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
+            print "this arg is a scalar"
             return False
         elif arg.type in VALID_OPERATOR_NAMES:
+            print "This arg is an operator"
             # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
+            print "this arg is a discontinuous reader"
             return self._upper_bound_name in ["cell_halo", "dof_halo"]
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
-            # it is either continuous or we don't know (any_space_x)
+            # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
-            # correctness. There may be shared dofs so only access to
-            # inner is local so we care about reads in both the ncells
-            # (annexed dofs) and the halo
-            return self._upper_bound_name in ["cell_halo", "ncells",
-                                              "dof_halo"]
+            # correctness
+            if self._upper_bound_name in ["cell_halo", "dof_halo"]:
+                # we read in the halo
+                print "this field is a continuous, or unknown, reader that reads from the halo"
+                return True
+            elif self._upper_bound_name == "ncells":
+                # We read annexed dofs so need to check the previous
+                # write to this field
+                print "this arg is a continuous, or unknown, reader that reads annexed dofs"
+                prev_dependencies = arg.backward_write_dependencies(ignore_halos=True)
+                if len(prev_dependencies) > 1:
+                    raise GenerationError("Internal error, we should only return at most one write dependence")
+                it_space = ""
+                if prev_dependencies:
+                    it_space = prev_dependencies[0].call.parent.iteration_space
+                if it_space == "ndofs" or not prev_dependencies:
+                    # the previous write to this field (ignoring
+                    # existing halo_exchanges) is over ndofs, or is
+                    # unknown, so may be over ndofs. This means that
+                    # the annexed dofs are, or may be, dirty. The only
+                    # way we can make these clean is to perform a full
+                    # level 1 halo exchange.
+                    print (
+                        "the previous writer only writes (or might only write) to ndofs, so "
+                        "annexed dofs are (or may be) dirty, therefore we read (or may read)"
+                        "from the halo")
+                    return True
+                else:
+                    return False
+            elif self._upper_bound_name == "ndofs":
+                # argument does not read from the halo
+                return False
+            else:
+                # not sure what would get to here so abort
+                print "arg access is {0}".format(arg.access)
+                print "Upper bound name is {0}".format(self._upper_bound_name)
+                # the field does not read from the halo
+                print "not sure what would get to here so abort for the moment"
+                exit(1)
         else:
             # access is neither a read nor an inc so does not need halo
             return False
@@ -2603,6 +2677,7 @@ class DynLoop(Loop):
         field that accesses the halo will require a halo exchange at
         this point'''
         for halo_field in self.unique_fields_with_halo_reads():
+            print "field {0} requires a halo exchange".format(halo_field.name)
             # for each unique field in this loop that requires a halo exchange
             prev_arg = halo_field.backward_dependence()
             if not prev_arg:

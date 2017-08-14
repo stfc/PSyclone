@@ -2274,6 +2274,20 @@ class Argument(object):
         all_prev_nodes.reverse()
         return self._find_argument(all_prev_nodes)
 
+    def backward_write_dependencies(self, ignore_halos=False):
+        '''Returns a list of previous write arguments that this argument has
+        dependencies with. The arguments may exist in a call, a
+        haloexchange (unless ignore_halos is True), or a globalsum. If
+        none are not found then return an empty list. If self is not a
+        reader then return an empty list.
+        '''
+        all_nodes = self._call.walk(self._call.root.children, Node)
+        position = all_nodes.index(self._call)
+        all_prev_nodes = all_nodes[:position]
+        all_prev_nodes.reverse()
+        return self._find_write_arguments(all_prev_nodes,
+                                          ignore_halos=ignore_halos)
+
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
@@ -2336,6 +2350,29 @@ class Argument(object):
                                 arguments.append(argument)
                             if argument.access in writers:
                                 return arguments
+        return arguments
+
+    def _find_write_arguments(self, nodes, ignore_halos=False):
+        '''Return a list of arguments from the list of nodes that have a write
+        dependency with self. If none are not found then return an
+        empty list. If self is not a reader then return an empty
+        list.'''
+        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
+                   MAPPING_REDUCTIONS["sum"]]
+        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        arguments = []
+        if self.access not in readers:
+            return arguments
+        for node in nodes:
+            if (isinstance(node, Call) or
+                (isinstance(node, HaloExchange) and not ignore_halos) or
+                isinstance(node, GlobalSum)):
+                for argument in node.args:
+                    if argument.name == self.name:
+                        if argument.access in writers:
+                            arguments.append(argument)
+                        if argument.access in readers:
+                            return arguments
         return arguments
 
     def _depends_on(self, argument):
