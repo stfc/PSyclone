@@ -2281,12 +2281,15 @@ class Argument(object):
         none are not found then return an empty list. If self is not a
         reader then return an empty list.
         '''
+        print "  in backward_write_dependencies"
         all_nodes = self._call.walk(self._call.root.children, Node)
         position = all_nodes.index(self._call)
         all_prev_nodes = all_nodes[:position]
         all_prev_nodes.reverse()
-        return self._find_write_arguments(all_prev_nodes,
+        results = self._find_write_arguments(all_prev_nodes,
                                           ignore_halos=ignore_halos)
+        print "  found {0} args".format(str(len(results)))
+        return results
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
@@ -2307,7 +2310,17 @@ class Argument(object):
         all_nodes = self._call.walk(self._call.root.children, Node)
         position = all_nodes.index(self._call)
         all_following_nodes = all_nodes[position+1:]
-        return self._find_read_arguments(all_following_nodes)
+        result = self._find_read_arguments(all_following_nodes)
+        print "***********************"
+        self.call.view(0)
+        print "in {0} forward_read_dependencies, found {1} result".format(self.name, str(len(result)))
+        for arg in result:
+            print "  arg is in node {0}".format(type(arg.call))
+            print "  arg has access {0}".format(arg.access)
+            arg.call.view(2)
+        if len(result)>1:
+            arg.call.root.view()
+        return result
 
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a
@@ -2361,18 +2374,35 @@ class Argument(object):
                    MAPPING_REDUCTIONS["sum"]]
         readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
         arguments = []
+        print "  *****************************"
+        print "  in _find_write_arguments()"
         if self.access not in readers:
+            print "  access in not in readers so returning nothing"
             return arguments
+        vector_count = 0
         for node in nodes:
             if (isinstance(node, Call) or
                 (isinstance(node, HaloExchange) and not ignore_halos) or
                 isinstance(node, GlobalSum)):
+                print "  looking at node {0}".format(type(node))
                 for argument in node.args:
+                    print "  looking at arg {0}".format(argument.name)
                     if argument.name == self.name:
+                        print "    argument {0} matches".format(argument.name)
                         if argument.access in writers:
-                            arguments.append(argument)
-                        if argument.access in readers:
-                            return arguments
+                            print "    argument is in writers so adding to list"
+                            if self.vector_size > 1 and isinstance(node, HaloExchange):
+                                # a vector read will depend on more
+                                # than one halo exchange as halo
+                                # exchanges only update a single
+                                # vector
+                                vector_count += 1
+                                arguments.append(argument)
+                                if vector_count == self.vector_size:
+                                    return arguments
+                            else:
+                                arguments.append(argument)
+                                return arguments
         return arguments
 
     def _depends_on(self, argument):
