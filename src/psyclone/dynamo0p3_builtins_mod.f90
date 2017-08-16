@@ -140,6 +140,19 @@ module dynamo0p3_builtins_mod
    contains
      procedure, nopass :: aX_minus_Y_code
   end type aX_minus_Y
+
+  !> field1 = field1 - b*field2
+  type, public, extends(kernel_type) :: inc_X_minus_bY
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ             ),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inc_X_minus_bY_code
+  end type inc_X_minus_bY
 !---------------------------------------------------------------------!
 !=============== Multiplying (scaled) fields =========================!
 !---------------------------------------------------------------------!
@@ -326,11 +339,14 @@ contains
   subroutine inc_aX_plus_bY_code()
   end subroutine inc_aX_plus_bY_code
   ! Subtracting (scaled) fields
+  subroutine X_minus_Y_code()
+  end subroutine X_minus_Y_code
+
   subroutine aX_minus_Y_code()
   end subroutine aX_minus_Y_code
 
-  subroutine X_minus_Y_code()
-  end subroutine X_minus_Y_code
+  subroutine inc_X_minus_bY_code()
+  end subroutine inc_X_minus_bY_code
   ! Multiplying (scaled) fields
   subroutine X_times_Y_code()
   end subroutine X_times_Y_code

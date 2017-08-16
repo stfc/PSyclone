@@ -1182,6 +1182,21 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
+inc_X_minus_bY
+++++++++
+
+**inc_X_minus_bY** (*field1*, *b*, *field2*)
+
+Performs: ::
+
+  field1(:) = field1(:) - b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
 Built-ins which multiply (scaled) fields are denoted with keyword *times*.
 
 X_times_Y

@@ -350,6 +350,25 @@ class DynAXMinusYKern(DynBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[3].proxy_name)
         rhs_expr = scalar_name + "*" + field_name1 + " - " + field_name2
         parent.add(AssignGen(parent, lhs=field_name3, rhs=rhs_expr))
+
+
+class DynIncXMinusBYKern(DynBuiltIn):
+    ''' x = x - b.y where 'b' is a scalar and 'x' and 'y' are
+    fields '''
+
+    def __str__(self):
+        return "Built-in: inc_X_minus_bY"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We multiply one element of field f2 (3rd arg) by a scalar (2nd arg),
+        # subtract it fom  the corresponding element of a first field f1
+        # (1st arg) and write the value back into the element of field f1.
+        scalar_name = self._arguments.args[1].name
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = field_name1 + " - " + scalar_name + "*" + field_name2
+        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 #---------------------------------------------------------------------#
 #=============== Multiplying (scaled) fields =========================#
 #---------------------------------------------------------------------#
@@ -576,6 +595,7 @@ BUILTIN_MAP_F90 = {# Adding (scaled) fields
                     # Subtracting (scaled) fields
                    "X_minus_Y": DynXMinusYKern,                
                    "aX_minus_Y": DynAXMinusYKern,
+                   "inc_X_minus_bY": DynIncXMinusBYKern,
                     # Multiplying (scaled) fields
                    "X_times_Y": DynXTimesYKern, 
                    "inc_X_times_Y": DynIncXTimesYKern,
