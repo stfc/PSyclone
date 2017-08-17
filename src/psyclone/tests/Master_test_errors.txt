@@ -1,0 +1,383 @@
+============================= test session starts ==============================
+platform linux2 -- Python 2.7.6, pytest-3.0.7, py-1.4.31, pluggy-0.4.0
+rootdir: /data/local/ikavcic/PSyclone_Projects/PSyclone, inifile:
+plugins: cov-2.5.0, flakes-1.0.1, pep257-0.0.5, xdist-1.16.0
+gw0 I / gw1 I / gw2 I / gw3 I
+gw0 [806] / gw1 [806] / gw2 [806] / gw3 [806]
+
+scheduling tests via LoadScheduling
+..............x..................xx...........................................x................x.......................................................................................................................................F.F...............................................................................................................................x........................................................................................................x.x..............................................................................x.....................................x.............................................................................................................................x.....................................................................xx....................F..
+=================================== FAILURES ===================================
+____________________________ test_kernel_stub_usage ____________________________
+[gw1] linux2 -- Python 2.7.6 /usr/local/sci/bin/python
+def test_kernel_stub_usage():
+        ''' Check that the kernel-stub generator prints a usage message
+        if no arguments are supplied '''
+        from subprocess import Popen, STDOUT, PIPE
+    
+        usage_msg = (
+            "usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename\n"
+            "genkernelstub: error: too few arguments")
+    
+        # We use the Popen constructor here rather than check_output because
+        # the latter is only available in Python 2.7 onwards.
+        out = Popen(['genkernelstub'],
+                    stdout=PIPE,
+>                   stderr=STDOUT).communicate()[0]
+
+dynamo0p3_test.py:3650: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/usr/local/sci/lib/python2.7/subprocess.py:709: in __init__
+    errread, errwrite)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <subprocess.Popen object at 0x30fb9d0>, args = ['genkernelstub'], executable = 'genkernelstub', preexec_fn = None, close_fds = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0
+shell = False, to_close = set([16]), p2cread = None, p2cwrite = None, c2pread = 16, c2pwrite = 18, errread = None, errwrite = 18
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       cwd, env, universal_newlines,
+                       startupinfo, creationflags, shell, to_close,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, types.StringTypes):
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            args = ["/bin/sh", "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        def _close_in_parent(fd):
+            os.close(fd)
+            to_close.remove(fd)
+    
+        # For transferring possible exec failure from child to parent
+        # The first char specifies the exception type: 0 means
+        # OSError, 1 means some other error.
+        errpipe_read, errpipe_write = self.pipe_cloexec()
+        try:
+            try:
+                gc_was_enabled = gc.isenabled()
+                # Disable gc to avoid bug where gc -> file_dealloc ->
+                # write to stderr -> hang.  http://bugs.python.org/issue1336
+                gc.disable()
+                try:
+                    self.pid = os.fork()
+                except:
+                    if gc_was_enabled:
+                        gc.enable()
+                    raise
+                self._child_created = True
+                if self.pid == 0:
+                    # Child
+                    try:
+                        # Close parent's pipe ends
+                        if p2cwrite is not None:
+                            os.close(p2cwrite)
+                        if c2pread is not None:
+                            os.close(c2pread)
+                        if errread is not None:
+                            os.close(errread)
+                        os.close(errpipe_read)
+    
+                        # When duping fds, if there arises a situation
+                        # where one of the fds is either 0, 1 or 2, it
+                        # is possible that it is overwritten (#12607).
+                        if c2pwrite == 0:
+                            c2pwrite = os.dup(c2pwrite)
+                        if errwrite == 0 or errwrite == 1:
+                            errwrite = os.dup(errwrite)
+    
+                        # Dup fds for child
+                        def _dup2(a, b):
+                            # dup2() removes the CLOEXEC flag but
+                            # we must do it ourselves if dup2()
+                            # would be a no-op (issue #10806).
+                            if a == b:
+                                self._set_cloexec_flag(a, False)
+                            elif a is not None:
+                                os.dup2(a, b)
+                        _dup2(p2cread, 0)
+                        _dup2(c2pwrite, 1)
+                        _dup2(errwrite, 2)
+    
+                        # Close pipe fds.  Make sure we don't close the
+                        # same fd more than once, or standard fds.
+                        closed = { None }
+                        for fd in [p2cread, c2pwrite, errwrite]:
+                            if fd not in closed and fd > 2:
+                                os.close(fd)
+                                closed.add(fd)
+    
+                        if cwd is not None:
+                            os.chdir(cwd)
+    
+                        if preexec_fn:
+                            preexec_fn()
+    
+                        # Close all other fds, if asked for - after
+                        # preexec_fn(), which may open FDs.
+                        if close_fds:
+                            self._close_fds(but=errpipe_write)
+    
+                        if env is None:
+                            os.execvp(executable, args)
+                        else:
+                            os.execvpe(executable, args, env)
+    
+                    except:
+                        exc_type, exc_value, tb = sys.exc_info()
+                        # Save the traceback and attach it to the exception object
+                        exc_lines = traceback.format_exception(exc_type,
+                                                               exc_value,
+                                                               tb)
+                        exc_value.child_traceback = ''.join(exc_lines)
+                        os.write(errpipe_write, pickle.dumps(exc_value))
+    
+                    # This exitcode won't be reported to applications, so it
+                    # really doesn't matter what we return.
+                    os._exit(255)
+    
+                # Parent
+                if gc_was_enabled:
+                    gc.enable()
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            # Wait for exec to fail or succeed; possibly raising exception
+            # Exception limited to 1M
+            data = _eintr_retry_call(os.read, errpipe_read, 1048576)
+        finally:
+            if p2cread is not None and p2cwrite is not None:
+                _close_in_parent(p2cread)
+            if c2pwrite is not None and c2pread is not None:
+                _close_in_parent(c2pwrite)
+            if errwrite is not None and errread is not None:
+                _close_in_parent(errwrite)
+    
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if data != "":
+            try:
+                _eintr_retry_call(os.waitpid, self.pid, 0)
+            except OSError as e:
+                if e.errno != errno.ECHILD:
+                    raise
+            child_exception = pickle.loads(data)
+>           raise child_exception
+E           OSError: [Errno 2] No such file or directory
+
+/usr/local/sci/lib/python2.7/subprocess.py:1326: OSError
+________________________ test_kernel_stub_gen_cmd_line _________________________
+[gw1] linux2 -- Python 2.7.6 /usr/local/sci/bin/python
+def test_kernel_stub_gen_cmd_line():
+        ''' Check that we can call the kernel-stub generator from the
+        command line '''
+        from subprocess import Popen, PIPE
+        # We use the Popen constructor here rather than check_output because
+        # the latter is only available in Python 2.7 onwards.
+        out = Popen(["genkernelstub",
+                     os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
+>                   stdout=PIPE).communicate()[0]
+
+dynamo0p3_test.py:3662: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/usr/local/sci/lib/python2.7/subprocess.py:709: in __init__
+    errread, errwrite)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <subprocess.Popen object at 0x2fc92d0>, args = ['genkernelstub', '/data/local/ikavcic/PSyclone_Projects/PSyclone/src/psyclone/tests/test_files/dynamo0p3/dummy_orientation_mod.f90'], executable = 'genkernelstub', preexec_fn = None
+close_fds = False, cwd = None, env = None, universal_newlines = False, startupinfo = None, creationflags = 0, shell = False, to_close = set([16]), p2cread = None, p2cwrite = None, c2pread = 16, c2pwrite = 18, errread = None
+errwrite = None
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       cwd, env, universal_newlines,
+                       startupinfo, creationflags, shell, to_close,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, types.StringTypes):
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            args = ["/bin/sh", "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        def _close_in_parent(fd):
+            os.close(fd)
+            to_close.remove(fd)
+    
+        # For transferring possible exec failure from child to parent
+        # The first char specifies the exception type: 0 means
+        # OSError, 1 means some other error.
+        errpipe_read, errpipe_write = self.pipe_cloexec()
+        try:
+            try:
+                gc_was_enabled = gc.isenabled()
+                # Disable gc to avoid bug where gc -> file_dealloc ->
+                # write to stderr -> hang.  http://bugs.python.org/issue1336
+                gc.disable()
+                try:
+                    self.pid = os.fork()
+                except:
+                    if gc_was_enabled:
+                        gc.enable()
+                    raise
+                self._child_created = True
+                if self.pid == 0:
+                    # Child
+                    try:
+                        # Close parent's pipe ends
+                        if p2cwrite is not None:
+                            os.close(p2cwrite)
+                        if c2pread is not None:
+                            os.close(c2pread)
+                        if errread is not None:
+                            os.close(errread)
+                        os.close(errpipe_read)
+    
+                        # When duping fds, if there arises a situation
+                        # where one of the fds is either 0, 1 or 2, it
+                        # is possible that it is overwritten (#12607).
+                        if c2pwrite == 0:
+                            c2pwrite = os.dup(c2pwrite)
+                        if errwrite == 0 or errwrite == 1:
+                            errwrite = os.dup(errwrite)
+    
+                        # Dup fds for child
+                        def _dup2(a, b):
+                            # dup2() removes the CLOEXEC flag but
+                            # we must do it ourselves if dup2()
+                            # would be a no-op (issue #10806).
+                            if a == b:
+                                self._set_cloexec_flag(a, False)
+                            elif a is not None:
+                                os.dup2(a, b)
+                        _dup2(p2cread, 0)
+                        _dup2(c2pwrite, 1)
+                        _dup2(errwrite, 2)
+    
+                        # Close pipe fds.  Make sure we don't close the
+                        # same fd more than once, or standard fds.
+                        closed = { None }
+                        for fd in [p2cread, c2pwrite, errwrite]:
+                            if fd not in closed and fd > 2:
+                                os.close(fd)
+                                closed.add(fd)
+    
+                        if cwd is not None:
+                            os.chdir(cwd)
+    
+                        if preexec_fn:
+                            preexec_fn()
+    
+                        # Close all other fds, if asked for - after
+                        # preexec_fn(), which may open FDs.
+                        if close_fds:
+                            self._close_fds(but=errpipe_write)
+    
+                        if env is None:
+                            os.execvp(executable, args)
+                        else:
+                            os.execvpe(executable, args, env)
+    
+                    except:
+                        exc_type, exc_value, tb = sys.exc_info()
+                        # Save the traceback and attach it to the exception object
+                        exc_lines = traceback.format_exception(exc_type,
+                                                               exc_value,
+                                                               tb)
+                        exc_value.child_traceback = ''.join(exc_lines)
+                        os.write(errpipe_write, pickle.dumps(exc_value))
+    
+                    # This exitcode won't be reported to applications, so it
+                    # really doesn't matter what we return.
+                    os._exit(255)
+    
+                # Parent
+                if gc_was_enabled:
+                    gc.enable()
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            # Wait for exec to fail or succeed; possibly raising exception
+            # Exception limited to 1M
+            data = _eintr_retry_call(os.read, errpipe_read, 1048576)
+        finally:
+            if p2cread is not None and p2cwrite is not None:
+                _close_in_parent(p2cread)
+            if c2pwrite is not None and c2pread is not None:
+                _close_in_parent(c2pwrite)
+            if errwrite is not None and errread is not None:
+                _close_in_parent(errwrite)
+    
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if data != "":
+            try:
+                _eintr_retry_call(os.waitpid, self.pid, 0)
+            except OSError as e:
+                if e.errno != errno.ECHILD:
+                    raise
+            child_exception = pickle.loads(data)
+>           raise child_exception
+E           OSError: [Errno 2] No such file or directory
+
+/usr/local/sci/lib/python2.7/subprocess.py:1326: OSError
+______________________________ test_vn_generation ______________________________
+[gw2] linux2 -- Python 2.7.6 /usr/local/sci/bin/python
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch instance at 0x44eb950>, tmpdir = local('/var/tmp/pytest-of-ikavcic/pytest-68/popen-gw2/test_vn_generation0')
+
+    def test_vn_generation(monkeypatch, tmpdir):
+        ''' Check that running setup.py generates the expected Python
+        module file containing the current version of PSyclone '''
+        import sys
+        sys_path = sys.path
+        # BASE_PATH points to some_path/PSyclone/src/psyclone/tests and we
+        # need some_path/PSyclone
+        tail = ""
+        head = BASE_PATH
+        while tail != "src":
+            head, tail = os.path.split(head)
+        # Monkeypatch sys.path so that it includes the locations of setup.py
+        # and our scratch directory
+        monkeypatch.setattr(sys, "path", value=sys_path + [head, str(tmpdir)])
+        # Now import the setup module and call the write_version_py() routine
+        # to generate a new module containing the version number.
+>       import setup
+
+setup_test.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/data/users/lfric/modules/packages/python/2.7/lib/python2.7/site-packages/pytest-3.0.7-py2.7.egg/_pytest/assertion/rewrite.py:216: in load_module
+    py.builtin.exec_(co, mod.__dict__)
+../../../setup.py:41: in <module>
+    PACKAGES = find_packages(where="src")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+where = 'src', exclude = ()
+
+>   ???
+E   OSError: [Errno 2] No such file or directory: 'src'
+
+build/bdist.linux-x86_64/egg/setuptools/__init__.py:43: OSError
+============== 3 failed, 790 passed, 13 xfailed in 51.32 seconds ===============

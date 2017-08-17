@@ -1182,6 +1182,21 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
+X_minus_bY
+++++++++
+
+**X_minus_bY** (*field3*, *field1*, *b*, *field2*)
+
+Performs: ::
+
+  field3(:) = field1(:) - b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *b*
+* type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
+
 inc_X_minus_bY
 ++++++++
 

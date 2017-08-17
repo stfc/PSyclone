@@ -734,6 +734,86 @@ def test_aX_minus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
+# Z = X - bY
+def test_X_minus_bY_str():
+    ''' Test the str method of DynXMinusBYKern'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.3_X_minus_bY_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: X_minus_bY"
+
+
+def test_X_minus_bY():
+    ''' Test that we generate correct code for the builtin
+    operation f = x - b*y where 'b' is a scalar '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.3_X_minus_bY_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f3, f1, b, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) - "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        if distmem:
+            mesh_code_present("f3",code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) - "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
 # X = X - bY
 def test_inc_X_minus_bY_str():
     ''' Test the str method of DynIncXMinusBYKern'''
