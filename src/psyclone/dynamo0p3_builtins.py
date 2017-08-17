@@ -426,6 +426,24 @@ class DynIncXTimesYKern(DynBuiltIn):
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=field_name1,
                              rhs=field_name1 + " * " + field_name2))
+
+
+class DynIncAXTimesYKern(DynBuiltIn):
+    ''' x = a.x.y where 'a' is a scalar and 'x' and 'y' are fields '''
+
+    def __str__(self):
+        return "Built-in: inc_aX_times_Y"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We multiply a scalar (1st arg) by a DoF-wise product of fields
+        # f1 (2nd arg) and f2 (3rd arg) and write the value back into
+        # the element of field f1.
+        scalar_name = self._arguments.args[0].name
+        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = scalar_name + "*" + field_name1 + " * " + field_name2
+        parent.add(AssignGen(parent, lhs=field_name1, rhs=rhs_expr))
 #---------------------------------------------------------------------#
 #=============== Scaling fields ======================================#
 #---------------------------------------------------------------------#
@@ -621,6 +639,7 @@ BUILTIN_MAP_F90 = {# Adding (scaled) fields
                     # Multiplying (scaled) fields
                    "X_times_Y": DynXTimesYKern, 
                    "inc_X_times_Y": DynIncXTimesYKern,
+                   "inc_aX_times_Y": DynIncAXTimesYKern,
                    # Multiplying fields by a scalar (scaling fields)
                    "a_times_X": DynATimesXKern, 
                    "inc_a_times_X": DynIncATimesXKern,

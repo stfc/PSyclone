@@ -1242,6 +1242,21 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+inc_aX_times_Y
+++++++++++++++++++
+
+**inc_aX_times_Y** (*a*, *field1*, *field2*)
+
+Performs: ::
+   
+  field1(:) = a*field1(:)*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
 Built-ins which scale fields are technically cases of multiplying field by a 
 scalar and are hence also denoted with keyword *times*.
 
