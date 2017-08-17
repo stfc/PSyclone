@@ -1049,7 +1049,7 @@ X_plus_Y
 
 **X_plus_Y** (*field3*, *field1*, *field2*)
 
-Sums two fields: ::
+Sums two fields (Z = X + Y): ::
   
   field3(:) = field1(:) + field2(:)
 
@@ -1064,7 +1064,7 @@ inc_X_plus_Y
 
 **inc_X_plus_Y** (*field1*, *field2*)
 
-Adds the second field to the first and returns it: ::
+Adds the second field to the first and returns it (X = X + Y): ::
 
   field1(:) = field1(:) + field2(:)
 
@@ -1076,72 +1076,71 @@ where:
 aX_plus_Y
 ++++
 
-**aX_plus_Y** (*field3*, *a*, *field1*, *field2*)
+**aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs: ::
+Performs Z = aX + Y: ::
    
-  field3(:) = a*field1(:) + field2(:)
+  field3(:) = scalar*field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
 inc_aX_plus_Y
 ++++++++
 
-**inc_aX_plus_Y** (*a*, *field1*, *field2*)
+**inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
 
-Performs an AXPY and returns the result as an increment to the first
-field: ::
+Performs X = aX + Y (increments the first field): ::
    
-  field1(:) = a*field1(:) + field2(:)
+  field1(:) = scalar*field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
 inc_X_plus_bY
 ++++++++
 
-**inc_X_plus_bY** (*field1*, *b*, *field2*)
+**inc_X_plus_bY** (*field1*, *scalar*, *field2*)
 
-Performs: ::
+Performs X = X + bY (increments the first field): ::
 
-  field1(:) = field1(:) + b*field2(:)
+  field1(:) = field1(:) + scalar*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *b*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
 aX_plus_bY
 +++++
 
-**aX_plus_bY** (*field3*, *a*, *field1*, *b*, *field2*)
+**aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
 
-Performs: ::
+Performs Z = aX + bY: ::
    
-  field3(:) = a*field1(:) + b*field2(:)
+  field3(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*, *b*
+* real(r_def), intent(in) :: *scalar1*, *scalar2*
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
 inc_aX_plus_bY
 +++++++++
 
-**inc_aX_plus_bY** (*a*, *field1*, *b*, *field2*)
+**inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
-Performs: ::
+Performs X = aX + bY (increments the first field): ::
    
-  field1(:) = a*field1(:) + b*field2(:)
+  field1(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
 
@@ -1156,8 +1155,8 @@ X_minus_Y
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
 
-Subtracts the second field from the first and stores the result in
-the third. *i.e.* performs the operation: ::
+Subtracts the second field from the first and stores the result in the 
+third (Z = X - Y): ::
   
   field3(:) = field1(:) - field2(:)
 
@@ -1170,45 +1169,45 @@ where:
 aX_minus_Y
 ++++
 
-**aX_minus_Y** (*field3*, *a*, *field1*, *field2*)
+**aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs: ::
+Performs Z = aX - Y: ::
    
-  field3(:) = a*field1(:) - field2(:)
+  field3(:) = scalar*field1(:) - field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
 X_minus_bY
 ++++++++
 
-**X_minus_bY** (*field3*, *field1*, *b*, *field2*)
+**X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
 
-Performs: ::
+Performs Z = X - bY: ::
 
-  field3(:) = field1(:) - b*field2(:)
+  field3(:) = field1(:) - scalar*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *b*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
 inc_X_minus_bY
 ++++++++
 
-**inc_X_minus_bY** (*field1*, *b*, *field2*)
+**inc_X_minus_bY** (*field1*, *scalar*, *field2*)
 
-Performs: ::
+Performs X = X - bY (increments the first field): ::
 
-  field1(:) = field1(:) - b*field2(:)
+  field1(:) = field1(:) - scalar*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *b*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
@@ -1219,7 +1218,8 @@ X_times_Y
 
 **X_times_Y** (*field3*, *field1*, *field2*)
 
-Multiplies two fields together and returns the result in a third field: ::
+Multiplies two fields together and returns the result in a third 
+field (Z = X*Y): ::
 
   field3(:) = field1(:)*field2(:)
 
@@ -1233,7 +1233,7 @@ inc_X_times_Y
 
 **inc_X_times_Y** (*field1*, *field2*)
 
-Multiplies the first field by the second and returns it: ::
+Multiplies the first field by the second and returns it (X = X*Y): ::
 
   field1(:) = field1(:)*field2(:)
 
@@ -1245,15 +1245,15 @@ where:
 inc_aX_times_Y
 ++++++++++++++++++
 
-**inc_aX_times_Y** (*a*, *field1*, *field2*)
+**inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
-Performs: ::
+Performs X = a*X*Y (increments the first field): ::
    
-  field1(:) = a*field1(:)*field2(:)
+  field1(:) = scalar*field1(:)*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *a*
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
@@ -1265,7 +1265,8 @@ a_times_X
 
 **a_times_X** (*field2*, *scalar*, *field1*)
 
-Multiplies a field by a scalar and stores the result in a second field: ::
+Multiplies a field by a scalar and stores the result in a second 
+field (Y = a*X): ::
   
   field2(:) = scalar*field1(:)
 
@@ -1280,7 +1281,7 @@ inc_a_times_X
 
 **inc_a_times_X** (*scalar*, *field1*)
 
-Multiplies a field by a scalar value and returns the field: ::
+Multiplies a field by a scalar value and returns the field (X = a*X): ::
 
   field1(:) = scalar*field1(:)
 
@@ -1296,7 +1297,8 @@ X_divideby_Y
 
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
-Divides the first field by the second and returns the result in the third: ::
+Divides the first field by the second and returns the result in the 
+third (Z = X/Y): ::
 
   field3(:) = field1(:)/field2(:)
 
@@ -1310,7 +1312,7 @@ inc_X_divideby_Y
 
 **inc_X_divideby_Y** (*field1*, *field2*)
 
-Divides the first field by the second and returns it: ::
+Divides the first field by the second and returns it (X = X/Y): ::
 
   field1(:) = field1(:)/field2(:)
 
@@ -1319,22 +1321,22 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-Built-ins which set field elements to some value and hence are denoted with 
+Built-ins which set field elements to some value and hence are denoted with
 keyword *setval*.
 
 setval_c
 ++++++++++++++++
 
-**setval_c** (*field*, *value*)
+**setval_c** (*field*, *constant*)
 
-Sets all elements of the field *field* to the value *value*: ::
+Sets all elements of the field *field* to the value *constant* (X = c): ::
 
-  field1(:) = value
+  field1(:) = constant
 
 where:
 
 * type(field_type), intent(out) :: *field*
-* real(r_def), intent(in) :: *value*
+* real(r_def), intent(in) :: *constant*
 
 .. note:: The field may be on any function space.
 
@@ -1343,7 +1345,7 @@ setval_X
 
 **setval_X** (*field2*, *field1*)
 
-Sets a field *field2* equal to field *field1*: ::
+Sets a field *field2* equal to field *field1* (Y = X): ::
 
   field2(:) = field1(:)
 
@@ -1352,15 +1354,15 @@ where:
 * type(field_type), intent(out) :: *field2*
 * type(field_type), intent(in) :: *field1*
 
-Built-ins which raise field elements to an exponent are denoted with keywords
-*powreal* for real and *powint* for integer exponent.
+Built-in which raises field elements to an exponent is denoted with keyword
+*powreal* for real exponent.
 
 inc_X_powreal_a
 +++++++++++
 
 **inc_X_powreal_a** (*field1*, *scalar*)
 
-Raises a field to a real scalar value and returns the field: ::
+Raises a field to a real scalar value and returns the field (X = X**a): ::
 
   field1(:) = field1(:)**scalar
 
