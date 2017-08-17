@@ -2181,17 +2181,24 @@ class DynHaloExchange(HaloExchange):
                               parent=parent)
 
     @property
+    def _compute_stencil_type(self):
+        ''' Work out the type of stencil required for this halo exchange '''
+        depth_info_list = self._compute_halo_info
+        trial = depth_info_list[0]["stencil_type"]
+        for depth_info in depth_info_list:
+            # assume that if stencil accesses are different that we
+            # simply revert to region. We could be more clever in the
+            # future e.g. x and y implies cross.
+            if depth_info["stencil_type"] != trial:
+                return "region"
+        return trial
+
+    @property
     def _compute_halo_depth(self):
         ''' xxx '''
-        read_dependencies = self.field.forward_read_dependencies()
-
-        if len(read_dependencies) == 0:
-            raise GenerationError("Internal logic error. There should be at least one read dependence for a halo exchange")
-        depth_info_list = []
-        for idx, read_dependency in enumerate(read_dependencies):
-            depth_info_list.append(self._compute_single_halo_depth(read_dependency))
-        for depth_info in depth_info_list:
-            print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
+        depth_info_list = self._compute_halo_info
+        #for idx, depth_info in enumerate(depth_info_list):
+        #    print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}, stencil_type {4}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"], depth_info["stencil_type"])
         # if any reader reads to max depth then return max_depth
         for depth_info in depth_info_list:
             if depth_info["max_depth"]:
@@ -2208,7 +2215,7 @@ class DynHaloExchange(HaloExchange):
             # more than one read field in the list then raise an exception
             # for the moment
             for depth_info in depth_info_list:
-                print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
+                #print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
                 if depth_info["var_depth"]:
                     raise GenerationError("multiple depths with at least one variable depth not yet supported")
         # return the maximum depth
@@ -2220,7 +2227,21 @@ class DynHaloExchange(HaloExchange):
             raise GenerationError("Error in logic, should not get to here")
         return str(depth)
 
-    def _compute_single_halo_depth(self, read_dependency):
+    @property
+    def _compute_halo_info(self):
+        ''' xxx '''
+        read_dependencies = self.field.forward_read_dependencies()
+        if len(read_dependencies) == 0:
+            raise GenerationError(
+                "Internal logic error. There should be at least one read "
+                "dependence for a halo exchange")
+        depth_info_list = []
+        for read_dependency in read_dependencies:
+            depth_info_list.append(
+                self._compute_single_halo_info(read_dependency))
+        return depth_info_list
+
+    def _compute_single_halo_info(self, read_dependency):
         literal_depth = 0
         var_depth = None
         max_depth = False
@@ -2273,7 +2294,11 @@ class DynHaloExchange(HaloExchange):
             print "_compute_single_halo_depth, internal error if we get to here"
             print "loop upper bound name is {0}".format(loop.upper_bound_name)
             exit(1)
-        
+
+        # default stencil type to "region" as it means all of the halo
+        # and this is what is used when we perform redundant
+        # computation
+        stencil_type = "region"
         if read_dependency.descriptor.stencil:
             # field has a stencil access
             if max_depth:
@@ -2295,7 +2320,15 @@ class DynHaloExchange(HaloExchange):
                     else:
                         # a variable is specified
                         var_depth = read_dependency.stencil.extent_arg.varName
-        return {"max_depth":max_depth, "var_depth":var_depth, "literal_depth":literal_depth}
+        return {"max_depth":max_depth, "var_depth":var_depth,
+                "literal_depth":literal_depth, "stencil_type":stencil_type}
+
+    def view(self, indent=0):
+        ''' Class specific view  '''
+        print self.indent(indent) + (
+            "DynHaloExchange[field='{0}', type='{1}', depth={2}, "
+            "check_dirty={3}]".format(self._field.name, self._compute_stencil_type,
+                                      self._compute_halo_depth, self._check_dirty))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''

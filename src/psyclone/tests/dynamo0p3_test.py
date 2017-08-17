@@ -2544,6 +2544,9 @@ def test_2kern_invoke_any_space():
                                         "4.5.1_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
     gen = str(psy.gen)
     print gen
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
@@ -4629,18 +4632,20 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
     expected = (
         "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    HaloExchange[field='f2', type='cross', depth=f2_extent+1, "
+        "    DynHaloExchange[field='f2', type='region', depth=f2_extent+1, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f3', type='region', depth=1, "
+        "    DynHaloExchange[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f4', type='region', depth=1, "
+        "    DynHaloExchange[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
         "    Loop[type='',field_space='w1',it_space='cells', "
         "upper_bound='cell_halo(1)']\n"
         "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
     print expected
+    print "******************************"
     print result
+    print "******************************"
     assert expected in result
 
 
@@ -6851,12 +6856,30 @@ def test_stub_generate_with_anyw2():
 def test_no_halo_for_w3():
     '''Test that we do not create halo exchange calls when our loop only
     iterates over owned cells (e.g. it writes to a discontinuous
-    field), we only read from a discontinoust field and there are no
+    field), we only read from a discontinous field and there are no
     stencil accesses'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3_only.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
+    result = str(psy.gen)
+    print result
+    assert "halo_exchange" not in result
+
+
+def test_no_halo_for_w3_2():
+    '''Test that we do not create halo exchange calls when our loop only
+    iterates over owned cells (e.g. it writes to a discontinuous
+    field), we read from a continous field and there are no
+    stencil accesses'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    exit(1)
     result = str(psy.gen)
     print result
     assert "halo_exchange" not in result

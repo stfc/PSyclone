@@ -1590,7 +1590,7 @@ class HaloExchange(Node):
         base method and simply return our argument. '''
         return [self._field]
 
-    def view(self, indent):
+    def view(self, indent=0):
         ''' Class specific view  '''
         print self.indent(indent) + (
             "HaloExchange[field='{0}', type='{1}', depth={2}, "
@@ -2311,15 +2311,6 @@ class Argument(object):
         position = all_nodes.index(self._call)
         all_following_nodes = all_nodes[position+1:]
         result = self._find_read_arguments(all_following_nodes)
-        print "***********************"
-        self.call.view(0)
-        print "in {0} forward_read_dependencies, found {1} result".format(self.name, str(len(result)))
-        for arg in result:
-            print "  arg is in node {0}".format(type(arg.call))
-            print "  arg has access {0}".format(arg.access)
-            arg.call.view(2)
-        if len(result)>1:
-            arg.call.root.view()
         return result
 
     def _find_argument(self, nodes):
