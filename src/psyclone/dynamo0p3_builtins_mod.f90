@@ -264,7 +264,7 @@ module dynamo0p3_builtins_mod
 !---------------------------------------------------------------------!
 !=============== Raising field to a scalar ===========================!
 !---------------------------------------------------------------------!
-  !> field1 =  field1 ** ascalar
+  !> field1 =  field1 ** ascalar (real ascalar)
   type, public, extends(kernel_type) :: inc_X_powreal_a
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -387,12 +387,11 @@ contains
   subroutine inc_aX_times_Y_code()
   end subroutine inc_aX_times_Y_code
   ! Multiplying fields by a scalar (scaling fields)
+  subroutine a_times_X_code()
+  end subroutine a_times_X_code
 
   subroutine inc_a_times_X_code()
   end subroutine inc_a_times_X_code
-
-  subroutine a_times_X_code()
-  end subroutine a_times_X_code
   ! Dividing (scaled) fields
   subroutine X_divideby_Y_code()
   end subroutine X_divideby_Y_code

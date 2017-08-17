@@ -1360,19 +1360,19 @@ def test_inc_X_divideby_Y():
 
 ############### Raising field to a scalar #####################################
 # X = X**a (a is real)
-def test_inc_X_powreal_str():
+def test_inc_X_powreal_a_str():
     ''' Test the str method of DynIncXPowrealAKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.6.2_inc_X_powreal_a_builtin.f90"),
+                         "15.6.1_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: raise a field to a real exponent"
+        assert str(kern) == "Built-in: raise a field to a real power"
 
 
 def test_inc_X_powreal_a():
@@ -1380,7 +1380,7 @@ def test_inc_X_powreal_a():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.6.2_inc_X_powreal_a_builtin.f90"),
+                         "15.6.1_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

@@ -518,10 +518,10 @@ class DynIncXDividebyYKern(DynBuiltIn):
 #=============== Raising field to a scalar ===========================#
 #---------------------------------------------------------------------#
 class DynIncXPowrealAKern(DynBuiltIn):
-    ''' Raise a field to an exponent and return it '''
+    ''' Raise a field to a real power and return it '''
 
     def __str__(self):
-        return "Built-in: raise a field to a real exponent"
+        return "Built-in: raise a field to a real power"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -646,7 +646,7 @@ BUILTIN_MAP_F90 = {# Adding (scaled) fields
                    # Dividing (scaled) fields
                    "X_divideby_Y": DynXDividebyYKern, 
                    "inc_X_divideby_Y": DynIncXDividebyYKern,
-                   # Raising field to a scalar                   
+                   # Raising field to a scalar                
                    "inc_X_powreal_a": DynIncXPowrealAKern,
                    # Setting field elements to scalar or other field's values    
                    "setval_c": DynSetvalCKern,
