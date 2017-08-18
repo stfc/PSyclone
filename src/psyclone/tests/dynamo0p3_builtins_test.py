@@ -653,12 +653,69 @@ def test_X_minus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
+# X = X + Y
+def test_inc_X_minus_Y_str():
+    ''' Test that the str method of DynIncXMinusYKern returns the
+    expected string '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "15.2.2_inc_X_minus_Y_builtin.f90"),
+                               distributed_memory=distmem,
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Decrement field"
+
+
+def test_inc_X_minus_Y():
+    ''' Test that we generate correct code for the built-in x = x - y
+    where x and y are both fields '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.2.2_inc_X_minus_Y_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n")
+            assert output in code
+        if distmem:
+            mesh_code_present("f1",code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+            assert output in code
+
 # Z = aX - Y
 def test_aX_minus_Y_str():
     ''' Test that the str method of DynAXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.2_aX_minus_Y_builtin.f90"),
+                                        "15.2.3_aX_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -672,7 +729,7 @@ def test_aX_minus_Y():
     ''' Test that we generate correct code for the builtin
     operation f = a*x - y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.2_aX_minus_Y_builtin.f90"),
+                                        "15.2.3_aX_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -738,7 +795,7 @@ def test_aX_minus_Y():
 def test_X_minus_bY_str():
     ''' Test the str method of DynXMinusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.3_X_minus_bY_builtin.f90"),
+                                        "15.2.4_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -752,7 +809,7 @@ def test_X_minus_bY():
     ''' Test that we generate correct code for the builtin
     operation f = x - b*y where 'b' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.3_X_minus_bY_builtin.f90"),
+                                        "15.2.4_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -818,7 +875,7 @@ def test_X_minus_bY():
 def test_inc_X_minus_bY_str():
     ''' Test the str method of DynIncXMinusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.4_inc_X_minus_bY_builtin.f90"),
+                                        "15.2.5_inc_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -831,7 +888,7 @@ def test_inc_X_minus_bY():
     ''' Test that we generate correct code for the built-in
     operation x = x - b*y where 'b' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.4_inc_X_minus_bY_builtin.f90"),
+                                        "15.2.5_inc_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",

@@ -127,6 +127,18 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: X_minus_Y_code
   end type X_minus_Y
 
+  !> field1 = field1 - field2
+  type, public, extends(kernel_type) :: inc_X_minus_Y
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inc_X_minus_Y_code
+  end type inc_X_minus_Y
+
   !> field3 = a*field1 - field2
   type, public, extends(kernel_type) :: aX_minus_Y
      private
@@ -368,6 +380,9 @@ contains
   ! Subtracting (scaled) fields
   subroutine X_minus_Y_code()
   end subroutine X_minus_Y_code
+
+  subroutine inc_X_minus_Y_code()
+  end subroutine inc_X_minus_Y_code
 
   subroutine aX_minus_Y_code()
   end subroutine aX_minus_Y_code

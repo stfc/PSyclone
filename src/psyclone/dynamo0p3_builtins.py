@@ -331,6 +331,22 @@ class DynXMinusYKern(DynBuiltIn):
         parent.add(assign)
 
 
+class DynIncXMinusYKern(DynBuiltIn):
+    ''' Subtract the second field from the first field and return it '''
+
+    def __str__(self):
+        return "Built-in: Decrement field"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # We add each element of f1 to the corresponding element of f2
+        # and store the result back in f1.
+        field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=field_name1,
+                             rhs=field_name1 + " - " + field_name2))
+
+
 class DynAXMinusYKern(DynBuiltIn):
     ''' f = a.x - y where 'a' is a scalar and 'f', 'x' and
     'y' are fields '''
@@ -632,7 +648,8 @@ BUILTIN_MAP_F90 = {# Adding (scaled) fields
                    "aX_plus_bY": DynAXPlusBYKern, 
                    "inc_aX_plus_bY": DynIncAXPlusBYKern,   
                     # Subtracting (scaled) fields
-                   "X_minus_Y": DynXMinusYKern,                
+                   "X_minus_Y": DynXMinusYKern, 
+                   "inc_X_minus_Y": DynIncXMinusYKern,               
                    "aX_minus_Y": DynAXMinusYKern,
                    "X_minus_bY": DynXMinusBYKern,
                    "inc_X_minus_bY": DynIncXMinusBYKern,

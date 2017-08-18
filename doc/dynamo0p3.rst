@@ -1166,6 +1166,20 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+inc_X_minus_Y
++++++++++
+
+**inc_X_minus_Y** (*field1*, *field2*)
+
+Subtracts the second field from the first and returns it (X = X - Y): ::
+
+  field1(:) = field1(:) - field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
 aX_minus_Y
 ++++
 
