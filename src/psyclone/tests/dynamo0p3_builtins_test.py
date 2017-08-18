@@ -23,7 +23,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 # functions
-############### DynBuiltInCallFactory tests ####################################
+# ------------- DynBuiltInCallFactory tests --------------------------------- #
+
 
 def test_dynbuiltincallfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
@@ -56,9 +57,11 @@ def test_dynbuiltfactory_str():
     factory = DynBuiltInCallFactory()
     assert "Factory for a call to a Dynamo built-in" in str(factory)
 
-############### Adding (scaled) fields ########################################
-# Z = X + Y              
-def test_X_plus_Y_str():
+
+# ------------- Adding (scaled) fields ------------------------------------- #
+
+
+def test_X_plus_Y_str():    # Z = X + Y
     ''' Test that the str method of DynXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -107,7 +110,7 @@ def test_X_plus_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -125,8 +128,8 @@ def test_X_plus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = X + Y
-def test_inc_X_plus_Y_str():
+
+def test_inc_X_plus_Y_str():    # X = X + Y
     ''' Test that the str method of DynIncXPlusYKern returns the
     expected string '''
     for distmem in [False, True]:
@@ -167,7 +170,7 @@ def test_inc_X_plus_Y():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -182,8 +185,8 @@ def test_inc_X_plus_Y():
                 "      CALL f1_proxy%set_dirty()")
             assert output in code
 
-# Z = aX + Y
-def test_aX_plus_Y_str():
+
+def test_aX_plus_Y_str():    # Z = aX + Y
     ''' Test that the str method of DynAXPlusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -245,7 +248,7 @@ def test_aX_plus_Y():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -263,8 +266,8 @@ def test_aX_plus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = aX + Y
-def test_inc_aX_plus_Y_str():
+
+def test_inc_aX_plus_Y_str():    # X = aX + Y
     ''' Test the str method of DynIncAXPlusYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.4_inc_aX_plus_Y_builtin.f90"),
@@ -324,7 +327,7 @@ def test_inc_aX_plus_Y():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -342,8 +345,8 @@ def test_inc_aX_plus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = X + bY
-def test_inc_X_plus_bY_str():
+
+def test_inc_X_plus_bY_str():    # X = X + bY
     ''' Test the str method of DynIncXPlusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.5_inc_X_plus_bY_builtin.f90"),
@@ -403,7 +406,7 @@ def test_inc_X_plus_bY():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -421,8 +424,8 @@ def test_inc_X_plus_bY():
             print output_dm_2
             assert output_dm_2 in code
 
-# Z = aX + bY
-def test_aX_plus_bY_str():
+
+def test_aX_plus_bY_str():    # Z = aX + bY
     ''' Test that the str method of DynAXPlusBYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -484,7 +487,7 @@ def test_aX_plus_bY():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -502,8 +505,8 @@ def test_aX_plus_bY():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = aX + bY
-def test_inc_aX_plus_bY_str():
+
+def test_inc_aX_plus_bY_str():    # X = aX + bY
     ''' Test the str method of DynIncAXPlusBYKern '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -566,7 +569,7 @@ def test_inc_aX_plus_bY():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -584,9 +587,10 @@ def test_inc_aX_plus_bY():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Subtracting (scaled) fields ###################################
-# Z = X - Y
-def test_X_minus_Y_str():
+# ------------- Subtracting (scaled) fields --------------------------------- #
+
+
+def test_X_minus_Y_str():    # Z = X - Y
     ''' Test that the str method of DynXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -635,7 +639,7 @@ def test_X_minus_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -653,15 +657,16 @@ def test_X_minus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = X + Y
-def test_inc_X_minus_Y_str():
+
+def test_inc_X_minus_Y_str():    # X = X - Y
     ''' Test that the str method of DynIncXMinusYKern returns the
     expected string '''
     for distmem in [False, True]:
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "15.2.2_inc_X_minus_Y_builtin.f90"),
-                               distributed_memory=distmem,
-                               api="dynamo0.3")
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.2.2_inc_X_minus_Y_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
@@ -695,7 +700,7 @@ def test_inc_X_minus_Y():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -710,8 +715,8 @@ def test_inc_X_minus_Y():
                 "      CALL f1_proxy%set_dirty()")
             assert output in code
 
-# Z = aX - Y
-def test_aX_minus_Y_str():
+
+def test_aX_minus_Y_str():    # Z = aX - Y
     ''' Test that the str method of DynAXMinusYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -773,7 +778,7 @@ def test_aX_minus_Y():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -791,8 +796,8 @@ def test_aX_minus_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-# Z = X - bY
-def test_X_minus_bY_str():
+
+def test_X_minus_bY_str():    # Z = X - bY
     ''' Test the str method of DynXMinusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.4_X_minus_bY_builtin.f90"),
@@ -853,7 +858,7 @@ def test_X_minus_bY():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -871,8 +876,8 @@ def test_X_minus_bY():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = X - bY
-def test_inc_X_minus_bY_str():
+
+def test_inc_X_minus_bY_str():    # X = X - bY
     ''' Test the str method of DynIncXMinusBYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.5_inc_X_minus_bY_builtin.f90"),
@@ -883,6 +888,7 @@ def test_inc_X_minus_bY_str():
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_X_minus_bY"
+
 
 def test_inc_X_minus_bY():
     ''' Test that we generate correct code for the built-in
@@ -931,7 +937,7 @@ def test_inc_X_minus_bY():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -949,9 +955,11 @@ def test_inc_X_minus_bY():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Multiplying (scaled) fields ###################################
-# Z = X*Y
-def test_X_times_Y_str():
+
+# ------------- Multiplying (scaled) fields --------------------------------- #
+
+
+def test_X_times_Y_str():    # Z = X*Y
     ''' Test the str method of DynXTimesYKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -992,7 +1000,7 @@ def test_X_times_Y():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -1007,14 +1015,14 @@ def test_X_times_Y():
                 "      CALL f3_proxy%set_dirty()")
             assert output in code
 
-# X = X*Y
-def test_inc_X_times_Y_str():
+
+def test_inc_X_times_Y_str():    # X = X*Y
     ''' Test that the str method of DynIncXTimesYKern returns the
     expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        (r"15.3.2_"
-                                         r"inc_X_times_Y_builtin.f90")),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.3.2_inc_X_times_Y_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1026,10 +1034,10 @@ def test_inc_X_times_Y_str():
 def test_inc_X_times_Y():
     ''' Test that we generate correct code for the multiply field
     infrastructure kernel (x = x*y) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        (r"15.3.2_"
-                                         r"inc_X_times_Y_builtin.f90")),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.3.2_inc_X_times_Y_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1058,7 +1066,7 @@ def test_inc_X_times_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1077,8 +1085,7 @@ def test_inc_X_times_Y():
             assert output_dm_2 in code
 
 
-# X = aX*Y
-def test_inc_aX_times_Y_str():
+def test_inc_aX_times_Y_str():    # X = aX*Y
     ''' Test the str method of DynIncAXTimesYKern'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.3_inc_aX_times_Y_builtin.f90"),
@@ -1089,6 +1096,7 @@ def test_inc_aX_times_Y_str():
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_aX_times_Y"
+
 
 def test_inc_aX_times_Y():
     ''' Test that we generate correct code for the built-in
@@ -1137,7 +1145,7 @@ def test_inc_aX_times_Y():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1156,9 +1164,10 @@ def test_inc_aX_times_Y():
             assert output_dm_2 in code
 
 
-############### Scaling fields (multiplying by a scalar #######################
-# Z = a*X
-def test_a_times_X_str():
+# ------------- Scaling fields (multiplying by a scalar --------------------- #
+
+
+def test_a_times_X_str():    # Z = a*X
     ''' Test that the str method of DynATimesXKern returns the
     expected string '''
     _, invoke_info = parse(
@@ -1207,7 +1216,7 @@ def test_a_times_X():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f2",code)
+            mesh_code_present("f2", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1224,8 +1233,8 @@ def test_a_times_X():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = a*X
-def test_inc_a_times_X_str():
+
+def test_inc_a_times_X_str():    # X = a*X
     ''' Test the str method of DynIncATimesXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1264,7 +1273,7 @@ def test_inc_a_times_X():
                 "      END DO \n"
                 "      !\n")
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -1279,9 +1288,11 @@ def test_inc_a_times_X():
 
             assert output in code
 
-############### Dividing (scaled) fields ######################################
-# Z = X/Y
-def test_X_divideby_Y_str():
+
+# ------------- Dividing (scaled) fields ------------------------------------ #
+
+
+def test_X_divideby_Y_str():    # Z = X/Y
     ''' Test that the str method of DynXDividebyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1330,7 +1341,7 @@ def test_X_divideby_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1348,8 +1359,8 @@ def test_X_divideby_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-# X = X/Y
-def test_inc_X_divideby_Y_str():
+
+def test_inc_X_divideby_Y_str():    # X = X/Y
     ''' Test that the str method of DynIncXDividebyYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1397,7 +1408,7 @@ def test_inc_X_divideby_Y():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1415,9 +1426,11 @@ def test_inc_X_divideby_Y():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Raising field to a scalar #####################################
-# X = X**a (a is real)
-def test_inc_X_powreal_a_str():
+
+# ------------- Raising field to a scalar ----------------------------------- #
+
+
+def test_inc_X_powreal_a_str():    # X = X**a (a is real)
     ''' Test the str method of DynIncXPowrealAKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1456,7 +1469,7 @@ def test_inc_X_powreal_a():
                 "      END DO \n"
                 "      !\n")
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -1472,9 +1485,10 @@ def test_inc_X_powreal_a():
             assert output in code
 
 
-############### Setting field elements to a value #############################
-# X = c
-def test_setval_c_str():
+# ------------- Setting field elements to a value --------------------------- #
+
+
+def test_setval_c_str():    # X = c
     ''' Check that the str method of DynSetvalCKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1530,7 +1544,7 @@ def test_setval_c():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1547,8 +1561,8 @@ def test_setval_c():
             print output_dm_2
             assert output_dm_2 in code
 
-# Y = X
-def test_setval_X_str():
+
+def test_setval_X_str():    # Y = X
     ''' Check that the str method of DynSetvalXKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1605,7 +1619,7 @@ def test_setval_X():
                 "      END DO")
             assert output in code
         if distmem:
-            mesh_code_present("f2",code)
+            mesh_code_present("f2", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -1622,9 +1636,11 @@ def test_setval_X():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Inner product of fields #######################################
-# innprod = innprod + X(:)*Y(:)
-def test_X_innerproduct_Y_str():
+
+# ------------- Inner product of fields ------------------------------------- #
+
+
+def test_X_innerproduct_Y_str():    # innprod = innprod + X(:)*Y(:)
     ''' Test the str method of DynXInnerproductYKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1686,7 +1702,7 @@ def test_X_innerproduct_Y():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm = (
                 "      ! Initialise sizes and allocate any basis arrays for "
                 "any_space_1_f1\n"
@@ -1712,8 +1728,8 @@ def test_X_innerproduct_Y():
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
             assert "      TYPE(scalar_type) global_sum\n" in code
 
-# innprod = innprod + X(:)*X(:)
-def test_X_innerproduct_X_str():
+
+def test_X_innerproduct_X_str():    # innprod = innprod + X(:)*X(:)
     ''' Test the str method of DynXInnerproductXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1775,7 +1791,7 @@ def test_X_innerproduct_X():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm = (
                 "      ! Initialise sizes and allocate any basis arrays for "
                 "any_space_1_f1\n"
@@ -1801,9 +1817,11 @@ def test_X_innerproduct_X():
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
             assert "      TYPE(scalar_type) global_sum\n" in code
 
-############### Sum field elements ############################################
-# sumfld = sum(X(:))
-def test_sum_X_str():
+
+# ------------- Sum field elements ------------------------------------------ #
+
+
+def test_sum_X_str():    # sumfld = sum(X(:))
     ''' Test the str method of DynSumXKern '''
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1858,7 +1876,7 @@ def test_sum_X():
                 "      END DO ")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output = (
                 "      ! Initialise sizes and allocate any basis arrays "
                 "for any_space_1_f1\n"
@@ -1881,7 +1899,9 @@ def test_sum_X():
             assert output in code
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
 
-############### Xfail builtins ################################################
+
+# ------------- Xfail builtins ---------------------------------------------- #
+
 
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
@@ -1921,7 +1941,9 @@ def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
         )
         assert output in code
 
-############### Invalid builtins ##############################################
+
+# ------------- Invalid builtins -------------------------------------------- #
+
 
 def test_invalid_builtin_kernel():
     ''' Check that we raise an appropriate error if an unrecognised
@@ -1955,8 +1977,9 @@ def test_dynbuiltin_not_over_dofs():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.12.3_single_pointwise_builtin.f90"),
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH,
+        "15.12.3_single_pointwise_builtin.f90"),
                            api="dynamo0.3")
     # Restore the original file name before doing the assert in case
     # it fails
@@ -1972,9 +1995,10 @@ def test_dynbuiltin_str():
     ''' Check that we raise an error if we attempt to call the __str__
     method on the parent DynBuiltIn class '''
     from psyclone.dynamo0p3_builtins import DynBuiltIn
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.12.3_single_pointwise_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [True, False]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1989,9 +2013,10 @@ def test_dynbuiltin_gen_code():
     ''' Check that we raise an error if we attempt to call the gen_code()
     method on the parent DynBuiltIn class '''
     from psyclone.dynamo0p3_builtins import DynBuiltIn
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.12.3_single_pointwise_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2005,9 +2030,10 @@ def test_dynbuiltin_gen_code():
 def test_dynbuiltin_cma():
     ''' Check that a DynBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.12.3_single_pointwise_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2036,8 +2062,8 @@ def test_builtin_sum_and_inc():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
-            "only one argument that is written to but found 2 for kernel "
-            + test_builtin_name.lower() in str(excinfo))
+            "only one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_write_and_inc():
@@ -2059,8 +2085,8 @@ def test_builtin_write_and_inc():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel "
-            + test_builtin_name.lower() in str(excinfo))
+            "one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -2082,7 +2108,7 @@ def test_builtin_zero_writes(monkeypatch):
                      api="dynamo0.3")
     assert ("A Dynamo 0.3 kernel must have at least one "
             "argument that is updated (written to) but "
-            "found none for kernel " + test_builtin_name.lower() 
+            "found none for kernel " + test_builtin_name.lower()
             in str(excinfo))
 
 
@@ -2105,8 +2131,8 @@ def test_builtin_multiple_writes():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel "
-            + test_builtin_name.lower() in str(excinfo))
+            "one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_no_field_args():
@@ -2127,7 +2153,8 @@ def test_builtin_no_field_args():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API "
             "must have at least one field as an argument but "
-            "kernel "+ test_builtin_name.lower() + " has none" in str(excinfo))
+            "kernel " + test_builtin_name.lower() + " has none"
+            in str(excinfo))
 
 
 def test_builtin_operator_arg():
@@ -2198,10 +2225,12 @@ def test_scalar_int_builtin_error(monkeypatch):
             _ = PSyFactory("dynamo0.3",
                            distributed_memory=dist_mem).create(invoke_info)
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel " + test_builtin_name.lower() + " has an "
-                "argument of type gh_integer" in str(excinfo))
+                "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
+                "an argument of type gh_integer" in str(excinfo))
 
-############### Builtins that pass scalars by reference #######################
+
+# ------------- Builtins that pass scalars by reference --------------------- #
+
 
 def test_builtin_set_by_ref():
     ''' Tests that we generate correct code for a builtin
@@ -2247,7 +2276,7 @@ def test_builtin_set_by_ref():
             print output
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -2264,14 +2293,17 @@ def test_builtin_set_by_ref():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Builtins that pass scalars by value ###########################
+
+# ------------- Builtins that pass scalars by value ------------------------- #
+
 
 def test_builtin_set():
     ''' Tests that we generate correct code for a serial builtin
     set operation with a scalar passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.12.3_single_pointwise_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2311,7 +2343,7 @@ def test_builtin_set():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -2332,9 +2364,10 @@ def test_builtin_set():
 def test_aX_plus_Y_by_value():
     ''' Test that we generate correct code for the builtin
     operation y = a*x + y when a is passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.14.1_aX_plus_Y_builtin_set_by_value.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.14.1_aX_plus_Y_builtin_set_by_value.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2376,7 +2409,7 @@ def test_aX_plus_Y_by_value():
                 "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -2398,9 +2431,10 @@ def test_aX_plus_Y_by_value():
 def test_aX_plus_bY_by_value():
     ''' Test that we generate correct code for the builtin
     operation z = a*x + b*y when a and b are passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.14.2_aX_plus_bY_builtin_set_by_value.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.14.2_aX_plus_bY_builtin_set_by_value.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2442,7 +2476,7 @@ def test_aX_plus_bY_by_value():
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
         if distmem:
-            mesh_code_present("f3",code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -2460,7 +2494,9 @@ def test_aX_plus_bY_by_value():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Builtins with multiple calls or mixed with kernels ############
+
+# ------------- Builtins with multiple calls or mixed with kernels ---------- #
+
 
 def test_multiple_builtin_set():
     ''' Tests that we generate correct code when we have an invoke
@@ -2526,7 +2562,7 @@ def test_multiple_builtin_set():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -2613,7 +2649,7 @@ def test_builtin_set_plus_normal():
                 "      END DO ")
             assert output in code
         if distmem:
-            mesh_code_present("f1",code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -2654,7 +2690,9 @@ def test_builtin_set_plus_normal():
             print output_dm_2
             assert output_dm_2 in code
 
-############### Builtins with reductions ######################################
+
+# ------------- Builtins with reductions ------------------------------------ #
+
 
 def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
     '''Test that multiple builtins, including one with reductions,
@@ -2765,9 +2803,11 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
                 "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
                 "      END DO \n") in code
 
-############### Auxiliary mesh code generation function #######################
 
-def mesh_code_present(field_str,code):
+# ------------- Auxiliary mesh code generation function --------------------- #
+
+
+def mesh_code_present(field_str, code):
     '''This test checks for the existance of mesh code. This exists for
     all builtins with dm = True (although it is not actually required!) so
     each test can call this function. Mesh code is generated from the first

@@ -845,7 +845,8 @@ def test_argument_depends_on():
     assert arg_f2_inc._depends_on(arg_f2_read_1)
     # same name both writes (the 4.5 example only uses inc) returns True
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -879,7 +880,8 @@ def test_argument_find_argument():
     assert result == f3_first_read
     # 3: haloexchange node
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -930,7 +932,8 @@ def test_haloexchange_arg():
     '''Check that the haloexchange argument is defined as gh_readwrite and
     points to the haloexchange node'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1128,7 +1131,8 @@ def test_call_args():
     '''Test that the call class args method returns the appropriate
     arguments '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]

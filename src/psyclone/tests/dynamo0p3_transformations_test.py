@@ -3621,7 +3621,8 @@ def test_move_forward_after():
 def test_move_fail():
     '''Test that MoveTrans fails to move the node backwards and forwards
     if there is a dependence. '''
-    _, info = parse(os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.15.1_multi_aX_plus_Y_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
