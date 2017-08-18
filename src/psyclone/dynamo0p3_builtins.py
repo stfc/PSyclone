@@ -31,15 +31,15 @@ VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
 # The meta-data describing these kernels is in dynamo0p3_builtins_mod.f90.
 # The built-in operations F90 names are dictionary keys and need to be
 # converted to lower case for invoke generation purpose.
-def get_builtin_map(BUILTIN_MAP_F90):
+def get_builtin_map(builtin_map_f90_dict):
     '''Convert the names of the supported built-in operations to lowercase
     for comparison and invoke generation purpose'''
 
-    BUILTIN_MAP = {}
-    for fortran_name in BUILTIN_MAP_F90:
-        python_name = BUILTIN_MAP_F90[fortran_name]
-        BUILTIN_MAP[fortran_name.lower()] = python_name
-    return BUILTIN_MAP
+    builtin_map_dict = {}
+    for fortran_name in builtin_map_f90_dict:
+        python_name = builtin_map_f90_dict[fortran_name]
+        builtin_map_dict[fortran_name.lower()] = python_name
+    return builtin_map_dict
 
 
 class DynBuiltInCallFactory(object):
