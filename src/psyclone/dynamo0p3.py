@@ -2197,35 +2197,61 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_depth(self):
         ''' xxx '''
         depth_info_list = self._compute_halo_info
-        #for idx, depth_info in enumerate(depth_info_list):
-        #    print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}, stencil_type {4}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"], depth_info["stencil_type"])
+
         # if any reader reads to max depth then return max_depth
         for depth_info in depth_info_list:
             if depth_info["max_depth"]:
                 return "mesh%get_last_halo_depth()"
-        if len(depth_info_list) == 1:
-            depth_info = depth_info_list[0]
-            if depth_info["var_depth"]:
-                depth = depth_info["var_depth"]
-                if depth_info["literal_depth"]:
-                    depth += "+{0}".format(str(depth_info["literal_depth"]))
-                return depth
+
+        # simplify our list
+        new_depth_info_list = self._simplify_depth_list(depth_info_list)
+
+        # if there is only one entry, return the depth
+        if len(new_depth_info_list) == 1:
+            return self._depth_str(depth_info_list[0])
         else:
-            # if at least one read field has a variable depth and there is
-            # more than one read field in the list then raise an exception
-            # for the moment
-            for depth_info in depth_info_list:
-                #print "index {0}, max_depth {1}, var_depth {2}, literal_depth {3}".format(idx, depth_info["max_depth"], depth_info["var_depth"], depth_info["literal_depth"])
-                if depth_info["var_depth"]:
-                    raise GenerationError("multiple depths with at least one variable depth not yet supported")
-        # return the maximum depth
-        depth = 0
+            # at least one read field must have a variable depth and
+            # there is more than one read field in the list.
+            depth_str_list = []                
+            for depth_info in new_depth_info_list:
+                depth_str_list.append(self._depth_str(depth_info))
+            return "max("+",".join(depth_str_list)+")"
+
+    def _depth_str(self, depth_info):
+        ''' xxx '''
+        depth_str = ""
+        if depth_info["var_depth"]:
+            depth_str += depth_info["var_depth"]
+            if depth_info["literal_depth"]:
+                depth_str += "+"
+        if depth_info["literal_depth"]:
+            depth_str += str(depth_info["literal_depth"])
+        return depth_str
+
+    def _simplify_depth_list(self, depth_info_list):
+        ''' xxx '''
+        new_depth_info_list = []
+        literal_only = 0
         for depth_info in depth_info_list:
-            if depth_info["literal_depth"] > depth:
-                depth = depth_info["literal_depth"]
-        if depth == 0:
-            raise GenerationError("Error in logic, should not get to here")
-        return str(depth)
+            var_depth = depth_info["var_depth"]
+            literal_depth = depth_info["literal_depth"]
+            #print "  ++ looking at var_depth {0} and literal_depth {1}".format(var_depth, literal_depth)
+            match = False
+            for new_depth_info in new_depth_info_list:
+                if new_depth_info["var_depth"] == var_depth and not match:
+                    new_depth_info["literal_depth"] = max(new_depth_info["literal_depth"], literal_depth)
+                    match = True
+            if not match:
+                #print "  ++ there is no match so append values"
+                new_depth_info_list.append({"var_depth":var_depth, "literal_depth":literal_depth})
+        #print len(new_depth_info_list)
+        #print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        #for depth_info in depth_info_list:
+        #    print "var_depth {0}, literal_depth {1}".format(str(depth_info["var_depth"]), depth_info["literal_depth"])
+        #for depth_info in new_depth_info_list:
+        #    print "var_depth {0}, literal_depth {1}".format(str(depth_info["var_depth"]), depth_info["literal_depth"])
+        #print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        return new_depth_info_list
 
     @property
     def _compute_halo_info(self):

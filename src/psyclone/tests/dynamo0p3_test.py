@@ -5054,8 +5054,8 @@ def test_single_stencil_literal():
         assert output4 in result
         if dist_mem:
             output5 = (
-                "      IF (f2_proxy%is_dirty(depth=1+1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=1+1)\n"
+                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2)\n"
                 "      END IF \n")
             assert output5 in result
         output6 = (
@@ -5126,8 +5126,8 @@ def test_single_stencil_xory1d_literal():
         assert output4 in result
         if dist_mem:
             output5 = (
-                "      IF (f2_proxy%is_dirty(depth=2+1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=2+1)\n"
+                "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=3)\n"
                 "      END IF \n")
             assert output5 in result
         output6 = (
@@ -5183,8 +5183,8 @@ def test_single_stencil_xory1d_literal_mixed():
         assert output4 in result
         if dist_mem:
             output5 = (
-                "      IF (f2_proxy%is_dirty(depth=2+1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=2+1)\n"
+                "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=3)\n"
                 "      END IF \n")
             assert output5 in result
         output6 = (
@@ -5645,7 +5645,7 @@ def test_stencils_same_field_literal_extent():
     stencil access in each kernel and the extent being passed as a
     literal value. Extent is the same in two kernels and different in
     the third. '''
-    for dist_mem in [False]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.15_stencils_same_field_literal_extent.f90"),
@@ -5692,18 +5692,13 @@ def test_stencils_same_field_literal_extent():
             "map_w3(:,cell))")
         assert result.count(output4) == 1
 
-    for dist_mem in [True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "19.15_stencils_same_field_literal_extent.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(GenerationError) as excinfo:
-            psy = PSyFactory("dynamo0.3",
-                             distributed_memory=dist_mem).create(invoke_info)
-        assert ("Complex halo exchange depths not currently supported"
-                in str(excinfo))
-        assert ("invalid literal for int() with base 10: '1+1'"
-                in str(excinfo))
+        if dist_mem:
+            assert ("IF (f2_proxy%is_dirty(depth=2)) THEN" in result)
+            assert ("CALL f2_proxy%halo_exchange(depth=2)" in result)
+            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
+            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
 
 
 def test_stencils_same_field_literal_direction():
@@ -5711,7 +5706,7 @@ def test_stencils_same_field_literal_direction():
     stencil access in each kernel and the direction being passed as a
     literal value. In two kernels the direction value is the same and
     in the third it is different. '''
-    for dist_mem in [False]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.16_stencils_same_field_literal_direction.f90"),
@@ -5769,18 +5764,14 @@ def test_stencils_same_field_literal_direction():
             "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
             "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert result.count(output4) == 1
-    for dist_mem in [True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "19.16_stencils_same_field_literal_direction.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(GenerationError) as excinfo:
-            psy = PSyFactory("dynamo0.3",
-                             distributed_memory=dist_mem).create(invoke_info)
-        assert ("Complex halo exchange depths not currently supported"
-                in str(excinfo))
-        assert ("invalid literal for int() with base 10: '2+1'"
-                in str(excinfo))
+        
+        if dist_mem:
+            assert ("IF (f2_proxy%is_dirty(depth=3)) THEN" in result)
+            assert ("CALL f2_proxy%halo_exchange(depth=3)" in result)
+            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
+            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
 
 
 def test_stencil_extent_specified():
@@ -5822,8 +5813,8 @@ def test_haloexchange_unknown_halo_depth():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
-    halo_exchange = DynHaloExchange(stencil_arg)
-    assert halo_exchange._halo_depth == '10'
+    halo_exchange = schedule.children[0]
+    assert halo_exchange._compute_halo_depth == '11'
 
 
 def test_haloexchange_correct_parent():  # pylint: disable=invalid-name
@@ -6049,7 +6040,7 @@ def test_stencil_args_unique_2():
     unique within the generated PSy-layer when they are accessed as
     indexed arrays, with the same array name, from the algorithm
     layer.'''
-    for dist_mem in [False]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.22_stencil_names_indexed.f90"),
@@ -6099,25 +6090,20 @@ def test_stencil_args_unique_2():
             "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
             "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output5 in result
-    for dist_mem in [True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "19.22_stencil_names_indexed.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(GenerationError) as excinfo:
-            psy = PSyFactory("dynamo0.3",
-                             distributed_memory=dist_mem).create(invoke_info)
-        assert ("Complex halo exchange depths not currently supported"
-                in str(excinfo))
-        assert ("invalid literal for int() with base 10: 'f2_info+1'"
-                in str(excinfo))
+        if dist_mem == True:
+            assert ("IF (f2_proxy%is_dirty(depth=max(f2_info+1,f2_info_2+1))) THEN" in result)
+            assert ("CALL f2_proxy%halo_exchange(depth=max(f2_info+1,f2_info_2+1))" in result)
+            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
+            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
 
 
 def test_stencil_args_unique_3():
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are dereferenced,
     with the same type/class name, from the algorithm layer. '''
-    for dist_mem in [False]:
+    for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.23_stencil_names_deref.f90"),
@@ -6134,18 +6120,13 @@ def test_stencil_args_unique_3():
         assert (
             "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
             "my_info_f2_info)" in result)
-    for dist_mem in [True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "19.23_stencil_names_deref.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(GenerationError) as excinfo:
-            psy = PSyFactory("dynamo0.3",
-                             distributed_memory=dist_mem).create(invoke_info)
-        assert ("Complex halo exchange depths not currently supported"
-                in str(excinfo))
-        assert ("invalid literal for int() with base 10: 'my_info_f2_info+1'"
-                in str(excinfo))
+        if dist_mem == True:
+            assert ("IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,my_info_f2_info_2+1))) THEN" in result)
+            assert ("CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,my_info_f2_info_2+1))" in result)
+            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
+            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
+            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
 
 
 def test_dynloop_load_unexpected_function_space():
