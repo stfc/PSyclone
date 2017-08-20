@@ -415,7 +415,7 @@ def test_invokes_can_always_be_printed2():
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
-    invoke_call.setName(None)
+    invoke_call._name = None
     inv = Invoke(invoke_call, 12, DynSchedule)
     assert inv.__str__() == "invoke_12()"
 
@@ -429,7 +429,6 @@ def test_invokes_can_always_be_printed2():
     alg_invocation = invoke.calls.values()[0]
     inv = Invoke(alg_invocation, 0, DynSchedule)
     assert inv.__str__() == "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
-    alg_invocation = invoke.calls.values()[0]
 
 
 def test_same_name_invalid():

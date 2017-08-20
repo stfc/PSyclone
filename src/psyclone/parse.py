@@ -747,10 +747,6 @@ class InvokeCall(object):
         """Return the name of this invoke call"""
         return self._name
 
-    def setName(self, name):
-        """Sets the name of this invoke call (for testing purposes only)"""
-        self._name = name
-
     @property
     def kcalls(self):
         """Return the list of kernel calls in this invoke call"""
