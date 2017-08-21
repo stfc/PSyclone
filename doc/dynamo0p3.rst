@@ -1034,6 +1034,13 @@ following four rules:
     means that we can determine the number of dofs uniquely when a
     scalar is written to.
 
+The built-ins supported for the Dynamo 0.3 API are listed in the related
+subsections, grouped by the mathematical operation they perform. For clarity,
+the calculation performed by each built-in is described using Fortran array
+syntax; this does not necessarily reflect the actual implementation of the
+built-in (*e.g.* it could be implemented by PSyclone generating a call to an
+optimised maths library).
+
 Naming scheme
 +++++++++++++
 
@@ -1059,37 +1066,31 @@ scheme presented below. Any new built-ins need to comply with these rules.
        Fortran and Python definitions):
 
        a) Are always  written in long form (e.g. **Field1**, **Field2**,
-	  **scalar1**, **scalar2**),
-       b) *LHS* result arguments are always listed first,
+	  **scalar1**, **scalar2**);
+       b) *LHS* result arguments are always listed first;
        c) *RHS* arguments are listed in order of appearance in the mathematical
 	  expression, except when one of them is the LHS result.
 
     5) Built-ins names in Fortran consist of:
 
-       a) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only,
-       b) Descriptive name of mathematical operation on *RHS* arguments in the 
-	  form  ``<RHSargs>_<operationname>_<RHSargs>``,
-       c) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
+       1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
+       2) Descriptive name of mathematical operation on *RHS* arguments in the 
+	  form  ``<RHSargs>_<operationname>_<RHSargs>``;
+       3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
 	  arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
 
     6) Built-ins names in Python definitions are similar to their Fortran 
        counterparts, with a few differences:
 
-       a) Operators and *RHS* arguments are all in upper case (e.g. **X**, 
-	  **Y**, **A**, **B**, **Plus**, **Minus**),
-       b) There are no underscores,
-       c) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
+       1) Operators and *RHS* arguments are all in upper case (e.g. **X**, 
+	  **Y**, **A**, **B**, **Plus**, **Minus**);
+       2) There are no underscores;
+       3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
 
-Supported built-ins
-+++++++++++++++++++
+Addition
+++++++++
 
-The built-ins supported for the Dynamo 0.3 API are listed below, grouped by the
-mathematical operation they perform. For clarity, the calculation performed by 
-each built-in is described using Fortran array syntax; this does not necessarily
-reflect the actual implementation of the built-in (*e.g.* it could be
-implemented by PSyclone generating a call to an optimised maths library).
-
-Built-ins which add scaled fields are denoted with keyword **plus**.
+Built-ins which add (scaled) fields are denoted with keyword **plus**.
 
 X_plus_Y
 ########
@@ -1196,13 +1197,15 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-Subtraction of fields
-#####################
+Subtraction
++++++++++++
 
-Built-ins which subtract scaled fields are denoted with keyword **minus**.
+Built-ins which subtract (scaled) fields are denoted with keyword **minus**.
+
+X_minus_Y
+#########
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
-^^^^^^^^^^^^^
 
 Subtracts the second field from the first and stores the result in the 
 third (Z = X - Y): ::
@@ -1215,8 +1218,10 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+inc_X_minus_Y
+#############
+
 **inc_X_minus_Y** (*field1*, *field2*)
-^^^^^^^^^^^^^^^^^
 
 Subtracts the second field from the first and returns it (X = X - Y): ::
 
@@ -1227,8 +1232,10 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+aX_minus_Y
+##########
+
 **aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
-^^^^^^^^^^^^^^
 
 Performs Z = aX - Y: ::
    
@@ -1240,8 +1247,10 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
+X_minus_bY
+##########
+
 **X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
-^^^^^^^^^^^^^^
 
 Performs Z = X - bY: ::
 
@@ -1253,8 +1262,10 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
+inc_X_minus_bY
+##############
+
 **inc_X_minus_bY** (*field1*, *scalar*, *field2*)
-^^^^^^^^^^^^^^^^^^
 
 Performs X = X - bY (increments the first field): ::
 
@@ -1266,10 +1277,13 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-Built-ins which multiply (scaled) fields are denoted with keyword *times*.
+Multiplication
+++++++++++++++
+
+Built-ins which multiply (scaled) fields are denoted with keyword **times**.
 
 X_times_Y
-+++++++++
+#########
 
 **X_times_Y** (*field3*, *field1*, *field2*)
 
@@ -1284,7 +1298,7 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 
 inc_X_times_Y
-+++++++++++++
+#############
 
 **inc_X_times_Y** (*field1*, *field2*)
 
@@ -1298,7 +1312,7 @@ where:
 * type(field_type), intent(in) :: *field2*
 
 inc_aX_times_Y
-++++++++++++++
+##############
 
 **inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
@@ -1312,11 +1326,14 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+Scaling
++++++++
+
 Built-ins which scale fields are technically cases of multiplying field by a 
-scalar and are hence also denoted with keyword *times*.
+scalar and are hence also denoted with keyword **times**.
 
 a_times_X
-+++++++++
+#########
 
 **a_times_X** (*field2*, *scalar*, *field1*)
 
@@ -1332,7 +1349,7 @@ where:
 * type(field_type), intent(in) :: *field1*
 
 inc_a_times_X
-+++++++++++++
+#############
 
 **inc_a_times_X** (*scalar*, *field1*)
 
@@ -1345,10 +1362,13 @@ where:
 * real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 
-Built-ins which divide (scaled) fields are denoted with keyword *divideby*.
+Division
+++++++++
+
+Built-ins which divide (scaled) fields are denoted with keyword **divideby**.
 
 X_divideby_Y
-++++++++++++
+############
 
 **X_divideby_Y** (*field3*, *field1*, *field2*)
 
@@ -1363,7 +1383,7 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 
 inc_X_divideby_Y
-++++++++++++++++
+################
 
 **inc_X_divideby_Y** (*field1*, *field2*)
 
@@ -1376,11 +1396,14 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+Setting to value
+++++++++++++++++
+
 Built-ins which set field elements to some value and hence are denoted with
-keyword *setval*.
+keyword **setval**.
 
 setval_c
-++++++++
+########
 
 **setval_c** (*field*, *constant*)
 
@@ -1396,7 +1419,7 @@ where:
 .. note:: The field may be on any function space.
 
 setval_X
-++++++++
+########
 
 **setval_X** (*field2*, *field1*)
 
@@ -1409,11 +1432,14 @@ where:
 * type(field_type), intent(out) :: *field2*
 * type(field_type), intent(in) :: *field1*
 
+Raising to power
+++++++++++++++++
+
 Built-in which raises field elements to an exponent is denoted with keyword
-*powreal* for real exponent.
+**powreal** for real exponent.
 
 inc_X_powreal_a
-+++++++++++++++
+###############
 
 **inc_X_powreal_a** (*field1*, *scalar*)
 
@@ -1426,11 +1452,14 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * real(r_def), intent(in) :: *scalar*
 
+Inner product
++++++++++++++
+
 Built-ins which calculate inner product of two fields or of a field with itself
-are denoted with keyword *innerproduct*.
+are denoted with keyword **innerproduct**.
 
 X_innerproduct_Y
-++++++++++++++++
+################
 
 **X_innerproduct_Y** (*innprod*, *field1*, *field2*)
 
@@ -1448,7 +1477,7 @@ where:
           performance and/or scalability of the code.
 
 X_innerproduct_X
-++++++++++++++++
+################
 
 **X_innerproduct_X** (*innprod*, *field1*)
 
@@ -1465,10 +1494,13 @@ where:
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
+Sum of elements
++++++++++++++++
+
 Built-in which sums element of a field is denoted with keyword *sum*.
 
 sum_X
-+++++
+#####
 
 **sum_X** (*sumfld*, *field*)
 
