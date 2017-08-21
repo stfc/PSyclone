@@ -2321,10 +2321,9 @@ class DynHaloExchange(HaloExchange):
             # will ensure that these are updated
             pass
         else:
-            print "_compute_single_halo_info, internal error if we get to here"
             print "loop upper bound name is {0}".format(loop.upper_bound_name)
-            loop.root.view()
-            exit(1)
+            raise GenerationError(
+                "_compute_single_halo_info, internal error if we get to here")
 
         # default stencil type to "region" as it means all of the halo
         # and this is what is used when we perform redundant
@@ -2358,10 +2357,8 @@ class DynHaloExchange(HaloExchange):
         ''' Class specific view  '''
         print self.indent(indent) + (
             "DynHaloExchange[field='{0}', type='{1}', depth={2}, "
-            "check_dirty={3}]".format(self._field.name, "x",
-                                      "x", "x"))
-        #    "check_dirty={3}]".format(self._field.name, self._compute_stencil_type,
-        #self._compute_halo_depth, self._check_dirty))
+            "check_dirty={3}]".format(self._field.name, self._compute_stencil_type,
+                                      self._compute_halo_depth, self._check_dirty))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
