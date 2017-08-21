@@ -6834,7 +6834,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_w3():
+def test_no_halo_for_discontinous():
     '''Test that we do not create halo exchange calls when our loop only
     iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6848,22 +6848,49 @@ def test_no_halo_for_w3():
     assert "halo_exchange" not in result
 
 
-def test_no_halo_for_w3_2():
-    '''Test that we do not create halo exchange calls when our loop only
-    iterates over owned cells (e.g. it writes to a discontinuous
-    field), we read from a continous field and there are no
-    stencil accesses'''
+def test_halo_for_discontinuous():
+    '''Test that we create halo exchange call when our loop iterates over
+    owned cells (e.g. it writes to a discontinuous field), we read
+    from a continous field, there are no stencil accesses, but we do
+    not know anything about the previous writer. As the previous
+    writer may have been over dofs we could have dirty annexed dofs so
+    need to add a halo exchange.'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
-    exit(1)
     result = str(psy.gen)
     print result
-    assert "halo_exchange" not in result
+    assert "IF (f1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f2_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+
+def test_halo_for_discontinuous_2():
+    '''Test that we create halo exchange call when our loop iterates over
+    owned cells (e.g. it writes to a discontinuous field), we read
+    from a continous field, there are no stencil accesses, and the
+    previous writer iterates over ndofs. We therefore have dirty
+    annexed dofs so need to add a halo exchange. '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.7_halo_annexed.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    result = str(psy.gen)
+    print result
+    assert "IF (f1_proxy%is_dirty(depth=1)) THEN" not in result
+    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f2_proxy%is_dirty(depth=1)) THEN" not in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
 def test_arg_discontinous():
