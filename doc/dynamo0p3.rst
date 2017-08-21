@@ -1202,7 +1202,7 @@ Subtraction of fields
 Built-ins which subtract scaled fields are denoted with keyword **minus**.
 
 **X_minus_Y** (*field3*, *field1*, *field2*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^
 
 Subtracts the second field from the first and stores the result in the 
 third (Z = X - Y): ::
@@ -1216,7 +1216,7 @@ where:
 * type(field_type), intent(in) :: *field2*
 
 **inc_X_minus_Y** (*field1*, *field2*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
 
 Subtracts the second field from the first and returns it (X = X - Y): ::
 
@@ -1228,7 +1228,7 @@ where:
 * type(field_type), intent(in) :: *field2*
 
 **aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
 
 Performs Z = aX - Y: ::
    
@@ -1241,7 +1241,7 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 
 **X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
 
 Performs Z = X - bY: ::
 
@@ -1254,7 +1254,7 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 
 **inc_X_minus_bY** (*field1*, *scalar*, *field2*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 
 Performs X = X - bY (increments the first field): ::
 
