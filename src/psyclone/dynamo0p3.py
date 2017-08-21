@@ -2286,6 +2286,9 @@ class DynHaloExchange(HaloExchange):
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
+        elif loop.upper_bound_name == "ncolour":
+            # currenty coloured loops are always transformed from cell_halo depth 1 loops
+            literal_depth = 1
         elif (loop.upper_bound_name == "ncells" and
               not read_dependency.descriptor.stencil):
             print "  xx  field {0} accesses annexed dofs and needs a halo exchange".format(read_dependency.name)
@@ -2318,8 +2321,9 @@ class DynHaloExchange(HaloExchange):
             # will ensure that these are updated
             pass
         else:
-            print "_compute_single_halo_depth, internal error if we get to here"
+            print "_compute_single_halo_info, internal error if we get to here"
             print "loop upper bound name is {0}".format(loop.upper_bound_name)
+            loop.root.view()
             exit(1)
 
         # default stencil type to "region" as it means all of the halo
@@ -2354,8 +2358,10 @@ class DynHaloExchange(HaloExchange):
         ''' Class specific view  '''
         print self.indent(indent) + (
             "DynHaloExchange[field='{0}', type='{1}', depth={2}, "
-            "check_dirty={3}]".format(self._field.name, self._compute_stencil_type,
-                                      self._compute_halo_depth, self._check_dirty))
+            "check_dirty={3}]".format(self._field.name, "x",
+                                      "x", "x"))
+        #    "check_dirty={3}]".format(self._field.name, self._compute_stencil_type,
+        #self._compute_halo_depth, self._check_dirty))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
