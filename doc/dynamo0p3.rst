@@ -1089,12 +1089,13 @@ each built-in is described using Fortran array syntax; this does not necessarily
 reflect the actual implementation of the built-in (*e.g.* it could be
 implemented by PSyclone generating a call to an optimised maths library).
 
-Addition of fields
-##################
-
 Built-ins which add scaled fields are denoted with keyword **plus**.
 
+X_plus_Y
+########
+
 **X_plus_Y** (*field3*, *field1*, *field2*)
+
 
 Sums two fields (Z = X + Y): ::
   
@@ -1106,6 +1107,9 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+inc_X_plus_Y
+############
+
 **inc_X_plus_Y** (*field1*, *field2*)
 
 Adds the second field to the first and returns it (X = X + Y): ::
@@ -1116,6 +1120,9 @@ where:
 
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
+
+aX_plus_Y
+#########
 
 **aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
@@ -1129,6 +1136,9 @@ where:
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
 
+inc_aX_plus_Y
+#############
+
 **inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
 
 Performs X = aX + Y (increments the first field): ::
@@ -1140,6 +1150,9 @@ where:
 * real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
+
+inc_X_plus_bY
+#############
 
 **inc_X_plus_bY** (*field1*, *scalar*, *field2*)
 
@@ -1153,6 +1166,9 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
+aX_plus_bY
+##########
+
 **aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
 
 Performs Z = aX + bY: ::
@@ -1164,6 +1180,9 @@ where:
 * real(r_def), intent(in) :: *scalar1*, *scalar2*
 * type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
+
+inc_aX_plus_bY
+##############
 
 **inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
