@@ -1069,13 +1069,14 @@ scheme presented below. Any new built-ins need to comply with these rules.
 	  **scalar1**, **scalar2**);
        b) *LHS* result arguments are always listed first;
        c) *RHS* arguments are listed in order of appearance in the mathematical
-	  expression, except when one of them is the LHS result.
+	  expression, except when one of them is the *LHS* result.
 
     5) Built-ins names in Fortran consist of:
 
        1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
        2) Descriptive name of mathematical operation on *RHS* arguments in the 
-	  form  ``<RHSargs>_<operationname>_<RHSargs>``;
+	  form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
+	  ``<RHSargs>_<operationname>_<RHSargs>`` for more;
        3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
 	  arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
 
