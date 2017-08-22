@@ -1569,7 +1569,7 @@ class HaloExchange(Node):
     def halo_depth(self, value):
         ''' Set the depth of the halo exchange '''
         self._halo_depth = value
-    
+
     @property
     def field(self):
         ''' Return the field that the halo exchange acts on '''
@@ -2217,6 +2217,9 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
+        self._writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
+                         MAPPING_REDUCTIONS["sum"]]
+        self._readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
 
     def __str__(self):
         return self._name
@@ -2278,24 +2281,20 @@ class Argument(object):
         '''Returns a list of previous write arguments that this argument has
         dependencies with. The arguments may exist in a call, a
         haloexchange (unless ignore_halos is True), or a globalsum. If
-        none are not found then return an empty list. If self is not a
-        reader then return an empty list.
-        '''
-        #print "  in backward_write_dependencies"
+        none are found then return an empty list. If self is not a
+        reader then return an empty list.'''
         all_nodes = self._call.walk(self._call.root.children, Node)
         position = all_nodes.index(self._call)
         all_prev_nodes = all_nodes[:position]
         all_prev_nodes.reverse()
         results = self._find_write_arguments(all_prev_nodes,
-                                          ignore_halos=ignore_halos)
-        #print "  found {0} args".format(str(len(results)))
+                                             ignore_halos=ignore_halos)
         return results
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum. For performance
-        reasons only compute once, then store the result.'''
+        exist in a call, a haloexchange, or a globalsum.'''
         all_nodes = self._call.walk(self._call.root.children, Node)
         position = all_nodes.index(self._call)
         all_following_nodes = all_nodes[position+1:]
@@ -2304,7 +2303,7 @@ class Argument(object):
     def forward_read_dependencies(self):
         '''Returns a list of following read arguments that this argument has
         dependencies with. The arguments may exist in a call, a
-        haloexchange, or a globalsum. If none are not found then
+        haloexchange, or a globalsum. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.'''
         all_nodes = self._call.walk(self._call.root.children, Node)
@@ -2327,14 +2326,10 @@ class Argument(object):
 
     def _find_read_arguments(self, nodes):
         '''Return a list of arguments from the list of nodes that have a read
-        dependency with self. If none are not found then return an
-        empty list. If self is not a writer then return an empty
-        list.'''
-        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
-                   MAPPING_REDUCTIONS["sum"]]
-        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        dependency with self. If none are found then return an empty
+        list. If self is not a writer then return an empty list.'''
         arguments = []
-        if self.access not in writers:
+        if self.access not in self._writers:
             return arguments
         for node in nodes:
             if isinstance(node, Call) or isinstance(node, HaloExchange) \
@@ -2342,7 +2337,8 @@ class Argument(object):
                 for argument in node.args:
                     if argument.name == self.name:
                         if isinstance(node, HaloExchange) and \
-                           node.vector_index and isinstance(self.call, HaloExchange) and \
+                           node.vector_index and \
+                           isinstance(self.call, HaloExchange) and \
                            self.call.vector_index and \
                            node.vector_index != self.call.vector_index:
                             # this is a vector field and the two halos
@@ -2350,39 +2346,29 @@ class Argument(object):
                             # is no dependence.
                             pass
                         else:
-                            if argument.access in readers:
+                            if argument.access in self._readers:
                                 arguments.append(argument)
-                            if argument.access in writers:
+                            if argument.access in self._writers:
                                 return arguments
         return arguments
 
     def _find_write_arguments(self, nodes, ignore_halos=False):
         '''Return a list of arguments from the list of nodes that have a write
-        dependency with self. If none are not found then return an
-        empty list. If self is not a reader then return an empty
-        list.'''
-        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
-                   MAPPING_REDUCTIONS["sum"]]
-        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        dependency with self. If none are found then return an empty
+        list. If self is not a reader then return an empty list.'''
         arguments = []
-        #print "  *****************************"
-        #print "  in _find_write_arguments()"
-        if self.access not in readers:
-            #print "  access in not in readers so returning nothing"
+        if self.access not in self._readers:
             return arguments
         vector_count = 0
         for node in nodes:
             if (isinstance(node, Call) or
                 (isinstance(node, HaloExchange) and not ignore_halos) or
-                isinstance(node, GlobalSum)):
-                #print "  looking at node {0}".format(type(node))
+                    isinstance(node, GlobalSum)):
                 for argument in node.args:
-                    #print "  looking at arg {0}".format(argument.name)
                     if argument.name == self.name:
-                        #print "    argument {0} matches".format(argument.name)
-                        if argument.access in writers:
-                            #print "    argument is in writers so adding to list"
-                            if self.vector_size > 1 and isinstance(node, HaloExchange):
+                        if argument.access in self._writers:
+                            if self.vector_size > 1 and \
+                               isinstance(node, HaloExchange):
                                 # a vector read will depend on more
                                 # than one halo exchange as halo
                                 # exchanges only update a single
@@ -2425,15 +2411,15 @@ class Argument(object):
         the iteration spaces of loops e.g. for overlapping
         communication and computation. '''
 
-        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
-                   MAPPING_REDUCTIONS["sum"]]
-        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
         if argument.name == self._name:
-            if self.access in writers and argument.access in readers:
+            if self.access in self._writers and \
+               argument.access in self._readers:
                 return True
-            if self.access in readers and argument.access in writers:
+            if self.access in self._readers and \
+               argument.access in self._writers:
                 return True
-            if self.access in writers and argument.access in writers:
+            if self.access in self._writers and \
+               argument.access in self._writers:
                 return True
         return False
 
