@@ -5693,8 +5693,8 @@ def test_stencils_same_field_literal_extent():
         assert result.count(output4) == 1
 
         if dist_mem:
-            assert ("IF (f2_proxy%is_dirty(depth=2)) THEN" in result)
-            assert ("CALL f2_proxy%halo_exchange(depth=2)" in result)
+            assert ("IF (f2_proxy%is_dirty(depth=3)) THEN" in result)
+            assert ("CALL f2_proxy%halo_exchange(depth=3)" in result)
             assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
             assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
             assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
