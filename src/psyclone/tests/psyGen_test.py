@@ -911,7 +911,7 @@ def test_argument_find_argument():
 
 
 def test_argument_find_read_arguments():
-    '''Check that the find_read_arguments method returns the appropriate 
+    '''Check that the find_read_arguments method returns the appropriate
     arguments in a list of nodes.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
@@ -919,7 +919,6 @@ def test_argument_find_read_arguments():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
     # 1: returns [] if not a writer. f1 is read, not written.
     f1_first_read = schedule.children[0].children[0].arguments.args[1]
     call_nodes = schedule.calls()
@@ -930,7 +929,8 @@ def test_argument_find_read_arguments():
     result = f3_write._find_read_arguments(call_nodes[4:])
     assert len(result) == 3
     for idx in range(3):
-        assert result[idx] == schedule.children[idx+4].children[0].arguments.args[2]
+        loop = schedule.children[idx+4]
+        assert result[idx] == loop.children[0].arguments.args[2]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
     f2_write = schedule.children[0].children[0].arguments.args[3]
@@ -940,7 +940,8 @@ def test_argument_find_read_arguments():
     result = f3_write._find_read_arguments(call_nodes)
     assert len(result) == 3
     for idx in range(3):
-        assert result[idx] == schedule.children[idx].children[0].arguments.args[2]
+        loop = schedule.children[idx]
+        assert result[idx] == loop.children[0].arguments.args[2]
 
 
 @pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
@@ -976,7 +977,7 @@ def test_haloexchange_arg():
 
 
 def test_argument_forward_read_dependencies():
-    '''Check that the forward_read_dependencies method returns the appropriate 
+    '''Check that the forward_read_dependencies method returns the appropriate
     arguments in a schedule.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
@@ -984,7 +985,6 @@ def test_argument_forward_read_dependencies():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
     # 1: returns [] if not a writer. f1 is read, not written.
     f1_first_read = schedule.children[0].children[0].arguments.args[1]
     call_nodes = schedule.calls()
@@ -995,7 +995,8 @@ def test_argument_forward_read_dependencies():
     result = f3_write.forward_read_dependencies()
     assert len(result) == 3
     for idx in range(3):
-        assert result[idx] == schedule.children[idx+4].children[0].arguments.args[2]
+        loop = schedule.children[idx+4]
+        assert result[idx] == loop.children[0].arguments.args[2]
     # 3: Return empty list if no readers (f2 is written to but not
     # read)
     f2_write = schedule.children[0].children[0].arguments.args[3]
@@ -1727,7 +1728,7 @@ def test_node_dag(tmpdir):
     assert "unsupported graphviz file format" in str(excinfo.value)
 
 
-def test_haloexchange_halo_depth_getter_setter():  # pylint: disable=invalid-name
+def test_haloexchange_halo_depth_get_set():  # pylint: disable=invalid-name
     '''test that the halo_exchange getter and setter work correctly '''
     halo_depth = 4
     halo_depth_2 = 5
@@ -1744,7 +1745,8 @@ def test_haloexchange_vector_index_dependence():
     a read dependence if the source node is a halo exchange and its field
     is a vector and the other halo exchange accesses a different vector
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]

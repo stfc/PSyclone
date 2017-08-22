@@ -3890,8 +3890,10 @@ def test_redundant_computation_all_discontinuous_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert "IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=mesh%get_last_halo_depth())" in result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_last_halo_dep"
+            "th())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
@@ -3914,11 +3916,13 @@ def test_redundant_computation_all_discontinuous_vector_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    for idx in range(1,4):
-        assert "IF (f2_proxy({0})%is_dirty(depth=3)) THEN".format(idx) in result
-        assert "CALL f2_proxy({0})%halo_exchange(depth=3)".format(idx) in result
+    for idx in range(1, 4):
+        assert ("IF (f2_proxy({0})%is_dirty(depth=3)) THEN".
+                format(idx)) in result
+        assert ("CALL f2_proxy({0})%halo_exchange(depth=3)".
+                format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
-    for idx in range(1,4):
+    for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
@@ -3941,12 +3945,15 @@ def test_redundant_computation_all_discontinuous_vector_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    for idx in range(1,4):
-        assert "IF (f2_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth())) THEN".format(idx) in result
-        assert "CALL f2_proxy({0})%halo_exchange(depth=mesh%get_last_halo_depth())".format(idx) in result
+    for idx in range(1, 4):
+        assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth"
+                "())) THEN".format(idx)) in result
+        assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_last_halo"
+                "_depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    for idx in range(1,4):
-        assert "CALL f1_proxy({0})%set_clean(mesh%get_last_halo_depth())".format(idx) in result
+    for idx in range(1, 4):
+        assert ("CALL f1_proxy({0})%set_clean(mesh%get_last_halo_"
+                "depth())".format(idx)) in result
 
 
 def test_redundant_computation_all_discontinuous_prev_dependence_depth():
@@ -3998,13 +4005,15 @@ def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
     result = str(psy.gen)
     print result
     assert "CALL f1_proxy%set_dirty()" in result
-    assert "IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" not in result
-    assert "CALL f1_proxy%halo_exchange(depth=mesh%get_last_halo_depth())" in result
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") not in result
+    assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_last_halo_dept"
+            "h())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_redundant_computation_all_discontinuous_prev_dependence_depth_vector():
+def test_redundant_computation_all_discontinuous_prev_dep_depth_vector():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -4024,17 +4033,19 @@ def test_redundant_computation_all_discontinuous_prev_dependence_depth_vector():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    for idx in range(1,4):
-        assert "IF (f1_proxy({0})%is_dirty(depth=3)) THEN".format(idx) not in result
-        assert "CALL f1_proxy({0})%halo_exchange(depth=3)".format(idx) in result
+    for idx in range(1, 4):
+        assert ("IF (f1_proxy({0})%is_dirty(depth="
+                "3)) THEN".format(idx)) not in result
+        assert ("CALL f1_proxy({0})%halo_exchange("
+                "depth=3)".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
-    for idx in range(1,4):
+    for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_redundant_computation_all_discontinuous_prev_dependence_no_depth_vector():
+def test_redundant_computation_all_discontinuous_prev_dep_no_depth_vector():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
@@ -4053,13 +4064,16 @@ def test_redundant_computation_all_discontinuous_prev_dependence_no_depth_vector
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    for idx in range(1,4):
-        assert "IF (f1_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth())) THEN".format(idx) not in result
-        assert "CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_depth())".format(idx) in result
+    for idx in range(1, 4):
+        assert ("IF (f1_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth("
+                "))) THEN".format(idx)) not in result
+        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_"
+                "depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    for idx in range(1,4):
+    for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert "CALL f3_proxy({0})%set_clean(mesh%get_last_halo_depth())".format(idx) in result
+        assert ("CALL f3_proxy({0})%set_clean(mesh%get_last_halo_depth())".
+                format(idx)) in result
 
 
 def test_redundant_computation_dofs_depth():
@@ -4331,7 +4345,8 @@ def test_redundant_computation_no_halo_decrease():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    assert "IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" in result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
     # fourth, try to change the size of the f2 halo exchange to 4 by
@@ -4341,7 +4356,8 @@ def test_redundant_computation_no_halo_decrease():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert "IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" in result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
 
@@ -4437,12 +4453,15 @@ def test_redundant_computation_no_directive():
     invoke.schedule = schedule
     rc_trans = DynamoRedundantComputationTrans()
     loop = schedule.children[0].children[0]
-    with pytest.raises(TransformationError) as excinfo:    
+    with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("the parent must be the schedule") in str(excinfo)
 
 
 # todo
+
+# tests for uncovered dependence analysis and halo exchange code
+# tests for a halo needing to be removed (not currently coded for)
 
 # example of redundant computation transformation in action.
 

@@ -2544,9 +2544,6 @@ def test_2kern_invoke_any_space():
                                         "4.5.1_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule.view()
     gen = str(psy.gen)
     print gen
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
@@ -4643,9 +4640,7 @@ def test_halo_exchange_view(capsys):
         "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
     print expected
-    print "******************************"
     print result
-    print "******************************"
     assert expected in result
 
 
@@ -5764,7 +5759,7 @@ def test_stencils_same_field_literal_direction():
             "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
             "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert result.count(output4) == 1
-        
+
         if dist_mem:
             assert ("IF (f2_proxy%is_dirty(depth=3)) THEN" in result)
             assert ("CALL f2_proxy%halo_exchange(depth=3)" in result)
@@ -6090,9 +6085,13 @@ def test_stencil_args_unique_2():
             "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
             "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
         assert output5 in result
-        if dist_mem == True:
-            assert ("IF (f2_proxy%is_dirty(depth=max(f2_info+1,f2_info_2+1))) THEN" in result)
-            assert ("CALL f2_proxy%halo_exchange(depth=max(f2_info+1,f2_info_2+1))" in result)
+        if dist_mem:
+            assert (
+                "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
+                "f2_info_2+1))) THEN" in result)
+            assert (
+                "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
+                "f2_info_2+1))" in result)
             assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
             assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
             assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
@@ -6120,9 +6119,13 @@ def test_stencil_args_unique_3():
         assert (
             "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX,"
             "my_info_f2_info)" in result)
-        if dist_mem == True:
-            assert ("IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,my_info_f2_info_2+1))) THEN" in result)
-            assert ("CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,my_info_f2_info_2+1))" in result)
+        if dist_mem:
+            assert (
+                "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
+                "my_info_f2_info_2+1))) THEN" in result)
+            assert (
+                "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
+                "my_info_f2_info_2+1))" in result)
             assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
             assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
             assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
@@ -6896,7 +6899,7 @@ def test_halo_for_discontinuous_2():
 def test_arg_discontinous():
     '''test that the discontinuous method in the dynamo argument class
     returns the correct values '''
-    
+
     # 1 discontinuous field returns true
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3_only.f90"),
@@ -6918,14 +6921,13 @@ def test_arg_discontinous():
     field = kernel.arguments.args[0]
     assert field.space == 'any_space_1'
     assert not field.discontinuous
-    
+
     # 3 continuous field returns false
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     kernel = schedule.children[3].children[0]
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
