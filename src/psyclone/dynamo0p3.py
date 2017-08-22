@@ -2307,6 +2307,8 @@ class DynHaloExchange(HaloExchange):
             # annexed dofs and the previous writer does not write
             # redundantly to annexed dofs or is unknown so a halo
             # exchange is required.
+            prev_dependencies = read_dependency.backward_write_dependencies(
+                ignore_halos=True)
             upper_bound = ""
             if prev_dependencies:
                 upper_bound = prev_dependencies[0].call.parent.upper_bound_name
@@ -2439,10 +2441,10 @@ class DynLoop(Loop):
                                             self._upper_bound_index)
         else:
             upper_bound = self._upper_bound_name
-        print (self.indent(indent) + "Loop[type='{0}',field_space='{1}',"
-               "it_space='{2}', upper_bound='{3}']".
-               format(self._loop_type, self._field_space.orig_name,
-                      self.iteration_space, upper_bound))
+        print(self.indent(indent) + "Loop[type='{0}',field_space='{1}',"
+              "it_space='{2}', upper_bound='{3}']".
+              format(self._loop_type, self._field_space.orig_name,
+                     self.iteration_space, upper_bound))
         for entity in self._children:
             entity.view(indent=indent + 1)
 
