@@ -1028,9 +1028,9 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[11].children[0].arguments.args[1]
-    f2_halo_field = schedule.children[12].field
-    f2_next_arg = schedule.children[14].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[8].field
+    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1085,9 +1085,9 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[11].children[0].arguments.args[1]
-    f2_halo_field = schedule.children[12].field
-    f2_next_arg = schedule.children[14].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[8].field
+    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -1252,9 +1252,9 @@ def test_node_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_loop = schedule.children[11]
-    halo_field = schedule.children[12]
-    next_loop = schedule.children[14]
+    prev_loop = schedule.children[7]
+    halo_field = schedule.children[8]
+    next_loop = schedule.children[9]
     # a) previous loop depends on halo exchange
     assert prev_loop.forward_dependence() == halo_field
     # b) halo exchange depends on following loop
@@ -1306,15 +1306,15 @@ def test_node_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop13 = schedule.children[11]
-    halo_exchange = schedule.children[13]
-    loop16 = schedule.children[14]
+    loop2 = schedule.children[7]
+    halo_exchange = schedule.children[8]
+    loop3 = schedule.children[9]
     # a) following loop node depends on halo exchange node
-    result = loop16.backward_dependence()
+    result = loop3.backward_dependence()
     assert result == halo_exchange
     # b) halo exchange node depends on previous loop node
     result = halo_exchange.backward_dependence()
-    assert result == loop13
+    assert result == loop2
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
