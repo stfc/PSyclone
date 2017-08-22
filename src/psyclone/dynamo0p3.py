@@ -77,7 +77,7 @@ VALID_EVALUATOR_SHAPES = ["gh_quadrature_xyoz", "gh_evaluator"]
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
-                       VALID_SCALAR_NAMES
+    VALID_SCALAR_NAMES
 
 VALID_REDUCTION_NAMES = ["gh_sum"]
 # List of all access types that involve writing to an argument
@@ -2201,7 +2201,7 @@ class DynHaloExchange(HaloExchange):
         '''Dynamically determine the depth of the halo for this halo exchange,
         as the depth can change as transformations are applied to the
         schedule'''
-        
+
         depth_info_list = self._compute_halo_info
 
         # if any reader reads to max depth then return max_depth
@@ -2251,10 +2251,12 @@ class DynHaloExchange(HaloExchange):
             match = False
             for new_depth_info in new_depth_info_list:
                 if new_depth_info["var_depth"] == var_depth and not match:
-                    new_depth_info["literal_depth"] = max(new_depth_info["literal_depth"], literal_depth)
+                    new_depth_info["literal_depth"] = max(
+                        new_depth_info["literal_depth"], literal_depth)
                     match = True
             if not match:
-                new_depth_info_list.append({"var_depth":var_depth, "literal_depth":literal_depth})
+                new_depth_info_list.append({"var_depth": var_depth,
+                                            "literal_depth": literal_depth})
         return new_depth_info_list
 
     @property
@@ -2296,7 +2298,8 @@ class DynHaloExchange(HaloExchange):
                 # loop redundant computation is to the maximum depth
                 max_depth = True
         elif loop.upper_bound_name == "ncolour":
-            # currenty coloured loops are always transformed from cell_halo depth 1 loops
+            # currenty coloured loops are always transformed from
+            # cell_halo depth 1 loops
             literal_depth = 1
         elif (loop.upper_bound_name == "ncells" and
               not read_dependency.descriptor.stencil):
@@ -2310,7 +2313,9 @@ class DynHaloExchange(HaloExchange):
             if upper_bound == "ndofs" or not prev_dependencies:
                 literal_depth = 1
             else:
-                raise GenerationError("Internal error, previous writer is known but is not ndofs")
+                raise GenerationError(
+                    "Internal error, previous writer is known but is not "
+                    "ndofs")
         elif (loop.upper_bound_name == "ncells" and
               read_dependency.descriptor.stencil):
             # no need to worry about updating annexed dofs (if they
@@ -2332,7 +2337,9 @@ class DynHaloExchange(HaloExchange):
         if read_dependency.descriptor.stencil:
             # field has a stencil access
             if max_depth:
-                raise exception("redundant computation to max depth with a stencil is invalid")
+                raise exception(
+                    "redundant computation to max depth with a stencil is "
+                    "invalid")
             else:
                 stencil_type = read_dependency.descriptor.stencil['type']
                 if literal_depth:
@@ -2346,19 +2353,22 @@ class DynHaloExchange(HaloExchange):
                     # stencil_depth is provided by the algorithm layer
                     if read_dependency.stencil.extent_arg.is_literal():
                         # a literal is specified
-                        literal_depth += int(read_dependency.stencil.extent_arg.text)
+                        value_str = read_dependency.stencil.extent_arg.text
+                        literal_depth += int(value_str)
                     else:
                         # a variable is specified
                         var_depth = read_dependency.stencil.extent_arg.varName
-        return {"max_depth":max_depth, "var_depth":var_depth,
-                "literal_depth":literal_depth, "stencil_type":stencil_type}
+        return {"max_depth": max_depth, "var_depth": var_depth,
+                "literal_depth": literal_depth, "stencil_type": stencil_type}
 
     def view(self, indent=0):
         ''' Class specific view  '''
         print self.indent(indent) + (
             "DynHaloExchange[field='{0}', type='{1}', depth={2}, "
-            "check_dirty={3}]".format(self._field.name, self._compute_stencil_type,
-                                      self._compute_halo_depth, self._check_dirty))
+            "check_dirty={3}]".format(self._field.name,
+                                      self._compute_stencil_type,
+                                      self._compute_halo_depth,
+                                      self._check_dirty))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -2419,16 +2429,18 @@ class DynLoop(Loop):
         self._upper_bound_index = None
 
     def view(self, indent=0):
-        ''' Print out a textual representation of this loop. We override
-        this method from the Loop class because, in Dynamo0.3, the
-        function space is now an object and we need to call orig_name on
-        it. We also output the upper loop bound as this can now be modified. '''
+        '''Print out a textual representation of this loop. We override this
+        method from the Loop class because, in Dynamo0.3, the function
+        space is now an object and we need to call orig_name on it. We
+        also output the upper loop bound as this can now be
+        modified.'''
         if self._upper_bound_index:
-            upper_bound = "{0}({1})".format(self._upper_bound_name, self._upper_bound_index)
+            upper_bound = "{0}({1})".format(self._upper_bound_name,
+                                            self._upper_bound_index)
         else:
             upper_bound = self._upper_bound_name
         print (self.indent(indent) + "Loop[type='{0}',field_space='{1}',"
-               "it_space='{2}', upper_bound='{3}']".\
+               "it_space='{2}', upper_bound='{3}']".
                format(self._loop_type, self._field_space.orig_name,
                       self.iteration_space, upper_bound))
         for entity in self._children:
@@ -2673,12 +2685,16 @@ class DynLoop(Loop):
             elif self._upper_bound_name == "ncells":
                 # We read annexed dofs so need to check the previous
                 # write to this field
-                prev_dependencies = arg.backward_write_dependencies(ignore_halos=True)
+                prev_dependencies = arg.backward_write_dependencies(
+                    ignore_halos=True)
                 if len(prev_dependencies) > 1:
-                    raise GenerationError("Internal error, we should only return at most one write dependence")
+                    raise GenerationError(
+                        "Internal error, we should only return at most one "
+                        "write dependence")
                 upper_bound = ""
                 if prev_dependencies:
-                    upper_bound = prev_dependencies[0].call.parent.upper_bound_name
+                    loop = prev_dependencies[0].call.parent
+                    upper_bound = loop.upper_bound_name
                 if upper_bound == "ndofs" or not prev_dependencies:
                     # the previous write to this field (ignoring
                     # existing halo_exchanges) is over ndofs, or is
@@ -2726,7 +2742,6 @@ class DynLoop(Loop):
                                        check_dirty=check_dirty)
             self.parent.children.insert(self.position, exchange)
 
-
     def create_halo_exchanges(self):
         '''add initial halo exchanges before this loop as required by fields
         within this loop. This can be kept simple as we know that any
@@ -2737,25 +2752,30 @@ class DynLoop(Loop):
             # find the previous write to this field
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
-                # field has no previous dependence so create new halo exchange(s)
+                # field has no previous dependence so create new halo
+                # exchange(s)
                 self._add_halo_exchange(halo_field)
             else:
                 # field has one or more previous dependencies
                 if len(prev_arg_list) > 1:
-                    # field has more than one previous dependencies so should be a vector
+                    # field has more than one previous dependencies so
+                    # should be a vector
                     if not halo_field.vector_size > 1:
                         raise GenerationError(
                             "Error, expecting a vector")
                     if not len(prev_arg_list) == halo_field.vector_size:
                         raise GenerationError(
-                            "Error, expecting a dependence for each vector index")
+                            "Error, expecting a dependence for each vector "
+                            "index")
                     for arg in prev_arg_list:
                         if not isinstance(arg.call, DynHaloExchange):
                             raise GenerationError(
-                                "Error, expecting all dependent nodes to be halo exchanges")
+                                "Error, expecting all dependent nodes to be "
+                                "halo exchanges")
                 prev_node = prev_arg_list[0].call
                 if not isinstance(prev_node, DynHaloExchange):
-                    # previous dependence is not a halo exchange so create a new halo exchange
+                    # previous dependence is not a halo exchange so
+                    # create a new halo exchange
                     self._add_halo_exchange(halo_field, check_dirty=False)
 
     def gen_code(self, parent):
@@ -2858,14 +2878,18 @@ class DynLoop(Loop):
                                 # which is what we require in our
                                 # Fortran code
                                 for index in range(1, field.vector_size+1):
-                                    parent.add(CallGen(parent, name="{0}({1})%set_clean("
-                                                       "{2})".format(field.proxy_name,
-                                                                     str(index),
-                                                                     halo_depth)))
+                                    call = CallGen(parent,
+                                                   name="{0}({1})%set_clean("
+                                                   "{2})".format(
+                                                       field.proxy_name,
+                                                       str(index),
+                                                       halo_depth))
+                                    parent.add(call)
                             else:
-                                parent.add(CallGen(parent, name="{0}%set_clean("
-                                                   "{1})".format(field.proxy_name,
-                                                                 halo_depth)))
+                                call = CallGen(parent, name="{0}%set_clean("
+                                               "{1})".format(field.proxy_name,
+                                                             halo_depth))
+                                parent.add(call)
 
                 if use_omp_master:
                     # I am within an OpenMP Do directive so protect
