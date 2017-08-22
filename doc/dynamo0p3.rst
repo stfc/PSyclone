@@ -1047,26 +1047,26 @@ Naming scheme
 The supported built-ins in the Dynamo 0.3 API are named according to the
 scheme presented below. Any new built-ins need to comply with these rules.
 
-    1) Field names begin with upper case: e.g. **X**, **Y**, **Z** are 
-       **Field1**, **Field2**, **Field3**.
-
-    2) Scalar names begin with lower case:  e.g. **a**, **b**, are **scalar1**,
-       **scalar2**. Special names for scalars are: **c** (constant),
-       **innprod** (inner/scalar product of two fields) and **sumfld**
-       (sum of a field).
-  
-    3) Ordering of arguments in built-ins calls follows 
+    1) Ordering of arguments in built-ins calls follows
        *LHS (result) <- RHS (operation on arguments)*
-       direction, except where a built-in returns the *LHS* result to one of 
-       the *RHS* arguments. In that case ordering of arguments remains as in 
+       direction, except where a built-in returns the *LHS* result to one of
+       the *RHS* arguments. In that case ordering of arguments remains as in
        the *RHS* expression, with the returning *RHS* argument written as close
        to the *LHS* as it can be without affecting the mathematical expression.
 
-    4) Arguments in built-ins variable declarations and constructs (PSyclone 
+    2) Field names begin with upper case in short form (e.g. **X**, **Y**,
+       **Z**) and any case in long form (e.g. **Field1**, **field**).
+
+    3) Scalar names begin with lower case:  e.g. **a**, **b**, are **scalar1**,
+       **scalar2**. Special names for scalars are: **constant** (or **c**),
+       **innprod** (inner/scalar product of two fields) and **sumfld**
+       (sum of a field).
+
+    4) Arguments in built-ins variable declarations and constructs (PSyclone
        Fortran and Python definitions):
 
-       a) Are always  written in long form (e.g. **Field1**, **Field2**,
-	  **scalar1**, **scalar2**);
+       a) Are always  written in long form and lower case (e.g. **field1**,
+	  **field2**, **scalar1**, **scalar2**);
        b) *LHS* result arguments are always listed first;
        c) *RHS* arguments are listed in order of appearance in the mathematical
 	  expression, except when one of them is the *LHS* result.
@@ -1074,16 +1074,16 @@ scheme presented below. Any new built-ins need to comply with these rules.
     5) Built-ins names in Fortran consist of:
 
        1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
-       2) Descriptive name of mathematical operation on *RHS* arguments in the 
+       2) Descriptive name of mathematical operation on *RHS* arguments in the
 	  form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
 	  ``<RHSargs>_<operationname>_<RHSargs>`` for more;
        3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
 	  arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
 
-    6) Built-ins names in Python definitions are similar to their Fortran 
+    6) Built-ins names in Python definitions are similar to their Fortran
        counterparts, with a few differences:
 
-       1) Operators and *RHS* arguments are all in upper case (e.g. **X**, 
+       1) Operators and *RHS* arguments are all in upper case (e.g. **X**,
 	  **Y**, **A**, **B**, **Plus**, **Minus**);
        2) There are no underscores;
        3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
@@ -1194,7 +1194,7 @@ Performs X = aX + bY (increments the first field): ::
 
 where:
 
-* real(r_def), intent(in) :: *a*, *b*
+* real(r_def), intent(in) :: *scalar1*, *scalar2*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
@@ -1352,16 +1352,16 @@ where:
 inc_a_times_X
 #############
 
-**inc_a_times_X** (*scalar*, *field1*)
+**inc_a_times_X** (*scalar*, *field*)
 
 Multiplies a field by a scalar value and returns the field (X = a*X): ::
 
-  field1(:) = scalar*field1(:)
+  field(:) = scalar*field(:)
 
 where:
 
 * real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(inout) :: *field*
 
 Division
 ++++++++
@@ -1410,7 +1410,7 @@ setval_c
 
 Sets all elements of the field *field* to the value *constant* (X = c): ::
 
-  field1(:) = constant
+  field(:) = constant
 
 where:
 
@@ -1442,15 +1442,15 @@ Built-in which raises field elements to an exponent is denoted with keyword
 inc_X_powreal_a
 ###############
 
-**inc_X_powreal_a** (*field1*, *scalar*)
+**inc_X_powreal_a** (*field*, *scalar*)
 
 Raises a field to a real scalar value and returns the field (X = X**a): ::
 
-  field1(:) = field1(:)**scalar
+  field(:) = field(:)**scalar
 
 where:
 
-* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(inout) :: *field*
 * real(r_def), intent(in) :: *scalar*
 
 Inner product
@@ -1480,16 +1480,16 @@ where:
 X_innerproduct_X
 ################
 
-**X_innerproduct_X** (*innprod*, *field1*)
+**X_innerproduct_X** (*innprod*, *field*)
 
 Computes the inner product of the field *field1* by itself, *i.e.*: ::
 
-  innprod = SUM(field1(:)*field1(:))
+  innprod = SUM(field(:)*field(:))
 
 where:
 
 * real(r_def), intent(out) :: *innprod*
-* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field*
 
 .. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the
