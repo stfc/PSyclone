@@ -45,7 +45,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_X_plus_Y_code
   end type inc_X_plus_Y
 
-  !> field3 = a*field1 + field2
+  !> field3 = scalar*field1 + field2
   type, public, extends(kernel_type) :: aX_plus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
@@ -59,7 +59,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: aX_plus_Y_code
   end type aX_plus_Y
 
-  !> field1 = a*field1 + field2
+  !> field1 = scalar*field1 + field2
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -72,7 +72,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_aX_plus_Y_code
   end type inc_aX_plus_Y
 
-  !> field1 = field1 + b*field2
+  !> field1 = field1 + scalar*field2
   type, public, extends(kernel_type) :: inc_X_plus_bY
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -85,7 +85,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_X_plus_bY_code
   end type inc_X_plus_bY
 
-  !> field3 = a*field1 + b*field2
+  !> field3 = scalar1*field1 + scalar2*field2
   type, public, extends(kernel_type) :: aX_plus_bY
      private
      type(arg_type) :: meta_args(5) = (/                              &
@@ -100,7 +100,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: aX_plus_bY_code
   end type aX_plus_bY
 
-  !> field1 = a*field1 + b*field2
+  !> field1 = scalar1*field1 + scalar2*field2
   type, public, extends(kernel_type) :: inc_aX_plus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
@@ -143,7 +143,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_X_minus_Y_code
   end type inc_X_minus_Y
 
-  !> field3 = a*field1 - field2
+  !> field3 = scalar*field1 - field2
   type, public, extends(kernel_type) :: aX_minus_Y
      private
      type(arg_type) :: meta_args(4) = (/                              &
@@ -157,7 +157,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: aX_minus_Y_code
   end type aX_minus_Y
 
-  !> field3 = field1 - b*field2
+  !> field3 = field1 - scalar*field2
   type, public, extends(kernel_type) :: X_minus_bY
      private
      type(arg_type) :: meta_args(4) = (/                              &
@@ -171,7 +171,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: X_minus_bY_code
   end type X_minus_bY
 
-  !> field1 = field1 - b*field2
+  !> field1 = field1 - scalar*field2
   type, public, extends(kernel_type) :: inc_X_minus_bY
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -188,7 +188,7 @@ module dynamo0p3_builtins_mod
 ! ============== Multiplying (scaled) fields ======================== !
 ! ------------------------------------------------------------------- !
 
-  !> field3(:) = field1(:) * field2(:)
+  !> field3 = field1*field2
   type, public, extends(kernel_type) :: X_times_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -201,7 +201,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: X_times_Y_code
   end type X_times_Y
 
-  !> field1 = field1 * field2
+  !> field1 = field1*field2
   type, public, extends(kernel_type) :: inc_X_times_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -213,7 +213,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: inc_X_times_Y_code
   end type inc_X_times_Y
 
-  !> field1 = a*field1*field2
+  !> field1 = scalar*field1*field2
   type, public, extends(kernel_type) :: inc_aX_times_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -230,7 +230,7 @@ module dynamo0p3_builtins_mod
 ! ============== Scaling fields ===================================== !
 ! ------------------------------------------------------------------- !
 
-  !> field2 = a*field1
+  !> field2 = scalar*field1
   type, public, extends(kernel_type) :: a_times_X
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -243,7 +243,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: a_times_X_code
   end type a_times_X
 
-  !> field1 = ascalar * field1
+  !> field = scalar*field
   type, public, extends(kernel_type) :: inc_a_times_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -259,7 +259,7 @@ module dynamo0p3_builtins_mod
 ! ============== Dividing (scaled) fields =========================== !
 ! ------------------------------------------------------------------- !
 
-  !> field3 = field1 / field2
+  !> field3 = field1/field2
   type, public, extends(kernel_type) :: X_divideby_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -272,7 +272,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: X_divideby_Y_code
   end type X_divideby_Y
 
-  !> field1 = field1 / field2
+  !> field1 = field1/field2
   type, public, extends(kernel_type) :: inc_X_divideby_Y
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -288,7 +288,7 @@ module dynamo0p3_builtins_mod
 ! ============== Raising field to a scalar ========================== !
 ! ------------------------------------------------------------------- !
 
-  !> field1 =  field1 ** ascalar (real ascalar)
+  !> field =  field**scalar (real scalar)
   type, public, extends(kernel_type) :: inc_X_powreal_a
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -304,7 +304,7 @@ module dynamo0p3_builtins_mod
 ! ============== Setting field elements to a value  ================= !
 ! ------------------------------------------------------------------- !
 
-  !> field1 = ascalar
+  !> field = scalar
   type, public, extends(kernel_type) :: setval_c
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -332,7 +332,7 @@ module dynamo0p3_builtins_mod
 ! ============== Inner product of fields ============================ !
 ! ------------------------------------------------------------------- !
 
-  !> sum = sum + field1(i,j,..) * field2(i,j,...)
+  !> innprod = innprod + field1(i,j,..)*field2(i,j,...)
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
@@ -345,7 +345,7 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: X_innerproduct_Y_code
   end type X_innerproduct_Y
 
-  !> sum = sum + field1(i,j,..) * field1(i,j,...)
+  !> innprod = innprod + field(i,j,..)*field(i,j,...)
   type, public, extends(kernel_type) :: X_innerproduct_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -360,7 +360,7 @@ module dynamo0p3_builtins_mod
 ! ------------------------------------------------------------------- !
 ! ============== Sum field elements ================================= !
 ! ------------------------------------------------------------------- !
-  !> scalar = SUM(field1(:,:,...))
+  !> sumfld = SUM(field(:,:,...))
   type, public, extends(kernel_type) :: sum_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
