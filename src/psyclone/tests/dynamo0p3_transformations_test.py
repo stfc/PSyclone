@@ -4315,6 +4315,8 @@ def test_redundant_computation_no_halo_decrease():
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
     # second, try to change the size of the f2 halo exchange to 2 by
     # performing redundant computation in the second loop
     loop = schedule.children[4]
@@ -4322,19 +4324,26 @@ def test_redundant_computation_no_halo_decrease():
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
     # third, set the size of the f2 halo exchange to the full halo
     # depth by performing redundant computation in the second loop
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
     assert "IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" in result
+    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
     # fourth, try to change the size of the f2 halo exchange to 4 by
     # performing redundant computation in the first loop
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop, depth=4)
     invoke.schedule = schedule
     result = str(psy.gen)
+    print result
     assert "IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" in result
+    assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
 
 
 def test_redundant_computation_updated_dependence_analysis():

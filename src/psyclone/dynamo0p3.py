@@ -2321,6 +2321,9 @@ class DynHaloExchange(HaloExchange):
             # exist) as the halo exchange associated with the stencil
             # will ensure that these are updated
             pass
+        elif loop.upper_bound_name == "ndofs":
+            # we only access owned dofs so no stencil required
+            pass
         else:
             print "loop upper bound name is {0}".format(loop.upper_bound_name)
             raise GenerationError(
