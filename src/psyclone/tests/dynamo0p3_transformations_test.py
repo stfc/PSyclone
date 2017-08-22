@@ -3970,7 +3970,7 @@ def test_redundant_computation_all_discontinuous_prev_dependence_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert "IF (f1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (f1_proxy%is_dirty(depth=3)) THEN" not in result
     assert "CALL f1_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
@@ -3998,17 +3998,17 @@ def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
     result = str(psy.gen)
     print result
     assert "CALL f1_proxy%set_dirty()" in result
-    assert "IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" in result
+    assert "IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) THEN" not in result
     assert "CALL f1_proxy%halo_exchange(depth=mesh%get_last_halo_depth())" in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_redundant_computation_all_discontinuous_prev_dependence_depth():
+def test_redundant_computation_all_discontinuous_prev_dependence_depth_vector():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
-    appropriately in the case where the field requiring a halo
+    appropriately in the case where the vector field requiring a halo
     exchange has a previous non-halo dependence, after applying the
     redundant computation transformation with a fixed value for halo
     depth '''
@@ -4025,7 +4025,7 @@ def test_redundant_computation_all_discontinuous_prev_dependence_depth():
     result = str(psy.gen)
     print result
     for idx in range(1,4):
-        assert "IF (f1_proxy({0})%is_dirty(depth=3)) THEN".format(idx) in result
+        assert "IF (f1_proxy({0})%is_dirty(depth=3)) THEN".format(idx) not in result
         assert "CALL f1_proxy({0})%halo_exchange(depth=3)".format(idx) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     for idx in range(1,4):
@@ -4034,11 +4034,11 @@ def test_redundant_computation_all_discontinuous_prev_dependence_depth():
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
+def test_redundant_computation_all_discontinuous_prev_dependence_no_depth_vector():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
-    the field now requiring a halo exchange has a previous non-halo
+    the vector field now requiring a halo exchange has a previous non-halo
     dependence after applying the redundant computation transformation
     with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
@@ -4054,7 +4054,7 @@ def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
     result = str(psy.gen)
     print result
     for idx in range(1,4):
-        assert "IF (f1_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth())) THEN".format(idx) in result
+        assert "IF (f1_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth())) THEN".format(idx) not in result
         assert "CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_depth())".format(idx) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for idx in range(1,4):
@@ -4139,10 +4139,13 @@ def test_redundant_computation_dofs_depth_prev_dep():
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
-                "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=3"
                 ")".format(field_name)) in result
+    assert ("IF (f1_proxy%is_dirty(depth=3)) "
+            "THEN") not in result
+    assert ("IF (f2_proxy%is_dirty(depth=3)) "
+            "THEN") in result
+
     # check the existing m1 and m2 halo exchanges remain unchanged
     for field_name in ["m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
@@ -4175,10 +4178,12 @@ def test_redundant_computation_dofs_no_depth_prev_dep():
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
-                "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_last_halo_depth()"
                 ")".format(field_name)) in result
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") not in result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
     # check the existing m1 and m2 halo exchanges remain unchanged
     for field_name in ["m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "

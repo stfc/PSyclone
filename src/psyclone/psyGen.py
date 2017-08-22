@@ -2281,14 +2281,14 @@ class Argument(object):
         none are not found then return an empty list. If self is not a
         reader then return an empty list.
         '''
-        print "  in backward_write_dependencies"
+        #print "  in backward_write_dependencies"
         all_nodes = self._call.walk(self._call.root.children, Node)
         position = all_nodes.index(self._call)
         all_prev_nodes = all_nodes[:position]
         all_prev_nodes.reverse()
         results = self._find_write_arguments(all_prev_nodes,
                                           ignore_halos=ignore_halos)
-        print "  found {0} args".format(str(len(results)))
+        #print "  found {0} args".format(str(len(results)))
         return results
 
     def forward_dependence(self):
@@ -2365,23 +2365,23 @@ class Argument(object):
                    MAPPING_REDUCTIONS["sum"]]
         readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
         arguments = []
-        print "  *****************************"
-        print "  in _find_write_arguments()"
+        #print "  *****************************"
+        #print "  in _find_write_arguments()"
         if self.access not in readers:
-            print "  access in not in readers so returning nothing"
+            #print "  access in not in readers so returning nothing"
             return arguments
         vector_count = 0
         for node in nodes:
             if (isinstance(node, Call) or
                 (isinstance(node, HaloExchange) and not ignore_halos) or
                 isinstance(node, GlobalSum)):
-                print "  looking at node {0}".format(type(node))
+                #print "  looking at node {0}".format(type(node))
                 for argument in node.args:
-                    print "  looking at arg {0}".format(argument.name)
+                    #print "  looking at arg {0}".format(argument.name)
                     if argument.name == self.name:
-                        print "    argument {0} matches".format(argument.name)
+                        #print "    argument {0} matches".format(argument.name)
                         if argument.access in writers:
-                            print "    argument is in writers so adding to list"
+                            #print "    argument is in writers so adding to list"
                             if self.vector_size > 1 and isinstance(node, HaloExchange):
                                 # a vector read will depend on more
                                 # than one halo exchange as halo

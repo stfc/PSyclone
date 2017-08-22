@@ -1262,6 +1262,6 @@ class DynamoRedundantComputationTrans(Transformation):
         else:  # iteration space is dofs
             node.set_upper_bound("dof_halo", depth)
 
-        node.update_halo_exchanges()
+        node.create_halo_exchanges()
         
         return schedule, keep
