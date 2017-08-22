@@ -1145,7 +1145,7 @@ class MoveTrans(Transformation):
 
     def apply(self, node, location, position="before"):
         '''Move the node represented by :py:obj:`node` before location
-        :py:obj:`location` (which as also a node) by default and after
+        :py:obj:`location` (which is also a node) by default and after
         if the optional `position` argument is set to 'after'. An
         exception is raised if the move is invalid '''
 
@@ -1171,23 +1171,28 @@ class MoveTrans(Transformation):
 
 
 class DynamoRedundantComputationTrans(Transformation):
-    ''' XXX '''
+    '''This transformation allows the user to modify a loop's bounds so
+    that redundant computation will be performed. Redundant computation
+    can result in halo exchanges being modified, new halo exchange being
+    added or existing halo exchanges being removed.'''
     def __str__(self):
         return "Change iteration space to perform redundant computation"
-    
+
     @property
     def name(self):
         ''' Returns the name of this transformation as a string '''
         return "RedundantComputation"
 
     def _validate(self, node, depth):
-        ''' XXX '''
+        '''Perform various checks to ensure that it is valid to apply the
+        RedundantComputation transformation to the supplied node'''
+
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError(
-                "In the DynamoRedundantComputation transformation apply method "
-                "the first argument is not a Loop")
+                "In the DynamoRedundantComputation transformation apply "
+                "method the first argument is not a Loop")
 
         # check loop's parent is the schedule otherwise halo exchange
         # placement fails. The only current example when this would be
@@ -1195,23 +1200,24 @@ class DynamoRedundantComputationTrans(Transformation):
         from psyGen import Schedule
         if not isinstance(node.parent, Schedule):
             raise TransformationError(
-                "In the DynamoRedundantComputation transformation apply method "
-                "the parent must be the schedule, but found {0}".format(type(node.parent)))
+                "In the DynamoRedundantComputation transformation apply "
+                "method the parent must be the schedule, but found "
+                "{0}".format(type(node.parent)))
 
         import config
         if not config.DISTRIBUTED_MEMORY:
             raise TransformationError(
-                "In the DynamoRedundantComputation transformation apply method "
-                "distributed memory must be switched on")
+                "In the DynamoRedundantComputation transformation apply "
+                "method distributed memory must be switched on")
 
         # loop must iterate over cells or dofs. This currently
         # precludes loops over colours. Note, an empty loop_type
         # iterates over cells
-        if not node.loop_type in ["", "dofs"]:
+        if node.loop_type not in ["", "dofs"]:
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply method "
-                    "the loop must iterate over cells or dofs, but found "
-                    "'{0}'".format(node.loop_type))
+                    "In the DynamoRedundantComputation transformation apply "
+                    "method the loop must iterate over cells or dofs, but "
+                    "found '{0}'".format(node.loop_type))
 
         if depth is None:
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
@@ -1223,14 +1229,14 @@ class DynamoRedundantComputationTrans(Transformation):
         else:
             if depth < 1:
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply method "
-                    "the supplied depth is less than 1")
-            
+                    "In the DynamoRedundantComputation transformation apply "
+                    "method the supplied depth is less than 1")
+
             if not node.field.discontinuous and depth == 1:
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply method "
-                    "the supplied depth must be greater than 1 as this loop  "
-                    "modifies a continuous field")                
+                    "In the DynamoRedundantComputation transformation apply "
+                    "method the supplied depth must be greater than 1 as this "
+                    "loop  modifies a continuous field")
 
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
                 if node.upper_bound_index:
@@ -1242,26 +1248,35 @@ class DynamoRedundantComputationTrans(Transformation):
                             format(depth, node.upper_bound_index))
                 else:
                     raise TransformationError(
-                        "In the DynamoRedundantComputation transformation apply method "
-                        "the loop is already set to the maximum halo depth so can't be "
-                        "set to a fixed value")
+                        "In the DynamoRedundantComputation transformation "
+                        "apply method the loop is already set to the maximum "
+                        "halo depth so can't be set to a fixed value")
 
-    def apply(self, node, depth=None):
-        ''' XXX '''
+    def apply(self, loop, depth=None):
+        '''Apply the redundant computation tranformation to the loop
+        :py:obj:`loop`. This transformation can be applied to loops iterating
+        over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
+        value will be the depth of the field's halo over which redundant
+        computation will be performed. If :py:obj:`depth` is not set to a
+        value then redundant computation will be performed to the full depth
+        of the field's halo.'''
 
-        self._validate(node, depth)
+        self._validate(loop, depth)
 
-        schedule = node.root
+        schedule = loop.root
 
-        # create a memento of the schedule and the proposed transformation
+        # create a memento of the schedule and the proposed
+        # transformation
         from undoredo import Memento
-        keep = Memento(schedule, self, [node, depth])
+        keep = Memento(schedule, self, [loop, depth])
 
-        if node.loop_type == "":  # iteration space is cells
-            node.set_upper_bound("cell_halo", depth)
+        if loop.loop_type == "":  # iteration space is cells
+            loop.set_upper_bound("cell_halo", depth)
         else:  # iteration space is dofs
-            node.set_upper_bound("dof_halo", depth)
+            loop.set_upper_bound("dof_halo", depth)
 
-        node.create_halo_exchanges()
-        
+        # Add any new halo exchanges caused by the redundant
+        # computation
+        loop.create_halo_exchanges()
+
         return schedule, keep
