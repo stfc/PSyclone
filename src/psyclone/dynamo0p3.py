@@ -2172,7 +2172,7 @@ class DynHaloExchange(HaloExchange):
     manipulated in, a schedule '''
 
     def __init__(self, field, check_dirty=True, parent=None,
-                 vector_index=None, inc=False, depth=None):
+                 vector_index=None):
 
         halo_type = None
         halo_depth = None
@@ -2182,7 +2182,10 @@ class DynHaloExchange(HaloExchange):
 
     @property
     def _compute_stencil_type(self):
-        ''' Work out the type of stencil required for this halo exchange '''
+        '''Dynamically work out the type of stencil required for this halo
+        exchange as it could change as transformations are applied to the
+        schedule'''
+
         depth_info_list = self._compute_halo_info
         trial = depth_info_list[0]["stencil_type"]
         for depth_info in depth_info_list:
@@ -2195,7 +2198,10 @@ class DynHaloExchange(HaloExchange):
 
     @property
     def _compute_halo_depth(self):
-        ''' xxx '''
+        '''Dynamically determine the depth of the halo for this halo exchange,
+        as the depth can change as transformations are applied to the
+        schedule'''
+        
         depth_info_list = self._compute_halo_info
 
         # if any reader reads to max depth then return max_depth
@@ -2203,7 +2209,7 @@ class DynHaloExchange(HaloExchange):
             if depth_info["max_depth"]:
                 return "mesh%get_last_halo_depth()"
 
-        # simplify our list
+        # simplify the list
         new_depth_info_list = self._simplify_depth_list(depth_info_list)
 
         # if there is only one entry, return the depth
@@ -2212,13 +2218,14 @@ class DynHaloExchange(HaloExchange):
         else:
             # at least one read field must have a variable depth and
             # there is more than one read field in the list.
-            depth_str_list = []                
+            depth_str_list = []
             for depth_info in new_depth_info_list:
                 depth_str_list.append(self._depth_str(depth_info))
             return "max("+",".join(depth_str_list)+")"
 
     def _depth_str(self, depth_info):
-        ''' xxx '''
+        '''Interal helper method that returns the depth of a halo dependency
+        as string'''
         depth_str = ""
         if depth_info["var_depth"]:
             depth_str += depth_info["var_depth"]
@@ -2229,33 +2236,32 @@ class DynHaloExchange(HaloExchange):
         return depth_str
 
     def _simplify_depth_list(self, depth_info_list):
-        ''' xxx '''
+        '''Halo's may have more than one dependency. This method simplifies
+        multiple dependencies to remove duplicates and any obvious
+        redundancy. For example, if one dependency is for depth=1 and
+        another for depth=2 then we do not need the former as it is
+        covered by the latter. Similarly, if we have a depth=extent+1 and
+        another for depth=extent+2 then we do not need the former as
+        it is covered by the latter.'''
         new_depth_info_list = []
         literal_only = 0
         for depth_info in depth_info_list:
             var_depth = depth_info["var_depth"]
             literal_depth = depth_info["literal_depth"]
-            #print "  ++ looking at var_depth {0} and literal_depth {1}".format(var_depth, literal_depth)
             match = False
             for new_depth_info in new_depth_info_list:
                 if new_depth_info["var_depth"] == var_depth and not match:
                     new_depth_info["literal_depth"] = max(new_depth_info["literal_depth"], literal_depth)
                     match = True
             if not match:
-                #print "  ++ there is no match so append values"
                 new_depth_info_list.append({"var_depth":var_depth, "literal_depth":literal_depth})
-        #print len(new_depth_info_list)
-        #print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-        #for depth_info in depth_info_list:
-        #    print "var_depth {0}, literal_depth {1}".format(str(depth_info["var_depth"]), depth_info["literal_depth"])
-        #for depth_info in new_depth_info_list:
-        #    print "var_depth {0}, literal_depth {1}".format(str(depth_info["var_depth"]), depth_info["literal_depth"])
-        #print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
         return new_depth_info_list
 
     @property
     def _compute_halo_info(self):
-        ''' xxx '''
+        '''Dynamically computes all halo dependencies and returns the
+        required halo information (such as halo depth and stencil type) in a
+        list'''
         read_dependencies = self.field.forward_read_dependencies()
         if len(read_dependencies) == 0:
             raise GenerationError(
@@ -2268,6 +2274,8 @@ class DynHaloExchange(HaloExchange):
         return depth_info_list
 
     def _compute_single_halo_info(self, read_dependency):
+        '''Compute a halo dependence and return the required halo information
+        (such as halo depth and stencil type) as a dictionary'''
         literal_depth = 0
         var_depth = None
         max_depth = False
@@ -2292,22 +2300,10 @@ class DynHaloExchange(HaloExchange):
             literal_depth = 1
         elif (loop.upper_bound_name == "ncells" and
               not read_dependency.descriptor.stencil):
-            #print "  xx  field {0} accesses annexed dofs and needs a halo exchange".format(read_dependency.name)
-            # if the dependency analysis is working correctly then
-            # this is continuous field which therefore accesses
+            # This must be a continuous field which therefore accesses
             # annexed dofs and the previous writer does not write
             # redundantly to annexed dofs or is unknown so a halo
             # exchange is required.
-            
-            # 1) check field is continuous
-            if read_dependency.discontinuous:
-                raise GenerationError(
-                    "Internal error, a dependency should not exist")
-            # 2) check previous writer (ignoring halo exchange)
-            # iterates over dofs or is unknown
-            prev_dependencies = read_dependency.backward_write_dependencies(ignore_halos=True)
-            if len(prev_dependencies) > 1:
-                raise GenerationError("Internal error, we should only return at most one write dependence")
             upper_bound = ""
             if prev_dependencies:
                 upper_bound = prev_dependencies[0].call.parent.upper_bound_name
@@ -2322,7 +2318,7 @@ class DynHaloExchange(HaloExchange):
             # will ensure that these are updated
             pass
         elif loop.upper_bound_name == "ndofs":
-            # we only access owned dofs so no stencil required
+            # we only access owned dofs so no halo exchange is required
             pass
         else:
             print "loop upper bound name is {0}".format(loop.upper_bound_name)
@@ -2650,10 +2646,7 @@ class DynLoop(Loop):
     def _halo_read_access(self, arg):
         '''Determines whether this argument reads from the halo for this
         loop'''
-        #print "looking at arg {0}".format(arg.name)
-        #print "arg type is {0}".format(arg.type)
         if arg.descriptor.stencil:
-            print "this arg has a stencil"
             if self._upper_bound_name not in ["cell_halo", "ncells"]:
                 raise GenerationError(
                     "Loop bounds other than cell_halo and ncells are "
@@ -2662,16 +2655,13 @@ class DynLoop(Loop):
             return self._upper_bound_name in ["cell_halo", "ncells"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
-            #print "this arg is a scalar"
             return False
         elif arg.type in VALID_OPERATOR_NAMES:
-            #print "This arg is an operator"
             # operators do not have halos
             return False
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
-            #print "this arg is a discontinuous reader"
             return self._upper_bound_name in ["cell_halo", "dof_halo"]
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # arg is either continuous or we don't know (any_space_x)
@@ -2679,12 +2669,10 @@ class DynLoop(Loop):
             # correctness
             if self._upper_bound_name in ["cell_halo", "dof_halo"]:
                 # we read in the halo
-                #print "this field is a continuous, or unknown, reader that reads from the halo"
                 return True
             elif self._upper_bound_name == "ncells":
                 # We read annexed dofs so need to check the previous
                 # write to this field
-                #print "this arg is a continuous, or unknown, reader that reads annexed dofs"
                 prev_dependencies = arg.backward_write_dependencies(ignore_halos=True)
                 if len(prev_dependencies) > 1:
                     raise GenerationError("Internal error, we should only return at most one write dependence")
@@ -2698,10 +2686,6 @@ class DynLoop(Loop):
                     # the annexed dofs are, or may be, dirty. The only
                     # way we can make these clean is to perform a full
                     # level 1 halo exchange.
-                    #print (
-                    #    "the previous writer only writes (or might only write) to ndofs, so "
-                    #    "annexed dofs are (or may be) dirty, therefore we read (or may read)"
-                    #    "from the halo")
                     return True
                 else:
                     return False
@@ -2709,12 +2693,11 @@ class DynLoop(Loop):
                 # argument does not read from the halo
                 return False
             else:
-                # not sure what would get to here so abort
+                # nothing should get to here so raise an exception
                 print "arg access is {0}".format(arg.access)
                 print "Upper bound name is {0}".format(self._upper_bound_name)
-                # the field does not read from the halo
                 raise GenerationError(
-                    "not sure what would get to here so abort for the moment")
+                    "Internal error, nothing should get to here")
         else:
             # access is neither a read nor an inc so does not need halo
             return False
@@ -2749,15 +2732,10 @@ class DynLoop(Loop):
         within this loop. This can be kept simple as we know that any
         field that accesses the halo will require a halo exchange at
         this point'''
-        #print "ADDING HALOS FOR LOOP ..."
-        #self.view()
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that requires a halo exchange
             # find the previous write to this field
-            #print "++++++++++++++++++++++++++++++++++++++++++++++"
-            #print "halo field is {0}".format(halo_field.name)
             prev_arg_list = halo_field.backward_write_dependencies()
-            #print "++++++++++++++++++++++++++++++++++++++++++++++"
             if not prev_arg_list:
                 # field has no previous dependence so create new halo exchange(s)
                 self._add_halo_exchange(halo_field)
