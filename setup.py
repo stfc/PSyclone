@@ -38,7 +38,11 @@
 
 from setuptools import setup, find_packages
 
-PACKAGES = find_packages(where="src")
+import os
+
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+SRC_PATH = os.path.join(BASE_PATH, "src")
+PACKAGES = find_packages(where=SRC_PATH)
 
 NAME = 'PSyclone'
 AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
