@@ -22,8 +22,207 @@ from psyclone import dynamo0p3_builtins
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-# functions
-# ------------- DynBuiltInCallFactory tests --------------------------------- #
+
+# ------------- Tests for built-ins methods and arguments ------------------- #
+
+
+def test_dynbuiltin_missing_defs():
+    ''' Check that we raise an appropriate error if we cannot find the
+    file specifying meta-data for built-in kernels '''
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "15.12.3_single_pointwise_builtin.f90"),
+                     api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    assert ("broken' containing the meta-data describing the "
+            "Built-in operations" in str(excinfo.value))
+
+
+def test_dynbuiltin_not_over_dofs():
+    ''' Check that we raise an appropriate error if we encounter a
+    built-in that does not iterate over dofs '''
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH,
+        "15.12.3_single_pointwise_builtin.f90"),
+                           api="dynamo0.3")
+    # Restore the original file name before doing the assert in case
+    # it fails
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("built-in calls must iterate over DoFs but found cells for "
+            "Built-in: Set field " in str(excinfo.value))
+
+
+def test_builtin_multiple_writes():
+    ''' Check that we raise an appropriate error if we encounter a built-in
+    that writes to more than one argument '''
+    # The file containing broken meta-data for the built-ins
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "aX_plus_Y"
+    test_builtin_file = "15.14.1_" + test_builtin_name + \
+                        "_builtin_set_by_value.f90"
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        test_builtin_file),
+                           api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
+            "one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
+
+
+def test_builtin_write_and_inc():
+    ''' Check that we raise an appropriate error if we encounter a built-in
+    that updates more than one argument where one is gh_write and one is
+    gh_inc '''
+    # The file containing broken meta-data for the built-ins
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "inc_aX_plus_bY"
+    test_builtin_file = "15.1.7_" + test_builtin_name + "_builtin.f90"
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        test_builtin_file),
+                           api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
+            "one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
+
+
+def test_builtin_sum_and_inc():
+    ''' Check that we raise an appropriate error if we encounter a built-in
+    that updates more than one argument where one is gh_sum and one is
+    gh_inc '''
+    # The file containing broken meta-data for the built-ins
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "inc_aX_plus_Y"
+    test_builtin_file = "15.1.4_" + test_builtin_name + "_builtin.f90"
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        test_builtin_file),
+                           api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
+            "only one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
+
+
+def test_builtin_zero_writes(monkeypatch):
+    ''' Check that we raise an appropriate error if we encounter a built-in
+    that does not write to any field '''
+    # Use pytest's monkeypatch support to change our configuration to
+    # point to a file containing broken meta-data for the
+    # built-ins. The definition for aX_plus_bY that it contains erroneously
+    # has no argument that is written to.
+    # Define the built-in name and test file
+    test_builtin_name = "aX_plus_bY"
+    test_builtin_file = "15.1.6_" + test_builtin_name + "_builtin.f90"
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "invalid_builtins_mod.f90"))
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  test_builtin_file),
+                     api="dynamo0.3")
+    assert ("A Dynamo 0.3 kernel must have at least one "
+            "argument that is updated (written to) but "
+            "found none for kernel " + test_builtin_name.lower()
+            in str(excinfo))
+
+
+def test_builtin_no_field_args():
+    ''' Check that we raise appropriate error if we encounter a built-in
+    that does not have any field arguments '''
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "setval_X"
+    test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        test_builtin_file),
+                           api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("A built-in kernel in the Dynamo 0.3 API "
+            "must have at least one field as an argument but "
+            "kernel " + test_builtin_name.lower() + " has none"
+            in str(excinfo))
+
+
+def test_builtin_operator_arg():
+    ''' Check that we raise appropriate error if we encounter a built-in
+    that takes something other than a field or scalar argument '''
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Change the builtin-definitions file to point to one that has
+    # various invalid definitions
+    # Define the built-in name and test file
+    test_builtin_name = "a_times_X"
+    test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     test_builtin_file),
+        api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
+            "must be one of ['gh_field', 'gh_real'] but kernel " +
+            test_builtin_name.lower() + " has an argument of "
+            "type gh_operator" in str(excinfo))
+
+
+def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
+    ''' Check that we raise the correct error if we encounter a built-in
+    that has arguments on different function spaces '''
+    # Save the name of the actual builtin-definitions file
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "inc_X_divideby_Y"
+    test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
+    # Change the builtin-definitions file to point to one that has
+    # various invalid definitions
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     test_builtin_file),
+        api="dynamo0.3")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=False).create(invoke_info)
+    assert ("All field arguments to a built-in in the Dynamo 0.3 API "
+            "must be on the same space. However, found spaces ['any_space_2', "
+            "'any_space_1'] for arguments to " + test_builtin_name.lower() in
+            str(excinfo))
 
 
 def test_dynbuiltincallfactory_str():
@@ -50,6 +249,70 @@ def test_dynbuiltin_wrong_name():
             "expected one of '[" in str(excinfo.value))
 
 
+def test_invalid_builtin_kernel():
+    ''' Check that we raise an appropriate error if an unrecognised
+    built-in is specified in the algorithm layer '''
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "15.12.1_invalid_builtin_kernel.f90"),
+                     api="dynamo0.3")
+    assert ("kernel call 'setva_c' must either be named in a "
+            "use statement or be a recognised built-in" in
+            str(excinfo.value))
+
+
+def test_dynbuiltin_str():
+    ''' Check that we raise an error if we attempt to call the __str__
+    method on the parent DynBuiltIn class '''
+    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
+    for distmem in [True, False]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        with pytest.raises(NotImplementedError) as excinfo:
+            DynBuiltIn.__str__(kern)
+        assert "DynBuiltIn.__str__ must be overridden" in str(excinfo.value)
+
+
+def test_dynbuiltin_gen_code():
+    ''' Check that we raise an error if we attempt to call the gen_code()
+    method on the parent DynBuiltIn class '''
+    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        with pytest.raises(NotImplementedError) as excinfo:
+            DynBuiltIn.gen_code(kern, None)
+        assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
+
+
+def test_dynbuiltin_cma():
+    ''' Check that a DynBuiltIn returns None for CMA type (because
+    built-ins don't work with CMA operators) '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        cma_type = kern.cma_operation()
+        assert cma_type is None
+
+
 def test_dynbuiltfactory_str():
     ''' Check that the str method of DynBuiltInCallFactory works as
     expected. '''
@@ -58,32 +321,44 @@ def test_dynbuiltfactory_str():
     assert "Factory for a call to a Dynamo built-in" in str(factory)
 
 
+# ------------- Auxiliary mesh code generation function --------------------- #
+
+
+def mesh_code_present(field_str, code):
+    '''This test checks for the existance of mesh code. This exists for
+    all builtins with dm = True (although it is not actually required!) so
+    each test can call this function. Mesh code is generated from the first
+    field in a builtin arguments list, here denoted with field_str.'''
+    assert "      USE mesh_mod, ONLY: mesh_type" in code
+    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
+    output_dm_1 = (
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh => " + field_str + "%get_mesh()\n"
+        "      !\n")
+    print output_dm_1
+    assert output_dm_1 in code
+
+
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y_str():    # Z = X + Y
-    ''' Test that the str method of DynXPlusYKern returns the
-    expected string '''
+def test_X_plus_Y():     # Z = X + Y
+    ''' Test that 1) the str method of DynXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    Z = X + Y where X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.1_X_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Add fields"
-
-
-def test_X_plus_Y():
-    ''' Test that the str method of DynXPlusYKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.1_X_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -129,9 +404,10 @@ def test_X_plus_Y():
             assert output_dm_2 in code
 
 
-def test_inc_X_plus_Y_str():    # X = X + Y
-    ''' Test that the str method of DynIncXPlusYKern returns the
-    expected string '''
+def test_inc_X_plus_Y():    # X = X + Y
+    ''' Test that 1) the str method of DynIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    X = X + Y where X and Y are fields '''
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
                                             "15.1.2_inc_X_plus_Y_builtin.f90"),
@@ -139,22 +415,11 @@ def test_inc_X_plus_Y_str():    # X = X + Y
                                api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Increment field"
-
-
-def test_inc_X_plus_Y():
-    ''' Test that we generate correct code for the built-in x = x + y
-    where x and y are both fields '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.1.2_inc_X_plus_Y_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -186,29 +451,21 @@ def test_inc_X_plus_Y():
             assert output in code
 
 
-def test_aX_plus_Y_str():    # Z = aX + Y
-    ''' Test that the str method of DynAXPlusYKern returns the
-    expected string '''
+def test_aX_plus_Y():    # Z = aX + Y
+    ''' Test that 1) the str method of DynAXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.3_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: aX_plus_Y"
-
-
-def test_aX_plus_Y():
-    ''' Test that we generate correct code for the builtin
-    operation f = a*x + y where 'a' is a scalar '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.3_aX_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -267,28 +524,21 @@ def test_aX_plus_Y():
             assert output_dm_2 in code
 
 
-def test_inc_aX_plus_Y_str():    # X = aX + Y
-    ''' Test the str method of DynIncAXPlusYKern'''
+def test_inc_aX_plus_Y():    # X = aX + Y
+    ''' Test that 1) the str method of DynIncAXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X + Y where 'a' is a scalar and X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.4_inc_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_aX_plus_Y"
-
-
-def test_inc_aX_plus_Y():
-    ''' Test that we generate correct code for the built-in
-    operation x = a*x + y '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.4_inc_aX_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -346,28 +596,21 @@ def test_inc_aX_plus_Y():
             assert output_dm_2 in code
 
 
-def test_inc_X_plus_bY_str():    # X = X + bY
-    ''' Test the str method of DynIncXPlusBYKern'''
+def test_inc_X_plus_bY():    # X = X + bY
+    ''' Test that 1) the str method of DynIncXPlusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X + b*Y where 'b' is a scalar and X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.5_inc_X_plus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_X_plus_bY"
-
-
-def test_inc_X_plus_bY():
-    ''' Test that we generate correct code for the built-in
-    operation x = x + b*y '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.5_inc_X_plus_bY_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -425,29 +668,22 @@ def test_inc_X_plus_bY():
             assert output_dm_2 in code
 
 
-def test_aX_plus_bY_str():    # Z = aX + bY
-    ''' Test that the str method of DynAXPlusBYKern returns the
-    expected string '''
+def test_aX_plus_bY():    # Z = aX + bY
+    ''' Test that 1) the str method of DynAXPlusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X + b*Y where 'a' and 'b' are scalars and Z, X and
+    Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.6_aX_plus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: aX_plus_bY"
-
-
-def test_aX_plus_bY():
-    ''' Test that we generate correct code for the builtin
-    operation f = a*x + b*y where 'a' and 'b' are scalars '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.6_aX_plus_bY_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -506,8 +742,11 @@ def test_aX_plus_bY():
             assert output_dm_2 in code
 
 
-def test_inc_aX_plus_bY_str():    # X = aX + bY
-    ''' Test the str method of DynIncAXPlusBYKern '''
+def test_inc_aX_plus_bY():    # X = aX + bY
+    ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X + b*Y where 'a' and 'b' are scalars and X and Y
+    are fields '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.1.7_inc_aX_plus_bY_builtin.f90"),
@@ -515,22 +754,11 @@ def test_inc_aX_plus_bY_str():    # X = aX + bY
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_aX_plus_bY"
-
-
-def test_inc_aX_plus_bY():
-    ''' Test that we generate correct code for the built-in
-    operation x = a*x + b*y where x and y are fields and a and b are
-    scalars. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.1.7_inc_aX_plus_bY_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -587,32 +815,25 @@ def test_inc_aX_plus_bY():
             print output_dm_2
             assert output_dm_2 in code
 
+
 # ------------- Subtracting (scaled) fields --------------------------------- #
 
 
-def test_X_minus_Y_str():    # Z = X - Y
-    ''' Test that the str method of DynXMinusYKern returns the
-    expected string '''
+def test_X_minus_Y():    # Z = X - Y
+    ''' Test that 1) the str method of DynXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X - Y where Z, X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.1_X_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Subtract fields"
-
-
-def test_X_minus_Y():
-    ''' Test that the str method of DynXMinusYKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.1_X_minus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -658,9 +879,10 @@ def test_X_minus_Y():
             assert output_dm_2 in code
 
 
-def test_inc_X_minus_Y_str():    # X = X - Y
-    ''' Test that the str method of DynIncXMinusYKern returns the
-    expected string '''
+def test_inc_X_minus_Y():    # X = X - Y
+    ''' Test that 1) the str method of DynIncXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X - Y where X and Y are fields '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -669,22 +891,11 @@ def test_inc_X_minus_Y_str():    # X = X - Y
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Decrement field"
-
-
-def test_inc_X_minus_Y():
-    ''' Test that we generate correct code for the built-in x = x - y
-    where x and y are both fields '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.2.2_inc_X_minus_Y_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -716,29 +927,21 @@ def test_inc_X_minus_Y():
             assert output in code
 
 
-def test_aX_minus_Y_str():    # Z = aX - Y
-    ''' Test that the str method of DynAXMinusYKern returns the
-    expected string '''
+def test_aX_minus_Y():    # Z = aX - Y
+    ''' Test that 1) the str method of DynAXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.3_aX_minus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: aX_minus_Y"
-
-
-def test_aX_minus_Y():
-    ''' Test that we generate correct code for the builtin
-    operation f = a*x - y where 'a' is a scalar '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.3_aX_minus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -797,28 +1000,21 @@ def test_aX_minus_Y():
             assert output_dm_2 in code
 
 
-def test_X_minus_bY_str():    # Z = X - bY
-    ''' Test the str method of DynXMinusBYKern'''
+def test_X_minus_bY():    # Z = X - bY
+    ''' Test that 1) the str method of DynXMinusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.4_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: X_minus_bY"
-
-
-def test_X_minus_bY():
-    ''' Test that we generate correct code for the builtin
-    operation f = x - b*y where 'b' is a scalar '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.4_X_minus_bY_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -877,28 +1073,21 @@ def test_X_minus_bY():
             assert output_dm_2 in code
 
 
-def test_inc_X_minus_bY_str():    # X = X - bY
-    ''' Test the str method of DynIncXMinusBYKern'''
+def test_inc_X_minus_bY():    # X = X - bY
+    ''' Test that 1) the str method of DynIncXMinusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X - b*Y where 'b' is a scalar and X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.5_inc_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_X_minus_bY"
-
-
-def test_inc_X_minus_bY():
-    ''' Test that we generate correct code for the built-in
-    operation x = x - b*y where 'b' is a scalar '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.5_inc_X_minus_bY_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -959,8 +1148,10 @@ def test_inc_X_minus_bY():
 # ------------- Multiplying (scaled) fields --------------------------------- #
 
 
-def test_X_times_Y_str():    # Z = X*Y
-    ''' Test the str method of DynXTimesYKern '''
+def test_X_times_Y():    # Z = X*Y
+    ''' Test that 1) the str method of DynXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X*Y where Z, X and Y are fields '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -969,22 +1160,11 @@ def test_X_times_Y_str():    # Z = X*Y
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Multiply fields"
-
-
-def test_X_times_Y():
-    ''' Test that we generate correct code for the built-in z = x*y
-    where x, y and z are fields '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.3.1_X_times_Y_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1016,9 +1196,10 @@ def test_X_times_Y():
             assert output in code
 
 
-def test_inc_X_times_Y_str():    # X = X*Y
-    ''' Test that the str method of DynIncXTimesYKern returns the
-    expected string '''
+def test_inc_X_times_Y():    # X = X*Y
+    ''' Test that 1) the str method of DynIncXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X*Y where X and Y are fields '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.2_inc_X_times_Y_builtin.f90"),
@@ -1026,21 +1207,11 @@ def test_inc_X_times_Y_str():    # X = X*Y
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Multiply field by another"
-
-
-def test_inc_X_times_Y():
-    ''' Test that we generate correct code for the multiply field
-    infrastructure kernel (x = x*y) '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.3.2_inc_X_times_Y_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1085,28 +1256,21 @@ def test_inc_X_times_Y():
             assert output_dm_2 in code
 
 
-def test_inc_aX_times_Y_str():    # X = aX*Y
-    ''' Test the str method of DynIncAXTimesYKern'''
+def test_inc_aX_times_Y():    # X = aX*Y
+    ''' Test that 1) the str method of DynIncAXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X*Y where 'a' is a scalar and X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.3_inc_aX_times_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: inc_aX_times_Y"
-
-
-def test_inc_aX_times_Y():
-    ''' Test that we generate correct code for the built-in
-    operation x = a*x*y '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.3_inc_aX_times_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1167,9 +1331,10 @@ def test_inc_aX_times_Y():
 # ------------- Scaling fields (multiplying by a scalar --------------------- #
 
 
-def test_a_times_X_str():    # Z = a*X
-    ''' Test that the str method of DynATimesXKern returns the
-    expected string '''
+def test_a_times_X():    # Y = a*X
+    ''' Test that 1) the str method of DynATimesXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a*X where 'a' is a scalar and X and Y are fields '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.4.1_a_times_X_builtin.f90"),
@@ -1177,21 +1342,11 @@ def test_a_times_X_str():    # Z = a*X
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Copy scaled field"
-
-
-def test_a_times_X():
-    ''' Test that we generate correct code for the CopyScaledField
-    (y = a*x) built-in '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.4.1_a_times_X_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1234,8 +1389,10 @@ def test_a_times_X():
             assert output_dm_2 in code
 
 
-def test_inc_a_times_X_str():    # X = a*X
-    ''' Test the str method of DynIncATimesXKern '''
+def test_inc_a_times_X():    # X = a*X
+    ''' Test that 1) the str method of DynIncATimesXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X where 'a' is a scalar and X is a field '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1244,21 +1401,11 @@ def test_inc_a_times_X_str():    # X = a*X
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Scale a field"
-
-
-def test_inc_a_times_X():
-    ''' Test that DynIncATimesXKern generates correct code '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.4.2_inc_a_times_X_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1292,29 +1439,21 @@ def test_inc_a_times_X():
 # ------------- Dividing (scaled) fields ------------------------------------ #
 
 
-def test_X_divideby_Y_str():    # Z = X/Y
-    ''' Test that the str method of DynXDividebyYKern returns the
-    expected string '''
+def test_X_divideby_Y():    # Z = X/Y
+    ''' Test that 1) the str method of DynXDividebyYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X/Y where Z, X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.1_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Divide fields"
-
-
-def test_X_divideby_Y():
-    ''' Test that we generate correct code for the divide fields
-    infrastructure kernel '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.1_X_divideby_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1360,29 +1499,21 @@ def test_X_divideby_Y():
             assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y_str():    # X = X/Y
-    ''' Test that the str method of DynIncXDividebyYKern returns the
-    expected string '''
+def test_inc_X_divideby_Y():    # X = X/Y
+    ''' Test that 1) the str method of DynIncXDividebyYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X/Y where X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.2_inc_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Divide one field by another"
-
-
-def test_inc_X_divideby_Y():
-    ''' Test that we generate correct code for the divide field
-    infrastructure kernel (x = x/y) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.2_inc_X_divideby_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1430,8 +1561,10 @@ def test_inc_X_divideby_Y():
 # ------------- Raising field to a scalar ----------------------------------- #
 
 
-def test_inc_X_powreal_a_str():    # X = X**a (a is real)
-    ''' Test the str method of DynIncXPowrealAKern '''
+def test_inc_X_powreal_a():    # X = X**a (a is real)
+    ''' Test that 1) the str method of DynIncXPowrealAKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X**a where 'a' is a scalar and X is a field '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1440,21 +1573,11 @@ def test_inc_X_powreal_a_str():    # X = X**a (a is real)
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: raise a field to a real power"
-
-
-def test_inc_X_powreal_a():
-    ''' Test that DynIncXPowrealAKern generates correct code '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.6.1_inc_X_powreal_a_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1488,29 +1611,21 @@ def test_inc_X_powreal_a():
 # ------------- Setting field elements to a value --------------------------- #
 
 
-def test_setval_c_str():    # X = c
-    ''' Check that the str method of DynSetvalCKern returns the
-    expected string '''
+def test_setval_c():    # X = c
+    ''' Test that 1) the str method of DynSetvalCKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = c where 'c' is a constant scalar value and X is a field '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.1_setval_c_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Set field to a scalar value"
-
-
-def test_setval_c():
-    ''' Tests that we generate correct code for a builtin
-    setting field to a constant scalar value '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.1_setval_c_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1562,29 +1677,21 @@ def test_setval_c():
             assert output_dm_2 in code
 
 
-def test_setval_X_str():    # Y = X
-    ''' Check that the str method of DynSetvalXKern returns the
-    expected string '''
+def test_setval_X():    # Y = X
+    ''' Test that 1) the str method of DynSetvalXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = X where X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.2_setval_X_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Set a field equal to another field"
-
-
-def test_setval_X():
-    ''' Tests that we generate correct code for a builtin
-    copy field operation '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.2_setval_X_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         if not distmem:
@@ -1640,8 +1747,10 @@ def test_setval_X():
 # ------------- Inner product of fields ------------------------------------- #
 
 
-def test_X_innerproduct_Y_str():    # innprod = innprod + X(:)*Y(:)
-    ''' Test the str method of DynXInnerproductYKern '''
+def test_X_innerproduct_Y():    # innprod = innprod + X(:)*Y(:)
+    ''' Test that 1) the str method of DynXInnerproductYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which calculates inner product of fields X and Y '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1650,21 +1759,11 @@ def test_X_innerproduct_Y_str():    # innprod = innprod + X(:)*Y(:)
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: X_innerproduct_Y"
-
-
-def test_X_innerproduct_Y():
-    ''' Test that we produce correct code for the inner product built-in '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         output = (
@@ -1729,8 +1828,10 @@ def test_X_innerproduct_Y():
             assert "      TYPE(scalar_type) global_sum\n" in code
 
 
-def test_X_innerproduct_X_str():    # innprod = innprod + X(:)*X(:)
-    ''' Test the str method of DynXInnerproductXKern '''
+def test_X_innerproduct_X():    # innprod = innprod + X(:)*X(:)
+    ''' Test that 1) the str method of DynXInnerproductXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which calculates inner product of a field X by itself '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1739,22 +1840,11 @@ def test_X_innerproduct_X_str():    # innprod = innprod + X(:)*X(:)
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: X_innerproduct_X"
-
-
-def test_X_innerproduct_X():
-    ''' Test that we produce correct code for the inner product of
-    a vector by itself built-in '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.2_X_innerproduct_X_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         output = (
@@ -1821,8 +1911,10 @@ def test_X_innerproduct_X():
 # ------------- Sum field elements ------------------------------------------ #
 
 
-def test_sum_X_str():    # sumfld = sum(X(:))
-    ''' Test the str method of DynSumXKern '''
+def test_sum_X():    # sumfld = sum(X(:))
+    ''' Test that 1) the str method of DynSumXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which sums elements of a field X '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1831,21 +1923,11 @@ def test_sum_X_str():    # sumfld = sum(X(:))
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: sum a field"
-
-
-def test_sum_X():
-    ''' Test that the DynSumXKern produces correct code '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.8.1_sum_X_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        # Test code generation
         code = str(psy.gen)
         print code
         output = (
@@ -1942,293 +2024,6 @@ def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
         assert output in code
 
 
-# ------------- Invalid builtins -------------------------------------------- #
-
-
-def test_invalid_builtin_kernel():
-    ''' Check that we raise an appropriate error if an unrecognised
-    built-in is specified in the algorithm layer '''
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.12.1_invalid_builtin_kernel.f90"),
-                     api="dynamo0.3")
-    assert ("kernel call 'setva_c' must either be named in a "
-            "use statement or be a recognised built-in" in
-            str(excinfo.value))
-
-
-def test_dynbuiltin_missing_defs():
-    ''' Check that we raise an appropriate error if we cannot find the
-    file specifying meta-data for built-in kernels '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.12.3_single_pointwise_builtin.f90"),
-                     api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    assert ("broken' containing the meta-data describing the "
-            "Built-in operations" in str(excinfo.value))
-
-
-def test_dynbuiltin_not_over_dofs():
-    ''' Check that we raise an appropriate error if we encounter a
-    built-in that does not iterate over dofs '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH,
-        "15.12.3_single_pointwise_builtin.f90"),
-                           api="dynamo0.3")
-    # Restore the original file name before doing the assert in case
-    # it fails
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("built-in calls must iterate over DoFs but found cells for "
-            "Built-in: Set field " in str(excinfo.value))
-
-
-def test_dynbuiltin_str():
-    ''' Check that we raise an error if we attempt to call the __str__
-    method on the parent DynBuiltIn class '''
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        with pytest.raises(NotImplementedError) as excinfo:
-            DynBuiltIn.__str__(kern)
-        assert "DynBuiltIn.__str__ must be overridden" in str(excinfo.value)
-
-
-def test_dynbuiltin_gen_code():
-    ''' Check that we raise an error if we attempt to call the gen_code()
-    method on the parent DynBuiltIn class '''
-    from psyclone.dynamo0p3_builtins import DynBuiltIn
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        with pytest.raises(NotImplementedError) as excinfo:
-            DynBuiltIn.gen_code(kern, None)
-        assert "DynBuiltIn.gen_code must be overridden" in str(excinfo.value)
-
-
-def test_dynbuiltin_cma():
-    ''' Check that a DynBuiltIn returns None for CMA type (because
-    built-ins don't work with CMA operators) '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        cma_type = kern.cma_operation()
-        assert cma_type is None
-
-
-def test_builtin_sum_and_inc():
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is gh_sum and one is
-    gh_inc '''
-    # The file containing broken meta-data for the built-ins
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "inc_aX_plus_Y"
-    test_builtin_file = "15.1.4_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
-            "only one argument that is written to but found 2 for kernel " +
-            test_builtin_name.lower() in str(excinfo))
-
-
-def test_builtin_write_and_inc():
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is gh_write and one is
-    gh_inc '''
-    # The file containing broken meta-data for the built-ins
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "inc_aX_plus_bY"
-    test_builtin_file = "15.1.7_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel " +
-            test_builtin_name.lower() in str(excinfo))
-
-
-def test_builtin_zero_writes(monkeypatch):
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that does not write to any field '''
-    # Use pytest's monkeypatch support to change our configuration to
-    # point to a file containing broken meta-data for the
-    # built-ins. The definition for aX_plus_bY that it contains erroneously
-    # has no argument that is written to.
-    # Define the built-in name and test file
-    test_builtin_name = "aX_plus_bY"
-    test_builtin_file = "15.1.6_" + test_builtin_name + "_builtin.f90"
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "invalid_builtins_mod.f90"))
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  test_builtin_file),
-                     api="dynamo0.3")
-    assert ("A Dynamo 0.3 kernel must have at least one "
-            "argument that is updated (written to) but "
-            "found none for kernel " + test_builtin_name.lower()
-            in str(excinfo))
-
-
-def test_builtin_multiple_writes():
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that writes to more than one argument '''
-    # The file containing broken meta-data for the built-ins
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "aX_plus_Y"
-    test_builtin_file = "15.14.1_" + test_builtin_name + \
-                        "_builtin_set_by_value.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel " +
-            test_builtin_name.lower() in str(excinfo))
-
-
-def test_builtin_no_field_args():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that does not have any field arguments '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "setval_X"
-    test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API "
-            "must have at least one field as an argument but "
-            "kernel " + test_builtin_name.lower() + " has none"
-            in str(excinfo))
-
-
-def test_builtin_operator_arg():
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that takes something other than a field or scalar argument '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Change the builtin-definitions file to point to one that has
-    # various invalid definitions
-    # Define the built-in name and test file
-    test_builtin_name = "a_times_X"
-    test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real'] but kernel " +
-            test_builtin_name.lower() + " has an argument of "
-            "type gh_operator" in str(excinfo))
-
-
-def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
-    ''' Check that we raise the correct error if we encounter a built-in
-    that has arguments on different function spaces '''
-    # Save the name of the actual builtin-definitions file
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "inc_X_divideby_Y"
-    test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
-    # Change the builtin-definitions file to point to one that has
-    # various invalid definitions
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("All field arguments to a built-in in the Dynamo 0.3 API "
-            "must be on the same space. However, found spaces ['any_space_2', "
-            "'any_space_1'] for arguments to " + test_builtin_name.lower() in
-            str(excinfo))
-
-
-def test_scalar_int_builtin_error(monkeypatch):
-    ''' Test that specifying that a built-in has an integer scalar
-    argument raises the expected error '''
-    # Point to fake built-in kernel metadata
-    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "int_reduction_builtins_mod.f90"))
-    # Define the built-in name and test file
-    test_builtin_name = "X_innerproduct_Y"
-    for dist_mem in [True, False]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(ParseError) as excinfo:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
-        assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
-                "an argument of type gh_integer" in str(excinfo))
-
-
 # ------------- Builtins that pass scalars by reference --------------------- #
 
 
@@ -2299,7 +2094,7 @@ def test_builtin_set_by_ref():
 
 def test_builtin_set():
     ''' Tests that we generate correct code for a serial builtin
-    set operation with a scalar passed by value'''
+    setval_c operation with a scalar passed by value'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -2363,7 +2158,7 @@ def test_builtin_set():
 
 def test_aX_plus_Y_by_value():
     ''' Test that we generate correct code for the builtin
-    operation y = a*x + y when a is passed by value'''
+    operation Z = a*X + Y when a scalar is passed by value'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.1_aX_plus_Y_builtin_set_by_value.f90"),
@@ -2430,7 +2225,7 @@ def test_aX_plus_Y_by_value():
 
 def test_aX_plus_bY_by_value():
     ''' Test that we generate correct code for the builtin
-    operation z = a*x + b*y when a and b are passed by value'''
+    operation Z = a*X + b*Y when scalars 'a' and 'b' are passed by value'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.2_aX_plus_bY_builtin_set_by_value.f90"),
@@ -2804,21 +2599,25 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
                 "      END DO \n") in code
 
 
-# ------------- Auxiliary mesh code generation function --------------------- #
+# ------------- Invalid built-in with an integer scalar --------------------- #
 
 
-def mesh_code_present(field_str, code):
-    '''This test checks for the existance of mesh code. This exists for
-    all builtins with dm = True (although it is not actually required!) so
-    each test can call this function. Mesh code is generated from the first
-    field in a builtin arguments list, here denoted with field_str.'''
-    assert "      USE mesh_mod, ONLY: mesh_type" in code
-    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
-    output_dm_1 = (
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh => " + field_str + "%get_mesh()\n"
-        "      !\n")
-    print output_dm_1
-    assert output_dm_1 in code
+def test_scalar_int_builtin_error(monkeypatch):
+    ''' Test that specifying that a built-in has an integer scalar
+    argument raises the expected error '''
+    # Point to fake built-in kernel metadata
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "int_reduction_builtins_mod.f90"))
+    # Define the built-in name and test file
+    test_builtin_name = "X_innerproduct_Y"
+    for dist_mem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(ParseError) as excinfo:
+            _ = PSyFactory("dynamo0.3",
+                           distributed_memory=dist_mem).create(invoke_info)
+        assert ("an argument to a built-in kernel must be one of ['gh_field', "
+                "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
+                "an argument of type gh_integer" in str(excinfo))
