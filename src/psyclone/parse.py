@@ -44,6 +44,7 @@ def get_builtin_defs(api):
         fname = None
     return builtins, fname
 
+
 class ParseError(Exception):
     def __init__(self, value):
         self.value = "Parse Error: " + value
