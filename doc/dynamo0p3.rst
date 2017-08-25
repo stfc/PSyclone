@@ -1330,7 +1330,7 @@ where:
 Scaling
 +++++++
 
-Built-ins which scale fields are technically cases of multiplying field by a 
+Built-ins which scale fields are technically cases of multiplying a field by a
 scalar and are hence also denoted with keyword **times**.
 
 a_times_X
