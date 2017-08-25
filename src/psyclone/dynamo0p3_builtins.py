@@ -29,15 +29,15 @@ VALID_BUILTIN_ARG_TYPES = ["gh_field", "gh_real"]
 
 # Function to return the built-in operations that we support for this API.
 # The meta-data describing these kernels is in dynamo0p3_builtins_mod.f90.
-# The built-in operations F90 names are dictionary keys and need to be
-# converted to lower case for invoke generation purpose.
-def get_builtin_map(builtin_map_f90_dict):
+# The built-in operations F90 capitalised names are dictionary keys and need
+# to be converted to lower case for invoke generation purpose.
+def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     '''Convert the names of the supported built-in operations to lowercase
     for comparison and invoke generation purpose'''
 
     builtin_map_dict = {}
-    for fortran_name in builtin_map_f90_dict:
-        python_name = builtin_map_f90_dict[fortran_name]
+    for fortran_name in builtin_map_capitalised_dict:
+        python_name = builtin_map_capitalised_dict[fortran_name]
         builtin_map_dict[fortran_name.lower()] = python_name
     return builtin_map_dict
 
@@ -58,7 +58,7 @@ class DynBuiltInCallFactory(object):
             raise ParseError(
                 "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      BUILTIN_MAP_F90.keys()))
+                                      BUILTIN_MAP_CAPITALISED.keys()))
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
@@ -347,7 +347,7 @@ class DynIncXMinusYKern(DynBuiltIn):
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
-        # We add each element of f1 to the corresponding element of f2
+        # We subtract each element of f1 from the corresponding element of f2
         # and store the result back in f1.
         field_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         field_name2 = self.array_ref(self._arguments.args[1].proxy_name)
@@ -675,7 +675,7 @@ class DynSumXKern(DynBuiltIn):
 # been executed (happens when this module is imported into another).
 # Note: Issue #58 will introduce functionality to obtain list of supported
 # built-ins from dynamo0p3_builtins_mod.f90 instead of defining them here.
-BUILTIN_MAP_F90 = {
+BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) fields
     "X_plus_Y": DynXPlusYKern,
     "inc_X_plus_Y": DynIncXPlusYKern,
@@ -715,4 +715,4 @@ BUILTIN_MAP_F90 = {
 # Built-in map dictionary in lowercase keys for invoke generation and
 # comparison purposes. This does not enforce case sensitivity to Fortran
 # built-in names.
-BUILTIN_MAP = get_builtin_map(BUILTIN_MAP_F90)
+BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
