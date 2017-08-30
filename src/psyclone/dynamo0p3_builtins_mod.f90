@@ -31,7 +31,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified I. Kavcic Met Office
+! Modified I. Kavcic, Met Office
 !
 !>@brief Meta-data for the Dynamo 0.3 built-in operations.
 !>@details This meta-data is purely to provide psyclone with a

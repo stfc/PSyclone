@@ -2,8 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by I. Kavcic Met Office
+# Author R. Ford, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Performs py.test tests on the psygen module '''
 
