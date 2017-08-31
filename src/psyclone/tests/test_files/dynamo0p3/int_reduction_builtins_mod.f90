@@ -33,13 +33,14 @@
 ! -----------------------------------------------------------------------------
 ! Modified I. Kavcic Met Office
 !
-!> @brief Meta-data for the Dynamo 0.3 built-in operations.
+!> @brief Incorrect meta-data for the Dynamo 0.3 built-in operations.
 module dynamo0p3_builtins_mod
   !> Fake built-in that purports to do a reduction into an integer scalar
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
-     type(arg_type) :: meta_args(2) = (/                            &
+     type(arg_type) :: meta_args(3) = (/                            &
           arg_type(GH_INTEGER,   GH_SUM),                           &
+          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                 &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                  &
           /)
      integer :: iterates_over = DOFS

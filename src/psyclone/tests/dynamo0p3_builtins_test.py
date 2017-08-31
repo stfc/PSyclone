@@ -2547,13 +2547,13 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
                 "      END DO \n") in code
 
 
-# ------------- Invalid built-in with an integer scalar --------------------- #
+# ------------- Invalid built-in with an integer scalar reduction ----------- #
 
 
 def test_scalar_int_builtin_error(monkeypatch):
-    ''' Test that specifying that a built-in has an integer scalar
-    argument raises the expected error '''
-    # Point to fake built-in kernel metadata
+    ''' Test that specifying incorrect meta-data for built-in such that it
+    claims to perform a reduction into an integer variable raises the
+    expected error '''
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
