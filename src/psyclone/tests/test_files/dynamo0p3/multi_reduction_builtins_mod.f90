@@ -40,9 +40,9 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1),                  &
           arg_type(GH_REAL,  GH_SUM               ),                  &
-          arg_type(GH_REAL,  GH_SUM               ),                  &
-          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
+          arg_type(GH_REAL,  GH_SUM               )                   &
           /)
      integer :: iterates_over = DOFS
    contains
