@@ -1648,7 +1648,7 @@ class DynInvokeBasisFns(object):
                               rhs=qr_var_name + "%get_" + qr_var + "()"))
 
         if self._unique_evaluator_args:
-            parent.add(UseGen(parent, name="evaluate_function_mod",
+            parent.add(UseGen(parent, name="function_space_mod",
                               only=True, funcnames=["BASIS", "DIFF_BASIS"]))
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
@@ -1846,7 +1846,7 @@ class DynInvokeBasisFns(object):
                 rhs = "%".join(
                     [basis_fn["arg"].proxy_name_indexed,
                      basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                     "evaluate_function(BASIS," + dof_loop_var +
+                     "call_function(BASIS," + dof_loop_var +
                      ",nodes_" + basis_fn["nodal_fspace"].mangled_name +
                      "(:," + nodal_loop_var + "))"])
                 dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
@@ -1902,7 +1902,7 @@ class DynInvokeBasisFns(object):
                 rhs = "%".join(
                     [dbasis_fn["arg"].proxy_name_indexed,
                      dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]),
-                     "evaluate_function(DIFF_BASIS," + df_loop_var +
+                     "call_function(DIFF_BASIS," + df_loop_var +
                      ",nodes_" + dbasis_fn["nodal_fspace"].mangled_name +
                      "(:," + nodal_loop_var + "))"])
                 dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
