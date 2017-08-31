@@ -79,10 +79,10 @@ def test_dynbuiltin_not_over_dofs():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH,
-        "15.12.3_single_pointwise_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     # Restore the original file name before doing the assert in case
     # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
@@ -352,26 +352,6 @@ def test_dynbuiltfactory_str():
     from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
     factory = DynBuiltInCallFactory()
     assert "Factory for a call to a Dynamo built-in" in str(factory)
-
-
-# ------------- Auxiliary mesh code generation function --------------------- #
-
-
-def mesh_code_present(field_str, code):
-    '''This test checks for the existance of mesh code. This exists for
-    all builtins with dm = True (although it is not actually required!) so
-    each test can call this function. Mesh code is generated from the first
-    field in a builtin arguments list, here denoted with field_str.'''
-    assert "      USE mesh_mod, ONLY: mesh_type" in code
-    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
-    output_dm_1 = (
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh => " + field_str + "%get_mesh()\n"
-        "      !\n")
-    print output_dm_1
-    assert output_dm_1 in code
 
 
 # ------------- Adding (scaled) fields ------------------------------------- #
@@ -2057,71 +2037,6 @@ def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
         assert output in code
 
 
-# ------------- Builtins that pass scalars by reference --------------------- #
-
-
-def test_builtin_set_by_ref():
-    ''' Tests that we generate correct code for a builtin
-    set operation with a scalar passed by reference '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.13.1_single_builtin_set_by_ref.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(f1, fred)\n"
-                "      REAL(KIND=r_def), intent(in) :: fred\n"
-                "      TYPE(field_type), intent(inout) :: f1\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = fred\n"
-                "      END DO \n")
-            print output
-            assert output in code
-        if distmem:
-            mesh_code_present("f1", code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = fred\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
 # ------------- Builtins that pass scalars by value ------------------------- #
 
 
@@ -2654,3 +2569,22 @@ def test_scalar_int_builtin_error(monkeypatch):
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
                 "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
                 "an argument of type gh_integer" in str(excinfo))
+
+
+# ------------- Auxiliary mesh code generation function --------------------- #
+
+
+def mesh_code_present(field_str, code):
+    '''This test checks for the existance of mesh code. This exists for
+    all builtins with dm = True (although it is not actually required!) so
+    each test can call this function. Mesh code is generated from the first
+    field in a builtin arguments list, here denoted with field_str.'''
+    assert "      USE mesh_mod, ONLY: mesh_type" in code
+    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
+    output_dm_1 = (
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh => " + field_str + "%get_mesh()\n"
+        "      !\n")
+    assert output_dm_1 in code
