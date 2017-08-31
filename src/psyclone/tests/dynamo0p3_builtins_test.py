@@ -100,7 +100,7 @@ def test_builtin_multiple_writes():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "aX_plus_Y"
-    test_builtin_file = "15.14.1_" + test_builtin_name + \
+    test_builtin_file = "15.13.1_" + test_builtin_name + \
                         "_builtin_set_by_value.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
@@ -2109,7 +2109,7 @@ def test_aX_plus_Y_by_value():
     operation Z = a*X + Y when a scalar is passed by value'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.14.1_aX_plus_Y_builtin_set_by_value.f90"),
+                     "15.13.1_aX_plus_Y_builtin_set_by_value.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -2176,7 +2176,7 @@ def test_aX_plus_bY_by_value():
     operation Z = a*X + b*Y when scalars 'a' and 'b' are passed by value'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.14.2_aX_plus_bY_builtin_set_by_value.f90"),
+                     "15.13.2_aX_plus_bY_builtin_set_by_value.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -2245,7 +2245,7 @@ def test_multiple_builtin_set():
     ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.15.2_multiple_set_kernels.f90"),
+                                        "15.14.2_multiple_set_kernels.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory(
@@ -2345,7 +2345,7 @@ def test_builtin_set_plus_normal():
     set operation when the invoke also contains a normal kernel '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
 
     for distmem in [False, True]:
@@ -2443,7 +2443,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.19.1_builtins_reduction_fuse_error.f90"),
+                         "15.18.1_builtins_reduction_fuse_error.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",

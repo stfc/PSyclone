@@ -36,7 +36,8 @@
 
 program single_invoke
 
-  ! Description: two different builtin reductions specified in an invoke call.
+  ! Description: one built-in reduction and then one standard built-in 
+  ! specified in an invoke call.
   use inf,      only: field_type
   implicit none
   type(field_type) :: f1, f2

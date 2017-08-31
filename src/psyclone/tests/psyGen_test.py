@@ -873,7 +873,7 @@ def test_argument_depends_on():
     # same name both writes (the 4.5 example only uses inc) returns True
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -887,7 +887,7 @@ def test_argument_find_argument():
     '''Check that the find_argument method returns the first dependent
     argument in a list of nodes, or None if none are found'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -908,7 +908,7 @@ def test_argument_find_argument():
     # 3: haloexchange node
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -923,7 +923,7 @@ def test_argument_find_argument():
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -943,7 +943,7 @@ def test_globalsum_arg():
     '''Check that the globalsum argument is defined as gh_readwrite and
     points to the globalsum node'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -960,7 +960,7 @@ def test_haloexchange_arg():
     points to the haloexchange node'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -976,7 +976,7 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     argument after the current Node in the schedule or None if none
     are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1014,7 +1014,7 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     assert result == f2_next_arg
     # 7: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1039,7 +1039,7 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     argument before the current Node in the schedule or None if none
     are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1077,7 +1077,7 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     assert result == f2_prev_arg
     # 7: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1159,7 +1159,7 @@ def test_call_args():
     arguments '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.4_builtin_and_normal_kernel_invoke.f90"),
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1192,7 +1192,7 @@ def test_globalsum_args():
     '''Test that the globalsum class args method returns the appropriate
     argument '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1207,7 +1207,7 @@ def test_node_forward_dependence():
     closest dependent Node after the current Node in the schedule or
     None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1244,7 +1244,7 @@ def test_node_forward_dependence():
 
     # 4: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1266,7 +1266,7 @@ def test_node_backward_dependence():
     closest dependent Node before the current Node in the schedule or
     None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1299,7 +1299,7 @@ def test_node_backward_dependence():
     assert result == loop13
     # 4: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1321,7 +1321,7 @@ def test_call_forward_dependence():
     closest dependent call after the current call in the schedule or
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1350,7 +1350,7 @@ def test_call_backward_dependence():
     closest dependent call before the current call in the schedule or
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1376,7 +1376,7 @@ def test_omp_forward_dependence():
     returning the closest dependent Node after the current Node in the
     schedule or None if none are found. '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1402,7 +1402,7 @@ def test_omp_forward_dependence():
     assert first_omp.forward_dependence() == writer
     # 3: directive and globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1427,7 +1427,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     returning the closest dependent Node before the current Node in
     the schedule or None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1448,7 +1448,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     assert prev_dep_omp_node.backward_dependence() == omp3
     # 3: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1515,7 +1515,7 @@ def test_node_is_valid_location():
     assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.1_multi_aX_plus_Y_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1559,7 +1559,7 @@ def test_dag_names():
     assert (schedule.children[3].children[0].dag_name ==
             "kernel_testkern_code_5")
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.15.3_sum_setval_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
