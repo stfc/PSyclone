@@ -96,7 +96,6 @@ def test_kerneltypefactory_create_broken_type():
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
-    # The file containing broken meta-data for the built-ins
     test_builtin_name = "aX_plus_Y"
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(None, name=test_builtin_name.lower())
