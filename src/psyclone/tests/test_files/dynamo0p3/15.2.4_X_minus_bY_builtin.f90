@@ -35,7 +35,7 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (X = X - bY)
+  ! Description: single point-wise operation (Z = X - bY)
   ! specified in an invoke call.
   use testkern, only: testkern_type
   use inf,      only: field_type
