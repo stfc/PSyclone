@@ -240,7 +240,7 @@ class DynIncXPlusYKern(DynBuiltIn):
 
 
 class DynAXPlusYKern(DynBuiltIn):
-    ''' Z = a.X + Y where 'a' is a scalar and 'f', 'X' and
+    ''' Z = a.X + Y where 'a' is a scalar and 'Z', 'X' and
     'Y' are fields '''
 
     def __str__(self):
