@@ -1017,7 +1017,7 @@ Built-ins
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
 built-ins generally follow a convention that the field/scalar written
-to comes last in the argument list. Dynamo 0.3 built-ins must conform to the
+to comes first in the argument list. Dynamo 0.3 built-ins must conform to the
 following four rules:
 
  1) Built-in kernels must have one and only one modified (i.e. written
