@@ -36,7 +36,9 @@
 
 program single_invoke
 
-  ! Description: single kernel, multiple scalar sums & field writer argument
+  ! Description: invokes a single built-in kernel that claims to perform two
+  ! reduction operations (forbidden in the Dynamo 0.3 API). Must be used
+  ! with the fake kernel meta-data in multi_reduction_builtins_mod.f90.
   use inf, only : r_def
   implicit none
   real(r_def)   :: rsum1, rsum2
