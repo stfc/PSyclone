@@ -1091,7 +1091,7 @@ scheme presented below. Any new built-ins need to comply with these rules.
 Addition
 ++++++++
 
-Built-ins which add (scaled) fields are denoted with keyword **plus**.
+Built-ins which add (scaled) fields are denoted with the keyword **plus**.
 
 X_plus_Y
 ########
@@ -1201,7 +1201,7 @@ where:
 Subtraction
 +++++++++++
 
-Built-ins which subtract (scaled) fields are denoted with keyword **minus**.
+Built-ins which subtract (scaled) fields are denoted with the keyword **minus**.
 
 X_minus_Y
 #########
@@ -1281,7 +1281,7 @@ where:
 Multiplication
 ++++++++++++++
 
-Built-ins which multiply (scaled) fields are denoted with keyword **times**.
+Built-ins which multiply (scaled) fields are denoted with the keyword **times**.
 
 X_times_Y
 #########
@@ -1331,7 +1331,7 @@ Scaling
 +++++++
 
 Built-ins which scale fields are technically cases of multiplying a field by a
-scalar and are hence also denoted with keyword **times**.
+scalar and are hence also denoted with the keyword **times**.
 
 a_times_X
 #########
@@ -1366,7 +1366,8 @@ where:
 Division
 ++++++++
 
-Built-ins which divide (scaled) fields are denoted with keyword **divideby**.
+Built-ins which divide (scaled) fields are denoted with the keyword
+**divideby**.
 
 X_divideby_Y
 ############
@@ -1401,7 +1402,7 @@ Setting to value
 ++++++++++++++++
 
 Built-ins which set field elements to some value and hence are denoted with
-keyword **setval**.
+the keyword **setval**.
 
 setval_c
 ########
@@ -1436,7 +1437,7 @@ where:
 Raising to power
 ++++++++++++++++
 
-Built-in which raises field elements to an exponent is denoted with keyword
+Built-in which raises field elements to an exponent is denoted with the keyword
 **powreal** for real exponent.
 
 inc_X_powreal_a
@@ -1456,8 +1457,8 @@ where:
 Inner product
 +++++++++++++
 
-Built-ins which calculate inner product of two fields or of a field with itself
-are denoted with keyword **innerproduct**.
+Built-ins which calculate the inner product of two fields or of a field with itself
+are denoted with the keyword **innerproduct**.
 
 X_innerproduct_Y
 ################
@@ -1498,7 +1499,7 @@ where:
 Sum of elements
 +++++++++++++++
 
-Built-in which sums element of a field is denoted with keyword *sum*.
+Built-in which sums the elements of a field is denoted with the keyword *sum*.
 
 sum_X
 #####
