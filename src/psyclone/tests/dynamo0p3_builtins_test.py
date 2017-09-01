@@ -397,7 +397,7 @@ def test_X_plus_Y():     # Z = X + Y
                 "f2_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -447,7 +447,7 @@ def test_inc_X_plus_Y():    # X = X + Y
                 "f2_proxy%data(df)\n"
                 "      END DO \n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
@@ -517,7 +517,7 @@ def test_aX_plus_Y():    # Z = aX + Y
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -589,7 +589,7 @@ def test_inc_aX_plus_Y():    # X = aX + Y
                 "      !\n"
                 "    END SUBROUTINE invoke_0")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -661,7 +661,7 @@ def test_inc_X_plus_bY():    # X = X + bY
                 "      !\n"
                 "    END SUBROUTINE invoke_0")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -735,7 +735,7 @@ def test_aX_plus_bY():    # Z = aX + bY
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -809,7 +809,7 @@ def test_inc_aX_plus_bY():    # X = aX + bY
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -872,7 +872,7 @@ def test_X_minus_Y():    # Z = X - Y
                 "f2_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -923,7 +923,7 @@ def test_inc_X_minus_Y():    # X = X - Y
                 "f2_proxy%data(df)\n"
                 "      END DO \n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
@@ -993,7 +993,7 @@ def test_aX_minus_Y():    # Z = aX - Y
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -1066,7 +1066,7 @@ def test_X_minus_bY():    # Z = X - bY
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -1138,7 +1138,7 @@ def test_inc_X_minus_bY():    # X = X - bY
                 "      !\n"
                 "    END SUBROUTINE invoke_0")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -1192,7 +1192,7 @@ def test_X_times_Y():    # Z = X*Y
                 "f2_proxy%data(df)\n"
                 "      END DO \n")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output = (
                 "      ! Call kernels and communication routines\n"
@@ -1249,7 +1249,7 @@ def test_inc_X_times_Y():    # X = X*Y
                 "f2_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -1321,7 +1321,7 @@ def test_inc_aX_times_Y():    # X = aX*Y
                 "      !\n"
                 "    END SUBROUTINE invoke_0")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -1383,7 +1383,7 @@ def test_a_times_X():    # Y = a*X
                 "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f2", code)
             output_dm_2 = (
                 "      !\n"
@@ -1432,7 +1432,7 @@ def test_inc_a_times_X():    # X = a*X
                 "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n")
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
@@ -1492,7 +1492,7 @@ def test_X_divideby_Y():    # Z = X/Y
                 "f2_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
@@ -1551,7 +1551,7 @@ def test_inc_X_divideby_Y():    # X = X/Y
                 "f2_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -1604,7 +1604,7 @@ def test_inc_X_powreal_a():    # X = X**a (a is real)
                 "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
                 "      END DO \n"
                 "      !\n")
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output = (
                 "      ! Call kernels and communication routines\n"
@@ -1671,7 +1671,7 @@ def test_setval_c():    # X = c
                 "        f1_proxy%data(df) = c\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
@@ -1738,7 +1738,7 @@ def test_setval_X():    # Y = X
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f2", code)
             output_dm_2 = (
                 "      !\n"
@@ -1791,7 +1791,6 @@ def test_X_innerproduct_Y():    # innprod = innprod + X(:)*Y(:)
             "      nlayers = f1_proxy%vspace%get_nlayers()\n"
             "      !\n")
         assert output in code
-
         if not distmem:
             output_seq = (
                 "      ! Initialise sizes and allocate any basis arrays for "
@@ -1812,8 +1811,7 @@ def test_X_innerproduct_Y():    # innprod = innprod + X(:)*Y(:)
                 "      END DO \n"
                 "      !\n")
             assert output_seq in code
-
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm = (
                 "      ! Initialise sizes and allocate any basis arrays for "
@@ -1871,7 +1869,6 @@ def test_X_innerproduct_X():    # innprod = innprod + X(:)*X(:)
             "      nlayers = f1_proxy%vspace%get_nlayers()\n"
             "      !\n")
         assert output in code
-
         if not distmem:
             output_seq = (
                 "      ! Initialise sizes and allocate any basis arrays for "
@@ -1892,8 +1889,7 @@ def test_X_innerproduct_X():    # innprod = innprod + X(:)*X(:)
                 "      END DO \n"
                 "      !\n")
             assert output_seq in code
-
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output_dm = (
                 "      ! Initialise sizes and allocate any basis arrays for "
@@ -1970,7 +1966,7 @@ def test_sum_X():    # sumfld = sum(X(:))
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO ")
             assert output in code
-        if distmem:
+        else:
             mesh_code_present("f1", code)
             output = (
                 "      ! Initialise sizes and allocate any basis arrays "
