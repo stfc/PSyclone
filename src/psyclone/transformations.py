@@ -1232,7 +1232,8 @@ class DynamoRedundantComputationTrans(Transformation):
                     "In the DynamoRedundantComputation transformation apply "
                     "method the supplied depth is less than 1")
 
-            if not node.field.discontinuous and depth == 1:
+            if not node.field.discontinuous and depth == 1 and \
+               node.iteration_space == "cells":
                 raise TransformationError(
                     "In the DynamoRedundantComputation transformation apply "
                     "method the supplied depth must be greater than 1 as this "
@@ -1275,8 +1276,8 @@ class DynamoRedundantComputationTrans(Transformation):
         else:  # iteration space is dofs
             loop.set_upper_bound("dof_halo", depth)
 
-        # Add any new halo exchanges caused by the redundant
+        # Add/remove halo exchanges as required due to the redundant
         # computation
-        loop.create_halo_exchanges()
+        loop.update_halo_exchanges()
 
         return schedule, keep

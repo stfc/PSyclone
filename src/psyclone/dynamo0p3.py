@@ -2275,6 +2275,65 @@ class DynHaloExchange(HaloExchange):
                 self._compute_single_halo_info(read_dependency))
         return depth_info_list
 
+    @property
+    def required(self):
+        '''Determines whether this halo exchange is required or not. A halo
+        exchange is only ever added if it is required, or if it may be
+        required. However this situation can change if transformations add
+        in redundant computation'''
+        halo_cleaned_info = self._compute_halo_cleaned_info
+        if halo_cleaned_info["max_depth"] and not halo_cleaned_info["dirty_outer"]:
+            # we redundantly compute the whole halo so a halo exchange
+            # is not required
+            return False
+        halo_required_clean_info = self._simplify_depth_list(self._compute_halo_info)
+        if len(halo_required_clean_info) == 1:
+            # we might have a fixed upper bound
+            if not halo_required_clean_info[0]["var_depth"]:
+                # we do have a fixed upper bound
+                required_clean_upper_bound = halo_required_clean_info[0]["literal_depth"]
+                if not halo_cleaned_info["max_depth"]:
+                    # we have a literal upper bound
+                    cleaned_upper_bound = halo_cleaned_info["literal_depth"]
+                    if halo_cleaned_info["dirty_outer"]:
+                        # redundant computation in outer level does
+                        # not clean so reduce cleaned upper bound by 1
+                        cleaned_upper_bound -= 1
+                    if cleaned_upper_bound >= required_clean_upper_bound:
+                        # halo exchange is not required
+                        return False
+        # this halo exchange is, or may be, required
+        return True
+
+    @property
+    def _compute_halo_cleaned_info(self):
+        '''Determines how much of the halo has been cleaned from previous
+        redundant computation '''
+        write_dependencies = self.field.backward_write_dependencies()
+        if len(write_dependencies) != 1:
+            raise GenerationError(
+                "Internal logic error. There should be one and only one write"
+                "dependence for a halo exchange")
+        write_dependency = write_dependencies[0]
+        call = write_dependency.call
+        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
+            raise GenerationError(
+                "internal error: write dependence for {0} should be from a "
+                "call but found {1}".format(write_dependency.name, type(call)))
+        loop = call.parent
+        dirty_outer = not write_dependency.discontinuous and loop.upper_bound_name == "cell_halo"
+        upper_bound = 0
+        max_depth = False
+        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+            # loop does redundant computation
+            if loop.upper_bound_index:
+                # loop redundant computation is to a fixed literal depth
+                upper_bound = loop.upper_bound_index
+            else:
+                # loop redundant computation is to the maximum depth
+                max_depth = True
+        return {"literal_depth":upper_bound, "max_depth":max_depth, "dirty_outer":dirty_outer}
+
     def _compute_single_halo_info(self, read_dependency):
         '''Compute a halo dependence and return the required halo information
         (such as halo depth and stencil type) as a dictionary'''
@@ -2743,6 +2802,32 @@ class DynLoop(Loop):
                                        parent=self.parent,
                                        check_dirty=check_dirty)
             self.parent.children.insert(self.position, exchange)
+
+    def update_halo_exchanges(self):
+        ''' add and/or remove halo exchanges due to changes in the loops bounds '''
+        # this call adds any new halo exchanges that are
+        # required. This is done by adding halo exchanges before this
+        # loop for any fields in the loop that require a halo exchange
+        # and don't already have one
+        self.create_halo_exchanges()
+        # now removes any existing halo exchanges that are no longer
+        # required. This is done by removing halo exchanges after this
+        # loop where a field in this loop previously depended on a
+        # halo exchange but no longer does
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if arg.access in arg._writers:
+                    dep_arg_list = arg.forward_read_dependencies()
+                    for dep_arg in dep_arg_list:
+                        if isinstance(dep_arg.call, DynHaloExchange):
+                            # found a halo exchange as a forward dependence
+                            # ask the halo exchange if it is required
+                            print "field {0} has a forward dependence with a halo exchange".format(arg.name)
+                            dep_arg.call.root.view()
+                            halo_exchange = dep_arg.call
+                            if not halo_exchange.required:
+                                print "We need to delete this halo exchange"
+                                exit(1)
 
     def create_halo_exchanges(self):
         '''add initial halo exchanges before this loop as required by fields

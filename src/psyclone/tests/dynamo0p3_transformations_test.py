@@ -4458,6 +4458,30 @@ def test_redundant_computation_no_directive():
     assert ("the parent must be the schedule") in str(excinfo)
 
 
+def test_redundant_computation_remove_halo_exchange():
+    '''Test that a halo exchange is removed if redundant computation means
+    that it is no longer required'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "14.7_halo_annexed.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[0]
+    rc_trans.apply(loop, depth=1)
+    loop = schedule.children[1]
+    rc_trans.apply(loop, depth=1)
+    schedule.view()
+    exit(1)
+
+
 # todo
 
 # tests for uncovered dependence analysis and halo exchange code
