@@ -4476,16 +4476,24 @@ def test_redundant_computation_remove_halo_exchange():
     rc_trans = DynamoRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, depth=1)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    schedule.view()
     loop = schedule.children[1]
     rc_trans.apply(loop, depth=1)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" not in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
     schedule.view()
-    exit(1)
 
 
 # todo
-
 # tests for uncovered dependence analysis and halo exchange code
-# tests for a halo needing to be removed (not currently coded for)
 
 # example of redundant computation transformation in action.
 

@@ -2204,17 +2204,16 @@ class DynHaloExchange(HaloExchange):
 
         depth_info_list = self._compute_halo_info
 
-        # if any reader reads to max depth then return max_depth
-        for depth_info in depth_info_list:
-            if depth_info["max_depth"]:
-                return "mesh%get_last_halo_depth()"
-
         # simplify the list
         new_depth_info_list = self._simplify_depth_list(depth_info_list)
 
         # if there is only one entry, return the depth
         if len(new_depth_info_list) == 1:
-            return self._depth_str(new_depth_info_list[0])
+            depth_info = new_depth_info_list[0]
+            if depth_info["max_depth"]:
+                return "mesh%get_last_halo_depth()"
+            else:  # return the variable and/or literal depth
+                return self._depth_str(depth_info)
         else:
             # at least one read field must have a variable depth and
             # there is more than one read field in the list.
@@ -2225,7 +2224,7 @@ class DynHaloExchange(HaloExchange):
 
     def _depth_str(self, depth_info):
         '''Interal helper method that returns the depth of a halo dependency
-        as string'''
+        as a string'''
         depth_str = ""
         if depth_info["var_depth"]:
             depth_str += depth_info["var_depth"]
@@ -2244,6 +2243,13 @@ class DynHaloExchange(HaloExchange):
         another for depth=extent+2 then we do not need the former as
         it is covered by the latter.'''
         new_depth_info_list = []
+        for depth_info in depth_info_list:
+            if depth_info["max_depth"]:
+                new_depth_info_list.append({"var_depth": "",
+                                            "literal_depth": 0,
+                                            "max_depth": True})
+                return new_depth_info_list
+
         literal_only = 0
         for depth_info in depth_info_list:
             var_depth = depth_info["var_depth"]
@@ -2256,7 +2262,8 @@ class DynHaloExchange(HaloExchange):
                     match = True
             if not match:
                 new_depth_info_list.append({"var_depth": var_depth,
-                                            "literal_depth": literal_depth})
+                                            "literal_depth": literal_depth,
+                                            "max_depth": False})
         return new_depth_info_list
 
     @property
@@ -2289,7 +2296,7 @@ class DynHaloExchange(HaloExchange):
         halo_required_clean_info = self._simplify_depth_list(self._compute_halo_info)
         if len(halo_required_clean_info) == 1:
             # we might have a fixed upper bound
-            if not halo_required_clean_info[0]["var_depth"]:
+            if not (halo_required_clean_info[0]["var_depth"] or halo_required_clean_info[0]["max_depth"]):
                 # we do have a fixed upper bound
                 required_clean_upper_bound = halo_required_clean_info[0]["literal_depth"]
                 if not halo_cleaned_info["max_depth"]:
@@ -2316,6 +2323,7 @@ class DynHaloExchange(HaloExchange):
                 "dependence for a halo exchange")
         write_dependency = write_dependencies[0]
         call = write_dependency.call
+        from psyclone.dynamo0p3_builtins import DynBuiltIn
         if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
             raise GenerationError(
                 "internal error: write dependence for {0} should be from a "
@@ -2363,20 +2371,8 @@ class DynHaloExchange(HaloExchange):
         elif (loop.upper_bound_name == "ncells" and
               not read_dependency.descriptor.stencil):
             # This must be a continuous field which therefore accesses
-            # annexed dofs and the previous writer does not write
-            # redundantly to annexed dofs or is unknown so a halo
-            # exchange is required.
-            prev_dependencies = read_dependency.backward_write_dependencies(
-                ignore_halos=True)
-            upper_bound = ""
-            if prev_dependencies:
-                upper_bound = prev_dependencies[0].call.parent.upper_bound_name
-            if upper_bound == "ndofs" or not prev_dependencies:
-                literal_depth = 1
-            else:
-                raise GenerationError(
-                    "Internal error, previous writer is known but is not "
-                    "ndofs")
+            # annexed dofs when read.
+            literal_depth = 1
         elif (loop.upper_bound_name == "ncells" and
               read_dependency.descriptor.stencil):
             # no need to worry about updating annexed dofs (if they
@@ -2822,12 +2818,9 @@ class DynLoop(Loop):
                         if isinstance(dep_arg.call, DynHaloExchange):
                             # found a halo exchange as a forward dependence
                             # ask the halo exchange if it is required
-                            print "field {0} has a forward dependence with a halo exchange".format(arg.name)
-                            dep_arg.call.root.view()
                             halo_exchange = dep_arg.call
                             if not halo_exchange.required:
-                                print "We need to delete this halo exchange"
-                                exit(1)
+                                halo_exchange.parent.children.remove(halo_exchange)
 
     def create_halo_exchanges(self):
         '''add initial halo exchanges before this loop as required by fields
