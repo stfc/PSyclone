@@ -2288,21 +2288,23 @@ class DynHaloExchange(HaloExchange):
         exchange is only ever added if it is required, or if it may be
         required. However this situation can change if transformations add
         in redundant computation'''
-        halo_cleaned_info = self._compute_halo_cleaned_info
-        if halo_cleaned_info["max_depth"] and not halo_cleaned_info["dirty_outer"]:
+        cleaned_info = self._compute_halo_cleaned_info
+        if cleaned_info["max_depth"] and not cleaned_info["dirty_outer"]:
             # we redundantly compute the whole halo so a halo exchange
             # is not required
             return False
-        halo_required_clean_info = self._simplify_depth_list(self._compute_halo_info)
-        if len(halo_required_clean_info) == 1:
+        halo_info = self._compute_halo_info
+        required_clean_info = self._simplify_depth_list(halo_info)
+        if len(required_clean_info) == 1:
             # we might have a fixed upper bound
-            if not (halo_required_clean_info[0]["var_depth"] or halo_required_clean_info[0]["max_depth"]):
+            if not (required_clean_info[0]["var_depth"] or
+                    required_clean_info[0]["max_depth"]):
                 # we do have a fixed upper bound
-                required_clean_upper_bound = halo_required_clean_info[0]["literal_depth"]
-                if not halo_cleaned_info["max_depth"]:
+                clean_upper_bound = required_clean_info[0]["literal_depth"]
+                if not cleaned_info["max_depth"]:
                     # we have a literal upper bound
-                    cleaned_upper_bound = halo_cleaned_info["literal_depth"]
-                    if halo_cleaned_info["dirty_outer"]:
+                    cleaned_upper_bound = cleaned_info["literal_depth"]
+                    if cleaned_info["dirty_outer"]:
                         # redundant computation in outer level does
                         # not clean so reduce cleaned upper bound by 1
                         cleaned_upper_bound -= 1
@@ -2329,7 +2331,8 @@ class DynHaloExchange(HaloExchange):
                 "internal error: write dependence for {0} should be from a "
                 "call but found {1}".format(write_dependency.name, type(call)))
         loop = call.parent
-        dirty_outer = not write_dependency.discontinuous and loop.upper_bound_name == "cell_halo"
+        dirty_outer = (not write_dependency.discontinuous and
+                       loop.upper_bound_name == "cell_halo")
         upper_bound = 0
         max_depth = False
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
@@ -2340,7 +2343,8 @@ class DynHaloExchange(HaloExchange):
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
-        return {"literal_depth":upper_bound, "max_depth":max_depth, "dirty_outer":dirty_outer}
+        return {"literal_depth": upper_bound, "max_depth": max_depth,
+                "dirty_outer": dirty_outer}
 
     def _compute_single_halo_info(self, read_dependency):
         '''Compute a halo dependence and return the required halo information
@@ -2800,7 +2804,8 @@ class DynLoop(Loop):
             self.parent.children.insert(self.position, exchange)
 
     def update_halo_exchanges(self):
-        ''' add and/or remove halo exchanges due to changes in the loops bounds '''
+        '''add and/or remove halo exchanges due to changes in the loops
+        bounds'''
         # this call adds any new halo exchanges that are
         # required. This is done by adding halo exchanges before this
         # loop for any fields in the loop that require a halo exchange
@@ -2820,7 +2825,8 @@ class DynLoop(Loop):
                             # ask the halo exchange if it is required
                             halo_exchange = dep_arg.call
                             if not halo_exchange.required:
-                                halo_exchange.parent.children.remove(halo_exchange)
+                                halo_exchange.parent.children.remove(
+                                    halo_exchange)
 
     def create_halo_exchanges(self):
         '''add initial halo exchanges before this loop as required by fields
