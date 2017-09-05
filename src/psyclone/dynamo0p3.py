@@ -2300,15 +2300,15 @@ class DynHaloExchange(HaloExchange):
             if not (required_clean_info[0]["var_depth"] or
                     required_clean_info[0]["max_depth"]):
                 # we do have a fixed upper bound
-                clean_upper_bound = required_clean_info[0]["literal_depth"]
+                required_clean_ub = required_clean_info[0]["literal_depth"]
                 if not cleaned_info["max_depth"]:
                     # we have a literal upper bound
-                    cleaned_upper_bound = cleaned_info["literal_depth"]
+                    cleaned_ub = cleaned_info["literal_depth"]
                     if cleaned_info["dirty_outer"]:
                         # redundant computation in outer level does
                         # not clean so reduce cleaned upper bound by 1
-                        cleaned_upper_bound -= 1
-                    if cleaned_upper_bound >= required_clean_upper_bound:
+                        cleaned_ub -= 1
+                    if cleaned_ub >= required_clean_ub:
                         # halo exchange is not required
                         return False
         # this halo exchange is, or may be, required
