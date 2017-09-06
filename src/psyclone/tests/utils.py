@@ -16,9 +16,11 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 # Whether or not we run tests requiring code compilation is picked-up
 # from a command-line flag. (This is set-up in conftest.py.)
-compile = pytest.mark.skipif(
-    not pytest.config.getoption("--compile"),
-    reason="Need --compile option to run")
+TEST_COMPILE = pytest.config.getoption("--compile")
+# The following allows us to mark a test with @compile if it is
+# only to be run when the --compile option is passed to py.test
+compile = pytest.mark.skipif(not TEST_COMPILE,
+                             reason="Need --compile option to run")
 
 
 class CompileError(Exception):
@@ -131,16 +133,14 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3")
         from dynamo0p3_build import INFRASTRUCTURE_MODULES as module_files
 
-    kernel_modules = []
-    # Get the list of Use statements in the generated code
-    use_stmts = walk(psy_ast.psy_module, f2pygen.UseGen)
-    # Those that aren't in our list of infrastructure modules must be
-    # kernels. Note that we don't use this method to find which infrastructure
-    # modules to compile because we don't have any way of knowing which
-    # ones are required by the individual kernels.
-    for stmt in use_stmts:
-        if stmt.root.name not in module_files:
-            kernel_modules.append(stmt.root.name)
+    kernel_modules = set()
+    # Get the names of the modules associated with the kernels. By definition,
+    # built-ins do not have associated Fortran modules.
+    from psyclone.psyGen import BuiltIn
+    for invoke in psy_ast.invokes.invoke_list:
+        for call in invoke.schedule.calls():
+            if not isinstance(call, BuiltIn):
+                kernel_modules.add(call.module_name)
 
     # Change to the temporary directory passed in to us from
     # pytest. (This is a LocalPath object.)
