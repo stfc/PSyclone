@@ -185,7 +185,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'psyclone.tex', u'PSyclone Documentation',
-   u'Rupert Ford and Andrew Porter', 'manual'),
+   u'Rupert Ford, Andrew Porter, and Joerg Henrichs', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
