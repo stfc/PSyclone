@@ -177,7 +177,8 @@ Cloning PSyclone from git and setting up your environment is done as follows::
    > pip install --user -e .
 
 Note that the "-e" flag causes the project to be installed in 'editable' mode
-so that any changes to the PSyclone source take effect immediately.
+so that any changes to the PSyclone source take effect immediately. On OpenSUSE
+it is necessary to add $HOME/.local/bin to your $PATH.
 
 
 Installing documentation tools
