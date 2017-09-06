@@ -2056,6 +2056,12 @@ class Kern(Call):
         return "kern call: "+self._name
 
     @property
+    def module_name(self):
+        ''' Returns the name of the Fortran module that contains this
+        kernel '''
+        return self._module_name
+
+    @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
         return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
