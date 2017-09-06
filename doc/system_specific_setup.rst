@@ -11,7 +11,7 @@ documentation creation will be installed.
 :ref:`dev_setup` describes the additional installation of
 all required tools to run tests, and create documentation.
 
-Both sections have detailled instructions for Ubuntu 16.04.2 and 
+Both sections have detailed instructions for Ubuntu 16.04.2 and 
 OpenSUSE 42.2 - if you are working with a different Linux
 distribution some adjustments will be necessary.
 
@@ -40,8 +40,9 @@ installed.
 Installing dependencies on Ubuntu
 +++++++++++++++++++++++++++++++++
 
-On Ubuntu ``pip`` and ``graphviz`` is installed using ``apt-get``. Remember
-that graphviz is optional.
+On Ubuntu ``pip`` and ``graphviz`` are installed using ``apt-get``. Remember
+that graphviz is optional and that you'll need to install the graphviz
+package in addition to the Python bindings.
 ::
 
    > sudo apt-get install python-pip graphviz
@@ -89,7 +90,7 @@ in :ref:`psyclone_from_git`.
 
 Common installation
 ^^^^^^^^^^^^^^^^^^^
-To avoid warnings during the dependency intallation, it is recommended to update ``pip``
+To avoid warnings during the dependency installation, it is recommended to update ``pip``
 to the latest version::
 
     > sudo pip install --upgrade pip
@@ -115,8 +116,8 @@ Next you need to install the ``fparser`` and ``pyparsing`` packages::
 
         > pip install --user fparser pyparsing
 
-    If necessary, add the ``--user`` option to all ``pip`` commands and
-    remove all ``sudo`` commands.
+    You may remove the use of ``sudo`` and add the ``--user`` option to all
+    pip commands described in this document.
 
     Uninstalling is simply a matter of doing::
 
@@ -156,7 +157,7 @@ Installing git for Ubuntu
 +++++++++++++++++++++++++
 You need to install the git package::
 
-    > sudo apg-get install git
+    > sudo apt-get install git
 
 
 Installing git on OpenSUSE
@@ -173,15 +174,15 @@ Cloning PSyclone from git and setting up your environment is done as follows::
    > cd <PSYCLONEHOME>
    > git clone https://github.com/stfc/PSyclone.git
    > cd PSyclone
-   > export PYTHONPATH=`pwd`/src:${PYTHONPATH}
-   > export PATH=`pwd`/bin:${PATH}
+   > pip install --user -e .
 
-You may want to set your python path permanently (e.g. by editing your
-${HOME}/.bashrc file if you run the BASH shell).
+Note that the "-e" flag causes the project to be installed in 'editable' mode
+so that any changes to the PSyclone source take effect immediately.
+
 
 Installing documentation tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Install Sphinx for creating PSyclone documentation 
+Install Sphinx for creating PSyclone documentation
 ::
 
    > sudo pip install sphinx
@@ -199,9 +200,9 @@ Installing LaTeX on Ubuntu
 ++++++++++++++++++++++++++
 The following three packages need to be installed to create the pdf documentation.
 It is recommended to install the packages in one ``apt-get`` command, since
-otherwise depending on filesystem unnecessary snapshots might be created that
-take up additional memory. The ``--no-install-recommends`` option significantly
-reduces the number of installed packages::
+otherwise, depending on your filesystem, unnecessary snapshots might be created
+that take up additional space. The ``--no-install-recommends`` option
+significantly reduces the number of installed packages::
 
    > sudo apt-get install --no-install-recommends texlive \
    texlive-latex-extra latexmk
@@ -209,15 +210,15 @@ reduces the number of installed packages::
 Installing LaTeX on OpenSUSE
 ++++++++++++++++++++++++++++
 The following command installs the minimum number of packages
-in order to create the pdf documentation. The following command
-installs around 130 packages all in all, requiring around 300 MB.
+in order to create the pdf documentation - around 130 packages all
+in all, requiring approximately 300 MB.
 
 
 .. warning::
 
     It is important to install the packages in one ``zypper`` command, since
-    otherwise depending on used file system snapshots might be created after
-    each package, which can add up to several GB of data.
+    otherwise, depending on your filesystem, unnecessary snapshots might be
+    created after each package, which can add up to several GB of data.
 
 ::
 
@@ -244,13 +245,19 @@ Installing testing tools
 The following modules are recommended to get access to testing and
 formatting tools::
 
-   > sudo pip install pytest pep8 pylint pytest-cov pytest-pep8 \
+   > sudo pip install pytest pep8 pylint==1.6.5 pytest-cov pytest-pep8 \
    pytest-pylint pytest-flakes pytest-pep257
+
+.. warning::
+    It appears that the 1.7 series of ``pylint`` has a bug (at least up to 1.7.2)
+    and does not work properly with PSyclone - it aborts with a
+    "maximum recursion depth exceeded" error message. It is therefore
+    recommended to use version 1.6.5, as specified in the above ``pip`` command.
 
 
 You can now run the PSyclone python tests::
 
-   > cd PSyclone.git/src/psyclone/tests
+   > cd PSyclone.git
    > py.test
 
 In order to see whether the Python code conforms to the pep8
