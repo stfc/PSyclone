@@ -4535,13 +4535,72 @@ def test_redundant_computation_max_remove_halo_exchange():
     # bother as that is not relevant to this test.
     assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
 
+
+def test_redundant_computation_continuous_halo_remove():
+    '''check that we do not remove a halo exchange when the field is
+    continuous and the redundant computation depth equals the required
+    halo access depth. The reason for this is that the outer halo
+    remains invalid when written to by a continuous field. Also check
+    that we do remove the halo exchange when the redundant computation
+    depth is one more than the required halo access depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    f3_write_loop = schedule.children[3]
+    f3_read_loop = schedule.children[7]
+    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans.apply(f3_read_loop, depth=3)
+    rc_trans.apply(f3_write_loop, depth=3)
+    result = str(psy.gen)
+    assert "CALL f3_proxy%halo_exchange(depth=3)" in result
+    assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
+    #
+    rc_trans.apply(f3_write_loop, depth=4)
+    result = str(psy.gen)
+    assert "CALL f3_proxy%halo_exchange(depth=" not in result
+    assert "IF (f3_proxy%is_dirty(depth=" not in result
+
+
+def test_redundant_computation_discontinuous_halo_remove():
+    '''check that we do remove a halo exchange when the field is
+    discontinuous and the redundant computation depth equals the
+    required halo access depth. Also check that we do not remove the
+    halo exchange when the redundant computation depth is one less
+    than the required halo access depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    f4_write_loop = schedule.children[4]
+    f4_read_loop = schedule.children[7]
+    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans.apply(f4_read_loop, depth=3)
+    rc_trans.apply(f4_write_loop, depth=2)
+    result = str(psy.gen)
+    assert "CALL f4_proxy%halo_exchange(depth=3)" in result
+    assert "IF (f4_proxy%is_dirty(depth=3)) THEN" not in result
+    #
+    rc_trans.apply(f4_write_loop, depth=3)
+    result = str(psy.gen)
+    assert "CALL f4_proxy%halo_exchange(depth=" not in result
+    assert "IF (f4_proxy%is_dirty(depth=" not in result
+
+
 # todo
 # tests for uncovered dependence analysis and halo exchange code
-
-# 2) check continuous keep halo exchange if redundant = required
-# 3) check continuous remove halo exchange if redundant = required+1
-# 4) check discontinuous keep halo exchange if redundant = required-1
-# 5) check discontinuous remove halo exchange if redundant = required
 
 # example of redundant computation transformation in action.
 
