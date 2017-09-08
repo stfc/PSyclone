@@ -6999,3 +6999,30 @@ def test_halo_compute_halo_internal_error(monkeypatch):
         halo_exchange._compute_halo_info
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
+
+
+def test_halo_exchange_one_backward_dependence(monkeypatch):
+    '''Check that an internal error is raised if a halo exchange returns
+    with more than one write dependency. It should only ever be 0 or 1.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[0]
+    field = halo_exchange.field
+    #
+    monkeypatch.setattr(field, "backward_write_dependencies",
+                        lambda fs=None: [1,1])
+    with pytest.raises(GenerationError) as excinfo:
+        halo_exchange._compute_halo_cleaned_info
+    assert ("Internal logic error. There should be one and only one "
+            "write dependence for a halo exchange. Found "
+            "'2'") in str(excinfo.value)
+    #
+    monkeypatch.setattr(field, "backward_write_dependencies",
+                        lambda fs=None: [])
+    with pytest.raises(GenerationError) as excinfo:
+        halo_exchange._compute_halo_cleaned_info
+    assert ("Internal logic error. There should be one and only one "
+            "write dependence for a halo exchange. Found "
+            "'0'") in str(excinfo.value)

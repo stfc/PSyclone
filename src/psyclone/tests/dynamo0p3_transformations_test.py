@@ -4602,6 +4602,9 @@ def test_redundant_computation_discontinuous_halo_remove():
 # todo
 # tests for uncovered dependence analysis and halo exchange code
 
+# 1 check that depth is an integer when passed - I accidentally passed
+# in a string before and got an unexpected error.
+
 # example of redundant computation transformation in action.
 
 # documentation on redundant computation transformation.
