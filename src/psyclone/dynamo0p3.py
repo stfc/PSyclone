@@ -2171,13 +2171,12 @@ class DynHaloExchange(HaloExchange):
     ''' Dynamo specific halo exchange class which can be added to and
     manipulated in, a schedule '''
 
-    def __init__(self, field, check_dirty=True, parent=None,
-                 vector_index=None):
+    def __init__(self, field, parent=None, vector_index=None):
 
         halo_type = None
         halo_depth = None
         HaloExchange.__init__(self, field, halo_type, halo_depth,
-                              check_dirty, vector_index=vector_index,
+                              vector_index=vector_index,
                               parent=parent)
 
     @property
@@ -2283,6 +2282,46 @@ class DynHaloExchange(HaloExchange):
         return depth_info_list
 
     @property
+    def _dynamic_check_dirty(self):
+        '''Determines whether we know that we need a halo exchange or are not
+        sure. We only definitely know when both the amount of
+        redundant computation performed by the writer and the amount
+        of halo required by the reader are known. If we are not sure
+        then we need to rely on the runtime (set_dirty and set_clean
+        calls) and therefore add an if around the halo exchange. This
+        routine should not be called when we know that this halo
+        exchange is not required (see required() method).'''
+        write_dependencies = self.field.backward_write_dependencies()
+        if len(write_dependencies) == 0:
+            # the write dependency is not in this invoke so we do not
+            # know how much of the halo is cleaned
+            return True
+        cleaned_info = self._compute_halo_cleaned_info
+        if cleaned_info["max_depth"]:
+            # we don't know how much of the halo is cleaned
+            return True
+        if cleaned_info["literal_depth"] == 0:
+            # the writer does not redundantly compute so we definitely
+            # need the halo exchange
+            return False
+        if cleaned_info["literal_depth"] == 1 and cleaned_info["dirty_outer"]:
+            # the writer redundantly computes in the level 1 halo but
+            # leaves it dirty so we definitely need the halo exchange
+            return False
+        halo_info = self._compute_halo_info
+        required_clean_info = self._simplify_depth_list(halo_info)
+        if len(required_clean_info) == 1:
+            # we might have a fixed upper bound
+            if not (required_clean_info[0]["var_depth"] or
+                    required_clean_info[0]["max_depth"]):
+                # we have a fixed upper bound (and a known cleaned
+                # depth) so we know the size of halo required
+                return False
+        # the reader does not have a fixed upper bound so we do not
+        # know whether we need the halo exchange or not
+        return True
+
+    @property
     def required(self):
         '''Determines whether this halo exchange is required or not. A halo
         exchange is only ever added if it is required, or if it may be
@@ -2321,8 +2360,9 @@ class DynHaloExchange(HaloExchange):
         write_dependencies = self.field.backward_write_dependencies()
         if len(write_dependencies) != 1:
             raise GenerationError(
-                "Internal logic error. There should be one and only one write"
-                "dependence for a halo exchange")
+                "Internal logic error. There should be one and only one write "
+                "dependence for a halo exchange. Found "
+                "'{0}'".format(str(len(write_dependencies))))
         write_dependency = write_dependencies[0]
         call = write_dependency.call
         from psyclone.dynamo0p3_builtins import DynBuiltIn
@@ -2398,7 +2438,7 @@ class DynHaloExchange(HaloExchange):
         if read_dependency.descriptor.stencil:
             # field has a stencil access
             if max_depth:
-                raise exception(
+                raise GenerationError(
                     "redundant computation to max depth with a stencil is "
                     "invalid")
             else:
@@ -2429,7 +2469,7 @@ class DynHaloExchange(HaloExchange):
             "check_dirty={3}]".format(self._field.name,
                                       self._compute_stencil_type,
                                       self._compute_halo_depth,
-                                      self._check_dirty))
+                                      self._dynamic_check_dirty))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -2438,7 +2478,7 @@ class DynHaloExchange(HaloExchange):
             ref = "(" + str(self.vector_index) + ")"
         else:
             ref = ""
-        if self._check_dirty:
+        if self._dynamic_check_dirty:
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
                                 "%is_dirty(depth=" + self._compute_halo_depth +
                                 ")")
@@ -2779,7 +2819,7 @@ class DynLoop(Loop):
             # access is neither a read nor an inc so does not need halo
             return False
 
-    def _add_halo_exchange(self, halo_field, check_dirty=True):
+    def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add a halo exchange call immediately
         before this loop. Use the halo_field argument for the
         associated field information and the depth argument for the
@@ -2793,14 +2833,12 @@ class DynLoop(Loop):
             for idx in range(1, halo_field.vector_size+1):
                 exchange = DynHaloExchange(halo_field,
                                            parent=self.parent,
-                                           vector_index=idx,
-                                           check_dirty=check_dirty)
+                                           vector_index=idx)
                 self.parent.children.insert(self.position,
                                             exchange)
         else:
             exchange = DynHaloExchange(halo_field,
-                                       parent=self.parent,
-                                       check_dirty=check_dirty)
+                                       parent=self.parent)
             self.parent.children.insert(self.position, exchange)
 
     def update_halo_exchanges(self):
@@ -2862,7 +2900,7 @@ class DynLoop(Loop):
                 if not isinstance(prev_node, DynHaloExchange):
                     # previous dependence is not a halo exchange so
                     # create a new halo exchange
-                    self._add_halo_exchange(halo_field, check_dirty=False)
+                    self._add_halo_exchange(halo_field)
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name

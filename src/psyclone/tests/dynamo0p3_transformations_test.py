@@ -4470,9 +4470,10 @@ def test_redundant_computation_remove_halo_exchange():
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    #
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
+    #
     rc_trans = DynamoRedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, depth=1)
@@ -4481,7 +4482,7 @@ def test_redundant_computation_remove_halo_exchange():
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
-    schedule.view()
+    #
     loop = schedule.children[1]
     rc_trans.apply(loop, depth=1)
     result = str(psy.gen)
@@ -4489,11 +4490,58 @@ def test_redundant_computation_remove_halo_exchange():
     assert "CALL f2_proxy%halo_exchange(depth=1)" not in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
-    schedule.view()
 
+
+def test_redundant_computation_max_remove_halo_exchange():
+    # add test to redundantly compute a w3 (discontinuous) and w2
+    # (discontinuous) field to the maximum halo depth and then check
+    # that a discontinuous halo exchange is removed in this case as we
+    # always remove the halo exchange if we write to a discontinuous
+    # field to maximum depth. Also check that the halo exchange is not
+    # removed for the continuous case as the outer halo stays
+    # dirty. The halo should also have an if round it as we do not
+    # know how much redundant computation we are doing.
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    result = str(psy.gen)
+    #
+    # at this point we know we need a halo exchange of depth 1 for f3
+    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans = DynamoRedundantComputationTrans()
+    loop = schedule.children[3]
+    rc_trans.apply(loop)
+    result = str(psy.gen)
+    # f3 halo exchange is not removed even though we redundantly
+    # compute f3 as the redundant computation is on a continuous field
+    # and therefore the outermost halo stays dirty
+    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    # we do not know whether we need the halo exchange so we include an if
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+    #
+    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
+    loop = schedule.children[4]
+    rc_trans.apply(loop)
+    result = str(psy.gen)
+    # f4 halo exchange is removed as it is redundantly computed to the
+    # last level halo and is discontinuous so all levels of the halo
+    # are clean. However, we introduce a new halo exchange for
+    # f5. This could be removed by redundant computation but we don't
+    # bother as that is not relevant to this test.
+    assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
 
 # todo
 # tests for uncovered dependence analysis and halo exchange code
+
+# 2) check continuous keep halo exchange if redundant = required
+# 3) check continuous remove halo exchange if redundant = required+1
+# 4) check discontinuous keep halo exchange if redundant = required-1
+# 5) check discontinuous remove halo exchange if redundant = required
 
 # example of redundant computation transformation in action.
 

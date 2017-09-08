@@ -1536,7 +1536,7 @@ class HaloExchange(Node):
     ''' Generic Halo Exchange class which can be added to and
     manipulated in, a schedule. '''
 
-    def __init__(self, field, halo_type, halo_depth, check_dirty,
+    def __init__(self, field, halo_type, halo_depth, check_dirty=True,
                  vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
@@ -2367,16 +2367,35 @@ class Argument(object):
                 for argument in node.args:
                     if argument.name == self.name:
                         if argument.access in self._writers:
-                            if self.vector_size > 1 and \
-                               isinstance(node, HaloExchange):
-                                # a vector read will depend on more
-                                # than one halo exchange as halo
-                                # exchanges only update a single
-                                # vector
-                                vector_count += 1
-                                arguments.append(argument)
-                                if vector_count == self.vector_size:
-                                    return arguments
+                            if isinstance(node, HaloExchange):
+                                if isinstance(self.call, HaloExchange):
+                                    # source and sink are both halo exchanges
+                                    if not self.vector_size > 1:
+                                        raise GenerationError(
+                                            "Internal error, a halo exchange "
+                                            "depends on another halo exchange "
+                                            "but the vector size of the field "
+                                            "is 1")
+                                    if self.call.vector_index == \
+                                       node.vector_index:
+                                        raise GenerationError(
+                                            "Internal error, a halo exchange "
+                                            "depends on another halo exchange "
+                                            "and the vector id's of the "
+                                            "fields are the same")
+                                    # these halo exchanges do not
+                                    # depend on each other as they
+                                    # have different vector indices
+                                    pass
+                                else:
+                                    # a vector read will depend on more
+                                    # than one halo exchange as halo
+                                    # exchanges only update a single
+                                    # vector
+                                    vector_count += 1
+                                    arguments.append(argument)
+                                    if vector_count == self.vector_size:
+                                        return arguments
                             else:
                                 arguments.append(argument)
                                 return arguments

@@ -6932,3 +6932,70 @@ def test_arg_discontinous():
     field = kernel.arguments.args[1]
     assert field.space == 'w1'
     assert not field.discontinuous
+
+
+def test_halo_stencil_redundant_computation():
+    '''If a loop contains a kernel with a stencil access and the loop
+    computes redundantly into the halo then the value of the stencil
+    in the associated halo exchange is returned as type region
+    irrespective of the type of kernel stencil. This is because the
+    redundant computation will be performed all all points (equivalent
+    to a full halo) and there is no support for mixing accesses at
+    different levels. In this example the kernel stencil is cross.'''
+
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "19.1_single_stencil.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    stencil_halo_exchange = schedule.children[0]
+    assert stencil_halo_exchange._compute_stencil_type == "region"
+
+
+def test_halo_same_stencils_no_redundant_computation():
+    '''If a halo has two or more different halo reads associated with it
+    and the type of stencils are the same and the loops do not
+    redundantly compute into the halo then the chosen stencil type for
+    the halo exchange is the same as the kernel stencil type. In this
+    case both are cross'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.8_halo_same_stencils.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    stencil_halo_exchange = schedule.children[1]
+    assert stencil_halo_exchange._compute_stencil_type == "cross"
+
+
+def test_halo_different_stencils_no_redundant_computation():
+    '''If a halo has two or more different halo reads associated with it
+    and the type of stencils are different and the loops do not
+    redundantly compute into the halo then the chosen stencil type is
+    region. In this case, one is xory and the other is cross, We could
+    try to be more clever here in the future as the actual minimum is
+    cross!'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.9_halo_different_stencils.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    stencil_halo_exchange = schedule.children[1]
+    assert stencil_halo_exchange._compute_stencil_type == "region"
+
+
+def test_halo_compute_halo_internal_error(monkeypatch):
+    '''Check that we raise an exception if the compute_halo_info method in
+    dynhaloexchange does not find any read dependencies. This should
+    never be the case. We use monkeypatch to force the exception to be
+    raised'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[0]
+    field = halo_exchange.field
+    monkeypatch.setattr(field, "forward_read_dependencies", lambda fs=None: [])
+    with pytest.raises(GenerationError) as excinfo:
+        halo_exchange._compute_halo_info
+    assert ("Internal logic error. There should be at least one read "
+            "dependence for a halo exchange") in str(excinfo.value)
