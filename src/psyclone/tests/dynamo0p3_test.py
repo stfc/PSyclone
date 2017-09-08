@@ -7026,3 +7026,23 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
     assert ("Internal logic error. There should be one and only one "
             "write dependence for a halo exchange. Found "
             "'0'") in str(excinfo.value)
+
+
+def test_halo_exchange_backward_dependence_no_call(monkeypatch):
+    '''Check that an internal error is raised if a halo exchange
+    write dependency is not a call.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.9_halo_different_stencils.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[1]
+    field = halo_exchange.field
+    write_dependencies = field.backward_write_dependencies()
+    write_dependency = write_dependencies[0]
+    monkeypatch.setattr(write_dependency, "call",
+                        lambda fs=None: halo_exchange)
+    with pytest.raises(GenerationError) as excinfo:
+        halo_exchange._compute_halo_cleaned_info
+    assert ("internal error: write dependence for f2 should be from a "
+            "call but found <type 'function'>") in str(excinfo.value)
