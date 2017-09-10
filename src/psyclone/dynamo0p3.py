@@ -2427,9 +2427,9 @@ class DynHaloExchange(HaloExchange):
             # we only access owned dofs so no halo exchange is required
             pass
         else:
-            print "loop upper bound name is {0}".format(loop.upper_bound_name)
             raise GenerationError(
-                "_compute_single_halo_info, internal error if we get to here")
+                "Internal error in _compute_single_halo_info. Found loop "
+                "upper bound name '{0}'".format(loop.upper_bound_name))
 
         # default stencil type to "region" as it means all of the halo
         # and this is what is used when we perform redundant

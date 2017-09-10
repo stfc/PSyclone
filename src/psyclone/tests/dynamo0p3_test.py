@@ -7046,3 +7046,44 @@ def test_halo_exchange_backward_dependence_no_call(monkeypatch):
         halo_exchange._compute_halo_cleaned_info
     assert ("internal error: write dependence for f2 should be from a "
             "call but found <type 'function'>") in str(excinfo.value)
+
+
+def test_halo_exchange_invalid_read_dependence(monkeypatch):
+    '''All halo read dependencies should be kernels or builtins. If one
+    is not then _compute_single_halo_info raises an exception. This test
+    checks that this exception is raised correctly '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[0]
+    field = halo_exchange.field
+    read_dependencies = field.forward_read_dependencies()
+    read_dependency = read_dependencies[0]
+    monkeypatch.setattr(read_dependency, "call",
+                        lambda fs=None: halo_exchange)    
+    with pytest.raises(GenerationError) as excinfo:
+        halo_exchange._compute_single_halo_info(read_dependency)
+    assert ("internal error: read dependence for f2 should be from a call "
+            "but found <type 'function'>") in str(excinfo.value)
+
+
+def test_halo_exchange_invalid_loop_upper_bound(monkeypatch):
+    '''All halo read dependencies should be kernels or builtins and their
+    upper bound should be recognised by the _compute_single_halo_info
+    logic. If not an exception is raised and this test checks that
+    this exception is raised correctly'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[0]
+    field = halo_exchange.field
+    read_dependencies = field.forward_read_dependencies()
+    read_dependency = read_dependencies[0]
+    loop = read_dependency.call.parent
+    monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
+    with pytest.raises(GenerationError) as excinfo:
+        halo_exchange._compute_single_halo_info(read_dependency)
+    assert ("Internal error in _compute_single_halo_info. Found loop "
+            "upper bound name 'invalid'") in str(excinfo.value)
