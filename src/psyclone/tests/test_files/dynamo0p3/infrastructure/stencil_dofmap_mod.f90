@@ -1,35 +1,46 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+
+! BSD 3-Clause License
+!
 ! Modifications copyright (c) 2017, Science and Technology Facilities Council
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
-!> @brief A type which holds information about the dofmap.
-!> @details Types for storing the general stencil dofmaps of a general size
-!> Inherits from linked_list_data_type so it can be stored in a linked_list
-!> Allowable stencil types ( the size is variable ):
-!> Currently on the point stencil is allowed 
-!> 
-!> POINT --> [1]
-!>   
-!> 1DX --> |4|2|1|3|5|
-!>   
-!>         |5|
-!>         |3|
-!> 1DY --> |1|
-!>         |2|
-!>         |4|      
-!>
-!>           |5|
-!> CROSS-> |2|1|4|
-!>           |3|
-!>
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
 module stencil_dofmap_mod
 
 use constants_mod,     only: i_def
 use linked_list_data_mod, only : linked_list_data_type
-
 
 implicit none
 
@@ -53,54 +64,34 @@ integer(i_def), public, parameter :: STENCIL_CROSS = 1400
 
 contains 
 
-!-----------------------------------------------------------------------------
-! Get the stencil dofmap for a single cell
-!-----------------------------------------------------------------------------
-!> Function Returns a pointer to the dofmap for the cell 
-!! @param[in] self The calling function_space
-!! @param[in] cell Which cell
-!! @return The pointer which points to a slice of the dofmap
 function get_dofmap(self,cell) result(map)
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
   integer(i_def),                     intent(in) :: cell
   integer(i_def), pointer                        :: map(:,:) 
 
-  map => self%dofmap(:,:,cell)
+  map => null()
   return
 end function get_dofmap
-!-----------------------------------------------------------------------------
-! Get the stencil dofmap for the whole mesh
-!-----------------------------------------------------------------------------
-!> Function Returns a pointer to the dofmap for the mesh 
-!! @param[in] self The calling function_space
-!! @return The pointer which points to the dofmap
+
 function get_whole_dofmap(self) result(map)
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
   integer(i_def), pointer                        :: map(:,:,:) 
 
-  map => self%dofmap(:,:,:)
+  map => null()
   return
 end function get_whole_dofmap
 
-!> Returns the size of the stencil in cells
-!! @param[in] self The calling function_space
-!! @return The size of the stencil in cells
 function get_size(self) result(size)
   implicit none
   class(stencil_dofmap_type), target, intent(in) :: self
   integer(i_def)                                 :: size
 
-  size = self%dofmap_size
+  size = 0
   return
 end function get_size
 
-!> Returns required stencil size in cells for a given stencil shape and extent
-!! @param[in] self The calling function_space
-!> @param[in] st_shape The shape of the required stencil
-!> @param[in] st_extent The extent of the stencil
-!! @return The size of the stencil in cells
 function compute_dofmap_size(st_shape, st_extent) result(size)
   implicit none
   integer(i_def),           intent(in) :: st_shape
@@ -110,7 +101,6 @@ function compute_dofmap_size(st_shape, st_extent) result(size)
   size = 1
   return
 end function compute_dofmap_size
-
 
 end module stencil_dofmap_mod
 
