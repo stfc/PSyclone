@@ -4627,7 +4627,10 @@ def test_halo_stencil_redundant_computation_max_depth():
 
 # 1 check that depth is an integer when passed - I accidentally passed
 # in a string before and got an unexpected error.
-# 2 check at transformation time that we don't go for max depth if there is a stencil
+
+# 2 check at transformation time that we don't go for max depth if there is a stencil? There is currently only a generation-time test.
+
+
 
 # example of redundant computation transformation in action.
 

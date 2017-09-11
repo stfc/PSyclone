@@ -2790,8 +2790,9 @@ class DynLoop(Loop):
                     ignore_halos=True)
                 if len(prev_dependencies) > 1:
                     raise GenerationError(
-                        "Internal error, we should only return at most one "
-                        "write dependence")
+                        "Internal error in _halo_read_access, kernel '{0}' "
+                        "arg '{1}'. We should only return at most one "
+                        "write dependence.".format(arg.call.name, arg.name))
                 upper_bound = ""
                 if prev_dependencies:
                     loop = prev_dependencies[0].call.parent

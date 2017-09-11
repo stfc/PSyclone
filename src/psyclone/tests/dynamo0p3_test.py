@@ -7087,3 +7087,29 @@ def test_halo_exchange_invalid_loop_upper_bound(monkeypatch):
         halo_exchange._compute_single_halo_info(read_dependency)
     assert ("Internal error in _compute_single_halo_info. Found loop "
             "upper bound name 'invalid'") in str(excinfo.value)
+
+
+def test_halo_exchange_annexed_dofs_multi_write(monkeypatch):
+    '''When a continuous argument is read in a discontinuous loop it
+    accesses any annexed dofs. We then check any previous write
+    dependences. There should be at most one of these. If there are more
+    than one then we raise an exception in _halo_read_access. This test
+    checks that this exception is raised correctly'''
+    
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop  = schedule.children[3]
+    kernel = loop.children[0]
+    f1_arg = kernel.arguments.args[1]
+    #
+    # the test is for the length of the list returned so it does not
+    # matter what is actually in the list to raise the exception
+    monkeypatch.setattr(f1_arg, "backward_write_dependencies",
+                        lambda ignore_halos: [1, 1])
+    with pytest.raises(GenerationError) as excinfo:
+        result = loop._halo_read_access(f1_arg)
+    assert ("Internal error in _halo_read_access, kernel 'testkern_code' "
+            "arg 'f1'. We should only return at most one write "
+            "dependence") in str(excinfo.value)
