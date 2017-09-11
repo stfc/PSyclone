@@ -33,10 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-import pytest
 
 ''' Module which performs pytest set-up so that we can specify
     command-line options '''
+
+import pytest
+
 
 def pytest_addoption(parser):
     ''' Adds command-line options to py.test '''

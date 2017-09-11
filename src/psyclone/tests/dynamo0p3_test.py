@@ -49,13 +49,13 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-import fparser
-from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
     DynGlobalSum
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
+import fparser
+from fparser import api as fpapi
 import utils
 
 # constants

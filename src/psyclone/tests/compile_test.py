@@ -48,7 +48,7 @@ end program hello
 '''
 
 
-@utils.compile
+@utils.COMPILE
 def test_compiler_works(tmpdir, f90, f90flags):
     ''' Check that the specified compiler works for a hello-world
     example '''
@@ -64,13 +64,13 @@ def test_compiler_works(tmpdir, f90, f90flags):
 
 def code_compiles_invalid_api(tmpdir, f90, f90flags):
     ''' Check that utils.code_compiles() reject an unrecognised API '''
-    with pytest.raises(CompileError) as excinfo:
+    with pytest.raises(utils.CompileError) as excinfo:
         utils.code_compiles("not_an_api", "fake_psy", tmpdir, f90, f90flags)
     assert "Unsupported API in " in str(excinfo)
 
 
-@utils.compile
-def test_compiler_with_flags(tmpdir, f90, f90flags):
+@utils.COMPILE
+def test_compiler_with_flags(tmpdir, f90):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
@@ -91,7 +91,7 @@ def test_compiler_with_flags(tmpdir, f90, f90flags):
     assert success
 
 
-@utils.compile
+@utils.COMPILE
 def test_build_invalid_fortran(tmpdir, f90, f90flags):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not

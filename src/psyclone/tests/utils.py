@@ -44,9 +44,9 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 # Whether or not we run tests requiring code compilation is picked-up
 # from a command-line flag. (This is set-up in conftest.py.)
 TEST_COMPILE = pytest.config.getoption("--compile")
-# The following allows us to mark a test with @compile if it is
+# The following allows us to mark a test with @utils.COMPILE if it is
 # only to be run when the --compile option is passed to py.test
-compile = pytest.mark.skipif(not TEST_COMPILE,
+COMPILE = pytest.mark.skipif(not TEST_COMPILE,
                              reason="Need --compile option to run")
 
 
@@ -163,7 +163,6 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     :return: True if generated code compiles, False otherwise
     :rtype: bool
     '''
-    from psyclone import f2pygen
 
     # API-specific set-up - where to find infrastructure source files
     # and which ones to build
