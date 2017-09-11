@@ -7133,3 +7133,94 @@ def test_loop_continuous_read_invalid_bound(monkeypatch):
     assert ("Internal error in _halo_read_access. It should not be "
             "possible to get to here. loop upper bound name is 'invalid' "
             "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
+
+
+def test_create_halo_exchanges_vector_field(monkeypatch):
+    '''if a field requires (or may require) a halo exchange before it is
+    called and it has more than one backward write dependencies then it
+    must be a vector (as a vector field requiring a halo exchange should
+    have a halo exchange for each vector). The method
+    create_halo_exchanges raises an exception if this is not the
+    case. This test checks that the exception is raised correctly.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[7]
+    kernel = loop.children[0]
+    f1_field = kernel.arguments.args[0]
+    # by changing vector size we change
+    # backward_write_dependencies. Therefore also patch this function
+    # to return 3 arguments
+    monkeypatch.setattr(f1_field, "backward_write_dependencies",
+                        lambda fs=None: [1, 1, 1])
+    monkeypatch.setattr(f1_field, "_vector_size", 1)
+    with pytest.raises(GenerationError) as excinfo:
+        loop.create_halo_exchanges()
+    assert ("Error in create_halo_exchanges. Expecting field 'f1' to "
+            "be a vector as it has multiple previous dependencies"
+            in str(excinfo.value))
+
+
+def test_create_halo_exchanges_vector_dependencies(monkeypatch):
+    '''if a field requires (or may require) a halo exchange before it is
+    called and it has more than one backward write dependencies then
+    it must be a vector (as a vector field requiring a halo exchange
+    should have a halo exchange for each vector) and its vector size
+    must equal the number of dependencies. The method
+    create_halo_exchanges raises an exception if this is not the
+    case. This test checks that the exception is raised correctly.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[7]
+    kernel = loop.children[0]
+    f1_field = kernel.arguments.args[0]
+    # by changing vector size we change
+    # backward_write_dependencies. Therefore also patch this function
+    # to return 3 arguments
+    monkeypatch.setattr(f1_field, "backward_write_dependencies",
+                        lambda fs=None: [1, 1, 1])
+    monkeypatch.setattr(f1_field, "_vector_size", 2)
+    with pytest.raises(GenerationError) as excinfo:
+        loop.create_halo_exchanges()
+    assert (
+        "Error in create_halo_exchanges. Expecting a dependence for each "
+        "vector index for field 'f1' but the number of dependencies is '2' "
+        "and the vector size is '3'." in str(excinfo.value))
+
+
+def test_create_halo_exchanges_vector_dependencies(monkeypatch):
+    '''if a field requires (or may require) a halo exchange before it is
+    called and it has more than one backward write dependencies then
+    it must be a vector (as a vector field requiring a halo exchange
+    should have a halo exchange for each vector) and each dependency
+    should be a halo exchange. The method create_halo_exchanges raises
+    an exception if this is not the case. This test checks that the
+    exception is raised correctly.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[7]
+    kernel = loop.children[0]
+    f1_field = kernel.arguments.args[0]
+    dependencies = f1_field.backward_write_dependencies()
+    new_dependencies = []
+    new_dependencies.extend(dependencies)
+    # make one of the dependencies be me (an argument from a kernel)
+    new_dependencies[2] = f1_field
+    monkeypatch.setattr(f1_field, "backward_write_dependencies",
+                        lambda fs=None: new_dependencies)
+    with pytest.raises(GenerationError) as excinfo:
+        loop.create_halo_exchanges()
+    assert (
+        "Error in create_halo_exchanges. Expecting all dependent nodes to be "
+        "halo exchanges")

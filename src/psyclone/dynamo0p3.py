@@ -2888,18 +2888,24 @@ class DynLoop(Loop):
                 if len(prev_arg_list) > 1:
                     # field has more than one previous dependencies so
                     # should be a vector
-                    if not halo_field.vector_size > 1:
+                    if halo_field.vector_size <= 1:
                         raise GenerationError(
-                            "Error, expecting a vector")
+                            "Error in create_halo_exchanges. Expecting field "
+                            "'{0}' to be a vector as it has multiple previous "
+                            "dependencies".format(halo_field.name))
                     if not len(prev_arg_list) == halo_field.vector_size:
                         raise GenerationError(
-                            "Error, expecting a dependence for each vector "
-                            "index")
+                            "Error in create_halo_exchanges. Expecting a "
+                            "dependence for each vector index for field '{0}' "
+                            "but the number of dependencies is '{1}' and the "
+                            "vector size is '{2}'.".format(
+                                halo_field.name, halo_field.vector_size,
+                                len(prev_arg_list)))
                     for arg in prev_arg_list:
                         if not isinstance(arg.call, DynHaloExchange):
                             raise GenerationError(
-                                "Error, expecting all dependent nodes to be "
-                                "halo exchanges")
+                                "Error in create_halo_exchanges. Expecting "
+                                "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
                 if not isinstance(prev_node, DynHaloExchange):
                     # previous dependence is not a halo exchange so
