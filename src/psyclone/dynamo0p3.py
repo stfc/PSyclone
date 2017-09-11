@@ -2815,7 +2815,10 @@ class DynLoop(Loop):
                 print "arg access is {0}".format(arg.access)
                 print "Upper bound name is {0}".format(self._upper_bound_name)
                 raise GenerationError(
-                    "Internal error, nothing should get to here")
+                    "Internal error in _halo_read_access. It should not be "
+                    "possible to get to here. loop upper bound name is '{0}' "
+                    "and arg '{1}' access is '{2}'.".format(
+                        self._upper_bound_name, arg.name, arg.access))
         else:
             # access is neither a read nor an inc so does not need halo
             return False
