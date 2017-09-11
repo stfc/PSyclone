@@ -579,22 +579,17 @@ def test_unecessary_shape():
             in str(excinfo))
 
 
-@utils.compile
-def test_field_compiles(tmpdir, f90, f90flags):
-    ''' Tests that a call with a set of fields, no basis functions and
-    no distributed memory, produces compilable code.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-
-
-def test_field(tmpdir):
+def test_field(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_psy\n"

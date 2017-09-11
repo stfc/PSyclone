@@ -321,22 +321,7 @@ def test_builtin_set_str():
         assert str(kern) == "Built-in: Set field to a scalar value"
 
 
-@utils.compile
-def test_builtin_set_compiles(tmpdir, f90, f90flags):
-    ''' Tests that we generate compilable code for a serial builtin
-    set operation with a scalar passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-
-
-def test_builtin_set(tmpdir):
+def test_builtin_set(tmpdir, f90, f90flags):
     ''' Tests that we generate correct code for a serial builtin
     set operation with a scalar passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -347,6 +332,9 @@ def test_builtin_set(tmpdir):
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         if not distmem:
             output_seq = (
