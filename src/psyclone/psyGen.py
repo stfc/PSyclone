@@ -2053,7 +2053,7 @@ class Kern(Call):
     def module_name(self):
         '''
         :return: The name of the Fortran module that contains this kernel
-        :rtype: String
+        :rtype: string
         '''
         return self._module_name
 
