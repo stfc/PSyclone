@@ -81,22 +81,17 @@ def count_lines(root, string_name):
     return count
 
 
-def walk(parent, my_type):
-    ''' recurse through a tree of objects and return those that are
-    instances of mytype. Assumes that the children of any given node
-    are held in the list node.children '''
-    local_list = []
-    for child in parent.children:
-        if isinstance(child, my_type):
-            local_list.append(child)
-        local_list += walk(child, my_type)
-    return local_list
-
-
 def find_fortran_file(path, root_name):
     ''' Returns the full path to a Fortran source file. Searches for
     files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
-    if no matching file is found. '''
+    if no matching file is found.
+
+    :param path: Location to search for Fortran file
+    :param root_name: Base name of the Fortran file to look for
+    :type path: string
+    :type root_name: string
+    :return: Full path to a Fortran source file
+    :rtype: string '''
     name = os.path.join(path, root_name)
     for suffix in FORTRAN_SUFFIXES:
         if os.path.isfile(str(name)+"."+suffix):
@@ -109,8 +104,16 @@ def find_fortran_file(path, root_name):
 def compile_file(filename, f90, f90flags):
     ''' Compiles the specified Fortran file into an object file (in
     the current working directory) using the specified Fortran compiler
-    and flags. Raises a CompileError if the compilation fails. '''
+    and flags. Raises a CompileError if the compilation fails.
 
+    :param filename: Full path to the Fortran file to compile
+    :type filename: string
+    :param f90: Command to invoke Fortran compiler
+    :type f90: string
+    :param f90flags: Flags to pass to the compiler
+    :type f90flags: string
+    :return: True if compilation succeeds
+    '''
     # Build the command to execute
     if f90flags:
         arg_list = [f90, f90flags, '-c', filename]
@@ -145,7 +148,21 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     '''Attempts to build the Fortran code supplied as an AST of
     f2pygen objects. Returns True for success, False otherwise.
     If no Fortran compiler is available then returns True. All files
-    produced are deleted. '''
+    produced are deleted.
+
+    :param api: Which PSyclone API the supplied code is using
+    :type api: string
+    :param psy_ast: The AST of the generated PSy layer
+    :type psy_ast: Instance of :py:class:`psyGen.PSy`
+    :param tmpdir: py.test-supplied temporary directory
+    :type tmpdir: :py:class:`LocalPath`
+    :param f90: The command to invoke the Fortran compiler
+    :type f90: string
+    :param f90flags: Flags to pass to the Fortran compiler
+    :type f90flags: string
+    :return: True if generated code compiles, False otherwise
+    :rtype: bool
+    '''
     from psyclone import f2pygen
 
     # API-specific set-up - where to find infrastructure source files
