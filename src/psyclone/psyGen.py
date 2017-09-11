@@ -214,7 +214,6 @@ class PSy(object):
 
         self._name = invoke_info.name
         self._invokes = None
-        self._psy_module = None
 
     def __str__(self):
         return "PSy"
@@ -231,11 +230,6 @@ class PSy(object):
     def gen(self):
         raise NotImplementedError("Error: PSy.gen() must be implemented "
                                   "by subclass")
-
-    @property
-    def psy_module(self):
-        raise NotImplementedError("PSy.psy_module must be implemented by "
-                                  "subclass")
 
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
@@ -2057,8 +2051,10 @@ class Kern(Call):
 
     @property
     def module_name(self):
-        ''' Returns the name of the Fortran module that contains this
-        kernel '''
+        '''
+        :return: The name of the Fortran module that contains this kernel
+        :rtype: String
+        '''
         return self._module_name
 
     @property

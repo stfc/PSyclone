@@ -84,9 +84,6 @@ def test_psy_base_err(monkeypatch):
     with pytest.raises(NotImplementedError) as excinfo:
         _ = psy.gen
     assert "must be implemented by subclass" in str(excinfo)
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = psy.psy_module
-    assert "must be implemented by subclass" in str(excinfo)
 
 
 # TBD need to find a way to create a valid info object to pass to
