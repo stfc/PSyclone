@@ -63,12 +63,14 @@ and then use pip2.7 instead of pip.
 In addition to the mandatory dependencies just described, PSyclone
 also has optional dependencies on both ``graphviz`` and ``termcolor``.
 PSyclone can use graphviz to produce a visualisation of a schedule's
-dependency graph. If this is desired then the Python package ``graphviz``
-(for the Python bindings) as well as the graphviz package itself must
-be installed. The Python package ``termcolor`` is used for pretty-printing
-a schedule in terminals that support coloured text. If the package is
-not available then the schedule is simply printed in plain text without
-colour highlighting.
+dependency graph. If this is desired then the Python package
+``graphviz`` (for the Python bindings) as well as the graphviz package
+itself must be installed. If the ``graphviz`` package is not available
+then the associated PSyclone routines will return silently and no
+visualisations will be produced. The Python package ``termcolor`` is
+used for pretty-printing a schedule in terminals that support coloured
+text. If the package is not available then the schedule is simply
+printed in plain text without colour highlighting.
 
 
 System-specific set-up
