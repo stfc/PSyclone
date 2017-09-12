@@ -4,7 +4,7 @@
         and optimisations.
 
 	2) #16 and PR #29 Update and add new PSyclone-generated builtins
-	to support the functionaliity required by the current LFRic code.
+	to support the functionality required by the current LFRic code.
 
         3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
@@ -21,6 +21,9 @@
 	automatically uploaded to pypi (via travis) and status badges can
 	now be used so have been added to the README.md file (which is
 	shown on the main github page).
+
+	7) #55 and PR #66 Update the documentation to cover installation
+	on systems running OpenSUSE.
 
 release 1.4.1
 
