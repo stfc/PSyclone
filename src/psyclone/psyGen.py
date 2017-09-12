@@ -99,12 +99,12 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # that the termcolor package be installed. If it isn't then output is not
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
 SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
-                       "Loop": "blue",
+                       "Loop": "white",
                        "GlobalSum": "cyan",
                        "Directive": "green",
-                       "HaloExchange": "magenta",
+                       "HaloExchange": "blue",
                        "Call": "red",
-                       "KernCall": "red"}
+                       "KernCall": "magenta"}
 
 
 def get_api(api):
