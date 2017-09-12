@@ -35,7 +35,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
     and generation. The classes in this method need to be specialised for a
@@ -2370,19 +2371,20 @@ class Argument(object):
                             if isinstance(node, HaloExchange):
                                 if isinstance(self.call, HaloExchange):
                                     # source and sink are both halo exchanges
-                                    if not self.vector_size > 1:
+                                    if self.vector_size <= 1:
                                         raise GenerationError(
                                             "Internal error, a halo exchange "
                                             "depends on another halo exchange "
-                                            "but the vector size of the field "
-                                            "is 1")
+                                            "but the vector size of field "
+                                            "'{0}' is 1".format(self.name))
                                     if self.call.vector_index == \
                                        node.vector_index:
                                         raise GenerationError(
                                             "Internal error, a halo exchange "
                                             "depends on another halo exchange "
-                                            "and the vector id's of the "
-                                            "fields are the same")
+                                            "and the vector id's of field "
+                                            "'{0}' are the same".
+                                            format(self.name))
                                     # these halo exchanges do not
                                     # depend on each other as they
                                     # have different vector indices

@@ -1,10 +1,42 @@
 # -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
 # (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
+# Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psygen module '''
 
@@ -1759,3 +1791,90 @@ def test_haloexchange_vector_index_dependence():
     result_list = field._find_read_arguments(following_nodes)
     assert len(result_list) == 1
     assert result_list[0].call.name == 'ru_code'
+
+
+def test_find_write_arguments_for_write():
+    '''when _find_write_arguments is called from an field argument that
+    does not read then we hould return an empty list. This test checks
+    this functionality. We use the dynamo0p3 api to create the
+    required objects'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    field_writer = kernel.arguments.args[1]
+    node_list = field_writer.backward_write_dependencies()
+    assert node_list == []
+
+
+def test_find_write_arguments_halo_to_halo_no_vector(monkeypatch):
+    '''when _find_write_arguments is called and a dependence is found
+    between two halo exchanges, then the field must be a vector field. If
+    the field is not a vector then an exception is raised. This test
+    checks that the exception is raised correctly.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    halo_exchange_d_v2 = schedule.children[4]
+    field_d_v2 = halo_exchange_d_v2.field
+    monkeypatch.setattr(field_d_v3, "_vector_size", 1)
+    with pytest.raises(GenerationError) as excinfo:
+        node_list = field_d_v3.backward_write_dependencies()
+    assert ("Internal error, a halo exchange depends on another halo exchange "
+            "but the vector size of field 'd' is 1" in str(excinfo.value))
+
+
+def test_find_write_arguments_halo_to_halo_vector_index(monkeypatch):
+    '''when _find_write_arguments is called and a dependence is found
+    between two halo exchanges, then the vector indices of the two
+    halo exchanges must be different. If the vector indices have the
+    same value then an exception is raised. This test checks that the
+    exception is raised correctly.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    halo_exchange_d_v2 = schedule.children[4]
+    field_d_v2 = halo_exchange_d_v2.field
+    monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
+    with pytest.raises(GenerationError) as excinfo:
+        node_list = field_d_v3.backward_write_dependencies()
+    assert ("Internal error, a halo exchange depends on another halo "
+            "exchange and the vector id's of field 'd' are the "
+            "same" in str(excinfo.value))
+
+
+def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
+    '''when _find_write_arguments is called halo exchanges with the same
+    field but a different index should not depend on each other. This test
+    checks that this behaviour is working correctly'''
+    
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    # there are two halo exchanges before d_v3 which should not count
+    # as dependencies
+    node_list = field_d_v3.backward_write_dependencies()
+    assert node_list == []
