@@ -1191,6 +1191,13 @@ class Schedule(Node):
         self._invoke = None
 
     def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text + \
             "[invoke='" + self.invoke.name + "']"
         for entity in self._children:
@@ -1198,8 +1205,13 @@ class Schedule(Node):
 
     @property
     def coloured_text(self):
-        ''' Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it'''
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
+
+        :return: Text containing the name of this node, possibly coloured
+        :rtype: string
+        '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
@@ -1217,15 +1229,26 @@ class Schedule(Node):
 class Directive(Node):
 
     def view(self, indent=0):
-        ''' Print a text representation of this node to stdout '''
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     @property
     def coloured_text(self):
-        ''' Returns a string containing the name of this element with
-        control codes for colouring in terminals that support it '''
+        '''
+        Returns a string containing the name of this element with
+        control codes for colouring in terminals that support it.
+
+        :return: Text containing the name of this node, possibly coloured
+        :rtype: string
+        '''
         return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
 
     @property
@@ -1242,7 +1265,13 @@ class OMPDirective(Directive):
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
-        ''' Print a text representation of this node to stdout '''
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text + "[OMP]"
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1269,6 +1298,13 @@ class OMPParallelDirective(OMPDirective):
         return "OMP_parallel_" + str(self.abs_position)
 
     def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text + "[OMP parallel]"
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1422,7 +1458,13 @@ class OMPDoDirective(OMPDirective):
         return "OMP_do_" + str(self.abs_position)
 
     def view(self, indent=0):
-        ''' Write out a textual summary of the OpenMP Do Directive '''
+        '''
+        Write out a textual summary of the OpenMP Do Directive and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         if self.reductions():
             reprod = "[reprod={0}]".format(self._reprod)
         else:
@@ -1512,7 +1554,13 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         return "OMP_parallel_do_" + str(self.abs_position)
 
     def view(self, indent=0):
-        ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text + \
             "[OMP parallel do]"
         for entity in self._children:
@@ -1573,14 +1621,26 @@ class GlobalSum(Node):
         return [self._scalar]
 
     def view(self, indent):
-        ''' Class specific view  '''
+        '''
+        Print text describing this object to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + (
             "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name))
 
     @property
     def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node
-        type '''
+        '''
+        Return a string containing the (coloured) name of this node
+        type
+
+        :return: A string containing the name of this node, possibly with
+                 control codes for colour
+        :rtype: string
+        '''
         return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
 
 
@@ -1626,7 +1686,13 @@ class HaloExchange(Node):
         return [self._field]
 
     def view(self, indent):
-        ''' Class specific view  '''
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
@@ -1635,8 +1701,12 @@ class HaloExchange(Node):
 
     @property
     def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node
-        type '''
+        '''
+        Return a string containing the (coloured) name of this node type
+
+        :return: Name of this node type, possibly with colour control codes
+        :rtype: string
+        '''
         return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
 
@@ -1696,7 +1766,13 @@ class Loop(Node):
         self._canvas = None
 
     def view(self, indent=0):
-        ''' Write a textual summary of this Loop node to stdout '''
+        '''
+        Write out a textual summary of this Loop node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text + \
             "[type='{0}',field_space='{1}',it_space='{2}']".\
             format(self._loop_type, self._field_space, self.iteration_space)
@@ -1705,8 +1781,14 @@ class Loop(Node):
 
     @property
     def coloured_text(self):
-        ''' Returns a string containing the name of this node along with
-        control characters for colouring in terminals that support it '''
+        '''
+        Returns a string containing the name of this node along with
+        control characters for colouring in terminals that support it.
+
+        :return: The name of this node, possibly with control codes for
+                 colouring
+        :rtype: string
+        '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
 
     @property
@@ -1866,7 +1948,13 @@ class Call(Node):
         return self.arguments.args
 
     def view(self, indent=0):
-        ''' Print a textual summary of this Call node to stdout '''
+        '''
+        Write out a textual summary of this Call node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text, \
             self.name + "(" + str(self.arguments.raw_arg_list) + ")"
         for entity in self._children:
@@ -2145,6 +2233,13 @@ class Kern(Call):
                 kernel._module_inline = value
 
     def view(self, indent=0):
+        '''
+        Write out a textual summary of this Kernel-call node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + self.coloured_text, \
             self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
             "[module_inline=" + str(self._module_inline) + "]"
@@ -2153,8 +2248,13 @@ class Kern(Call):
 
     @property
     def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node
-        type '''
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :return: the name of this node type, possibly with control codes
+                 for colour
+        :rtype: string
+        '''
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
     def gen_code(self, parent):
