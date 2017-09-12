@@ -52,9 +52,18 @@ try:
 except ImportError:
     # We don't have the termcolor package available so provide
     # alternative routine
-    def colored(text, color):
-        ''' Returns the supplied text argument unchanged. Is a swap-in
-        replacement for when termcolor.colored is not available. '''
+    def colored(text, _):
+        '''
+        Returns the supplied text argument unchanged. This is a swap-in
+        replacement for when termcolor.colored is not available.
+
+        :param text: Text to return
+        :type text: string
+        :param _: Fake argument, only required to match interface
+                  provided by termcolor.colored
+        :return: The supplied text, unchanged
+        :rtype: string
+        '''
         return text
 
 # The types of 'intent' that an argument to a Fortran subroutine
