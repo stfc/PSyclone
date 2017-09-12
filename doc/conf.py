@@ -215,7 +215,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford and Andrew Porter'], 1)
+     [u'Rupert Ford, Andrew Porter and Joerg Henrichs'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -229,7 +229,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'psyclone', u'psyclone Documentation',
-   u'Rupert Ford and Andrew Porter', 'psyclone', 'One line description of project.',
+   u'Rupert Ford, Andrew Porter and Joerg Henrichs', 'psyclone',
+   'One line description of project.',
    'Miscellaneous'),
 ]
 
@@ -247,9 +248,9 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford and Andrew Porter'
-epub_publisher = u'Rupert Ford and Andrew Porter'
-epub_copyright = u'2015, STFC'
+epub_author = u'Rupert Ford, Andrew Porter and Joerg Henrichs'
+epub_publisher = u'Rupert Ford, Andrew Porter and Joerg Henrichs'
+epub_copyright = u'2017, STFC'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
