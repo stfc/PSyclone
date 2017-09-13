@@ -4,7 +4,7 @@
         and optimisations.
 
 	2) #16 and PR #29 Update and add new PSyclone-generated builtins
-	to support the functionaliity required by the current LFRic code.
+	to support the functionality required by the current LFRic code.
 
         3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
@@ -21,6 +21,13 @@
 	automatically uploaded to pypi (via travis) and status badges can
 	now be used so have been added to the README.md file (which is
 	shown on the main github page).
+
+	7) #55 and PR #66 Update the documentation to cover installation
+	on systems running OpenSUSE.
+
+	8) #61 and PR #71 Re-name existing Dynamo0.3 builtins to follow
+	a consistent scheme and add support for some new ones (including
+	setval_{c,X}, X_minus_bY etc.). See psyclone.pdf for the full list.
 
 release 1.4.1
 

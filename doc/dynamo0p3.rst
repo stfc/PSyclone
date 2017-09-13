@@ -1017,7 +1017,7 @@ Built-ins
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
 built-ins generally follow a convention that the field/scalar written
-to comes last in the argument list. Dynamo 0.3 built-ins must conform to the
+to comes first in the argument list. Dynamo 0.3 built-ins must conform to the
 following four rules:
 
  1) Built-in kernels must have one and only one modified (i.e. written
@@ -1034,153 +1034,87 @@ following four rules:
     means that we can determine the number of dofs uniquely when a
     scalar is written to.
 
-The built-ins supported for the Dynamo 0.3 API are listed in alphabetical
-order below (apart from increment versions of built-ins which are paired
-with their corresponding non-increment versions). For clarity, the calculation
-performed by each built-in is described using Fortran array syntax; this
-does not necessarily reflect the actual implementation of the
-built-in (*e.g.* it could be implemented by PSyclone
-generating a call to an optimised maths library).
+The built-ins supported for the Dynamo 0.3 API are listed in the related
+subsections, grouped by the mathematical operation they perform. For clarity,
+the calculation performed by each built-in is described using Fortran array
+syntax; this does not necessarily reflect the actual implementation of the
+built-in (*e.g.* it could be implemented by PSyclone generating a call to an
+optimised maths library).
 
-axmy
-++++
-
-**axmy** (*a*, *field1*, *field2*, *field3*)
-
-Performs: ::
-   
-  field3(:) = a*field1(:) - field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *a*
-* type(field_type), intent(in) :: *field1*, *field2*
-* type(field_type), intent(out) :: *field3*
-
-axpby
-+++++
-
-**axpby** (*a*, *field1*, *b*, *field2*, *field3*)
-
-Performs: ::
-   
-  field3(:) = a*field1(:) + b*field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *a*, *b*
-* type(field_type), intent(in) :: *field1*, *field2*
-* type(field_type), intent(out) :: *field3*
-
-inc_axpby
-+++++++++
-
-**inc_axpby** (*a*, *field1*, *b*, *field2*)
-
-Performs: ::
-   
-  field1(:) = a*field1(:) + b*field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *a*, *b*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
-
-axpy
-++++
-
-**axpy** (*a*, *field1*, *field2*, *field3*)
-
-Performs: ::
-   
-  field3(:) = a*field1(:) + field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *a*
-* type(field_type), intent(in) :: *field1*, *field2*
-* type(field_type), intent(out) :: *field3*
-
-inc_axpy
-++++++++
-
-**inc_axpy** (*a*, *field1*, *field2*)
-
-Performs an AXPY and returns the result as an increment to the first
-field: ::
-   
-  field1(:) = a*field1(:) + field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *a*
-* type(field_type), intent(inout) :: *field1*
-* type(field_type), intent(in) :: *field2*
-
-copy_field
-++++++++++
-
-**copy_field** (*field1*, *field2*)
-
-Copy the values from *field1* into *field2*: ::
-
-  field2(:) = field1(:)
-
-where:
-
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(out) :: *field2*
-
-copy_scaled_field
-+++++++++++++++++
-
-**copy_scaled_field** (*value*, *field1*, *field2*)
-
-Multiplies a field by a scalar and stores the result in a second field: ::
-  
-  field2(:) = value*field1(:)
-
-where:
-
-* real(r_def), intent(in) :: *value*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(out) :: *field2*
-
-divide_fields
+Naming scheme
 +++++++++++++
 
-**divide_fields** (*field1*, *field2*, *field3*)
+The supported built-ins in the Dynamo 0.3 API are named according to the
+scheme presented below. Any new built-ins need to comply with these rules.
 
-Divides the first field by the second and returns the result in the third: ::
+    1) Ordering of arguments in built-ins calls follows
+       *LHS (result) <- RHS (operation on arguments)*
+       direction, except where a built-in returns the *LHS* result to one of
+       the *RHS* arguments. In that case ordering of arguments remains as in
+       the *RHS* expression, with the returning *RHS* argument written as close
+       to the *LHS* as it can be without affecting the mathematical expression.
 
-  field3(:) = field1(:)/field2(:)
+    2) Field names begin with upper case in short form (e.g. **X**, **Y**,
+       **Z**) and any case in long form (e.g. **Field1**, **field**).
+
+    3) Scalar names begin with lower case:  e.g. **a**, **b**, are **scalar1**,
+       **scalar2**. Special names for scalars are: **constant** (or **c**),
+       **innprod** (inner/scalar product of two fields) and **sumfld**
+       (sum of a field).
+
+    4) Arguments in built-ins variable declarations and constructs (PSyclone
+       Fortran and Python definitions):
+
+       a) Are always  written in long form and lower case (e.g. **field1**,
+	  **field2**, **scalar1**, **scalar2**);
+       b) *LHS* result arguments are always listed first;
+       c) *RHS* arguments are listed in order of appearance in the mathematical
+	  expression, except when one of them is the *LHS* result.
+
+    5) Built-ins names in Fortran consist of:
+
+       1) *RHS* arguments in short form (e.g. **X**, **Y**, **a**, **b**) only;
+       2) Descriptive name of mathematical operation on *RHS* arguments in the
+	  form  ``<operationname>_<RHSarg>`` for one *RHS* argument or
+	  ``<RHSargs>_<operationname>_<RHSargs>`` for more;
+       3) Prefix ``"inc_"`` where the result is returned to one of the *RHS*
+	  arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``).
+
+    6) Built-ins names in Python definitions are similar to their Fortran
+       counterparts, with a few differences:
+
+       1) Operators and *RHS* arguments are all in upper case (e.g. **X**,
+	  **Y**, **A**, **B**, **Plus**, **Minus**);
+       2) There are no underscores;
+       3) Common prefix is ``"Dyn"``, common suffix is ``"Kern"``.
+
+Addition
+++++++++
+
+Built-ins which add (scaled) fields are denoted with the keyword **plus**.
+
+X_plus_Y
+########
+
+**X_plus_Y** (*field3*, *field1*, *field2*)
+
+
+Sums two fields (Z = X + Y): ::
+  
+  field3(:) = field1(:) + field2(:)
 
 where:
 
-* type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
-
-inc_divide_field
-++++++++++++++++
-
-**inc_divide_field** (*field1*, *field2*)
-
-Divides the first field by the second and returns it: ::
-
-  field1(:) = field1(:)/field2(:)
-
-where:
-
-* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inc_field
-+++++++++
+inc_X_plus_Y
+############
 
-**inc_field** (*field1*, *field2*)
+**inc_X_plus_Y** (*field1*, *field2*)
 
-Adds the second field to the first and returns it: ::
+Adds the second field to the first and returns it (X = X + Y): ::
 
   field1(:) = field1(:) + field2(:)
 
@@ -1189,93 +1123,187 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inc_xpby
-++++++++
+aX_plus_Y
+#########
 
-**inc_xpby** (*field1*, *b*, *field2*)
+**aX_plus_Y** (*field3*, *scalar*, *field1*, *field2*)
 
-Performs: ::
-
-  field1(:) = field1(:) + b*field2(:)
+Performs Z = aX + Y: ::
+   
+  field3(:) = scalar*field1(:) + field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *b*
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
+
+inc_aX_plus_Y
+#############
+
+**inc_aX_plus_Y** (*scalar*, *field1*, *field2*)
+
+Performs X = aX + Y (increments the first field): ::
+   
+  field1(:) = scalar*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-inner_product
-+++++++++++++
+inc_X_plus_bY
+#############
 
-**inner_product** (*field1*, *field2*, *sumval*)
+**inc_X_plus_bY** (*field1*, *scalar*, *field2*)
 
-Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+Performs X = X + bY (increments the first field): ::
 
-  sumval = SUM(field1(:)*field2(:))
+  field1(:) = field1(:) + scalar*field2(:)
 
 where:
 
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+aX_plus_bY
+##########
+
+**aX_plus_bY** (*field3*, *scalar1*, *field1*, *scalar2*, *field2*)
+
+Performs Z = aX + bY: ::
+   
+  field3(:) = scalar1*field1(:) + scalar2*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar1*, *scalar2*
+* type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*, *field2*
-* real(r_def), intent(out) :: *sumval*
 
-.. note:: When used with distributed memory this built-in will trigger
-          the addition of a global sum which may affect the
-          performance and/or scalability of the code.
+inc_aX_plus_bY
+##############
 
-inner_self_product
-++++++++++++++++++
+**inc_aX_plus_bY** (*scalar1*, *field1*, *scalar2*, *field2*)
 
-**inner_self_product** (*field1*, *sumval*)
-
-Computes the inner product of the field *field1* by itself, *i.e.*: ::
-
-  sumval = SUM(field1(:)*field1(:))
+Performs X = aX + bY (increments the first field): ::
+   
+  field1(:) = scalar1*field1(:) + scalar2*field2(:)
 
 where:
 
-* type(field_type), intent(in) :: *field1*
-* real(r_def), intent(out) :: *sumval*
+* real(r_def), intent(in) :: *scalar1*, *scalar2*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
 
-.. note:: When used with distributed memory this built-in will trigger
-          the addition of a global sum which may affect the
-          performance and/or scalability of the code.
+Subtraction
++++++++++++
 
-minus_fields
-++++++++++++
+Built-ins which subtract (scaled) fields are denoted with the keyword **minus**.
 
-**minus_fields** (*field1*, *field2*, *field3*)
+X_minus_Y
+#########
 
-Subtracts the second field from the first and stores the result in
-the third. *i.e.* performs the operation: ::
+**X_minus_Y** (*field3*, *field1*, *field2*)
+
+Subtracts the second field from the first and stores the result in the 
+third (Z = X - Y): ::
   
   field3(:) = field1(:) - field2(:)
 
 where:
 
+* type(field_type), intent(out) :: *field3*
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(in) :: *field2*
+
+inc_X_minus_Y
+#############
+
+**inc_X_minus_Y** (*field1*, *field2*)
+
+Subtracts the second field from the first and returns it (X = X - Y): ::
+
+  field1(:) = field1(:) - field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+aX_minus_Y
+##########
+
+**aX_minus_Y** (*field3*, *scalar*, *field1*, *field2*)
+
+Performs Z = aX - Y: ::
+   
+  field3(:) = scalar*field1(:) - field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
 * type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
 
-multiply_fields
-+++++++++++++++
+X_minus_bY
+##########
 
-**multiply_fields** (*field1*, *field2*, *field3*)
+**X_minus_bY** (*field3*, *field1*, *scalar*, *field2*)
 
-Multiplies two fields together and returns the result in a third field: ::
+Performs Z = X - bY: ::
+
+  field3(:) = field1(:) - scalar*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
+
+inc_X_minus_bY
+##############
+
+**inc_X_minus_bY** (*field1*, *scalar*, *field2*)
+
+Performs X = X - bY (increments the first field): ::
+
+  field1(:) = field1(:) - scalar*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type), intent(in) :: *field2*
+
+Multiplication
+++++++++++++++
+
+Built-ins which multiply (scaled) fields are denoted with the keyword **times**.
+
+X_times_Y
+#########
+
+**X_times_Y** (*field3*, *field1*, *field2*)
+
+Multiplies two fields together and returns the result in a third 
+field (Z = X*Y): ::
 
   field3(:) = field1(:)*field2(:)
 
 where:
 
-* type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
 
-inc_multiply_field
-++++++++++++++++++
+inc_X_times_Y
+#############
 
-**inc_multiply_field** (*field1*, *field2*)
+**inc_X_times_Y** (*field1*, *field2*)
 
-Multiplies the first field by the second and returns it: ::
+Multiplies the first field by the second and returns it (X = X*Y): ::
 
   field1(:) = field1(:)*field2(:)
 
@@ -1284,79 +1312,209 @@ where:
 * type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
 
-plus_fields
-+++++++++++
+inc_aX_times_Y
+##############
 
-**plus_fields** (*field1*, *field2*, *field3*)
+**inc_aX_times_Y** (*scalar*, *field1*, *field2*)
 
-Sums two fields: ::
-  
-  field3(:) = field1(:) + field2(:)
+Performs X = a*X*Y (increments the first field): ::
+   
+  field1(:) = scalar*field1(:)*field2(:)
 
 where:
 
-* type(field_type), intent(in) :: *field1*
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
 * type(field_type), intent(in) :: *field2*
+
+Scaling
++++++++
+
+Built-ins which scale fields are technically cases of multiplying a field by a
+scalar and are hence also denoted with the keyword **times**.
+
+a_times_X
+#########
+
+**a_times_X** (*field2*, *scalar*, *field1*)
+
+Multiplies a field by a scalar and stores the result in a second 
+field (Y = a*X): ::
+  
+  field2(:) = scalar*field1(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(out) :: *field2*
+* type(field_type), intent(in) :: *field1*
+
+inc_a_times_X
+#############
+
+**inc_a_times_X** (*scalar*, *field*)
+
+Multiplies a field by a scalar value and returns the field (X = a*X): ::
+
+  field(:) = scalar*field(:)
+
+where:
+
+* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field*
+
+Division
+++++++++
+
+Built-ins which divide (scaled) fields are denoted with the keyword
+**divideby**.
+
+X_divideby_Y
+############
+
+**X_divideby_Y** (*field3*, *field1*, *field2*)
+
+Divides the first field by the second and returns the result in the 
+third (Z = X/Y): ::
+
+  field3(:) = field1(:)/field2(:)
+
+where:
+
 * type(field_type), intent(out) :: *field3*
+* type(field_type), intent(in) :: *field1*, *field2*
 
-raise_field
-+++++++++++
+inc_X_divideby_Y
+################
 
-**raise_field** (*field1*, *scalar*)
+**inc_X_divideby_Y** (*field1*, *field2*)
 
-Raises a field to a scalar value and returns the field: ::
+Divides the first field by the second and returns it (X = X/Y): ::
 
-  field1(:) = field1(:)**scalar
+  field1(:) = field1(:)/field2(:)
 
 where:
 
 * type(field_type), intent(inout) :: *field1*
-* real(r_def), intent(in) :: *scalar*
+* type(field_type), intent(in) :: *field2*
 
-scale_field
-+++++++++++
-
-**scale_field** (*scalar*, *field1*)
-
-Multiplies a field by a scalar value and returns the field: ::
-
-  field1(:) = scalar*field1(:)
-
-where:
-
-* real(r_def), intent(in) :: *scalar*
-* type(field_type), intent(inout) :: *field1*
-
-set_field_scalar
+Setting to value
 ++++++++++++++++
 
-**set_field_scalar** (*value*, *field*)
+Built-ins which set field elements to some value and hence are denoted with
+the keyword **setval**.
 
-Sets all elements of the field *field* to the value *value*: ::
+setval_c
+########
 
-  field1(:) = value
+**setval_c** (*field*, *constant*)
+
+Sets all elements of the field *field* to the value *constant* (X = c): ::
+
+  field(:) = constant
 
 where:
 
 * type(field_type), intent(out) :: *field*
-* real(r_def), intent(in) :: *value*
+* real(r_def), intent(in) :: *constant*
 
 .. note:: The field may be on any function space.
 
-sum_field
-+++++++++
+setval_X
+########
 
-**sum_field** (*field*, *sumval*)
+**setval_X** (*field2*, *field1*)
 
-Sums all of the elements of the field *field* and returns the result
-in the scalar variable *sumval*: ::
-  
-  sumval = SUM(field(:))
+Sets a field *field2* equal to field *field1* (Y = X): ::
+
+  field2(:) = field1(:)
 
 where:
 
+* type(field_type), intent(out) :: *field2*
+* type(field_type), intent(in) :: *field1*
+
+Raising to power
+++++++++++++++++
+
+Built-in which raises field elements to an exponent is denoted with the keyword
+**powreal** for real exponent.
+
+inc_X_powreal_a
+###############
+
+**inc_X_powreal_a** (*field*, *scalar*)
+
+Raises a field to a real scalar value and returns the field (X = X**a): ::
+
+  field(:) = field(:)**scalar
+
+where:
+
+* type(field_type), intent(inout) :: *field*
+* real(r_def), intent(in) :: *scalar*
+
+Inner product
++++++++++++++
+
+Built-ins which calculate the inner product of two fields or of a field with itself
+are denoted with the keyword **innerproduct**.
+
+X_innerproduct_Y
+################
+
+**X_innerproduct_Y** (*innprod*, *field1*, *field2*)
+
+Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+
+  innprod = SUM(field1(:)*field2(:))
+
+where:
+
+* real(r_def), intent(out) :: *innprod*
+* type(field_type), intent(in) :: *field1*, *field2*
+
+.. note:: When used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
+X_innerproduct_X
+################
+
+**X_innerproduct_X** (*innprod*, *field*)
+
+Computes the inner product of the field *field1* by itself, *i.e.*: ::
+
+  innprod = SUM(field(:)*field(:))
+
+where:
+
+* real(r_def), intent(out) :: *innprod*
+* type(field_type), intent(in) :: *field*
+
+.. note:: When used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
+Sum of elements
++++++++++++++++
+
+Built-in which sums the elements of a field is denoted with the keyword *sum*.
+
+sum_X
+#####
+
+**sum_X** (*sumfld*, *field*)
+
+Sums all of the elements of the field *field* and returns the result
+in the scalar variable *sumfld*: ::
+  
+  sumfld = SUM(field(:))
+
+where:
+
+* real(r_def), intent(out) :: sumfld
 * type(field_type), intent(in) :: field
-* real(r_def), intent(out) :: sumval
 
 .. note:: When used with distributed memory this built-in will trigger
           the addition of a global sum which may affect the

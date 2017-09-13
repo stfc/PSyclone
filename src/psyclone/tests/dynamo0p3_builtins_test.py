@@ -1,3 +1,36 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
@@ -22,7 +55,8 @@ from psyclone import dynamo0p3_builtins
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-# functions
+
+# ------------- Tests for built-ins methods and arguments ------------------- #
 
 
 def test_dynbuiltin_missing_defs():
@@ -32,7 +66,7 @@ def test_dynbuiltin_missing_defs():
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15_single_pointwise_invoke.f90"),
+                                  "15.12.3_single_pointwise_builtin.f90"),
                      api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     assert ("broken' containing the meta-data describing the "
@@ -45,9 +79,10 @@ def test_dynbuiltin_not_over_dofs():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     # Restore the original file name before doing the assert in case
     # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
@@ -63,18 +98,22 @@ def test_builtin_multiple_writes():
     that writes to more than one argument '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "aX_plus_Y"
+    test_builtin_file = "15.13.1_" + test_builtin_name + \
+                        "_builtin_set_by_value.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.2_axpy_invoke_by_value.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel axpy"
-            in str(excinfo))
+            "one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_write_and_inc():
@@ -83,18 +122,21 @@ def test_builtin_write_and_inc():
     gh_inc '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "inc_aX_plus_bY"
+    test_builtin_file = "15.1.7_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.2_inc_axpby_invoke.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 2 for kernel "
-            "inc_axpby" in str(excinfo))
+            "one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_sum_and_inc():
@@ -103,18 +145,21 @@ def test_builtin_sum_and_inc():
     gh_inc '''
     # The file containing broken meta-data for the built-ins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "inc_aX_plus_Y"
+    test_builtin_file = "15.1.4_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_axpy_invoke.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
-            "only one argument that is written to but found 2 for kernel "
-            "inc_axpy" in str(excinfo))
+            "only one argument that is written to but found 2 for kernel " +
+            test_builtin_name.lower() in str(excinfo))
 
 
 def test_builtin_zero_writes(monkeypatch):
@@ -122,28 +167,35 @@ def test_builtin_zero_writes(monkeypatch):
     that does not write to any field '''
     # Use pytest's monkeypatch support to change our configuration to
     # point to a file containing broken meta-data for the
-    # built-ins. The definition for axpby that it contains erroneously
+    # built-ins. The definition for aX_plus_bY that it contains erroneously
     # has no argument that is written to.
+    # Define the built-in name and test file
+    test_builtin_name = "aX_plus_bY"
+    test_builtin_file = "15.1.6_" + test_builtin_name + "_builtin.f90"
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "invalid_builtins_mod.f90"))
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.8.0_axpby_invoke.f90"),
+                                  test_builtin_file),
                      api="dynamo0.3")
     assert ("A Dynamo 0.3 kernel must have at least one "
             "argument that is updated (written to) but "
-            "found none for kernel axpby" in str(excinfo))
+            "found none for kernel " + test_builtin_name.lower()
+            in str(excinfo))
 
 
 def test_builtin_no_field_args():
     ''' Check that we raise appropriate error if we encounter a built-in
     that does not have any field arguments '''
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "setval_X"
+    test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.0_copy_field_builtin.f90"),
+                                        test_builtin_file),
                            api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -151,7 +203,8 @@ def test_builtin_no_field_args():
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API "
             "must have at least one field as an argument but "
-            "kernel copy_field has none" in str(excinfo))
+            "kernel " + test_builtin_name.lower() + " has none"
+            in str(excinfo))
 
 
 def test_builtin_operator_arg():
@@ -160,19 +213,22 @@ def test_builtin_operator_arg():
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
+    # Define the built-in name and test file
+    test_builtin_name = "a_times_X"
+    test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.2.1_copy_scaled_field_builtin.f90"),
+                     test_builtin_file),
         api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real'] but kernel "
-            "copy_scaled_field has an argument of "
+            "must be one of ['gh_field', 'gh_real'] but kernel " +
+            test_builtin_name.lower() + " has an argument of "
             "type gh_operator" in str(excinfo))
 
 
@@ -181,13 +237,16 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     that has arguments on different function spaces '''
     # Save the name of the actual builtin-definitions file
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    # Define the built-in name and test file
+    test_builtin_name = "inc_X_divideby_Y"
+    test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
     # Change the builtin-definitions file to point to one that has
     # various invalid definitions
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.6.1_inc_divide_field_invoke.f90"),
+                     test_builtin_file),
         api="dynamo0.3")
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
@@ -195,7 +254,7 @@ def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
                        distributed_memory=False).create(invoke_info)
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
             "must be on the same space. However, found spaces ['any_space_2', "
-            "'any_space_1'] for arguments to inc_divide_field" in
+            "'any_space_1'] for arguments to " + test_builtin_name.lower() in
             str(excinfo))
 
 
@@ -228,9 +287,9 @@ def test_invalid_builtin_kernel():
     built-in is specified in the algorithm layer '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.0.0_invalid_builtin_kernel.f90"),
+                                  "15.12.1_invalid_builtin_kernel.f90"),
                      api="dynamo0.3")
-    assert ("kernel call 'set_field_scala' must either be named in a "
+    assert ("kernel call 'setva_c' must either be named in a "
             "use statement or be a recognised built-in" in
             str(excinfo.value))
 
@@ -239,9 +298,10 @@ def test_dynbuiltin_str():
     ''' Check that we raise an error if we attempt to call the __str__
     method on the parent DynBuiltIn class '''
     from psyclone.dynamo0p3_builtins import DynBuiltIn
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [True, False]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -256,9 +316,10 @@ def test_dynbuiltin_gen_code():
     ''' Check that we raise an error if we attempt to call the gen_code()
     method on the parent DynBuiltIn class '''
     from psyclone.dynamo0p3_builtins import DynBuiltIn
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -272,9 +333,10 @@ def test_dynbuiltin_gen_code():
 def test_dynbuiltin_cma():
     ''' Check that a DynBuiltIn returns None for CMA type (because
     built-ins don't work with CMA operators) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -292,42 +354,1697 @@ def test_dynbuiltfactory_str():
     assert "Factory for a call to a Dynamo built-in" in str(factory)
 
 
-def mesh_code_present(code):
-    '''this test checks for the existance of mesh code. This exists for
-    all builtins with dm = True (although it is not actually required!) so
-    each test can call this function'''
-    assert "      USE mesh_mod, ONLY: mesh_type" in code
-    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
-    output_dm_1 = (
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh => f1%get_mesh()\n"
-        "      !\n")
-    print output_dm_1
-    assert output_dm_1 in code
+# ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_builtin_set_str():
-    ''' Check that the str method of DynSetFieldScalarKern returns the
-    expected string '''
+def test_X_plus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    Z = X + Y where X and Y are fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
+                                        "15.1.1_X_plus_Y_builtin.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Add fields"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_X_plus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    X = X + Y where X and Y are fields '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "15.1.2_inc_X_plus_Y_builtin.f90"),
+                               distributed_memory=distmem,
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Increment field"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+            assert output in code
+
+
+def test_aX_plus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynAXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.3_aX_plus_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: aX_plus_Y"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: a\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_aX_plus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncAXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X + Y where 'a' is a scalar and X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.4_inc_aX_plus_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: inc_aX_plus_Y"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(a, f1, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: a\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_X_plus_bY():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXPlusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X + b*Y where 'b' is a scalar and X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.5_inc_X_plus_bY_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: inc_X_plus_bY"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f1, b, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) + "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) + "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_aX_plus_bY():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynAXPlusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X + b*Y where 'a' and 'b' are scalars and Z, X and
+    Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.6_aX_plus_bY_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: aX_plus_bY"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: a, b\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_aX_plus_bY():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X + b*Y where 'a' and 'b' are scalars and X and Y
+    are fields '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.1.7_inc_aX_plus_bY_builtin.f90"),
+        api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: inc_aX_plus_bY"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(a, f1, b, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: a, b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+# ------------- Subtracting (scaled) fields --------------------------------- #
+
+
+def test_X_minus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X - Y where Z, X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.1_X_minus_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Subtract fields"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_X_minus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X - Y where X and Y are fields '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.2.2_inc_X_minus_Y_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Decrement field"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+            assert output in code
+
+
+def test_aX_minus_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynAXMinusYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.3_aX_minus_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: aX_minus_Y"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: a\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_X_minus_bY():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXMinusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.4_X_minus_bY_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: X_minus_bY"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f3, f1, b, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) - "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) - "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_X_minus_bY():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXMinusBYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X - b*Y where 'b' is a scalar and X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.2.5_inc_X_minus_bY_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: inc_X_minus_bY"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f1, b, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) - "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) - "
+                "b*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+# ------------- Multiplying (scaled) fields --------------------------------- #
+
+
+def test_X_times_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X*Y where Z, X and Y are fields '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.3.1_X_times_Y_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Multiply fields"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO \n")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()")
+            assert output in code
+
+
+def test_inc_X_times_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X*Y where X and Y are fields '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.3.2_inc_X_times_Y_builtin.f90"),
+        api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Multiply field by another"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_aX_times_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncAXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X*Y where 'a' is a scalar and X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.3.3_inc_aX_times_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: inc_aX_times_Y"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(a, f1, f2)\n"
+                "      REAL(KIND=r_def), intent(in) :: a\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+# ------------- Scaling fields (multiplying by a scalar --------------------- #
+
+
+def test_a_times_X():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynATimesXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = a*X where 'a' is a scalar and X and Y are fields '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.4.1_a_times_X_builtin.f90"),
+        api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Copy scaled field"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f2_proxy = f2%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f2_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f2\n"
+                "      !\n"
+                "      ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f2\n"
+                "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f2", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f2_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_a_times_X():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncATimesXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = a*X where 'a' is a scalar and X is a field '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.4.2_inc_a_times_X_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Scale a field"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n")
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+
+            assert output in code
+
+
+# ------------- Dividing (scaled) fields ------------------------------------ #
+
+
+def test_X_divideby_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXDividebyYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Z = X/Y where Z, X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.5.1_X_divideby_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Divide fields"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_inc_X_divideby_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXDividebyYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X/Y where X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.5.2_inc_X_divideby_Y_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Divide one field by another"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df) / "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+# ------------- Raising field to a scalar ----------------------------------- #
+
+
+def test_inc_X_powreal_a():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXPowrealAKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X**a where 'a' is a real scalar and X is a field '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.6.1_inc_X_powreal_a_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: raise a field to a real power"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+                "      END DO \n"
+                "      !\n")
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+
+            assert output in code
+
+
+# ------------- Setting field elements to a value --------------------------- #
+
+
+def test_setval_c():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynSetvalCKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = c where 'c' is a constant scalar value and X is a field '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.1_setval_c_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
         assert str(kern) == "Built-in: Set field to a scalar value"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f1, c)\n"
+                "      REAL(KIND=r_def), intent(in) :: c\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = c\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = c\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+def test_setval_X():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynSetvalXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation Y = X where X and Y are fields '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.2_setval_X_builtin.f90"),
+                           api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Set a field equal to another field"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f2, f1)\n"
+                "      TYPE(field_type), intent(inout) :: f2\n"
+                "      TYPE(field_type), intent(in) :: f1\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f2, undf_any_space_1_f2\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f2_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f2\n"
+                "      !\n"
+                "      ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f2 = f2_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f2\n"
+                "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f2", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f2_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+# ------------- Inner product of fields ------------------------------------- #
+
+
+def test_X_innerproduct_Y():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXInnerproductYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which calculates inner product of fields X and Y as
+    innprod = innprod + X(:)*Y(:) '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: X_innerproduct_Y"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        output = (
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      f2_proxy = f2%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of layers\n"
+            "      !\n"
+            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+            "      !\n")
+        assert output in code
+        if not distmem:
+            output_seq = (
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n")
+            assert output_seq in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm = (
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      !\n")
+            assert output_dm in code
+            assert "      USE scalar_mod, ONLY: scalar_type" in code
+            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+            assert "      TYPE(scalar_type) global_sum\n" in code
+
+
+def test_X_innerproduct_X():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynXInnerproductXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which calculates inner product of a field X by itself as
+    innprod = innprod + X(:)*X(:) '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.9.2_X_innerproduct_X_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: X_innerproduct_X"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        output = (
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of layers\n"
+            "      !\n"
+            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+            "      !\n")
+        assert output in code
+        if not distmem:
+            output_seq = (
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n")
+            assert output_seq in code
+        else:
+            mesh_code_present("f1", code)
+            output_dm = (
+                "      ! Initialise sizes and allocate any basis arrays for "
+                "any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      !\n")
+            assert output_dm in code
+            assert "      USE scalar_mod, ONLY: scalar_type" in code
+            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+            assert "      TYPE(scalar_type) global_sum\n" in code
+
+
+# ------------- Sum field elements ------------------------------------------ #
+
+
+def test_sum_X():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynSumXKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which sums elements of a field X as sumfld = sum(X(:)) '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.8.1_sum_X_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: sum a field"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        output = (
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
+            "      f1_proxy = f1%get_proxy()\n"
+            "      !\n"
+            "      ! Initialise number of layers\n"
+            "      !\n"
+            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+            "      !\n")
+        assert output in code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)\n"
+                "      END DO ")
+            assert output in code
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()")
+            assert output in code
+            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+
+
+# ------------- Xfail builtins ---------------------------------------------- #
+
+
+@pytest.mark.xfail(
+    reason="Requires kernel-argument dependency analysis to deduce the "
+    "spaces of the fields passed to the built-in kernel")
+def test_X_times_Y_on_different_spaces():  # pylint: disable=invalid-name
+    ''' Test that we raise an error if X_times_Y() is called for
+    two fields that are on different spaces '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.11.2_X_times_Y_different_spaces.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert "some string" in str(excinfo.value)
+
+
+@pytest.mark.xfail(
+    reason="Dependency analysis of kernel arguments within an invoke is "
+    "not yet implemented")
+def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
+    ''' Test that we generate correct code if X_times_Y() is called
+    in an invoke containing another kernel that allows the space of the
+    fields to be deduced '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.11.1_X_times_Y_deduce_space.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        output = (
+            "some fortran\n"
+        )
+        assert output in code
+
+
+# ------------- Builtins that pass scalars by value ------------------------- #
 
 
 def test_builtin_set():
     ''' Tests that we generate correct code for a serial builtin
-    set operation with a scalar passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15_single_pointwise_invoke.f90"),
-                           api="dynamo0.3")
+    setval_c operation with a scalar passed by value'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.12.3_single_pointwise_builtin.f90"),
+        api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -367,7 +2084,7 @@ def test_builtin_set():
             assert output_seq in code
 
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
@@ -385,12 +2102,12 @@ def test_builtin_set():
             assert output_dm_2 in code
 
 
-def test_builtin_set_by_ref():
-    ''' Tests that we generate correct code for a builtin
-    set operation with a scalar passed by reference '''
+def test_aX_plus_Y_by_value():  # pylint: disable=invalid-name
+    ''' Test that we generate correct code for the builtin
+    operation Z = a*X + Y when a scalar is passed by value'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.0.1_single_builtin_set_by_ref.f90"),
+                     "15.13.1_aX_plus_Y_builtin_set_by_value.f90"),
         api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory("dynamo0.3",
@@ -399,59 +2116,134 @@ def test_builtin_set_by_ref():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(fred, f1)\n"
-                "      REAL(KIND=r_def), intent(in) :: fred\n"
-                "      TYPE(field_type), intent(inout) :: f1\n"
+                "    SUBROUTINE invoke_0(f3, f1, f2)\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
                 "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
                 "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
                 "      !\n"
                 "      ! Initialise field and/or operator proxies\n"
                 "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
                 "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
                 "      !\n"
                 "      ! Initialise number of layers\n"
                 "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
                 "      !\n"
                 "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
+                "any_space_1_f3\n"
                 "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = fred\n"
-                "      END DO \n")
-            print output
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f3", code)
             output_dm_2 = (
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = fred\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
                 "      ! Set halos dirty for fields modified in the "
                 "above loop\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
             print output_dm_2
             assert output_dm_2 in code
+
+
+def test_aX_plus_bY_by_value():  # pylint: disable=invalid-name
+    ''' Test that we generate correct code for the builtin
+    operation Z = a*X + b*Y when scalars 'a' and 'b' are passed by value'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.13.2_aX_plus_bY_builtin_set_by_value.f90"),
+        api="dynamo0.3")
+    for distmem in [False, True]:
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "    SUBROUTINE invoke_0(f3, f1, f2)\n"
+                "      TYPE(field_type), intent(inout) :: f3\n"
+                "      TYPE(field_type), intent(in) :: f1, f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f3, undf_any_space_1_f3\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+                "      !\n"
+                "      ! Initialise field and/or operator proxies\n"
+                "      !\n"
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
+                "0.8*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "    END SUBROUTINE invoke_0\n")
+            assert output in code
+        if distmem:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
+                "0.8*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            print output_dm_2
+            assert output_dm_2 in code
+
+
+# ------------- Builtins with multiple calls or mixed with kernels ---------- #
 
 
 def test_multiple_builtin_set():
     ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.0.2_multiple_set_kernels.f90"),
+                                        "15.14.2_multiple_set_kernels.f90"),
                            api="dynamo0.3")
     for distmem in [False, True]:
         psy = PSyFactory(
@@ -460,7 +2252,7 @@ def test_multiple_builtin_set():
         print code
         if not distmem:
             output = (
-                "    SUBROUTINE invoke_0(fred, f1, f2, ginger, f3)\n"
+                "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
                 "      REAL(KIND=r_def), intent(in) :: fred, ginger\n"
                 "      TYPE(field_type), intent(inout) :: f1, f2, f3\n"
                 "      INTEGER df\n"
@@ -511,7 +2303,7 @@ def test_multiple_builtin_set():
                 "      END DO \n")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -551,7 +2343,7 @@ def test_builtin_set_plus_normal():
     set operation when the invoke also contains a normal kernel '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.1_builtin_and_normal_kernel_invoke.f90"),
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
 
     for distmem in [False, True]:
@@ -598,7 +2390,7 @@ def test_builtin_set_plus_normal():
                 "      END DO ")
             assert output in code
         if distmem:
-            mesh_code_present(code)
+            mesh_code_present("f1", code)
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
@@ -640,1621 +2432,7 @@ def test_builtin_set_plus_normal():
             assert output_dm_2 in code
 
 
-def test_copy_str():
-    ''' Check that the str method of DynCopyFieldKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.0_copy_field_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Copy field"
-
-
-def test_copy():
-    ''' Tests that we generate correct code for a builtin
-    copy field operation '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.0_copy_field_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(f1, f2)\n"
-                "      TYPE(field_type), intent(inout) :: f2\n"
-                "      TYPE(field_type), intent(in) :: f1\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
-                "        f2_proxy%data(df) = f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f2_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_subtract_fields_str():
-    ''' Test that the str method of DynSubtractFieldsKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.0_subtract_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Subtract fields"
-
-
-def test_subtract_fields():
-    ''' Test that the str method of DynSubtractFieldsKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.0_subtract_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_add_fields_str():
-    ''' Test that the str method of DynSubtractFieldsKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.0_add_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Add fields"
-
-
-def test_add_fields():
-    ''' Test that the str method of DynAddFieldsKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.5.0_add_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_divide_fields_str():
-    ''' Test that the str method of DynDivideFieldsKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.0_divide_fields_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Divide fields"
-
-
-def test_divide_fields():
-    ''' Test that we generate correct code for the divide fields
-    infrastructure kernel '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.0_divide_fields_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) / "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) / "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_inc_divide_field_str():
-    ''' Test that the str method of DynIncDivideFieldKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_inc_divide_field_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Divide one field by another"
-
-
-def test_inc_divide_field():
-    ''' Test that we generate correct code for the divide field
-    infrastructure kernel (x = x/y) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.6.1_inc_divide_field_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) / "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) / "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_copy_scaled_field_str():
-    ''' Test that the str method of DynCopyScaledFieldKern returns the
-    expected string '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.2.1_copy_scaled_field_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Copy scaled field"
-
-
-def test_copy_scaled_field():
-    ''' Test that we generate correct code for the CopyScaledField
-    (y = a*x) built-in '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.2.1_copy_scaled_field_builtin.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
-                "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f2_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_axpy_field_str():
-    ''' Test that the str method of DynAXPYKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3_axpy_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: AXPY"
-
-
-def test_axpy():
-    ''' Test that we generate correct code for the builtin
-    operation f = a*x + y where 'a' is a scalar '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3_axpy_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(a, f1, f2, f3)\n"
-                "      REAL(KIND=r_def), intent(in) :: a\n"
-                "      TYPE(field_type), intent(inout) :: f3\n"
-                "      TYPE(field_type), intent(in) :: f1, f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0\n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_axpy_by_value():
-    ''' Test that we generate correct code for the builtin
-    operation y = a*x + y when a is passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.2_axpy_invoke_by_value.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(f1, f2, f3)\n"
-                "      TYPE(field_type), intent(inout) :: f3\n"
-                "      TYPE(field_type), intent(in) :: f1, f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_axmy_field_str():
-    ''' Test that the str method of DynAXMYKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.5_axmy_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: AXMY"
-
-
-def test_axmy():
-    ''' Test that we generate correct code for the builtin
-    operation f = a*x - y where 'a' is a scalar '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3.5_axmy_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(a, f1, f2, f3)\n"
-                "      REAL(KIND=r_def), intent(in) :: a\n"
-                "      TYPE(field_type), intent(inout) :: f3\n"
-                "      TYPE(field_type), intent(in) :: f1, f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0\n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_inc_axpy_str():
-    ''' Test the str method of DynIncAXPYKern'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_axpy_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: INC_AXPY"
-
-
-def test_inc_axpy():
-    ''' Test that we generate correct code for the built-in
-    operation x = a*x + y '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4_inc_axpy_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(a, f1, f2)\n"
-                "      REAL(KIND=r_def), intent(in) :: a\n"
-                "      TYPE(field_type), intent(inout) :: f1\n"
-                "      TYPE(field_type), intent(in) :: f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_inc_xpby_str():
-    ''' Test the str method of DynIncXPBYKern'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.1_inc_xpby_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: INC_XPBY"
-
-
-def test_inc_xpby():
-    ''' Test that we generate correct code for the built-in
-    operation x = x + b*y '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.4.1_inc_xpby_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(f1, b, f2)\n"
-                "      REAL(KIND=r_def), intent(in) :: b\n"
-                "      TYPE(field_type), intent(inout) :: f1\n"
-                "      TYPE(field_type), intent(in) :: f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) + "
-                "b*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) + "
-                "b*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_axpby_field_str():
-    ''' Test that the str method of DynAXPBYKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_axpby_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: AXPBY"
-
-
-def test_axpby():
-    ''' Test that we generate correct code for the builtin
-    operation f = a*x + b*y where 'a' and 'b' are scalars '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_axpby_invoke.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(a, f1, b, f2, f3)\n"
-                "      REAL(KIND=r_def), intent(in) :: a, b\n"
-                "      TYPE(field_type), intent(inout) :: f3\n"
-                "      TYPE(field_type), intent(in) :: f1, f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
-                "b*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0\n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
-                "b*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_axpby_by_value():
-    ''' Test that we generate correct code for the builtin
-    operation z = a*x + b*y when a and b are passed by value'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.1_axpby_invoke_by_value.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(f1, f2, f3)\n"
-                "      TYPE(field_type), intent(inout) :: f3\n"
-                "      TYPE(field_type), intent(in) :: f1, f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      f3_proxy = f3%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
-                "0.8*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0\n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
-                "0.8*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_inc_axpby_str():
-    ''' Test the str method of DynIncAXPBYKern '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.8.2_inc_axpby_invoke.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: INC_AXPBY"
-
-
-def test_inc_axpby():
-    ''' Test that we generate correct code for the built-in
-    operation x = a*x + b*y where x and y are fields and a and b are
-    scalars. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.8.2_inc_axpby_invoke.f90"),
-        api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "    SUBROUTINE invoke_0(a, f1, b, f2)\n"
-                "      REAL(KIND=r_def), intent(in) :: a, b\n"
-                "      TYPE(field_type), intent(inout) :: f1\n"
-                "      TYPE(field_type), intent(in) :: f2\n"
-                "      INTEGER df\n"
-                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-                "      !\n"
-                "      ! Initialise field and/or operator proxies\n"
-                "      !\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
-                "b*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "    END SUBROUTINE invoke_0\n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
-                "b*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-@pytest.mark.xfail(
-    reason="Requires kernel-argument dependency analysis to deduce the "
-    "spaces of the fields passed to the built-in kernel")
-def test_multiply_fields_on_different_spaces():  # pylint: disable=invalid-name
-    ''' Test that we raise an error if multiply_fields() is called for
-    two fields that are on different spaces '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.3.3_multiply_fields_different_spaces.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert "some string" in str(excinfo.value)
-
-
-@pytest.mark.xfail(
-    reason="Dependency analysis of kernel arguments within an invoke is "
-    "not yet implemented")
-def test_multiply_fields_deduce_space():  # pylint: disable=invalid-name
-    ''' Test that we generate correct code if multiply_fields() is called
-    in an invoke containing another kernel that allows the space of the
-    fields to be deduced '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.3.1_multiply_fields_deduce_space.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        output = (
-            "some fortran\n"
-        )
-        assert output in code
-
-
-def test_inc_field_str():
-    ''' Test that the str method of DynIncFieldKern returns the
-    expected string '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "15.7.0_inc_field_invoke.f90"),
-                               distributed_memory=distmem,
-                               api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Increment field"
-
-
-def test_inc_field():
-    ''' Test that we generate correct code for the built-in y = y + x
-    where x and y are both fields '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.7.0_inc_field_invoke.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output = (
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()")
-            assert output in code
-
-
-def test_multiply_fields_str():
-    ''' Test the str method of DynMultiplyFieldsKern '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.3.0_multiply_fields.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Multiply fields"
-
-
-def test_multiply_fields():
-    ''' Test that we generate correct code for the built-in z = x*y
-    where x, y and z are fields '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.3.0_multiply_fields.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
-                "      END DO \n")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output = (
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()")
-            assert output in code
-
-
-def test_inc_multiply_field_str():
-    ''' Test that the str method of DynIncMultiplyFieldKern returns the
-    expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        (r"15.3.4_"
-                                         r"inc_multiply_field_invoke.f90")),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Multiply field by another"
-
-
-def test_inc_multiply_field():
-    ''' Test that we generate correct code for the multiply field
-    infrastructure kernel (x = x*y) '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        (r"15.3.4_"
-                                         r"inc_multiply_field_invoke.f90")),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
-
-
-def test_scale_field_str():
-    ''' Test the str method of DynScaleFieldKern '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.2.2_scale_field_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: scale a field"
-
-
-def test_scale_field():
-    ''' Test that DynScaleFieldKern generates correct code '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.2.2_scale_field_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n")
-        if distmem:
-            mesh_code_present(code)
-            output = (
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()")
-
-            assert output in code
-
-
-def test_raise_field_str():
-    ''' Test the str method of DynRaiseFieldKern '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.2.3_raise_field_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: raise a field to an exponent"
-
-
-def test_raise_field():
-    ''' Test that DynRaiseFieldKern generates correct code '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.2.3_raise_field_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
-                "      END DO \n"
-                "      !\n")
-        if distmem:
-            mesh_code_present(code)
-            output = (
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()")
-
-            assert output in code
-
-
-def test_innerprod_str():
-    ''' Test the str method of DynInnerProductKern '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: inner_product"
-
-
-def test_innerprod():
-    ''' Test that we produce correct code for the inner product built-in '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        output = (
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of layers\n"
-            "      !\n"
-            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-            "      !\n")
-        assert output in code
-
-        if not distmem:
-            output_seq = (
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n")
-            assert output_seq in code
-
-        if distmem:
-            mesh_code_present(code)
-            output_dm = (
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      !\n")
-            assert output_dm in code
-            assert "      USE scalar_mod, ONLY: scalar_type" in code
-            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
-            assert "      TYPE(scalar_type) global_sum\n" in code
-
-
-def test_innerselfprod_str():
-    ''' Test the str method of DynInnerSelfProductKern '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.1_inner_self_prod_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: inner_self_product"
-
-
-def test_innerselfprod():
-    ''' Test that we produce correct code for the inner product of
-    a vector by itself built-in '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.1_inner_self_prod_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        output = (
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of layers\n"
-            "      !\n"
-            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-            "      !\n")
-        assert output in code
-
-        if not distmem:
-            output_seq = (
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n")
-            assert output_seq in code
-
-        if distmem:
-            mesh_code_present(code)
-            output_dm = (
-                "      ! Initialise sizes and allocate any basis arrays for "
-                "any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n"
-                "      !\n")
-            assert output_dm in code
-            assert "      USE scalar_mod, ONLY: scalar_type" in code
-            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
-            assert "      TYPE(scalar_type) global_sum\n" in code
-
-
-def test_sumfield_str():
-    ''' Test the str method of DynSumFieldKern '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.10.0_sum_field_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: sum_field"
-
-
-def test_sumfield():
-    ''' Test that the DynSumFieldKern produces correct code '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.10.0_sum_field_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print code
-        output = (
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      !\n"
-            "      ! Initialise number of layers\n"
-            "      !\n"
-            "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-            "      !\n")
-        assert output in code
-        if not distmem:
-            output = (
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f1\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO ")
-            assert output in code
-        if distmem:
-            mesh_code_present(code)
-            output = (
-                "      ! Initialise sizes and allocate any basis arrays "
-                "for any_space_1_f1\n"
-                "      !\n"
-                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      !\n"
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()")
-            assert output in code
-            assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+# ------------- Builtins with reductions ------------------------------------ #
 
 
 def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
@@ -2263,7 +2441,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.15.0_builtins_reduction_fuse_error.f90"),
+                         "15.18.1_builtins_reduction_fuse_error.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2272,7 +2450,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
         print code
         if distmem:
             assert(
-                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
                 "      USE scalar_mod, ONLY: scalar_type\n"
                 "      USE mesh_mod, ONLY: mesh_type\n"
                 "      REAL(KIND=r_def), intent(out) :: asum\n"
@@ -2330,7 +2508,7 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
                 "      CALL f1_proxy%set_dirty()\n") in code
         else:
             assert (
-                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
                 "      REAL(KIND=r_def), intent(out) :: asum\n"
                 "      REAL(KIND=r_def), intent(in) :: b\n"
                 "      TYPE(field_type), intent(inout) :: f1\n"
@@ -2367,13 +2545,18 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
                 "      END DO \n") in code
 
 
+# ------------- Invalid built-in with an integer scalar reduction ----------- #
+
+
 def test_scalar_int_builtin_error(monkeypatch):
-    ''' Test that specifying that a built-in has an integer scalar
-    argument raises the expected error '''
-    # Point to fake built-in kernel metadata
+    ''' Test that specifying incorrect meta-data for built-in such that it
+    claims to perform a reduction into an integer variable raises the
+    expected error '''
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
+    # Define the built-in name and test file
+    test_builtin_name = "X_innerproduct_Y"
     for dist_mem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
@@ -2382,5 +2565,24 @@ def test_scalar_int_builtin_error(monkeypatch):
             _ = PSyFactory("dynamo0.3",
                            distributed_memory=dist_mem).create(invoke_info)
         assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel inner_product has an argument "
-                "of type gh_integer" in str(excinfo))
+                "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
+                "an argument of type gh_integer" in str(excinfo))
+
+
+# ------------- Auxiliary mesh code generation function --------------------- #
+
+
+def mesh_code_present(field_str, code):
+    '''This test checks for the existance of mesh code. This exists for
+    all builtins with dm = True (although it is not actually required!) so
+    each test can call this function. Mesh code is generated from the first
+    field in a builtin arguments list, here denoted with field_str.'''
+    assert "      USE mesh_mod, ONLY: mesh_type" in code
+    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
+    output_dm_1 = (
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh => " + field_str + "%get_mesh()\n"
+        "      !\n")
+    assert output_dm_1 in code

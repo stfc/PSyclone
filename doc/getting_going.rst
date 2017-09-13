@@ -53,13 +53,20 @@ as the graphviz package itself.  In order to run the test suite py.test is
 required. The easiest way to satisfy the Python dependencies is to use
 the Python Package Index (pypi.org) and ``pip``. See
 https://packaging.python.org/installing/ for more information.
+Note that some Linux distributions install pip only for python 3 by
+default. In this case it is necessary to install pip for python 2. For
+example in openSUSE 42.2:
+::
+   > zypper install python-pip
+
+and then use pip2.7 instead of pip.
+
 
 System-specific set-up
 ^^^^^^^^^^^^^^^^^^^^^^
 
-System-specific set-up instructions are available for the following systems
-
-* Ubuntu 14.03.3 :ref:`Ubuntu14.03.3`
+:ref:`system_specific_setup` instructions are available for Ubuntu 14.04.2 and
+OpenSUSE 42.2.
 
 fparser
 ^^^^^^^

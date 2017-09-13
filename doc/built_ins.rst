@@ -25,7 +25,7 @@ Example
 .. highlight:: fortran
 
 In the following example, the invoke call includes a call to a built-in
-(``set_field_scalar``) and a user-supplied kernel
+(``setval_c``) and a user-supplied kernel
 (``matrix_vector_kernel_mm_type``). The
 built-in sets all values in the field ``Ax`` to
 ``0.0``. Notice that, unlike the kernel call, no use association is
@@ -45,7 +45,7 @@ required for the built-in since it is provided as part of the environment
     ...
     
     do iter = 1,n_iter
-      call invoke( set_field_scalar(0.0, Ax) )
+      call invoke( setval_c(Ax, 0.0) )
       call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
       ...
     end do
@@ -126,7 +126,7 @@ The existance of a call to a built-in has made no difference at this point:
 
 A vanilla (not optimised) version of the generated PSy layer is given
 below. As expected the kernel code is called from the PSy
-layer. However, in the case of the `set_field_scalar` built-in, the
+layer. However, in the case of the `setval_c` built-in, the
 code for this has been written directly into the PSy layer (the loop
 setting `ax_proxy%data(df) = 0.0`). This example illustrates that
 built-ins may be implemented in whatever way the generator
