@@ -58,7 +58,7 @@ modelling.
 
 See https://github.com/stfc/psyclone for more information.
 '''
-LICENSE='OSI Approved :: BSD 3-Clause License'
+LICENSE = 'OSI Approved :: BSD 3-Clause License'
 
 CLASSIFIERS = [
     'Development Status :: 3 - Alpha',
