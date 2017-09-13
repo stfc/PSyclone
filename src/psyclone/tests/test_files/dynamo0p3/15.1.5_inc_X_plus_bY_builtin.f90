@@ -31,19 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
 program single_invoke
 
-  ! Description: single kernel, single int scalar sum & field reader argument.
-  ! Tests that using incorrect meta-data to perform a reduction into an
-  ! integer variable raises the expected error.
-  use inf, only : i_def
+  ! Description: single point-wise operation (X = X + bY)
+  ! specified in an invoke call.
+  use testkern, only: testkern_type
+  use inf,      only: field_type
   implicit none
-  integer(i_def)   :: isum
   type(field_type) :: f1, f2
+  real(r_def) :: b
 
-  call invoke( X_innerproduct_Y(isum, f1, f2) )
+  b = 0.8
+
+  call invoke( inc_X_plus_bY(f1, b, f2) )
 
 end program single_invoke

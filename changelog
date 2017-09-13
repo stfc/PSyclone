@@ -25,6 +25,10 @@
 	7) #55 and PR #66 Update the documentation to cover installation
 	on systems running OpenSUSE.
 
+	8) #61 and PR #71 Re-name existing Dynamo0.3 builtins to follow
+	a consistent scheme and add support for some new ones (including
+	setval_{c,X}, X_minus_bY etc.). See psyclone.pdf for the full list.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
