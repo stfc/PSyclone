@@ -4599,9 +4599,29 @@ def test_redundant_computation_discontinuous_halo_remove():
     assert "IF (f4_proxy%is_dirty(depth=" not in result
 
 
+def test_halo_stencil_redundant_computation_max_depth_1():
+    '''If a loop contains a kernel with a stencil access and the loop
+    attempts to compute redundantly into the halo to the maximum depth
+    then the stencil will access beyond the halo bounds. This is
+    therefore not allowed and an exception is raised in the
+    DynamoRedundantComputationTrans transformation. This test checks
+    this exception is raised correctly'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "19.1_single_stencil.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    rc_trans = DynamoRedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("In the DynamoRedundantComputation transformation apply method "
+            "the loop contains field 'f2' with a stencil access in kernel "
+            "'testkern_stencil_code', so it is invalid to set redundant "
+            "computation to maximum depth" in str(excinfo.value))
 
 
-def test_halo_stencil_redundant_computation_max_depth():
+def test_halo_stencil_redundant_computation_max_depth_2(monkeypatch):
     '''If a loop contains a kernel with a stencil access and the loop
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
@@ -4613,24 +4633,32 @@ def test_halo_stencil_redundant_computation_max_depth():
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[0]
     loop = schedule.children[3]
-    rc_trans = DynamoRedundantComputationTrans()
-    rc_trans.apply(loop)
+    monkeypatch.setattr(loop, "_upper_bound_index", None)
     with pytest.raises(GenerationError) as excinfo:
-        result = str(psy.gen)
+        result = halo_exchange._compute_halo_info
     assert ("redundant computation to max depth with a stencil is "
             "invalid" in str(excinfo.value))
 
 
+def test_redundant_computation_invalid_depth_type():
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    loop = schedule.children[3]
+    rc_trans = DynamoRedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, depth="2")
+    assert ("the supplied depth should be an integer" in str(excinfo.value))
+    
 # todo
-# tests for uncovered dependence analysis and halo exchange code
 
-# 1 check that depth is an integer when passed - I accidentally passed
-# in a string before and got an unexpected error.
-
-# 2 check at transformation time that we don't go for max depth if there is a stencil? There is currently only a generation-time test.
-
-
+# 1: test that fusion does not work with different known halo depths
+# 2: test that fusion does not work with one known and one max halo depth
 
 # example of redundant computation transformation in action.
 
@@ -4642,3 +4670,5 @@ def test_halo_stencil_redundant_computation_max_depth():
 # changes pass pylint and pep8
 
 # add new issue to add annexed dofs transformation optimisation
+
+# ready for review

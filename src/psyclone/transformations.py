@@ -1226,7 +1226,21 @@ class DynamoRedundantComputationTrans(Transformation):
                         "In the DynamoRedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so this transformation does nothing")
+                for call in node.calls():
+                    for arg in call.arguments.args:
+                        if arg.stencil:
+                            raise TransformationError(
+                                "In the DynamoRedundantComputation "
+                                "transformation apply method the loop "
+                                "contains field '{0}' with a stencil "
+                                "access in kernel '{1}', so it is invalid "
+                                "to set redundant computation to maximum "
+                                "depth".format(arg.name, call.name))
         else:
+            if not isinstance(depth, int):
+                raise TransformationError(
+                    "In the DynamoRedundantComputation transformation apply "
+                    "method the supplied depth should be an integer")
             if depth < 1:
                 raise TransformationError(
                     "In the DynamoRedundantComputation transformation apply "
