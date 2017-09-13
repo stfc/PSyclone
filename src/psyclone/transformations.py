@@ -222,6 +222,16 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                         "be invalid. If you know the spaces are the same then "
                         "please set the 'same_space' optional argument to "
                         "True.")
+            if node1._upper_bound_name != node2._upper_bound_name:
+                raise TransformationError(
+                    "Error in DynamoLoopFuse transformation. The upper bound "
+                    "names are not the same. Found '{0}' and '{1}'".
+                    format(node1._upper_bound_name, node2._upper_bound_name))
+            if node1._upper_bound_index != node2._upper_bound_index:
+                raise TransformationError(
+                    "Error in DynamoLoopFuse transformation. The upper bound "
+                    "indices are not the same. Found '{0}' and '{1}'".
+                    format(node1._upper_bound_index, node2._upper_bound_index))
             from psyGen import MAPPING_SCALARS, MAPPING_REDUCTIONS
             arg_types = MAPPING_SCALARS.values()
             arg_accesses = MAPPING_REDUCTIONS.values()

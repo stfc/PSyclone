@@ -4648,17 +4648,65 @@ def test_redundant_computation_invalid_depth_type():
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     loop = schedule.children[3]
     rc_trans = DynamoRedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth="2")
     assert ("the supplied depth should be an integer" in str(excinfo.value))
-    
-# todo
 
-# 1: test that fusion does not work with different known halo depths
-# 2: test that fusion does not work with one known and one max halo depth
+
+def test_loop_fusion_different_loop_depth():
+    '''We can only loop fuse if two loops iterate over the same entities
+    and iterate over the same depth. The loop fusion transformation
+    raises an exception if this is not the case. This test checks that
+    the exception is raised correctly.'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.6_multikernel_invokes.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # move the halo exchange between the two loops
+    move_trans = MoveTrans()
+    move_trans.apply(schedule.children[7], schedule.children[6])
+    # make the first loop redundantly compute to halo level 3
+    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans.apply(schedule.children[7], depth=3)
+    # try to fuse the loops. This should fail as the depths are different
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:    
+        f_trans.apply(schedule.children[7], schedule.children[8])
+    assert ("Error in DynamoLoopFuse transformation. The upper bound indices "
+            "are not the same. Found '3' and '1'" in str(excinfo.value))
+    # now redundantly compute to the full halo
+    rc_trans.apply(schedule.children[8])
+    # try to fuse the loops. This should fail as the depths are different
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:    
+        f_trans.apply(schedule.children[7], schedule.children[8])
+    assert ("Error in DynamoLoopFuse transformation. The upper bound indices "
+            "are not the same. Found '3' and 'None'" in str(excinfo.value))
+
+
+def test_loop_fusion_different_loop_name():
+    '''We can only loop fuse if two loops iterate over the same entities
+    and iterate over the same depth. The loop fusion transformation
+    raises an exception if this is not the case. This test checks that
+    the exception is raised correctly.'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.12_multikernel_invokes_w3.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans.apply(schedule.children[0], depth=3)
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:    
+        f_trans.apply(schedule.children[1], schedule.children[2])
+    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+            "are not the same. Found 'cell_halo' and 'ncells'")
+    
+
+# todo
 
 # example of redundant computation transformation in action.
 
