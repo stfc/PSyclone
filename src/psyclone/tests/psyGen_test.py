@@ -497,7 +497,7 @@ def test_sched_view(capsys):
     from psyclone import dynamo0p3
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.0_inner_prod_builtin.f90"),
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
