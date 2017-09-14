@@ -1,10 +1,38 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
@@ -68,8 +96,9 @@ def test_kerneltypefactory_create_broken_type():
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
+    test_builtin_name = "aX_plus_Y"
     with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(None, name="axpy")
+        _ = factory.create(None, name=test_builtin_name.lower())
     assert ("KernelTypeFactory: Internal Error: Unsupported kernel type"
             in str(excinfo.value))
 
@@ -79,6 +108,7 @@ def test_broken_builtin_metadata():
     with the meta-data describing the built-ins for a given API '''
     from psyclone import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
+    test_builtin_name = "aX_plus_Y"
     defs_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3", "broken_builtins_mod.f90")
@@ -86,7 +116,7 @@ def test_broken_builtin_metadata():
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
-                           defs_file, name="axpy")
+                           defs_file, name=test_builtin_name.lower())
     assert ("Failed to parse the meta-data for PSyclone built-ins in" in
             str(excinfo.value))
 
@@ -112,10 +142,10 @@ def test_builtin_with_use():
         _, _ = parse(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3",
-                         "15.0.3_builtin_with_use.f90"),
+                         "15.12.2_builtin_with_use.f90"),
             api="dynamo0.3")
     assert ("A built-in cannot be named in a use statement but "
-            "'set_field_scalar' is used from module 'fake_builtin_mod' in "
+            "'setval_c' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
 
 
