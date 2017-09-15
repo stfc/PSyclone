@@ -4644,22 +4644,30 @@ def test_w3_and_inc_error():
 
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
     schedule.view()
     result, _ = capsys.readouterr()
+
+    # Ensure we test for text containing the correct (colour) control codes
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+
     expected = (
-        "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    HaloExchange[field='f2', type='cross', depth=f2_extent, "
+        sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        "    " + exch + "[field='f2', type='cross', depth=f2_extent, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f3', type='region', depth=1, "
+        "    " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f4', type='region', depth=1, "
+        "    " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    Loop[type='',field_space='w1',it_space='cells']\n"
-        "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
+        "    " + loop + "[type='',field_space='w1',it_space='cells']\n"
+        "        " + call + " testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
     print expected
     print result
