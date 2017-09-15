@@ -31,35 +31,32 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
 
-language: python
-python:
-  - 2.7
-# The env section allows us to specify multiple, different environments
-# in which the test suite must be run. The environment variables set
-# here are picked up in the bin/install_optional.sh script.
-env:
-  matrix:
-    - WITH_TERMCOLOR=0
-    - WITH_TERMCOLOR=1
-# command to install dependencies
-before_install:
-  - ./bin/install_optional.sh
-  - pip install coveralls
-install:
-  - "pip install ."
-script:
-  - coverage run --source=psyclone -m py.test
-  - coverage report -m
-after_success:
-  - coveralls
-# Configure travis to deploy to the pypi server when a new
-# version is tagged on master
-deploy:
-  provider: pypi
-  user: "trackstand"
-  password:
-    secure: "kEiFKUygfvS7Q0EpZnx3GwYtwP6CXEfJ0DcUtc3I/73dv8Vn4Kif0LtO3yT8/ED5qepT/5S270K/jmfIStOTOak7aLjePaSESftPg51UxU6cKT6G5N/I3kmN+oqVjXbNXFlVzSBIPphegpNxPKyszeXha0XRZ36gUEjPFbimE5OSz991WLdPNkHiDSMOKkXgRwn5R8328lgbV8AjQKlfrEZCVSYBzUrcuXSaN3z3qrtCDhtY8M+xG3e3KyM3NmEG4hl5Ie4DFfArN4IiR6HMSMvFlZJOOJVMEwueYlfBaZWxwCYUMpShSpM++lM5mJHGXiHe1tCP+EqOvp4ZECQWVhZe+N7O8yDKQxer6xm42aTCv2IEPv2aqQjkvSWebvdzi7uG6fArfSuqVM4WwecgHJzxYnx5BGybVhGXI/8CJjDxnnDu/l91PrYEoh45zgY0G9BJpNmSA1eV5ZjqIUqFE4E2TW7ovW5RA8X9zIk3VA7bsxvT695ymsf12QVTjn3smQTSnrFsEczt/BtYlNS35jMP/N1Ma3b+rP2fIU20sAPjXZs9D6KIJQgYuZQ7l6QRVmSImvt8Evo9fJIPq+92RnM5mLGRpKWosHGItHUp2T4Utymdk98oJbXD4g6SuzFu4tKWXRspjt9x9aLbxW4GLIYnjZ8t48oHXgfBuFUW/sI="
-  on:
-    tags: true
 
+''' Module which performs pytest set-up so that we can specify
+    command-line options '''
+
+import pytest
+
+
+def pytest_addoption(parser):
+    ''' Adds command-line options to py.test '''
+    parser.addoption("--f90", action="store", default="gfortran",
+                     help="The Fortran compiler to use")
+    parser.addoption("--f90flags", action="store", default="",
+                     help="Flags to pass to the Fortran compiler")
+    parser.addoption("--compile", action="store_true", default=False,
+                     help="run tests for code compilation")
+
+
+@pytest.fixture
+def f90(request):
+    ''' Gets the value of the f90 command-line option '''
+    return request.config.getoption("--f90")
+
+
+@pytest.fixture
+def f90flags(request):
+    ''' Gets the value of the f90flags command-line option '''
+    return request.config.getoption("--f90flags")

@@ -31,35 +31,28 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: A. Porter and R. Ford, STFC Daresbury Lab
 
-language: python
-python:
-  - 2.7
-# The env section allows us to specify multiple, different environments
-# in which the test suite must be run. The environment variables set
-# here are picked up in the bin/install_optional.sh script.
-env:
-  matrix:
-    - WITH_TERMCOLOR=0
-    - WITH_TERMCOLOR=1
-# command to install dependencies
-before_install:
-  - ./bin/install_optional.sh
-  - pip install coveralls
-install:
-  - "pip install ."
-script:
-  - coverage run --source=psyclone -m py.test
-  - coverage report -m
-after_success:
-  - coveralls
-# Configure travis to deploy to the pypi server when a new
-# version is tagged on master
-deploy:
-  provider: pypi
-  user: "trackstand"
-  password:
-    secure: "kEiFKUygfvS7Q0EpZnx3GwYtwP6CXEfJ0DcUtc3I/73dv8Vn4Kif0LtO3yT8/ED5qepT/5S270K/jmfIStOTOak7aLjePaSESftPg51UxU6cKT6G5N/I3kmN+oqVjXbNXFlVzSBIPphegpNxPKyszeXha0XRZ36gUEjPFbimE5OSz991WLdPNkHiDSMOKkXgRwn5R8328lgbV8AjQKlfrEZCVSYBzUrcuXSaN3z3qrtCDhtY8M+xG3e3KyM3NmEG4hl5Ie4DFfArN4IiR6HMSMvFlZJOOJVMEwueYlfBaZWxwCYUMpShSpM++lM5mJHGXiHe1tCP+EqOvp4ZECQWVhZe+N7O8yDKQxer6xm42aTCv2IEPv2aqQjkvSWebvdzi7uG6fArfSuqVM4WwecgHJzxYnx5BGybVhGXI/8CJjDxnnDu/l91PrYEoh45zgY0G9BJpNmSA1eV5ZjqIUqFE4E2TW7ovW5RA8X9zIk3VA7bsxvT695ymsf12QVTjn3smQTSnrFsEczt/BtYlNS35jMP/N1Ma3b+rP2fIU20sAPjXZs9D6KIJQgYuZQ7l6QRVmSImvt8Evo9fJIPq+92RnM5mLGRpKWosHGItHUp2T4Utymdk98oJbXD4g6SuzFu4tKWXRspjt9x9aLbxW4GLIYnjZ8t48oHXgfBuFUW/sI="
-  on:
-    tags: true
+''' Module containing configuration required to build code generated
+for the Dynamo0p3 API '''
 
+import os
+
+# constants
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
+# Stub infrastructure modules that allow us to compile the generated
+# PSy code.  These must be listed in the order in which they must
+# be compiled.
+INFRASTRUCTURE_PATH = os.path.join(BASE_PATH, "infrastructure")
+INFRASTRUCTURE_MODULES = ["constants_mod",
+                          "linked_list_data_mod",
+                          "argument_mod",
+                          "kernel_mod",
+                          "partition_mod",
+                          "mesh_mod",
+                          "stencil_dofmap_mod",
+                          "function_space_mod",
+                          "field_mod",
+                          "quadrature_mod",
+                          "operator_mod"]

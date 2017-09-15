@@ -49,13 +49,14 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-import fparser
-from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
     DynGlobalSum
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
+import fparser
+from fparser import api as fpapi
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -578,12 +579,17 @@ def test_unecessary_shape():
             in str(excinfo))
 
 
-def test_field():
+def test_field(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_psy\n"
@@ -4638,22 +4644,30 @@ def test_w3_and_inc_error():
 
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
     schedule.view()
     result, _ = capsys.readouterr()
+
+    # Ensure we test for text containing the correct (colour) control codes
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+
     expected = (
-        "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    HaloExchange[field='f2', type='cross', depth=f2_extent, "
+        sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        "    " + exch + "[field='f2', type='cross', depth=f2_extent, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f3', type='region', depth=1, "
+        "    " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f4', type='region', depth=1, "
+        "    " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    Loop[type='',field_space='w1',it_space='cells']\n"
-        "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
+        "    " + loop + "[type='',field_space='w1',it_space='cells']\n"
+        "        " + call + " testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
     print expected
     print result
