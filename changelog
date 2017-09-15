@@ -29,6 +29,12 @@
 	a consistent scheme and add support for some new ones (including
 	setval_{c,X}, X_minus_bY etc.). See psyclone.pdf for the full list.
 
+	9) #32 and PR #39. Adds the ability to build the generated code
+	when performing python tests. Generated code can now be checked
+	that it compiles as part of the development process helping avoid
+	making releases with errors in them. Note, existing tests still
+	need to be updated.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
