@@ -1,6 +1,15 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -28,34 +37,13 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+module kernel_mod
+implicit none
+private
 
-module testkern
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args =    &
-          (/ arg_type(gh_real, gh_read),     &
-             arg_type(gh_field,gh_write,w1), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w3)  &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_code
-  end type testkern_type
-contains
+type, public, abstract :: kernel_type
+  private
 
-  subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer :: nlayers
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+end type
 
-  end subroutine testkern_code
-end module testkern
+end module kernel_mod

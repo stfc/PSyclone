@@ -919,7 +919,8 @@ class DynamoPSy(PSy):
         '''
         Generate PSy code for the Dynamo0.3 api.
 
-        :rtype: ast
+        :return: Root node of generated Fortran AST
+        :rtype: :py:class:`psyGen.Node`
 
         '''
         from f2pygen import ModuleGen, UseGen
@@ -941,7 +942,7 @@ class DynamoPSy(PSy):
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
         self.inline(psy_module)
-        # return the generated code
+        # Return the root node of the generated code
         return psy_module.root
 
 
