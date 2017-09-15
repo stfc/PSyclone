@@ -49,7 +49,7 @@ import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone import dynamo0p3_builtins
-
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2038,7 +2038,7 @@ def test_X_times_Y_deduce_space():  # pylint: disable=invalid-name
 # ------------- Builtins that pass scalars by value ------------------------- #
 
 
-def test_builtin_set():
+def test_builtin_set(tmpdir, f90, f90flags):
     ''' Tests that we generate correct code for a serial builtin
     setval_c operation with a scalar passed by value'''
     _, invoke_info = parse(
@@ -2050,6 +2050,10 @@ def test_builtin_set():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         if not distmem:
             output_seq = (
                 "    SUBROUTINE invoke_0(f1)\n"
