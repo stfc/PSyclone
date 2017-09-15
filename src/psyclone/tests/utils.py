@@ -181,9 +181,8 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     # built-ins do not have associated Fortran modules.
     from psyclone.psyGen import BuiltIn
     for invoke in psy_ast.invokes.invoke_list:
-        for call in invoke.schedule.calls():
-            if not isinstance(call, BuiltIn):
-                kernel_modules.add(call.module_name)
+        for call in invoke.schedule.kern_calls():
+            kernel_modules.add(call.module_name)
 
     # Change to the temporary directory passed in to us from
     # pytest. (This is a LocalPath object.)

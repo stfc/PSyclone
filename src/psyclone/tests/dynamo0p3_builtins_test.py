@@ -464,7 +464,7 @@ def test_inc_X_plus_Y():  # pylint: disable=invalid-name
             assert output in code
 
 
-def test_aX_plus_Y(tmpdir, f90, f90flags):  # pylint: disable=invalid-name
+def test_aX_plus_Y():  # pylint: disable=invalid-name
     ''' Test that 1) the str method of DynAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields '''
