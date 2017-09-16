@@ -39,6 +39,11 @@
 	representation of a schedule) now outputs coloured text (for
 	easier viewing) if the termcolor package is installed.
 
+	11) #69 and PR #73 setup.py now uses an absolute path to avoid
+	failing tests (with file not found) in some environments when
+	running py.test from a different directory to the tests
+	themselves.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
