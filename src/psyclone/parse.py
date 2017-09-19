@@ -72,6 +72,30 @@ class Descriptor(object):
     def stencil(self):
         return self._stencil
 
+    def _get_mesh(self, metadata, valid_mesh_types):
+        '''
+        Returns the mesh-type described by the supplied meta-data
+        :param  metadata: node in parser ast
+        :type metadata: py:class:`psyclone.expression.NamedArg` 
+        :param valid_mesh_types: List of valid mesh types
+        :type valid_mesh_types: list of strings
+        :return: the name of the mesh
+        :rtype: string
+        :raises ParseError: if the supplied meta-data is not a recognised
+                            mesh identifier
+        '''
+        if not isinstance(metadata, expr.NamedArg) or \
+           metadata.name.lower() != "mesh_arg":
+            raise ParseError(
+                "{0} is not a valid mesh identifier (expected "
+                "mesh_arg=GH_COARSE/FINE)".format(str(metadata)))
+        mesh = metadata.value.lower()
+        if mesh not in valid_mesh_types:
+            raise ParseError("mesh_arg must be one of {0} but got {1}".
+                             format(valid_mesh_types, mesh))
+        return mesh
+
+
     def _get_stencil(self, metadata, valid_types):
 
         ''' Returns stencil_type and stencil_extent as a dictionary

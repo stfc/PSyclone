@@ -101,6 +101,11 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
 
+# These are the valid mesh types that may be specified for a field
+# using the mesh_arg=... meta-data element (for inter-grid kernels that
+# perform prolongation/restriction).
+VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
+
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
                            "ncolours", "cells", "dofs"]
 
@@ -459,17 +464,24 @@ class DynArgDescriptor03(Descriptor):
                                   arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
 
-            # The optional 4th argument is a stencil specification
+            # The optional 4th argument is either a stencil specification
+            # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
                     stencil = self._get_stencil(arg_type.args[3],
                                                 VALID_STENCIL_TYPES)
                 except ParseError as err:
-                    raise ParseError(
-                        "In the dynamo0.3 API the 4th argument of a meta_arg "
-                        "entry must be a valid stencil specification but "
-                        "entry '{0}' raised the following error:".
-                        format(arg_type) + str(err))
+                    try:
+                        mesh = self._get_mesh(arg_type.args[3],
+                                              VALID_MESH_TYPES)
+                    except ParseError as err:
+                        raise ParseError(
+                            "In the dynamo0.3 API the 4th argument of a "
+                            "meta_arg entry must be either a valid stencil "
+                            "specification  or a mesh identifier (for inter-"
+                            "grid kernels). However,  "
+                            "entry '{0}' raised the following error:".
+                            format(arg_type) + str(err))
 
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
