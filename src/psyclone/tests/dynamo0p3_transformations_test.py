@@ -4599,6 +4599,78 @@ def test_redundant_computation_discontinuous_halo_remove():
     assert "IF (f4_proxy%is_dirty(depth=" not in result
 
 
+def test_redundant_computation_reader_halo_remove():
+    '''check that we do not add an unnecessary halo exchange when we
+    increase the depth of halo that a loop computes but the previous loop
+    still computes deep enough into the halo so avoid needing a halo
+    exchange.'''
+
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+
+    rc_trans = DynamoRedundantComputationTrans()
+
+    # redundant computation to avoid halo exchange for f2
+    schedule, _ = rc_trans.apply(schedule.children[1], depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "CALL f2_proxy%halo_exchange(" not in result
+
+    # redundant computation to depth 2 in f2 reader loop should not
+    # cause a new halo exchange as it is still covered by depth=2 in
+    # the writer loop
+    schedule, _ = rc_trans.apply(schedule.children[2], depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "CALL f2_proxy%halo_exchange(" not in result
+
+
+def test_redundant_computation_vector_reader_halo_remove():
+    '''check that we do not add unnecessary halo exchanges for a vector
+    field when we increase the depth of halo that a loop computes but
+    the previous loop still computes deep enough into the halo so
+    avoid needing halo exchanges.'''
+
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    assert "is_dirty" not in result
+    assert "halo_exchange" not in result
+
+    rc_trans = DynamoRedundantComputationTrans()
+
+    # redundant computation for first loop
+    schedule, _ = rc_trans.apply(schedule.children[0], depth=1)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("is_dirty") == 3
+    assert result.count("halo_exchange") == 3
+    
+    # redundant computation in reader loop should not
+    # cause a new halo exchange as it is still covered by depth=1 in
+    # the writer loop
+    schedule, _ = rc_trans.apply(schedule.children[4], depth=1)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("is_dirty") == 3
+    assert result.count("halo_exchange") == 3
+
+
 def test_halo_stencil_redundant_computation_max_depth_1():
     '''If a loop contains a kernel with a stencil access and the loop
     attempts to compute redundantly into the halo to the maximum depth
@@ -4708,7 +4780,7 @@ def test_loop_fusion_different_loop_name():
 
 # todo
 
-# example of redundant computation transformation in action.
+# fix halo exchange removal bug
 
 # documentation on redundant computation transformation.
 #   Include constraint info on no transformations

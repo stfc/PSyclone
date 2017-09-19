@@ -33,7 +33,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Porter, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
 #------------------------------------------------------------------------------
 
 '''A PSyclone transformation script which performs redundant

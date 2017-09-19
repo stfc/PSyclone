@@ -2825,10 +2825,15 @@ class DynLoop(Loop):
 
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add a halo exchange call immediately
-        before this loop. Use the halo_field argument for the
-        associated field information and the depth argument for the
-        required depth of the halo. If the field is a vector then add
-        the appropriate number of halo exchange calls.'''
+        before this loop using the halo_field argument for the
+        associated field information. If the field is a vector then
+        add the appropriate number of halo exchange calls. In certain
+        situations the halo exchange will not be required. This is
+        dealt with by adding the halo exchange, asking it if it is
+        required and then removing it if it is not. This may seem
+        strange but the logic for determining whether a halo exchange
+        is required is within the halo exchange class so it is
+        simplest to do it this way'''
 
         if halo_field.vector_size > 1:
             # the range function below returns values from
@@ -2840,10 +2845,24 @@ class DynLoop(Loop):
                                            vector_index=idx)
                 self.parent.children.insert(self.position,
                                             exchange)
+                # check whether this halo exchange has been placed
+                # here correctly and if not, remove it.
+                write_dependencies = exchange.field.\
+                                     backward_write_dependencies()
+                if len(write_dependencies) > 0:
+                    if not exchange.required:
+                        exchange.parent.children.remove(exchange)
         else:
             exchange = DynHaloExchange(halo_field,
                                        parent=self.parent)
             self.parent.children.insert(self.position, exchange)
+
+            # check whether this halo exchange has been placed here
+            # correctly and if not, remove it.
+            write_dependencies = exchange.field.backward_write_dependencies()
+            if len(write_dependencies) > 0:
+                if not exchange.required:
+                    exchange.parent.children.remove(exchange)
 
     def update_halo_exchanges(self):
         '''add and/or remove halo exchanges due to changes in the loops
@@ -2871,13 +2890,18 @@ class DynLoop(Loop):
                                     halo_exchange)
 
     def create_halo_exchanges(self):
-        '''add initial halo exchanges before this loop as required by fields
-        within this loop. This can be kept simple as we know that any
-        field that accesses the halo will require a halo exchange at
-        this point'''
+        '''Add halo exchanges before this loop as required by fields within
+        this loop. To keep the logic simple we assume that any field
+        that accesses the halo will require a halo exchange and then
+        remove the halo exchange if this is not the case (when
+        previous writers perform sufficient redundant computation). It
+        is implemented this way as the halo exchange class determines
+        whether it is required or not so a halo exchange needs to
+        exist in order to find out. The appropriate logic is coded in
+        the _add_halo_exchange helper method. '''
         for halo_field in self.unique_fields_with_halo_reads():
-            # for each unique field in this loop that requires a halo exchange
-            # find the previous write to this field
+            # for each unique field in this loop that requires a halo
+            # exchange find the previous write to this field
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
