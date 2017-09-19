@@ -4602,7 +4602,7 @@ def test_redundant_computation_discontinuous_halo_remove():
 def test_redundant_computation_reader_halo_remove():
     '''check that we do not add an unnecessary halo exchange when we
     increase the depth of halo that a loop computes but the previous loop
-    still computes deep enough into the halo so avoid needing a halo
+    still computes deep enough into the halo to avoid needing a halo
     exchange.'''
 
     _, info = parse(os.path.join(BASE_PATH,
@@ -4638,7 +4638,7 @@ def test_redundant_computation_reader_halo_remove():
 def test_redundant_computation_vector_reader_halo_remove():
     '''check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
-    the previous loop still computes deep enough into the halo so
+    the previous loop still computes deep enough into the halo to
     avoid needing halo exchanges.'''
 
     _, info = parse(os.path.join(BASE_PATH,
