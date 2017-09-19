@@ -2,6 +2,7 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -30,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -311,7 +313,7 @@ def test_no_colour_dofs():
     cells. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "15_single_pointwise_invoke.f90"),
+                                 "15.12.3_single_pointwise_builtin.f90"),
                     api=TEST_API)
     ctrans = Dynamo0p3ColourTrans()
     for dist_mem in [False, True]:
@@ -1273,7 +1275,7 @@ def test_builtin_single_OpenMP_pdo():
     applied to a single builtin'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.2.0_copy_field_builtin.f90"),
+                                     "15.7.2_setval_X_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1302,7 +1304,7 @@ def test_builtin_single_OpenMP_pdo():
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do") in result
@@ -1313,7 +1315,7 @@ def test_builtin_multiple_OpenMP_pdo():
     applied to multiple builtins'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1390,7 +1392,7 @@ def test_builtin_loop_fuse_pdo():
     is safe to loop fuse. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1440,7 +1442,7 @@ def test_builtin_single_OpenMP_do():
     OpenMP parallel) is applied to a single builtin '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.2.0_copy_field_builtin.f90"),
+                                     "15.7.2_setval_X_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1477,7 +1479,7 @@ def test_builtin_single_OpenMP_do():
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
@@ -1489,7 +1491,7 @@ def test_builtin_multiple_OpenMP_do():
     applied to multiple builtins'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1576,7 +1578,7 @@ def test_builtin_loop_fuse_do():
     perform loop fusion. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1637,7 +1639,7 @@ def test_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1677,7 +1679,7 @@ def test_reduction_real_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1721,7 +1723,7 @@ def test_multi_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.11.0_two_same_builtin_reductions.f90"),
+                         "15.15.1_two_same_builtin_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1791,7 +1793,7 @@ def test_reduction_after_normal_real_do():
     '''test that we produce correct code when we have a reduction after
     a "normal" builtin and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls'''
-    file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
+    file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -1867,8 +1869,7 @@ def test_reprod_reduction_after_normal_real_do():
     '''test that we produce correct code when we have a reproducible
     reduction after a "normal" builtin and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls'''
-
-    file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
+    file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -1967,7 +1968,7 @@ def test_two_reductions_real_do():
     builtin with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
     single parallel region over all calls '''
-    file_name = "15.12.0_two_different_builtin_reductions.f90"
+    file_name = "15.16.1_two_different_builtin_reductions.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -2046,7 +2047,7 @@ def test_two_reprod_reductions_real_do():
     builtin with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls'''
-    file_name = "15.12.0_two_different_builtin_reductions.f90"
+    file_name = "15.16.1_two_different_builtin_reductions.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -2160,7 +2161,7 @@ def test_multi_reduction_same_name_real_do():
     '''test that we raise an exception when we have multiple reductions in
     an invoke with the same name as this is not supported (it would
     cause incorrect code to be created in certain cases). '''
-    file_name = "15.11.0_two_same_builtin_reductions.f90"
+    file_name = "15.15.1_two_same_builtin_reductions.f90"
     for reprod in [True, False]:
         for distmem in [False, True]:
             _, invoke_info = parse(
@@ -2198,8 +2199,8 @@ def test_multi_reduction_real_fuse():
     '''test that we raise an exception when we loop fuse two kernels with
     reductions. We need to specify that the loop-fuse is valid in terms of
     iteration spaces.'''
-    for file_name in ["15.11.0_two_same_builtin_reductions.f90",
-                      "15.12.0_two_different_builtin_reductions.f90"]:
+    for file_name in ["15.15.1_two_same_builtin_reductions.f90",
+                      "15.16.1_two_different_builtin_reductions.f90"]:
 
         for distmem in [False, True]:
             _, invoke_info = parse(
@@ -2229,11 +2230,11 @@ def test_multi_reduction_real_fuse():
 
 def test_multi_different_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
-    two different builtins. We use inner product and sum_field'''
+    two different builtins. We use inner product and sum_X'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.12.0_two_different_builtin_reductions.f90"),
+                         "15.16.1_two_different_builtin_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2307,7 +2308,7 @@ def test_multi_builtins_reduction_then_standard_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2339,15 +2340,15 @@ def test_multi_builtins_reduction_then_standard_pdo():
                 "      asum = global_sum%get_sum()\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
-                "      CALL bsum_proxy%set_dirty()\n") in code
+                "      CALL f1_proxy%set_dirty()\n") in code
         else:
             assert (
                 "      ! Zero summation variables\n"
@@ -2362,8 +2363,8 @@ def test_multi_builtins_reduction_then_standard_pdo():
                 "      !$omp end parallel do\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bsum\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
 
@@ -2374,7 +2375,7 @@ def test_multi_builtins_reduction_then_standard_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2410,8 +2411,8 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -2419,7 +2420,7 @@ def test_multi_builtins_reduction_then_standard_do():
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -2438,8 +2439,8 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bsum\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
@@ -2453,7 +2454,7 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2483,14 +2484,14 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in code
@@ -2504,7 +2505,7 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
 
@@ -2517,7 +2518,7 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2547,7 +2548,7 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -2555,7 +2556,7 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -2569,7 +2570,7 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
@@ -2581,7 +2582,7 @@ def test_multi_builtins_standard_then_reduction_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2653,7 +2654,7 @@ def test_multi_builtins_standard_then_reduction_fuse_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2712,7 +2713,7 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2779,7 +2780,7 @@ def test_multi_builtins_fuse_error():
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.0_builtins_reduction_fuse_error.f90"),
+                     "15.18.1_builtins_reduction_fuse_error.f90"),
         distributed_memory=False,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
@@ -2802,7 +2803,7 @@ def test_loop_fuse_error():
     the loops has an any_space iteration space'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -2824,7 +2825,7 @@ def test_reprod_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2846,7 +2847,7 @@ def test_reprod_reduction_real_do():
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2932,7 +2933,7 @@ def test_no_global_sum_in_parallel_region():
     for distmem in [True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2962,7 +2963,7 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3014,8 +3015,8 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -3023,7 +3024,7 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -3051,8 +3052,8 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bsum\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -3073,7 +3074,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3121,7 +3122,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
@@ -3129,7 +3130,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -3154,7 +3155,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -3175,7 +3176,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3260,7 +3261,7 @@ def test_reprod_three_builtins_two_reductions_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.16.0_three_builtins_two_reductions.f90"),
+                         "15.19.1_three_builtins_two_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3349,11 +3350,19 @@ def test_reprod_three_builtins_two_reductions_do():
 def test_reprod_view(capsys):
     '''test that we generate a correct view() for OpenMP do reductions '''
     from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
+    from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
+
+    # Ensure we check to text containing the correct (colour) control codes
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+    gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.16.0_three_builtins_two_reductions.f90"),
+                         "15.19.1_three_builtins_two_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3374,48 +3383,48 @@ def test_reprod_view(capsys):
         result, _ = capsys.readouterr()
         if distmem:
             expected = (
-                "Schedule[invoke='invoke_0' dm=True]\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs', upper_bound='ndofs']\n"
-                "                Call inner_product(f1,f2,asum)\n"
-                "    GlobalSum[scalar='asum']\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs', upper_bound='ndofs']\n"
-                "                Call scale_field(f1,asum)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs', upper_bound='ndofs']\n"
-                "                Call sum_field(f2,bsum)\n"
-                "    GlobalSum[scalar='bsum']\n")
+                sched + "[invoke='invoke_0' dm=True]\n"
+                "    " + directive+"[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+                "    " + gsum + "[scalar='asum']\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "                " + call + " inc_a_times_x(asum,f1)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "                " + call + " sum_x(bsum,f2)\n"
+                "    " + gsum + "[scalar='bsum']\n")
         else:
             expected = (
-                "Schedule[invoke='invoke_0' dm=False]\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs', upper_bound='ndofs']\n"
-                "                Call inner_product(f1,f2,asum)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs', upper_bound='ndofs']\n"
-                "                Call scale_field(f1,asum)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs', upper_bound='ndofs']\n"
-                "                Call sum_field(f2,bsum)\n")
-
-        print "Expected ..."
-        print expected
-        print "Found ..."
-        print result
-        assert expected in result
+                sched + "[invoke='invoke_0' dm=False]\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "                " + call + " inc_a_times_x(asum,f1)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "                " + call + " sum_x(bsum,f2)\n")
+        if expected not in result:
+            print "Expected ..."
+            print expected
+            print "Found ..."
+            print result
+            assert 0
 
 
 def test_reductions_reprod():
@@ -3425,7 +3434,7 @@ def test_reductions_reprod():
         for distmem in [True, False]:
             _, invoke_info = parse(
                 os.path.join(BASE_PATH,
-                             "15.9.0_inner_prod_builtin.f90"),
+                             "15.9.1_X_innerproduct_Y_builtin.f90"),
                 distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory("dynamo0.3",
@@ -3442,9 +3451,9 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert len(schedule.reductions(reprod=not reprod)) == 0
             assert len(schedule.reductions()) == 1
-            from psyclone.dynamo0p3_builtins import DynInnerProductKern
+            from psyclone.dynamo0p3_builtins import DynXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               DynInnerProductKern))
+                               DynXInnerproductYKern))
 
 
 def test_list_multiple_reductions():
@@ -3456,7 +3465,7 @@ def test_list_multiple_reductions():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3472,11 +3481,11 @@ def test_list_multiple_reductions():
         invoke.schedule = schedule
         omp_loop_directive = schedule.children[0].children[0]
         call = omp_loop_directive.children[0].children[0]
-        arg = call.arguments.args[1]
+        arg = call.arguments.args[2]
         arg._type = "gh_real"
         arg.descriptor._access = "gh_sum"
         result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:f2), reduction(+:asum)" in result
+        assert ", reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():
@@ -3513,7 +3522,7 @@ def test_move_back():
     '''Test that MoveTrans moves the node backwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3536,7 +3545,7 @@ def test_move_back_after():
     '''Test that MoveTrans moves the node backwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3560,7 +3569,7 @@ def test_move_forward():
     '''Test that MoveTrans moves the node forwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3585,7 +3594,7 @@ def test_move_forward_after():
     '''Test that MoveTrans moves the node forwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3611,7 +3620,8 @@ def test_move_forward_after():
 def test_move_fail():
     '''Test that MoveTrans fails to move the node backwards and forwards
     if there is a dependence. '''
-    _, info = parse(os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.14.1_multi_aX_plus_Y_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]

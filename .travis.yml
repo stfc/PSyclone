@@ -35,8 +35,16 @@
 language: python
 python:
   - 2.7
+# The env section allows us to specify multiple, different environments
+# in which the test suite must be run. The environment variables set
+# here are picked up in the bin/install_optional.sh script.
+env:
+  matrix:
+    - WITH_TERMCOLOR=0
+    - WITH_TERMCOLOR=1
 # command to install dependencies
 before_install:
+  - ./bin/install_optional.sh
   - pip install coveralls
 install:
   - "pip install ."

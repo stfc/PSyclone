@@ -4,7 +4,7 @@
         and optimisations.
 
 	2) #16 and PR #29 Update and add new PSyclone-generated builtins
-	to support the functionaliity required by the current LFRic code.
+	to support the functionality required by the current LFRic code.
 
         3) #43 and PR #44 Update of Met Office-specific install script to
 	symlink the generator.py file rather than copy it.
@@ -21,6 +21,28 @@
 	automatically uploaded to pypi (via travis) and status badges can
 	now be used so have been added to the README.md file (which is
 	shown on the main github page).
+
+	7) #55 and PR #66 Update the documentation to cover installation
+	on systems running OpenSUSE.
+
+	8) #61 and PR #71 Re-name existing Dynamo0.3 builtins to follow
+	a consistent scheme and add support for some new ones (including
+	setval_{c,X}, X_minus_bY etc.). See psyclone.pdf for the full list.
+
+	9) #32 and PR #39 Adds the ability to build the generated code
+	when performing python tests. Generated code can now be checked
+	that it compiles as part of the development process helping avoid
+	making releases with errors in them. Note, existing tests still
+	need to be updated.
+
+	10) #54 and PR #63 The view() method (used to look at the internal
+	representation of a schedule) now outputs coloured text (for
+	easier viewing) if the termcolor package is installed.
+
+	11) #69 and PR #73 setup.py now uses an absolute path to avoid
+	failing tests (with file not found) in some environments when
+	running py.test from a different directory to the tests
+	themselves.
 
 release 1.4.1
 

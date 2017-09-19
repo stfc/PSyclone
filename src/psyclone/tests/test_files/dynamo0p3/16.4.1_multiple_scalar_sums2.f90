@@ -1,16 +1,50 @@
-!-------------------------------------------------------------
-! (c) Copyright Science and Technology Facilities Council 2016
-!-------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2017, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke
 
-  ! Description: single kernel, multiple scalar sums & field writer argument
+  ! Description: invokes a single built-in kernel that claims to perform
+  ! two reduction operations (forbidden in the Dynamo 0.3 API) and then
+  ! write to a field. Must be used with the fake kernel meta-data in
+  ! multi_reduction_builtins_mod.f90.
   use inf, only : r_def
   implicit none
-  integer(r_def)   :: rsum1, rsum2
+  real(r_def)   :: rsum1, rsum2
   type(field_type) :: f1
 
-  call invoke( inner_product(rsum1, rsum2, f1) )
+  call invoke( X_innerproduct_Y(f1, rsum1, rsum2) )
 
 end program single_invoke
