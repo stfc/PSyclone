@@ -141,9 +141,11 @@ def test_only_field_args():
         "mesh_arg=GH_FINE   ), &\n"
         "       arg_type(GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
+    print code
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("an inter-grid kernel must have only field arguments but kernel "
-            "xxx has an argument of type GH_RSCALAR" in str(excinfo))
+    assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
+            "have field arguments but kernel restrict_kernel_type also has "
+            "arguments of type ['gh_real']" in str(excinfo))

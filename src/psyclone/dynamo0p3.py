@@ -730,6 +730,10 @@ class DynKernMetadata(KernelType):
         write_count = 0
         # List of meshes associated with arguments (for inter-grid kernels)
         mesh_list = set()
+        # If this is an inter-grid kernel then it must only have field
+        # arguments. Keep a record of any non-field arguments for the benefit
+        # of a verbose error message.
+        non_field_arg_types = set()
         for arg in self._arg_descriptors:
             if arg.access != "gh_read":
                 write_count += 1
@@ -742,9 +746,12 @@ class DynKernMetadata(KernelType):
                         "write/update a scalar argument but kernel {0} has "
                         "{1} with {2} access".format(self.name,
                                                      arg.type, arg.access))
-                if arg.type == "gh_field":
-                    if arg.mesh:
-                        mesh_list.add(arg.mesh)
+            # Collect info so that we can check inter-grid kernels
+            if arg.type == "gh_field":
+                if arg.mesh:
+                    mesh_list.add(arg.mesh)
+            else:
+                non_field_arg_types.add(arg.type)
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -768,6 +775,7 @@ class DynKernMetadata(KernelType):
 
         # Checks for inter-grid kernels
         if mesh_list:
+            # Convert set to a list so we can index into it
             mesh_list = list(mesh_list)
             if len(mesh_list) == 1:
                 raise ParseError(
@@ -775,6 +783,13 @@ class DynKernMetadata(KernelType):
                     "least one field argument on each of the fine and coarse "
                     "meshes. However, kernel {0} has arguments only on mesh "
                     "{1}".format(self.name, mesh_list[0]))
+            # Inter-grid kernels must only have field arguments
+            if non_field_arg_types:
+                raise ParseError(
+                    "Inter-grid kernels in the Dynamo 0.3 API are only "
+                    "permitted to have field arguments but kernel {0} also "
+                    "has arguments of type {1}".format(
+                        self.name, list(non_field_arg_types)))
 
     def _identify_cma_op(self, cwise_ops):
         '''Identify and return the type of CMA-operator-related operation
