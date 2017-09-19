@@ -55,10 +55,18 @@ class ParseError(Exception):
 
 class Descriptor(object):
     """A description of how a kernel argument is accessed"""
-    def __init__(self, access, space, stencil=None):
+    def __init__(self, access, space, stencil=None, mesh=None):
+        '''
+        :param string access: whether argument is read/write etc.
+        :param string space: which function space/grid-point type
+                             argument is on
+        :param dict stencil: type of stencil access for this argument
+        :param string mesh: which mesh this argument is on
+        '''
         self._access = access
         self._space = space
         self._stencil = stencil
+        self._mesh = mesh
 
     @property
     def access(self):
@@ -71,6 +79,14 @@ class Descriptor(object):
     @property
     def stencil(self):
         return self._stencil
+
+    @property
+    def mesh(self):
+        '''
+        :return: the mesh the argument is on (or None)
+        :rtype: string
+        '''
+        return self._mesh
 
     def _get_mesh(self, metadata, valid_mesh_types):
         '''

@@ -441,6 +441,7 @@ class DynArgDescriptor03(Descriptor):
                                             self._access_descriptor.name,
                                             arg_type))
         stencil = None
+        mesh = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
                 raise ParseError(
@@ -468,6 +469,10 @@ class DynArgDescriptor03(Descriptor):
             # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
+                    # TODO we call parse.Descriptor._get_stencil() here
+                    # and then pass the resulting stencil object to
+                    # parse.Descriptor.__init__ somewhere below. This seems
+                    # odd.
                     stencil = self._get_stencil(arg_type.args[3],
                                                 VALID_STENCIL_TYPES)
                 except ParseError as err:
@@ -531,7 +536,8 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
         Descriptor.__init__(self, self._access_descriptor.name,
-                            self._function_space1, stencil=stencil)
+                            self._function_space1, stencil=stencil,
+                            mesh=mesh)
 
     @property
     def function_space_to(self):
@@ -722,6 +728,8 @@ class DynKernMetadata(KernelType):
         from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
+        # List of meshes associated with arguments (for inter-grid kernels)
+        mesh_list = set()
         for arg in self._arg_descriptors:
             if arg.access != "gh_read":
                 write_count += 1
@@ -734,6 +742,9 @@ class DynKernMetadata(KernelType):
                         "write/update a scalar argument but kernel {0} has "
                         "{1} with {2} access".format(self.name,
                                                      arg.type, arg.access))
+                if arg.type == "gh_field":
+                    if arg.mesh:
+                        mesh_list.add(arg.mesh)
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -754,6 +765,16 @@ class DynKernMetadata(KernelType):
                                        arg_types=["gh_columnwise_operator"])
         if cwise_ops:
             self._cma_operation = self._identify_cma_op(cwise_ops)
+
+        # Checks for inter-grid kernels
+        if mesh_list:
+            mesh_list = list(mesh_list)
+            if len(mesh_list) == 1:
+                raise ParseError(
+                    "Inter-grid kernels in the Dynamo 0.3 API must have at "
+                    "least one field argument on each of the fine and coarse "
+                    "meshes. However, kernel {0} has arguments only on mesh "
+                    "{1}".format(self.name, mesh_list[0]))
 
     def _identify_cma_op(self, cwise_ops):
         '''Identify and return the type of CMA-operator-related operation

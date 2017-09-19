@@ -82,15 +82,19 @@ def test_all_args_same_mesh_error():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels must have at least one field argument"
-            "on both the fine and coarse meshes but " in str(excinfo))
+    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
+            "one field argument on each of the fine and coarse meshes. "
+            "However, kernel restrict_kernel_type has arguments only on "
+            "mesh gh_fine" in str(excinfo))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels must have at least one field argument"
-            "on both the fine and coarse meshes but " in str(excinfo))
+    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
+            "one field argument on each of the fine and coarse meshes. "
+            "However, kernel restrict_kernel_type has arguments only on "
+            "mesh gh_coarse" in str(excinfo))
 
 
 def test_one_coarse_one_fine():
@@ -109,8 +113,7 @@ def test_one_coarse_one_fine():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels must have at least one field argument"
-            "on both the fine and coarse meshes but " in str(excinfo))
+    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least one field argument on each of the fine and coarse meshes. However, kernel restrict_kernel_type has arguments only on mesh gh_coarse" in str(excinfo))
 
 
 def test_args_same_space_error():
@@ -136,7 +139,7 @@ def test_only_field_args():
         "mesh_arg=GH_FINE   )  &",
         "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
         "mesh_arg=GH_FINE   ), &\n"
-        "       arg_type(GH_RSCALAR, GH_READ) &", 1)
+        "       arg_type(GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
