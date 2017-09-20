@@ -104,7 +104,8 @@ class Descriptor(object):
            metadata.name.lower() != "mesh_arg":
             raise ParseError(
                 "{0} is not a valid mesh identifier (expected "
-                "mesh_arg=GH_COARSE/FINE)".format(str(metadata)))
+                "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
+                format(str(metadata), valid_mesh_types))
         mesh = metadata.value.lower()
         if mesh not in valid_mesh_types:
             raise ParseError("mesh_arg must be one of {0} but got {1}".

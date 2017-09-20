@@ -72,6 +72,20 @@ end module restrict_mod
 '''
 
 
+def test_invalid_mesh_type():
+    ''' Check that we raise an error if an unrecognised name is supplied
+    for the mesh associated with a field argument '''
+    fparser.logging.disable('CRITICAL')
+    code = RESTRICT_MDATA.replace("GH_COARSE", "GH_RUBBISH", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "restrict_kernel_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("mesh_arg must be one of [\\'gh_coarse\\', "
+            "\\'gh_fine\\'] but got gh_rubbish" in str(excinfo))
+
+
 def test_all_args_same_mesh_error():
     ''' Check that we reject a kernel if all arguments are specified
     as being on the same mesh (coarse or fine) '''
@@ -97,23 +111,25 @@ def test_all_args_same_mesh_error():
             "mesh gh_coarse" in str(excinfo))
 
 
-def test_one_coarse_one_fine():
-    ''' Check that we reject a kernel if it does not have at least one
-    argument on the fine mesh and one on the coarse mesh '''
-    # Remove one of the mesh specifiers altogether
-    code = RESTRICT_MDATA.replace(", mesh_arg=GH_COARSE", "", 1)
+def test_all_fields_have_mesh():
+    ''' Check that we reject an inter-grid kernel if any of its field
+    arguments are missing a mesh specifier '''
+    # Add a field argument that is missing a mesh_arg specifier
+    code = RESTRICT_MDATA.replace(
+        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
+        "mesh_arg=GH_FINE   )  &",
+        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
+        "mesh_arg=GH_FINE   ), &\n"
+        "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2) &\n", 1)
+    code = code.replace("(2)", "(3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels must have at least one field argument"
-            "on both the fine and coarse meshes but " in str(excinfo))
-    # Remove the fine-grid specifier
-    code = RESTRICT_MDATA.replace(", mesh_arg=GH_FINE", "", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least one field argument on each of the fine and coarse meshes. However, kernel restrict_kernel_type has arguments only on mesh gh_coarse" in str(excinfo))
+    assert ("Inter-grid kernels in the Dynamo 0.3 API must specify which "
+            "mesh each field argument "
+            "is on but kernel restrict_kernel_type has at least one field "
+            "argument for which mesh_arg is missing." in str(excinfo))
 
 
 def test_args_same_space_error():
@@ -125,8 +141,10 @@ def test_args_same_space_error():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("arguments on different meshes must be on different function "
-            "spaces but " in str(excinfo))
+    assert ("inter-grid kernels must be on different function spaces if they "
+            "are on different meshes. However kernel restrict_kernel_type "
+            "has a field on function space(s) ['any_space_1'] on each of the "
+            "mesh types ['gh_coarse', 'gh_fine']." in str(excinfo))
 
 
 def test_only_field_args():
