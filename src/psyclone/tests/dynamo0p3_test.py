@@ -3825,7 +3825,8 @@ def test_field_metadata_too_many_arguments():
 
 def test_invalid_stencil_form_1():
     '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by being a literal integer'''
+    stencil(<type>[,<extent>]) format by being a literal integer or
+    just "stencil" '''
     result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
@@ -3833,6 +3834,14 @@ def test_invalid_stencil_form_1():
     assert "entry must be either a valid stencil specification" \
         in str(excinfo.value)
     assert "Unrecognised meta-data entry" in str(excinfo.value)
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be either a valid stencil specification" \
+        in str(excinfo.value)
+    assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
+        in str(excinfo.value)
 
 
 def test_invalid_stencil_form_2():

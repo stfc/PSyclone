@@ -84,6 +84,20 @@ def test_invalid_mesh_type():
             "\\'gh_fine\\'] but got gh_rubbish" in str(excinfo))
 
 
+def test_invalid_mesh_specifier():
+    ''' Check that we raise an error if "mesh_arg" is mis-spelt '''
+    fparser.logging.disable('CRITICAL')
+    code = RESTRICT_MDATA.replace("mesh_arg=GH_COARSE",
+                                  "mesh_ar=GH_COARSE", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "restrict_kernel_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    print str(excinfo)
+    assert ("mesh_ar=gh_coarse is not a valid mesh identifier" in
+            str(excinfo))
+
+
 def test_all_args_same_mesh_error():
     ''' Check that we reject a kernel if all arguments are specified
     as being on the same mesh (coarse or fine) '''

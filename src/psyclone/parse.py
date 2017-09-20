@@ -121,14 +121,6 @@ def get_stencil(metadata, valid_types):
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found {0}".
             format(metadata))
-    if len(metadata.args) == 0:
-        # this check is unreachable as the tokeniser fails
-        # (currently at line 394 of this file) when no arguments
-        # are supplied.
-        raise ParseError(
-            "Expecting format stencil(<type>[,<extent>]) but there must "
-            "be at least one argument inside the brackets {0}".
-            format(metadata))
     if len(metadata.args) > 2:
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but there must "
