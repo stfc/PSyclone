@@ -212,8 +212,8 @@ def test_duplicate_named_invoke():
 
 
 def test_get_stencil():
-    ''' Check that parse.get_stencil() raises the correct error when
-    passed a literal instead of a function/variable '''
+    ''' Check that parse.get_stencil() raises the correct errors when
+    passed various incorrect inputs '''
     from psyclone.parse import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     node = ExpressionNode(["1"])
@@ -225,4 +225,12 @@ def test_get_stencil():
     with pytest.raises(ParseError) as excinfo:
         _ = get_stencil(node, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
+            in str(excinfo))
+    node = FunctionVar(["stencil", "cross"])
+    # Deliberately break the args member of node in order to trigger an
+    # internal error
+    node.args = [True]
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("expecting either FunctionVar or str from the expression analyser"
             in str(excinfo))
