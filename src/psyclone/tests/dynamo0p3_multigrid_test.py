@@ -45,18 +45,16 @@
 # about such accesses
 # pylint: disable=protected-access
 
-# imports
-import os
 import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.parse import parse, ParseError
+from psyclone.parse import ParseError
 
 RESTRICT_MDATA = '''
 module restrict_mod
 type, public, extends(kernel_type) :: restrict_kernel_type
-   private 
+   private
    type(arg_type) :: meta_args(2) = (/                                 &
        arg_type(GH_FIELD, GH_INC, ANY_SPACE_1, mesh_arg=GH_COARSE),    &
        arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, mesh_arg=GH_FINE   )  &
