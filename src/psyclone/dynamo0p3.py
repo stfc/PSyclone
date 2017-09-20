@@ -472,21 +472,25 @@ class DynArgDescriptor03(Descriptor):
                     # TODO we call parse.Descriptor._get_stencil() here
                     # and then pass the resulting stencil object to
                     # parse.Descriptor.__init__ somewhere below. This seems
-                    # odd.
-                    stencil = self._get_stencil(arg_type.args[3],
-                                                VALID_STENCIL_TYPES)
-                except ParseError as err:
-                    try:
+                    # odd. Especially since parsing the stencil or mesh
+                    # entry is specific to the Dynamo 0.3 API. I think
+                    # we have an old SRS ticket about this.
+                    if "stencil" in str(arg_type.args[3]):
+                        stencil = self._get_stencil(arg_type.args[3],
+                                                    VALID_STENCIL_TYPES)
+                    elif "mesh" in str(arg_type.args[3]):
                         mesh = self._get_mesh(arg_type.args[3],
                                               VALID_MESH_TYPES)
-                    except ParseError as err:
-                        raise ParseError(
-                            "In the dynamo0.3 API the 4th argument of a "
-                            "meta_arg entry must be either a valid stencil "
-                            "specification  or a mesh identifier (for inter-"
-                            "grid kernels). However, "
-                            "entry {0} raised the following error: {1}".
-                            format(arg_type, str(err)))
+                    else:
+                        raise ParseError("Unrecognised meta-data entry")
+                except ParseError as err:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a "
+                        "meta_arg entry must be either a valid stencil "
+                        "specification  or a mesh identifier (for inter-"
+                        "grid kernels). However, "
+                        "entry {0} raised the following error: {1}".
+                        format(arg_type, str(err)))
 
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
