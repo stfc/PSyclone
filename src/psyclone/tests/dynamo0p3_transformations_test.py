@@ -4093,7 +4093,7 @@ def test_redundant_computation_dofs_depth():
     transformation with a fixed value for halo depth where the halo
     fields have no previous dependence'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.4_inc_axpy_invoke.f90"),
+                                 "15.1.2_inc_X_plus_Y_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4121,7 +4121,7 @@ def test_redundant_computation_dofs_no_depth():
     transformation with no halo depth value where the halo fields have
     no previous dependence'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.4_inc_axpy_invoke.f90"),
+                                 "15.1.2_inc_X_plus_Y_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4254,7 +4254,7 @@ def test_dofs_no_set_clean():
     a loop over dofs. This is probably covered from tests in
     dynamo0p3_builtins_test.py but it is good to have a specific test'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.1_single_builtin_set_by_ref.f90"),
+                                 "15.7.1_setval_c_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)

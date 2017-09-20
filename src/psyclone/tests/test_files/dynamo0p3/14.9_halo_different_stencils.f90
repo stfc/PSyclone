@@ -52,7 +52,7 @@ program halo_different_stencils
   integer :: f2_direction=y_direction
 
   call invoke(                                                       &
-       set_field_scalar(0.0, f2),                                    &
+       setval_c(f2, 0.0),                                            &
        ! f1 is w3 and is written to
        ! f2 is w2 and is read with stencil cross
        testkern_stencil_w3_type(f1,f2,f2_extent),                    &

@@ -7,10 +7,10 @@ program single_invoke_annexed
   type(field_type) :: f1, f2, m1, m2
   real(r_def) :: a
 
-  call invoke(                        &
-       set_field_scalar(0.0,f1),      &
-       set_field_scalar(0.0,f2),      &
-       testkern_w3_type(a,f1,f2,m1,m2)   &
+  call invoke(                         &
+       setval_c(f1,0.0),               &
+       setval_c(f2,0.0),               &
+       testkern_w3_type(a,f1,f2,m1,m2) &
           )
 
 end program single_invoke_annexed

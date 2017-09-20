@@ -2466,8 +2466,8 @@ class DynHaloExchange(HaloExchange):
     def view(self, indent=0):
         ''' Class specific view  '''
         print self.indent(indent) + (
-            "DynHaloExchange[field='{0}', type='{1}', depth={2}, "
-            "check_dirty={3}]".format(self._field.name,
+            "{0}[field='{1}', type='{2}', depth={3}, "
+            "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._compute_stencil_type,
                                       self._compute_halo_depth,
                                       self._dynamic_check_dirty))

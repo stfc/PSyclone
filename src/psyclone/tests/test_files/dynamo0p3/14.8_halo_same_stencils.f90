@@ -48,13 +48,13 @@ program halo_same_stencils
   type(field_type) :: f1, f2, f3
   integer :: f2_extent=2
 
-  call invoke(                                   &
-       set_field_scalar(0.0, f2),                &
+  call invoke(                                    &
+       setval_c(f2, 0.0),                         &
        ! f1 is w3 and is written to
        ! f2 is w2 and is read with stencil cross
        ! f3 is w3 and is written to
-       testkern_stencil_w3_type(f1,f2,f2_extent),   &
-       testkern_stencil_w3_type(f3,f2,f2_extent)    &
+       testkern_stencil_w3_type(f1,f2,f2_extent), &
+       testkern_stencil_w3_type(f3,f2,f2_extent)  &
           )
 
 end program halo_same_stencils

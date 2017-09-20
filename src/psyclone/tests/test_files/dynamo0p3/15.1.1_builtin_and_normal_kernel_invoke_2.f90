@@ -45,7 +45,7 @@ program single_invoke
        ! f1 write w1, f2 read w2, m1 read w2, m2 read w3
        testkern_type(ginger, f1, f2, m1, m2), &
        ! f1 inc, f2 read
-       inc_axpy(0.5, f1, f2)                  &
+       inc_aX_plus_Y(0.5, f1, f2)                  &
           )
 
 end program single_invoke

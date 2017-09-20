@@ -44,8 +44,8 @@ program single_invoke_builtin_then_kernel
   real(r_def) :: scalar = 0.0
   
   call invoke(                               &
-       set_field_scalar(0.0, f5),            &
-       set_field_scalar(0.0, f2),            &
+       setval_c(f5, 0.0),                    &
+       setval_c(f2, 0.0),                    &
        ! f3 function space w2, write
        ! f2 function space w2, read
        testkern_w2_only_type(f3, f2),        &
