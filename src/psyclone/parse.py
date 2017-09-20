@@ -52,12 +52,12 @@ from fparser import parsefortran
 from fparser import api as fpapi
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
-import psyclone.config
+from psyclone import config
 
 
 def check_api(api):
     ''' Check that the supplied API is valid '''
-    from psyclone.config import SUPPORTEDAPIS
+    from config import SUPPORTEDAPIS
     if api not in SUPPORTEDAPIS:
         raise ParseError(
             "check_api: Unsupported API '{0}' specified. "
@@ -425,7 +425,7 @@ class KernelTypeFactory(object):
 
     def __init__(self, api=""):
         if api == "":
-            from psyclone.config import DEFAULTAPI
+            from config import DEFAULTAPI
             self._type = DEFAULTAPI
         else:
             check_api(api)
@@ -887,7 +887,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             " 'True' or 'False'")
     config.DISTRIBUTED_MEMORY = distributed_memory
     if api == "":
-        from psyclone.config import DEFAULTAPI
+        from config import DEFAULTAPI
         api = DEFAULTAPI
     else:
         check_api(api)

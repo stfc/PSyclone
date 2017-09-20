@@ -467,7 +467,7 @@ class DynArgDescriptor03(Descriptor):
             # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
-                    from psyclone.parser import get_stencil, get_mesh
+                    from psyclone.parse import get_stencil, get_mesh
                     if "stencil" in str(arg_type.args[3]):
                         stencil = get_stencil(arg_type.args[3],
                                               VALID_STENCIL_TYPES)
