@@ -73,7 +73,7 @@ contains
     real(kind=r_def)             :: timestep_term
     type(field_type),    pointer :: mt_lumped_inv => null()
 
-    call invoke( set_field_scalar(0.0_r_def, grad_p),                        &
+    call invoke( setval_c(grad_p, 0.0_r_def),                                &
                  scaled_matrix_vector_kernel_type(grad_p, p, div_star,       &
                                                   hb_inv),                   &
                  enforce_bc_kernel_type( grad_p ),                           &
