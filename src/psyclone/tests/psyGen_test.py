@@ -1931,7 +1931,7 @@ def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
     '''when _find_write_arguments is called halo exchanges with the same
     field but a different index should not depend on each other. This test
     checks that this behaviour is working correctly'''
-    
+
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")

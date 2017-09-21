@@ -1184,7 +1184,20 @@ class DynamoRedundantComputationTrans(Transformation):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant computation
     can result in halo exchanges being modified, new halo exchange being
-    added or existing halo exchanges being removed.'''
+    added or existing halo exchanges being removed.
+
+    * This transformation should be performed before any
+      parallelisation transformations to the loop in question and will
+      raise an exception if this is not the case.
+
+    * This transformation can not be applied to a loop containing a
+      reduction and will again raise an exception if this is the case.
+
+    * This transformation can only be used to add redundant
+      computation to a loop, not to remove it, however it does allow
+      redundant computation depths to be reduced (if this is ever
+      required).'''
+
     def __str__(self):
         return "Change iteration space to perform redundant computation"
 

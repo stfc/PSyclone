@@ -7026,7 +7026,7 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
     field = halo_exchange.field
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
-                        lambda fs=None: [1,1])
+                        lambda fs=None: [1, 1])
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_cleaned_info
     assert ("Internal logic error. There should be one and only one "
@@ -7075,7 +7075,7 @@ def test_halo_exchange_invalid_read_dependence(monkeypatch):
     read_dependencies = field.forward_read_dependencies()
     read_dependency = read_dependencies[0]
     monkeypatch.setattr(read_dependency, "call",
-                        lambda fs=None: halo_exchange)    
+                        lambda fs=None: halo_exchange)
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_single_halo_info(read_dependency)
     assert ("internal error: read dependence for f2 should be from a call "
@@ -7108,12 +7108,12 @@ def test_loop_annexed_dofs_multi_write(monkeypatch):
     accesses any annexed dofs. We then check any previous write
     dependences. There should be at most one of these. If there are more
     than one then we raise an exception in _halo_read_access. This test
-    checks that this exception is raised correctly'''    
+    checks that this exception is raised correctly'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop  = schedule.children[3]
+    loop = schedule.children[3]
     kernel = loop.children[0]
     f1_arg = kernel.arguments.args[1]
     #
@@ -7132,12 +7132,12 @@ def test_loop_continuous_read_invalid_bound(monkeypatch):
     '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly'''    
+    that this exception is raised correctly'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop  = schedule.children[3]
+    loop = schedule.children[3]
     kernel = loop.children[0]
     f1_arg = kernel.arguments.args[1]
     #

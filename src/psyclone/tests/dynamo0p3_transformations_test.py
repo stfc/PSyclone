@@ -3387,18 +3387,21 @@ def test_reprod_view(capsys):
                 "    " + directive+"[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
                 "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
                 "    " + gsum + "[scalar='asum']\n"
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do]\n"
                 "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
                 "                " + call + " inc_a_times_x(asum,f1)\n"
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
                 "                " + call + " sum_x(bsum,f2)\n"
                 "    " + gsum + "[scalar='bsum']\n")
         else:
@@ -3407,17 +3410,20 @@ def test_reprod_view(capsys):
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
                 "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do]\n"
                 "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
                 "                " + call + " inc_a_times_x(asum,f1)\n"
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
-                "field_space='any_space_1',it_space='dofs', upper_bound='ndofs']\n"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
                 "                " + call + " sum_x(bsum,f2)\n")
         if expected not in result:
             print "Expected ..."
@@ -4670,7 +4676,7 @@ def test_redundant_computation_vector_reader_halo_remove():
     result = str(psy.gen)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
-    
+
     # redundant computation in reader loop should not
     # cause a new halo exchange as it is still covered by depth=1 in
     # the writer loop
@@ -4755,7 +4761,7 @@ def test_loop_fusion_different_loop_depth():
     rc_trans.apply(schedule.children[7], depth=3)
     # try to fuse the loops. This should fail as the depths are different
     f_trans = DynamoLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:    
+    with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[7], schedule.children[8])
     assert ("Error in DynamoLoopFuse transformation. The upper bound indices "
             "are not the same. Found '3' and '1'" in str(excinfo.value))
@@ -4763,7 +4769,7 @@ def test_loop_fusion_different_loop_depth():
     rc_trans.apply(schedule.children[8])
     # try to fuse the loops. This should fail as the depths are different
     f_trans = DynamoLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:    
+    with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[7], schedule.children[8])
     assert ("Error in DynamoLoopFuse transformation. The upper bound indices "
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
@@ -4782,23 +4788,7 @@ def test_loop_fusion_different_loop_name():
     rc_trans = DynamoRedundantComputationTrans()
     rc_trans.apply(schedule.children[0], depth=3)
     f_trans = DynamoLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:    
+    with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'")
-    
-
-# todo
-
-# fix halo exchange removal bug
-
-# documentation on redundant computation transformation.
-#   Include constraint info on no transformations
-#   Include constraint info on no reduction in loop bounds (or same size)
-#   ...
-
-# changes pass pylint and pep8
-
-# add new issue to add annexed dofs transformation optimisation
-
-# ready for review
