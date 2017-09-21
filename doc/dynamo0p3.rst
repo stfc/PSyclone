@@ -601,12 +601,14 @@ accesses are found then PSyclone aborts.
 Stencil Metadata
 ^^^^^^^^^^^^^^^^
 
-Field metadata supports an optional 4th argument which specifies that
-the field is accessed as a stencil operation within the
-Kernel. Stencil metadata only makes sense if the associated field is
-read within a Kernel i.e. it only makes sense to specify stencil
-metadata if the first entry is ``GH_FIELD`` and the second entry is
-``GH_READ``.
+Field metadata supports an optional 4th argument which can be used
+either to specify that the field is accessed as a stencil operation
+within the Kernel or, that the field is on a particular mesh
+(resolution). The latter option is described in Section
+:ref:`dynamo0.3-intergrid-mdata`.  Stencil metadata only makes sense
+if the associated field is read within a Kernel i.e. it only makes
+sense to specify stencil metadata if the first entry is ``GH_FIELD``
+and the second entry is ``GH_READ``.
 
 Stencil metadata is written in the following format:
 
@@ -670,6 +672,40 @@ Below is an example of stencil information within the full kernel metadata.
 
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
+
+.. _dynamo0.3-intergrid-mdata:
+
+Inter-Grid Metadata
+^^^^^^^^^^^^^^^^^^^^
+
+Instead of describing a stencil operation, the optional fourth
+metadata argument for a field can specify which mesh the associated
+field is on.  This is required for inter-grid kernels which perform
+prolongation or restriction operations on fields existing on grids of
+different resolutions.
+
+Mesh metadata is written in the following format:
+
+::
+
+  mesh_arg=type
+
+where ``type`` may be one of ``GH_COARSE`` or ``GH_FINE``. Any kernel
+having a field argument with this meta-data is assumed to be an
+inter-grid kernel and, as such, all of its other arguments (which
+must also be fields) must have it specified too. An example of the
+metadata for such a kernel is give below:
+
+::
+
+  type(arg_type) :: meta_args(2) = (/                               &
+      arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
+      arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+      /)
+
+Note that an inter-grid kernel must have at least one field argument
+on each mesh and that fields that are on different meshes cannot be
+on the same function space.
 
 Column-wise Operators (CMA)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
