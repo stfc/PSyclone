@@ -1583,10 +1583,7 @@ class DynInvokeBasisFns(object):
                     # functions must be evaluated upon. If this argument is an
                     # operator then the 'to' space is used.
                     arg = call.updated_arg
-                    if arg.type in VALID_OPERATOR_NAMES:
-                        fname = arg.function_space_to.mangled_name
-                    else:
-                        fname = arg.function_space.mangled_name
+                    fname = arg.evaluator_function_space.mangled_name
                     if fname not in _fs_eval_list:
                         _fs_eval_list.add(fname)
                         self._unique_evaluator_args.append(arg)
@@ -1625,12 +1622,8 @@ class DynInvokeBasisFns(object):
                         entry["qr_var"] = None
                         # Store the function space upon which the basis
                         # functions are to be evaluated
-                        if call.updated_arg.is_operator:
-                            entry["nodal_fspace"] = call.updated_arg.\
-                                                    function_space_to
-                        else:
-                            entry["nodal_fspace"] = call.updated_arg.\
-                                                    function_space
+                        entry["nodal_fspace"] = call.updated_arg.\
+                                                evaluator_function_space
                     if fsd.requires_basis:
                         self._basis_fns.append(entry)
                     if fsd.requires_diff_basis:
@@ -1696,14 +1689,7 @@ class DynInvokeBasisFns(object):
             # We need an 'ndf_nodal' for each unique FS for which there
             # is an evaluator
 
-            if arg.is_operator:
-                # If the argument being updated is an operator then we need
-                # to evaluate the basis functions on the nodes of the
-                # 'to' space
-                fspace = arg.function_space_to
-            else:
-                fspace = arg.function_space
-
+            fspace = arg.evaluator_function_space
             ndf_nodal_name = "ndf_nodal_" + fspace.mangled_name
 
             rhs = "%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
@@ -4731,6 +4717,21 @@ class DynKernelArgument(KernelArgument):
             if fspace:
                 fs_names.append(fspace.orig_name)
         return fs_names
+
+    @property
+    def evaluator_function_space(self):
+        '''
+        Returns the function space on which any basis/diff-basis functions
+        required for an evaluator are to be calculated. (Kernels requiring an
+        evaluator are only permitted to write to a single arg and that
+        determines the space on which the basis/diff-basis functions are
+        required.) For an operator this is the to-space, otherwise it is
+        just the function space.
+        :return: the Function Space on which basis/diff basis functions must
+                 be evaluated
+        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
+        return self._function_spaces[0]
 
     @property
     def intent(self):
