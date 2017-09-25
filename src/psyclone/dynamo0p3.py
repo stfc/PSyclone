@@ -72,8 +72,8 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
-QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
-VALID_EVALUATOR_SHAPES = QUADRATURE_SHAPES + ["gh_evaluator"]
+VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
+VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
@@ -107,7 +107,8 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
-# Note that readwrite is not currently supported.
+# Note that readwrite is not currently supported and so its associated
+# entry is left blank.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "inc": "gh_inc", "readwrite": ""}
 
@@ -159,13 +160,23 @@ def get_fs_orientation_name(function_space):
 
 
 def get_fs_basis_name(function_space, qr_var=None, on_space=None):
-    ''' Returns a name for the basis function on this FunctionSpace.
-    The name is unique to the function space, it is not the
-    raw metadata value.  If the name of an associated quadrature
-    object is supplied then this is appended to the returned name. Similarly,
-    if the function space at which the basis is to be evaluated is supplied
-    then this is also appended to the name.'''
-    name = "basis" + "_" + function_space.mangled_name
+    '''
+    Returns a name for the basis function on this FunctionSpace. If
+    the name of an associated quadrature object is supplied then this
+    is appended to the returned name. Similarly, if the function space
+    at which the basis is to be evaluated is supplied then this is
+    also appended to the name.
+
+    :param function_space: the function space for which the basis is required
+    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+    :param string qr_var: the name of the Quadrature Object for which the
+                          basis functions are required
+    :param string on_space: the function space at which the basis functions
+                            will be evaluated
+    :return: Name for the Fortran array holding the basis function
+    :rtype: string
+    '''
+    name = "_".join(["basis", function_space.mangled_name])
     if qr_var:
         name += "_" + qr_var
     if on_space:
@@ -174,12 +185,23 @@ def get_fs_basis_name(function_space, qr_var=None, on_space=None):
 
 
 def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
-    ''' Returns a name for the differential basis function on the
-    supplied FunctionSpace. The name is unique to the function space, it
-    is not the raw metadata value.  If the name of an associated quadrature
+    '''
+    Returns a name for the differential basis function on the
+    supplied FunctionSpace.  If the name of an associated quadrature
     object is supplied then this is appended to the returned name. Similarly,
     if the function space at which the basis is to be evaluated is supplied
-    then this is also appended to the name. '''
+    then this is also appended to the name.
+
+    :param function_space: the function space for which the differential basis
+                           is required
+    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+    :param string qr_var: the name of the Quadrature Object for which the
+                          differential basis functions are required
+    :param string on_space: the function space at which the differential basis
+                            functions will be evaluated
+    :return: Name for the Fortran array holding the differential basis function
+    :rtype: string
+    '''
     name = "_".join(["diff_basis", function_space.mangled_name])
     if qr_var:
         name += "_" + qr_var
@@ -1536,7 +1558,7 @@ class DynInvokeBasisFns(object):
             if call.eval_shape:
                 # Keep a list of the quadrature objects passed to this
                 # invoke
-                if call.eval_shape in QUADRATURE_SHAPES:
+                if call.eval_shape in VALID_QUADRATURE_SHAPES:
                     self._qr_vars.add(call.qr_name)
                 elif call.eval_shape == "gh_evaluator":
                     # Keep a list of the unique evaluators we require. We do
@@ -1580,7 +1602,7 @@ class DynInvokeBasisFns(object):
                              "write_arg": call.updated_arg,
                              "fspace": fspace,
                              "arg": arg}
-                    if call.eval_shape in QUADRATURE_SHAPES:
+                    if call.eval_shape in VALID_QUADRATURE_SHAPES:
                         entry["qr_var"] = call.qr_name
                         # Quadrature are evaluated at pre-determined
                         # points rather than at the nodes of another FS
@@ -1706,7 +1728,7 @@ class DynInvokeBasisFns(object):
                 # We haven't seen a basis with this name before so
                 # need to declare it and add allocate statement
                 op_name_list.append(op_name)
-                if basis_fn["shape"] in QUADRATURE_SHAPES:
+                if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                     alloc_args = ", ".join(
                         [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
                          "nqp_h"+"_"+basis_fn["qr_var"],
@@ -1751,7 +1773,7 @@ class DynInvokeBasisFns(object):
                 # We haven't seen a differential basis with this name before
                 # so need to declare it and add allocate statement
                 op_name_list.append(op_name)
-                if basis_fn["shape"] in QUADRATURE_SHAPES:
+                if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                     # allocate the basis function variable
                     alloc_args = ", ".join(
                         [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
@@ -1810,7 +1832,7 @@ class DynInvokeBasisFns(object):
                 continue
             op_name_list.append(op_name)
 
-            if basis_fn["shape"] in QUADRATURE_SHAPES:
+            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                 # Create the argument list
                 args = []
                 args.append(op_name)
@@ -1867,7 +1889,7 @@ class DynInvokeBasisFns(object):
                 continue
             op_name_list.append(op_name)
 
-            if dbasis_fn["shape"] in QUADRATURE_SHAPES:
+            if dbasis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                 # Create the argument list
                 args = []
                 args.append(op_name)
@@ -2888,7 +2910,7 @@ class DynKern(Kern):
         # initialise basis/diff basis so we can test whether quadrature
         # or an evaluator is required
         self._setup_basis(ktype)
-        if self._basis_required and self._eval_shape in QUADRATURE_SHAPES:
+        if self._basis_required and self._eval_shape in VALID_QUADRATURE_SHAPES:
             # Basis functions on quadrature points are required so add
             # a qr algorithm argument
             args.append(Arg("variable", "qr"))
@@ -2921,7 +2943,7 @@ class DynKern(Kern):
         self._qr_name = None
         self._qr_args = {}
 
-        if self._eval_shape in QUADRATURE_SHAPES:
+        if self._eval_shape in VALID_QUADRATURE_SHAPES:
             # The quadrature argument always comes last
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
@@ -2972,7 +2994,7 @@ class DynKern(Kern):
     def qr_required(self):
         ''' Returns the True if this kernel requires
         quadrature, else returns False. '''
-        if self._basis_required and self._eval_shape in QUADRATURE_SHAPES:
+        if self._basis_required and self._eval_shape in VALID_QUADRATURE_SHAPES:
             return True
         return False
 
@@ -3941,7 +3963,7 @@ class KernStubArgList(ArgOrdering):
                 "expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
-        if self._kern.eval_shape in QUADRATURE_SHAPES:
+        if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             dim_list = ",".join([first_dim, ndf_name,
                                  self._kern.qr_args["nh"],
                                  self._kern.qr_args["nv"]])
@@ -3979,7 +4001,7 @@ class KernStubArgList(ArgOrdering):
                 "function, expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
-        if self._kern.eval_shape in QUADRATURE_SHAPES:
+        if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             dim_list = ",".join([first_dim, ndf_name,
                                  self._kern.qr_args["nh"],
                                  self._kern.qr_args["nv"]])
@@ -4274,7 +4296,7 @@ def check_args(call):
                 stencil_arg_count += 1
 
     # qr_argument
-    if call.ktype.eval_shape in QUADRATURE_SHAPES:
+    if call.ktype.eval_shape in VALID_QUADRATURE_SHAPES:
         qr_arg_count = 1
     else:
         qr_arg_count = 0
