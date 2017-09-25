@@ -1623,7 +1623,7 @@ class DynInvokeBasisFns(object):
                         # Store the function space upon which the basis
                         # functions are to be evaluated
                         entry["nodal_fspace"] = call.updated_arg.\
-                                                evaluator_function_space
+                            evaluator_function_space
                     if fsd.requires_basis:
                         self._basis_fns.append(entry)
                     if fsd.requires_diff_basis:
@@ -1738,7 +1738,7 @@ class DynInvokeBasisFns(object):
                     # add basis function variable to list to declare later
                     basis_declarations.append(op_name+"(:,:,:,:)")
                 else:
-                    # Have an evaluator
+                    # This is an evaluator
                     ndf_nodal_name = "ndf_nodal_" + basis_fn["nodal_fspace"].\
                                      mangled_name
                     alloc_args = ", ".join(
@@ -1784,7 +1784,7 @@ class DynInvokeBasisFns(object):
                     # Add diff-basis function variable to list to declare later
                     basis_declarations.append(op_name+"(:,:,:,:)")
                 else:
-                    # Have an evaluator.
+                    # This is an evaluator.
                     # Need the number of dofs in the field being written by
                     # the kernel that requires this evaluator
                     ndf_nodal_name = "ndf_nodal_" + basis_fn["nodal_fspace"].\
@@ -1864,7 +1864,7 @@ class DynInvokeBasisFns(object):
                                  "1", get_fs_ndf_name(basis_fn["fspace"]))
                 nodal_dof_loop.add(dof_loop)
                 lhs = op_name + "(:," + "df_" + \
-                      basis_fn["fspace"].mangled_name + "," + "df_nodal)"
+                    basis_fn["fspace"].mangled_name + "," + "df_nodal)"
                 rhs = "%".join(
                     [basis_fn["arg"].proxy_name_indexed,
                      basis_fn["arg"].ref_name(basis_fn["fspace"]),
@@ -2910,7 +2910,8 @@ class DynKern(Kern):
         # initialise basis/diff basis so we can test whether quadrature
         # or an evaluator is required
         self._setup_basis(ktype)
-        if self._basis_required and self._eval_shape in VALID_QUADRATURE_SHAPES:
+        if self._basis_required and self._eval_shape in \
+           VALID_QUADRATURE_SHAPES:
             # Basis functions on quadrature points are required so add
             # a qr algorithm argument
             args.append(Arg("variable", "qr"))
@@ -2992,9 +2993,12 @@ class DynKern(Kern):
 
     @property
     def qr_required(self):
-        ''' Returns the True if this kernel requires
-        quadrature, else returns False. '''
-        if self._basis_required and self._eval_shape in VALID_QUADRATURE_SHAPES:
+        '''
+        :return: True if this kernel requires quadrature, else returns False.
+        :rtype: bool
+        '''
+        if self._basis_required and self._eval_shape in \
+           VALID_QUADRATURE_SHAPES:
             return True
         return False
 
