@@ -171,8 +171,9 @@ def get_fs_basis_name(function_space, qr_var=None, on_space=None):
     :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
     :param string qr_var: the name of the Quadrature Object for which the
                           basis functions are required
-    :param string on_space: the function space at which the basis functions
-                            will be evaluated
+    :param on_space: the function space at which the basis functions
+                     will be evaluated
+    :type on_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
     :return: Name for the Fortran array holding the basis function
     :rtype: string
     '''
@@ -197,8 +198,9 @@ def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
     :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
     :param string qr_var: the name of the Quadrature Object for which the
                           differential basis functions are required
-    :param string on_space: the function space at which the differential basis
-                            functions will be evaluated
+    :param on_space: the function space at which the differential basis
+                     functions will be evaluated
+    :type on_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
     :return: Name for the Fortran array holding the differential basis function
     :rtype: string
     '''
@@ -212,9 +214,21 @@ def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
 
 def get_fs_operator_name(operator_name, function_space, qr_var=None,
                          on_space=None):
-    ''' Returns the name of the specified operator for the supplied
-    FunctionSpace. The name is unique to the function space, it
-    is not the raw metadata value. '''
+    '''
+    Returns the name of the specified operator (orientation, basis or
+    differential basis) for the supplied FunctionSpace.
+    :param string operator_name: Name (type) of the operator
+    :param function_space: the function space for which the operator is
+                           required
+    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+    :param string qr_var: the name of the Quadrature Object for which the
+                          operator is required.
+    :param on_space: the function space at which the operator is required
+    :type on_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+    :return: Name for the Fortran arry holding the named operator
+             for the specified function space
+    :rtype: string
+    '''
     if operator_name == "gh_orientation":
         return get_fs_orientation_name(function_space)
     elif operator_name == "gh_basis":

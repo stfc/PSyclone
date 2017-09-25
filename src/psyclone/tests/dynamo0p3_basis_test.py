@@ -827,6 +827,43 @@ def test_two_eval_diff_space():
     assert expected_code in gen_code
 
 
+def test_two_eval_same_var_same_space():
+    ''' Check that we generate correct code when two kernels in an invoke
+    both require evaluators for the same variable declared as being on the
+    same space '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "6.7_2eval_same_var_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+    # We should only get one set of basis and diff-basis functions in the
+    #  generated code
+    assert gen_code.count(
+        "ndf_any_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
+    assert gen_code.count(
+        "ndf_nodal_any_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_any_space_1_f0\n"
+        "        DO df_w0=1,ndf_w0\n"
+        "          basis_w0_on_any_space_1_f0(:,df_w0,df_nodal) = "
+        "f1_proxy%vspace%call_function(BASIS,df_w0,"
+        "nodes_any_space_1_f0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_any_space_1_f0\n"
+        "        DO df_w1=1,ndf_w1\n"
+        "          diff_basis_w1_on_any_space_1_f0(:,df_w1,df_nodal) = "
+        "f2_proxy%vspace%call_function(DIFF_BASIS,df_w1,"
+        "nodes_any_space_1_f0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+    assert gen_code.count(
+        "DEALLOCATE (basis_w0_on_any_space_1_f0, "
+        "diff_basis_w1_on_any_space_1_f0)") == 1
+
+
 def test_two_eval_op_to_space():
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
