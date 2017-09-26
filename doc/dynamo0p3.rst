@@ -114,10 +114,29 @@ Basis/Differential Basis Functions
 ++++++++++++++++++++++++++++++++++
 
 Kernels conforming to the Dynamo 0.3 API may require basis functions
-and/or differential basis functions. The points at which these functions
-are required is specified by the ``gh_shape`` component of the kernel
-meta-data. However, none of this is visible in the Algorithm layer - the
-necessary kernel arguments are obtained within the generated PSy layer.
+and/or differential basis functions. The points at which these
+functions are required is specified by the ``gh_shape`` (see Section
+:ref:`gh-shape`) component of the kernel meta-data. Two categories of
+``gh_shape`` are supported; evaluators and quadrature. For the former,
+the values of the basis/differential-basis functions are computed at
+the nodes defined by the function space of the quantity that the
+associated kernel is updating. All necessary data is extracted in the
+PSy layer and passed to the kernel(s) as required - nothing is
+required from the Algorithm layer. If a kernel requires quadrature on
+the other hand, the Algorithm writer must supply a ``quadrature_type``
+object as the last argument to the kernel, e.g.:
+
+::
+
+      type( quadrature_type )   :: qr
+      ...
+      qr = quadrature_type(element_order+2, GAUSSIAN)
+      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr),   &
+                  kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
+                  geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
+
+This quadrature object specifies the set of points at which the values
+of the basis/differential-basis functions are required.
 
 .. _dynamo0.3-alg-stencil:
 
@@ -751,6 +770,8 @@ basis functions (``gh_diff_basis``) on one or more of the function
 spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
+
+.. _gh-shape:
 
 gh_shape
 ########
