@@ -33,9 +33,17 @@ objects and their use are discussed in the following sections.
 
 ::
 
+  real(kind=r_def)      	 :: scalar1
+  integer(kind=i_def)   	 :: stencil_extent
+  type(field_type)      	 :: field1, field2, field3
+  type(quadrature_type) 	 :: qr
+  type(operator_type)   	 :: operator1
+  type(columnwise_operator_type) :: cma_op1
+  ...
   call invoke( kernel1(field1, field2, operator1, qr),           &
                builtin1(scalar1, field2, field3),                &
                kernel2(field1, stencil_extent, field3, scalar1), &
+	       assembly_kernel(cma_op1, operator1),              &
                name="some calculation"                           &
              )
 
@@ -110,21 +118,17 @@ meta-data (see :ref:`cma_meta_data_rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
-Basis/Differential Basis Functions
-++++++++++++++++++++++++++++++++++
+.. _quadrature:
 
-Kernels conforming to the Dynamo 0.3 API may require basis functions
-and/or differential basis functions. The points at which these
-functions are required is specified by the ``gh_shape`` (see Section
-:ref:`gh-shape`) component of the kernel meta-data. Two categories of
-``gh_shape`` are supported; evaluators and quadrature. For the former,
-the values of the basis/differential-basis functions are computed at
-the nodes defined by the function space of the quantity that the
-associated kernel is updating. All necessary data is extracted in the
-PSy layer and passed to the kernel(s) as required - nothing is
-required from the Algorithm layer. If a kernel requires quadrature on
-the other hand, the Algorithm writer must supply a ``quadrature_type``
-object as the last argument to the kernel, e.g.:
+Quadrature
+++++++++++
+
+Kernels conforming to the Dynamo 0.3 API may require quadrature
+information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
+the kernel meta-data - see Section :ref:`gh-shape`). This information
+must be passed to the kernel from the Algorithm layer in the form of a
+`quadrature_type` object. This must be the last argument passed to the
+kernel, e.g.:
 
 ::
 
@@ -135,8 +139,8 @@ object as the last argument to the kernel, e.g.:
                   kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
 
-This quadrature object specifies the set of points at which the values
-of the basis/differential-basis functions are required.
+This quadrature object specifies the set of points at which the 
+basis/differential-basis functions required by the kernel are to be evaluated.
 
 .. _dynamo0.3-alg-stencil:
 
@@ -781,7 +785,14 @@ meta-data must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
 component of the meta-data.  Currently PSyclone supports two shapes;
 ``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation at nodal points.
+``gh_evaluator`` for evaluation at nodal points. For the latter,
+the values of the basis/differential-basis functions are computed at
+the nodes defined by the function space of the quantity that the
+associated kernel is updating. All necessary data is extracted in the
+PSy layer and passed to the kernel(s) as required - nothing is
+required from the Algorithm layer. If a kernel requires quadrature on
+the other hand, the Algorithm writer must supply a ``quadrature_type``
+object as the last argument to the kernel (see Section :ref:`quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are
