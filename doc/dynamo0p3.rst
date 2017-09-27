@@ -681,8 +681,8 @@ Inter-Grid Metadata
 Instead of describing a stencil operation, the optional fourth
 metadata argument for a field can specify which mesh the associated
 field is on.  This is required for inter-grid kernels which perform
-prolongation or restriction operations on fields existing on grids of
-different resolutions.
+prolongation or restriction operations on fields (or field vectors)
+existing on grids of different resolutions.
 
 Mesh metadata is written in the following format:
 
@@ -703,9 +703,10 @@ metadata for such a kernel is give below:
       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
       /)
 
-Note that an inter-grid kernel must have at least one field argument
-on each mesh and that fields that are on different meshes cannot be
-on the same function space.
+Note that an inter-grid kernel must have at least one field (or field-
+vector) argument on each mesh type and that fields that are on different
+meshes cannot be on the same function space.
+
 
 Column-wise Operators (CMA)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

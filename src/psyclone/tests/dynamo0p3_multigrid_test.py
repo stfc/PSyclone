@@ -185,27 +185,16 @@ def test_field_vector():
     ''' Check that we accept an inter-grid kernel with field-vector
     arguments '''
     fparser.logging.disable('CRITICAL')
-    # Change the arguments to be vectors
+    # Change both of the arguments to be vectors
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*2,", 2)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     dkm = DynKernMetadata(ast, name=name)
     for arg in dkm.arg_descriptors:
         assert arg.vector_size == 2
-    # If any argument is a field vector then they must all be field
-    # vectors
-    code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*2,", 1)
+    # Change only one of the arguments to be a vector
+    code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*3,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("inter-grid kernel arguments must either all be fields or all be "
-            "field-vectors but kernel restrict_kernel_type has both" in
-            str(excinfo))
-    # All field vectors must be of the same length
-    code_difft_len = code.replace("GH_FIELD,", "GH_FIELD*3,", 1)
-    ast = fpapi.parse(code_difft_len, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("inter-grid kernels with field-vector arguments must have all "
-            "vectors the same length but kernel restrict_kernel_type has "
-            "arguments with vector lengths: [2, 3]" in str(excinfo))
+    dkm = DynKernMetadata(ast, name=name)
+    assert dkm.arg_descriptors[0].vector_size == 3
+    assert dkm.arg_descriptors[1].vector_size == 1
