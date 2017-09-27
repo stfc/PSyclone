@@ -959,8 +959,14 @@ class DynKernMetadata(KernelType):
 
     @property
     def eval_shape(self):
-        ''' Returns the shape of evaluator required by this kernel or an
-        empty string if none '''
+        '''
+        Returns the shape of evaluator required by this kernel or an
+        empty string if none.
+
+        :return: the shape of the evaluator (one of VALID_EVALUATOR_SHAPES)
+                 or an empty string if the kernel does not require one.
+        :rtype: string
+        '''
         if self._eval_shape:
             return self._eval_shape
         else:
@@ -1552,6 +1558,12 @@ class DynInvokeBasisFns(object):
     quadrature and for evaluators. '''
 
     def __init__(self, schedule):
+        '''
+        :param schedule: the schedule of the Invoke for which to extract
+                         information on all required basis/diff-basis
+                         functions
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+        '''
         self._name_space_manager = NameSpaceFactory().create()
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
@@ -1630,8 +1642,14 @@ class DynInvokeBasisFns(object):
                         self._diff_basis_fns.append(entry)
 
     def initialise_basis_fns(self, parent):
-        ''' Create the declarations and assignments required for the
-        basis-functions required by an invoke '''
+        '''
+        Create the declarations and assignments required for the
+        basis-functions required by an invoke
+
+        :param parent: the node in the f2pygen AST that will be the
+                       parent of all of the declarations and assignments
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
             AllocateGen, UseGen
         var_dim_list = []
@@ -1809,8 +1827,14 @@ class DynInvokeBasisFns(object):
                                entity_decls=basis_declarations))
 
     def compute_basis_fns(self, parent):
-        ''' Generates the necessary Fortran to compute the values of
-        any basis/diff-basis arrays required '''
+        '''
+        Generates the necessary Fortran to compute the values of
+        any basis/diff-basis arrays required
+
+        :param parent: Node in the f2pygen AST which will be the parent
+                       of the assignments created in this routine
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
         from psyclone.f2pygen import CommentGen, AssignGen, CallGen, DoGen, \
             DeclGen
         loop_var_list = set()
