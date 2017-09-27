@@ -779,6 +779,9 @@ class DynKernMetadata(KernelType):
         # arguments. Keep a record of any non-field arguments for the benefit
         # of a verbose error message.
         non_field_arg_types = set()
+        # If it has field-vectors as arguments then they must all have
+        # the same vector length
+        vec_lengths = set()
         for arg in self._arg_descriptors:
             # Collect info so that we can check inter-grid kernels
             if arg.type == "gh_field":
@@ -793,6 +796,8 @@ class DynKernMetadata(KernelType):
                     # Record the fact that we have a field without a
                     # mesh specifier (in case this is an inter-grid kernel)
                     missing_mesh = True
+                # Keep a record of the various vector lengths
+                vec_lengths.add(arg.vector_size)
             else:
                 # Inter-grid kernels are only permitted to have field args
                 # so collect a list of other types
@@ -824,6 +829,23 @@ class DynKernMetadata(KernelType):
                 "which mesh each field argument is on but kernel {0} has "
                 "at least one field argument for which mesh_arg is "
                 "missing.".format(self.name))
+        # Check that all vector lengths are the same (in case we have
+        # field vector arguments)
+        if len(vec_lengths) > 1:
+            if 1 in vec_lengths:
+                # At least one of the arguments is not a field vector
+                raise ParseError(
+                    "In the Dynamo 0.3 API, inter-grid kernel arguments must "
+                    "either all be fields or all be field-vectors but "
+                    "kernel {0} has both".format(self.name))
+            else:
+                # All of the arguments are field vectors but they do
+                # not have the same lengths
+                raise ParseError(
+                    "In the Dynamo 0.3 API, inter-grid kernels with "
+                    "field-vector arguments must have all vectors the same "
+                    "length but kernel {0} has arguments with vector lengths: "
+                    "{1}".format(self.name, list(vec_lengths)))
         # Check that arguments on different meshes are on different
         # function spaces. We do this by checking that no function space
         # is listed as being associated with (arguments on) both meshes.
