@@ -109,9 +109,18 @@ def get_mesh(metadata, valid_mesh_types):
 
 
 def get_stencil(metadata, valid_types):
-    ''' Returns stencil_type and stencil_extent as a dictionary
+    '''
+    Returns stencil_type and stencil_extent as a dictionary
     object from stencil metadata if the metadata conforms to the
-    stencil(type[,extent]) format '''
+    stencil(type[,extent]) format
+
+    :param metadata: Component of kernel meta-data stored as a node in the
+                     parser AST
+    :type metadata: :py:class:`psyclone.expression.FunctionVar`
+    :param list valid_types: List of valid stencil types (strings)
+    :raises ParseError: if the supplied meta-data is not a recognised
+                        stencil specification
+    '''
 
     if not isinstance(metadata, expr.FunctionVar):
         raise ParseError(
