@@ -98,6 +98,11 @@ python runme_openmp.py
 python runme_loop_fuse.py
 cd -
 
+echo "Running NEMO examples"
+cd nemo/eg1
+${PSYCLONE} -api "nemo0.1" tra_adv.F90
+cd -
+
 echo "Running transformation examples"
 cd transformations/inline
 python module_inline_example.py
