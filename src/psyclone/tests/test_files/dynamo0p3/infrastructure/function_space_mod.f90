@@ -48,6 +48,9 @@ implicit none
 
 private
 
+integer(i_def), public, parameter :: BASIS      = 100
+integer(i_def), public, parameter :: DIFF_BASIS = 101
+
 type, public :: function_space_type
 
   private
@@ -111,7 +114,7 @@ contains
   procedure, public  :: get_colours
   procedure, public  :: get_ncolours
   procedure, public  :: set_colours
-
+  procedure, public  :: call_function
 end type function_space_type
 
 contains
@@ -422,5 +425,17 @@ subroutine get_colours(self, ncolours, ncells_per_colour, colour_map)
   colour_map => null()
 
 end subroutine get_colours
+
+function call_function(self, function_to_call, df, xi) result(evaluate)
+
+  class(function_space_type)  :: self
+  integer(i_def), intent(in)  :: function_to_call
+  integer(i_def), intent(in)  :: df
+  real(r_def),    intent(in)  :: xi(3)
+  real(r_def),   allocatable  :: evaluate(:)
+
+  allocate(evaluate(1))
+  evaluate = 0.0_r_def
+end function call_function
 
 end module function_space_mod

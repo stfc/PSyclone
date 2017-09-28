@@ -29,7 +29,8 @@
 ! Author: A. R. Porter STFC Daresbury Lab
 !-------------------------------------------------------------------------------
 
-module testkern_eval_op_mod
+module testkern_eval_op
+  use argument_mod
   use kernel_mod
   ! Test kernel that writes to an operator and requires an evaluator
   type, extends(kernel_type) :: testkern_eval_op_type
@@ -50,4 +51,4 @@ contains
 
   subroutine testkern_eval_op_code()
   end subroutine testkern_eval_op_code
-end module testkern_eval_op_mod
+end module testkern_eval_op

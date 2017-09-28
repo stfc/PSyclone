@@ -47,6 +47,7 @@ from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -736,7 +737,7 @@ def test_two_eval_same_space():
     assert output_code in gen_code
 
 
-def test_two_eval_diff_space():
+def test_two_eval_diff_space(tmpdir, f90, f90flags):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
     different spaces '''
@@ -745,6 +746,11 @@ def test_two_eval_diff_space():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+    
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
     # arguments, respectively. It writes to a field on W0 and therefore

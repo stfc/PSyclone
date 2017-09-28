@@ -29,7 +29,8 @@
 ! Author: A. R. Porter STFC Daresbury Lab
 !-------------------------------------------------------------------------------
 
-module testkern_eval_mod
+module testkern_eval
+  use argument_mod
   use kernel_mod
   type, extends(kernel_type) :: testkern_eval_type
      type(arg_type)  :: meta_args(2) =  (/    &
@@ -47,6 +48,14 @@ module testkern_eval_mod
   end type testkern_eval_type
 contains
 
-  subroutine testkern_eval_code()
+  subroutine testkern_eval_code(nlayers, f0, f1, ndf_w0, undf_w0, map_w0, &
+                                basis_w0, ndf_w1, undf_w1, map_w1,        &
+                                diff_basis_w1)
+    use constants_mod, only: r_def
+    implicit none
+    integer :: nlayers, ndf_w0, undf_w0, ndf_w1, undf_w1
+    integer, dimension(:) :: map_w0, map_w1
+    real(kind=r_def), dimension(:) :: f0, f1
+    real(kind=r_def), dimension(:,:,:) :: basis_w0, diff_basis_w1
   end subroutine testkern_eval_code
-end module testkern_eval_mod
+end module testkern_eval
