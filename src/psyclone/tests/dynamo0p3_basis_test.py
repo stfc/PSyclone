@@ -1019,7 +1019,7 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
     assert kernel_calls in gen_code
 
 
-def test_eval_diff_nodal_space():
+def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     ''' Check that we generate correct code when evaluators are
     required for the same function space but with different nodal
     function spaces '''
@@ -1037,6 +1037,11 @@ def test_eval_diff_nodal_space():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # Test that generated code compiles
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     expected_alloc = (
         "      ndf_nodal_w3 = f1_proxy%vspace%get_ndf()\n"
         "      nodes_w3 => f1_proxy%vspace%get_nodes()\n"
