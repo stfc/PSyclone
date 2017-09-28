@@ -2517,28 +2517,31 @@ class Argument(object):
         '''Return a list of arguments from the list of nodes that have a read
         dependency with self. If none are found then return an empty
         list. If self is not a writer then return an empty list.'''
-        arguments = []
         if self.access not in self._writers:
-            return arguments
+            return []
+        arguments = []
         for node in nodes:
             if isinstance(node, Call) or isinstance(node, HaloExchange) \
                or isinstance(node, GlobalSum):
+                # I have one or more associated field arguments
                 for argument in node.args:
-                    if argument.name == self.name:
-                        if isinstance(node, HaloExchange) and \
-                           node.vector_index and \
-                           isinstance(self.call, HaloExchange) and \
-                           self.call.vector_index and \
-                           node.vector_index != self.call.vector_index:
-                            # this is a vector field and the two halos
-                            # are accessing different vectors so there
-                            # is no dependence.
-                            pass
-                        else:
-                            if argument.access in self._readers:
-                                arguments.append(argument)
-                            if argument.access in self._writers:
-                                return arguments
+                    if argument.name != self.name:
+                        # different fields so there is no dependence
+                        continue
+                    if isinstance(node, HaloExchange) and \
+                       node.vector_index and \
+                       isinstance(self.call, HaloExchange) and \
+                       self.call.vector_index and \
+                       node.vector_index != self.call.vector_index:
+                        # this is a vector field and the two halos
+                        # are accessing different vectors so there
+                        # is no dependence.
+                        pass
+                    else:
+                        if argument.access in self._readers:
+                            arguments.append(argument)
+                        if argument.access in self._writers:
+                            return arguments
         return arguments
 
     def _find_write_arguments(self, nodes, ignore_halos=False):
