@@ -27,7 +27,7 @@
 
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_multi_anyw2_basis
+module testkern_multi_anyw2_basis_mod
   use argument_mod
   use kernel_mod
   !
@@ -60,4 +60,4 @@ contains
     real(kind=r_def), dimension(:) :: wh, wv
   end subroutine testkern_multi_anyw2_basis_code
   !
-end module testkern_multi_anyw2_basis
+end module testkern_multi_anyw2_basis_mod

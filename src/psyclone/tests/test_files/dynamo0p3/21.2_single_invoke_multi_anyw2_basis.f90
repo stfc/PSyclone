@@ -32,7 +32,7 @@ program single_invoke_multi_anyw2_basis
   ! Description: test that correct code is produced when we have
   ! multiple any_w2 function spaces requiring basis and differential
   ! basis functions in a kernel call
-  use testkern_multi_anyw2_basis, only: testkern_multi_anyw2_basis_type
+  use testkern_multi_anyw2_basis_mod, only: testkern_multi_anyw2_basis_type
   use inf,      only: field_type, quadrature_type
   implicit none
   type(field_type) :: f1, f2, f3
