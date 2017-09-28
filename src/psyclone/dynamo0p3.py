@@ -1606,8 +1606,7 @@ class DynInvokeBasisFns(object):
                     # We need the full FS object, not just the name. Therefore
                     # we first have to get a kernel argument that is on this
                     # space...
-                    arg = call.arguments.get_arg_on_space(fsd.fs_name,
-                                                          mangled=False)
+                    arg = call.arguments.get_arg_on_space_name(fsd.fs_name)
                     # ...and then use that to get the appropriate function
                     # space object. We have to take care that we get the
                     # right object if this argument is an operator
@@ -1959,7 +1958,13 @@ class DynInvokeBasisFns(object):
                                entity_decls=list(loop_var_list)))
 
     def deallocate(self, parent):
-        ''' Add code to deallocate all basis/diff-basis function arrays '''
+        '''
+        Add code to deallocate all basis/diff-basis function arrays
+
+        :param parent: node in the f2pygen AST to which the deallocate
+                       calls will be added
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
         from psyclone.f2pygen import CommentGen, DeallocateGen
 
         if self._basis_fns or self._diff_basis_fns:
@@ -1996,6 +2001,12 @@ class DynInvoke(Invoke):
     dynamo specific invocation code. '''
 
     def __init__(self, alg_invocation, idx):
+        '''
+        :param alg_invocation: node in the AST describing the invoke call
+        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :param int idx: the position of the invoke in the list of invokes
+                        contained in the Algorithm
+        '''
         if False:  # pylint: disable=using-constant-test
             self._schedule = DynSchedule(None)  # for pyreverse
         reserved_names_list = []
@@ -2060,10 +2071,10 @@ class DynInvoke(Invoke):
                         # the range function below returns values from
                         # 1 to the vector size which is what we
                         # require in our Fortran code
-                        for idx in range(1, halo_field.vector_size+1):
+                        for vidx in range(1, halo_field.vector_size+1):
                             exchange = DynHaloExchange(halo_field,
                                                        parent=loop.parent,
-                                                       vector_index=idx,
+                                                       vector_index=vidx,
                                                        inc=inc)
                             loop.parent.children.insert(loop.position,
                                                         exchange)
@@ -2153,10 +2164,16 @@ class DynInvoke(Invoke):
         return None
 
     def gen_code(self, parent):
-        ''' Generates Dynamo specific invocation code (the subroutine
+        '''
+        Generates Dynamo specific invocation code (the subroutine
         called by the associated invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
-        declaration of its arguments. '''
+        declaration of its arguments.
+        :param parent: The parent node in the AST (of the code to be generated)
+                       to which the node describing the PSy subroutine will be
+                       added
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
         from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
             DeclGen, CommentGen
         # Create a namespace manager so we can avoid name clashes
@@ -2889,17 +2906,30 @@ class DynKern(Kern):
         self._cma_operation = None
 
     def load(self, call, parent=None):
-        ''' sets up kernel information with the call object which is
+        '''
+        Sets up kernel information with the call object which is
         created by the parser. This object includes information about
-        the invoke call and the associated kernel'''
+        the invoke call and the associated kernel.
+
+        :param call: The KernelCall object from which to extract information
+                     about this kernel
+        :type call: :py:class:`psyclone.parse.KernelCall`
+        :param parent: The parent node of the kernel call in the AST
+                       we are constructing. This will be a loop.
+        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        '''
         self._setup_basis(call.ktype)
         self._setup(call.ktype, call.module_name, call.args, parent)
 
     def load_meta(self, ktype):
-        ''' sets up kernel information with the kernel type object
+        '''
+        Sets up kernel information with the kernel type object
         which is created by the parser. The object includes the
-        metadata describing the kernel code '''
+        metadata describing the kernel code.
 
+        :param ktype: the kernel meta-data object produced by the parser
+        :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        '''
         # create a name for each argument
         from psyclone.parse import Arg
         args = []
@@ -2941,9 +2971,15 @@ class DynKern(Kern):
             args.append(Arg("variable", "qr"))
         self._setup(ktype, "dummy_name", args, None)
 
-    def _setup_basis(self, kmetadata):  # func_descriptors):
-        ''' initialisation of the basis/diff basis information. This may be
-        needed before general setup so is computed in a separate method. '''
+    def _setup_basis(self, kmetadata):
+        '''
+        Initialisation of the basis/diff basis information. This may be
+        needed before general setup so is computed in a separate method.
+
+        :param kmetadata: The kernel meta-data object produced by the
+                          parser.
+        :type kmetadata: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        '''
         for descriptor in kmetadata.func_descriptors:
             if len(descriptor.operator_names) > 0:
                 self._basis_required = True
@@ -2951,7 +2987,21 @@ class DynKern(Kern):
                 break
 
     def _setup(self, ktype, module_name, args, parent):
-        ''' internal setup of kernel information. '''
+        '''
+        Internal setup of kernel information.
+
+        :param ktype: Object holding information on the parsed meta-data for
+                      this kernel.
+        :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :param str module_name: the name of the Fortran module that contains
+                                the source of this Kernel
+        :param args: List of Arg objects produced by the parser for the
+                     arguments of this kernel call
+        :type args: List of :py:class:`psyclone.parse.Arg` objects
+        :param parent: the parent of this kernel call in the generated
+                       AST (will be a loop object)
+        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        '''
         from psyclone.parse import KernelCall
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
@@ -3028,14 +3078,20 @@ class DynKern(Kern):
 
     @property
     def eval_shape(self):
-        ''' Returns the value of GH_SHAPE for this kernel (or an empty
-        string if there is none) '''
+        '''
+        :return: the value of GH_SHAPE for this kernel or an empty string
+                 if none is specified
+        :rtype: str
+        '''
         return self._eval_shape
 
     @property
     def eval_fspace(self):
-        ''' Returns the function space upon which basis/diff-basis functions
-        are to be evaluated. '''
+        '''
+        :return: the function space upon which basis/diff-basis functions
+                 are to be evaluated.
+        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         return self._nodal_fspace
 
     @property
@@ -3600,16 +3656,28 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
 
     def basis(self, function_space):
-        '''add basis function information for this function space to the
-        argument list'''
+        '''
+        Add basis function information for this function space to the
+        argument list.
+
+        :param function_space: the function space for which the basis
+                               function is required
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         basis_name = get_fs_basis_name(function_space,
                                        qr_var=self._kern.qr_name,
                                        on_space=self._kern.eval_fspace)
         self._arglist.append(basis_name)
 
     def diff_basis(self, function_space):
-        '''add differential basis information for the function space to the
-        argument list'''
+        '''
+        Add differential basis information for the function space to the
+        argument list.
+
+        :param function_space: the function space for which the differential
+                               basis functions are required
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         diff_basis_name = get_fs_diff_basis_name(
             function_space, qr_var=self._kern.qr_name,
             on_space=self._kern.eval_fspace)
@@ -3969,7 +4037,14 @@ class KernStubArgList(ArgOrdering):
                                  entity_decls=[map_name]))
 
     def basis(self, function_space):
-        ''' provide basis function information for the function space '''
+        '''
+        Add the necessary declarations for a basis function on the supplied
+        function space.
+
+        :param function_space: the function space for which to provide
+                               the basis functions
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         from psyclone.f2pygen import DeclGen
         basis_name = get_fs_basis_name(function_space)
         ndf_name = get_fs_ndf_name(function_space)
@@ -4006,8 +4081,14 @@ class KernStubArgList(ArgOrdering):
                                  entity_decls=[basis_name]))
 
     def diff_basis(self, function_space):
-        '''provide differential basis function information for the function
-        space'''
+        '''
+        Provide the necessary declarations for the differential basis function
+        on the supplied function space.
+
+        :param function_space: the function space for which to provide the
+                               differential basis function
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         diff_basis_name = get_fs_diff_basis_name(function_space)
@@ -4303,15 +4384,26 @@ class FSDescriptors(object):
 
     @property
     def descriptors(self):
-        ''' Returns the list of Descriptors '''
+        '''
+        :return: the list of Descriptors, one for each of the meta-funcs
+                 entries in the kernel meta-data.
+        :rtype: List of :py:class:`psyclone.dynamo0p3.FSDescriptor`
+        '''
         return self._descriptors
 
 
 def check_args(call):
-    '''checks that the kernel arguments provided via the invoke call are
+    '''
+    Checks that the kernel arguments provided via the invoke call are
     consistent with the information expected, as specified by the
-    kernel metadata '''
+    kernel metadata
 
+    :param call: the object produced by the parser that describes the
+                 kernel call to be checked.
+    :type call: :py:class:`psyclone.parse.KernelCall`
+    :raises: GenerationError if the kernel arguments in the Algorithm layer
+             do not match up with the kernel meta-data
+    '''
     # stencil arguments
     stencil_arg_count = 0
     for arg_descriptor in call.ktype.arg_descriptors:
@@ -4462,24 +4554,48 @@ class DynKernelArguments(Arguments):
                     self._unique_fs_names.append(function_space.mangled_name)
                     self._unique_fss.append(function_space)
 
-    def get_arg_on_space(self, func_space, mangled=True):
-        '''Returns the first argument (field or operator) found that
-        is on the specified function space. If no field or operator is
-        found an exception is raised. If mangled is True then func_space
-        is a FunctionSpace object whose mangled name is to be used
-        for comparison. If it is false then func_space is just the
-        name of the function space as specified in the kernel metadata. '''
+    def get_arg_on_space_name(self, func_space_name):
+        '''
+        Returns the first argument (field or operator) found that is on
+        the named function space, as specified in the kernel metadata.
+        
+        :param str func_space_name: Name of the function space (as specified
+                                    in kernel meta-data) for which
+                                    to find an argument.
+        :return: the first kernel argument that is on the named function
+                 space
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :raises: FieldNotFoundError if no field or operator argument is found
+                 for the named function space.
+        '''
         for arg in self._args:
             for function_space in arg.function_spaces:
                 if function_space:
-                    if mangled:
-                        if func_space.mangled_name == \
-                           function_space.mangled_name:
-                            return arg
-                    else:
-                        if func_space == function_space.orig_name:
-                            return arg
+                    if func_space_name == function_space.orig_name:
+                        return arg
+        raise FieldNotFoundError("DynKernelArguments:get_arg_on_space_name: "
+                                 "there is no field or operator with function "
+                                 "space {0}".format(func_space_name))
 
+    def get_arg_on_space(self, func_space):
+        '''
+        Returns the first argument (field or operator) found that is on
+        the specified function space. The mangled name of the supplied
+        function space is used for comparison.
+        
+        :param func_space: The function space for which to find an argument.
+        :type func_space: :py:class:`dynamo0p3.xxxxxxx`
+        :return: the first kernel argument that is on the supplied function
+                 space
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :raises: FieldNotFoundError if no field or operator argument is found
+                 for the specified function space.
+        '''
+        for arg in self._args:
+            for function_space in arg.function_spaces:
+                if function_space:
+                    if func_space.mangled_name == function_space.mangled_name:
+                        return arg
         raise FieldNotFoundError("DynKernelArguments:get_arg_on_space: there "
                                  "is no field or operator with function space "
                                  "{0}".format(func_space.mangled_name))
