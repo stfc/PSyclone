@@ -17,7 +17,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -102,7 +102,7 @@ def test_single_updated_arg():
     assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
 
 
-def test_single_kern_eval():
+def test_single_kern_eval(tmpdir, f90, f90flags):
     ''' Check that we generate correct code for a single kernel that
     requires both basis and differential basis functions for an
     evaluator '''
@@ -111,6 +111,11 @@ def test_single_kern_eval():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     # First, check the declarations
     expected_decl = (
         "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
@@ -211,7 +216,7 @@ def test_single_kern_eval():
     assert dealloc_code in gen_code
 
 
-def test_single_kern_eval_op():
+def test_single_kern_eval_op(tmpdir, f90, f90flags):
     ''' Check that we generate correct code for a single kernel which
     writes to an operator and requires both basis and differential basis
     functions for an evaluator '''
@@ -220,6 +225,11 @@ def test_single_kern_eval_op():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
     # W3 (space of the field).
@@ -283,7 +293,7 @@ def test_single_kern_eval_op():
     assert dealloc in gen_code
 
 
-def test_two_qr():
+def test_two_qr(tmpdir, f90, f90flags):
     ''' Check that we handle an invoke containing two kernels that each
     require quadrature '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -292,6 +302,11 @@ def test_two_qr():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
         "n2, qr, qr2)\n"
