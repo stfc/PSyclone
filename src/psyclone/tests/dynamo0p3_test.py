@@ -6514,7 +6514,7 @@ def test_stub_generate_with_anyw2():
     have any_w2 fields. In particular, check basis functions as these
     have specific sizes associated with the particular function space'''
     result = generate(os.path.join(BASE_PATH,
-                                   "testkern_multi_anyw2_basis.f90"),
+                                   "testkern_multi_anyw2_basis_mod.f90"),
                       api="dynamo0.3")
     print result
     expected_output = (
