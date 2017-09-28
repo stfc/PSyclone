@@ -4598,7 +4598,9 @@ class DynKernelArguments(Arguments):
                         return arg
         raise FieldNotFoundError("DynKernelArguments:get_arg_on_space: there "
                                  "is no field or operator with function space "
-                                 "{0}".format(func_space.mangled_name))
+                                 "{0} (mangled name = '{1}')".format(
+                                     func_space.orig_name,
+                                     func_space.mangled_name))
 
     def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator

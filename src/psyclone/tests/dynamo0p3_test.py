@@ -3815,6 +3815,39 @@ def test_arg_intent_error():
             str(excinfo))
 
 
+def test_no_arg_on_space(monkeypatch):
+    ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
+    the appropriate error when there is no kernel argument on the
+    supplied space. '''
+    from psyclone.psyGen import FieldNotFoundError
+    import copy
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    kernel_args = first_kernel.arguments
+    # Test getting the argument by the meta-data name for the function space
+    arg = kernel_args.get_arg_on_space_name("w2")
+    assert arg.name == "f2"
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        _ = kernel_args.get_arg_on_space_name("not_a_space")
+    assert ("there is no field or operator with function space not_a_space" in
+            str(excinfo))
+    # Now test get_arg_on_space - we need a FunctionSpace object for this
+    fspace = arg.function_space
+    arg = kernel_args.get_arg_on_space(fspace)
+    assert arg.name == "f2"
+    # Take a deep copy of the function space object so that we get a new
+    # one whose state we can monkeypatch
+    fspace = copy.deepcopy(arg.function_space)
+    monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        _ = kernel_args.get_arg_on_space(fspace)
+    assert ("there is no field or operator with function space w2 (mangled "
+            "name = 'not_a_space_name')" in str(excinfo))
+
+
 def test_arg_descriptor_function_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space is called and the internal type is an
