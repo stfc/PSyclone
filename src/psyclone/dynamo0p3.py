@@ -44,9 +44,9 @@
 
 # imports
 import os
+import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
-import fparser
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
@@ -4558,7 +4558,7 @@ class DynKernelArguments(Arguments):
         '''
         Returns the first argument (field or operator) found that is on
         the named function space, as specified in the kernel metadata.
-        
+
         :param str func_space_name: Name of the function space (as specified
                                     in kernel meta-data) for which
                                     to find an argument.
@@ -4582,7 +4582,7 @@ class DynKernelArguments(Arguments):
         Returns the first argument (field or operator) found that is on
         the specified function space. The mangled name of the supplied
         function space is used for comparison.
-        
+
         :param func_space: The function space for which to find an argument.
         :type func_space: :py:class:`dynamo0p3.xxxxxxx`
         :return: the first kernel argument that is on the supplied function

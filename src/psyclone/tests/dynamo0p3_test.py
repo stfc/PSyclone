@@ -959,7 +959,8 @@ def test_field_qr():
         "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
         "      INTEGER dim_w1, dim_w3, diff_dim_w2, diff_dim_w3\n"
-        "      REAL(KIND=r_def), pointer :: wv_qr(:) => null(), zp_qr(:) => null(), wh_qr(:) => null()\n"
+        "      REAL(KIND=r_def), pointer :: wv_qr(:) => null(), "
+        "zp_qr(:) => null(), wh_qr(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp_qr(:,:) => null()\n"
         "      INTEGER nqp_h_qr, nqp_v_qr\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
@@ -1644,8 +1645,8 @@ def test_operator_different_spaces():
         "      REAL(KIND=r_def), allocatable :: basis_w3_qr(:,:,:,:), "
         "diff_basis_w0_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
         "      INTEGER dim_w3, diff_dim_w0, diff_dim_w2\n"
-        "      REAL(KIND=r_def), pointer :: wv_qr(:) => null(), zp_qr(:) => null(), "
-        "wh_qr(:) => null()\n"
+        "      REAL(KIND=r_def), pointer :: wv_qr(:) => null(), "
+        "zp_qr(:) => null(), wh_qr(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp_qr(:,:) => null()\n"
         "      INTEGER nqp_h_qr, nqp_v_qr\n"
         "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
@@ -3820,7 +3821,6 @@ def test_no_arg_on_space(monkeypatch):
     the appropriate error when there is no kernel argument on the
     supplied space. '''
     from psyclone.psyGen import FieldNotFoundError
-    import copy
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -3840,6 +3840,7 @@ def test_no_arg_on_space(monkeypatch):
     assert arg.name == "f2"
     # Take a deep copy of the function space object so that we get a new
     # one whose state we can monkeypatch
+    import copy
     fspace = copy.deepcopy(arg.function_space)
     monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
@@ -6475,8 +6476,8 @@ def test_anyw2_operators():
         assert output in generated_code
         output = (
             "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, nqp_h_qr, "
-            "nqp_v_qr))\n"
+            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
+            "nqp_h_qr, nqp_v_qr))\n"
             "      !\n"
             "      ! Compute basis arrays\n"
             "      !\n"

@@ -276,8 +276,7 @@ def test_single_kern_eval_op():
         " op1_proxy%local_stencil, f1_proxy%data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO \n"
-         )
+        "      END DO \n")
     assert kern_call in gen_code
     dealloc = ("      DEALLOCATE (diff_basis_w3_on_w0, basis_w2_on_w0)\n")
     assert dealloc in gen_code
@@ -466,7 +465,7 @@ def test_two_identical_qr():
         "      CALL m2_proxy%vspace%compute_diff_basis_function("
         "diff_basis_w3_qr, ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
         "      !\n")
-    assert expected_basis_init in gen_code    
+    assert expected_basis_init in gen_code
     expected_kern_call = (
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
@@ -827,7 +826,7 @@ def test_two_eval_diff_space():
     assert expected_code in gen_code
 
 
-def test_two_eval_same_var_same_space():
+def test_two_eval_same_var_same_space():  # pylint: disable=invalid-name
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
     same space '''
@@ -838,7 +837,7 @@ def test_two_eval_same_var_same_space():
     gen_code = str(psy.gen)
     print gen_code
     # We should only get one set of basis and diff-basis functions in the
-    #  generated code
+    # generated code
     assert gen_code.count(
         "ndf_any_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert gen_code.count(
