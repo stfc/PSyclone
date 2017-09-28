@@ -4726,7 +4726,16 @@ class DynKernelArgument(KernelArgument):
         return self._arg
 
     def ref_name(self, function_space=None):
-        ''' Returns the name used to dereference this type of argument. '''
+        '''
+        Returns the name used to dereference this type of argument (depends
+        on whether it is a field or operator and, if the latter, whether it
+        is the to- or from-space that is specified).
+
+        :param function_space: the function space of this argument
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: the name used to dereference this argument
+        :rtype: str
+        '''
         if not function_space:
             if self.is_operator:
                 # For an operator we use the 'from' FS
@@ -4825,8 +4834,11 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def function_space(self):
-        ''' Returns the expected finite element function space for this
-            argument as specified by the kernel argument metadata. '''
+        '''
+        :return: the expected finite element function space for this
+                 argument as specified by the kernel argument metadata.
+        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         if self._type == "gh_operator":
             # We return the 'from' space for an operator argument
             return self.function_space_from
@@ -4919,8 +4931,11 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def is_operator(self):
-        ''' Returns True if this kernel argument represents an operator.
-        False otherwise. '''
+        '''
+        :return: True if this kernel argument represents an operator,
+                 False otherwise.
+        :rtype: bool
+        '''
         return self._type in VALID_OPERATOR_NAMES
 
 
