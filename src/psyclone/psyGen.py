@@ -2490,24 +2490,41 @@ class Argument(object):
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum. '''
+        exist in a call, a haloexchange, or a globalsum.
+
+        :return: the first preceding argument this argument has a dependence with
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+
+        '''
         nodes = self._call.preceding(reverse=True)
         return self._find_argument(nodes)
 
     def backward_write_dependencies(self, ignore_halos=False):
         '''Returns a list of previous write arguments that this argument has
         dependencies with. The arguments may exist in a call, a
-        haloexchange (unless ignore_halos is True), or a globalsum. If
+        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
         none are found then return an empty list. If self is not a
-        reader then return an empty list.'''
+        reader then return an empty list.
+
+        :param: ignore_halos: An optional, default `False`, boolean flag
+        :type: ignore_halos: Bool
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
         nodes = self._call.preceding(reverse=True)
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
-        dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.'''
+        dependence with, or `None` if there is not one. The argument may
+        exist in a call, a haloexchange, or a globalsum.
+
+        :return: the first following argument this argument has a dependence with
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+
+        '''
         nodes = self._call.following()
         return self._find_argument(nodes)
 
@@ -2516,7 +2533,12 @@ class Argument(object):
         dependencies with. The arguments may exist in a call, a
         haloexchange, or a globalsum. If none are found then
         return an empty list. If self is not a writer then return an
-        empty list.'''
+        empty list.
+
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
         nodes = self._call.following()
         return self._find_read_arguments(nodes)
 
@@ -2535,7 +2557,14 @@ class Argument(object):
     def _find_read_arguments(self, nodes):
         '''Return a list of arguments from the list of nodes that have a read
         dependency with self. If none are found then return an empty
-        list. If self is not a writer then return an empty list.'''
+        list. If self is not a writer then return an empty list.
+
+        :param: the list of nodes that this method examines
+        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
         if self.access not in self._writers:
             return []
         arguments = []
@@ -2555,18 +2584,31 @@ class Argument(object):
                         # this is a vector field and the two halos
                         # are accessing different vectors so there
                         # is no dependence.
-                        pass
-                    else:
-                        if argument.access in self._readers:
-                            arguments.append(argument)
-                        if argument.access in self._writers:
-                            return arguments
+                        continue
+                    if argument.access in self._readers:
+                        # there is a read dependence so append to list
+                        arguments.append(argument)
+                    if argument.access in self._writers:
+                        # there is a write dependence so finish our search
+                        return arguments
+
+        # we did not find a terminating write dependence in the list
+        # of nodes so we return any read dependencies that were found
         return arguments
 
     def _find_write_arguments(self, nodes, ignore_halos=False):
         '''Return a list of arguments from the list of nodes that have a write
         dependency with self. If none are found then return an empty
-        list. If self is not a reader then return an empty list.'''
+        list. If self is not a reader then return an empty list.
+
+        :param: the list of nodes that this method examines
+        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :param: ignore_halos: An optional, default `False`, boolean flag
+        :type: ignore_halos: Bool
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
         arguments = []
         if self.access not in self._readers:
             return arguments
@@ -2576,41 +2618,43 @@ class Argument(object):
                 (isinstance(node, HaloExchange) and not ignore_halos) or
                     isinstance(node, GlobalSum)):
                 for argument in node.args:
-                    if argument.name == self.name:
-                        if argument.access in self._writers:
-                            if isinstance(node, HaloExchange):
-                                if isinstance(self.call, HaloExchange):
-                                    # source and sink are both halo exchanges
-                                    if self.vector_size <= 1:
-                                        raise GenerationError(
-                                            "Internal error, a halo exchange "
-                                            "depends on another halo exchange "
-                                            "but the vector size of field "
-                                            "'{0}' is 1".format(self.name))
-                                    if self.call.vector_index == \
-                                       node.vector_index:
-                                        raise GenerationError(
-                                            "Internal error, a halo exchange "
-                                            "depends on another halo exchange "
-                                            "and the vector id's of field "
-                                            "'{0}' are the same".
-                                            format(self.name))
-                                    # these halo exchanges do not
-                                    # depend on each other as they
-                                    # have different vector indices
-                                    pass
-                                else:
-                                    # a vector read will depend on more
-                                    # than one halo exchange as halo
-                                    # exchanges only update a single
-                                    # vector
-                                    vector_count += 1
-                                    arguments.append(argument)
-                                    if vector_count == self.vector_size:
-                                        return arguments
-                            else:
-                                arguments.append(argument)
+                    if argument.name != self.name:
+                        continue
+                    if argument.access not in self._writers:
+                        continue
+                    if isinstance(node, HaloExchange):
+                        if isinstance(self.call, HaloExchange):
+                            # source and sink are both halo exchanges
+                            if self.vector_size <= 1:
+                                raise GenerationError(
+                                    "Internal error, a halo exchange "
+                                    "depends on another halo exchange "
+                                    "but the vector size of field "
+                                    "'{0}' is 1".format(self.name))
+                            if self.call.vector_index == \
+                               node.vector_index:
+                                raise GenerationError(
+                                    "Internal error, a halo exchange "
+                                    "depends on another halo exchange "
+                                    "and the vector id's of field "
+                                    "'{0}' are the same".
+                                    format(self.name))
+                            # these halo exchanges do not
+                            # depend on each other as they
+                            # have different vector indices
+                            pass
+                        else:
+                            # a vector read will depend on more
+                            # than one halo exchange as halo
+                            # exchanges only update a single
+                            # vector
+                            vector_count += 1
+                            arguments.append(argument)
+                            if vector_count == self.vector_size:
                                 return arguments
+                    else:
+                        arguments.append(argument)
+                        return arguments
         return arguments
 
     def _depends_on(self, argument):
