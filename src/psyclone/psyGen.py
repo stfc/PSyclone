@@ -1080,6 +1080,37 @@ class Node(object):
         ''' return all calls that are descendents of this node '''
         return self.walk(self.children, Call)
 
+    def following(self):
+        '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
+        schedule. Ordering is depth first.
+
+        :return: a list of nodes
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
+
+        '''
+        all_nodes = self.walk(self.root.children, Node)
+        position = all_nodes.index(self)
+        return all_nodes[position+1:]
+
+    def preceding(self, reverse=None):
+        '''Return all :py:class:`psyclone.psyGen.Node` nodes before me in the
+        schedule. Ordering is depth first. If the `reverse` argument is set to `True`
+        then the node ordering is reversed i.e. returning the nodes
+        closest to me first
+
+        :param: reverse: An optional, default `False`, boolean flag
+        :type: reverse: Bool
+        :return: A list of nodes
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
+
+        '''
+        all_nodes = self.walk(self.root.children, Node)
+        position = all_nodes.index(self)
+        nodes = all_nodes[:position]
+        if reverse:
+            nodes.reverse()
+        return nodes
+
     @property
     def following_calls(self):
         ''' return all calls after me in the schedule '''
@@ -2455,16 +2486,13 @@ class Argument(object):
     def call(self, value):
         ''' set the node that this argument is associated with '''
         self._call = value
-
+        
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum. '''
-        all_nodes = self._call.walk(self._call.root.children, Node)
-        position = all_nodes.index(self._call)
-        all_prev_nodes = all_nodes[:position]
-        all_prev_nodes.reverse()
-        return self._find_argument(all_prev_nodes)
+        nodes = self._call.preceding(reverse=True)
+        return self._find_argument(nodes)
 
     def backward_write_dependencies(self, ignore_halos=False):
         '''Returns a list of previous write arguments that this argument has
@@ -2472,22 +2500,16 @@ class Argument(object):
         haloexchange (unless ignore_halos is True), or a globalsum. If
         none are found then return an empty list. If self is not a
         reader then return an empty list.'''
-        all_nodes = self._call.walk(self._call.root.children, Node)
-        position = all_nodes.index(self._call)
-        all_prev_nodes = all_nodes[:position]
-        all_prev_nodes.reverse()
-        results = self._find_write_arguments(all_prev_nodes,
-                                             ignore_halos=ignore_halos)
+        nodes = self._call.preceding(reverse=True)
+        results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.'''
-        all_nodes = self._call.walk(self._call.root.children, Node)
-        position = all_nodes.index(self._call)
-        all_following_nodes = all_nodes[position+1:]
-        return self._find_argument(all_following_nodes)
+        nodes = self._call.following()
+        return self._find_argument(nodes)
 
     def forward_read_dependencies(self):
         '''Returns a list of following read arguments that this argument has
@@ -2495,11 +2517,8 @@ class Argument(object):
         haloexchange, or a globalsum. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.'''
-        all_nodes = self._call.walk(self._call.root.children, Node)
-        position = all_nodes.index(self._call)
-        all_following_nodes = all_nodes[position+1:]
-        result = self._find_read_arguments(all_following_nodes)
-        return result
+        nodes = self._call.following()
+        return self._find_read_arguments(nodes)
 
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a
