@@ -48,9 +48,9 @@ def trans(psy):
     '''removes the grad_p halo exchanges by redundant computation then
     moves the remaining halo exchanges to the beginning of the invoke
     call'''
-    from psyclone.transformations import DynamoRedundantComputationTrans, \
+    from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
         MoveTrans
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     m_trans = MoveTrans()
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
