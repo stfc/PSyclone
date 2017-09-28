@@ -49,6 +49,15 @@ module testkern_eval_op
   end type testkern_eval_op_type
 contains
 
-  subroutine testkern_eval_op_code()
+  subroutine testkern_eval_op_code(cell, nlayers, ncell_3d, op1_stencil, &
+                                   f2, ndf_w0, ndf_w2, basis_w2, ndf_w3, &
+                                   undf_w3, map_w3, diff_basis_w3)
+    use constants_mod, only: r_def
+    implicit none
+    integer :: cell, nlayers, ncell_3d, ndf_w0, ndf_w2, ndf_w3, undf_w3
+    integer, dimension(:) :: map_w3
+    real(kind=r_def), dimension(:) :: f2
+    real(kind=r_def), dimension(:,:,:) :: op1_stencil
+    real(kind=r_def), dimension(:,:,:) :: basis_w2, diff_basis_w3
   end subroutine testkern_eval_op_code
 end module testkern_eval_op
