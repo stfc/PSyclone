@@ -27,7 +27,9 @@
 
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern_multi_anyw2_basis_mod
+module testkern_multi_anyw2_basis
+  use argument_mod
+  use kernel_mod
   !
   type, extends(kernel_type) :: testkern_multi_anyw2_basis_type
      type(arg_type), dimension(3) :: meta_args = &
@@ -37,15 +39,25 @@ module testkern_multi_anyw2_basis_mod
            /)
      type(func_type), dimension(1) :: meta_funcs = &
           (/ func_type(any_w2,gh_basis,gh_diff_basis) /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_XYoZ
    contains
-     procedure() :: code => testkern_multi_anyw2_basis_code
+     procedure, nopass :: code => testkern_multi_anyw2_basis_code
   end type testkern_multi_anyw2_basis_type
   !
 contains
   !
-  subroutine testkern_multi_anyw2_basis_code()
+  subroutine testkern_multi_anyw2_basis_code(nlayers, f1, f2, f3, &
+                             ndf_any_w2, undf_any_w2, map_any_w2, &
+                             basis_any_w2, diff_basis_any_w2,     &
+                             nqp_h, nqp_v, wh, wv)
+    use constants_mod, only: r_def
+    implicit none
+    integer :: nlayers, ndf_any_w2, undf_any_w2, nqp_h, nqp_v
+    integer, dimension(:) :: map_any_w2
+    real(kind=r_def), dimension(:) :: f1, f2, f3
+    real(kind=r_def), dimension(:,:,:,:) :: basis_any_w2, diff_basis_any_w2
+    real(kind=r_def), dimension(:) :: wh, wv
   end subroutine testkern_multi_anyw2_basis_code
   !
-end module testkern_multi_anyw2_basis_mod
+end module testkern_multi_anyw2_basis

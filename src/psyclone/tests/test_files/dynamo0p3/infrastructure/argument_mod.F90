@@ -53,6 +53,7 @@ module argument_mod
   integer, public, parameter :: W2V = 6
   integer, public, parameter :: W2H = 7
   integer, public, parameter :: Wchi = 8
+  integer, public, parameter :: ANY_W2 = 9
 
 ! argument types
   integer, public, parameter :: GH_FIELD    = 1 

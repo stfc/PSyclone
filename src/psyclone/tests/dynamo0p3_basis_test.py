@@ -429,7 +429,7 @@ def test_two_qr(tmpdir, f90, f90flags):
     assert expected_code in gen_code
 
 
-def test_two_identical_qr():
+def test_two_identical_qr(tmpdir, f90, f90flags):
     ''' Check that we handle an invoke containing two kernels that each
     require quadrature and are passed the same qr object '''
     _, invoke_info = parse(
@@ -438,6 +438,11 @@ def test_two_identical_qr():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     expected_init = (
         "      ! Look-up quadrature variables\n"
         "      !\n"
@@ -506,7 +511,7 @@ def test_two_identical_qr():
     assert expected_dealloc in gen_code
 
 
-def test_anyw2():
+def test_anyw2(tmpdir, f90, f90flags):
     '''Check generated code works correctly when we have any_w2 fields
     and basis functions'''
     _, invoke_info = parse(
@@ -517,6 +522,11 @@ def test_anyw2():
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print generated_code
+
+        if utils.TEST_COMPILE:
+            # Test that generated code compiles
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         output = (
             "      ! Initialise number of DoFs for any_w2\n"
             "      !\n"
