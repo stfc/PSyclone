@@ -568,7 +568,7 @@ def test_anyw2(tmpdir, f90, f90flags):
         assert output in generated_code
 
 
-def test_qr_plus_eval():
+def test_qr_plus_eval(tmpdir, f90, f90flags):
     ''' Check that we handle an invoke containing two kernels, one
     requiring quadrature and one requiring an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
@@ -576,6 +576,11 @@ def test_qr_plus_eval():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # Test that generated code compiles
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
@@ -696,7 +701,7 @@ def test_qr_plus_eval():
     assert output_dealloc in gen_code
 
 
-def test_two_eval_same_space():
+def test_two_eval_same_space(tmpdir, f90, f90flags):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
     the same space '''
@@ -705,6 +710,11 @@ def test_two_eval_same_space():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # Test that generated code compiles
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     output_init = (
         "      !\n"
         "      ! Initialise evaluator-related quantities using the field(s) "
@@ -771,7 +781,7 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
-    
+
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
@@ -857,7 +867,8 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     assert expected_code in gen_code
 
 
-def test_two_eval_same_var_same_space():  # pylint: disable=invalid-name
+def test_two_eval_same_var_same_space(
+        tmpdir, f90, f90flags):  # pylint: disable=invalid-name
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
     same space '''
@@ -867,6 +878,11 @@ def test_two_eval_same_var_same_space():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # Test that generated code compiles
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert gen_code.count(
@@ -894,7 +910,7 @@ def test_two_eval_same_var_same_space():  # pylint: disable=invalid-name
         "diff_basis_w1_on_any_space_1_f0)") == 1
 
 
-def test_two_eval_op_to_space():
+def test_two_eval_op_to_space(tmpdir, f90, f90flags):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
     different spaces, one of which is the 'to' space of an operator. '''
@@ -904,6 +920,11 @@ def test_two_eval_op_to_space():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print gen_code
+
+    if utils.TEST_COMPILE:
+        # Test that generated code compiles
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     # testkern_eval writes to W0. testkern_eval_op_to writes to W3.
     # testkern_eval requires basis fns on W0 and eval_op_to requires basis
     # fns on W2 which is the 'to' space of the operator arg

@@ -29,7 +29,8 @@
 ! Author: A. R. Porter STFC Daresbury Lab
 !-------------------------------------------------------------------------------
 
-module testkern_eval_anyspace2_mod
+module testkern_eval_anyspace2
+  use argument_mod
   use kernel_mod
   type, extends(kernel_type) :: testkern_eval_anyspace2_type
      type(arg_type)  :: meta_args(3) =  (/    &
@@ -44,10 +45,21 @@ module testkern_eval_anyspace2_mod
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
    contains
-     procedure, nopass :: code => testkern_eval_code
+     procedure, nopass :: code => testkern_eval_anyspace2_code
   end type testkern_eval_anyspace2_type
 contains
 
-  subroutine testkern_eval_code()
-  end subroutine testkern_eval_code
-end module testkern_eval_anyspace2_mod
+  subroutine testkern_eval_anyspace2_code(nlayers, f0, f1, f2,               &
+                ndf_any_space_1_f0, undf_any_space_1_f0, map_any_space_1_f0, &
+                ndf_w0, undf_w0, map_w0, basis_w0_on_any_space_1_f0,         &
+                ndf_w1, undf_w1, map_w1, diff_basis_w1_on_any_space_1_f0)
+    use constants_mod, only: r_def
+    implicit none
+    integer :: nlayers, ndf_any_space_1_f0, undf_any_space_1_f0, ndf_w0, &
+               undf_w0, ndf_w1, undf_w1
+    integer, dimension(:) :: map_any_space_1_f0, map_w0, map_w1
+    real(kind=r_def), dimension(:) :: f0, f1, f2
+    real(kind=r_def), dimension(:,:,:) :: basis_w0_on_any_space_1_f0, &
+                                          diff_basis_w1_on_any_space_1_f0
+  end subroutine testkern_eval_anyspace2_code
+end module testkern_eval_anyspace2

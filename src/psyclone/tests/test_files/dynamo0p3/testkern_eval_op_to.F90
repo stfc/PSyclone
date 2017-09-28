@@ -29,7 +29,9 @@
 ! Author: A. R. Porter STFC Daresbury Lab
 !-------------------------------------------------------------------------------
 
-module testkern_eval_op_to_mod
+module testkern_eval_op_to
+  use argument_mod
+  use kernel_mod
   ! Test kernel that writes to an operator and requires an evaluator with
   ! a space corresponding to the 'to' space of the operator.
   type, extends(kernel_type) :: testkern_eval_op_to_type
@@ -41,13 +43,23 @@ module testkern_eval_op_to_mod
        func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
        func_type(W3, GH_DIFF_BASIS)                                    &
        /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_evaluator
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
    contains
-     procedure() :: code => testkern_eval_op_to_code
+     procedure, nopass :: code => testkern_eval_op_to_code
   end type testkern_eval_op_to_type
 contains
 
-  subroutine testkern_eval_op_to_code()
+  subroutine testkern_eval_op_to_code(cell, nlayers, ncell_3d, op1_stencil, &
+                      f2, ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3,      &
+                      ndf_w0, ndf_w3, undf_w3, map_w3, diff_basis_w3_on_w3)
+    use constants_mod, only: r_def
+    implicit none
+    integer :: cell, nlayers, ncell_3d, ndf_w2, ndf_w0, ndf_w3, undf_w3
+    integer, dimension(:) :: map_w3
+    real(kind=r_def), dimension(:) :: f2
+    real(kind=r_def), dimension(:,:,:) :: op1_stencil
+    real(kind=r_def), dimension(:,:,:) :: basis_w2_on_w3, diff_basis_w2_on_w3, &
+                                          diff_basis_w3_on_w3
   end subroutine testkern_eval_op_to_code
-end module testkern_eval_op_to_mod
+end module testkern_eval_op_to
