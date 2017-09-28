@@ -48,7 +48,7 @@ from psyclone.transformations import TransformationError, \
     DynamoLoopFuseTrans, \
     KernelModuleInlineTrans, \
     MoveTrans, \
-    DynamoRedundantComputationTrans
+    Dynamo0p3RedundantComputationTrans
 
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
@@ -3649,21 +3649,21 @@ def test_move_fail():
 
 
 def test_redundant_computation_str():
-    '''Test the str method of the DynamoRedundantComputationTrans class'''
-    rc_trans = DynamoRedundantComputationTrans()
+    '''Test the str method of the Dynamo0p3RedundantComputationTrans class'''
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
 
 
 def test_redundant_computation_name():
-    ''' Test the name property of the DynamoRedundantComputationTrans class '''
-    rc_trans = DynamoRedundantComputationTrans()
+    ''' Test the name property of the Dynamo0p3RedundantComputationTrans class '''
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     name = rc_trans.name
     assert name == "RedundantComputation"
 
 
 def test_redundant_computation_node_not_loop():
-    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     node argument is not a loop'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3671,15 +3671,15 @@ def test_redundant_computation_node_not_loop():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
-    assert ("In the DynamoRedundantComputation transformation apply method "
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
             "the first argument is not a Loop") in str(excinfo)
 
 
 def test_redundant_computation_invalid_loop(monkeypatch):
-    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied loop does not iterate over cells or dofs'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3687,19 +3687,19 @@ def test_redundant_computation_invalid_loop(monkeypatch):
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     # set the loop to a type that should raise an exception
     monkeypatch.setattr(loop, "loop_type", value="colours")
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the DynamoRedundantComputation transformation apply "
+    assert ("In the Dynamo0p3RedundantComputation transformation apply "
             "method the loop must iterate over cells or dofs, but "
             "found 'colours'") in str(excinfo)
 
 
 def test_redundant_computation_nodm(monkeypatch):
-    '''Test that DynamoRedundantComputationTrans raises an exception if
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if
     distributed memory is not set'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3707,18 +3707,18 @@ def test_redundant_computation_nodm(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     import psyclone.config
     monkeypatch.setattr(psyclone.config, "DISTRIBUTED_MEMORY", False)
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the DynamoRedundantComputation transformation apply method "
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
             "distributed memory must be switched on") in str(excinfo)
 
 
 def test_redundant_computation_invalid_depth():
-    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1 '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3726,16 +3726,16 @@ def test_redundant_computation_invalid_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=0)
-    assert ("In the DynamoRedundantComputation transformation apply method "
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
             "the supplied depth is less than 1") in str(excinfo)
 
 
 def test_redundant_computation_invalid_depth_continuous():
-    '''Test that DynamoRedundantComputationTrans raises an exception if the
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth equals 1 when modifying a continuous field '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3743,11 +3743,11 @@ def test_redundant_computation_invalid_depth_continuous():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=1)
-    assert ("In the DynamoRedundantComputation transformation apply method "
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
             "the supplied depth must be greater than 1") in str(excinfo)
 
 
@@ -3763,7 +3763,7 @@ def test_redundant_computation_continuous_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -3791,7 +3791,7 @@ def test_redundant_computation_continuous_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -3819,7 +3819,7 @@ def test_redundant_computation_discontinuous_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -3847,7 +3847,7 @@ def test_redundant_computation_discontinuous_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -3875,7 +3875,7 @@ def test_redundant_computation_all_discontinuous_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -3900,7 +3900,7 @@ def test_redundant_computation_all_discontinuous_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -3926,7 +3926,7 @@ def test_redundant_computation_all_discontinuous_vector_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -3955,7 +3955,7 @@ def test_redundant_computation_all_discontinuous_vector_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -3987,7 +3987,7 @@ def test_redundant_computation_all_discontinuous_prev_dependence_depth():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     schedule.view()
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -4014,7 +4014,7 @@ def test_redundant_computation_all_discontinuous_prev_dependence_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4043,7 +4043,7 @@ def test_redundant_computation_all_discontinuous_prev_dep_depth_vector():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -4074,7 +4074,7 @@ def test_redundant_computation_all_discontinuous_prev_dep_no_depth_vector():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4104,7 +4104,7 @@ def test_redundant_computation_dofs_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -4132,7 +4132,7 @@ def test_redundant_computation_dofs_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4160,7 +4160,7 @@ def test_redundant_computation_dofs_depth_prev_dep():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -4199,7 +4199,7 @@ def test_redundant_computation_dofs_no_depth_prev_dep():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[4]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4282,7 +4282,7 @@ def test_redundant_computation_vector_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
@@ -4308,7 +4308,7 @@ def test_redundant_computation_vector_no_depth():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[1]
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
@@ -4337,7 +4337,7 @@ def test_redundant_computation_no_halo_decrease():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     # first, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
     loop = schedule.children[3]
@@ -4393,7 +4393,7 @@ def test_redundant_computation_updated_dependence_analysis():
     assert not f2_field.backward_dependence()
     # set our loop to redundantly compute to the level 2 halo. This
     # introduces a new halo exchange
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop, depth=2)
     invoke.schedule = schedule
@@ -4420,7 +4420,7 @@ def test_redundant_computation_no_loop_decrease():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop, depth=2)
@@ -4467,7 +4467,7 @@ def test_redundant_computation_no_directive():
     loop = schedule.children[0]
     schedule, _ = otrans.apply(loop)
     invoke.schedule = schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0].children[0]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
@@ -4490,7 +4490,7 @@ def test_redundant_computation_remove_halo_exchange():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     #
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, depth=1)
     result = str(psy.gen)
@@ -4529,7 +4529,7 @@ def test_redundant_computation_max_remove_halo_exchange():
     # at this point we know we need a halo exchange of depth 1 for f3
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
     assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[3]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4567,7 +4567,7 @@ def test_redundant_computation_continuous_halo_remove():
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     f3_write_loop = schedule.children[3]
     f3_read_loop = schedule.children[7]
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
@@ -4598,7 +4598,7 @@ def test_redundant_computation_discontinuous_halo_remove():
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     f4_write_loop = schedule.children[4]
     f4_read_loop = schedule.children[7]
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
@@ -4634,7 +4634,7 @@ def test_redundant_computation_reader_halo_remove():
     result = str(psy.gen)
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
 
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
 
     # redundant computation to avoid halo exchange for f2
     schedule, _ = rc_trans.apply(schedule.children[1], depth=2)
@@ -4668,7 +4668,7 @@ def test_redundant_computation_vector_reader_halo_remove():
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
 
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
 
     # redundant computation for first loop
     schedule, _ = rc_trans.apply(schedule.children[0], depth=1)
@@ -4692,7 +4692,7 @@ def test_halo_stencil_redundant_computation_max_depth_1():
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
     therefore not allowed and an exception is raised in the
-    DynamoRedundantComputationTrans transformation. This test checks
+    Dynamo0p3RedundantComputationTrans transformation. This test checks
     this exception is raised correctly'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "19.1_single_stencil.f90"),
@@ -4700,10 +4700,10 @@ def test_halo_stencil_redundant_computation_max_depth_1():
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("In the DynamoRedundantComputation transformation apply method "
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
             "the loop contains field 'f2' with a stencil access in kernel "
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
@@ -4737,7 +4737,7 @@ def test_redundant_computation_invalid_depth_type():
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth="2")
     assert ("the supplied depth should be an integer" in str(excinfo.value))
@@ -4757,7 +4757,7 @@ def test_loop_fusion_different_loop_depth():
     move_trans = MoveTrans()
     move_trans.apply(schedule.children[7], schedule.children[6])
     # make the first loop redundantly compute to halo level 3
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[7], depth=3)
     # try to fuse the loops. This should fail as the depths are different
     f_trans = DynamoLoopFuseTrans()
@@ -4785,7 +4785,7 @@ def test_loop_fusion_different_loop_name():
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    rc_trans = DynamoRedundantComputationTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], depth=3)
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:

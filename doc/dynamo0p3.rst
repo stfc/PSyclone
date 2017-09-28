@@ -1578,7 +1578,7 @@ Transformations
 ---------------
 
 This section describes the dynamo-api-specific transformations. In all
-cases, excepting **DynamoRedundantComputationTran**, these
+cases, excepting **Dynamo0p3RedundantComputationTrans**, these
 transformations are specialisations of generic transformations
 described in the :ref:`transformations` section. The difference
 between these transformations and the generic ones are that these
@@ -1600,7 +1600,7 @@ the spaces are the same. This option should therefore be used with
 caution. Note, if PSyclone knows the spaces are different this option
 has no effect and the transformation will always raise an exception.
 
-The **DynamoRedundantComputationTrans** transformation is only valid
+The **Dynamo0p3RedundantComputationTrans** transformation is only valid
 for the "Dynamo0p3" api. This is because this api is currently the
 only one that supports distributed memory.
 
@@ -1626,6 +1626,6 @@ all versions of the Dynamo API.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.DynamoRedundantComputationTrans
+.. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
     :members:
     :noindex:

@@ -1180,7 +1180,7 @@ class MoveTrans(Transformation):
         return schedule, keep
 
 
-class DynamoRedundantComputationTrans(Transformation):
+class Dynamo0p3RedundantComputationTrans(Transformation):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant computation
     can result in halo exchanges being modified, new halo exchange being
@@ -1214,7 +1214,7 @@ class DynamoRedundantComputationTrans(Transformation):
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError(
-                "In the DynamoRedundantComputation transformation apply "
+                "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
 
         # check loop's parent is the schedule otherwise halo exchange
@@ -1223,14 +1223,14 @@ class DynamoRedundantComputationTrans(Transformation):
         from psyGen import Schedule
         if not isinstance(node.parent, Schedule):
             raise TransformationError(
-                "In the DynamoRedundantComputation transformation apply "
+                "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the parent must be the schedule, but found "
                 "{0}".format(type(node.parent)))
 
         import config
         if not config.DISTRIBUTED_MEMORY:
             raise TransformationError(
-                "In the DynamoRedundantComputation transformation apply "
+                "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
         # loop must iterate over cells or dofs. This currently
@@ -1238,7 +1238,7 @@ class DynamoRedundantComputationTrans(Transformation):
         # iterates over cells
         if node.loop_type not in ["", "dofs"]:
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply "
+                    "In the Dynamo0p3RedundantComputation transformation apply "
                     "method the loop must iterate over cells or dofs, but "
                     "found '{0}'".format(node.loop_type))
 
@@ -1246,14 +1246,14 @@ class DynamoRedundantComputationTrans(Transformation):
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
                 if not node.upper_bound_index:
                     raise TransformationError(
-                        "In the DynamoRedundantComputation transformation "
+                        "In the Dynamo0p3RedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so this transformation does nothing")
                 for call in node.calls():
                     for arg in call.arguments.args:
                         if arg.stencil:
                             raise TransformationError(
-                                "In the DynamoRedundantComputation "
+                                "In the Dynamo0p3RedundantComputation "
                                 "transformation apply method the loop "
                                 "contains field '{0}' with a stencil "
                                 "access in kernel '{1}', so it is invalid "
@@ -1262,17 +1262,17 @@ class DynamoRedundantComputationTrans(Transformation):
         else:
             if not isinstance(depth, int):
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply "
+                    "In the Dynamo0p3RedundantComputation transformation apply "
                     "method the supplied depth should be an integer")
             if depth < 1:
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply "
+                    "In the Dynamo0p3RedundantComputation transformation apply "
                     "method the supplied depth is less than 1")
 
             if not node.field.discontinuous and depth == 1 and \
                node.iteration_space == "cells":
                 raise TransformationError(
-                    "In the DynamoRedundantComputation transformation apply "
+                    "In the Dynamo0p3RedundantComputation transformation apply "
                     "method the supplied depth must be greater than 1 as this "
                     "loop  modifies a continuous field")
 
@@ -1280,13 +1280,13 @@ class DynamoRedundantComputationTrans(Transformation):
                 if node.upper_bound_index:
                     if node.upper_bound_index >= depth:
                         raise TransformationError(
-                            "In the DynamoRedundantComputation transformation "
+                            "In the Dynamo0p3RedundantComputation transformation "
                             "apply method the supplied depth ({0}) must be "
                             "greater than the existing halo depth ({1})".
                             format(depth, node.upper_bound_index))
                 else:
                     raise TransformationError(
-                        "In the DynamoRedundantComputation transformation "
+                        "In the Dynamo0p3RedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
