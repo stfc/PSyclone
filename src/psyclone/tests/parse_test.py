@@ -209,3 +209,28 @@ def test_duplicate_named_invoke():
                          "3.3_multi_functions_multi_invokes_name_clash.f90"),
             api="dynamo0.3")
     assert "Found multiple named invoke()'s with the same name" in str(err)
+
+
+def test_get_stencil():
+    ''' Check that parse.get_stencil() raises the correct errors when
+    passed various incorrect inputs '''
+    from psyclone.parse import get_stencil
+    from psyclone.expression import ExpressionNode, FunctionVar
+    node = ExpressionNode(["1"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found the "
+            "literal" in str(excinfo))
+    node = FunctionVar(["stencil()"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
+            in str(excinfo))
+    node = FunctionVar(["stencil", "cross"])
+    # Deliberately break the args member of node in order to trigger an
+    # internal error
+    node.args = [True]
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("expecting either FunctionVar or str from the expression analyser"
+            in str(excinfo))
