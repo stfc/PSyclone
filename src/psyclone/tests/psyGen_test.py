@@ -1745,6 +1745,7 @@ EXPECTED2 = re.compile(
     "\s*kernel_testkern_qr_code_4 -> loop_1_end \[color=blue\]\n"
     "\s*loop_1_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
     "}")
+# pylint: enable=anomalous-backslash-in-string
 
 
 def test_node_dag(tmpdir):
