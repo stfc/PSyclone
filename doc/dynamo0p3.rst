@@ -228,11 +228,12 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo API there are three
-different Kernel types; general purpose (user-supplied), CMA
-(user-supplied) and :ref:`dynamo_built-ins`. This section explains the
-rules for the two user-supplied kernel types and then goes on to
-describe their metadata and subroutine arguments.
+in the :ref:`kernel-layer` section. In the Dynamo API there are four
+different Kernel types; general purpose, CMA, inter-grid and
+:ref:`dynamo_built-ins`. For the latter type, PSyclone generates the
+source of the kernels.  This section explains the rules for the other
+three, user-supplied kernel types and then goes on to describe their
+metadata and subroutine arguments.
 
 Rules for all User-Supplied Kernels
 +++++++++++++++++++++++++++++++++++
@@ -312,6 +313,25 @@ All three CMA-related kernel types must obey the following rules:
 
 There are then additional rules specific to each of the three
 kernel types. These are described below.
+
+Rules for Inter-Grid Kernels
+++++++++++++++++++++++++++++
+
+1) An inter-grid kernel is identified by the presence of a field argument with
+   the optional `mesh_arg` meta-data element (see
+   :ref:`dynamo0.3-intergrid-mdata`).
+
+2) An inter-grid kernel is only permitted to have field or field-vector
+   arguments.
+
+3) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
+
+4) An inter-grid kernel (and metadata) must have at least one field on
+   each of the fine and coarse meshes. Specifying all fields as coarse or
+   fine is forbidden.
+
+5) Fields on different meshes must always live on different function spaces.
+
 
 Assembly
 ########
@@ -598,14 +618,21 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
-Stencil Metadata
-^^^^^^^^^^^^^^^^
+Optional Field Metadata
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Field metadata supports an optional 4th argument which can be used
-either to specify that the field is accessed as a stencil operation
-within the Kernel or, that the field is on a particular mesh
-(resolution). The latter option is described in Section
-:ref:`dynamo0.3-intergrid-mdata`.  Stencil metadata only makes sense
+A field entry in the meta_args array may have an optional fourth element.
+This element describes either a stencil access or, for inter-grid kernels,
+which mesh the field is on. Since an inter-grid kernel is not permitted
+to have stencil accesses, these two options are mutually exclusive.
+The meta-data for each case is described in the following sections.
+
+Stencil Metadata
+________________
+
+
+Stencil metadata specifies that the corresponding field argument is accessed
+as a stencil operation within the Kernel.  Stencil metadata only makes sense
 if the associated field is read within a Kernel i.e. it only makes
 sense to specify stencil metadata if the first entry is ``GH_FIELD``
 and the second entry is ``GH_READ``.
@@ -676,13 +703,14 @@ be found in ``examples/dynamo0p3/eg5``.
 .. _dynamo0.3-intergrid-mdata:
 
 Inter-Grid Metadata
-^^^^^^^^^^^^^^^^^^^^
+___________________
 
-Instead of describing a stencil operation, the optional fourth
-metadata argument for a field can specify which mesh the associated
-field is on.  This is required for inter-grid kernels which perform
-prolongation or restriction operations on fields (or field vectors)
-existing on grids of different resolutions.
+
+The alternative form of the optional fourth metadata argument for a
+field specifies which mesh the associated field is on.  This is
+required for inter-grid kernels which perform prolongation or
+restriction operations on fields (or field vectors) existing on grids
+of different resolutions.
 
 Mesh metadata is written in the following format:
 
