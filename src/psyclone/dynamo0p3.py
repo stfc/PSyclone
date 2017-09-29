@@ -773,7 +773,7 @@ class DynKernMetadata(KernelType):
         associated with it then it is not an inter-grid kernel and this
         routine silently returns.
 
-        :raises ParseError: if meta-data breaks inter-grid rules
+        :raises: ParseError: if meta-data breaks inter-grid rules
         '''
         # Dictionary of meshes associated with arguments (for inter-grid
         # kernels). Keys are the meshes, values are lists of function spaces
