@@ -232,18 +232,8 @@ class NEMOInvoke(Invoke):
             # TODO log this event
             return
 
-        # Make a list of all Do loops in the routine
-        loops = walk_ast(exe_part.content,
-                         [Block_Nonlabel_Do_Construct])
-
-        if not loops:
-            print "Routine {0} contains no DO loops - skipping".\
-                format(name)
-            return
-
-        # Since this subroutine contains loops we now walk through
-        # the AST produced by fparser2 and construct a new AST
-        # using objects from the nemo0p1 module.
+        # We now walk through the AST produced by fparser2 and construct a
+        # new AST using objects from the nemo0p1 module.
         self._schedule = NEMOSchedule()
         translate_ast(self._schedule, exe_part, debug=True)
         self._schedule.view()
