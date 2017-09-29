@@ -1,12 +1,4 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# -----------------------------------------------------------------------------
-# Author L. Mitchell Imperial College
-
-# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Modifications copyright (c) 2017, Science and Technology Facilities Council
@@ -39,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Modified by R. Ford STFC Daresbury Lab
-#     "       A. Porter STFC Daresbury Lab
+# Author L. Mitchell Imperial College
+# Modified by R. W. Ford STFC Daresbury Lab
+#     "       A. R. Porter STFC Daresbury Lab
 
 ''' Module implementing classes populated by parsing either kernel
     meta-data or invoke()'s in the Algorithm layer '''
@@ -118,6 +111,9 @@ def get_stencil(metadata, valid_types):
                      parser AST
     :type metadata: :py:class:`psyclone.expression.FunctionVar`
     :param list valid_types: List of valid stencil types (strings)
+    :return: The stencil type and extent described in the meta-data
+    :rtype: dict with keys 'type' (str) and 'extent' (int)
+
     :raises ParseError: if the supplied meta-data is not a recognised
                         stencil specification
     '''
