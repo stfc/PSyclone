@@ -49,6 +49,7 @@
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
 import os
+import re
 import pytest
 from fparser import api as fpapi
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
@@ -1721,7 +1722,10 @@ def test_node_dag_no_graphviz(tmpdir):
 
 # Use a regex to allow for whitespace differences between graphviz
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
-import re
+# pylint fails to spot the 'r' at the beginning of the string (presumably
+# because it is split over several lines) so disable the (many)
+# warnings about anomalous backslashes.
+# pylint: disable=anomalous-backslash-in-string
 EXPECTED2 = re.compile(
     r"digraph {\n"
     "\s*schedule_start\n"
