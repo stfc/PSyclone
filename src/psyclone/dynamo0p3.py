@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. Ford and A. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
@@ -810,12 +810,12 @@ class DynKernMetadata(KernelType):
             # this is not an inter-grid kernel
             return
 
-        if len(mesh_list) != 2:
+        if len(mesh_list) != len(VALID_MESH_TYPES):
             raise ParseError(
-                "Inter-grid kernels in the Dynamo 0.3 API must have at "
-                "least one field argument on each of the fine and coarse "
-                "meshes. However, kernel {0} has arguments only on mesh "
-                "{1}".format(self.name, mesh_list[0]))
+                "Inter-grid kernels in the Dynamo 0.3 API must have at least "
+                "one field argument on each of the mesh types ({0}). However, "
+                "kernel {1} has arguments only on {2}".format(
+                    VALID_MESH_TYPES, self.name, mesh_list))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
             raise ParseError(
