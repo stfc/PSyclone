@@ -43,6 +43,7 @@
 
 import os
 import fparser
+import pytest
 import psyclone
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory
@@ -71,3 +72,20 @@ def test_explicit_do_sched():
     # The schedule should contain just 1 kernel
     assert isinstance(loops[2].children[0], nemo0p1.NEMOKern)
 
+
+@pytest.mark.xfail(reason="We do not yet create the Loop objects for an "
+                   "implicit loop")
+def test_implicit_loop_sched():
+    ''' Check that we get the correct schedule for an implicit loop '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
+                             api=API,
+                             line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    assert isinstance(psy, nemo0p1.NEMOPSy)
+    print len(psy.invokes.invoke_list)
+    sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
+    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    assert len(loops) == 3
+    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    assert len(kerns) == 1
