@@ -44,6 +44,9 @@
 	running py.test from a different directory to the tests
 	themselves.
 
+	12) #59 and PR #75 added metadata support for inter-grid kernels
+	which will be used for the multi-grid code.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
