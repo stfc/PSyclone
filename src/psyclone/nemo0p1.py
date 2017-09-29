@@ -166,33 +166,52 @@ def translate_ast(node, parent, indent=0, debug=False):
                     translate_ast(node, child, indent+1, debug)
         else:
             # Check whether this is an implicit loop
-            arr_sections = []
-            if isinstance(child, Fortran2003.Assignment_Stmt):
-                arr_sections = walk_ast(child.items,
-                                        [Fortran2003.Section_Subscript_List],
-                                        debug=True)
-                if arr_sections:
-                    # An implicit loop marks the end of any current
-                    # code block
-                    _add_code_block(node, code_block_statements)
-                        
-                    # Create a kernel for this implicit loop
-                    kern = NEMOKern()
-                    kern.load(child, parent=node)
-                    node.addchild(kern)
+            if is_implicit_loop(child):
+                # An implicit loop marks the end of any current
+                # code block
+                _add_code_block(node, code_block_statements)
 
-            # Add this node in the AST to our list for the current
-            # code block (unless it is loop-related in which case we
-            # ignore it)
-            if (not arr_sections) and \
-               type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
-                                   fparser.Fortran2003.End_Do_Stmt]:
-                code_block_statements.append(child)
+                # Create a kernel for this implicit loop
+                kern = NEMOKern()
+                kern.load(child, parent=node)
+                node.addchild(kern)
+            else:
+                # Add this node in the AST to our list for the current
+                # code block (unless it is loop-related in which case we
+                # ignore it)
+                if type(child) not in [fparser.Fortran2003.Nonlabel_Do_Stmt,
+                                       fparser.Fortran2003.End_Do_Stmt]:
+                    code_block_statements.append(child)
 
     # Finish any open code block
     _add_code_block(node, code_block_statements)
 
     return
+
+
+# TODO this routine belongs with the higher-level wrapper around
+# fparser2
+def is_implicit_loop(node):
+    '''
+    Checks whether the supplied node uses Fortran array syntax and is
+    thus an implicit loop
+
+    :param node: the node in the fparser2 AST to check for array syntax
+    :type node: :py:class:`fparser.Fortran2003.Assignment_Stmt`
+    :return: True if the statement contains an implicit loop, False otherwise
+    '''
+    from fparser import Fortran2003
+    from habakkuk.parse2003 import walk_ast
+
+    if not isinstance(node, Fortran2003.Assignment_Stmt):
+        return False
+
+    for child in node.items:
+        if isinstance(child, Fortran2003.Section_Subscript_List):
+            colons = walk_ast(child.items, [Fortran2003.Subscript_Triplet])
+            if colons:
+                return True
+    return False
 
 
 def _add_code_block(parent, statements):

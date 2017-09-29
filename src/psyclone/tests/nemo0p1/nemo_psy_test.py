@@ -60,8 +60,7 @@ def test_explicit_do_sched():
     ''' Check that we generate a correct schedule for a triply-nested,
     explicit do loop '''
     ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                             api=API,
-                             line_length=False)
+                             api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     assert isinstance(psy, nemo0p1.NEMOPSy)
     invoke = psy.invokes.invoke_list[0]
@@ -78,8 +77,7 @@ def test_explicit_do_sched():
 def test_implicit_loop_sched():
     ''' Check that we get the correct schedule for an implicit loop '''
     ast, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
-                             api=API,
-                             line_length=False)
+                             api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     assert isinstance(psy, nemo0p1.NEMOPSy)
     print len(psy.invokes.invoke_list)
@@ -89,3 +87,32 @@ def test_implicit_loop_sched():
     assert len(loops) == 3
     kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
     assert len(kerns) == 1
+
+
+@pytest.mark.xfail(reason="Loop objects not yet created for implicit loops")
+def test_implicit_loop_sched():
+    ''' Check that we get the correct schedule for an explicit loop over
+    levels containing an implicit loop over the i-j slab '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH,
+                                          "explicit_over_implicit.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    assert len(loops) == 3
+    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    assert len(kerns) == 1
+
+
+def test_codeblock():
+    ''' Check that we get the right schedule when the code contains
+    some unrecognised statements as well as a loop '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    assert len(loops) == 3
+    cblocks = sched.walk(sched.children, nemo0p1.NEMOCodeBlock)
+    assert len(cblocks) == 2
+    assert 0

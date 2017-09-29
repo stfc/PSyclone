@@ -43,6 +43,7 @@
 import os
 import fparser
 from psyclone.parse import parse, ParseError
+from psyclone import nemo0p1
 
 # Constants
 API = "nemo0.1"
@@ -51,11 +52,23 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
+def test_identify_implicit_loop():
+    ''' Check that we correctly identify implicit loops in the fparser2 AST '''
+    from fparser import Fortran2003
+    from habakkuk.parse2003 import walk_ast
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                             api=API, line_length=False)
+    print type(ast)
+    assert not nemo0p1.is_implicit_loop(ast)
+    stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
+    assert not nemo0p1.is_implicit_loop(stmts[1])
+    assert nemo0p1.is_implicit_loop(stmts[0])
+
+   
 def test_explicit_do():
     ''' Check that we correctly identify an explicit do loop '''
     ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                             api=API,
-                             line_length=False)
+                             api=API, line_length=False)
     assert isinstance(ast, fparser.Fortran2003.Program)
 
 
