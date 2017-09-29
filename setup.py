@@ -122,6 +122,6 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser'],
+        install_requires=['pyparsing', 'fparser', 'habakkuk'],
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'])
