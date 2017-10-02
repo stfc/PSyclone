@@ -14,7 +14,14 @@
 
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
-    Loop, Kern, Arguments, KernelArgument, GenerationError
+    Loop, Kern, Arguments, KernelArgument, GenerationError, colored, \
+    SCHEDULE_COLOUR_MAP as _BASE_CMAP
+
+# The base colour map doesn't have CodeBlock as that is currently
+# a NEMO-API-specific entity.
+import copy
+NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
+NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -207,7 +214,7 @@ def is_implicit_loop(node):
         return False
 
     for child in node.items:
-        if isinstance(child, Fortran2003.Section_Subscript_List):
+        if isinstance(child, Fortran2003.Part_Ref):
             colons = walk_ast(child.items, [Fortran2003.Subscript_Triplet])
             if colons:
                 return True
@@ -373,8 +380,7 @@ class NEMOSchedule(Schedule):
 
     def view(self, indent=0):
         ''' Print a representation of this NEMOSchedule '''
-        from numpy.distutils.misc_util import red_text
-        print self.indent(indent) + red_text("NEMOSchedule[]")
+        print self.indent(indent) + self.coloured_text + "[]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -477,11 +483,9 @@ class NEMOLoop(Loop):
 
     def view(self, indent=0):
         ''' Print a representation of this Loop to stdout '''
-        from numpy.distutils.misc_util import blue_text
-        print self.indent(indent) +\
-            blue_text("Loop[") + "type='{0}',field_space='{1}',it_space='{2}'".\
-            format(self._loop_type, self._field_space, self.iteration_space) \
-            + blue_text("]")
+        print self.indent(indent) + self.coloured_text + \
+            "[type='{0}',field_space='{1}',it_space='{2}']".\
+            format(self._loop_type, self._field_space, self.iteration_space)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -491,9 +495,9 @@ class NEMOLoop(Loop):
         if not step:
             step = "1"
 
-        result = ("Loop[" + self._id + "]: " + self._variable_name +
-                  "=" + self._id + " lower=" + self._lower_bound() +
-                  "," + self._upper_bound() + "," + step + "\n")
+        result = ("NEMOLoop[" + self._id + "]: " + self._variable_name +
+                  "=" + self._lower_bound +
+                  "," + self._upper_bound + "," + step + "\n")
         for entity in self._children:
             result += str(entity)+"\n"
         result += "EndLoop"
@@ -542,12 +546,25 @@ class NEMOCodeBlock(Node):
         # associated with this block
         self._statements = statements[:]
 
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring
+        :return: Name of node + control chars for colour
+        :rtype: string
+        '''
+        return colored("NEMOCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
+
     def view(self, indent=0):
         ''' Print a representation of this node in the schedule '''
-        print self.indent(indent) + "CodeBlock[" + \
+        print self.indent(indent) + self.coloured_text + "[" + \
             str(type(self._statements[0])) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def __str__(self):
+        return "CodeBlock[{0} statements]".format(len(self._statements))
 
     def gen_code(self, parent):
         ''' Convert this code block back to Fortran '''
@@ -560,7 +577,7 @@ class NEMOCodeBlock(Node):
             entity.gen_code(parent)
 
 
-class NEMOKern(Node):
+class NEMOKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
     NEMO code. '''
     def __init__(self):
@@ -717,8 +734,8 @@ class NEMOKern(Node):
 
     def view(self, indent=0):
         ''' Print representation of this node to stdout '''
-        from numpy.distutils.misc_util import yellow_text
-        print self.indent(indent) + yellow_text("NEMOKern[" + self._kernel_type + "]")
+        print (self.indent(indent) + self.coloured_text + "[" +
+               self._kernel_type + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 

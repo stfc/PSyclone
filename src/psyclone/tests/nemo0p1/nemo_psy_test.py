@@ -114,5 +114,71 @@ def test_codeblock():
     loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
     assert len(loops) == 3
     cblocks = sched.walk(sched.children, nemo0p1.NEMOCodeBlock)
+    assert len(cblocks) == 3
+    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    assert len(kerns) == 2
+
+
+def test_io_not_kernel():
+    ''' Check that we reject a kernel candidate if a loop body contains
+    a write/read statement '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    # We should have only 1 actual kernel and 2 code blocks
+    cblocks = sched.walk(sched.children, nemo0p1.NEMOCodeBlock)
     assert len(cblocks) == 2
-    assert 0
+    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    assert len(kerns) == 1
+
+
+def test_schedule_view(capsys):
+    ''' Check the schedule view/str methods work as expected '''
+    from psyclone.psyGen import colored
+    from psyclone.nemo0p1 import NEMO_SCHEDULE_COLOUR_MAP
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    sched_str = str(sched)
+    assert "CodeBlock[2 statements]" in sched_str
+    assert "NEMOLoop[]: jk=1,jpk,1" in sched_str
+    assert "NEMOLoop[]: jj=1,jpj,1" in sched_str
+    assert "NEMOLoop[]: ji=1,jpi,1" in sched_str
+    sched.view()
+    output, _ = capsys.readouterr()
+
+    # Have to allow for colouring of output text
+    loop_str = colored("Loop", NEMO_SCHEDULE_COLOUR_MAP["Loop"])
+    cb_str = colored("NEMOCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
+    kern_str = colored("KernCall", NEMO_SCHEDULE_COLOUR_MAP["KernCall"])
+    sched_str = colored("Schedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
+
+    expected_sched = (
+        sched_str + "[]\n"
+        "    " + loop_str + "[type='levels',field_space='None',"
+        "it_space='None']\n"
+        "        " + loop_str + "[type='lat',field_space='None',"
+        "it_space='None']\n"
+        "            " + loop_str + "[type='lon',field_space='None',"
+        "it_space='None']\n"
+        "                " + kern_str + "[3D]\n"
+        "    " + loop_str + "[type='levels',field_space='None',"
+        "it_space='None']\n"
+        "        " + loop_str + "[type='lat',field_space='None',"
+        "it_space='None']\n"
+        "            " + loop_str + "[type='lon',field_space='None',"
+        "it_space='None']\n"
+        "                " + cb_str + "[<class 'fparser.Fortran2003."
+        "Assignment_Stmt'>]\n"
+        "    " + loop_str + "[type='levels',field_space='None',"
+        "it_space='None']\n"
+        "        " + loop_str + "[type='lat',field_space='None',"
+        "it_space='None']\n"
+        "            " + loop_str + "[type='lon',field_space='None',"
+        "it_space='None']\n"
+        "                " + cb_str + "[<class 'fparser.Fortran2003."
+        "Assignment_Stmt'>]")
+    print expected_sched
+    assert expected_sched in output
