@@ -49,6 +49,7 @@
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
 import os
+import re
 import pytest
 from fparser import api as fpapi
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
@@ -1719,25 +1720,32 @@ def test_node_dag_no_graphviz(tmpdir):
     if keep:
         sys.modules['graphviz'] = keep
 
-EXPECTED2 = (
-    "digraph {\n"
-    "	schedule_start\n"
-    "	schedule_end\n"
-    "	loop_0_start\n"
-    "	loop_0_end\n"
-    "		loop_0_end -> loop_1_start [color=green]\n"
-    "		schedule_start -> loop_0_start [color=blue]\n"
-    "	kernel_testkern_qr_code_2\n"
-    "		kernel_testkern_qr_code_2 -> loop_0_end [color=blue]\n"
-    "		loop_0_start -> kernel_testkern_qr_code_2 [color=blue]\n"
-    "	loop_1_start\n"
-    "	loop_1_end\n"
-    "		loop_1_end -> schedule_end [color=blue]\n"
-    "		loop_0_end -> loop_1_start [color=red]\n"
-    "	kernel_testkern_qr_code_4\n"
-    "		kernel_testkern_qr_code_4 -> loop_1_end [color=blue]\n"
-    "		loop_1_start -> kernel_testkern_qr_code_4 [color=blue]\n"
+# Use a regex to allow for whitespace differences between graphviz
+# versions. Need a raw-string (r"") to get new-lines handled nicely.
+# pylint fails to spot the 'r' at the beginning of the string (presumably
+# because it is split over several lines) so disable the (many)
+# warnings about anomalous backslashes.
+# pylint: disable=anomalous-backslash-in-string
+EXPECTED2 = re.compile(
+    r"digraph {\n"
+    "\s*schedule_start\n"
+    "\s*schedule_end\n"
+    "\s*loop_0_start\n"
+    "\s*loop_0_end\n"
+    "\s*loop_0_end -> loop_1_start \[color=green\]\n"
+    "\s*schedule_start -> loop_0_start \[color=blue\]\n"
+    "\s*kernel_testkern_qr_code_2\n"
+    "\s*kernel_testkern_qr_code_2 -> loop_0_end \[color=blue\]\n"
+    "\s*loop_0_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
+    "\s*loop_1_start\n"
+    "\s*loop_1_end\n"
+    "\s*loop_1_end -> schedule_end \[color=blue\]\n"
+    "\s*loop_0_end -> loop_1_start \[color=red\]\n"
+    "\s*kernel_testkern_qr_code_4\n"
+    "\s*kernel_testkern_qr_code_4 -> loop_1_end \[color=blue\]\n"
+    "\s*loop_1_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
     "}")
+# pylint: enable=anomalous-backslash-in-string
 
 
 def test_node_dag(tmpdir):
@@ -1757,9 +1765,8 @@ def test_node_dag(tmpdir):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print EXPECTED2
     print result
-    assert EXPECTED2 in result
+    assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
     for name in ["<title>schedule_start</title>",

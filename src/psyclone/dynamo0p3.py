@@ -2,8 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
@@ -101,6 +99,11 @@ VALID_STENCIL_DIRECTIONS = ["x_direction", "y_direction"]
 # STENCIL_MAPPING.
 STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
                    "cross": "STENCIL_CROSS"}
+
+# These are the valid mesh types that may be specified for a field
+# using the mesh_arg=... meta-data element (for inter-grid kernels that
+# perform prolongation/restriction).
+VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
                            "ncolours", "cells", "dofs"]
@@ -492,6 +495,7 @@ class DynArgDescriptor03(Descriptor):
                                             self._access_descriptor.name,
                                             arg_type))
         stencil = None
+        mesh = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
                 raise ParseError(
@@ -515,17 +519,26 @@ class DynArgDescriptor03(Descriptor):
                                   arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
 
-            # The optional 4th argument is a stencil specification
+            # The optional 4th argument is either a stencil specification
+            # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
-                    stencil = self._get_stencil(arg_type.args[3],
-                                                VALID_STENCIL_TYPES)
+                    from psyclone.parse import get_stencil, get_mesh
+                    if "stencil" in str(arg_type.args[3]):
+                        stencil = get_stencil(arg_type.args[3],
+                                              VALID_STENCIL_TYPES)
+                    elif "mesh" in str(arg_type.args[3]):
+                        mesh = get_mesh(arg_type.args[3], VALID_MESH_TYPES)
+                    else:
+                        raise ParseError("Unrecognised meta-data entry")
                 except ParseError as err:
                     raise ParseError(
-                        "In the dynamo0.3 API the 4th argument of a meta_arg "
-                        "entry must be a valid stencil specification but "
-                        "entry '{0}' raised the following error:".
-                        format(arg_type) + str(err))
+                        "In the dynamo0.3 API the 4th argument of a "
+                        "meta_arg entry must be either a valid stencil "
+                        "specification  or a mesh identifier (for inter-"
+                        "grid kernels). However, "
+                        "entry {0} raised the following error: {1}".
+                        format(arg_type, str(err)))
 
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
@@ -575,7 +588,8 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
         Descriptor.__init__(self, self._access_descriptor.name,
-                            self._function_space1, stencil=stencil)
+                            self._function_space1, stencil=stencil,
+                            mesh=mesh)
 
     @property
     def function_space_to(self):
@@ -761,8 +775,14 @@ class DynKernMetadata(KernelType):
         self._validate(need_evaluator)
 
     def _validate(self, need_evaluator):
-        ''' Check that the meta-data conforms to Dynamo 0.3 rules for a
-        user-provided kernel or a built-in '''
+        '''
+        Check that the meta-data conforms to Dynamo 0.3 rules for a
+        user-provided kernel or a built-in
+
+        :param bool need_evaluator: whether this kernel requires an
+                                    evaluator/quadrature
+        :raises: ParseError: if meta-data breaks the Dynamo 0.3 rules
+        '''
         from psyclone.dynamo0p3_builtins import BUILTIN_MAP
         # We must have at least one argument that is written to
         write_count = 0
@@ -807,6 +827,90 @@ class DynKernMetadata(KernelType):
                                        arg_types=["gh_columnwise_operator"])
         if cwise_ops:
             self._cma_operation = self._identify_cma_op(cwise_ops)
+
+        # Perform checks for inter-grid kernels
+        self._validate_inter_grid()
+
+    def _validate_inter_grid(self):
+        '''
+        Checks that the kernel meta-data obeys the rules for Dynamo 0.3
+        inter-grid kernels. If none of the kernel arguments has a mesh
+        associated with it then it is not an inter-grid kernel and this
+        routine silently returns.
+
+        :raises: ParseError: if meta-data breaks inter-grid rules
+        '''
+        # Dictionary of meshes associated with arguments (for inter-grid
+        # kernels). Keys are the meshes, values are lists of function spaces
+        # of the corresponding field arguments.
+        mesh_dict = {}
+        # Whether or not any field args are missing the mesh_arg specifier
+        missing_mesh = False
+        # If this is an inter-grid kernel then it must only have field
+        # arguments. Keep a record of any non-field arguments for the benefit
+        # of a verbose error message.
+        non_field_arg_types = set()
+        for arg in self._arg_descriptors:
+            # Collect info so that we can check inter-grid kernels
+            if arg.type == "gh_field":
+                if arg.mesh:
+                    # Argument has a mesh associated with it so this must
+                    # be an inter-grid kernel
+                    if arg.mesh in mesh_dict:
+                        mesh_dict[arg.mesh].append(arg.function_space)
+                    else:
+                        mesh_dict[arg.mesh] = [arg.function_space]
+                else:
+                    # Record the fact that we have a field without a
+                    # mesh specifier (in case this is an inter-grid kernel)
+                    missing_mesh = True
+            else:
+                # Inter-grid kernels are only permitted to have field args
+                # so collect a list of other types
+                non_field_arg_types.add(arg.type)
+
+        mesh_list = mesh_dict.keys()
+        if not mesh_list:
+            # There are no meshes associated with any of the arguments so
+            # this is not an inter-grid kernel
+            return
+
+        if len(mesh_list) != len(VALID_MESH_TYPES):
+            raise ParseError(
+                "Inter-grid kernels in the Dynamo 0.3 API must have at least "
+                "one field argument on each of the mesh types ({0}). However, "
+                "kernel {1} has arguments only on {2}".format(
+                    VALID_MESH_TYPES, self.name, mesh_list))
+        # Inter-grid kernels must only have field arguments
+        if non_field_arg_types:
+            raise ParseError(
+                "Inter-grid kernels in the Dynamo 0.3 API are only "
+                "permitted to have field arguments but kernel {0} also "
+                "has arguments of type {1}".format(
+                    self.name, list(non_field_arg_types)))
+        # Check that all arguments have a mesh specified
+        if missing_mesh:
+            raise ParseError(
+                "Inter-grid kernels in the Dynamo 0.3 API must specify "
+                "which mesh each field argument is on but kernel {0} has "
+                "at least one field argument for which mesh_arg is "
+                "missing.".format(self.name))
+        # Check that arguments on different meshes are on different
+        # function spaces. We do this by checking that no function space
+        # is listed as being associated with (arguments on) both meshes.
+        fs_sets = []
+        for mesh in mesh_dict:
+            fs_sets.append(set(mesh_dict[mesh]))
+        # Check that the sets of spaces (one for each mesh type) have
+        # no intersection
+        fs_common = fs_sets[0] & fs_sets[1]
+        if fs_common:
+            raise ParseError(
+                "In the Dynamo 0.3 API field arguments to inter-grid "
+                "kernels must be on different function spaces if they are "
+                "on different meshes. However kernel {0} has a field on "
+                "function space(s) {1} on each of the mesh types {2}.".
+                format(self.name, list(fs_common), mesh_list))
 
     def _identify_cma_op(self, cwise_ops):
         '''Identify and return the type of CMA-operator-related operation

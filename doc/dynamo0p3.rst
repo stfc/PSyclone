@@ -255,11 +255,12 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the Dynamo API there are three
-different Kernel types; general purpose (user-supplied), CMA
-(user-supplied) and :ref:`dynamo_built-ins`. This section explains the
-rules for the two user-supplied kernel types and then goes on to
-describe their metadata and subroutine arguments.
+in the :ref:`kernel-layer` section. In the Dynamo API there are four
+different Kernel types; general purpose, CMA, inter-grid and
+:ref:`dynamo_built-ins`. For the latter type, PSyclone generates the
+source of the kernels.  This section explains the rules for the other
+three, user-supplied kernel types and then goes on to describe their
+metadata and subroutine arguments.
 
 Rules for all User-Supplied Kernels
 +++++++++++++++++++++++++++++++++++
@@ -339,6 +340,25 @@ All three CMA-related kernel types must obey the following rules:
 
 There are then additional rules specific to each of the three
 kernel types. These are described below.
+
+Rules for Inter-Grid Kernels
+++++++++++++++++++++++++++++
+
+1) An inter-grid kernel is identified by the presence of a field argument with
+   the optional `mesh_arg` meta-data element (see
+   :ref:`dynamo0.3-intergrid-mdata`).
+
+2) An inter-grid kernel is only permitted to have field or field-vector
+   arguments.
+
+3) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
+
+4) An inter-grid kernel (and metadata) must have at least one field on
+   each of the fine and coarse meshes. Specifying all fields as coarse or
+   fine is forbidden.
+
+5) Fields on different meshes must always live on different function spaces.
+
 
 Assembly
 ########
@@ -625,15 +645,24 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
-Stencil Metadata
-^^^^^^^^^^^^^^^^
+Optional Field Metadata
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Field metadata supports an optional 4th argument which specifies that
-the field is accessed as a stencil operation within the
-Kernel. Stencil metadata only makes sense if the associated field is
-read within a Kernel i.e. it only makes sense to specify stencil
-metadata if the first entry is ``GH_FIELD`` and the second entry is
-``GH_READ``.
+A field entry in the meta_args array may have an optional fourth element.
+This element describes either a stencil access or, for inter-grid kernels,
+which mesh the field is on. Since an inter-grid kernel is not permitted
+to have stencil accesses, these two options are mutually exclusive.
+The meta-data for each case is described in the following sections.
+
+Stencil Metadata
+________________
+
+
+Stencil metadata specifies that the corresponding field argument is accessed
+as a stencil operation within the Kernel.  Stencil metadata only makes sense
+if the associated field is read within a Kernel i.e. it only makes
+sense to specify stencil metadata if the first entry is ``GH_FIELD``
+and the second entry is ``GH_READ``.
 
 Stencil metadata is written in the following format:
 
@@ -697,6 +726,42 @@ Below is an example of stencil information within the full kernel metadata.
 
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/dynamo0p3/eg5``.
+
+.. _dynamo0.3-intergrid-mdata:
+
+Inter-Grid Metadata
+___________________
+
+
+The alternative form of the optional fourth metadata argument for a
+field specifies which mesh the associated field is on.  This is
+required for inter-grid kernels which perform prolongation or
+restriction operations on fields (or field vectors) existing on grids
+of different resolutions.
+
+Mesh metadata is written in the following format:
+
+::
+
+  mesh_arg=type
+
+where ``type`` may be one of ``GH_COARSE`` or ``GH_FINE``. Any kernel
+having a field argument with this meta-data is assumed to be an
+inter-grid kernel and, as such, all of its other arguments (which
+must also be fields) must have it specified too. An example of the
+metadata for such a kernel is give below:
+
+::
+
+  type(arg_type) :: meta_args(2) = (/                               &
+      arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_COARSE), &
+      arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_FINE  )  &
+      /)
+
+Note that an inter-grid kernel must have at least one field (or field-
+vector) argument on each mesh type and that fields that are on different
+meshes cannot be on the same function space.
+
 
 Column-wise Operators (CMA)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
