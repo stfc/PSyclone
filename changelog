@@ -51,6 +51,10 @@
 	of graphviz which output files with different ammounts of white
 	space
 
+	14) #52 and PR #60 added support for evaluators. An evaluator is
+	specified by setting the gh_shape metadata in kernels
+	appropriately.
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
