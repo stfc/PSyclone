@@ -33,9 +33,17 @@ objects and their use are discussed in the following sections.
 
 ::
 
+  real(kind=r_def)      	 :: scalar1
+  integer(kind=i_def)   	 :: stencil_extent
+  type(field_type)      	 :: field1, field2, field3
+  type(quadrature_type) 	 :: qr
+  type(operator_type)   	 :: operator1
+  type(columnwise_operator_type) :: cma_op1
+  ...
   call invoke( kernel1(field1, field2, operator1, qr),           &
                builtin1(scalar1, field2, field3),                &
                kernel2(field1, stencil_extent, field3, scalar1), &
+	       assembly_kernel(cma_op1, operator1),              &
                name="some calculation"                           &
              )
 
@@ -110,10 +118,29 @@ meta-data (see :ref:`cma_meta_data_rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
-Quadrature rule
-+++++++++++++++
+.. _quadrature:
 
-.. note:: To be written.
+Quadrature
+++++++++++
+
+Kernels conforming to the Dynamo 0.3 API may require quadrature
+information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
+the kernel meta-data - see Section :ref:`gh-shape`). This information
+must be passed to the kernel from the Algorithm layer in the form of a
+`quadrature_type` object. This must be the last argument passed to the
+kernel, e.g.:
+
+::
+
+      type( quadrature_type )   :: qr
+      ...
+      qr = quadrature_type(element_order+2, GAUSSIAN)
+      call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr),   &
+                  kinetic_energy_gradient_kernel_type(rhs_tmp(igh_u), u, chi, qr), &
+                  geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, qr))
+
+This quadrature object specifies the set of points at which the 
+basis/differential-basis functions required by the kernel are to be evaluated.
 
 .. _dynamo0.3-alg-stencil:
 
@@ -263,7 +290,7 @@ types.
 
  4) Operators do not have halo operations operating on them as they
     are either cell- (LMA) or column-based (CMA) and therefore act
-    like discontinous fields.
+    like discontinuous fields.
 
  5) Any Kernel that writes to an operator will have its iteration
     space expanded such that valid values for the operator are
@@ -813,6 +840,8 @@ spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
 
+.. _gh-shape:
+
 gh_shape
 ########
 
@@ -821,7 +850,14 @@ meta-data must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
 component of the meta-data.  Currently PSyclone supports two shapes;
 ``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation at nodal points.
+``gh_evaluator`` for evaluation at nodal points. For the latter,
+the values of the basis/differential-basis functions are computed at
+the nodes defined by the function space of the quantity that the
+associated kernel is updating. All necessary data is extracted in the
+PSy layer and passed to the kernel(s) as required - nothing is
+required from the Algorithm layer. If a kernel requires quadrature on
+the other hand, the Algorithm writer must supply a ``quadrature_type``
+object as the last argument to the kernel (see Section :ref:`quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are

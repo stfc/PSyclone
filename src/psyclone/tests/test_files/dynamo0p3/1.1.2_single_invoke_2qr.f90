@@ -1,3 +1,4 @@
+!-------------------------------------------------------------------------------
 ! Copyright (c) 2017, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -24,22 +25,26 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+!
+! Author: A. R. Porter STFC Daresbury Lab
+!-------------------------------------------------------------------------------
 
-! Author R. Ford STFC Daresbury Lab
+program single_invoke
 
-program single_invoke_multi_anyw2_basis
-
-  ! Description: test that correct code is produced when we have
-  ! multiple any_w2 function spaces requiring basis and differential
-  ! basis functions in a kernel call
-  use testkern_multi_anyw2_basis_mod, only: testkern_multi_anyw2_basis_type
-  use inf,      only: field_type, quadrature_type
+  ! Description: two functions specified in an invoke call, each requiring
+  ! qr.
+  use testkern_qr, only: testkern_qr_type
+  use inf,         only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
-  type(quadrature_type) :: qr
-  
-  call invoke(                                      &
-       testkern_multi_anyw2_basis_type(f1,f2,f3,qr) &
+  type(field_type) :: f1, f2, m1, m2
+  type(field_type) :: g1, g2, n1, n2
+  type(quadrature_rule) :: qr, qr2
+  real(r_def) :: a, b
+  integer :: istp
+
+  call invoke(                                    &
+       testkern_qr_type(f1,f2,m1,a,m2,istp,qr),   &
+       testkern_qr_type(g1,g2,n1,b,n2,istp,qr2)   &
           )
 
-end program single_invoke_multi_anyw2_basis
+end program single_invoke
