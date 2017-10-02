@@ -863,7 +863,7 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     assert expected_code in gen_code
 
 
-def test_two_eval_same_var_same_space(
+def test_two_eval_same_var_same_space(  # pylint: disable=invalid-name
         tmpdir, f90, f90flags):  # pylint: disable=invalid-name
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the

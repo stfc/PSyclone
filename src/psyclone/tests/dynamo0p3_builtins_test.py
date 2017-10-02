@@ -1064,7 +1064,7 @@ def test_X_minus_bY():  # pylint: disable=invalid-name
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
-            "    END SUBROUTINE invoke_0\n")
+                "    END SUBROUTINE invoke_0\n")
             assert output in code
         else:
             mesh_code_present("f3", code)
