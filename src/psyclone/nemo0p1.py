@@ -247,7 +247,7 @@ class NEMOInvoke(Invoke):
         from fparser.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
-            Name
+            Name, Specification_Part
 
         # Find the section of the tree containing the execution part
         # of the code
@@ -258,14 +258,20 @@ class NEMOInvoke(Invoke):
             # TODO log this event
             return
 
+        # Store the root of this routine's specification in the AST
+        self._spec_part = get_child(ast, Specification_Part)
+
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo0p1 module.
         self._schedule = NEMOSchedule()
         translate_ast(self._schedule, exe_part, debug=True)
-        self._schedule.view()
 
     def gen_code(self, parent):
-        ''' Generates the Fortran code for this invoke '''
+        '''
+        Generates the f2pygen AST for this invoke
+        :param parent: Parent of this node in the AST we are creating
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
             CommentGen, AssignGen
 
@@ -599,6 +605,8 @@ class NEMOKern(Kern):
         # List of variable names that must be first-private because they
         # are scalars with a first access of read
         self._first_private_vars = None
+        # Whether or not this kernel performs a reduction
+        self._reduction = False
         # List of variables that are shared between threads
         self._shared_vars = None
         # Type of kernel (2D, 3D..)
