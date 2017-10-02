@@ -339,26 +339,7 @@ All three CMA-related kernel types must obey the following rules:
      permitted as arguments.
 
 There are then additional rules specific to each of the three
-kernel types. These are described below.
-
-Rules for Inter-Grid Kernels
-++++++++++++++++++++++++++++
-
-1) An inter-grid kernel is identified by the presence of a field argument with
-   the optional `mesh_arg` meta-data element (see
-   :ref:`dynamo0.3-intergrid-mdata`).
-
-2) An inter-grid kernel is only permitted to have field or field-vector
-   arguments.
-
-3) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
-
-4) An inter-grid kernel (and metadata) must have at least one field on
-   each of the fine and coarse meshes. Specifying all fields as coarse or
-   fine is forbidden.
-
-5) Fields on different meshes must always live on different function spaces.
-
+CMA kernel types. These are described below.
 
 Assembly
 ########
@@ -398,6 +379,24 @@ operation. In this case:
 
 2) Exactly one of the CMA arguments must be written to while all other
    arguments must be read-only.
+
+Rules for Inter-Grid Kernels
+++++++++++++++++++++++++++++
+
+1) An inter-grid kernel is identified by the presence of a field argument with
+   the optional `mesh_arg` meta-data element (see
+   :ref:`dynamo0.3-intergrid-mdata`).
+
+2) An inter-grid kernel is only permitted to have field or field-vector
+   arguments.
+
+3) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
+
+4) An inter-grid kernel (and metadata) must have at least one field on
+   each of the fine and coarse meshes. Specifying all fields as coarse or
+   fine is forbidden.
+
+5) Fields on different meshes must always live on different function spaces.
 
 Metadata
 ++++++++
