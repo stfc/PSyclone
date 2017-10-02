@@ -2,6 +2,42 @@
 # (c) Copyright Science and Technology Facilities Council, 2017
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2016.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 
@@ -577,8 +613,7 @@ class NEMOCodeBlock(Node):
         for statement in self._statements:
             # TODO each statement is an item from the fparser2 AST but
             # parent.add expects an f2pygen object.
-            #parent.add(statement)
-            pass
+            parent.add(statement)
         for entity in self._children:
             entity.gen_code(parent)
 
@@ -748,5 +783,13 @@ class NEMOKern(Kern):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        print self.tofortran()
-        #print str(self.loop)
+        '''
+        Create the node(s) in the f2pygen AST that will generate the code
+        for this object
+
+        :param parent: parent node in the f2pygen AST
+        :type parent: :py:class:`psyclone.f2pygen.DoGen`
+        '''
+        from psyclone.f2pygen2 import AssignGen
+        for item in self._body:
+            parent.add(AssignGen(item))
