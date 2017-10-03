@@ -34,7 +34,7 @@ module prolong_kernel_mod
   use argument_mod
   use kernel_mod
   use constants_mod
-  type, extends(kernel_type) :: testkern_type
+  type, extends(kernel_type) :: prolong_kernel_type
      type(arg_type), dimension(2) :: meta_args =                &
           (/ arg_type(gh_field,gh_write,w1, mesh_arg=gh_fine),  &
              arg_type(gh_field,gh_read, w2, mesh_arg=gh_coarse) &
@@ -42,14 +42,17 @@ module prolong_kernel_mod
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => prolong_kernel_code
-  end type testkern_type
+  end type prolong_kernel_type
 contains
 
-  subroutine prolong_kernel_code(nlayers, cell_map, nc2f, dofmap_f, ncell_f, dofmap_c, ndf, undf_c, undf_f, fld1, fld2)
-    integer :: nlayers, nc2f
+  subroutine prolong_kernel_code(nlayers, cell_map, ncell_f_per_c, &
+                                 dofmap_w1, ncell_f, dofmap_w2,    &
+                                 ndf_w1, undf_w1, undf_w2, fld1, fld2)
+    integer :: nlayers, ncell_f_per_c, ncell_f
     real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer :: ndf_w1, undf_w1, undf_w2
+    integer, dimension(:) :: cell_map, dofmap_w2
+    integer, dimension(:,:) :: dofmap_w1
 
   end subroutine prolong_kernel_code
 end module prolong_kernel_mod
