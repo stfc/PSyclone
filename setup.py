@@ -36,9 +36,9 @@
 
 """Setup script. Used by easy_install and pip."""
 
+import os
 from setuptools import setup, find_packages
 
-import os
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 SRC_PATH = os.path.join(BASE_PATH, "src")
@@ -50,7 +50,8 @@ AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
 AUTHOR_EMAIL = 'rupert.ford@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
-DESCRIPTION = 'PSyclone - a compiler for Finite Element/Volume/Difference DSLs in Fortran'
+DESCRIPTION = ('PSyclone - a compiler for Finite Element/Volume/Difference'
+               ' DSLs in Fortran')
 LONG_DESCRIPTION = '''\
 PSyclone is a compiler for Fortran-embedded Domain Specific Languages
 targetting Finite Element/Volume/Difference methods in earth-system
