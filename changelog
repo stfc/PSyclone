@@ -55,6 +55,9 @@
 	specified by setting the gh_shape metadata in kernels
 	appropriately.
 
+	15) #85 and PR #86 - minor correction to documentation (section
+	on Inter-Grid kernel rules was in the wrong place).
+
 release 1.4.1
 
 	1) #22 Updated PSyclone to support enforce_operator_bc_kernel (in
