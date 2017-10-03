@@ -2566,31 +2566,35 @@ class Argument(object):
 
         '''
         if self.access not in self._writers:
+            # I am not a writer so there will be no read dependencies
             return []
+
+        # We only need consider nodes that have arguments
+        nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
+                                      isinstance(x, HaloExchange) or
+                                      isinstance(x, GlobalSum), nodes))
         arguments = []
-        for node in nodes:
-            if isinstance(node, Call) or isinstance(node, HaloExchange) \
-               or isinstance(node, GlobalSum):
-                # I have one or more associated field arguments
-                for argument in node.args:
-                    if argument.name != self.name:
-                        # different fields so there is no dependence
-                        continue
-                    if isinstance(node, HaloExchange) and \
-                       node.vector_index and \
-                       isinstance(self.call, HaloExchange) and \
-                       self.call.vector_index and \
-                       node.vector_index != self.call.vector_index:
-                        # this is a vector field and the two halos
-                        # are accessing different vectors so there
-                        # is no dependence.
-                        continue
-                    if argument.access in self._readers:
-                        # there is a read dependence so append to list
-                        arguments.append(argument)
-                    if argument.access in self._writers:
-                        # there is a write dependence so finish our search
-                        return arguments
+        for node in nodes_with_args:
+            for argument in node.args:
+                # look at all arguments in our nodes
+                if argument.name != self.name:
+                    # different names so there is no dependence
+                    continue
+                if isinstance(node, HaloExchange) and \
+                   node.vector_index and \
+                   isinstance(self.call, HaloExchange) and \
+                   self.call.vector_index and \
+                   node.vector_index != self.call.vector_index:
+                    # this is a vector field and the two halos
+                    # are accessing different vectors so there
+                    # is no dependence.
+                    continue
+                if argument.access in self._readers:
+                    # there is a read dependence so append to list
+                    arguments.append(argument)
+                if argument.access in self._writers:
+                    # there is a write dependence so finish our search
+                    return arguments
 
         # we did not find a terminating write dependence in the list
         # of nodes so we return any read dependencies that were found
@@ -2612,49 +2616,51 @@ class Argument(object):
         arguments = []
         if self.access not in self._readers:
             return arguments
+        # We only need consider nodes that have arguments
+        nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
+                                      (isinstance(x, HaloExchange) and
+                                       not ignore_halos) or
+                                      isinstance(x, GlobalSum), nodes))
         vector_count = 0
-        for node in nodes:
-            if (isinstance(node, Call) or
-                (isinstance(node, HaloExchange) and not ignore_halos) or
-                    isinstance(node, GlobalSum)):
-                for argument in node.args:
-                    if argument.name != self.name:
-                        continue
-                    if argument.access not in self._writers:
-                        continue
-                    if isinstance(node, HaloExchange):
-                        if isinstance(self.call, HaloExchange):
-                            # source and sink are both halo exchanges
-                            if self.vector_size <= 1:
-                                raise GenerationError(
-                                    "Internal error, a halo exchange "
-                                    "depends on another halo exchange "
-                                    "but the vector size of field "
-                                    "'{0}' is 1".format(self.name))
-                            if self.call.vector_index == \
-                               node.vector_index:
-                                raise GenerationError(
-                                    "Internal error, a halo exchange "
-                                    "depends on another halo exchange "
-                                    "and the vector id's of field "
-                                    "'{0}' are the same".
-                                    format(self.name))
-                            # these halo exchanges do not
-                            # depend on each other as they
-                            # have different vector indices
-                            pass
-                        else:
-                            # a vector read will depend on more
-                            # than one halo exchange as halo
-                            # exchanges only update a single
-                            # vector
-                            vector_count += 1
-                            arguments.append(argument)
-                            if vector_count == self.vector_size:
-                                return arguments
+        for node in nodes_with_args:
+            for argument in node.args:
+                if argument.name != self.name:
+                    continue
+                if argument.access not in self._writers:
+                    continue
+                if isinstance(node, HaloExchange):
+                    if isinstance(self.call, HaloExchange):
+                        # source and sink are both halo exchanges
+                        if self.vector_size <= 1:
+                            raise GenerationError(
+                                "Internal error, a halo exchange "
+                                "depends on another halo exchange "
+                                "but the vector size of field "
+                                "'{0}' is 1".format(self.name))
+                        if self.call.vector_index == \
+                           node.vector_index:
+                            raise GenerationError(
+                                "Internal error, a halo exchange "
+                                "depends on another halo exchange "
+                                "and the vector id's of field "
+                                "'{0}' are the same".
+                                format(self.name))
+                        # these halo exchanges do not
+                        # depend on each other as they
+                        # have different vector indices
+                        pass
                     else:
+                        # a vector read will depend on more
+                        # than one halo exchange as halo
+                        # exchanges only update a single
+                        # vector
+                        vector_count += 1
                         arguments.append(argument)
-                        return arguments
+                        if vector_count == self.vector_size:
+                            return arguments
+                else:
+                    arguments.append(argument)
+                    return arguments
         return arguments
 
     def _depends_on(self, argument):
