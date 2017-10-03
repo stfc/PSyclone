@@ -190,3 +190,16 @@ def test_field_vector():
     dkm = DynKernMetadata(ast, name=name)
     assert dkm.arg_descriptors[0].vector_size == 3
     assert dkm.arg_descriptors[1].vector_size == 1
+
+
+def test_field_prolong():
+    ''' Check that we generate correct psy-layer code for an invoke
+    containing a kernel that performs a prolongation operation '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.0_intergrid_prolong.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print gen_code
+    assert 0
+    
