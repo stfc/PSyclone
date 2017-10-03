@@ -185,7 +185,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'psyclone.tex', u'PSyclone Documentation',
-   u'Rupert Ford, Andrew Porter, and Joerg Henrichs', 'manual'),
+   u'Rupert Ford, Andrew Porter, Joerg Henrichs and Iva Kavcic', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -215,7 +215,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford, Andrew Porter and Joerg Henrichs'], 1)
+     [u'Rupert Ford, Andrew Porter, Joerg Henrichs and Iva Kavcic'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -229,7 +229,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'psyclone', u'psyclone Documentation',
-   u'Rupert Ford, Andrew Porter and Joerg Henrichs', 'psyclone',
+   u'Rupert Ford, Andrew Porter, Joerg Henrichs and Iva Kavcic', 'psyclone',
    'One line description of project.',
    'Miscellaneous'),
 ]
@@ -248,8 +248,8 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford, Andrew Porter and Joerg Henrichs'
-epub_publisher = u'Rupert Ford, Andrew Porter and Joerg Henrichs'
+epub_author = u'Rupert Ford, Andrew Porter, Joerg Henrichs and Iva Kavcic'
+epub_publisher = u'Rupert Ford, Andrew Porter, Joerg Henrichs and Iva Kavcic'
 epub_copyright = u'2017, STFC'
 
 # The language of the text. It defaults to the language option
