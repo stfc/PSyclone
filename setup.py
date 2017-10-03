@@ -75,40 +75,14 @@ CLASSIFIERS = [
     'Operating System :: Unix',
     'Operating System :: MacOS']
 
-MAJOR = 1
-MINOR = 5
-MICRO = 0
-SHORT_VERSION = "{0:d}.{1:d}".format(MAJOR, MINOR)
-VERSION = "{0:d}.{1:d}.{2:d}".format(MAJOR, MINOR, MICRO)
-
-
-def write_version_py(filename=None):
-    ''' Write a python module containing the current version
-    of PSyclone. This is used when generating documentation. '''
-    import os
-    if not filename:
-        filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "src", "psyclone", "version.py")
-    content = '''
-# This file is GENERATED from PSyclone setup.py
-short_version="{short_version:s}"
-version="{version:s}"
-'''
-    vfile = open(filename, 'w')
-    try:
-        vfile.write(content.format(short_version=SHORT_VERSION,
-                                   version=VERSION))
-    finally:
-        vfile.close()
-
+# We read the version number from version.py in the src/psyclone directory.
+# Rather than importing it (which would require that PSyclone already be
+# installed), we read it using execfile().
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+execfile(os.path.join(BASE_PATH, "src", "psyclone", "version.py"))
+VERSION = __VERSION__
 
 if __name__ == '__main__':
-
-    # Rewrite the version file everytime
-    import os
-    if os.path.exists('src/psyclone/version.py'):
-        os.remove('src/psyclone/version.py')
-    write_version_py()
 
     setup(
         name=NAME,
