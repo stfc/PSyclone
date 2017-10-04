@@ -604,9 +604,13 @@ class ProgramGen(ProgUnitGen):
         :param str name: Name of the program unit
         :param bool implicitnone: Whether or not to include implicit none
         '''
+        reader = FortranStringReader(
+            "program {0}\nend program".format(name))
+        reader.set_mode(True, True)  # free form, strict
+        #myline = reader.next()
         from fparser import Fortran2003
-        self._node = Fortran2003.Program("andy")
-        pass
+        self._node = Fortran2003.Program(reader)
+
 
 class CallGen(BaseGen):
     ''' Generates a Fortran call of a subroutine '''
