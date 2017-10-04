@@ -257,6 +257,24 @@ def is_implicit_loop(node):
     return False
 
 
+def get_routine_type(ast):
+    '''
+    Identify the type for Fortran routine the ast represents
+
+    :param ast: the fparser2 AST representing the Fortran code
+    :type ast: `fparser.Fortran2003.Program_Unit`
+    :return: the type of Fortran routine (program, subroutine, function)
+    :rtype: string
+    '''
+    from fparser import Fortran2003
+    from habakkuk.parse2003 import walk_ast
+    for child in ast.content:
+        if isinstance(child, Fortran2003.Program_Stmt):
+            return "program"
+        #elif isinstance(child, fparser.Fortran2003.)
+    raise ParseError("Unrecognised Fortran unit: {0}", str(ast))
+
+
 def _add_code_block(parent, statements):
     ''' Create a NEMOCodeBlock for the supplied list of statements
     and then wipe the list of statements '''
@@ -294,6 +312,9 @@ class NEMOInvoke(Invoke):
             # TODO log this event
             return
 
+        # Identify whether we have a Program, a Subroutine or a Function
+        self._routine_type = get_routine_type(ast)
+
         # Store the root of this routine's specification in the AST
         self._spec_part = get_child(ast, Specification_Part)
 
@@ -308,17 +329,21 @@ class NEMOInvoke(Invoke):
         :param parent: Parent of this node in the AST we are creating
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
-            CommentGen, AssignGen
+        from psyclone.f2pygen2 import SubroutineGen, DeclGen, TypeDeclGen, \
+            CommentGen, AssignGen, ProgramGen
 
         if not self._schedule:
             return
         
-        # create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names)
-        parent.add(invoke_sub)
-        self.schedule.gen_code(invoke_sub)
+        # create the parent routine
+        if self._routine_type == "subroutine":
+            top_node = SubroutineGen(parent, name=self.name,
+                                     args=self.psy_unique_var_names)
+        elif self._routine_type == "program":
+            top_node = ProgramGen(parent, self.name, implicitnone=False)
+
+        parent.add(top_node)
+        self.schedule.gen_code(top_node)
 
     @property
     def psy_unique_var_names(self):
@@ -389,7 +414,7 @@ class NEMOPSy(PSy):
         :rtype: ast
 
         '''
-        from psyclone.f2pygen import ModuleGen, UseGen
+        from psyclone.f2pygen2 import ModuleGen, UseGen
 
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
@@ -575,7 +600,23 @@ class NEMOLoop(Loop):
         # Generate the upper and lower loop bounds
         self._start = self._lower_bound
         self._stop = self._upper_bound
-        Loop.gen_code(self, parent)
+
+        #Loop.gen_code(self, parent)
+
+        if self._start == "1" and self._stop == "1":  # no need for a loop
+            for child in self.children:
+                child.gen_code(parent)
+        else:
+            from psyclone.f2pygen2 import DoGen, DeclGen
+            do = DoGen(parent, self._variable_name, self._start, self._stop)
+            # need to add do loop before children as children may want to add
+            # info outside of do loop
+            parent.add(do)
+            for child in self.children:
+                child.gen_code(do)
+            my_decl = DeclGen(parent, datatype="integer",
+                              entity_decls=[self._variable_name])
+            parent.add(my_decl)
 
 
 class NEMOCodeBlock(Node):

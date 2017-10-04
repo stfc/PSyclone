@@ -596,6 +596,18 @@ class SubroutineGen(ProgUnitGen):
         self._sub.args = namelist
 
 
+class ProgramGen(ProgUnitGen):
+    ''' Generates a Fortran Program unit '''
+
+    def __init__(self, parent, name, implicitnone=False):
+        '''
+        :param str name: Name of the program unit
+        :param bool implicitnone: Whether or not to include implicit none
+        '''
+        from fparser import Fortran2003
+        self._node = Fortran2003.Program("andy")
+        pass
+
 class CallGen(BaseGen):
     ''' Generates a Fortran call of a subroutine '''
     def __init__(self, parent, name="", args=None):
