@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' Module containing py.test tests for functionality related to quadrature
-and evaluators in the LFRic API '''
+''' Module containing py.test tests for functionality related to
+evaluators in the LFRic API '''
 
 import os
 import pytest
