@@ -288,6 +288,9 @@ class ProgUnitGen(BaseGen):
         if position is None:
             position = ["auto"]
 
+        self._children.append(content)
+        return # ARPDBG, early return
+
         # For an object to be added to another we require that they
         # share a common ancestor. This means that the added object must
         # have the current object or one of its ancestors as an ancestor.
@@ -604,6 +607,7 @@ class ProgramGen(ProgUnitGen):
         :param str name: Name of the program unit
         :param bool implicitnone: Whether or not to include implicit none
         '''
+        ProgUnitGen.__init__(self, None, parent)
         reader = FortranStringReader(
             "program {0}\nend program".format(name))
         reader.set_mode(True, True)  # free form, strict
@@ -870,15 +874,16 @@ class DoGen(BaseGen):
     def __init__(self, parent, variable_name, start, end, step=None):
         reader = FortranStringReader("do i=1,n\nend do")
         reader.set_mode(True, True)  # free form, strict
-        doline = reader.next()
-        enddoline = reader.next()
-        from fparser.block_statements import Do, EndDo
-        dogen = Do(parent.root, doline)
+        #doline = reader.next()
+        #enddoline = reader.next()
+        from fparser.Fortran2003 import Do_Construct, End_Do
+        dogen = Do_Construct(reader)
         dogen.loopcontrol = variable_name + "=" + start + "," + end
         if step is not None:
             dogen.loopcontrol = dogen.loopcontrol + "," + step
-        enddo = EndDo(dogen, enddoline)
-        dogen.content.append(enddo)
+        # TODO add end-do
+        #enddo = End_Do(reader)
+        #dogen.content.append(enddo)
 
         BaseGen.__init__(self, parent, dogen)
 

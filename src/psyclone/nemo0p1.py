@@ -293,9 +293,16 @@ def _add_code_block(parent, statements):
 class NEMOInvoke(Invoke):
 
     def __init__(self, ast, name):
+        '''
+        :param ast: The fparser2 AST for the Fortran code to process
+        :type ast: :py:class:`fparser.Fortran2003.Main_Program` or Module
+        :param str name: The name of the program unit
+        '''
         self._schedule = None
         self._name = name
         self._psy_unique_vars = ["a_variable"]
+        # Store the whole fparser2 AST
+        self._ast = ast
 
         from habakkuk.parse2003 import walk_ast, Loop, get_child, ParseError
         from fparser.Fortran2003 import Main_Program, Program_Stmt, \
@@ -322,6 +329,9 @@ class NEMOInvoke(Invoke):
         # new AST using objects from the nemo0p1 module.
         self._schedule = NEMOSchedule()
         translate_ast(self._schedule, exe_part, debug=True)
+
+    def gen(self):
+        return str(self._ast)
 
     def gen_code(self, parent):
         '''
@@ -360,6 +370,8 @@ class NEMOInvokes(Invokes):
         
         self.invoke_map = {}
         self.invoke_list = []
+        # Keep a pointer to the whole fparser2 AST
+        self._ast = ast
 
         # Find all the subroutines contained in the file
         routines = walk_ast(ast.content, [Subroutine_Subprogram,
@@ -389,6 +401,9 @@ class NEMOInvokes(Invokes):
             my_invoke = NEMOInvoke(subroutine, name=sub_name)
             self.invoke_map[sub_name] = my_invoke
             self.invoke_list.append(my_invoke)
+
+    def gen_code(self):
+        return self._ast
 
 
 class NEMOPSy(PSy):
@@ -423,10 +438,11 @@ class NEMOPSy(PSy):
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name="field_mod"))
         # add in the subroutines for each invocation
-        self.invokes.gen_code(psy_module)
+        #self.invokes.gen_code() #psy_module)
+        
         # inline kernels where requested
-        self.inline(psy_module)
-        return psy_module.root
+        #self.inline(psy_module)
+        return self.invokes.gen_code()
 
 
 class NEMOSchedule(Schedule):
