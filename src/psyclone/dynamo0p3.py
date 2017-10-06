@@ -3272,7 +3272,7 @@ class DynKern(Kern):
         self._qr_args = {}
 
         if self._eval_shape in VALID_QUADRATURE_SHAPES:
-            # The quadrature argument always comes last
+            # The quadrature-related arguments always come last
             qr_arg = args[-1]
             self._qr_text = qr_arg.text
             # use our namespace manager to create a unique name unless
@@ -3285,16 +3285,22 @@ class DynKern(Kern):
             # dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
-            self._qr_args = {"nh": "nqp_h",
-                             "nv": "nqp_v",
-                             "h": "wh",
-                             "v": "wv"}
+            # TODO would it be better to have e.g. DynQuadrature class
+            if self._eval_shape == "gh_quadrature_xyz":
+                self._qr_args = ["np_xyz", "weights_xyz"]
+            elif self._eval_shape == "gh_quadrature_xyoz":
+                self._qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
+            elif self._eval_shape == "gh_quadrature_xoyoz":
+                self._qr_args = ["np_x", "np_y", "np_z",
+                                 "weights_x", "weights_y", "weights_z"]
+
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related
             # variables.
             if qr_arg.varName:
-                for arg in self._qr_args:
-                    self._qr_args[arg] += "_" + self._qr_name
+                self._qr_args = [
+                    arg + "_" + self._qr_name for arg in self._qr_args]
+
         elif self._eval_shape == "gh_evaluator":
             # Kernel has an evaluator. The FS of the updated argument tells
             # us upon which nodal points the evaluator will be required
@@ -3990,10 +3996,7 @@ class KernCallArgList(ArgOrdering):
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
-        self._arglist.extend([self._kern.qr_args["nh"],
-                              self._kern.qr_args["nv"],
-                              self._kern.qr_args["h"],
-                              self._kern.qr_args["v"]])
+        self._arglist.extend(self._kern.qr_args)
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''
