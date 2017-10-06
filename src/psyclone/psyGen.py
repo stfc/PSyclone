@@ -1094,9 +1094,9 @@ class Node(object):
 
     def preceding(self, reverse=None):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes before me in the
-        schedule. Ordering is depth first. If the `reverse` argument is set to `True`
-        then the node ordering is reversed i.e. returning the nodes
-        closest to me first
+        schedule. Ordering is depth first. If the `reverse` argument
+        is set to `True` then the node ordering is reversed
+        i.e. returning the nodes closest to me first
 
         :param: reverse: An optional, default `False`, boolean flag
         :type: reverse: Bool
@@ -1735,14 +1735,14 @@ class HaloExchange(Node):
         base method and simply return our argument. '''
         return [self._field]
 
-    def _check_vector_halos_differ(self, node):
-        '''internal helper method which checks that two halo exchange nodes
-        (one being self and the other being passed by argument)
-        operating on the same field, both have vector fields of the
-        same size and use different vector indices. If this is the
-        case then the halo exchange nodes do not depend on each
-        other. If this is not the case then an internal error will
-        have occured and we raise an appropriate exception.
+    def check_vector_halos_differ(self, node):
+        '''helper method which checks that two halo exchange nodes (one being
+        self and the other being passed by argument) operating on the
+        same field, both have vector fields of the same size and use
+        different vector indices. If this is the case then the halo
+        exchange nodes do not depend on each other. If this is not the
+        case then an internal error will have occured and we raise an
+        appropriate exception.
 
         :param node: a halo exchange which should exchange the same
         field as self
@@ -1765,13 +1765,13 @@ class HaloExchange(Node):
         if not isinstance(node, HaloExchange):
             raise GenerationError(
                 "Internal error, the argument passed to "
-                "_check_vector_halos_differ in the haloexchange class is not "
+                "check_vector_halos_differ in the haloexchange class is not "
                 "a halo exchange object")
 
         if self._field.name != node._field.name:
             raise GenerationError(
                 "Internal error, the halo exchange object passed to "
-                "_check_vector_halos_differ has a different field name '{0}' "
+                "check_vector_halos_differ has a different field name '{0}' "
                 "to self '{1}'".format(node._field.name, self._field.name))
 
         if self._field.vector_size <= 1:
@@ -2544,13 +2544,14 @@ class Argument(object):
     def call(self, value):
         ''' set the node that this argument is associated with '''
         self._call = value
-        
+
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first preceding argument this argument has a dependence with
+        :return: the first preceding argument this argument has a
+        dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2579,7 +2580,8 @@ class Argument(object):
         dependence with, or `None` if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first following argument this argument has a dependence with
+        :return: the first following argument this argument has a
+        dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2610,10 +2612,9 @@ class Argument(object):
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        # We only need consider nodes that have arguments
-        nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
-                                      isinstance(x, HaloExchange) or
-                                      isinstance(x, GlobalSum), nodes))
+        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
+                           isinstance(x, HaloExchange) or
+                           isinstance(x, GlobalSum)]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2636,9 +2637,9 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
-                                      isinstance(x, HaloExchange) or
-                                      isinstance(x, GlobalSum), nodes))
+        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
+                           isinstance(x, HaloExchange) or
+                           isinstance(x, GlobalSum)]
         arguments = []
         for node in nodes_with_args:
             for argument in node.args:
@@ -2650,7 +2651,7 @@ class Argument(object):
                    isinstance(self.call, HaloExchange):
                     # no dependence if both nodes are halo exchanges
                     # (as they act on different vector indices).
-                    self.call._check_vector_halos_differ(node)
+                    self.call.check_vector_halos_differ(node)
                     continue
                 if argument.access in self._readers:
                     # there is a read dependence so append to list
@@ -2681,10 +2682,10 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
-                                      (isinstance(x, HaloExchange) and
-                                       not ignore_halos) or
-                                      isinstance(x, GlobalSum), nodes))
+        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
+                           (isinstance(x, HaloExchange)
+                            and not ignore_halos) or
+                           isinstance(x, GlobalSum)]
         arguments = []
         vector_count = 0
         for node in nodes_with_args:
@@ -2701,7 +2702,7 @@ class Argument(object):
                         # no dependence if both nodes are halo
                         # exchanges (as they act on different vector
                         # indices).
-                        self.call._check_vector_halos_differ(node)
+                        self.call.check_vector_halos_differ(node)
                         continue
                     else:
                         # a vector read will depend on more than one

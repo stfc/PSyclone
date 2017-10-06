@@ -1952,7 +1952,7 @@ def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
     assert node_list == []
 
 def test_check_vector_halos_differ_wrong_argtype():
-    '''when the _check_vector_halos_differ method is called from a halo
+    '''when the check_vector_halos_differ method is called from a halo
     exchange object the argument being passed should be a halo
     exchange. If this is not the case an exception should be
     raised. This test checks that this exception is working correctly.
@@ -1967,14 +1967,14 @@ def test_check_vector_halos_differ_wrong_argtype():
     halo_exchange = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
         # pass an incorrect object to the method
-        halo_exchange._check_vector_halos_differ(psy)
+        halo_exchange.check_vector_halos_differ(psy)
     assert (
-        "the argument passed to _check_vector_halos_differ in the "
+        "the argument passed to check_vector_halos_differ in the "
         "haloexchange class is not a halo exchange object"
         in str(excinfo.value))
 
 def test_check_vector_halos_differ_different_names():
-    '''when the _check_vector_halos_differ method is called from a halo
+    '''when the check_vector_halos_differ method is called from a halo
     exchange object the argument being passed should be a halo
     exchange with an argument having the same name as the local halo
     exchange argument name. If this is not the case an exception
@@ -1994,12 +1994,12 @@ def test_check_vector_halos_differ_different_names():
     different_halo_exchange = schedule.children[1]
     with pytest.raises(GenerationError) as excinfo:
         # pass halo exchange with different name to the method
-        halo_exchange._check_vector_halos_differ(different_halo_exchange)
+        halo_exchange.check_vector_halos_differ(different_halo_exchange)
     assert (
-        "the halo exchange object passed to _check_vector_halos_differ has a "
+        "the halo exchange object passed to check_vector_halos_differ has a "
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
-def test_find_write_arguments_multiple_dependencies():
+def test_find_write_arguments_multiple_dependencies_error():
     '''when _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
     that an error is raised if this is not the case.
@@ -2045,3 +2045,39 @@ def test_find_write_arguments_no_more_nodes():
     assert (
         "no more nodes but there are already dependencies"
         in str(excinfo.value))
+
+def test_find_write_arguments_multiple_dependencies():
+    '''_find_write_arguments should return as many halo exchange
+    dependencies as the vector size of the associated field. This test
+    checks that this is the case and that the returned objects are
+    what is expected.
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[7]
+    kernel = loop.children[0]
+    d_field = kernel.arguments.args[0]
+    vector_size = d_field.vector_size
+    result_list = d_field.backward_write_dependencies()
+    # we have as many dependencies as the field vector size
+    assert vector_size == len(result_list)
+    indices = set()
+    for result in result_list:
+        # each dependence is a halo exchange nodes
+        assert isinstance(result.call, HaloExchange)
+        # the name of the halo exchange field and the initial
+        # field are the same
+        assert result.name == d_field.name
+        # the size of the halo exchange field vector and the initial
+        # field vector are the same
+        assert result.vector_size == vector_size
+        indices.add(result.call.vector_index)
+    # each of the indices are unique (otherwise the set would be
+    # smaller)
+    assert len(indices) == vector_size
