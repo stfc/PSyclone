@@ -1735,6 +1735,52 @@ class HaloExchange(Node):
         base method and simply return our argument. '''
         return [self._field]
 
+    def _check_vector_halos_differ(self, node):
+        '''internal helper method which checks that two halo exchange nodes
+        (one being self and the other being passed by argument)
+        operating on the same field, both have vector fields of the
+        same size and use different vector indices. If this is the
+        case then the halo nodes do not depend on each other. If this
+        is not the case then an internal error will have occured and
+        we raise an appropriate exception.
+
+        :param node: a halo exchange which should exchange the same
+        field as self
+        :type node: :py:class:`psyclone.psyGen.HaloExchange`
+
+        '''
+
+        if not isinstance(node, HaloExchange):
+            raise GenerationError(
+                "Internal error, the argument passed to "
+                "_check_vector_halos_differ in the haloexchange class is not "
+                "a halo exchange object")
+
+        if self._field.name != node._field.name:
+            raise GenerationError(
+                "Internal error, the halo exchange object passed to "
+                "_check_vector_halos_differ has a different field name '{0}' "
+                "to self '{1}'".format(node._field.name, self._field.name))
+
+        if self._field.vector_size <= 1:
+            raise GenerationError(
+                "Internal error, a halo exchange depends on another halo "
+                "exchange but the vector size of field '{0}' is 1".
+                format(self._field.name))
+
+        if self._field.vector_size != node._field.vector_size:
+            raise GenerationError(
+                "Internal error, a halo exchange depends on another halo "
+                "exchange but the vector sizes for field '{0}' differ".
+                format(self._field.name))
+
+        if self.vector_index == \
+           node.vector_index:
+            raise GenerationError(
+                "Internal error, a halo exchange depends on another halo "
+                "exchange and the vector id's of field '{0}' are the same".
+                format(self._field.name))
+
     def view(self, indent=0):
         '''
         Write out a textual summary of the OpenMP Parallel Do Directive
@@ -2581,13 +2627,10 @@ class Argument(object):
                     # different names so there is no dependence
                     continue
                 if isinstance(node, HaloExchange) and \
-                   node.vector_index and \
-                   isinstance(self.call, HaloExchange) and \
-                   self.call.vector_index and \
-                   node.vector_index != self.call.vector_index:
-                    # this is a vector field and the two halos
-                    # are accessing different vectors so there
-                    # is no dependence.
+                   isinstance(self.call, HaloExchange):
+                    # no dependence if both nodes are halo exchanges
+                    # (as they act on different vector indices).
+                    self.call._check_vector_halos_differ(node)
                     continue
                 if argument.access in self._readers:
                     # there is a read dependence so append to list
@@ -2613,47 +2656,37 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        arguments = []
         if self.access not in self._readers:
-            return arguments
+            # I am not a reader so there will be no write dependencies
+            return []
+
         # We only need consider nodes that have arguments
         nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
                                       (isinstance(x, HaloExchange) and
                                        not ignore_halos) or
                                       isinstance(x, GlobalSum), nodes))
+        arguments = []
         vector_count = 0
         for node in nodes_with_args:
             for argument in node.args:
+                # look at all arguments in our nodes
                 if argument.name != self.name:
+                    # different names so there is no dependence
                     continue
                 if argument.access not in self._writers:
+                    # no dependence if not a writer
                     continue
                 if isinstance(node, HaloExchange):
                     if isinstance(self.call, HaloExchange):
-                        # source and sink are both halo exchanges
-                        if self.vector_size <= 1:
-                            raise GenerationError(
-                                "Internal error, a halo exchange "
-                                "depends on another halo exchange "
-                                "but the vector size of field "
-                                "'{0}' is 1".format(self.name))
-                        if self.call.vector_index == \
-                           node.vector_index:
-                            raise GenerationError(
-                                "Internal error, a halo exchange "
-                                "depends on another halo exchange "
-                                "and the vector id's of field "
-                                "'{0}' are the same".
-                                format(self.name))
-                        # these halo exchanges do not
-                        # depend on each other as they
-                        # have different vector indices
-                        pass
+                        # no dependence if both nodes are halo
+                        # exchanges (as they act on different vector
+                        # indices).
+                        self.call._check_vector_halos_differ(node)
+                        continue
                     else:
-                        # a vector read will depend on more
-                        # than one halo exchange as halo
-                        # exchanges only update a single
-                        # vector
+                        # a vector read will depend on more than one
+                        # halo exchange as halo exchanges only update
+                        # a single vector
                         vector_count += 1
                         arguments.append(argument)
                         if vector_count == self.vector_size:

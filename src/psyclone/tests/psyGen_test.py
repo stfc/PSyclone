@@ -1880,10 +1880,12 @@ def test_find_write_arguments_for_write():
 
 
 def test_find_write_arguments_halo_to_halo_no_vector(monkeypatch):
-    '''when _find_write_arguments is called and a dependence is found
-    between two halo exchanges, then the field must be a vector field. If
-    the field is not a vector then an exception is raised. This test
-    checks that the exception is raised correctly.'''
+    '''when _find_write_arguments, or find_read_arguments, are called and a
+    dependence is found between two halo exchanges, then the field
+    must be a vector field. If the field is not a vector then an
+    exception is raised. This test checks that the exception is raised
+    correctly.
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1903,11 +1905,12 @@ def test_find_write_arguments_halo_to_halo_no_vector(monkeypatch):
 
 
 def test_find_write_arguments_halo_to_halo_vector_index(monkeypatch):
-    '''when _find_write_arguments is called and a dependence is found
-    between two halo exchanges, then the vector indices of the two
-    halo exchanges must be different. If the vector indices have the
-    same value then an exception is raised. This test checks that the
-    exception is raised correctly.'''
+    '''when _find_write_arguments, or _find_read_arguments, are called and
+    a dependence is found between two halo exchanges, then the vector
+    indices of the two halo exchanges must be different. If the vector
+    indices have the same value then an exception is raised. This test
+    checks that the exception is raised correctly.
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1928,9 +1931,11 @@ def test_find_write_arguments_halo_to_halo_vector_index(monkeypatch):
 
 
 def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
-    '''when _find_write_arguments is called halo exchanges with the same
-    field but a different index should not depend on each other. This test
-    checks that this behaviour is working correctly'''
+    '''when _find_write_arguments, or _find_read_arguments, are called,
+    halo exchanges with the same field but a different index should
+    not depend on each other. This test checks that this behaviour is
+    working correctly
+    '''
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
@@ -1945,3 +1950,51 @@ def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
     # as dependencies
     node_list = field_d_v3.backward_write_dependencies()
     assert node_list == []
+
+def test_check_vector_halos_differ_wrong_argtype():
+    '''when the _check_vector_halos_differ method is called from a halo
+    exchange object the argument being passed should be a halo
+    exchange. If this is not the case an exception should be
+    raised. This test checks that this exception is working correctly.
+    '''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[0]
+    with pytest.raises(GenerationError) as excinfo:
+        # pass an incorrect object to the method
+        halo_exchange._check_vector_halos_differ(psy)
+    assert (
+        "the argument passed to _check_vector_halos_differ in the "
+        "haloexchange class is not a halo exchange object"
+        in str(excinfo.value))
+
+def test_check_vector_halos_differ_different_names():
+    '''when the _check_vector_halos_differ method is called from a halo
+    exchange object the argument being passed should be a halo
+    exchange with an argument having the same name as the local halo
+    exchange argument name. If this is not the case an exception
+    should be raised. This test checks that this exception is working
+    correctly.
+    '''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[0]
+    # obtain another halo exchange object which has an argument with a
+    # different name
+    different_halo_exchange = schedule.children[1]
+    with pytest.raises(GenerationError) as excinfo:
+        # pass halo exchange with different name to the method
+        halo_exchange._check_vector_halos_differ(different_halo_exchange)
+    assert (
+        "the halo exchange object passed to _check_vector_halos_differ has a "
+        "different field name 'm1' to self 'f2'" in str(excinfo.value))
