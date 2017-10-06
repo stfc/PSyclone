@@ -551,7 +551,8 @@ def test_invalid_shape():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     print str(excinfo)
-    assert ("request a valid gh_shape (one of ['gh_quadrature_xyoz', "
+    assert ("request a valid gh_shape (one of ['gh_quadrature_xyz', "
+            "'gh_quadrature_xyoz', 'gh_quadrature_xoyoz', "
             "'gh_evaluator']) but got 'quadrature_wrong' for kernel "
             "'testkern_qr_type'" in str(excinfo))
 
@@ -594,7 +595,6 @@ def test_field(tmpdir, f90, f90flags):
     output = (
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
-        "    USE quadrature_mod, ONLY: quadrature_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
         "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -795,7 +795,6 @@ def test_field_fs():
     output = (
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
-        "    USE quadrature_mod, ONLY: quadrature_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
         "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -1450,8 +1449,8 @@ def test_operator():
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
             "mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
             "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), "
-            "basis_w0_qr, diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, "
-            "wv_qr)") in generated_code
+            "basis_w0_qr, diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)") in generated_code
 
 
 def test_operator_different_spaces():
@@ -1468,24 +1467,27 @@ def test_operator_different_spaces():
         "(mapping, chi, qr)\n"
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
+        "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
+        "quadrature_xyoz_proxy_type\n"
+        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(in) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
-        "      TYPE(quadrature_type), intent(in) :: qr\n"
+        "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: orientation_w2(:) => null()\n"
         "      INTEGER cell\n"
         "      REAL(KIND=r_def), allocatable :: basis_w3_qr(:,:,:,:), "
         "diff_basis_w0_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
         "      INTEGER dim_w3, diff_dim_w0, diff_dim_w2\n"
-        "      REAL(KIND=r_def), pointer :: wv_qr(:) => null(), "
-        "zp_qr(:) => null(), wh_qr(:) => null()\n"
-        "      REAL(KIND=r_def), pointer :: xp_qr(:,:) => null()\n"
-        "      INTEGER nqp_h_qr, nqp_v_qr\n"
+        "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
+        "weights_z_qr(:) => null()\n"
+        "      INTEGER np_xy_qr, np_z_qr\n"
         "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
+        "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER, pointer :: map_w0(:,:) => null()\n")
     assert decl_output in generated_code
     output = (
@@ -1524,38 +1526,37 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Look-up quadrature variables\n"
         "      !\n"
-        "      wv_qr => qr%get_wqp_v()\n"
-        "      xp_qr => qr%get_xqp_h()\n"
-        "      zp_qr => qr%get_xqp_v()\n"
-        "      wh_qr => qr%get_wqp_h()\n"
-        "      nqp_h_qr = qr%get_nqp_h()\n"
-        "      nqp_v_qr = qr%get_nqp_v()\n"
+        "      qr_proxy = qr%get_quadrature_proxy()\n"
+        "      np_xy_qr = qr_proxy%np_xy\n"
+        "      np_z_qr = qr_proxy%np_z\n"
+        "      weights_xy_qr => qr_proxy%weights_xy\n"
+        "      weights_z_qr => qr_proxy%weights_z\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
-        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, nqp_h_qr, nqp_v_qr))\n"
+        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xy_qr, np_z_qr))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w0_qr(diff_dim_w0, ndf_w0, nqp_h_qr, "
-        "nqp_v_qr))\n"
+        "      ALLOCATE (diff_basis_w0_qr(diff_dim_w0, ndf_w0, np_xy_qr, "
+        "np_z_qr))\n"
         "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, nqp_h_qr, "
-        "nqp_v_qr))\n"
+        "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xy_qr, "
+        "np_z_qr))\n"
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      CALL mapping_proxy%fs_to%compute_basis_function(basis_w3_qr, "
-        "ndf_w3, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL qr%compute_function(BASIS, mapping_proxy%fs_to, "
+        "dim_w3, ndf_w3, basis_w3_qr)\n"
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
-        "diff_basis_w0_qr, ndf_w0, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
-        "      CALL mapping_proxy%fs_from%compute_diff_basis_function("
-        "diff_basis_w2_qr, ndf_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)\n"
+        "      CALL qr%compute_function(DIFF_BASIS, chi_proxy(1)%vspace, "
+        "diff_dim_w0, ndf_w0, diff_basis_w0_qr)\n"
+        "      CALL qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, "
+        "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
@@ -1581,7 +1582,7 @@ def test_operator_different_spaces():
         "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w3, "
         "basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
         "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
-        "nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)\n"
+        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "      END DO \n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
@@ -1612,8 +1613,8 @@ def test_operator_nofield():
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
             " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
             ", chi_proxy(3)%data, ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
-            "map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, "
-            "wv_qr)" in gen_code_str)
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
 def test_operator_nofield_different_space():  # pylint: disable=invalid-name
@@ -1650,8 +1651,8 @@ def test_operator_nofield_scalar():
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-            "local_stencil, b, ndf_w2, basis_w2_qr, nqp_h_qr, nqp_v_qr, "
-            "wh_qr, wv_qr)" in gen)
+            "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen)
 
 
 def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
@@ -1671,10 +1672,9 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
             assert "mesh => opbox_my_mapping%get_mesh()" in gen
         assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
         assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-        assert ("CALL opbox_my_mapping_proxy%fs_from%compute_basis_function("
-                "basis_w2_qr_get_instance, ndf_w2, nqp_h_qr_get_instance, "
-                "nqp_v_qr_get_instance, xp_qr_get_instance, "
-                "zp_qr_get_instance)" in gen)
+        assert ("qr_get_instance%compute_function(BASIS, "
+                "opbox_my_mapping_proxy%fs_from, "
+                "dim_w2, ndf_w2, basis_w2_qr_get_instance)" in gen)
         if dist_mem:
             assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
         else:
@@ -1683,9 +1683,9 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
         assert (
             "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
             "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
-            "basis_w2_qr_get_instance, nqp_h_qr_get_instance, "
-            "nqp_v_qr_get_instance, wh_qr_get_instance,"
-            " wv_qr_get_instance)" in gen)
+            "basis_w2_qr_get_instance, np_xy_qr_get_instance, "
+            "np_z_qr_get_instance, weights_xy_qr_get_instance,"
+            " weights_z_qr_get_instance)" in gen)
 
 
 def test_operator_orientation():
@@ -1711,7 +1711,7 @@ def test_operator_orientation():
             "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
             "basis_w1_qr, orientation_w1, ndf_w0, undf_w0, map_w0(:,cell), "
-            "diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)" in gen_str)
+            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)" in gen_str)
 
 
 def test_op_orient_different_space():  # pylint: disable=invalid-name
@@ -1731,7 +1731,7 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
     assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
     assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
     assert ("CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1_qr, "
-            "ndf_w1, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)" in gen_str)
+            "ndf_w1, np_xy_qr, np_z_qr, xp_qr, zp_qr)" in gen_str)
     assert (
         "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
         "cell)" in gen_str)
@@ -1742,8 +1742,8 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
             "my_mapping_proxy%local_stencil, chi_proxy(1)%data, "
             "chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, basis_w1_qr, "
             "orientation_w1, ndf_w2, orientation_w2, ndf_w0, undf_w0, "
-            "map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, "
-            "wv_qr)" in gen_str)
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)" in gen_str)
 
 
 def test_operator_deref():
@@ -1769,7 +1769,7 @@ def test_operator_deref():
             "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
             "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
-            "diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, wh_qr, wv_qr)") != -1
+            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)") != -1
 
 
 def test_operator_no_dofmap_lookup():
@@ -1824,10 +1824,10 @@ def test_any_space_1():
         "basis_any_space_2_b_qr(:,:,:,:)") != -1
     assert generated_code.find(
         "ALLOCATE (basis_any_space_1_a_qr(dim_any_space_1_a, "
-        "ndf_any_space_1_a, nqp_h_qr, nqp_v_qr))") != -1
+        "ndf_any_space_1_a, np_xy_qr, np_z_qr))") != -1
     assert generated_code.find(
         "ALLOCATE (basis_any_space_2_b_qr(dim_any_space_2_b, "
-        "ndf_any_space_2_b, nqp_h_qr, nqp_v_qr))") != -1
+        "ndf_any_space_2_b, np_xy_qr, np_z_qr))") != -1
     assert generated_code.find(
         "map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()") != -1
     assert generated_code.find(
@@ -1837,8 +1837,8 @@ def test_any_space_1():
             "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell),"
             " basis_any_space_1_a_qr, ndf_any_space_2_b, undf_any_space_2_b, "
             "map_any_space_2_b(:,cell), basis_any_space_2_b_qr, ndf_w0, "
-            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, "
-            "wh_qr, wv_qr)" in generated_code)
+            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in generated_code)
     assert ("DEALLOCATE (basis_any_space_2_b_qr, diff_basis_w0_qr, "
             "basis_any_space_1_a_qr)" in generated_code)
 
@@ -2453,8 +2453,8 @@ def test_multikern_invoke_any_space():
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("CALL f2_proxy%vspace%compute_basis_function("
-            "basis_any_space_1_f2_qr, ndf_any_space_1_f2, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_1_f2_qr, ndf_any_space_1_f2, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     assert (
         "      map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
@@ -2467,8 +2467,8 @@ def test_multikern_invoke_any_space():
             "map_any_space_1_f1(:,cell), basis_any_space_1_f1_qr, "
             "ndf_any_space_2_f2, undf_any_space_2_f2, "
             "map_any_space_2_f2(:,cell), basis_any_space_2_f2_qr, ndf_w0, "
-            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, nqp_h_qr, nqp_v_qr, "
-            "wh_qr, wv_qr" in gen)
+            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr" in gen)
 
 
 def test_mkern_invoke_multiple_any_spaces():
@@ -2483,12 +2483,12 @@ def test_mkern_invoke_multiple_any_spaces():
     print gen
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("CALL f2_proxy%vspace%compute_basis_function("
-            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
     assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
@@ -2501,24 +2501,24 @@ def test_mkern_invoke_multiple_any_spaces():
     # DIFF_BASIS on w0
     # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
     assert ("CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     assert ("CALL f2_proxy%vspace%compute_basis_function("
-            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
     assert ("CALL op2_proxy%fs_to%compute_basis_function("
-            "basis_any_space_1_op2_qr, ndf_any_space_1_op2, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_1_op2_qr, ndf_any_space_1_op2, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
     assert ("CALL op4_proxy%fs_from%compute_basis_function("
-            "basis_any_space_4_op4_qr, ndf_any_space_4_op4, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "basis_any_space_4_op4_qr, ndf_any_space_4_op4, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
     assert ("CALL op4_proxy%fs_from%compute_diff_basis_function("
-            "diff_basis_any_space_4_op4_qr, ndf_any_space_4_op4, nqp_h_qr, "
-            "nqp_v_qr, xp_qr, zp_qr)" in gen)
+            "diff_basis_any_space_4_op4_qr, ndf_any_space_4_op4, np_xy_qr, "
+            "np_z_qr, xp_qr, zp_qr)" in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -6332,12 +6332,12 @@ def test_anyw2_operators():
         output = (
             "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
             "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
-            "nqp_h_qr, nqp_v_qr))\n"
+            "np_xy_qr, np_z_qr))\n"
             "      !\n"
             "      ! Compute basis arrays\n"
             "      !\n"
             "      CALL mm_w2_proxy%fs_from%compute_basis_function("
-            "basis_any_w2_qr, ndf_any_w2, nqp_h_qr, nqp_v_qr, xp_qr, zp_qr)")
+            "basis_any_w2_qr, ndf_any_w2, np_xy_qr, np_z_qr, xp_qr, zp_qr)")
         assert output in generated_code
 
 
@@ -6374,7 +6374,7 @@ def test_stub_generate_with_anyw2():
     print result
     expected_output = (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
-        "nqp_h,nqp_v) :: basis_any_w2\n"
+        "np_xy,np_z) :: basis_any_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
-        "nqp_h,nqp_v) :: diff_basis_any_w2")
+        "np_xy,np_z) :: diff_basis_any_w2")
     assert expected_output in str(result)
