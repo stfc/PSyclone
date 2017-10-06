@@ -559,10 +559,9 @@ class ImplicitNoneGen(BaseGen):
                 "subroutine, but found {0}".format(type(parent)))
         reader = FortranStringReader("IMPLICIT NONE\n")
         reader.set_mode(True, True)  # free form, strict
-        subline = reader.next()
-
-        from fparser.typedecl_statements import Implicit
-        my_imp_none = Implicit(parent.root, subline)
+        #subline = reader.next()
+        from fparser.Fortran2003 import Implicit_Stmt
+        my_imp_none = Implicit_Stmt(reader)
 
         BaseGen.__init__(self, parent, my_imp_none)
 
@@ -611,7 +610,6 @@ class ProgramGen(ProgUnitGen):
         reader = FortranStringReader(
             "program {0}\nend program".format(name))
         reader.set_mode(True, True)  # free form, strict
-        #myline = reader.next()
         from fparser import Fortran2003
         self._node = Fortran2003.Program(reader)
 
