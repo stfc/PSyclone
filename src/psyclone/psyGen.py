@@ -2498,6 +2498,7 @@ class Argument(object):
         self._writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
                          MAPPING_REDUCTIONS["sum"]]
         self._readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        self._vector_size = 1
 
     def __str__(self):
         return self._name
@@ -2683,8 +2684,8 @@ class Argument(object):
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           (isinstance(x, HaloExchange)
-                            and not ignore_halos) or
+                           (isinstance(x, HaloExchange) and
+                            not ignore_halos) or
                            isinstance(x, GlobalSum)]
         arguments = []
         vector_count = 0
@@ -2711,7 +2712,7 @@ class Argument(object):
                         # single vector index
                         vector_count += 1
                         arguments.append(argument)
-                        if vector_count == self.vector_size:
+                        if vector_count == self._vector_size:
                             # found all of the halo exchange
                             # dependencies. As they are writers
                             # we now return

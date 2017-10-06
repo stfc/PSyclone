@@ -129,7 +129,7 @@ def test_base_class_not_callable():
     '''make sure we can not instantiate abstract Transformation class
     directly'''
     with pytest.raises(TypeError):
-        _ = Transformation()
+        _ = Transformation()  # pylint: disable=abstract-class-instantiated
 
 
 # TransInfo class unit tests
@@ -559,13 +559,13 @@ def test_call_local_vars():
     from psyclone.psyGen import Call, Arguments
     my_arguments = Arguments(None)
 
-    class KernType(object):
+    class KernType(object):  # pylint: disable=too-few-public-methods
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):
+    class DummyClass(object):  # pylint: disable=too-few-public-methods
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
@@ -624,8 +624,7 @@ def test_ompdo_directive_class_view(capsys):
 
             psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
                 create(invoke_info)
-            invoke = psy.invokes.invoke_list[0]
-            schedule = invoke.schedule
+            schedule = psy.invokes.invoke_list[0].schedule
             otrans = OMPParallelLoopTrans()
 
             if dist_mem:
@@ -1005,7 +1004,7 @@ def test_argument_find_argument():
     assert result == kern_asum_arg
 
 
-def test_argument_find_read_arguments():
+def test_argument_find_read_arguments():  # pylint: disable=invalid-name
     '''Check that the find_read_arguments method returns the appropriate
     arguments in a list of nodes.'''
     _, invoke_info = parse(
@@ -1072,7 +1071,7 @@ def test_haloexchange_arg():
     assert halo_exchange_arg.call == halo_exchange
 
 
-def test_argument_forward_read_dependencies():
+def test_argument_forward_read_dependencies():  # pylint: disable=invalid-name
     '''Check that the forward_read_dependencies method returns the appropriate
     arguments in a schedule.'''
     _, invoke_info = parse(
@@ -1083,7 +1082,7 @@ def test_argument_forward_read_dependencies():
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
     f1_first_read = schedule.children[0].children[0].arguments.args[2]
-    call_nodes = schedule.calls()
+    _ = schedule.calls()
     assert f1_first_read.forward_read_dependencies() == []
     # 2: return list of readers (f3 is written to and then read by
     # three following calls)
@@ -1839,7 +1838,7 @@ def test_haloexchange_halo_depth_get_set():  # pylint: disable=invalid-name
     assert halo_exchange.halo_depth == halo_depth_2
 
 
-def test_haloexchange_vector_index_dependence():
+def test_haloexchange_vector_index_depend():  # pylint: disable=invalid-name
     '''check that _find_read_arguments does not return a haloexchange as
     a read dependence if the source node is a halo exchange and its field
     is a vector and the other halo exchange accesses a different vector
@@ -1860,7 +1859,7 @@ def test_haloexchange_vector_index_dependence():
     assert result_list[0].call.name == 'ru_code'
 
 
-def test_find_write_arguments_for_write():
+def test_find_write_arguments_for_write():  # pylint: disable=invalid-name
     '''when _find_write_arguments is called from an field argument that
     does not read then we hould return an empty list. This test checks
     this functionality. We use the dynamo0p3 api to create the
@@ -1879,7 +1878,7 @@ def test_find_write_arguments_for_write():
     assert node_list == []
 
 
-def test_find_write_arguments_halo_to_halo_no_vector(monkeypatch):
+def test_find_w_args_hes_no_vec(monkeypatch):  # pylint: disable=invalid-name
     '''when _find_write_arguments, or find_read_arguments, are called and a
     dependence is found between two halo exchanges, then the field
     must be a vector field. If the field is not a vector then an
@@ -1895,16 +1894,14 @@ def test_find_write_arguments_halo_to_halo_no_vector(monkeypatch):
     schedule = invoke.schedule
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
-    halo_exchange_d_v2 = schedule.children[4]
-    field_d_v2 = halo_exchange_d_v2.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
     with pytest.raises(GenerationError) as excinfo:
-        node_list = field_d_v3.backward_write_dependencies()
+        _ = field_d_v3.backward_write_dependencies()
     assert ("Internal error, a halo exchange depends on another halo exchange "
             "but the vector size of field 'd' is 1" in str(excinfo.value))
 
 
-def test_find_write_arguments_halo_to_halo_vector_index(monkeypatch):
+def test_find_w_args_hes_vec_idx(monkeypatch):  # pylint: disable=invalid-name
     '''when _find_write_arguments, or _find_read_arguments, are called and
     a dependence is found between two halo exchanges, then the vector
     indices of the two halo exchanges must be different. If the vector
@@ -1921,16 +1918,15 @@ def test_find_write_arguments_halo_to_halo_vector_index(monkeypatch):
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
     halo_exchange_d_v2 = schedule.children[4]
-    field_d_v2 = halo_exchange_d_v2.field
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
     with pytest.raises(GenerationError) as excinfo:
-        node_list = field_d_v3.backward_write_dependencies()
+        _ = field_d_v3.backward_write_dependencies()
     assert ("Internal error, a halo exchange depends on another halo "
             "exchange and the vector id's of field 'd' are the "
             "same" in str(excinfo.value))
 
 
-def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
+def test_find_w_args_hes_vec_no_dep():  # pylint: disable=invalid-name
     '''when _find_write_arguments, or _find_read_arguments, are called,
     halo exchanges with the same field but a different index should
     not depend on each other. This test checks that this behaviour is
@@ -1951,7 +1947,8 @@ def test_find_write_arguments_halo_to_halo_vector_no_dependence(monkeypatch):
     node_list = field_d_v3.backward_write_dependencies()
     assert node_list == []
 
-def test_check_vector_halos_differ_wrong_argtype():
+
+def test_check_vect_hes_differ_wrong_argtype():  # pylint: disable=invalid-name
     '''when the check_vector_halos_differ method is called from a halo
     exchange object the argument being passed should be a halo
     exchange. If this is not the case an exception should be
@@ -1959,7 +1956,7 @@ def test_check_vector_halos_differ_wrong_argtype():
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+                           distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1973,7 +1970,8 @@ def test_check_vector_halos_differ_wrong_argtype():
         "haloexchange class is not a halo exchange object"
         in str(excinfo.value))
 
-def test_check_vector_halos_differ_different_names():
+
+def test_check_vec_hes_differ_diff_names():  # pylint: disable=invalid-name
     '''when the check_vector_halos_differ method is called from a halo
     exchange object the argument being passed should be a halo
     exchange with an argument having the same name as the local halo
@@ -1983,7 +1981,7 @@ def test_check_vector_halos_differ_different_names():
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+                           distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1999,7 +1997,8 @@ def test_check_vector_halos_differ_different_names():
         "the halo exchange object passed to check_vector_halos_differ has a "
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
-def test_find_write_arguments_multiple_dependencies_error():
+
+def test_find_w_args_multiple_deps_error():  # pylint: disable=invalid-name
     '''when _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
     that an error is raised if this is not the case.
@@ -2012,7 +2011,7 @@ def test_find_write_arguments_multiple_dependencies_error():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del(schedule.children[4])
+    del schedule.children[4]
     loop = schedule.children[6]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
@@ -2022,7 +2021,8 @@ def test_find_write_arguments_multiple_dependencies_error():
         "found a writer dependence but there are already dependencies"
         in str(excinfo.value))
 
-def test_find_write_arguments_no_more_nodes():
+
+def test_find_write_arguments_no_more_nodes():  # pylint: disable=invalid-name
     '''when _find_write_arguments has looked through all nodes but has not
     returned it should mean that is has not found any write
     dependencies. This test checks that an error is raised if this is
@@ -2036,7 +2036,7 @@ def test_find_write_arguments_no_more_nodes():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del(schedule.children[3])
+    del schedule.children[3]
     loop = schedule.children[5]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[5]
@@ -2046,7 +2046,8 @@ def test_find_write_arguments_no_more_nodes():
         "no more nodes but there are already dependencies"
         in str(excinfo.value))
 
-def test_find_write_arguments_multiple_dependencies():
+
+def test_find_w_args_multiple_deps():  # pylint: disable=invalid-name
     '''_find_write_arguments should return as many halo exchange
     dependencies as the vector size of the associated field. This test
     checks that this is the case and that the returned objects are
