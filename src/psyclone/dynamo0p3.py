@@ -3285,7 +3285,6 @@ class DynKern(Kern):
             # dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
-            # TODO would it be better to have e.g. DynQuadrature class
             if self._eval_shape == "gh_quadrature_xyz":
                 self._qr_args = ["np_xyz", "weights_xyz"]
             elif self._eval_shape == "gh_quadrature_xyoz":
@@ -3293,6 +3292,10 @@ class DynKern(Kern):
             elif self._eval_shape == "gh_quadrature_xoyoz":
                 self._qr_args = ["np_x", "np_y", "np_z",
                                  "weights_x", "weights_y", "weights_z"]
+            else:
+                raise GenerationError(
+                    "Internal error: unsupported shape ({0}) found in "
+                    "DynKern._setup".format(self._eval_shape))
 
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related

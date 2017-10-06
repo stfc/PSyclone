@@ -49,15 +49,19 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 API = "dynamo0.3"
 
 
-def test_field_xyoz():
+def test_field_xyoz(tmpdir, f90, f90flags):
     ''' Tests that a call, with a set of fields requiring XYoZ
     quadrature, produces correct code. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1_single_invoke_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"

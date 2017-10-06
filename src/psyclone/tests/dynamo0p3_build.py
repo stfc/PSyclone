@@ -54,5 +54,8 @@ INFRASTRUCTURE_MODULES = ["constants_mod",
                           "stencil_dofmap_mod",
                           "function_space_mod",
                           "field_mod",
+                          "abstract_quadrature_mod",
+                          "quadrature_rule_mod",
+                          "quadrature_xyoz_mod",
                           "quadrature_mod",
                           "operator_mod"]
