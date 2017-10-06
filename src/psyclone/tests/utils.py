@@ -81,6 +81,22 @@ def count_lines(root, string_name):
     return count
 
 
+def print_diffs(expected, actual):
+    '''
+    Pretty-print the diff between the two, possibly multi-line, strings
+
+    :param str expected: Multi-line string
+    :param str actual: Multi-line string
+    '''
+    import difflib
+    from pprint import pprint
+    expected_lines = expected.splitlines()
+    actual_lines = actual.splitlines()
+    diff = difflib.Differ()
+    diff_list = list(diff.compare(expected_lines, actual_lines))
+    pprint(diff_list)
+
+
 def find_fortran_file(path, root_name):
     ''' Returns the full path to a Fortran source file. Searches for
     files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
