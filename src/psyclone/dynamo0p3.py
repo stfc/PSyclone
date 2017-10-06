@@ -70,7 +70,8 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
-VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
+VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyz", "gh_quadrature_xyoz",
+                           "gh_quadrature_xoyoz"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
@@ -1118,8 +1119,6 @@ class DynamoPSy(PSy):
                                          "operator_proxy_type",
                                          "columnwise_operator_type",
                                          "columnwise_operator_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="quadrature_mod", only=True,
-                              funcnames=["quadrature_type"]))
         psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
                               funcnames=["r_def"]))
         # add all invoke specific information
@@ -1675,8 +1674,11 @@ class DynInvokeBasisFns(object):
         # of the corresponding kernel argument that is being updated.
         self._basis_fns = []
         self._diff_basis_fns = []
-        # The set of quadrature objects passed to this invoke
-        self._qr_vars = set()
+        # The dictionary of quadrature objects passed to this invoke. Keys
+        # are the various VALID_QUADRATURE_SHAPES, values are a list of
+        # associated quadrature variables. (i.e. we have a list of
+        # quadrature arguments for each shape.)
+        self._qr_vars = {}
         # The list of kernel args for which we require evaluators
         self._unique_evaluator_args = []
         # Corresponding set of unique function spaces (to ensure we don't
@@ -1689,7 +1691,15 @@ class DynInvokeBasisFns(object):
                 # Keep a list of the quadrature objects passed to this
                 # invoke
                 if call.eval_shape in VALID_QUADRATURE_SHAPES:
-                    self._qr_vars.add(call.qr_name)
+                    if call.eval_shape not in self._qr_vars:
+                        # We haven't seen a quadrature arg with this shape
+                        # before so create a dictionary entry with an
+                        # empty list
+                        self._qr_vars[call.eval_shape] = []
+                    if call.qr_name not in self._qr_vars[call.eval_shape]:
+                        # Add this qr argument to the list of those that
+                        # have this shape
+                        self._qr_vars[call.eval_shape].append(call.qr_name)
                 elif call.eval_shape == "gh_evaluator":
                     # Keep a list of the unique evaluators we require. We do
                     # this as a list of the kernel arguments to which they
@@ -1744,6 +1754,30 @@ class DynInvokeBasisFns(object):
                     if fsd.requires_diff_basis:
                         self._diff_basis_fns.append(entry)
 
+    def declare_qr(self, parent):
+        '''
+        Create the declarations for any quadrature objects passed
+        in to an invoke
+
+        :param parent: the node in the f2pygen AST that will be the
+                       parent of all of the declarations (i.e. the
+                       PSy-layer subroutine)
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import TypeDeclGen
+        # Create a single declaration for each quadrature type
+        for shape in VALID_QUADRATURE_SHAPES:
+            if shape in self._qr_vars and self._qr_vars[shape]:
+                qr_type = shape.replace("gh_", "", 1) + "_type"
+                qr_proxy_type = shape.replace("gh_", "", 1) + "_proxy_type"
+                parent.add(TypeDeclGen(parent, datatype=qr_type,
+                                       entity_decls=self._qr_vars[shape],
+                                       intent="in"))
+                parent.add(TypeDeclGen(
+                    parent, datatype=qr_proxy_type,
+                    entity_decls=[var + "_proxy" for var in self._qr_vars[shape]]))
+
+        
     def initialise_basis_fns(self, parent):
         '''
         Create the declarations and assignments required for the
@@ -1759,47 +1793,34 @@ class DynInvokeBasisFns(object):
         basis_declarations = []
         op_name_list = []
 
+        # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
+        # or an evaluator
+        if self._qr_vars or self._unique_evaluator_args:
+            parent.add(UseGen(parent, name="function_space_mod",
+                              only=True,
+                              funcnames=["BASIS", "DIFF_BASIS"]))
+
         if self._qr_vars:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Look-up quadrature variables"))
             parent.add(CommentGen(parent, ""))
 
-        for qr_var_name in self._qr_vars:
-            # We generate unique names for the integers holding the numbers
-            # of quadrature points by appending the name of the quadrature
-            # argument
-            qr_vars = ["nqp_h", "nqp_v"]
-            qr_ptr_vars_1d = {"zp": "xqp_v", "wh": "wqp_h",
-                              "wv": "wqp_v"}
-            # Python 2 has no one-line way of combining dicts
-            qr_ptr_vars = qr_ptr_vars_1d.copy()
-            qr_ptr_vars.update({"xp": "xqp_h"})
-            parent.add(
-                DeclGen(
-                    parent, datatype="integer",
-                    entity_decls=[name+"_"+qr_var_name for name in qr_vars]))
-            parent.add(
-                DeclGen(
-                    parent, datatype="real", pointer=True, kind="r_def",
-                    entity_decls=["xp"+"_"+qr_var_name+"(:,:) => null()"]))
-            decl_list = [name+"_"+qr_var_name+"(:) => null()"
-                         for name in qr_ptr_vars_1d]
-            parent.add(
-                DeclGen(parent, datatype="real", pointer=True,
-                        kind="r_def", entity_decls=decl_list))
-            for qr_var in qr_ptr_vars:
-                parent.add(
-                    AssignGen(parent, pointer=True, lhs=qr_var+"_"+qr_var_name,
-                              rhs=qr_var_name + "%get_" +
-                              qr_ptr_vars[qr_var] + "()"))
-            for qr_var in qr_vars:
-                parent.add(
-                    AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
-                              rhs=qr_var_name + "%get_" + qr_var + "()"))
+            # Determine which modules we need to 'use' - we simply remove
+            # the 'gh_' prefix from the shape name
+            mod_names = [shp.replace("gh_", "", 1) for shp in self._qr_vars]
+
+            for quad_type in mod_names:
+                parent.add(UseGen(parent,
+                                  name="{0}_mod".format(quad_type),
+                                  only=True,
+                                  funcnames=[
+                                      "{0}_type".format(quad_type),
+                                      "{0}_proxy_type".format(quad_type)]))
+            self._initialise_xyz_qr(parent)
+            self._initialise_xyoz_qr(parent)
+            self._initialise_xoyoz_qr(parent)
 
         if self._unique_evaluator_args:
-            parent.add(UseGen(parent, name="function_space_mod",
-                              only=True, funcnames=["BASIS", "DIFF_BASIS"]))
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
                                   " Initialise evaluator-related quantities "
@@ -1928,6 +1949,76 @@ class DynInvokeBasisFns(object):
                                allocatable=True,
                                kind="r_def",
                                entity_decls=basis_declarations))
+
+    def _initialise_xyz_qr(self, parent):
+        '''
+        Add in the initialisation of variables needed for XYZ
+        quadrature
+
+        :param parent: the node in the AST representing the PSy subroutine
+                       in which to insert the initialisation
+        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import AssignGen, DeclGen
+
+        if "gh_quadrature_xyz" not in self._qr_vars:
+            return
+
+    def _initialise_xyoz_qr(self, parent):
+        '''
+        Add in the initialisation of variables needed for XYoZ
+        quadrature
+
+        :param parent: the node in the AST representing the PSy subroutine
+                       in which to insert the initialisation
+        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import AssignGen, DeclGen
+
+        if "gh_quadrature_xyoz" not in self._qr_vars:
+            return
+
+        qr_vars = ["np_xy", "np_z"]
+        qr_ptr_vars = ["weights_xy", "weights_z"]
+
+        for qr_var_name in self._qr_vars["gh_quadrature_xyoz"]:
+
+            # We generate unique names for the integers holding the numbers
+            # of quadrature points by appending the name of the quadrature
+            # argument
+            parent.add(
+                DeclGen(
+                    parent, datatype="integer",
+                    entity_decls=[name+"_"+qr_var_name for name in qr_vars]))
+            decl_list = [name+"_"+qr_var_name+"(:) => null()"
+                         for name in qr_ptr_vars]
+            parent.add(
+                DeclGen(parent, datatype="real", pointer=True,
+                        kind="r_def", entity_decls=decl_list))
+        for qr_var in qr_ptr_vars:
+            parent.add(
+                AssignGen(parent, pointer=True,
+                          lhs=qr_var+"_"+qr_var_name,
+                          rhs=qr_var_name+"%"+qr_var))
+        for qr_var in qr_vars:
+            parent.add(
+                AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
+                          rhs=qr_var_name + "%get_" + qr_var + "()"))
+
+    def _initialise_xoyoz_qr(self, parent):
+        '''
+        Add in the initialisation of variables needed for XYZ
+        quadrature
+
+        :param parent: the node in the AST representing the PSy subroutine
+                       in which to insert the initialisation
+        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import AssignGen, DeclGen
+
+        if "gh_quadrature_xoyoz" not in self._qr_vars:
+            return
+
 
     def compute_basis_fns(self, parent):
         '''
@@ -2369,10 +2460,7 @@ class DynInvoke(Invoke):
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
-        if len(self._psy_unique_qr_vars) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
-                                       entity_decls=self._psy_unique_qr_vars,
-                                       intent="in"))
+        self.evaluators.declare_qr(invoke_sub)
 
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
