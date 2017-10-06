@@ -1740,13 +1740,25 @@ class HaloExchange(Node):
         (one being self and the other being passed by argument)
         operating on the same field, both have vector fields of the
         same size and use different vector indices. If this is the
-        case then the halo nodes do not depend on each other. If this
-        is not the case then an internal error will have occured and
-        we raise an appropriate exception.
+        case then the halo exchange nodes do not depend on each
+        other. If this is not the case then an internal error will
+        have occured and we raise an appropriate exception.
 
         :param node: a halo exchange which should exchange the same
         field as self
         :type node: :py:class:`psyclone.psyGen.HaloExchange`
+        :raises GenerationError: if the argument passed is not a halo exchange
+        :raises GenerationError: if the field name in the halo
+        exchange passed in has a different name to the field in this
+        halo exchange
+        :raises GenerationError: if the field in this halo exchange is
+        not a vector field
+        :raises GenerationError: if the vector size of the field in
+        this halo exchange is different to vector size of the field in
+        the halo exchange passed by argument.
+        :raises GenerationError: if the vector index of the field in
+        this halo exchange is the same as the vector index of the
+        field in the halo exchange passed by argument.
 
         '''
 
@@ -2590,14 +2602,23 @@ class Argument(object):
 
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a
-        dependency with self. If one is not found return None'''
-        for node in nodes:
-            # only check objects which contain their own data
-            if isinstance(node, Call) or isinstance(node, HaloExchange) \
-               or isinstance(node, GlobalSum):
-                for argument in node.args:
-                    if self._depends_on(argument):
-                        return argument
+        dependency with self. If one is not found return None
+
+        :param: the list of nodes that this method examines
+        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :return: An argument object or None
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+
+        # We only need consider nodes that have arguments
+        nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
+                                      isinstance(x, HaloExchange) or
+                                      isinstance(x, GlobalSum), nodes))
+        for node in nodes_with_args:
+            for argument in node.args:
+                if self._depends_on(argument):
+                    return argument
         return None
 
     def _find_read_arguments(self, nodes):
@@ -2685,16 +2706,30 @@ class Argument(object):
                         continue
                     else:
                         # a vector read will depend on more than one
-                        # halo exchange as halo exchanges only update
-                        # a single vector
+                        # halo exchange (a dependence for each vector
+                        # index) as halo exchanges only act on a
+                        # single vector index
                         vector_count += 1
                         arguments.append(argument)
                         if vector_count == self.vector_size:
+                            # found all of the halo exchange
+                            # dependencies. As they are writers
+                            # we now return
                             return arguments
                 else:
-                    arguments.append(argument)
-                    return arguments
-        return arguments
+                    # this argument is a writer so add it and return
+                    if arguments:
+                        raise GenerationError(
+                            "Internal error, found a writer dependence but "
+                            "there are already dependencies. This should not "
+                            "happen.")
+                    return [argument]
+        if arguments:
+            raise GenerationError(
+                "Internal error, no more nodes but there are "
+                "already dependencies. This should not happen.")
+        # no dependencies have been found
+        return []
 
     def _depends_on(self, argument):
         '''If there is a dependency between the argument and self then return
