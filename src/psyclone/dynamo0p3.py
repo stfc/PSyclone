@@ -3269,7 +3269,7 @@ class DynKern(Kern):
         # algorithm argument?
         self._qr_text = ""
         self._qr_name = None
-        self._qr_args = {}
+        self._qr_args = []
 
         if self._eval_shape in VALID_QUADRATURE_SHAPES:
             # The quadrature-related arguments always come last
@@ -4326,9 +4326,11 @@ class KernStubArgList(ArgOrdering):
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
-            dim_list = ",".join([first_dim, ndf_name,
-                                 self._kern.qr_args["nh"],
-                                 self._kern.qr_args["nv"]])
+            if self._kern.eval_shape == "gh_quadrature_xyoz":
+                dim_list = ",".join([first_dim, ndf_name,
+                                     "np_xy", "np_z"])
+            else:
+                raise GenerationError("Implement other quadrature shapes 1")
         else:
             # Need the ndf for the space on which the basis functions
             # have been evaluated
@@ -4370,9 +4372,11 @@ class KernStubArgList(ArgOrdering):
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
-            dim_list = ",".join([first_dim, ndf_name,
-                                 self._kern.qr_args["nh"],
-                                 self._kern.qr_args["nv"]])
+            if self._kern.eval_shape == "gh_quadrature_xyoz":
+                dim_list = ",".join([first_dim, ndf_name,
+                                     "np_xy", "np_z"])
+            else:
+                raise GenerationError("Implement other quad shape 2")
         else:
             nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
             dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
@@ -4406,23 +4410,21 @@ class KernStubArgList(ArgOrdering):
         self.field_bcs_kernel(function_space)
 
     def quad_rule(self):
-        ''' provide qr information '''
+        ''' provide quadrature information for the kernel stub '''
         from psyclone.f2pygen import DeclGen
-        self._arglist.extend([self._kern.qr_args["nh"],
-                              self._kern.qr_args["nv"],
-                              self._kern.qr_args["h"],
-                              self._kern.qr_args["v"]])
+        self._arglist.extend(self._kern.qr_args)
+                              #self._kern.qr_args["h"],
+                              #self._kern.qr_args["v"]])
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[self._kern.qr_args["nh"],
-                                               self._kern.qr_args["nv"]]))
+                                 entity_decls=["np_xy", "np_z"])) 
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
                                  intent="in",
-                                 dimension=self._kern.qr_args["nh"],
-                                 entity_decls=[self._kern.qr_args["h"]]))
+                                 dimension="np_xy",
+                                 entity_decls=["weights_xy"]))
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
                                  intent="in",
-                                 dimension=self._kern.qr_args["nv"],
-                                 entity_decls=[self._kern.qr_args["v"]]))
+                                 dimension="np_z",
+                                 entity_decls=["weights_z"]))
 
     @property
     def arglist(self):
