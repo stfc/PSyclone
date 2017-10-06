@@ -56,6 +56,8 @@ INFRASTRUCTURE_MODULES = ["constants_mod",
                           "field_mod",
                           "abstract_quadrature_mod",
                           "quadrature_rule_mod",
+                          "quadrature_xyz_mod",
                           "quadrature_xyoz_mod",
+                          "quadrature_xoyoz_mod",
                           "quadrature_mod",
                           "operator_mod"]
