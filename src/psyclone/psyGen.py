@@ -2610,7 +2610,6 @@ class Argument(object):
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-
         # We only need consider nodes that have arguments
         nodes_with_args = list(filter(lambda x: isinstance(x, Call) or
                                       isinstance(x, HaloExchange) or

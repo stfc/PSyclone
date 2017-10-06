@@ -1998,3 +1998,50 @@ def test_check_vector_halos_differ_different_names():
     assert (
         "the halo exchange object passed to _check_vector_halos_differ has a "
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
+
+def test_find_write_arguments_multiple_dependencies():
+    '''when _find_write_arguments finds a write that causes it to return
+    there should not be any previous dependencies. This test checks
+    that an error is raised if this is not the case.
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    del(schedule.children[4])
+    loop = schedule.children[6]
+    kernel = loop.children[0]
+    d_field = kernel.arguments.args[0]
+    with pytest.raises(GenerationError) as excinfo:
+        d_field.backward_write_dependencies()
+    assert (
+        "found a writer dependence but there are already dependencies"
+        in str(excinfo.value))
+
+def test_find_write_arguments_no_more_nodes():
+    '''when _find_write_arguments has looked through all nodes but has not
+    returned it should mean that is has not found any write
+    dependencies. This test checks that an error is raised if this is
+    not the case.
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    del(schedule.children[3])
+    loop = schedule.children[5]
+    kernel = loop.children[0]
+    d_field = kernel.arguments.args[5]
+    with pytest.raises(GenerationError) as excinfo:
+        d_field.backward_write_dependencies()
+    assert (
+        "no more nodes but there are already dependencies"
+        in str(excinfo.value))
