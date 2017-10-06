@@ -87,15 +87,14 @@ def test_field_xyoz():
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n")
     assert output_decls in generated_code
-    output = (
+    init_output = (
         "      !\n"
-        "      ! Initialise field/quadrature/operator proxies\n"
+        "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
         "      m1_proxy = m1%get_proxy()\n"
         "      m2_proxy = m2%get_proxy()\n"
-        "      qr_proxy = qr%get_quadrature_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -128,10 +127,13 @@ def test_field_xyoz():
         "      !\n"
         "      ! Look-up quadrature variables\n"
         "      !\n"
+        "      qr_proxy = qr%get_quadrature_proxy()\n"
         "      np_xy_qr = qr_proxy%np_xy\n"
         "      np_z_qr = qr_proxy%np_z\n"
-        "      weights_xy => qr_proxy%weights_xy\n"
-        "      weights_z => qr_proxy%weights_z\n"
+        "      weights_xy_qr => qr_proxy%weights_xy\n"
+        "      weights_z_qr => qr_proxy%weights_z\n")
+    assert init_output in generated_code
+    compute_output = (
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
@@ -198,7 +200,7 @@ def test_field_xyoz():
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_qr_type"
     )
-    assert output in generated_code
+    assert compute_output in generated_code
 
 
 def test_field_qr_deref():

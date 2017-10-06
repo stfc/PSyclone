@@ -1981,7 +1981,7 @@ class DynInvokeBasisFns(object):
         qr_vars = ["np_xy", "np_z"]
         qr_ptr_vars = ["weights_xy", "weights_z"]
 
-        for qr_var_name in self._qr_vars["gh_quadrature_xyoz"]:
+        for qr_arg_name in self._qr_vars["gh_quadrature_xyoz"]:
 
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
@@ -1989,21 +1989,28 @@ class DynInvokeBasisFns(object):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
-                    entity_decls=[name+"_"+qr_var_name for name in qr_vars]))
-            decl_list = [name+"_"+qr_var_name+"(:) => null()"
+                    entity_decls=[name+"_"+qr_arg_name for name in qr_vars]))
+            decl_list = [name+"_"+qr_arg_name+"(:) => null()"
                          for name in qr_ptr_vars]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind="r_def", entity_decls=decl_list))
-        for qr_var in qr_ptr_vars:
+            # Get the quadrature proxy
+            proxy_name = qr_arg_name + "_proxy"
             parent.add(
-                AssignGen(parent, pointer=True,
-                          lhs=qr_var+"_"+qr_var_name,
-                          rhs=qr_var_name+"%"+qr_var))
-        for qr_var in qr_vars:
-            parent.add(
-                AssignGen(parent, lhs=qr_var+"_"+qr_var_name,
-                          rhs=qr_var_name + "%get_" + qr_var + "()"))
+                AssignGen(parent, lhs=proxy_name,
+                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
+            # Number of points in each dimension
+            for qr_var in qr_vars:
+                parent.add(
+                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
+                              rhs=proxy_name+"%"+qr_var))
+            # Pointers to the weights arrays
+            for qr_var in qr_ptr_vars:
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=qr_var+"_"+qr_arg_name,
+                              rhs=proxy_name+"%"+qr_var))
 
     def _initialise_xoyoz_qr(self, parent):
         '''
