@@ -1473,12 +1473,24 @@ class DynInvokeCMAOperators(object):
 
 
 class DynInvoke(Invoke):
-    ''' The Dynamo specific invoke class. This passes the Dynamo
+    '''The Dynamo specific invoke class. This passes the Dynamo
     specific schedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
-    dynamo specific invocation code. '''
+    dynamo specific invocation code.
 
+    :param alg_invocation: invoke metadata extracted from the code by
+    the parser
+    :type alg_invoke: :py:class:`psyclone.parse.InvokeCall`
+    :param idx: a unique id for this particular invoke indicating the
+    relative position of this invoke (the first invoke encountered has
+    idx=0, the second idx=1 etc.)
+    :type idx: int
+    :raises GenerationError: if integer reductions are required in the
+    psy-layer
+
+    '''
     def __init__(self, alg_invocation, idx):
+
         if False:
             self._schedule = DynSchedule(None)  # for pyreverse
         reserved_names_list = []
@@ -2169,23 +2181,20 @@ class DynGlobalSum(GlobalSum):
 
 class DynHaloExchange(HaloExchange):
 
-    ''' Dynamo specific halo exchange class which can be added to and
-    manipulated in, a schedule '''
-
-    def __init__(self, field, parent=None, vector_index=None):
-
-        halo_type = None
-        halo_depth = None
-        HaloExchange.__init__(self, field, halo_type, halo_depth,
-                              vector_index=vector_index,
-                              parent=parent)
+    '''Dynamo specific halo exchange class which can be added to and
+    manipulated in, a schedule
+    '''
 
     @property
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
         exchange as it could change as transformations are applied to the
-        schedule'''
+        schedule
 
+        :return: Return the type of stencil required for this halo exchange
+        :rtype: string
+
+        '''
         depth_info_list = self._compute_halo_info
         trial = depth_info_list[0]["stencil_type"]
         for depth_info in depth_info_list:
@@ -2200,8 +2209,12 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_depth(self):
         '''Dynamically determine the depth of the halo for this halo exchange,
         as the depth can change as transformations are applied to the
-        schedule'''
+        schedule
 
+        :return: Return the halo exchange depth
+        :rtype: int
+
+        '''
         depth_info_list = self._compute_halo_info
 
         # simplify the list
@@ -2270,7 +2283,12 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_info(self):
         '''Dynamically computes all halo dependencies and returns the
         required halo information (such as halo depth and stencil type) in a
-        list'''
+        list
+
+        :return: a list containing halo information for each dependency
+        :rtype: :func:`list` of :func:`dict`
+
+        '''
         read_dependencies = self.field.forward_read_dependencies()
         if len(read_dependencies) == 0:
             raise GenerationError(

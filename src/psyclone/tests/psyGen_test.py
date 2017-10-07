@@ -681,8 +681,8 @@ def test_call_abstract_methods():
 def test_haloexchange_unknown_halo_depth():  # pylint: disable=invalid-name
     '''test the case when the halo exchange base class is called without
     a halo depth'''
-    halo_exchange = HaloExchange(None, None, None, None, None)
-    assert halo_exchange._halo_depth == "unknown"
+    halo_exchange = HaloExchange(None)
+    assert halo_exchange._halo_depth is None
 
 
 def test_globalsum_view(capsys):
@@ -1829,13 +1829,12 @@ def test_node_dag(tmpdir):
 def test_haloexchange_halo_depth_get_set():  # pylint: disable=invalid-name
     '''test that the halo_exchange getter and setter work correctly '''
     halo_depth = 4
-    halo_depth_2 = 5
-    halo_exchange = HaloExchange(None, None, halo_depth, None, None)
+    halo_exchange = HaloExchange(None)
     # getter
-    assert halo_exchange.halo_depth == 4
+    assert halo_exchange.halo_depth is None
     # setter
-    halo_exchange.halo_depth = halo_depth_2
-    assert halo_exchange.halo_depth == halo_depth_2
+    halo_exchange.halo_depth = halo_depth
+    assert halo_exchange.halo_depth == halo_depth
 
 
 def test_haloexchange_vector_index_depend():  # pylint: disable=invalid-name

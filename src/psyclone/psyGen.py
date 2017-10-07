@@ -1678,10 +1678,24 @@ class GlobalSum(Node):
 
 class HaloExchange(Node):
 
-    ''' Generic Halo Exchange class which can be added to and
-    manipulated in, a schedule. '''
+    '''Generic Halo Exchange class which can be added to and
+    manipulated in, a schedule.
 
-    def __init__(self, field, halo_type, halo_depth, check_dirty=True,
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicatating
+    whether this halo exchange should use the runtime dirty/clean
+    logic or not.
+    :type check_dirty: Bool
+    :param vector_index: optional vector index default None to
+    identify which index of a vector field this halo exchange is
+    responsible
+    :type vector_index: int
+    :param parent: optional parent default None of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
@@ -1691,11 +1705,8 @@ class HaloExchange(Node):
             # HACK:TODO: update mapping to readwrite when it is supported
             self._field.access = MAPPING_ACCESSES["inc"]
             self._field.call = self
-        self._halo_type = halo_type
-        if halo_depth:
-            self._halo_depth = halo_depth
-        else:
-            self._halo_depth = "unknown"
+        self._halo_type = None
+        self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
 
