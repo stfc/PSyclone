@@ -2188,20 +2188,22 @@ class DynHaloExchange(HaloExchange):
     @property
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
-        exchange as it could change as transformations are applied to the
-        schedule
+        exchange as it could change as transformations are applied to
+        the schedule. If all stencil accesses are of the same type then we
+        return that stencil, otherwise we return the "region" stencil
+        type (as it is safe for all stencils).
 
         :return: Return the type of stencil required for this halo exchange
         :rtype: string
 
         '''
         depth_info_list = self._compute_halo_info
-        trial = depth_info_list[0]["stencil_type"]
+        trial = depth_info_list[0].stencil_type
         for depth_info in depth_info_list:
             # assume that if stencil accesses are different that we
             # simply revert to region. We could be more clever in the
             # future e.g. x and y implies cross.
-            if depth_info["stencil_type"] != trial:
+            if depth_info.stencil_type != trial:
                 return "region"
         return trial
 
@@ -2257,7 +2259,7 @@ class DynHaloExchange(HaloExchange):
         it is covered by the latter.'''
         new_depth_info_list = []
         for depth_info in depth_info_list:
-            if depth_info["max_depth"]:
+            if depth_info.max_depth:
                 new_depth_info_list.append({"var_depth": "",
                                             "literal_depth": 0,
                                             "max_depth": True})
@@ -2265,8 +2267,8 @@ class DynHaloExchange(HaloExchange):
 
         literal_only = 0
         for depth_info in depth_info_list:
-            var_depth = depth_info["var_depth"]
-            literal_depth = depth_info["literal_depth"]
+            var_depth = depth_info.var_depth
+            literal_depth = depth_info.literal_depth
             match = False
             for new_depth_info in new_depth_info_list:
                 if new_depth_info["var_depth"] == var_depth and not match:
@@ -2297,7 +2299,7 @@ class DynHaloExchange(HaloExchange):
         depth_info_list = []
         for read_dependency in read_dependencies:
             depth_info_list.append(
-                self._compute_single_halo_info(read_dependency))
+                HaloAccess(read_dependency))
         return depth_info_list
 
     @property
@@ -2405,82 +2407,6 @@ class DynHaloExchange(HaloExchange):
         return {"literal_depth": upper_bound, "max_depth": max_depth,
                 "dirty_outer": dirty_outer}
 
-    def _compute_single_halo_info(self, read_dependency):
-        '''Compute a halo dependence and return the required halo information
-        (such as halo depth and stencil type) as a dictionary'''
-        literal_depth = 0
-        var_depth = None
-        max_depth = False
-        stencil_type = None
-        call = read_dependency.call
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
-            raise GenerationError(
-                "internal error: read dependence for {0} should be from a "
-                "call but found {1}".format(read_dependency.name, type(call)))
-        loop = call.parent
-        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
-            # loop does redundant computation
-            if loop.upper_bound_index:
-                # loop redundant computation is to a fixed literal depth
-                literal_depth += loop.upper_bound_index
-            else:
-                # loop redundant computation is to the maximum depth
-                max_depth = True
-        elif loop.upper_bound_name == "ncolour":
-            # currenty coloured loops are always transformed from
-            # cell_halo depth 1 loops
-            literal_depth = 1
-        elif (loop.upper_bound_name == "ncells" and
-              not read_dependency.descriptor.stencil):
-            # This must be a continuous field which therefore accesses
-            # annexed dofs when read.
-            literal_depth = 1
-        elif (loop.upper_bound_name == "ncells" and
-              read_dependency.descriptor.stencil):
-            # no need to worry about updating annexed dofs (if they
-            # exist) as the halo exchange associated with the stencil
-            # will ensure that these are updated
-            pass
-        elif loop.upper_bound_name == "ndofs":
-            # we only access owned dofs so no halo exchange is required
-            pass
-        else:
-            raise GenerationError(
-                "Internal error in _compute_single_halo_info. Found loop "
-                "upper bound name '{0}'".format(loop.upper_bound_name))
-
-        # default stencil type to "region" as it means all of the halo
-        # and this is what is used when we perform redundant
-        # computation
-        stencil_type = "region"
-        if read_dependency.descriptor.stencil:
-            # field has a stencil access
-            if max_depth:
-                raise GenerationError(
-                    "redundant computation to max depth with a stencil is "
-                    "invalid")
-            else:
-                stencil_type = read_dependency.descriptor.stencil['type']
-                if literal_depth:
-                    # halo exchange does not support mixed accesses to the halo
-                    stencil_type = "region"
-                stencil_depth = read_dependency.descriptor.stencil['extent']
-                if stencil_depth:
-                    # stencil_depth is provided in the kernel metadata
-                    literal_depth += stencil_depth
-                else:
-                    # stencil_depth is provided by the algorithm layer
-                    if read_dependency.stencil.extent_arg.is_literal():
-                        # a literal is specified
-                        value_str = read_dependency.stencil.extent_arg.text
-                        literal_depth += int(value_str)
-                    else:
-                        # a variable is specified
-                        var_depth = read_dependency.stencil.extent_arg.varName
-        return {"max_depth": max_depth, "var_depth": var_depth,
-                "literal_depth": literal_depth, "stencil_type": stencil_type}
-
     def view(self, indent=0):
         ''' Class specific view  '''
         print self.indent(indent) + (
@@ -2510,6 +2436,155 @@ class DynHaloExchange(HaloExchange):
                 halo_parent, name=self._field.proxy_name + ref +
                 "%halo_exchange(depth=" + self._compute_halo_depth + ")"))
         parent.add(CommentGen(parent, ""))
+
+
+class HaloAccess(object):
+    '''Determines how much of the halo a field accesses (the halo depth) and
+    the access pattern (the stencil) when used in a particular kernel
+    within a particular loop nest
+
+    :param field: the field that we are concerned with
+    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+    '''
+    def __init__(self, field):
+        self._compute_single_halo_info(field)
+
+    @property
+    def max_depth(self):
+        '''Returns whether the field is known to access all of the halo or not
+
+        :return max_depth: Return True if the field accesses all of
+        the halo and False otherwise
+        :rtype max_depth: Bool
+
+        '''
+        return self._max_depth
+
+    @property
+    def var_depth(self):
+        '''Returns the name of the variable specifying the depth of halo
+        access if one is provided. Note, a variable will only be provided for
+        stencil accesses. Also note, this depth should be added to the
+        literal_depth to find the total depth.
+
+        :return var_depth: Return a variable name specifying the halo
+        access depth, if one exists, and None if not
+        :rtype var_depth: String
+
+        '''
+        return self._var_depth
+
+    @property
+    def literal_depth(self):
+        '''Returns the known fixed (literal) depth of halo access. Note, this
+        depth should be added to the var_depth to find the total
+        depth.
+
+        :return literal_depth: Return the known fixed (literal) halo
+        access depth
+        :rtype literal_depth: integer
+
+        '''
+        return self._literal_depth
+
+    @property
+    def stencil_type(self):
+        '''Returns the type of stencil access used by the field in the halo if
+        one exists. If redundant computation (access to the full halo)
+        is combined with a stencil access (potential access to a
+        subset of the halo) then the access is assumed to be full
+        access for all depths.
+
+        :return stencil_type: Return the type of stencil access used
+        by this field or None if there is no stencil.
+        :rtype stencil_type: String
+
+        '''
+        return self._stencil_type
+                
+    def _compute_single_halo_info(self, field):
+        '''Internal helper method to compute halo access information for a
+        field in a certain kernel and loop. The information computed is the
+        depth of access and the access pattern. The depth of acces can be the
+        maximum halo depth, a variable specifying the depth and/or a literal
+        depth. The access pattern will only be specified if the field performs
+        a stencil access in the kernel.
+
+        :param field: the field that we are concerned with
+        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+        '''
+        self._literal_depth = 0
+        self._var_depth = None
+        self._max_depth = False
+        self._stencil_type = None
+        call = field.call
+        from psyclone.dynamo0p3_builtins import DynBuiltIn
+        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
+            raise GenerationError(
+                "internal error: read dependence for {0} should be from a "
+                "call but found {1}".format(field.name, type(call)))
+        loop = call.parent
+        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+            # loop does redundant computation
+            if loop.upper_bound_index:
+                # loop redundant computation is to a fixed literal depth
+                self._literal_depth += loop.upper_bound_index
+            else:
+                # loop redundant computation is to the maximum depth
+                self._max_depth = True
+        elif loop.upper_bound_name == "ncolour":
+            # currenty coloured loops are always transformed from
+            # cell_halo depth 1 loops
+            self._literal_depth = 1
+        elif (loop.upper_bound_name == "ncells" and
+              not field.descriptor.stencil):
+            # This must be a continuous field which therefore accesses
+            # annexed dofs when read.
+            self._literal_depth = 1
+        elif (loop.upper_bound_name == "ncells" and
+              field.descriptor.stencil):
+            # no need to worry about updating annexed dofs (if they
+            # exist) as the halo exchange associated with the stencil
+            # will ensure that these are updated
+            pass
+        elif loop.upper_bound_name == "ndofs":
+            # we only access owned dofs so no halo exchange is required
+            pass
+        else:
+            raise GenerationError(
+                "Internal error in _compute_single_halo_info. Found loop "
+                "upper bound name '{0}'".format(loop.upper_bound_name))
+
+        # default stencil type to "region" as it means all of the halo
+        # and this is what is used when we perform redundant
+        # computation
+        self._stencil_type = "region"
+        if field.descriptor.stencil:
+            # field has a stencil access
+            if self._max_depth:
+                raise GenerationError(
+                    "redundant computation to max depth with a stencil is "
+                    "invalid")
+            else:
+                self._stencil_type = field.descriptor.stencil['type']
+                if self._literal_depth:
+                    # halo exchange does not support mixed accesses to the halo
+                    self._stencil_type = "region"
+                stencil_depth = field.descriptor.stencil['extent']
+                if stencil_depth:
+                    # stencil_depth is provided in the kernel metadata
+                    self._literal_depth += stencil_depth
+                else:
+                    # stencil_depth is provided by the algorithm layer
+                    if field.stencil.extent_arg.is_literal():
+                        # a literal is specified
+                        value_str = field.stencil.extent_arg.text
+                        self._literal_depth += int(value_str)
+                    else:
+                        # a variable is specified
+                        self._var_depth = field.stencil.extent_arg.varName
 
 
 class DynLoop(Loop):
