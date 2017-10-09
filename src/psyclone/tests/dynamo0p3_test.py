@@ -1730,8 +1730,8 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
     assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
     assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
-    assert ("CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1_qr, "
-            "ndf_w1, np_xy_qr, np_z_qr, xp_qr, zp_qr)" in gen_str)
+    assert ("CALL qr%compute_function(BASIS, my_mapping_proxy%fs_to, "
+            "dim_w1, ndf_w1, basis_w1_qr)" in gen_str)
     assert (
         "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
         "cell)" in gen_str)
@@ -1891,35 +1891,35 @@ def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     print generated_code
-    assert str(generated_code).find(
+    assert generated_code.find(
         "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "undf_any_space_4_d = d_proxy%fs_from%get_undf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "ndf_any_space_5_a = a_proxy%vspace%get_ndf()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "undf_any_space_5_a = a_proxy%vspace%get_undf()") != -1
-    assert str(generated_code).find(
-        "CALL b_proxy%fs_to%compute_basis_function") != -1
-    assert str(generated_code).find(
-        "CALL d_proxy%fs_from%compute_basis_function") != -1
-    assert str(generated_code).find(
-        "CALL d_proxy%fs_from%compute_diff_basis_function") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
+        "CALL qr%compute_function(BASIS, b_proxy%fs_to, ") != -1
+    assert generated_code.find(
+        "CALL qr%compute_function(BASIS, d_proxy%fs_from, ") != -1
+    assert generated_code.find(
+        "CALL qr%compute_function(DIFF_BASIS, d_proxy%fs_from, ") != -1
+    assert generated_code.find(
         "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()") != -1
-    assert str(generated_code).find(
+    assert generated_code.find(
         "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()") != -1
 
 
@@ -2452,9 +2452,9 @@ def test_multikern_invoke_any_space():
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f2_proxy%vspace%compute_basis_function("
-            "basis_any_space_1_f2_qr, ndf_any_space_1_f2, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
+            "dim_any_space_1_f2, ndf_any_space_1_f2, "
+            "basis_any_space_1_f2_qr)" in gen)
     assert (
         "      map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
@@ -2482,13 +2482,13 @@ def test_mkern_invoke_multiple_any_spaces():
     gen = str(psy.gen)
     print gen
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+            "dim_any_space_1_f1, ndf_any_space_1_f1, "
+            "basis_any_space_1_f1_qr)" in gen)
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f2_proxy%vspace%compute_basis_function("
-            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
+            "dim_any_space_2_f2, ndf_any_space_2_f2, "
+            "basis_any_space_2_f2_qr)" in gen)
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
     assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
@@ -2500,25 +2500,25 @@ def test_mkern_invoke_multiple_any_spaces():
     # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
     # DIFF_BASIS on w0
     # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
-    assert ("CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_space_1_f1_qr, ndf_any_space_1_f1, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
-    assert ("CALL f2_proxy%vspace%compute_basis_function("
-            "basis_any_space_2_f2_qr, ndf_any_space_2_f2, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+            "dim_any_space_1_f1, ndf_any_space_1_f1, "
+            "basis_any_space_1_f1_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
+            "dim_any_space_2_f2, ndf_any_space_2_f2, "
+            "basis_any_space_2_f2_qr)" in gen)
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
-    assert ("CALL op2_proxy%fs_to%compute_basis_function("
-            "basis_any_space_1_op2_qr, ndf_any_space_1_op2, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, op2_proxy%fs_to, "
+            "dim_any_space_1_op2, ndf_any_space_1_op2, "
+            "basis_any_space_1_op2_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
-    assert ("CALL op4_proxy%fs_from%compute_basis_function("
-            "basis_any_space_4_op4_qr, ndf_any_space_4_op4, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
-    assert ("CALL op4_proxy%fs_from%compute_diff_basis_function("
-            "diff_basis_any_space_4_op4_qr, ndf_any_space_4_op4, np_xy_qr, "
-            "np_z_qr, xp_qr, zp_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, op4_proxy%fs_from, "
+            "dim_any_space_4_op4, ndf_any_space_4_op4, "
+            "basis_any_space_4_op4_qr)" in gen)
+    assert ("CALL qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
+            "diff_dim_any_space_4_op4, ndf_any_space_4_op4, "
+            "diff_basis_any_space_4_op4_qr)" in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -4398,7 +4398,7 @@ def test_intent_multi_kern():
         assert "TYPE(field_type), intent(inout) :: g, f\n" in output
         assert "TYPE(field_type), intent(inout) :: b, h\n" in output
         assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-        assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+        assert "TYPE(quadrature_xyoz_type), intent(in) :: qr\n" in output
 
 
 def test_field_gh_sum_invalid():
@@ -6336,8 +6336,8 @@ def test_anyw2_operators():
             "      !\n"
             "      ! Compute basis arrays\n"
             "      !\n"
-            "      CALL mm_w2_proxy%fs_from%compute_basis_function("
-            "basis_any_w2_qr, ndf_any_w2, np_xy_qr, np_z_qr, xp_qr, zp_qr)")
+            "      CALL qr%compute_function(BASIS, mm_w2_proxy%fs_from, "
+            "dim_any_w2, ndf_any_w2, basis_any_w2_qr)")
         assert output in generated_code
 
 
