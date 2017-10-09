@@ -2229,7 +2229,7 @@ class DynHaloExchange(HaloExchange):
         # if there is only one entry, return the depth
         if len(new_depth_info_list) == 1:
             depth_info = new_depth_info_list[0]
-            if depth_info["max_depth"]:
+            if depth_info.max_depth:
                 return "mesh%get_last_halo_depth()"
             else:  # return the variable and/or literal depth
                 return self._depth_str(depth_info)
@@ -2245,12 +2245,12 @@ class DynHaloExchange(HaloExchange):
         '''Interal helper method that returns the depth of a halo dependency
         as a string'''
         depth_str = ""
-        if depth_info["var_depth"]:
-            depth_str += depth_info["var_depth"]
-            if depth_info["literal_depth"]:
+        if depth_info.var_depth:
+            depth_str += depth_info.var_depth
+            if depth_info.literal_depth:
                 depth_str += "+"
-        if depth_info["literal_depth"]:
-            depth_str += str(depth_info["literal_depth"])
+        if depth_info.literal_depth:
+            depth_str += str(depth_info.literal_depth)
         return depth_str
 
     def _simplify_depth_list(self, depth_info_list):
@@ -2264,10 +2264,10 @@ class DynHaloExchange(HaloExchange):
         new_depth_info_list = []
         for depth_info in depth_info_list:
             if depth_info.max_depth:
-                new_depth_info_list.append({"var_depth": "",
-                                            "literal_depth": 0,
-                                            "max_depth": True})
-                return new_depth_info_list
+                halo_info = HaloAccess()
+                halo_info.set_by_value(max_depth=True, var_depth="",
+                                       literal_depth=0, stencil_type=None)
+                return [halo_info]
 
         literal_only = 0
         for depth_info in depth_info_list:
@@ -2275,14 +2275,16 @@ class DynHaloExchange(HaloExchange):
             literal_depth = depth_info.literal_depth
             match = False
             for new_depth_info in new_depth_info_list:
-                if new_depth_info["var_depth"] == var_depth and not match:
-                    new_depth_info["literal_depth"] = max(
-                        new_depth_info["literal_depth"], literal_depth)
+                if new_depth_info.var_depth == var_depth and not match:
+                    new_depth_info.literal_depth = max(
+                        new_depth_info.literal_depth, literal_depth)
                     match = True
             if not match:
-                new_depth_info_list.append({"var_depth": var_depth,
-                                            "literal_depth": literal_depth,
-                                            "max_depth": False})
+                halo_info = HaloAccess()
+                halo_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                       literal_depth=literal_depth,
+                                       stencil_type=None)
+                new_depth_info_list.append(halo_info)
         return new_depth_info_list
 
     @property
@@ -2338,8 +2340,8 @@ class DynHaloExchange(HaloExchange):
         required_clean_info = self._simplify_depth_list(halo_info)
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
-            if not (required_clean_info[0]["var_depth"] or
-                    required_clean_info[0]["max_depth"]):
+            if not (required_clean_info[0].var_depth or
+                    required_clean_info[0].max_depth):
                 # we have a fixed upper bound (and a known cleaned
                 # depth) so we know the size of halo required
                 return False
@@ -2362,10 +2364,10 @@ class DynHaloExchange(HaloExchange):
         required_clean_info = self._simplify_depth_list(halo_info)
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
-            if not (required_clean_info[0]["var_depth"] or
-                    required_clean_info[0]["max_depth"]):
+            if not (required_clean_info[0].var_depth or
+                    required_clean_info[0].max_depth):
                 # we do have a fixed upper bound
-                required_clean_ub = required_clean_info[0]["literal_depth"]
+                required_clean_ub = required_clean_info[0].literal_depth
                 if not cleaned_info["max_depth"]:
                     # we have a literal upper bound
                     cleaned_ub = cleaned_info["literal_depth"]
@@ -2492,6 +2494,17 @@ class HaloAccess(object):
 
         '''
         return self._literal_depth
+
+    @literal_depth.setter
+    def literal_depth(self, value):
+        ''' Set the known fixed (literal) depth of halo access.
+
+        :return value: Set the known fixed (literal) halo
+        access depth
+        :rtype value: integer
+
+        '''
+        self._literal_depth = value
 
     @property
     def stencil_type(self):
