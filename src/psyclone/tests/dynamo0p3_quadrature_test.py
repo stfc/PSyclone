@@ -255,6 +255,14 @@ def test_dyninvokebasisfns(monkeypatch):
     psy = PSyFactory(API).create(invoke_info)
     # Get hold of a DynInvokeBasisFns object
     eval = psy.invokes.invoke_list[0].evaluators
+
+    # Test the error check in _qr_basis_alloc_args() by passing in a
+    # dictionary containing an invalid shape entry
+    basis_dict = {"shape": "gh_wrong_shape"}
+    with pytest.raises(GenerationError) as excinfo:
+        _ = eval._qr_basis_alloc_args("size1", basis_dict)
+    assert "unrecognised shape (gh_wrong_shape) specified " in str(excinfo)
+
     # Monkey-patch it so that it doesn't have any quadrature args
     monkeypatch.setattr(eval, "_qr_vars", value=[])
     # Check that calling the various _initialise_... routines does nothing.

@@ -2070,18 +2070,23 @@ class DynInvokeBasisFns(object):
         '''
         # Dimensionality of the basis arrays depends on the
         # type of quadrature...
-        if basis_fn["shape"] == "gh_quadrature_xyz":
-            alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                 "np_xyz"+"_"+basis_fn["qr_var"]]
-        elif basis_fn["shape"] == "gh_quadrature_xyoz":
+        #if basis_fn["shape"] == "gh_quadrature_xyz":
+        #    alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+        #         "np_xyz"+"_"+basis_fn["qr_var"]]
+        if basis_fn["shape"] == "gh_quadrature_xyoz":
             alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
                           "np_xy"+"_"+basis_fn["qr_var"],
                           "np_z"+"_"+basis_fn["qr_var"]]
-        elif basis_fn["shape"] == "gh_quadrature_xoyoz":
-            alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                          "np_x"+"_"+basis_fn["qr_var"],
-                          "np_y"+"_"+basis_fn["qr_var"],
-                          "np_z"+"_"+basis_fn["qr_var"]]
+        #elif basis_fn["shape"] == "gh_quadrature_xoyoz":
+        #    alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+        #                  "np_x"+"_"+basis_fn["qr_var"],
+        #                  "np_y"+"_"+basis_fn["qr_var"],
+        #                  "np_z"+"_"+basis_fn["qr_var"]]
+        else:
+            raise GenerationError(
+                "Internal error: unrecognised shape ({0}) specified in "
+                "DynInvokeBasisFns._qr_basis_alloc_args(). Should be one of: "
+                "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
         return alloc_args
 
     def compute_basis_fns(self, parent):
