@@ -3312,6 +3312,13 @@ class DynKern(Kern):
                 self._nodal_fspace = arg.function_space_to
             else:
                 self._nodal_fspace = arg.function_space
+        else:
+            if self._eval_shape != "":
+                # Should never get to here!
+                raise GenerationError(
+                    "Internal error: evaluator shape '{0}' is not recognised. "
+                    "Must be one of {1}.".format(self._eval_shape,
+                                                 VALID_EVALUATOR_SHAPES))
 
     @property
     def cma_operation(self):

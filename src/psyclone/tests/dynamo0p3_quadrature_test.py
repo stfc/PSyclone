@@ -247,6 +247,57 @@ def test_internal_qr_err(monkeypatch):
             "found" in str(excinfo))
 
 
+def test_dyninvokebasisfns(monkeypatch):
+    ''' Check that we raise internal errors as required '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    # Get hold of a DynInvokeBasisFns object
+    eval = psy.invokes.invoke_list[0].evaluators
+    # Monkey-patch it so that it doesn't have any quadrature args
+    monkeypatch.setattr(eval, "_qr_vars", value=[])
+    # Check that calling the various _initialise_... routines does nothing.
+    # We pass parent=None so that if any of the routines get beyond the
+    # initial check then they will fail.
+    eval._initialise_xyz_qr(None)
+    eval._initialise_xyoz_qr(None)
+    eval._initialise_xoyoz_qr(None)
+
+
+def test_dynkern_setup(monkeypatch):
+    ''' Check that internal-consistency checks in DynKern._setup() work
+    as expected '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    # Get hold of a DynKern object
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[3].children[0]
+    # Monkeypatch a couple of __init__ routines so that we can get past
+    # them in the _setup() routine.
+    from psyclone.psyGen import Kern
+    monkeypatch.setattr(Kern, "__init__",
+                        lambda me, ktype, kcall, parent, check: None)
+    from psyclone.parse import KernelCall
+    monkeypatch.setattr(KernelCall, "__init__",
+                        lambda me, mname, ktype, args : None)
+    # Break the shape of the quadrature for this kernel
+    monkeypatch.setattr(kern, "_eval_shape", value="gh_wrong_shape")
+    # Rather than try and mock-up a DynKernMetadata object, it's easier
+    # to make one properly by parsing the kernel code.
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr.F90"),
+                      ignore_comments=False)
+    name = "testkern_qr_type"
+    dkm = DynKernMetadata(ast, name=name)
+    # Finally, call the _setup() method
+    with pytest.raises(GenerationError) as excinfo:
+        kern._setup(dkm, "my module", None, None)
+    assert ("Internal error: evaluator shape 'gh_wrong_shape' is not "
+            "recognised" in str(excinfo))
+
+
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
