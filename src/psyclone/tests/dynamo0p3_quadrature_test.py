@@ -361,18 +361,9 @@ def test_qr_basis_stub():
 
 
 def test_stub_wrong_shape(monkeypatch):
-    ''' Check that stub generation raises the correct error if the kernel
+    ''' Check that stub generation raises the correct errors if the kernel
     meta-data is broken '''
-    #basis = BASIS.replace("gh_quadrature_xyoz", "gh_quadrature_wrong", 1)
     from psyclone import dynamo0p3
-    # Monkeypatch the list of valid quadrature and evaluator shapes so we
-    # get past some of the earlier checks
-    #monkeypatch.setattr(dynamo0p3, "VALID_EVALUATOR_SHAPES",
-    #                    value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
-    #                           "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
-    #monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
-    #                    value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
-    #                           "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
