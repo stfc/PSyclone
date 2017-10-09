@@ -430,6 +430,7 @@ def test_two_qr(tmpdir, f90, f90flags):
         utils.print_diffs(expected_kern_call, gen_code)
         assert 0
 
+
 def test_two_identical_qr(tmpdir, f90, f90flags):
     ''' Check that we handle an invoke containing two kernels that each
     require quadrature and are passed the same qr object '''

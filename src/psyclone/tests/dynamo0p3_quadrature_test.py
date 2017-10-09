@@ -36,9 +36,13 @@
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 import os
 import pytest
-import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -254,23 +258,23 @@ def test_dyninvokebasisfns(monkeypatch):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     # Get hold of a DynInvokeBasisFns object
-    eval = psy.invokes.invoke_list[0].evaluators
+    evaluator = psy.invokes.invoke_list[0].evaluators
 
     # Test the error check in _qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
     with pytest.raises(GenerationError) as excinfo:
-        _ = eval._qr_basis_alloc_args("size1", basis_dict)
+        _ = evaluator._qr_basis_alloc_args("size1", basis_dict)
     assert "unrecognised shape (gh_wrong_shape) specified " in str(excinfo)
 
     # Monkey-patch it so that it doesn't have any quadrature args
-    monkeypatch.setattr(eval, "_qr_vars", value=[])
+    monkeypatch.setattr(evaluator, "_qr_vars", value=[])
     # Check that calling the various _initialise_... routines does nothing.
     # We pass parent=None so that if any of the routines get beyond the
     # initial check then they will fail.
-    eval._initialise_xyz_qr(None)
-    eval._initialise_xyoz_qr(None)
-    eval._initialise_xoyoz_qr(None)
+    evaluator._initialise_xyz_qr(None)
+    evaluator._initialise_xyoz_qr(None)
+    evaluator._initialise_xoyoz_qr(None)
 
 
 def test_dynkern_setup(monkeypatch):
@@ -290,7 +294,7 @@ def test_dynkern_setup(monkeypatch):
                         lambda me, ktype, kcall, parent, check: None)
     from psyclone.parse import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",
-                        lambda me, mname, ktype, args : None)
+                        lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shape", value="gh_wrong_shape")
     # Rather than try and mock-up a DynKernMetadata object, it's easier
@@ -444,7 +448,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
             str(excinfo))
 
 
-def test_stub_diff_basis_wrong_shape(monkeypatch):
+def test_stub_dbasis_wrong_shape(monkeypatch):  # pylint: disable=invalid-name
     ''' Check that stub generation for a kernel requiring differential basis
     functions for quadrature raises the correct errors if the kernel meta-data
     is broken '''
