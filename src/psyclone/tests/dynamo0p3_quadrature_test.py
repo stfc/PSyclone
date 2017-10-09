@@ -39,9 +39,11 @@ quadrature in the LFRic API '''
 import os
 import pytest
 import fparser
-import utils
+from fparser import api as fpapi
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -223,3 +225,169 @@ def test_field_qr_deref():
             "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
             " qr_data)\n" in gen)
         assert "TYPE(quadrature_xyoz_type), intent(in) :: qr_data" in gen
+
+
+def test_internal_qr_err(monkeypatch):
+    ''' Check that internal error for unrecognised QR type is raised
+    as expected '''
+    from psyclone import dynamo0p3
+    # Monkeypatch the list of valid quadrature and evaluator shapes so we
+    # get past some of the earlier checks
+    monkeypatch.setattr(dynamo0p3, "VALID_EVALUATOR_SHAPES",
+                        value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
+                               "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+                        value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
+                               "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.4_wrong_qr_shape.f90"),
+                           api=API)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = PSyFactory(API).create(invoke_info)
+    assert ("Internal error: unsupported shape (gh_quadrature_wrong) "
+            "found" in str(excinfo))
+
+
+BASIS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(7) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_inc,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_write,w3, w3),  &
+             arg_type(gh_field,   gh_write, wtheta), &
+             arg_type(gh_operator,gh_inc, w2h, w2h), &
+             arg_type(gh_field,   gh_read, w2v)  &
+           /)
+     type(func_type), meta_funcs(7) =     &
+          (/ func_type(w0, gh_basis),     &
+             func_type(w1, gh_basis),     &
+             func_type(w2, gh_basis),     &
+             func_type(w3, gh_basis),     &
+             func_type(wtheta, gh_basis), &
+             func_type(w2h, gh_basis),    &
+             func_type(w2v, gh_basis)     &
+           /)
+     integer, parameter :: iterates_over = cells
+     integer, parameter :: gh_shape = gh_quadrature_xyoz
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_qr_basis_stub():
+    ''' Test that basis functions for quadrature are handled correctly for
+    kernel stubs '''
+    ast = fpapi.parse(BASIS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = (
+        "  MODULE dummy_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
+        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
+        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
+        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
+        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
+        "basis_w2v, np_xy, np_z, weights_xy, weights_z)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in) :: undf_w2v\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
+        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) "
+        ":: basis_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) "
+        ":: basis_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) "
+        ":: basis_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) "
+        ":: basis_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,np_xy,"
+        "np_z) :: basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,np_xy,np_z) "
+        ":: basis_w2h\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,np_xy,np_z) "
+        ":: basis_w2v\n"
+        "      INTEGER, intent(in) :: np_xy, np_z\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
+
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+
+def test_stub_wrong_shape(monkeypatch):
+    ''' Check that stub generation raises the correct error if the kernel
+    meta-data is broken '''
+    #basis = BASIS.replace("gh_quadrature_xyoz", "gh_quadrature_wrong", 1)
+    from psyclone import dynamo0p3
+    # Monkeypatch the list of valid quadrature and evaluator shapes so we
+    # get past some of the earlier checks
+    #monkeypatch.setattr(dynamo0p3, "VALID_EVALUATOR_SHAPES",
+    #                    value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
+    #                           "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    #monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    #                    value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
+    #                           "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    ast = fpapi.parse(BASIS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    monkeypatch.setattr(kernel, "_eval_shape",
+                        value="gh_quadrature_wrong")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert (
+        "Internal error: unrecognised evaluator shape (gh_quadrature_wrong)"
+        in str(excinfo))
+    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+                        value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
+                               "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("shapes other than GH_QUADRATURE_XYoZ are not yet supported" in
+            str(excinfo))

@@ -4330,12 +4330,19 @@ class KernStubArgList(ArgOrdering):
                 dim_list = ",".join([first_dim, ndf_name,
                                      "np_xy", "np_z"])
             else:
-                raise GenerationError("Implement other quadrature shapes 1")
-        else:
+                raise GenerationError(
+                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
+                    "yet supported")
+        elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
             # Need the ndf for the space on which the basis functions
             # have been evaluated
             nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
             dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+        else:
+            raise GenerationError(
+                "Internal error: unrecognised evaluator shape ({0}). Expected "
+                "one of: {1}".format(self._kern.eval_shape,
+                                     VALID_EVALUATOR_SHAPES))
         self._parent.add(DeclGen(self._parent, datatype="real",
                                  kind="r_def", intent="in",
                                  dimension=dim_list,
