@@ -70,8 +70,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
-VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyz", "gh_quadrature_xyoz",
-                           "gh_quadrature_xoyoz"]
+VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
@@ -4386,14 +4385,23 @@ class KernStubArgList(ArgOrdering):
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
+            # We need differential basis functions for quadrature
             if self._kern.eval_shape == "gh_quadrature_xyoz":
                 dim_list = ",".join([first_dim, ndf_name,
                                      "np_xy", "np_z"])
             else:
-                raise GenerationError("Implement other quad shape 2")
-        else:
+                raise NotImplementedError(
+                    "Internal error: diff-basis for quadrature shape '{0}' "
+                    "not yet implemented".format(self._kern.eval_shape))
+        elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
+            # We need differential basis functions for an evaluator
             nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
             dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+        else:
+            raise GenerationError(
+                "Internal error: unrecognised evaluator shape ({0}). Expected "
+                "one of: {1}".format(self._kern.eval_shape,
+                                     VALID_EVALUATOR_SHAPES))
         self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
                                  intent="in", dimension=dim_list,
                                  entity_decls=[diff_basis_name]))
