@@ -53,7 +53,7 @@ def test_continuators_kernel():
        does not cause an error. '''
     _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "test_files", "dynamo0p3",
-                              "1.1_single_invoke_qr.f90"),
+                              "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3", line_length=True)
 
 
