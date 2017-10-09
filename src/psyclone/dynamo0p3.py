@@ -2292,7 +2292,7 @@ class DynHaloExchange(HaloExchange):
         list
 
         :return: a list containing halo information for each dependency
-        :rtype: :func:`list` of :func:`dict`
+        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
 
         '''
         read_dependencies = self.field.forward_read_dependencies()
@@ -2302,8 +2302,9 @@ class DynHaloExchange(HaloExchange):
                 "dependence for a halo exchange")
         depth_info_list = []
         for read_dependency in read_dependencies:
-            depth_info_list.append(
-                HaloAccess(read_dependency))
+            halo_access = HaloAccess()
+            halo_access.compute_from_field(read_dependency)
+            depth_info_list.append(halo_access)
         return depth_info_list
 
     @property
@@ -2447,12 +2448,12 @@ class HaloAccess(object):
     the access pattern (the stencil) when used in a particular kernel
     within a particular loop nest
 
-    :param field: the field that we are concerned with
-    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
     '''
-    def __init__(self, field):
-        self._compute_halo_info(field)
+    def __init__(self):
+        self._literal_depth = 0
+        self._var_depth = None
+        self._max_depth = False
+        self._stencil_type = None
 
     @property
     def max_depth(self):
@@ -2494,36 +2495,53 @@ class HaloAccess(object):
 
     @property
     def stencil_type(self):
-        '''Returns the type of stencil access used by the field in the halo if
-        one exists. If redundant computation (access to the full halo)
-        is combined with a stencil access (potential access to a
-        subset of the halo) then the access is assumed to be full
+        '''Returns the type of stencil access used by the field(s) in the halo
+        if one exists. If redundant computation (accessing the full
+        halo) is combined with a stencil access (potentially accessing
+        a subset of the halo) then the access is assumed to be full
         access for all depths.
 
         :return stencil_type: Return the type of stencil access used
-        by this field or None if there is no stencil.
+        or None if there is no stencil.
         :rtype stencil_type: String
 
         '''
         return self._stencil_type
-                
-    def _compute_halo_info(self, field):
-        '''Internal helper method to compute halo access information for a
-        field that is read in a certain kernel and loop. The
-        information computed is the depth of access and the access
-        pattern. The depth of access can be the maximum halo depth, a
-        variable specifying the depth and/or a literal depth. The
-        access pattern will only be specified if the field performs a
-        stencil access in the kernel.
+
+    def set_by_value(self, max_depth, var_depth, literal_depth, stencil_type):
+        '''Set halo access information directly
+
+        :param max_depth: True if the field accesses all of the halo
+        and False otherwise
+        :type max_depth: Bool
+        :param var_depth: A variable name specifying the halo access
+        depth, if one exists, and None if not
+        :type var_depth: String
+        :param literal_depth: The known fixed (literal) halo access
+        depth
+        :type literal_depth: integer
+        :param stencil_type: the type of stencil access used or None
+        if there is no stencil.
+        :rtype stencil_type: String
+
+        '''
+        self._max_depth = max_depth
+        self._var_depth = var_depth
+        self._literal_depth = literal_depth
+        self._stencil_type = stencil_type
+
+    def compute_from_field(self, field):
+        '''Compute halo access information for a field that is read in a
+        certain kernel and loop. The information computed is the depth
+        of access and the access pattern. The depth of access can be
+        the maximum halo depth, a variable specifying the depth and/or
+        a literal depth. The access pattern will only be specified if
+        the field performs a stencil access in the kernel.
 
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
-        self._literal_depth = 0
-        self._var_depth = None
-        self._max_depth = False
-        self._stencil_type = None
         try:
             # get the kernel/builtin call associated with this field
             call = field.call
@@ -2549,7 +2567,7 @@ class HaloAccess(object):
             # this loop performs redundant computation
             if loop.upper_bound_index:
                 # loop redundant computation is to a fixed literal depth
-                self._literal_depth += loop.upper_bound_index
+                self._literal_depth = loop.upper_bound_index
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
