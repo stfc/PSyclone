@@ -411,9 +411,10 @@ def test_qr_basis_stub():
     assert str(generated_code).find(output) != -1
 
 
-def test_stub_wrong_shape(monkeypatch):
-    ''' Check that stub generation raises the correct errors if the kernel
-    meta-data is broken '''
+def test_stub_basis_wrong_shape(monkeypatch):
+    ''' Check that stub generation for a kernel requiring basis functions
+    for quadrature raises the correct errors if the kernel meta-data is
+    broken '''
     from psyclone import dynamo0p3
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -433,3 +434,31 @@ def test_stub_wrong_shape(monkeypatch):
         _ = kernel.gen_stub
     assert ("shapes other than GH_QUADRATURE_XYoZ are not yet supported" in
             str(excinfo))
+
+
+def test_stub_diff_basis_wrong_shape(monkeypatch):
+    ''' Check that stub generation for a kernel requiring differential basis
+    functions for quadrature raises the correct errors if the kernel meta-data
+    is broken '''
+    from psyclone import dynamo0p3
+    # Change meta-data to specify differential basis functions
+    diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
+    print diff_basis
+    ast = fpapi.parse(diff_basis, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    monkeypatch.setattr(kernel, "_eval_shape",
+                        value="gh_quadrature_wrong")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.gen_stub
+    assert (
+        "Internal error: unrecognised evaluator shape (gh_quadrature_wrong)"
+        in str(excinfo))
+    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+                        value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
+                               "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = kernel.gen_stub
+    assert ("diff-basis for quadrature shape 'gh_quadrature_wrong' not yet "
+            "implemented" in str(excinfo))
