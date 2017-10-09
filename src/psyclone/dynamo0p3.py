@@ -83,9 +83,13 @@ VALID_REDUCTION_NAMES = ["gh_sum"]
 # List of all access types that involve writing to an argument
 # in some form
 GH_WRITE_ACCESSES = ["gh_write", "gh_inc"] + VALID_REDUCTION_NAMES
-# List of all access types that only involve reading an argument
-GH_READ_ACCESSES = ["gh_read"]
-VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ACCESSES + GH_WRITE_ACCESSES
+# List of all access types that involve reading an argument in some
+# form
+GH_READ_ACCESSES = ["gh_read", "gh_inc"]
+# Access type that is only a read, as a list for convenience
+GH_READ_ONLY_ACCESS = ["gh_read"]
+
+VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ONLY_ACCESS + GH_WRITE_ACCESSES
 
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -765,7 +769,7 @@ class DynKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access not in GH_READ_ACCESSES:
+            if cop.access in GH_WRITE_ACCESSES:
                 write_count += 1
 
         if write_count == 0:
@@ -789,7 +793,7 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
-                                           arg_accesses=GH_READ_ACCESSES)
+                                           arg_accesses=GH_READ_ONLY_ACCESS)
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
                                             arg_accesses=GH_WRITE_ACCESSES)
@@ -848,7 +852,7 @@ class DynKernMetadata(KernelType):
                 # read-only LMA operator
                 lma_read_ops = psyGen.args_filter(
                     self._arg_descriptors,
-                    arg_types=["gh_operator"], arg_accesses=GH_READ_ACCESSES)
+                    arg_types=["gh_operator"], arg_accesses=GH_READ_ONLY_ACCESS)
                 if lma_read_ops:
                     return "assembly"
                 else:
@@ -2448,7 +2452,7 @@ class HaloAccess(object):
 
     '''
     def __init__(self, field):
-        self._compute_single_halo_info(field)
+        self._compute_halo_info(field)
 
     @property
     def max_depth(self):
@@ -2503,13 +2507,14 @@ class HaloAccess(object):
         '''
         return self._stencil_type
                 
-    def _compute_single_halo_info(self, field):
+    def _compute_halo_info(self, field):
         '''Internal helper method to compute halo access information for a
-        field in a certain kernel and loop. The information computed is the
-        depth of access and the access pattern. The depth of acces can be the
-        maximum halo depth, a variable specifying the depth and/or a literal
-        depth. The access pattern will only be specified if the field performs
-        a stencil access in the kernel.
+        field that is read in a certain kernel and loop. The
+        information computed is the depth of access and the access
+        pattern. The depth of access can be the maximum halo depth, a
+        variable specifying the depth and/or a literal depth. The
+        access pattern will only be specified if the field performs a
+        stencil access in the kernel.
 
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
@@ -2519,15 +2524,29 @@ class HaloAccess(object):
         self._var_depth = None
         self._max_depth = False
         self._stencil_type = None
-        call = field.call
+        try:
+            # get the kernel/builtin call associated with this field
+            call = field.call
+        except AttributeError:
+            raise GenerationError(
+                "HaloInfo class expects an argument of type DynArgument, or "
+                "equivalent, on initialisation, but found, "
+                "'{0}'".format(type(field)))
+        if field.access not in GH_READ_ACCESSES:
+            raise GenerationError(
+                "In HaloInfo class, field '{0}' should read data, but found "
+                "'{1}'".format(field.name, field.access))
         from psyclone.dynamo0p3_builtins import DynBuiltIn
         if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
             raise GenerationError(
-                "internal error: read dependence for {0} should be from a "
-                "call but found {1}".format(field.name, type(call)))
+                "In HaloInfo class, field '{0}' should be from a call but "
+                "found {1}".format(field.name, type(call)))
+        # no test required here as all calls exist within a loop
         loop = call.parent
+        # now we have the parent loop we can work out what part of the
+        # halo this field accesses
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
-            # loop does redundant computation
+            # this loop performs redundant computation
             if loop.upper_bound_index:
                 # loop redundant computation is to a fixed literal depth
                 self._literal_depth += loop.upper_bound_index
@@ -2538,29 +2557,39 @@ class HaloAccess(object):
             # currenty coloured loops are always transformed from
             # cell_halo depth 1 loops
             self._literal_depth = 1
-        elif (loop.upper_bound_name == "ncells" and
-              not field.descriptor.stencil):
-            # This must be a continuous field which therefore accesses
-            # annexed dofs when read.
-            self._literal_depth = 1
-        elif (loop.upper_bound_name == "ncells" and
-              field.descriptor.stencil):
-            # no need to worry about updating annexed dofs (if they
-            # exist) as the halo exchange associated with the stencil
-            # will ensure that these are updated
-            pass
+        elif loop.upper_bound_name == "ncells":
+            if field.descriptor.stencil:
+                # no need to worry about annexed dofs (if they exist)
+                # as the stencil will cover these (this is currently
+                # guaranteed as halo exchanges only exchange full
+                # halos)
+                pass
+            else:  # there is no stencil
+                if field.discontinuous:
+                    # There are only local accesses
+                    pass
+                else:
+                    # This is a continuous field which therefore
+                    # accesses annexed dofs. We set access to the
+                    # level 1 halo here as there is currently no
+                    # mechanism to perform a halo exchange solely on
+                    # annexed dofs.
+                    self._literal_depth = 1
         elif loop.upper_bound_name == "ndofs":
-            # we only access owned dofs so no halo exchange is required
+            # we only access owned dofs so there is no access to the
+            # halo
             pass
         else:
             raise GenerationError(
-                "Internal error in _compute_single_halo_info. Found loop "
-                "upper bound name '{0}'".format(loop.upper_bound_name))
+                "Internal error in HaloAccess._compute__halo_info. Found "
+                "unexpected loop upper bound name '{0}'".
+                format(loop.upper_bound_name))
 
-        # default stencil type to "region" as it means all of the halo
-        # and this is what is used when we perform redundant
-        # computation
-        self._stencil_type = "region"
+        if self._max_depth or self._var_depth or self._literal_depth:
+            # default stencil type to "region" as it means all of the halo
+            # and this is what is used when we perform redundant
+            # computation
+            self._stencil_type = "region"
         if field.descriptor.stencil:
             # field has a stencil access
             if self._max_depth:
