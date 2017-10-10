@@ -1710,7 +1710,8 @@ def test_operator_orientation():
             "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
             "basis_w1_qr, orientation_w1, ndf_w0, undf_w0, map_w0(:,cell), "
-            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)" in gen_str)
+            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)" in gen_str)
 
 
 def test_op_orient_different_space():  # pylint: disable=invalid-name
@@ -1741,8 +1742,8 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
             "my_mapping_proxy%local_stencil, chi_proxy(1)%data, "
             "chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, basis_w1_qr, "
             "orientation_w1, ndf_w2, orientation_w2, ndf_w0, undf_w0, "
-            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-            "weights_z_qr)" in gen_str)
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
 def test_operator_deref():
@@ -1768,7 +1769,8 @@ def test_operator_deref():
             "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
             "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
-            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)") != -1
+            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)") != -1
 
 
 def test_operator_no_dofmap_lookup():
@@ -2470,7 +2472,7 @@ def test_multikern_invoke_any_space():
             "weights_xy_qr, weights_z_qr" in gen)
 
 
-def test_mkern_invoke_multiple_any_spaces():
+def test_mkern_invoke_multiple_any_spaces():  # pylint: disable=invalid-name
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''

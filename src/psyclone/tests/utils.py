@@ -195,7 +195,6 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     kernel_modules = set()
     # Get the names of the modules associated with the kernels. By definition,
     # built-ins do not have associated Fortran modules.
-    from psyclone.psyGen import BuiltIn
     for invoke in psy_ast.invokes.invoke_list:
         for call in invoke.schedule.kern_calls():
             kernel_modules.add(call.module_name)
