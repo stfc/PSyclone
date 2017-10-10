@@ -2345,15 +2345,26 @@ class DynHaloExchange(HaloExchange):
         '''Determines whether we know that we need a halo exchange or are not
         sure. We only definitely know when both the amount of
         redundant computation performed by the writer and the amount
-        of halo required by the reader are known. If we are not sure
+        of halo required by the reader(s) are known. If we are not sure
         then we need to rely on the runtime (set_dirty and set_clean
         calls) and therefore add an if around the halo exchange. This
         routine should not be called when we know that this halo
-        exchange is not required (see required() method).'''
+        exchange is not required (see required() method).
+
+        :return: False if we know that we need a halo exchange (as we
+        do not need to add a check_dirty call to the fortran code) and
+        True if we are not sure (as we do need to add a check_dirty
+        call to the fortran code)
+        :rtype: Bool
+
+        '''
+        # first look at the writers and determine if they clean any of
+        # the halo by performing redundant computation
         write_dependencies = self.field.backward_write_dependencies()
         if len(write_dependencies) == 0:
             # the write dependency is not in this invoke so we do not
-            # know how much of the halo is cleaned
+            # know how much of the halo is cleaned. Therefore we need
+            # to check dynamically.
             return True
         cleaned_info = self._compute_halo_cleaned_info
         if cleaned_info["max_depth"]:
