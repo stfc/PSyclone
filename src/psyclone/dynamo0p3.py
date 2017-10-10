@@ -249,7 +249,10 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     :param str first_dim: the variable name for the first dimension
     :param basis_fn: dict holding details on the basis function
                      we want to allocate
-    :type basis_fn: dict containing shape, fspace and and qr_var
+    :type basis_fn: dict containing 'shape', 'fspace' and and 'qr_var' keys
+                    holding the quadrature shape, FunctionSpace and name
+                    of the associated quadrature variable (as specified in the
+                    Algorithm layer), respectively
     :return: list of dimensions to use to allocate array
     :rtype: list of strings
     '''
@@ -1816,7 +1819,8 @@ class DynInvokeBasisFns(object):
     def declare_qr(self, parent):
         '''
         Create the declarations for any quadrature objects passed
-        in to an invoke
+        in to an invoke. These are added as children of the supplied
+        parent node.
 
         :param parent: the node in the f2pygen AST that will be the
                        parent of all of the declarations (i.e. the
@@ -1840,7 +1844,8 @@ class DynInvokeBasisFns(object):
     def initialise_basis_fns(self, parent):
         '''
         Create the declarations and assignments required for the
-        basis-functions required by an invoke
+        basis-functions required by an invoke. These are added as children
+        of the supplied parent node in the AST.
 
         :param parent: the node in the f2pygen AST that will be the
                        parent of all of the declarations and assignments
@@ -2076,7 +2081,7 @@ class DynInvokeBasisFns(object):
 
     def _initialise_xoyoz_qr(self, parent):
         '''
-        Add in the initialisation of variables needed for XYZ
+        Add in the initialisation of variables needed for XoYoZ
         quadrature
 
         :param parent: the node in the AST representing the PSy subroutine
@@ -4434,7 +4439,8 @@ class KernStubArgList(ArgOrdering):
         self.field_bcs_kernel(function_space)
 
     def quad_rule(self):
-        ''' provide quadrature information for the kernel stub '''
+        ''' provide quadrature information for this kernel stub (necessary
+        arguments and declarations) '''
         from psyclone.f2pygen import DeclGen
         self._arglist.extend(self._kern.qr_args)
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
