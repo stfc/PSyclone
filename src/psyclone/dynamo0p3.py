@@ -2229,26 +2229,14 @@ class DynHaloExchange(HaloExchange):
             if depth_info.max_depth:
                 return "mesh%get_last_halo_depth()"
             else:  # return the variable and/or literal depth
-                return self._depth_str(depth_info)
+                return str(depth_info)
         else:
             # at least one read field must have a variable depth and
             # there is more than one read field in the list.
             depth_str_list = []
             for depth_info in depth_info_list:
-                depth_str_list.append(self._depth_str(depth_info))
+                depth_str_list.append(str(depth_info))
             return "max("+",".join(depth_str_list)+")"
-
-    def _depth_str(self, depth_info):
-        '''Interal helper method that returns the depth of a halo dependency
-        as a string'''
-        depth_str = ""
-        if depth_info.var_depth:
-            depth_str += depth_info.var_depth
-            if depth_info.literal_depth:
-                depth_str += "+"
-        if depth_info.literal_depth:
-            depth_str += str(depth_info.literal_depth)
-        return depth_str
 
     def _simplify_depth_list(self, depth_info_list):
         '''Halo's may have more than one dependency. This method simplifies
@@ -2261,9 +2249,9 @@ class DynHaloExchange(HaloExchange):
         new_depth_info_list = []
         for depth_info in depth_info_list:
             if depth_info.max_depth:
-                halo_info = HaloAccess()
+                halo_info = HaloDepth()
                 halo_info.set_by_value(max_depth=True, var_depth="",
-                                       literal_depth=0, stencil_type=None)
+                                       literal_depth=0)
                 return [halo_info]
 
         literal_only = 0
@@ -2277,10 +2265,9 @@ class DynHaloExchange(HaloExchange):
                         new_depth_info.literal_depth, literal_depth)
                     match = True
             if not match:
-                halo_info = HaloAccess()
+                halo_info = HaloDepth()
                 halo_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                       literal_depth=literal_depth,
-                                       stencil_type=None)
+                                       literal_depth=literal_depth)
                 new_depth_info_list.append(halo_info)
         return new_depth_info_list
 
@@ -2455,18 +2442,13 @@ class DynHaloExchange(HaloExchange):
         parent.add(CommentGen(parent, ""))
 
 
-class HaloAccess(object):
-    '''Determines how much of the halo a field accesses (the halo depth) and
-    the access pattern (the stencil) when used in a particular kernel
-    within a particular loop nest
-
-    '''
+class HaloDepth(object):
+    '''Determines how much of the halo a field accesses (the halo depth) '''
     def __init__(self):
         self._literal_depth = 0
         self._var_depth = None
         self._max_depth = False
-        self._stencil_type = None
-
+    
     @property
     def max_depth(self):
         '''Returns whether the field is known to access all of the halo or not
@@ -2516,6 +2498,47 @@ class HaloAccess(object):
         '''
         self._literal_depth = value
 
+    def set_by_value(self, max_depth, var_depth, literal_depth):
+        '''Set halo depth information directly
+
+        :param max_depth: True if the field accesses all of the halo
+        and False otherwise
+        :type max_depth: Bool
+        :param var_depth: A variable name specifying the halo access
+        depth, if one exists, and None if not
+        :type var_depth: String
+        :param literal_depth: The known fixed (literal) halo access
+        depth
+        :type literal_depth: integer
+
+        '''
+        self._max_depth = max_depth
+        self._var_depth = var_depth
+        self._literal_depth = literal_depth
+
+    def __str__(self):
+        '''return the depth of a halo dependency
+        as a string'''
+        depth_str = ""
+        if self.var_depth:
+            depth_str += self.var_depth
+            if self.literal_depth:
+                depth_str += "+"
+        if self.literal_depth:
+            depth_str += str(self.literal_depth)
+        return depth_str
+
+
+class HaloAccess(HaloDepth):
+    '''Determines how much of the halo a field accesses (the halo depth) and
+    the access pattern (the stencil) when used in a particular kernel
+    within a particular loop nest
+
+    '''
+    def __init__(self):
+        HaloDepth.__init__(self)
+        self._stencil_type = None
+
     @property
     def stencil_type(self):
         '''Returns the type of stencil access used by the field(s) in the halo
@@ -2530,28 +2553,6 @@ class HaloAccess(object):
 
         '''
         return self._stencil_type
-
-    def set_by_value(self, max_depth, var_depth, literal_depth, stencil_type):
-        '''Set halo access information directly
-
-        :param max_depth: True if the field accesses all of the halo
-        and False otherwise
-        :type max_depth: Bool
-        :param var_depth: A variable name specifying the halo access
-        depth, if one exists, and None if not
-        :type var_depth: String
-        :param literal_depth: The known fixed (literal) halo access
-        depth
-        :type literal_depth: integer
-        :param stencil_type: the type of stencil access used or None
-        if there is no stencil.
-        :rtype stencil_type: String
-
-        '''
-        self._max_depth = max_depth
-        self._var_depth = var_depth
-        self._literal_depth = literal_depth
-        self._stencil_type = stencil_type
 
     def compute_from_field(self, field):
         '''Compute halo access information for a field that is read in a
