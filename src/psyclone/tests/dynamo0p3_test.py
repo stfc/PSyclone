@@ -1452,7 +1452,7 @@ def test_operator():
             "weights_z_qr)") in generated_code
 
 
-def test_operator_different_spaces():
+def test_operator_different_spaces(tmpdir, f90, f90flags):
     '''tests that an operator with different to and from spaces is
     implemented correctly in the PSy layer'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1461,6 +1461,11 @@ def test_operator_different_spaces():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
         "(mapping, chi, qr)\n"
@@ -1593,7 +1598,7 @@ def test_operator_different_spaces():
     assert output in generated_code
 
 
-def test_operator_nofield():
+def test_operator_nofield(tmpdir, f90, f90flags):
     ''' tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1601,6 +1606,12 @@ def test_operator_nofield():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_code_str = str(psy.gen)
+    print gen_code_str
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
     assert gen_code_str.find("TYPE(operator_type), intent(inout) :: "
@@ -1609,14 +1620,16 @@ def test_operator_nofield():
     assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
     assert gen_code_str.find("undf_w2") == -1
     assert gen_code_str.find("map_w2") == -1
-    assert ("CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
-            " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
-            ", chi_proxy(3)%data, ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
+    assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
+            "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
+            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
+            "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
-def test_operator_nofield_different_space():  # pylint: disable=invalid-name
+def test_operator_nofield_different_space(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1626,6 +1639,11 @@ def test_operator_nofield_different_space():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -1654,7 +1672,8 @@ def test_operator_nofield_scalar():
             "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
+def test_operator_nofield_scalar_deref(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -1667,6 +1686,10 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print gen
+
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         if dist_mem:
             assert "mesh => opbox_my_mapping%get_mesh()" in gen
         assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -1687,7 +1710,7 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
             " weights_z_qr_get_instance)" in gen)
 
 
-def test_operator_orientation():
+def test_operator_orientation(tmpdir, f90, f90flags):
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1696,6 +1719,10 @@ def test_operator_orientation():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
     print gen_str
+
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
     assert gen_str.find("TYPE(operator_type), intent(inout) ::"
@@ -1714,7 +1741,8 @@ def test_operator_orientation():
             "weights_z_qr)" in gen_str)
 
 
-def test_op_orient_different_space():  # pylint: disable=invalid-name
+def test_op_orient_different_space(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1724,6 +1752,10 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
     print gen_str
+
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
         " => null()" in gen_str)
@@ -1746,7 +1778,7 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
             "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
-def test_operator_deref():
+def test_operator_deref(tmpdir, f90, f90flags):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
@@ -1756,6 +1788,10 @@ def test_operator_deref():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
+        print generated_code
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                    "_type(mm_w0_op, chi, a, qr)") != -1
         assert generated_code.find("TYPE(operator_type), intent(inout) ::"
@@ -1808,7 +1844,7 @@ def test_operator_read_level1_halo():
             "However the containing loop goes out to level 2" in str(excinfo))
 
 
-def test_any_space_1():
+def test_any_space_1(tmpdir, f90, f90flags):
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
@@ -1817,6 +1853,10 @@ def test_any_space_1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert ("INTEGER, pointer :: map_w0(:,:) => null(), "
             "map_any_space_2_b(:,:) => null(), "
             "map_any_space_1_a(:,:) => null()\n" in generated_code)
@@ -1886,7 +1926,8 @@ def test_op_any_space_different_space_1():  # pylint: disable=invalid-name
         "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
-def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
+def test_op_any_space_different_space_2(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
@@ -1894,6 +1935,10 @@ def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert generated_code.find(
         "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()") != -1
     assert generated_code.find(
@@ -2431,7 +2476,7 @@ def test_2kern_invoke_any_space():
         in gen)
 
 
-def test_multikern_invoke_any_space():
+def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2441,6 +2486,9 @@ def test_multikern_invoke_any_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
             "map_any_space_2_f2(:,:) => null(), "
@@ -2472,7 +2520,8 @@ def test_multikern_invoke_any_space():
             "weights_xy_qr, weights_z_qr" in gen)
 
 
-def test_mkern_invoke_multiple_any_spaces():  # pylint: disable=invalid-name
+def test_mkern_invoke_multiple_any_spaces(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2482,6 +2531,9 @@ def test_mkern_invoke_multiple_any_spaces():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
             "dim_any_space_1_f1, ndf_any_space_1_f1, "

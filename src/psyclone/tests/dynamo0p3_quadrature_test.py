@@ -213,7 +213,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
     assert compute_output in generated_code
 
 
-def test_field_qr_deref():
+def test_field_qr_deref(tmpdir, f90, f90flags):
     ''' Tests that a call, with a set of fields requiring
     quadrature, produces correct code when the quadrature is supplied as the
     component of a derived type. '''
@@ -223,6 +223,9 @@ def test_field_qr_deref():
     for dist_mem in [True, False]:
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
+
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
         gen = str(psy.gen)
         print gen
         assert (

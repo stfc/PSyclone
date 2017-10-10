@@ -1,3 +1,4 @@
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
@@ -28,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Author R. W. Ford, STFC Daresbury Lab
 
 module testkern
   use argument_mod
