@@ -2221,14 +2221,11 @@ class DynHaloExchange(HaloExchange):
         :rtype: int
 
         '''
-        depth_info_list = self._compute_halo_info
-
-        # simplify the list
-        new_depth_info_list = self._simplify_depth_list(depth_info_list)
+        depth_info_list = self.compute_depth_info
 
         # if there is only one entry, return the depth
-        if len(new_depth_info_list) == 1:
-            depth_info = new_depth_info_list[0]
+        if len(depth_info_list) == 1:
+            depth_info = depth_info_list[0]
             if depth_info.max_depth:
                 return "mesh%get_last_halo_depth()"
             else:  # return the variable and/or literal depth
@@ -2237,7 +2234,7 @@ class DynHaloExchange(HaloExchange):
             # at least one read field must have a variable depth and
             # there is more than one read field in the list.
             depth_str_list = []
-            for depth_info in new_depth_info_list:
+            for depth_info in depth_info_list:
                 depth_str_list.append(self._depth_str(depth_info))
             return "max("+",".join(depth_str_list)+")"
 
@@ -2286,6 +2283,21 @@ class DynHaloExchange(HaloExchange):
                                        stencil_type=None)
                 new_depth_info_list.append(halo_info)
         return new_depth_info_list
+
+
+    @property
+    def compute_depth_info(self):
+        '''Take a halo info list and simplify it to remove redundant depths
+        e.g. depth=1 is not required if we have a depth=2
+
+        :return: a list containing halo depth information for each dependency
+        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
+
+        '''
+        halo_info_list = self._compute_halo_info
+        # simplify the list
+        depth_info_list = self._simplify_depth_list(halo_info_list)
+        return depth_info_list
 
     @property
     def _compute_halo_info(self):
@@ -2336,8 +2348,7 @@ class DynHaloExchange(HaloExchange):
             # the writer redundantly computes in the level 1 halo but
             # leaves it dirty so we definitely need the halo exchange
             return False
-        halo_info = self._compute_halo_info
-        required_clean_info = self._simplify_depth_list(halo_info)
+        required_clean_info = self.compute_depth_info
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
             if not (required_clean_info[0].var_depth or
@@ -2360,8 +2371,7 @@ class DynHaloExchange(HaloExchange):
             # we redundantly compute the whole halo so a halo exchange
             # is not required
             return False
-        halo_info = self._compute_halo_info
-        required_clean_info = self._simplify_depth_list(halo_info)
+        required_clean_info = self.compute_depth_info
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
             if not (required_clean_info[0].var_depth or
