@@ -260,11 +260,12 @@ def test_dyninvokebasisfns(monkeypatch):
     # Get hold of a DynInvokeBasisFns object
     evaluator = psy.invokes.invoke_list[0].evaluators
 
-    # Test the error check in _qr_basis_alloc_args() by passing in a
+    # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
+    from psyclone import dynamo0p3
     with pytest.raises(GenerationError) as excinfo:
-        _ = evaluator._qr_basis_alloc_args("size1", basis_dict)
+        _ = dynamo0p3.qr_basis_alloc_args("size1", basis_dict)
     assert "unrecognised shape (gh_wrong_shape) specified " in str(excinfo)
 
     # Monkey-patch it so that it doesn't have any quadrature args
