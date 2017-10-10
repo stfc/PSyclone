@@ -2203,6 +2203,7 @@ class DynHaloExchange(HaloExchange):
         # get information about stencil accesses from all read fields
         # dependendent on this halo exchange
         halo_info_list = self._compute_halo_info()
+
         trial_stencil = halo_info_list[0].stencil_type
         for halo_info in halo_info_list:
             # assume that if stencil accesses are different that we
@@ -2238,22 +2239,24 @@ class DynHaloExchange(HaloExchange):
             # the depth information can't be reduced to a single
             # expression, therefore we need to determine the maximum
             # of all expresssions
-            depth_str_list = []
-            for depth_info in depth_info_list:
-                depth_str_list.append(str(depth_info))
+            depth_str_list = [str(depth_info) for depth_info in depth_info_list]
             return "max("+",".join(depth_str_list)+")"
 
     def compute_depth_info(self):
-        '''Take a list of HaloAccess objects and create an equivalent list of
-        HaloDepth objects. Whilst doing this we simplify HaloDepth
-        list to remove redundant depth information e.g. depth=1 is not required
-        if we have a depth=2
+        '''Take a list of `psyclone.dynamo0p3.HaloAccess` objects and create
+        an equivalent list of `psyclone.dynamo0p3.HaloDepth`
+        objects. Whilst doing this we simplify the
+        `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
+        information e.g. depth=1 is not required if we have a depth=2
 
-        :return: a list containing halo depth information for each dependency
+        :return: a list containing halo depth information derived from
+        all fields dependent on this halo exchange
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
         '''
+        # get our halo information
         halo_info_list = self._compute_halo_info()
+        # use the halo information to generate depth information
         depth_info_list = self._create_depth_list(halo_info_list)
         return depth_info_list
 
@@ -2264,38 +2267,63 @@ class DynHaloExchange(HaloExchange):
         another for depth=2 then we do not need the former as it is
         covered by the latter. Similarly, if we have a depth=extent+1 and
         another for depth=extent+2 then we do not need the former as
-        it is covered by the latter.'''
-        new_depth_info_list = []
-        for depth_info in halo_info_list:
-            if depth_info.max_depth:
-                halo_info = HaloDepth()
-                halo_info.set_by_value(max_depth=True, var_depth="",
+        it is covered by the latter.
+
+        :param: a list containing halo access information derived from
+        all read fields dependent on this halo exchange
+        :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
+        :return: a list containing halo depth information derived from
+        the halo access information
+        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
+
+        '''
+        depth_info_list = []
+        # first look to see if one of the field dependencies specifies
+        # a max_depth access. If so the whole field is accessed so we
+        # do not need to be concerned with other accesses.
+        for halo_info in halo_info_list:
+            if halo_info.max_depth:
+                # found a max_depth access so we only need one
+                # HaloDepth entry
+                depth_info = HaloDepth()
+                depth_info.set_by_value(max_depth=True, var_depth="",
                                        literal_depth=0)
-                return [halo_info]
+                return [depth_info]
 
         literal_only = 0
-        for depth_info in halo_info_list:
-            var_depth = depth_info.var_depth
-            literal_depth = depth_info.literal_depth
+        for halo_info in halo_info_list:
+            # go through the halo information associated with each read dependency
+            var_depth = halo_info.var_depth
+            literal_depth = halo_info.literal_depth
             match = False
-            for new_depth_info in new_depth_info_list:
-                if new_depth_info.var_depth == var_depth and not match:
-                    new_depth_info.literal_depth = max(
-                        new_depth_info.literal_depth, literal_depth)
+            # check whether we match with existing depth information
+            for depth_info in depth_info_list:
+                if depth_info.var_depth == var_depth and not match:
+                    # this dependence uses the same variable to
+                    # specify its depth as an existing one, or both do
+                    # not have a variable so we only have a
+                    # literal. Therefore we only need to update the
+                    # literal value with the maximum of the two
+                    # (e.g. var_name,1 and var_name,2 => var_name,2)
+                    depth_info.literal_depth = max(
+                        depth_info.literal_depth, literal_depth)
                     match = True
+                    break
             if not match:
-                halo_info = HaloDepth()
-                halo_info.set_by_value(max_depth=False, var_depth=var_depth,
+                # no matches were found with existing variables, or no
+                # variables so create a new halo depth entry
+                depth_info = HaloDepth()
+                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                        literal_depth=literal_depth)
-                new_depth_info_list.append(halo_info)
-        return new_depth_info_list
+                depth_info_list.append(depth_info)
+        return depth_info_list
 
     def _compute_halo_info(self):
-        '''Dynamically computes all halo dependencies and returns the
-        required halo information (such as halo depth and stencil type) in a
-        list
+        '''Dynamically computes all halo read dependencies and returns the
+        required halo information (i.e. halo depth and stencil type) in a
+        list of HaloAccess objects
 
-        :return: a list containing halo information for each dependency
+        :return: a list containing halo information for each read dependency
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
 
         '''
@@ -2304,12 +2332,14 @@ class DynHaloExchange(HaloExchange):
             raise GenerationError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange")
-        depth_info_list = []
+        halo_info_list = []
         for read_dependency in read_dependencies:
+            # create a HaloAccess object for each read dependency and
+            # add it to our list
             halo_access = HaloAccess()
             halo_access.compute_from_field(read_dependency)
-            depth_info_list.append(halo_access)
-        return depth_info_list
+            halo_info_list.append(halo_access)
+        return halo_info_list
 
     def _dynamic_check_dirty(self):
         '''Determines whether we know that we need a halo exchange or are not
