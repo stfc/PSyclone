@@ -5823,7 +5823,7 @@ def test_haloexchange_unknown_halo_depth():
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
     halo_exchange = schedule.children[0]
-    assert halo_exchange._compute_halo_depth == '11'
+    assert halo_exchange._compute_halo_depth() == '11'
 
 
 def test_haloexchange_correct_parent():  # pylint: disable=invalid-name
@@ -6963,7 +6963,7 @@ def test_halo_stencil_redundant_computation():
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[0]
-    assert stencil_halo_exchange._compute_stencil_type == "region"
+    assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
 def test_halo_same_stencils_no_redundant_computation():
@@ -6978,7 +6978,7 @@ def test_halo_same_stencils_no_redundant_computation():
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[1]
-    assert stencil_halo_exchange._compute_stencil_type == "cross"
+    assert stencil_halo_exchange._compute_stencil_type() == "cross"
 
 
 def test_halo_different_stencils_no_redundant_computation():
@@ -6994,7 +6994,7 @@ def test_halo_different_stencils_no_redundant_computation():
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[1]
-    assert stencil_halo_exchange._compute_stencil_type == "region"
+    assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
 def test_halo_compute_halo_internal_error(monkeypatch):
@@ -7010,7 +7010,7 @@ def test_halo_compute_halo_internal_error(monkeypatch):
     field = halo_exchange.field
     monkeypatch.setattr(field, "forward_read_dependencies", lambda fs=None: [])
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_info
+        halo_exchange._compute_halo_info()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
 
@@ -7131,7 +7131,7 @@ def test_HaloAccess_invalid_loop_upper_bound(monkeypatch):
     loop = read_dependency.call.parent
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_info
+        halo_exchange._compute_halo_info()
     assert ("Internal error in HaloAccess._compute__halo_info. Found "
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 

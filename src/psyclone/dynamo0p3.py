@@ -2189,7 +2189,6 @@ class DynHaloExchange(HaloExchange):
     manipulated in, a schedule
     '''
 
-    @property
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
         exchange as it could change as transformations are applied to
@@ -2201,44 +2200,64 @@ class DynHaloExchange(HaloExchange):
         :rtype: string
 
         '''
-        depth_info_list = self._compute_halo_info
-        trial = depth_info_list[0].stencil_type
-        for depth_info in depth_info_list:
+        # get information about stencil accesses from all read fields
+        # dependendent on this halo exchange
+        halo_info_list = self._compute_halo_info()
+        trial_stencil = halo_info_list[0].stencil_type
+        for halo_info in halo_info_list:
             # assume that if stencil accesses are different that we
             # simply revert to region. We could be more clever in the
             # future e.g. x and y implies cross.
-            if depth_info.stencil_type != trial:
+            if halo_info.stencil_type != trial_stencil:
                 return "region"
-        return trial
+        return trial_stencil
 
-    @property
     def _compute_halo_depth(self):
         '''Dynamically determine the depth of the halo for this halo exchange,
         as the depth can change as transformations are applied to the
         schedule
 
-        :return: Return the halo exchange depth
+        :return: Return the halo exchange depth as a fortran string
         :rtype: int
 
         '''
-        depth_info_list = self.compute_depth_info
+        # get information about reading from the halo from all read fields
+        # dependendent on this halo exchange
+        depth_info_list = self.compute_depth_info()
 
-        # if there is only one entry, return the depth
+        # if there is only one entry in the list we can just return
+        # the depth
         if len(depth_info_list) == 1:
             depth_info = depth_info_list[0]
             if depth_info.max_depth:
+                # return the maximum halo depth
                 return "mesh%get_last_halo_depth()"
-            else:  # return the variable and/or literal depth
+            else:  # return the variable and/or literal depth expression
                 return str(depth_info)
         else:
-            # at least one read field must have a variable depth and
-            # there is more than one read field in the list.
+            # the depth information can't be reduced to a single
+            # expression, therefore we need to determine the maximum
+            # of all expresssions
             depth_str_list = []
             for depth_info in depth_info_list:
                 depth_str_list.append(str(depth_info))
             return "max("+",".join(depth_str_list)+")"
 
-    def _simplify_depth_list(self, depth_info_list):
+    def compute_depth_info(self):
+        '''Take a list of HaloAccess objects and create an equivalent list of
+        HaloDepth objects. Whilst doing this we simplify HaloDepth
+        list to remove redundant depth information e.g. depth=1 is not required
+        if we have a depth=2
+
+        :return: a list containing halo depth information for each dependency
+        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
+
+        '''
+        halo_info_list = self._compute_halo_info()
+        depth_info_list = self._create_depth_list(halo_info_list)
+        return depth_info_list
+
+    def _create_depth_list(self, halo_info_list):
         '''Halo's may have more than one dependency. This method simplifies
         multiple dependencies to remove duplicates and any obvious
         redundancy. For example, if one dependency is for depth=1 and
@@ -2247,7 +2266,7 @@ class DynHaloExchange(HaloExchange):
         another for depth=extent+2 then we do not need the former as
         it is covered by the latter.'''
         new_depth_info_list = []
-        for depth_info in depth_info_list:
+        for depth_info in halo_info_list:
             if depth_info.max_depth:
                 halo_info = HaloDepth()
                 halo_info.set_by_value(max_depth=True, var_depth="",
@@ -2255,7 +2274,7 @@ class DynHaloExchange(HaloExchange):
                 return [halo_info]
 
         literal_only = 0
-        for depth_info in depth_info_list:
+        for depth_info in halo_info_list:
             var_depth = depth_info.var_depth
             literal_depth = depth_info.literal_depth
             match = False
@@ -2271,22 +2290,6 @@ class DynHaloExchange(HaloExchange):
                 new_depth_info_list.append(halo_info)
         return new_depth_info_list
 
-
-    @property
-    def compute_depth_info(self):
-        '''Take a halo info list and simplify it to remove redundant depths
-        e.g. depth=1 is not required if we have a depth=2
-
-        :return: a list containing halo depth information for each dependency
-        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
-
-        '''
-        halo_info_list = self._compute_halo_info
-        # simplify the list
-        depth_info_list = self._simplify_depth_list(halo_info_list)
-        return depth_info_list
-
-    @property
     def _compute_halo_info(self):
         '''Dynamically computes all halo dependencies and returns the
         required halo information (such as halo depth and stencil type) in a
@@ -2308,7 +2311,6 @@ class DynHaloExchange(HaloExchange):
             depth_info_list.append(halo_access)
         return depth_info_list
 
-    @property
     def _dynamic_check_dirty(self):
         '''Determines whether we know that we need a halo exchange or are not
         sure. We only definitely know when both the amount of
@@ -2335,7 +2337,7 @@ class DynHaloExchange(HaloExchange):
             # the writer redundantly computes in the level 1 halo but
             # leaves it dirty so we definitely need the halo exchange
             return False
-        required_clean_info = self.compute_depth_info
+        required_clean_info = self.compute_depth_info()
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
             if not (required_clean_info[0].var_depth or
@@ -2358,7 +2360,7 @@ class DynHaloExchange(HaloExchange):
             # we redundantly compute the whole halo so a halo exchange
             # is not required
             return False
-        required_clean_info = self.compute_depth_info
+        required_clean_info = self.compute_depth_info()
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
             if not (required_clean_info[0].var_depth or
@@ -2416,9 +2418,9 @@ class DynHaloExchange(HaloExchange):
         print self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
-                                      self._compute_stencil_type,
-                                      self._compute_halo_depth,
-                                      self._dynamic_check_dirty))
+                                      self._compute_stencil_type(),
+                                      self._compute_halo_depth(),
+                                      self._dynamic_check_dirty()))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -2427,9 +2429,9 @@ class DynHaloExchange(HaloExchange):
             ref = "(" + str(self.vector_index) + ")"
         else:
             ref = ""
-        if self._dynamic_check_dirty:
+        if self._dynamic_check_dirty():
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" + self._compute_halo_depth +
+                                "%is_dirty(depth=" + self._compute_halo_depth() +
                                 ")")
             parent.add(if_then)
             halo_parent = if_then
@@ -2438,7 +2440,7 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + self._compute_halo_depth + ")"))
+                "%halo_exchange(depth=" + self._compute_halo_depth() + ")"))
         parent.add(CommentGen(parent, ""))
 
 

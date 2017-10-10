@@ -4725,7 +4725,7 @@ def test_halo_stencil_redundant_computation_max_depth_2(monkeypatch):
     loop = schedule.children[3]
     monkeypatch.setattr(loop, "_upper_bound_index", None)
     with pytest.raises(GenerationError) as excinfo:
-        result = halo_exchange._compute_halo_info
+        result = halo_exchange._compute_halo_info()
     assert ("redundant computation to max depth with a stencil is "
             "invalid" in str(excinfo.value))
 
