@@ -7028,7 +7028,7 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda fs=None: [1, 1])
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_cleaned_info
+        halo_exchange._compute_halo_cleaned_info()
     assert ("Internal logic error. There should be one and only one "
             "write dependence for a halo exchange. Found "
             "'2'") in str(excinfo.value)
@@ -7036,7 +7036,7 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda fs=None: [])
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_cleaned_info
+        halo_exchange._compute_halo_cleaned_info()
     assert ("Internal logic error. There should be one and only one "
             "write dependence for a halo exchange. Found "
             "'0'") in str(excinfo.value)
@@ -7057,7 +7057,7 @@ def test_halo_exchange_backward_dependence_no_call(monkeypatch):
     monkeypatch.setattr(write_dependency, "call",
                         lambda fs=None: halo_exchange)
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_cleaned_info
+        halo_exchange._compute_halo_cleaned_info()
     assert ("Generation Error: In HaloInfo class, field 'f2' should be from a "
             "call but found <type 'function'>") in str(excinfo.value)
 

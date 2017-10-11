@@ -2327,25 +2327,26 @@ class DynHaloExchange(HaloExchange):
 
         '''
         read_dependencies = self.field.forward_read_dependencies()
-        if len(read_dependencies) == 0:
+        if not read_dependencies:
             raise GenerationError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange")
         return [HaloReadAccess(read_dependency) for read_dependency in read_dependencies]
 
-    def _dynamic_check_dirty(self):
+    def _requires_runtime_check_dirty(self):
         '''Determines whether we know that we need a halo exchange or are not
         sure. We only definitely know when both the amount of
         redundant computation performed by the writer and the amount
-        of halo required by the reader(s) are known. If we are not sure
-        then we need to rely on the runtime (set_dirty and set_clean
-        calls) and therefore add an if around the halo exchange. This
-        routine should not be called when we know that this halo
-        exchange is not required (see required() method).
+        of halo required by the reader(s) are known. If we are not
+        sure then we need to rely on the runtime (set_dirty and
+        set_clean calls) and therefore add a check_dirty() call around
+        the halo exchange. This routine should not be called when we
+        know that this halo exchange is not required (see required()
+        method).
 
-        :return: False if we know that we need a halo exchange (as we
+        :return: False if we know that we need a halo exchange (so we
         do not need to add a check_dirty call to the fortran code) and
-        True if we are not sure (as we do need to add a check_dirty
+        True if we are not sure (so we do need to add a check_dirty
         call to the fortran code)
         :rtype: Bool
 
@@ -2353,17 +2354,34 @@ class DynHaloExchange(HaloExchange):
         # first look at the writers and determine if they clean any of
         # the halo by performing redundant computation
         write_dependencies = self.field.backward_write_dependencies()
-        if len(write_dependencies) == 0:
+        if not write_dependencies:
             # the write dependency is not in this invoke so we do not
             # know how much of the halo is cleaned. Therefore we need
             # to check dynamically.
             return True
-        cleaned_info = self._compute_halo_cleaned_info
-        # CHANGES
+        
+        cleaned_info = self._compute_halo_cleaned_info()
+        required_clean_info = self.compute_depth_info()
+
         if cleaned_info.max_depth:
-            # we don't know how much of the halo is cleaned
-            return True
-        if cleaned_info.literal_depth == 0:
+            if not cleaned_info.dirty_outer:
+                raise GenerationError(
+                    "Internal error: this method should not be called as the "
+                    "full halo is written to, so this halo exchange is not "
+                    "required")
+            else:  # dirty_outer is True
+                # the last level halo remains dirty (but we don't know
+                # the depth of the last level halo)
+                if required_clean_info[0].max_depth:
+                    # we know that we need to clean the outermost halo
+                    return False
+                else:
+                    # we don't know whether the halo exchange is
+                    # required or not as the reader reads the halo to
+                    # a specified depth but we don't know the depth
+                    # of the halo
+                    return True
+        if not cleaned_info.literal_depth:
             # the writer does not redundantly compute so we definitely
             # need the halo exchange
             return False
@@ -2371,7 +2389,7 @@ class DynHaloExchange(HaloExchange):
             # the writer redundantly computes in the level 1 halo but
             # leaves it dirty so we definitely need the halo exchange
             return False
-        required_clean_info = self.compute_depth_info()
+
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
             if not (required_clean_info[0].var_depth or
@@ -2389,7 +2407,7 @@ class DynHaloExchange(HaloExchange):
         exchange is only ever added if it is required, or if it may be
         required. However this situation can change if transformations add
         in redundant computation'''
-        cleaned_info = self._compute_halo_cleaned_info
+        cleaned_info = self._compute_halo_cleaned_info()
         if cleaned_info.max_depth and not cleaned_info.dirty_outer:
             # we redundantly compute the whole halo so a halo exchange
             # is not required
@@ -2414,7 +2432,6 @@ class DynHaloExchange(HaloExchange):
         # this halo exchange is, or may be, required
         return True
 
-    @property
     def _compute_halo_cleaned_info(self):
         '''Determines how much of the halo has been cleaned from any previous
         redundant computation '''
@@ -2433,7 +2450,7 @@ class DynHaloExchange(HaloExchange):
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._compute_stencil_type(),
                                       self._compute_halo_depth(),
-                                      self._dynamic_check_dirty()))
+                                      self._requires_runtime_check_dirty()))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -2442,7 +2459,7 @@ class DynHaloExchange(HaloExchange):
             ref = "(" + str(self.vector_index) + ")"
         else:
             ref = ""
-        if self._dynamic_check_dirty():
+        if self._requires_runtime_check_dirty():
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
                                 "%is_dirty(depth=" + self._compute_halo_depth() +
                                 ")")
