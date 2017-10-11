@@ -2432,34 +2432,7 @@ class DynHaloExchange(HaloExchange):
                 "Internal logic error. There should be one and only one write "
                 "dependence for a halo exchange. Found "
                 "'{0}'".format(str(len(write_dependencies))))
-        write_dependency = write_dependencies[0]
-        call = write_dependency.call
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
-            raise GenerationError(
-                "internal error: write dependence for {0} should be from a "
-                "call but found {1}".format(write_dependency.name, type(call)))
-        loop = call.parent
-        dirty_outer = (not write_dependency.discontinuous and
-                       loop.upper_bound_name == "cell_halo")
-        upper_bound = 0
-        max_depth = False
-        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
-            # loop does redundant computation
-            if loop.upper_bound_index:
-                # loop redundant computation is to a fixed literal depth
-                upper_bound = loop.upper_bound_index
-            else:
-                # loop redundant computation is to the maximum depth
-                max_depth = True
-
-        result = HaloWriteAccess()
-        #result.set_by_value(max_depth, upper_bound, dirty_outer)
-        result.set_from_field(write_dependency)
-        
-        #return {"literal_depth": upper_bound, "max_depth": max_depth,
-        #        "dirty_outer": dirty_outer}
-        return result
+        return HaloWriteAccess(write_dependencies[0])
 
     def view(self, indent=0):
         ''' Class specific view  '''
@@ -2581,9 +2554,10 @@ class HaloDepth(object):
 
 class HaloWriteAccess(HaloDepth):
     ''' '''
-    def __init__(self):
+    def __init__(self, field):
         HaloDepth.__init__(self)
-        pass
+        self._dirty_outer = False
+        self.set_from_field(field)
 
     @property
     def dirty_outer(self):
