@@ -2367,14 +2367,15 @@ class DynHaloExchange(HaloExchange):
             # to check dynamically.
             return True
         cleaned_info = self._compute_halo_cleaned_info
-        if cleaned_info["max_depth"]:
+        # CHANGES
+        if cleaned_info.max_depth:
             # we don't know how much of the halo is cleaned
             return True
-        if cleaned_info["literal_depth"] == 0:
+        if cleaned_info.literal_depth == 0:
             # the writer does not redundantly compute so we definitely
             # need the halo exchange
             return False
-        if cleaned_info["literal_depth"] == 1 and cleaned_info["dirty_outer"]:
+        if cleaned_info.literal_depth == 1 and cleaned_info.dirty_outer:
             # the writer redundantly computes in the level 1 halo but
             # leaves it dirty so we definitely need the halo exchange
             return False
@@ -2397,7 +2398,7 @@ class DynHaloExchange(HaloExchange):
         required. However this situation can change if transformations add
         in redundant computation'''
         cleaned_info = self._compute_halo_cleaned_info
-        if cleaned_info["max_depth"] and not cleaned_info["dirty_outer"]:
+        if cleaned_info.max_depth and not cleaned_info.dirty_outer:
             # we redundantly compute the whole halo so a halo exchange
             # is not required
             return False
@@ -2408,10 +2409,10 @@ class DynHaloExchange(HaloExchange):
                     required_clean_info[0].max_depth):
                 # we do have a fixed upper bound
                 required_clean_ub = required_clean_info[0].literal_depth
-                if not cleaned_info["max_depth"]:
+                if not cleaned_info.max_depth:
                     # we have a literal upper bound
-                    cleaned_ub = cleaned_info["literal_depth"]
-                    if cleaned_info["dirty_outer"]:
+                    cleaned_ub = cleaned_info.literal_depth
+                    if cleaned_info.dirty_outer:
                         # redundant computation in outer level does
                         # not clean so reduce cleaned upper bound by 1
                         cleaned_ub -= 1
@@ -2451,8 +2452,13 @@ class DynHaloExchange(HaloExchange):
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
-        return {"literal_depth": upper_bound, "max_depth": max_depth,
-                "dirty_outer": dirty_outer}
+
+        result = HaloWriteAccess()
+        result.set_by_value(max_depth, upper_bound, dirty_outer)
+        
+        #return {"literal_depth": upper_bound, "max_depth": max_depth,
+        #        "dirty_outer": dirty_outer}
+        return result
 
     def view(self, indent=0):
         ''' Class specific view  '''
@@ -2570,6 +2576,23 @@ class HaloDepth(object):
         if self.literal_depth:
             depth_str += str(self.literal_depth)
         return depth_str
+
+
+class HaloWriteAccess(HaloDepth):
+    ''' '''
+    def __init__(self):
+        HaloDepth.__init__(self)
+        pass
+
+    @property
+    def dirty_outer(self):
+        ''' '''
+        return self._dirty_outer
+
+    def set_by_value(self, max_depth, literal_depth, dirty_outer):
+        ''' '''
+        HaloDepth.set_by_value(self, max_depth, None, literal_depth)
+        self._dirty_outer = dirty_outer
 
 
 class HaloReadAccess(HaloDepth):
