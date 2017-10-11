@@ -52,7 +52,6 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 from psyclone import psyGen, config
 
-
 # first section : Parser specialisations and classes
 
 # constants
@@ -2424,7 +2423,7 @@ class DynHaloExchange(HaloExchange):
 
     @property
     def _compute_halo_cleaned_info(self):
-        '''Determines how much of the halo has been cleaned from previous
+        '''Determines how much of the halo has been cleaned from any previous
         redundant computation '''
         write_dependencies = self.field.backward_write_dependencies()
         if len(write_dependencies) != 1:
@@ -2553,45 +2552,71 @@ class HaloDepth(object):
 
 
 class HaloWriteAccess(HaloDepth):
-    ''' '''
+    '''Determines how much of the halo a field writes (the halo depth) and
+    when used in a particular kernel within a particular loop nest
+
+    :param field: the field that we are concerned with
+    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+    '''
     def __init__(self, field):
         HaloDepth.__init__(self)
-        self._dirty_outer = False
-        self.set_from_field(field)
+        self._compute_from_field(field)
 
     @property
     def dirty_outer(self):
-        ''' '''
+        '''Returns True if the writer is continuous and accesses the halo and
+        False otherwise. It indicates that the outer level of halo that has
+        been written to is actually dirty (well to be precise it is a partial
+        sum).
+
+        :return dirty_outer: Return True if the outer layer of halo
+        that is written to remains dirty and False otherwise.
+        :rtype dirty_outer: Bool
+
+        '''
         return self._dirty_outer
 
-    def set_by_value(self, max_depth, literal_depth, dirty_outer):
-        ''' '''
-        HaloDepth.set_by_value(self, max_depth, None, literal_depth)
-        self._dirty_outer = dirty_outer
+    def _compute_from_field(self, field):
+        '''Internal method to compute what parts of a fields halo are written
+        to in a certain kernel and loop. The information computed is
+        the depth of access and validity of the data after
+        writing. The depth of access can be the maximum halo depth or
+        a literal depth and the outer halo layer that is written to
+        may be dirty or clean.
 
-    def set_from_field(self, write_dependency):
-        ''' '''
-        call = write_dependency.call
+        :param field: the field that we are concerned with
+        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+        '''
+        call = field.call
         from psyclone.dynamo0p3_builtins import DynBuiltIn
         if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
             raise GenerationError(
                 "internal error: write dependence for {0} should be from a "
-                "call but found {1}".format(write_dependency.name, type(call)))
+                "call but found {1}".format(field.name, type(call)))
+        # this should always work as all calls currently have a loop as a parent
         loop = call.parent
-        dirty_outer = (not write_dependency.discontinuous and
+        # The outermost halo level that is written to is dirty if it
+        # is a continuous field which writes into the halo in a loop
+        # over cells
+        self._dirty_outer = (not field.discontinuous and
                        loop.upper_bound_name == "cell_halo")
-        upper_bound = 0
+        depth = 0
         max_depth = False
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
             # loop does redundant computation
             if loop.upper_bound_index:
                 # loop redundant computation is to a fixed literal depth
-                upper_bound = loop.upper_bound_index
+                depth = loop.upper_bound_index
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
-        HaloDepth.set_by_value(self, max_depth, None, upper_bound)
-        self._dirty_outer = dirty_outer
+        # The third argument for set_by_value specifies the name of a
+        # variable used to specify the depth. Variables are currently
+        # not used when a halo is written to, so we pass None which
+        # indicates there is no variable.
+        HaloDepth.set_by_value(self, max_depth, None, depth)
 
 
 class HaloReadAccess(HaloDepth):
@@ -2620,12 +2645,12 @@ class HaloReadAccess(HaloDepth):
         return self._stencil_type
 
     def compute_from_field(self, field):
-        '''Compute halo access information for a field that is read in a
-        certain kernel and loop. The information computed is the depth
-        of access and the access pattern. The depth of access can be
-        the maximum halo depth, a variable specifying the depth and/or
-        a literal depth. The access pattern will only be specified if
-        the field performs a stencil access in the kernel.
+        '''Compute what parts of a fields halo are read in a certain kernel
+        and loop. The information computed is the depth of access and
+        the access pattern. The depth of access can be the maximum
+        halo depth, a variable specifying the depth and/or a literal
+        depth. The access pattern will only be specified if the field
+        performs a stencil access in the kernel.
 
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
