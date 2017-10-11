@@ -7066,9 +7066,8 @@ def test_HaloReadAccess_input_field():
     '''The HaloReadAccess class expects a DynKernelArgument or equivalent
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
-    halo_access = HaloReadAccess()
     with pytest.raises(GenerationError) as excinfo:
-        halo_access.compute_from_field(None)
+        _ = HaloReadAccess(None)
     assert (
         "Generation Error: HaloInfo class expects an argument of type "
         "DynArgument, or equivalent, on initialisation, but found, "
@@ -7085,9 +7084,8 @@ def test_HaloReadAccess_field_in_call():
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
-    halo_access = HaloReadAccess()
     with pytest.raises(GenerationError) as excinfo:
-        halo_access.compute_from_field(field)
+        _ = HaloReadAccess(field)
     assert ("field 'f2' should be from a call but found "
             "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
             in str(excinfo.value))
@@ -7106,9 +7104,8 @@ def test_HaloReadAccess_field_not_reader():
     loop = schedule.children[0]
     kernel = loop.children[0]
     argument = kernel.arguments.args[0]
-    halo_access = HaloReadAccess()
     with pytest.raises(GenerationError) as excinfo:
-        halo_access.compute_from_field(argument)
+        _ = HaloReadAccess(argument)
     assert (
         "In HaloInfo class, field 'f1' should read data, but found "
         "'gh_write'" in str(excinfo.value))
@@ -7148,8 +7145,7 @@ def test_HaloReadAccess_discontinuous_field():
     loop = schedule.children[0]
     kernel = loop.children[0]
     arg = kernel.arguments.args[1]
-    halo_access = HaloReadAccess()
-    halo_access.compute_from_field(arg)
+    halo_access = HaloReadAccess(arg)
     assert halo_access.max_depth == False
     assert halo_access.var_depth == None
     assert halo_access.literal_depth == 0

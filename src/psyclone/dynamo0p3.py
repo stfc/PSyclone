@@ -2331,14 +2331,7 @@ class DynHaloExchange(HaloExchange):
             raise GenerationError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange")
-        halo_info_list = []
-        for read_dependency in read_dependencies:
-            # create a HaloReadAccess object for each read dependency and
-            # add it to our list
-            halo_access = HaloReadAccess()
-            halo_access.compute_from_field(read_dependency)
-            halo_info_list.append(halo_access)
-        return halo_info_list
+        return [HaloReadAccess(read_dependency) for read_dependency in read_dependencies]
 
     def _dynamic_check_dirty(self):
         '''Determines whether we know that we need a halo exchange or are not
@@ -2625,9 +2618,10 @@ class HaloReadAccess(HaloDepth):
     within a particular loop nest
 
     '''
-    def __init__(self):
+    def __init__(self, field):
         HaloDepth.__init__(self)
         self._stencil_type = None
+        self.compute_from_field(field)
 
     @property
     def stencil_type(self):
