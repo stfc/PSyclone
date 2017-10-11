@@ -2544,6 +2544,45 @@ class HaloDepth(object):
         return depth_str
 
 
+def halo_check_arg(field, access_types):
+    '''Support function which performs checks to ensure the first argument
+    is a field, that the field is contained within Kernel or Builtin
+    call and that the field is accessed in one of the ways specified
+    by the second argument. If no error is reported it returns the
+    call object containing this argument
+
+    :param field: the argument object we are checking
+    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+    :param access_types: list of access types that the field access must be one of
+    :type access_types: :func:`list` of String
+    :return call: the call containing the argument object
+    :rtype call: :py:class:`psyclone.psyGen.Call`
+    :raises GenerationError: if the first argument to this function is the wrong type
+    :raises GenerationError: if the first argument is not accessed in
+    one of the ways specified by the second argument to the function
+    :raises GenerationError: if the first argument is contained within a call object
+
+    '''
+    try:
+        # get the kernel/builtin call associated with this field
+        call = field.call
+    except AttributeError:
+        raise GenerationError(
+            "HaloInfo class expects an argument of type DynArgument, or "
+            "equivalent, on initialisation, but found, "
+            "'{0}'".format(type(field)))
+    if field.access not in access_types:
+        raise GenerationError(
+            "In HaloInfo class, field '{0}' should be one of {1}, but found "
+            "'{2}'".format(field.name, access_types, field.access))
+    from psyclone.dynamo0p3_builtins import DynBuiltIn
+    if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
+        raise GenerationError(
+            "In HaloInfo class, field '{0}' should be from a call but "
+            "found {1}".format(field.name, type(call)))
+    return call
+
+    
 class HaloWriteAccess(HaloDepth):
     '''Determines how much of the halo a field writes (the halo depth) and
     when used in a particular kernel within a particular loop nest
@@ -2571,7 +2610,7 @@ class HaloWriteAccess(HaloDepth):
         return self._dirty_outer
 
     def _compute_from_field(self, field):
-        '''Internal method to compute what parts of a fields halo are written
+        '''Internal method to compute what parts of a field's halo are written
         to in a certain kernel and loop. The information computed is
         the depth of access and validity of the data after
         writing. The depth of access can be the maximum halo depth or
@@ -2582,13 +2621,8 @@ class HaloWriteAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
-        call = field.call
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
-            raise GenerationError(
-                "internal error: write dependence for {0} should be from a "
-                "call but found {1}".format(field.name, type(call)))
-        # this should always work as all calls currently have a loop as a parent
+        call = halo_check_arg(field, GH_WRITE_ACCESSES)
+        # no test required here as all calls exist within a loop
         loop = call.parent
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
@@ -2621,7 +2655,7 @@ class HaloReadAccess(HaloDepth):
     def __init__(self, field):
         HaloDepth.__init__(self)
         self._stencil_type = None
-        self.compute_from_field(field)
+        self._compute_from_field(field)
 
     @property
     def stencil_type(self):
@@ -2638,35 +2672,20 @@ class HaloReadAccess(HaloDepth):
         '''
         return self._stencil_type
 
-    def compute_from_field(self, field):
-        '''Compute what parts of a fields halo are read in a certain kernel
-        and loop. The information computed is the depth of access and
-        the access pattern. The depth of access can be the maximum
-        halo depth, a variable specifying the depth and/or a literal
-        depth. The access pattern will only be specified if the field
-        performs a stencil access in the kernel.
+    def _compute_from_field(self, field):
+        '''Internal method to compute which parts of a field's halo are read
+        in a certain kernel and loop. The information computed is the
+        depth of access and the access pattern. The depth of access
+        can be the maximum halo depth, a variable specifying the depth
+        and/or a literal depth. The access pattern will only be
+        specified if the field performs a stencil access in the
+        kernel.
 
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
-        try:
-            # get the kernel/builtin call associated with this field
-            call = field.call
-        except AttributeError:
-            raise GenerationError(
-                "HaloInfo class expects an argument of type DynArgument, or "
-                "equivalent, on initialisation, but found, "
-                "'{0}'".format(type(field)))
-        if field.access not in GH_READ_ACCESSES:
-            raise GenerationError(
-                "In HaloInfo class, field '{0}' should read data, but found "
-                "'{1}'".format(field.name, field.access))
-        from psyclone.dynamo0p3_builtins import DynBuiltIn
-        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
-            raise GenerationError(
-                "In HaloInfo class, field '{0}' should be from a call but "
-                "found {1}".format(field.name, type(call)))
+        call = halo_check_arg(field, GH_READ_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
         # now we have the parent loop we can work out what part of the
@@ -2707,7 +2726,7 @@ class HaloReadAccess(HaloDepth):
             pass
         else:
             raise GenerationError(
-                "Internal error in HaloReadAccess._compute__halo_info. Found "
+                "Internal error in HaloReadAccess._compute_from_field. Found "
                 "unexpected loop upper bound name '{0}'".
                 format(loop.upper_bound_name))
 

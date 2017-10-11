@@ -7058,7 +7058,7 @@ def test_halo_exchange_backward_dependence_no_call(monkeypatch):
                         lambda fs=None: halo_exchange)
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_cleaned_info
-    assert ("internal error: write dependence for f2 should be from a "
+    assert ("Generation Error: In HaloInfo class, field 'f2' should be from a "
             "call but found <type 'function'>") in str(excinfo.value)
 
 
@@ -7107,8 +7107,8 @@ def test_HaloReadAccess_field_not_reader():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(argument)
     assert (
-        "In HaloInfo class, field 'f1' should read data, but found "
-        "'gh_write'" in str(excinfo.value))
+        "In HaloInfo class, field 'f1' should be one of ['gh_read', "
+        "'gh_inc'], but found 'gh_write'" in str(excinfo.value))
 
 
 def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
@@ -7129,7 +7129,7 @@ def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_info()
-    assert ("Internal error in HaloReadAccess._compute__halo_info. Found "
+    assert ("Internal error in HaloReadAccess._compute_from_field. Found "
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
