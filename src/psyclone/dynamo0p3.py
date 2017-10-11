@@ -2454,7 +2454,8 @@ class DynHaloExchange(HaloExchange):
                 max_depth = True
 
         result = HaloWriteAccess()
-        result.set_by_value(max_depth, upper_bound, dirty_outer)
+        #result.set_by_value(max_depth, upper_bound, dirty_outer)
+        result.set_from_field(write_dependency)
         
         #return {"literal_depth": upper_bound, "max_depth": max_depth,
         #        "dirty_outer": dirty_outer}
@@ -2592,6 +2593,30 @@ class HaloWriteAccess(HaloDepth):
     def set_by_value(self, max_depth, literal_depth, dirty_outer):
         ''' '''
         HaloDepth.set_by_value(self, max_depth, None, literal_depth)
+        self._dirty_outer = dirty_outer
+
+    def set_from_field(self, write_dependency):
+        ''' '''
+        call = write_dependency.call
+        from psyclone.dynamo0p3_builtins import DynBuiltIn
+        if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
+            raise GenerationError(
+                "internal error: write dependence for {0} should be from a "
+                "call but found {1}".format(write_dependency.name, type(call)))
+        loop = call.parent
+        dirty_outer = (not write_dependency.discontinuous and
+                       loop.upper_bound_name == "cell_halo")
+        upper_bound = 0
+        max_depth = False
+        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+            # loop does redundant computation
+            if loop.upper_bound_index:
+                # loop redundant computation is to a fixed literal depth
+                upper_bound = loop.upper_bound_index
+            else:
+                # loop redundant computation is to the maximum depth
+                max_depth = True
+        HaloDepth.set_by_value(self, max_depth, None, upper_bound)
         self._dirty_outer = dirty_outer
 
 
