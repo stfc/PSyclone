@@ -51,7 +51,7 @@ from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
-    DynGlobalSum, HaloAccess
+    DynGlobalSum, HaloReadAccess
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 import fparser
@@ -7062,11 +7062,11 @@ def test_halo_exchange_backward_dependence_no_call(monkeypatch):
             "call but found <type 'function'>") in str(excinfo.value)
 
 
-def test_HaloAccess_input_field():
-    '''The HaloAccess class expects a DynKernelArgument or equivalent
+def test_HaloReadAccess_input_field():
+    '''The HaloReadAccess class expects a DynKernelArgument or equivalent
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
-    halo_access = HaloAccess()
+    halo_access = HaloReadAccess()
     with pytest.raises(GenerationError) as excinfo:
         halo_access.compute_from_field(None)
     assert (
@@ -7075,8 +7075,8 @@ def test_HaloAccess_input_field():
         "'<type 'NoneType'>'" in str(excinfo.value))
 
 
-def test_HaloAccess_field_in_call():
-    '''The field passed to HaloAccess should be within a kernel or
+def test_HaloReadAccess_field_in_call():
+    '''The field passed to HaloReadAccess should be within a kernel or
     builtin. If it is not then an exception is raised. This test
     checks that this exception is raised correctly'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -7085,7 +7085,7 @@ def test_HaloAccess_field_in_call():
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
-    halo_access = HaloAccess()
+    halo_access = HaloReadAccess()
     with pytest.raises(GenerationError) as excinfo:
         halo_access.compute_from_field(field)
     assert ("field 'f2' should be from a call but found "
@@ -7093,8 +7093,8 @@ def test_HaloAccess_field_in_call():
             in str(excinfo.value))
 
 
-def test_HaloAccess_field_not_reader():
-    '''The field passed to HaloAccess should be read within its associated
+def test_HaloReadAccess_field_not_reader():
+    '''The field passed to HaloReadAccess should be read within its associated
     kernel or builtin. If it is not then an exception is raised. This
     test checks that this exception is raised correctly
 
@@ -7106,7 +7106,7 @@ def test_HaloAccess_field_not_reader():
     loop = schedule.children[0]
     kernel = loop.children[0]
     argument = kernel.arguments.args[0]
-    halo_access = HaloAccess()
+    halo_access = HaloReadAccess()
     with pytest.raises(GenerationError) as excinfo:
         halo_access.compute_from_field(argument)
     assert (
@@ -7114,9 +7114,9 @@ def test_HaloAccess_field_not_reader():
         "'gh_write'" in str(excinfo.value))
 
 
-def test_HaloAccess_invalid_loop_upper_bound(monkeypatch):
+def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
     '''The upper bound of a loop in the compute_halo_info method within
-    the HaloAccesss class hould be recognised by the logic. If not an
+    the HaloReadAccesss class hould be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
     '''
@@ -7132,14 +7132,14 @@ def test_HaloAccess_invalid_loop_upper_bound(monkeypatch):
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_info()
-    assert ("Internal error in HaloAccess._compute__halo_info. Found "
+    assert ("Internal error in HaloReadAccess._compute__halo_info. Found "
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloAccess_discontinuous_field():
+def test_HaloReadAccess_discontinuous_field():
     '''When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
-    checks that HaloAccess works correctly in this situation'''
+    checks that HaloReadAccess works correctly in this situation'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3_only.f90"),
                     api="dynamo0.3")
@@ -7148,7 +7148,7 @@ def test_HaloAccess_discontinuous_field():
     loop = schedule.children[0]
     kernel = loop.children[0]
     arg = kernel.arguments.args[1]
-    halo_access = HaloAccess()
+    halo_access = HaloReadAccess()
     halo_access.compute_from_field(arg)
     assert halo_access.max_depth == False
     assert halo_access.var_depth == None

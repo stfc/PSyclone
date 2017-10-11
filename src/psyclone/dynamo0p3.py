@@ -2243,7 +2243,7 @@ class DynHaloExchange(HaloExchange):
             return "max("+",".join(depth_str_list)+")"
 
     def compute_depth_info(self):
-        '''Take a list of `psyclone.dynamo0p3.HaloAccess` objects and create
+        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and create
         an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
@@ -2271,7 +2271,7 @@ class DynHaloExchange(HaloExchange):
 
         :param: a list containing halo access information derived from
         all read fields dependent on this halo exchange
-        :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
+        :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
         :return: a list containing halo depth information derived from
         the halo access information
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
@@ -2321,10 +2321,10 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_info(self):
         '''Dynamically computes all halo read dependencies and returns the
         required halo information (i.e. halo depth and stencil type) in a
-        list of HaloAccess objects
+        list of HaloReadAccess objects
 
         :return: a list containing halo information for each read dependency
-        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloAccess`
+        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
 
         '''
         read_dependencies = self.field.forward_read_dependencies()
@@ -2334,9 +2334,9 @@ class DynHaloExchange(HaloExchange):
                 "dependence for a halo exchange")
         halo_info_list = []
         for read_dependency in read_dependencies:
-            # create a HaloAccess object for each read dependency and
+            # create a HaloReadAccess object for each read dependency and
             # add it to our list
-            halo_access = HaloAccess()
+            halo_access = HaloReadAccess()
             halo_access.compute_from_field(read_dependency)
             halo_info_list.append(halo_access)
         return halo_info_list
@@ -2572,8 +2572,8 @@ class HaloDepth(object):
         return depth_str
 
 
-class HaloAccess(HaloDepth):
-    '''Determines how much of the halo a field accesses (the halo depth) and
+class HaloReadAccess(HaloDepth):
+    '''Determines how much of the halo a field reads (the halo depth) and
     the access pattern (the stencil) when used in a particular kernel
     within a particular loop nest
 
@@ -2666,7 +2666,7 @@ class HaloAccess(HaloDepth):
             pass
         else:
             raise GenerationError(
-                "Internal error in HaloAccess._compute__halo_info. Found "
+                "Internal error in HaloReadAccess._compute__halo_info. Found "
                 "unexpected loop upper bound name '{0}'".
                 format(loop.upper_bound_name))
 
