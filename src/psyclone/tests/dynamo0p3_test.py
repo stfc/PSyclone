@@ -6230,7 +6230,8 @@ def test_unsupported_halo_read_access():
     with pytest.raises(GenerationError) as err:
         _ = loop._halo_read_access(stencil_arg)
     assert ("Loop bounds other than cell_halo and ncells are currently "
-            "unsupported. Found 'inner'." in str(err))
+            "unsupported for kernels with stencil accesses. Found "
+            "'inner'." in str(err))
 
 
 def test_dynglobalsum_unsupported_scalar():

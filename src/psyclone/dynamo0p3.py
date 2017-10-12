@@ -2982,7 +2982,18 @@ class DynLoop(Loop):
                 + prev_space_index_str + ")+1"
 
     def _upper_bound_fortran(self):
-        ''' Create the associated fortran code for the type of upper bound '''
+        ''' Create the associated fortran code for the type of upper bound
+
+        :return: Fortran code for the upper bound of this loop
+        :rtype: String
+
+        '''
+        # precompute halo_index as a string as we use it in more than
+        # one of the if clauses
+        halo_index = ""
+        if self._upper_bound_index:
+            halo_index = str(self._upper_bound_index)
+
         if self._upper_bound_name == "ncolours":
             return "ncolour"
         elif self._upper_bound_name == "ncolour":
@@ -3005,41 +3016,29 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "cell_halo":
             if config.DISTRIBUTED_MEMORY:
-                if self._upper_bound_index is None:
-                    index = ""
-                else:
-                    index = str(self._upper_bound_index)
                 mesh_obj_name = self._name_space_manager.create_name(
                     root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
-                                                            index)
+                                                            halo_index)
             else:
                 raise GenerationError(
                     "'cell_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
             if config.DISTRIBUTED_MEMORY:
-                if self._upper_bound_index is None:
-                    index = ""
-                else:
-                    index = str(self._upper_bound_index)
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
-                    index)
+                    halo_index)
             else:
                 raise GenerationError(
                     "'dof_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if config.DISTRIBUTED_MEMORY:
-                if self._upper_bound_index is None:
-                    index = ""
-                else:
-                    index = str(self._upper_bound_index)
                 mesh_obj_name = self._name_space_manager.create_name(
                     root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
-                                                             index)
+                                                             halo_index)
             else:
                 raise GenerationError(
                     "'inner' is not a valid loop upper bound for "
@@ -3074,14 +3073,21 @@ class DynLoop(Loop):
         return unique_fields
 
     def _halo_read_access(self, arg):
-        '''Determines whether this argument reads from the halo for this
-        loop'''
+        '''Determines whether the supplied argument reads from the halo for
+        this loop. Returns True if it does and False otherwise.
+       
+        :param arg: an argument contained within this loop
+        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :return: True if the argument reads from the halo and False otherwise.
+        :rtype: Bool
+
+        '''
         if arg.descriptor.stencil:
             if self._upper_bound_name not in ["cell_halo", "ncells"]:
                 raise GenerationError(
                     "Loop bounds other than cell_halo and ncells are "
-                    "currently unsupported. Found '{0}'.".format(
-                        self._upper_bound_name))
+                    "currently unsupported for kernels with stencil "
+                    "accesses. Found '{0}'.".format(self._upper_bound_name))
             return self._upper_bound_name in ["cell_halo", "ncells"]
         if arg.type in VALID_SCALAR_NAMES:
             # scalars do not have halos
@@ -3148,7 +3154,12 @@ class DynLoop(Loop):
         required and then removing it if it is not. This may seem
         strange but the logic for determining whether a halo exchange
         is required is within the halo exchange class so it is
-        simplest to do it this way'''
+        simplest to do it this way
+
+        :param halo_field: the argument requiring a halo exchange 
+        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        
+        '''
 
         if halo_field.vector_size > 1:
             # the range function below returns values from
@@ -3164,11 +3175,9 @@ class DynLoop(Loop):
                 # here correctly and if not, remove it.
                 write_dependencies = exchange.field.\
                                      backward_write_dependencies()
-                if len(write_dependencies) > 0:
-                    required, _ = exchange.required()
-                    #if not exchange.required:
-                    if not required:
-                        exchange.parent.children.remove(exchange)
+                required, _ = exchange.required()
+                if write_dependencies and not required:
+                    exchange.parent.children.remove(exchange)
         else:
             exchange = DynHaloExchange(halo_field,
                                        parent=self.parent)
@@ -3177,11 +3186,9 @@ class DynLoop(Loop):
             # check whether this halo exchange has been placed here
             # correctly and if not, remove it.
             write_dependencies = exchange.field.backward_write_dependencies()
-            if len(write_dependencies) > 0:
-                required, _ = exchange.required()
-                #if not exchange.required:
-                if not required:
-                    exchange.parent.children.remove(exchange)
+            required, _ = exchange.required()
+            if write_dependencies and not required:
+                exchange.parent.children.remove(exchange)
 
     def update_halo_exchanges(self):
         '''add and/or remove halo exchanges due to changes in the loops
