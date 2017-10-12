@@ -2680,9 +2680,9 @@ class HaloWriteAccess(HaloDepth):
         max_depth = False
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
             # loop does redundant computation
-            if loop.upper_bound_index:
+            if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
-                depth = loop.upper_bound_index
+                depth = loop.upper_bound_halo_depth
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
@@ -2739,9 +2739,9 @@ class HaloReadAccess(HaloDepth):
         # halo this field accesses
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
             # this loop performs redundant computation
-            if loop.upper_bound_index:
+            if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
-                self._literal_depth = loop.upper_bound_index
+                self._literal_depth = loop.upper_bound_halo_depth
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
@@ -2842,18 +2842,23 @@ class DynLoop(Loop):
         self._lower_bound_name = None
         self._lower_bound_index = None
         self._upper_bound_name = None
-        self._upper_bound_index = None
+        self._upper_bound_halo_depth = None
 
     def view(self, indent=0):
-        ''' Print out a textual representation of this loop. We override
-        this method from the Loop class because, in Dynamo0.3, the
-        function space is now an object and we need to call orig_name on
-        it. We
+        '''Print out a textual representation of this loop. We override this
+        method from the Loop class because, in Dynamo0.3, the function
+        space is now an object and we need to call orig_name on it. We
         also output the upper loop bound as this can now be
-        modified. '''
-        if self._upper_bound_index:
+        modified.
+
+        :param indent: optional argument indicating the level of
+        indentation to add before outputting the class information
+        :type indent: integer
+
+        '''
+        if self._upper_bound_halo_depth:
             upper_bound = "{0}({1})".format(self._upper_bound_name,
-                                            self._upper_bound_index)
+                                            self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
         print(self.indent(indent) + self.coloured_text + \
@@ -2922,7 +2927,14 @@ class DynLoop(Loop):
         self._lower_bound_index = index
 
     def set_upper_bound(self, name, index=None):
-        ''' Set the upper bounds of this loop '''
+        '''Set the upper bound of this loop
+
+        :param name: A loop upper bound name. This should be a supported name.
+        :type name: String
+        :param index: An optional argument indicating the depth of halo
+        :type index: int
+
+        '''
         if name not in VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
                 "The specified upper bound loop name is invalid. Expected one "
@@ -2935,7 +2947,7 @@ class DynLoop(Loop):
                     "The specified index '{0}' for this upper loop bound is "
                     "invalid".format(str(index)))
         self._upper_bound_name = name
-        self._upper_bound_index = index
+        self._upper_bound_halo_depth = index
 
     @property
     def upper_bound_name(self):
@@ -2943,10 +2955,18 @@ class DynLoop(Loop):
         return self._upper_bound_name
 
     @property
-    def upper_bound_index(self):
-        ''' Returns the index of the upper loop bound. Is None if upper
-        bound name is not "inner" or "cell_halo" '''
-        return self._upper_bound_index
+    def upper_bound_halo_depth(self):
+        '''Returns the index of the upper loop bound. This is None if the upper
+        bound name is not "cell_halo" or "dof_halo"
+
+        :return: the depth of the halo for a loops upper bound. If it
+        is None then a depth has not been provided. The depth value is only
+        valid when the upper-bound name is associated with a halo
+        e.g. 'cell_halo'
+        :rtype: int
+
+        '''
+        return self._upper_bound_halo_depth
 
     def _lower_bound_fortran(self):
         ''' Create the associated fortran code for the type of lower bound '''
@@ -2991,8 +3011,8 @@ class DynLoop(Loop):
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
         halo_index = ""
-        if self._upper_bound_index:
-            halo_index = str(self._upper_bound_index)
+        if self._upper_bound_halo_depth:
+            halo_index = str(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
             return "ncolour"
@@ -3144,51 +3164,57 @@ class DynLoop(Loop):
             # access is neither a read nor an inc so does not need halo
             return False
 
+    def _add_halo_exchange_code(self, halo_field, idx=None):
+        '''An internal helper method to add the halo exchange call immediately
+        before this loop using the halo_field argument for the
+        associated field information and the optional idx argument if
+        the field is a vector field.
+
+        In certain situations the halo exchange will not be
+        required. This is dealt with by adding the halo exchange,
+        asking it if it is required and then removing it if it is
+        not. This may seem strange but the logic for determining
+        whether a halo exchange is required is within the halo
+        exchange class so it is simplest to do it this way
+
+        :param halo_field: the argument requiring a halo exchange 
+        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :param index: optional argument providing the vector index if
+        there is one and None if not. Defaults to None.
+        :type index: int or None
+
+        '''        
+        exchange = DynHaloExchange(halo_field,
+                                   parent=self.parent,
+                                   vector_index=idx)
+        self.parent.children.insert(self.position,
+                                    exchange)
+        # check whether this halo exchange has been placed
+        # here correctly and if not, remove it.
+        write_dependencies = exchange.field.\
+                             backward_write_dependencies()
+        required, _ = exchange.required()
+        if not required:
+            exchange.parent.children.remove(exchange)
+        
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add a halo exchange call immediately
         before this loop using the halo_field argument for the
         associated field information. If the field is a vector then
-        add the appropriate number of halo exchange calls. In certain
-        situations the halo exchange will not be required. This is
-        dealt with by adding the halo exchange, asking it if it is
-        required and then removing it if it is not. This may seem
-        strange but the logic for determining whether a halo exchange
-        is required is within the halo exchange class so it is
-        simplest to do it this way
+        add the appropriate number of halo exchange calls.
 
         :param halo_field: the argument requiring a halo exchange 
         :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
         
         '''
-
         if halo_field.vector_size > 1:
             # the range function below returns values from
             # 1 to the vector size which is what we
             # require in our Fortran code
             for idx in range(1, halo_field.vector_size+1):
-                exchange = DynHaloExchange(halo_field,
-                                           parent=self.parent,
-                                           vector_index=idx)
-                self.parent.children.insert(self.position,
-                                            exchange)
-                # check whether this halo exchange has been placed
-                # here correctly and if not, remove it.
-                write_dependencies = exchange.field.\
-                                     backward_write_dependencies()
-                required, _ = exchange.required()
-                if write_dependencies and not required:
-                    exchange.parent.children.remove(exchange)
+                self._add_halo_exchange_code(halo_field, idx)
         else:
-            exchange = DynHaloExchange(halo_field,
-                                       parent=self.parent)
-            self.parent.children.insert(self.position, exchange)
-
-            # check whether this halo exchange has been placed here
-            # correctly and if not, remove it.
-            write_dependencies = exchange.field.backward_write_dependencies()
-            required, _ = exchange.required()
-            if write_dependencies and not required:
-                exchange.parent.children.remove(exchange)
+            self._add_halo_exchange_code(halo_field)
 
     def update_halo_exchanges(self):
         '''add and/or remove halo exchanges due to changes in the loops
@@ -3198,10 +3224,10 @@ class DynLoop(Loop):
         # loop for any fields in the loop that require a halo exchange
         # and don't already have one
         self.create_halo_exchanges()
-        # now removes any existing halo exchanges that are no longer
+        # Now remove any existing halo exchanges that are no longer
         # required. This is done by removing halo exchanges after this
-        # loop where a field in this loop previously depended on a
-        # halo exchange but no longer does
+        # loop where a field in this loop previously had a forward
+        # dependence on a halo exchange but no longer does
         for call in self.calls():
             for arg in call.arguments.args:
                 if arg.access in arg._writers:
@@ -3212,7 +3238,6 @@ class DynLoop(Loop):
                             # ask the halo exchange if it is required
                             halo_exchange = dep_arg.call
                             required, _ = halo_exchange.required()
-                            #if not halo_exchange.required:
                             if not required:
                                 halo_exchange.parent.children.remove(
                                     halo_exchange)
@@ -3233,7 +3258,8 @@ class DynLoop(Loop):
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
-                # exchange(s)
+                # exchange(s) as we don't know the state of the fields
+                # halo on entry to the invoke
                 self._add_halo_exchange(halo_field)
             else:
                 # field has one or more previous dependencies
@@ -3265,10 +3291,17 @@ class DynLoop(Loop):
                     self._add_halo_exchange(halo_field)
 
     def gen_code(self, parent):
-        ''' Work out the appropriate loop bounds and variable name
+        '''Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
-        generate the code. '''
+        generate the code.
 
+        :param parent: an f2pygen object that will be the parent of
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if a loop over colours is within an
+        OpenMP parallel region (as it must be serial)
+
+        '''
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
@@ -3303,7 +3336,7 @@ class DynLoop(Loop):
                 # first set all of the halo dirty unless we are
                 # subsequently going to set all of the halo clean
                 for field in fields:
-                    if not self._upper_bound_index and \
+                    if not self._upper_bound_halo_depth and \
                        (self._upper_bound_name == "dof_halo" or
                         (self._upper_bound_name == "cell_halo" and
                          field.discontinuous)):
@@ -3327,8 +3360,9 @@ class DynLoop(Loop):
                 # redundant computation has been performed
                 if self._upper_bound_name in ["cell_halo", "dof_halo"]:
                     for field in fields:
-                        if self._upper_bound_index:
-                            halo_depth = self._upper_bound_index
+                        if self._upper_bound_halo_depth:
+                            # halo exchange(s) is/are to a fixed depth
+                            halo_depth = self._upper_bound_halo_depth
                             if not field.discontinuous and \
                                self._upper_bound_name == "cell_halo":
                                 halo_depth -= 1
@@ -3353,9 +3387,14 @@ class DynLoop(Loop):
                                                 format(field.proxy_name,
                                                        halo_depth)))
                         else:
+                            # halo exchange(s) is/are to the full halo
+                            # depth (-1 if continuous)
                             halo_depth = "mesh%get_last_halo_depth()"
                             if self._upper_bound_name == "cell_halo" and not \
                                field.discontinuous:
+                                # a continuous field iterating over
+                                # cells leaves the outermost halo
+                                # dirty
                                 halo_depth += "-1"
                             if field.vector_size > 1:
                                 # the range function below returns
@@ -3596,8 +3635,19 @@ class DynKern(Kern):
         return arg
 
     def gen_code(self, parent):
-        ''' Generates dynamo version 0.3 specific psy code for a call to
-            the dynamo kernel instance. '''
+        '''Generates dynamo version 0.3 specific psy code for a call to
+            the dynamo kernel instance.
+
+        :param parent: an f2pygen object that will be the parent of
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if the loop goes beyond the level 1
+        halo and an operator is accessed
+        :raises GenerationError: if a kernel in the loop has an inc
+        access and the loop is not coloured but is within an OpenMP
+        parallel region.
+
+        '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, UseGen, \
             CommentGen
         parent.add(DeclGen(parent, datatype="integer",
@@ -3610,12 +3660,12 @@ class DynKern(Kern):
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
             if self.parent.upper_bound_name == "cell_halo" and \
-               self.parent.upper_bound_index > 1:
+               self.parent.upper_bound_halo_depth > 1:
                 raise GenerationError(
                     "Kernel '{0}' reads from an operator and therefore "
                     "cannot be used for cells beyond the level 1 halo. "
                     "However the containing loop goes out to level {1}".
-                    format(self._name, self.parent.upper_bound_index))
+                    format(self._name, self.parent.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
         # loop then we have to look-up the colour map

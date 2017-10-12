@@ -227,11 +227,12 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     "Error in DynamoLoopFuse transformation. The upper bound "
                     "names are not the same. Found '{0}' and '{1}'".
                     format(node1._upper_bound_name, node2._upper_bound_name))
-            if node1._upper_bound_index != node2._upper_bound_index:
+            if node1._upper_bound_halo_depth != node2._upper_bound_halo_depth:
                 raise TransformationError(
                     "Error in DynamoLoopFuse transformation. The upper bound "
                     "indices are not the same. Found '{0}' and '{1}'".
-                    format(node1._upper_bound_index, node2._upper_bound_index))
+                    format(node1._upper_bound_halo_depth,
+                           node2._upper_bound_halo_depth))
             from psyGen import MAPPING_SCALARS, MAPPING_REDUCTIONS
             arg_types = MAPPING_SCALARS.values()
             arg_accesses = MAPPING_REDUCTIONS.values()
@@ -1244,7 +1245,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         if depth is None:
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
-                if not node.upper_bound_index:
+                if not node.upper_bound_halo_depth:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
                         "apply method the loop is already set to the maximum "
@@ -1277,13 +1278,13 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "loop  modifies a continuous field")
 
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
-                if node.upper_bound_index:
-                    if node.upper_bound_index >= depth:
+                if node.upper_bound_halo_depth:
+                    if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(
                             "In the Dynamo0p3RedundantComputation transformation "
                             "apply method the supplied depth ({0}) must be "
                             "greater than the existing halo depth ({1})".
-                            format(depth, node.upper_bound_index))
+                            format(depth, node.upper_bound_halo_depth))
                 else:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
