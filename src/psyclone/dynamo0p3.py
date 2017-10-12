@@ -2201,7 +2201,7 @@ class DynHaloExchange(HaloExchange):
         '''
         # get information about stencil accesses from all read fields
         # dependendent on this halo exchange
-        halo_info_list = self._compute_halo_info()
+        halo_info_list = self._compute_halo_read_info()
 
         trial_stencil = halo_info_list[0].stencil_type
         for halo_info in halo_info_list:
@@ -2223,7 +2223,7 @@ class DynHaloExchange(HaloExchange):
         '''
         # get information about reading from the halo from all read fields
         # dependendent on this halo exchange
-        depth_info_list = self.compute_depth_info()
+        depth_info_list = self._compute_depth_info()
 
         # if there is only one entry in the list we can just return
         # the depth
@@ -2241,7 +2241,7 @@ class DynHaloExchange(HaloExchange):
             depth_str_list = [str(depth_info) for depth_info in depth_info_list]
             return "max("+",".join(depth_str_list)+")"
 
-    def compute_depth_info(self):
+    def _compute_depth_info(self):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and create
         an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
@@ -2254,7 +2254,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get our halo information
-        halo_info_list = self._compute_halo_info()
+        halo_info_list = self._compute_halo_read_info()
         # use the halo information to generate depth information
         depth_info_list = self._create_depth_list(halo_info_list)
         return depth_info_list
@@ -2317,7 +2317,7 @@ class DynHaloExchange(HaloExchange):
                 depth_info_list.append(depth_info)
         return depth_info_list
 
-    def _compute_halo_info(self):
+    def _compute_halo_read_info(self):
         '''Dynamically computes all halo read dependencies and returns the
         required halo information (i.e. halo depth and stencil type) in a
         list of HaloReadAccess objects
@@ -2333,16 +2333,24 @@ class DynHaloExchange(HaloExchange):
                 "dependence for a halo exchange")
         return [HaloReadAccess(read_dependency) for read_dependency in read_dependencies]
 
+    def _compute_halo_write_info(self):
+        '''Determines how much of the halo has been cleaned from any previous
+        redundant computation '''
+        write_dependencies = self.field.backward_write_dependencies()
+        if not write_dependencies:
+            # no write dependence information
+            return []
+        if len(write_dependencies) > 1:
+            raise GenerationError(
+                "Internal logic error. There should be at most one write "
+                "dependence for a halo exchange. Found "
+                "'{0}'".format(str(len(write_dependencies))))
+        return HaloWriteAccess(write_dependencies[0])
+
     def _requires_runtime_check_dirty(self):
         '''Determines whether we know that we need a halo exchange or are not
         sure. We only definitely know when both the amount of
         redundant computation performed by the writer and the amount
-        of halo required by the reader(s) are known. If we are not
-        sure then we need to rely on the runtime (set_dirty and
-        set_clean calls) and therefore add a check_dirty() call around
-        the halo exchange. This routine should not be called when we
-        know that this halo exchange is not required (see required()
-        method).
 
         :return: False if we know that we need a halo exchange (so we
         do not need to add a check_dirty call to the fortran code) and
@@ -2357,21 +2365,26 @@ class DynHaloExchange(HaloExchange):
         if not write_dependencies:
             # the write dependency is not in this invoke so we do not
             # know how much of the halo is cleaned. Therefore we need
-            # to check dynamically.
+            # to check at runtime.
             return True
-        
-        cleaned_info = self._compute_halo_cleaned_info()
-        required_clean_info = self.compute_depth_info()
 
-        if cleaned_info.max_depth:
-            if not cleaned_info.dirty_outer:
+        # find out which parts of the halo have been written to (and
+        # are therefore clean)
+        clean_info = self._compute_halo_write_info()
+        # find out which parts of the halo will be read (and
+        # therefore need to be clean)
+        required_clean_info = self._compute_depth_info()
+
+        if clean_info.max_depth:
+            if not clean_info.dirty_outer:
+                # all of the halo will be clean so we know that this
+                # halo exchange is not required
                 raise GenerationError(
-                    "Internal error: this method should not be called as the "
-                    "full halo is written to, so this halo exchange is not "
-                    "required")
+                    "Internal error: the requires_runtime_check_dirty method "
+                    "should not be called when the full halo is written to as "
+                    "it means that this halo exchange is not required")
             else:  # dirty_outer is True
-                # the last level halo remains dirty (but we don't know
-                # the depth of the last level halo)
+                # the last level halo remains dirty
                 if required_clean_info[0].max_depth:
                     # we know that we need to clean the outermost halo
                     return False
@@ -2381,76 +2394,220 @@ class DynHaloExchange(HaloExchange):
                     # a specified depth but we don't know the depth
                     # of the halo
                     return True
-        if not cleaned_info.literal_depth:
+        if not clean_info.literal_depth:
             # the writer does not redundantly compute so we definitely
             # need the halo exchange
             return False
-        if cleaned_info.literal_depth == 1 and cleaned_info.dirty_outer:
+        if clean_info.literal_depth == 1 and clean_info.dirty_outer:
             # the writer redundantly computes in the level 1 halo but
             # leaves it dirty so we definitely need the halo exchange
             return False
 
+        # if we get to this point then we know that the halo is written
+        # to a known literal depth
+        
         if len(required_clean_info) == 1:
-            # we might have a fixed upper bound
+            # the halo might be read to a fixed literal depth
             if not (required_clean_info[0].var_depth or
                     required_clean_info[0].max_depth):
-                # we have a fixed upper bound (and a known cleaned
-                # depth) so we know the size of halo required
+                # the halo is read to a fixed literal depth.  As both
+                # reader and writer are to a fixed literal depth we
+                # know we need a halo exchange (or we know we don't
+                # but that would be an error)
                 return False
-        # the reader does not have a fixed upper bound so we do not
-        # know whether we need the halo exchange or not
+        # there is more than one reader dependency which means at
+        # least one of them uses a variable to specify the depth so we
+        # don't know whether we need the halo exchange or not
         return True
 
-    @property
     def required(self):
-        '''Determines whether this halo exchange is required or not. A halo
-        exchange is only ever added if it is required, or if it may be
-        required. However this situation can change if transformations add
-        in redundant computation'''
-        cleaned_info = self._compute_halo_cleaned_info()
-        if cleaned_info.max_depth and not cleaned_info.dirty_outer:
+        '''Determines whether this halo exchange is definitely required (True,
+        True), might be required (True, False) or is definitely not required
+        (False, *). The first return argument is used to decide whether a halo
+        exchange should exist. If it is True then the halo is required or
+        might be required. If it is False then the halo is definitely not
+        required. The second argument is used to specify whether we definitely
+        know that it is required or are not sure.
+
+        Whilst a halo exchange is only ever added if it is required,
+        or if it may be required, this situation can change if
+        redundant computation transformations are applied. The first
+        argument can be used to remove such halo exchanges if
+        required.
+
+        When the first argument is True, the second argument can be
+        used to see if we need to rely on the runtime (set_dirty and
+        set_clean calls) and therefore add a check_dirty() call around
+        the halo exchange or whether we definitely know that this halo
+        exchange is required.
+
+        :return: Returns (x, y) where x specifies whether this halo
+        exchange is (or might be) required - True, or is not required
+        - False. If the first argument is True then the second
+        argument specifies whether we definitely know that we need the
+        HaloExchange - True, or are not sure - False.
+        :rtype: (Bool, Bool)
+
+        '''
+        required_clean_info = self._compute_depth_info()
+        clean_info = self._compute_halo_write_info()
+
+        if not required_clean_info:
+            # this halo exchange has no read dependencies
+            raise GenerationError("")
+
+        if not clean_info:
+            # this halo exchange has no previous write dependencies so
+            # we do not know the initial state of the halo. This means
+            # that we do not know if we need a halo exchange or not
+            required = True
+            known = False
+            return required, known
+
+        if clean_info.max_depth:
+            if not clean_info.dirty_outer:
+                # all of the halo is cleaned by redundant computation
+                # so halo exchange is not required
+                required = False
+                known = True  # redundant information as it is always known
+            else:
+                # the last level halo is dirty
+                if required_clean_info[0].max_depth:
+                    # we know that we need to clean the outermost halo
+                    required = True
+                    known = True
+                else:
+                    # we don't know whether the halo exchange is
+                    # required or not as the reader reads the halo to
+                    # a specified depth but we don't know the depth
+                    # of the halo
+                    required = True
+                    known = False
+            return required, known
+
+        # at this point we know that max_depth is False
+        
+        if not clean_info.literal_depth:
+            # if literal_depth is 0 then the writer does not
+            # redundantly compute so we definitely need the halo
+            # exchange
+            required = True
+            known = True
+            return required, known
+
+        if clean_info.literal_depth == 1 and clean_info.dirty_outer:
+            # the writer redundantly computes in the level 1 halo but
+            # leaves it dirty so we definitely need the halo exchange
+            required = True
+            known = True
+            return required, known
+
+        # At this point we know that the writer cleans the halo to a
+        # known (literal) depth. If the reader also cleans the halo to
+        # a known literal depth then we will be able to determine
+        # whether the halo exchange is required or not, otherwise we
+        # will not know.
+
+        if len(required_clean_info) == 1:
+            # the halo might be read to a fixed literal depth
+            if required_clean_info[0].var_depth or required_clean_info[0].max_depth:
+                # no it isn't so we might need the halo exchange
+                required = True
+                known = False
+            else:
+                # the halo is read to a fixed literal depth.
+                required_clean_depth = required_clean_info[0].literal_depth
+                # determine the depth that is cleaned by redundant computation
+                clean_depth = clean_info.literal_depth
+                if clean_info.dirty_outer:
+                    # outer layer stays dirty
+                    clean_depth -= 1
+                if clean_depth < required_clean_depth:
+                    # we definitely need this halo exchange
+                    required = True
+                    known = True
+                else:
+                    # we definitely don't need this halo exchange
+                    required = False
+                    known = True  # redundant information as it is always known
+            return required, known
+
+        # required_clean info has more than one entry. This means that
+        # at least one entry has a variable depth so we might need the
+        # halo exchange
+        required = True
+        known = False
+        return required, known
+
+    @property
+    def required_old(self):
+        '''Determines whether this halo exchange is definitely required (True,
+        True), might be required (True, False) or is definitely not required
+        (False, *). The first return argument is used to decide whether a halo
+        exchange should exist. If it is True then the halo is required or
+        might be required. If it is False then the halo is definitely not
+        required. The second argument is used to specify whether we definitely
+        know that it is required or are not sure.
+
+        Whilst a halo exchange is only ever added if it is required,
+        or if it may be required, this situation can change if
+        redundant computation transformations are applied. The first
+        argument can be used to remove such halo exchanges if
+        required.
+
+        When the first argument is True, the second argument can be
+        used to see if we need to rely on the runtime (set_dirty and
+        set_clean calls) and therefore add a check_dirty() call around
+        the halo exchange or whether we definitely know that this halo
+        exchange is required.
+
+        :return: Returns (x, y) where x specifies whether this halo
+        exchange is (or might be) required - True, or is not required
+        - False. If the first argument is True then the second
+        argument specifies whether we definitely know that we need the
+        HaloExchange - True, or are not sure - False.
+        :rtype: (Bool, Bool)
+
+        '''
+
+        # determine information about what has been cleaned due to
+        # redundant computation
+        clean_info = self._compute_halo_write_info()
+        if clean_info.max_depth and not clean_info.dirty_outer:
             # we redundantly compute the whole halo so a halo exchange
             # is not required
             return False
-        required_clean_info = self.compute_depth_info()
+        # determine information about 
+        required_clean_info = self._compute_depth_info()
         if len(required_clean_info) == 1:
             # we might have a fixed upper bound
             if not (required_clean_info[0].var_depth or
                     required_clean_info[0].max_depth):
                 # we do have a fixed upper bound
                 required_clean_ub = required_clean_info[0].literal_depth
-                if not cleaned_info.max_depth:
+                if not clean_info.max_depth:
                     # we have a literal upper bound
-                    cleaned_ub = cleaned_info.literal_depth
-                    if cleaned_info.dirty_outer:
+                    clean_ub = clean_info.literal_depth
+                    if clean_info.dirty_outer:
                         # redundant computation in outer level does
                         # not clean so reduce cleaned upper bound by 1
-                        cleaned_ub -= 1
-                    if cleaned_ub >= required_clean_ub:
+                        clean_ub -= 1
+                    if clean_ub >= required_clean_ub:
                         # halo exchange is not required
                         return False
         # this halo exchange is, or may be, required
         return True
 
-    def _compute_halo_cleaned_info(self):
-        '''Determines how much of the halo has been cleaned from any previous
-        redundant computation '''
-        write_dependencies = self.field.backward_write_dependencies()
-        if len(write_dependencies) != 1:
-            raise GenerationError(
-                "Internal logic error. There should be one and only one write "
-                "dependence for a halo exchange. Found "
-                "'{0}'".format(str(len(write_dependencies))))
-        return HaloWriteAccess(write_dependencies[0])
-
     def view(self, indent=0):
         ''' Class specific view  '''
+        _, known = self.required()
+        runtime_check = not known
         print self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._compute_stencil_type(),
                                       self._compute_halo_depth(),
-                                      self._requires_runtime_check_dirty()))
+                                      runtime_check))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''
@@ -2459,7 +2616,8 @@ class DynHaloExchange(HaloExchange):
             ref = "(" + str(self.vector_index) + ")"
         else:
             ref = ""
-        if self._requires_runtime_check_dirty():
+        _, known = self.required()
+        if not known:
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
                                 "%is_dirty(depth=" + self._compute_halo_depth() +
                                 ")")
@@ -2485,9 +2643,9 @@ class HaloDepth(object):
     def max_depth(self):
         '''Returns whether the field is known to access all of the halo or not
 
-        :return max_depth: Return True if the field accesses all of
+        :return: Return True if the field accesses all of
         the halo and False otherwise
-        :rtype max_depth: Bool
+        :rtype: Bool
 
         '''
         return self._max_depth
@@ -2499,9 +2657,9 @@ class HaloDepth(object):
         stencil accesses. Also note, this depth should be added to the
         literal_depth to find the total depth.
 
-        :return var_depth: Return a variable name specifying the halo
+        :return: Return a variable name specifying the halo
         access depth, if one exists, and None if not
-        :rtype var_depth: String
+        :rtype: String
 
         '''
         return self._var_depth
@@ -2512,9 +2670,9 @@ class HaloDepth(object):
         depth should be added to the var_depth to find the total
         depth.
 
-        :return literal_depth: Return the known fixed (literal) halo
+        :return: Return the known fixed (literal) halo
         access depth
-        :rtype literal_depth: integer
+        :rtype: integer
 
         '''
         return self._literal_depth
@@ -2523,9 +2681,9 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :return value: Set the known fixed (literal) halo
+        :return: Set the known fixed (literal) halo
         access depth
-        :rtype value: integer
+        :rtype: integer
 
         '''
         self._literal_depth = value
@@ -2572,8 +2730,8 @@ def halo_check_arg(field, access_types):
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
     :param access_types: list of access types that the field access must be one of
     :type access_types: :func:`list` of String
-    :return call: the call containing the argument object
-    :rtype call: :py:class:`psyclone.psyGen.Call`
+    :return: the call containing the argument object
+    :rtype: :py:class:`psyclone.psyGen.Call`
     :raises GenerationError: if the first argument to this function is the wrong type
     :raises GenerationError: if the first argument is not accessed in
     one of the ways specified by the second argument to the function
@@ -2619,9 +2777,9 @@ class HaloWriteAccess(HaloDepth):
         been written to is actually dirty (well to be precise it is a partial
         sum).
 
-        :return dirty_outer: Return True if the outer layer of halo
+        :return: Return True if the outer layer of halo
         that is written to remains dirty and False otherwise.
-        :rtype dirty_outer: Bool
+        :rtype: Bool
 
         '''
         return self._dirty_outer
@@ -2682,9 +2840,9 @@ class HaloReadAccess(HaloDepth):
         a subset of the halo) then the access is assumed to be full
         access for all depths.
 
-        :return stencil_type: Return the type of stencil access used
+        :return: Return the type of stencil access used
         or None if there is no stencil.
-        :rtype stencil_type: String
+        :rtype: String
 
         '''
         return self._stencil_type
@@ -3099,8 +3257,6 @@ class DynLoop(Loop):
                 return False
             else:
                 # nothing should get to here so raise an exception
-                print "arg access is {0}".format(arg.access)
-                print "Upper bound name is {0}".format(self._upper_bound_name)
                 raise GenerationError(
                     "Internal error in _halo_read_access. It should not be "
                     "possible to get to here. loop upper bound name is '{0}' "
@@ -3137,7 +3293,9 @@ class DynLoop(Loop):
                 write_dependencies = exchange.field.\
                                      backward_write_dependencies()
                 if len(write_dependencies) > 0:
-                    if not exchange.required:
+                    required, _ = exchange.required()
+                    #if not exchange.required:
+                    if not required:
                         exchange.parent.children.remove(exchange)
         else:
             exchange = DynHaloExchange(halo_field,
@@ -3148,7 +3306,9 @@ class DynLoop(Loop):
             # correctly and if not, remove it.
             write_dependencies = exchange.field.backward_write_dependencies()
             if len(write_dependencies) > 0:
-                if not exchange.required:
+                required, _ = exchange.required()
+                #if not exchange.required:
+                if not required:
                     exchange.parent.children.remove(exchange)
 
     def update_halo_exchanges(self):
@@ -3172,7 +3332,9 @@ class DynLoop(Loop):
                             # found a halo exchange as a forward dependence
                             # ask the halo exchange if it is required
                             halo_exchange = dep_arg.call
-                            if not halo_exchange.required:
+                            required, _ = halo_exchange.required()
+                            #if not halo_exchange.required:
+                            if not required:
                                 halo_exchange.parent.children.remove(
                                     halo_exchange)
 

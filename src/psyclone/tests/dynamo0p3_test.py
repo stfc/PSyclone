@@ -6998,7 +6998,7 @@ def test_halo_different_stencils_no_redundant_computation():
 
 
 def test_halo_compute_halo_internal_error(monkeypatch):
-    '''Check that we raise an exception if the compute_halo_info method in
+    '''Check that we raise an exception if the compute_halo_read_info method in
     dynhaloexchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
     raised'''
@@ -7010,7 +7010,7 @@ def test_halo_compute_halo_internal_error(monkeypatch):
     field = halo_exchange.field
     monkeypatch.setattr(field, "forward_read_dependencies", lambda fs=None: [])
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_info()
+        halo_exchange._compute_halo_read_info()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
 
@@ -7028,18 +7028,14 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda fs=None: [1, 1])
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_cleaned_info()
-    assert ("Internal logic error. There should be one and only one "
+        halo_exchange._compute_halo_write_info()
+    assert ("Internal logic error. There should be at most one "
             "write dependence for a halo exchange. Found "
             "'2'") in str(excinfo.value)
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda fs=None: [])
-    with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_cleaned_info()
-    assert ("Internal logic error. There should be one and only one "
-            "write dependence for a halo exchange. Found "
-            "'0'") in str(excinfo.value)
+    assert halo_exchange._compute_halo_write_info() == []
 
 
 def test_halo_exchange_backward_dependence_no_call(monkeypatch):
@@ -7057,7 +7053,7 @@ def test_halo_exchange_backward_dependence_no_call(monkeypatch):
     monkeypatch.setattr(write_dependency, "call",
                         lambda fs=None: halo_exchange)
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_cleaned_info()
+        halo_exchange._compute_halo_write_info()
     assert ("Generation Error: In HaloInfo class, field 'f2' should be from a "
             "call but found <type 'function'>") in str(excinfo.value)
 
@@ -7112,7 +7108,7 @@ def test_HaloReadAccess_field_not_reader():
 
 
 def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
-    '''The upper bound of a loop in the compute_halo_info method within
+    '''The upper bound of a loop in the compute_halo_read_info method within
     the HaloReadAccesss class hould be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
@@ -7128,7 +7124,7 @@ def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
     loop = read_dependency.call.parent
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
-        halo_exchange._compute_halo_info()
+        halo_exchange._compute_halo_read_info()
     assert ("Internal error in HaloReadAccess._compute_from_field. Found "
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
