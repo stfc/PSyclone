@@ -7284,3 +7284,24 @@ def test_create_halo_exchanges_vector_dependencies(monkeypatch):
     assert (
         "Error in create_halo_exchanges. Expecting all dependent nodes to be "
         "halo exchanges")
+
+
+def test_halo_required_no_read_dependencies(monkeypatch):
+    '''If the required method in a halo exchange object does not find any
+    read dependencies then there has been an internal error and an
+    exception will be raised. This test checks that this exception is
+    raised correctly.'''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    halo_exchange = schedule.children[0]
+    field = halo_exchange.field
+
+    monkeypatch.setattr(field, "_name", "unique")
+
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = halo_exchange.required()
+    assert ("Internal logic error. There should be at least one read "
+            "dependence for a halo exchange" in str(excinfo.value))

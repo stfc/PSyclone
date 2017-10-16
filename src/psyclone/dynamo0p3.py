@@ -2368,6 +2368,13 @@ class DynHaloExchange(HaloExchange):
         the halo exchange or whether we definitely know that this halo
         exchange is required.
 
+        This routine assumes that a stencil size provided via a
+        variable may take the value 0. If a variables value is
+        constrained to be 1, or more, then the logic for deciding
+        whether a halo exchange is definitely required should be
+        updated. Note, the routine would still be correct as is, it
+        would just return more unknown results than it should).
+
         :return: Returns (x, y) where x specifies whether this halo
         exchange is (or might be) required - True, or is not required
         - False. If the first argument is True then the second
@@ -2376,17 +2383,15 @@ class DynHaloExchange(HaloExchange):
         :rtype: (Bool, Bool)
 
         '''
-        # get information about halo reads
+        # get *aggregated* information about halo reads
         required_clean_info = self._compute_halo_read_depth_info()
-        # get information about halo writes
+        # get information about the halo write
         clean_info = self._compute_halo_write_info()
 
-        if not required_clean_info:
-            # this halo exchange has no read dependencies
-            raise GenerationError(
-                "Internal error in required method in DynHaloExchange class. "
-                "We should always have at least one read dependency")
-
+        # no need to test whether we return at least one read
+        # dependency as _compute_halo_read_depth_info() raises an
+        # exception if none are found
+        
         if not clean_info:
             # this halo exchange has no previous write dependencies so
             # we do not know the initial state of the halo. This means
@@ -2434,11 +2439,32 @@ class DynHaloExchange(HaloExchange):
             return required, known
 
         # At this point we know that the writer cleans the halo to a
-        # known (literal) depth. If the reader also cleans the halo to
-        # a known literal depth then we will be able to determine
-        # whether the halo exchange is required or not, otherwise we
-        # will not know.
+        # known (literal) depth through redundant computation. We now
+        # compute this value for use by the logic in the rest of the
+        # routine.
+        clean_depth = clean_info.literal_depth
+        if clean_info.dirty_outer:
+            # outer layer stays dirty
+            clean_depth -= 1
 
+        # If a literal value in any of the required clean halo depths
+        # is greater than the cleaned depth then we definitely need
+        # the halo exchange (as any additional variable depth would
+        # increase the required depth value). We only look at the case
+        # where we have multiple entries as the single entry case is
+        # dealt with separately
+        if len(required_clean_info) > 1:
+            for required_clean in required_clean_info:
+                if required_clean.literal_depth > clean_depth:
+                    required = True
+                    known = True
+                    return required, known
+
+        # The only other case where we know that a halo exchange is
+        # required (or not) is where we read the halo to a known
+        # literal depth. As the read inforation is aggregated, a known
+        # literal depth will mean that there is only one
+        # required_clean_info entry
         if len(required_clean_info) == 1:
             # the halo might be read to a fixed literal depth
             if required_clean_info[0].var_depth or required_clean_info[0].max_depth:
@@ -2448,11 +2474,6 @@ class DynHaloExchange(HaloExchange):
             else:
                 # the halo is read to a fixed literal depth.
                 required_clean_depth = required_clean_info[0].literal_depth
-                # determine the depth that is cleaned by redundant computation
-                clean_depth = clean_info.literal_depth
-                if clean_info.dirty_outer:
-                    # outer layer stays dirty
-                    clean_depth -= 1
                 if clean_depth < required_clean_depth:
                     # we definitely need this halo exchange
                     required = True
@@ -2463,9 +2484,9 @@ class DynHaloExchange(HaloExchange):
                     known = True  # redundant information as it is always known
             return required, known
 
-        # required_clean info has more than one entry. This means that
-        # at least one entry has a variable depth so we might need the
-        # halo exchange
+        # We now know that at least one required_clean entry has a
+        # variable depth and any required_clean fixed depths are less
+        # than the cleaned depth so we may need a halo exchange.
         required = True
         known = False
         return required, known

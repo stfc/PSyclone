@@ -4791,4 +4791,98 @@ def test_loop_fusion_different_loop_name():
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
-            "are not the same. Found 'cell_halo' and 'ncells'")
+            "are not the same. Found 'cell_halo' and 'ncells'"
+            in str(excinfo.value))
+
+def test_redundant_computation_max_w_to_r_continuous_known_halo():
+    '''If we have a continuous field being written to in one loop to the
+    maximum halo depth and then being read in a following (dependent) loop
+    to the maximum halo depth we can determine that we definitely need a
+    halo exchange (at the outermost halo level). This test checks that a
+    halo with no runtime checking is produced for this case.'''
+    
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    w_loop = schedule.children[2]
+    r_loop = schedule.children[5]
+
+    # make both the writer and reader loops use the full halo
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(w_loop)
+    rc_trans.apply(r_loop)
+
+    w_to_r_halo_exchange = schedule.children[4]
+
+    # sanity check that the halo exchange goes to the full halo depth
+    assert ("mesh%get_last_halo_depth()" ==
+            w_to_r_halo_exchange._compute_halo_depth())
+
+    # the halo exchange should be both required to be added and known
+    # to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert known
+
+def test_red_comp_w_to_multi_r_clean_gt_cleaned():
+    '''Tests the case where we have multiple (derived) read dependence
+    entries and one of them has a literal depth value (and no
+    associated variable) and we write redundantly into the halo with a
+    literal depth. Depending on the literal values of the halo-reads
+    and the halo-depth of the redundant write we may, or may not, know
+    that we need a halo exchange. This test checks that we get the
+    expected behaviour.
+
+    '''    
+    # The initial test case writes to a field over dofs, then reads
+    # the halo to depth 2 with a stencil, then reads the halo to a
+    # variable depth with a stencil
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.11_halo_required_clean_multi.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    w_loop = schedule.children[0]
+    w_to_r_halo_exchange = schedule.children[1]
+
+    # make the writer loop write redundantly into the level 1 halo. We
+    # now make the level one halo clean but we still definitely need a
+    # halo exchange as one of the readers reads the halo to level 2
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(w_loop, depth=1)
+
+    # the halo exchange should be both required and known to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert known
+
+    # make the writer loop write redundantly into the level 2 halo. We
+    # now make the level two halo clean so the reader that reads to
+    # the level 2 halo does not need a halo exchange, but another
+    # reader reads to a variable level so we are not sure if we need a
+    # halo exchange or not.
+    rc_trans.apply(w_loop, depth=2)
+
+    w_to_r_halo_exchange = schedule.children[1]
+
+    # the halo exchange should be required but not known to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert not known
+
+    # make the reader loop with a variable size also write redundantly
+    # into the level 3 halo. We now know that we need a halo exchange
+    # as the minimum halo depth that needs to be clean is level 3 and
+    # we only clean up to the level 2 halo.
+    r_var_stencil_loop = schedule.children[2]
+    rc_trans.apply(r_var_stencil_loop, depth=3)
+
+    w_to_r_halo_exchange = schedule.children[1]
+
+    # the halo exchange should be required and known to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert known
+
