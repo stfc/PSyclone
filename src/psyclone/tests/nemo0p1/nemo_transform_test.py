@@ -2,10 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +58,7 @@ def test_explicit_gen():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('explicit_do').schedule
     tinfo = TransInfo()
-    omp_trans = tinfo.get_trans_name('OMPParallelLoopTrans')
+    omp_trans = tinfo.get_trans_name('NemoOMPParallelLoopTrans')
 
     for loop in schedule.loops():
         kernel = loop.kernel
