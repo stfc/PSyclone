@@ -120,10 +120,9 @@ def translate_ast(node, parent, indent=0, debug=False):
     from fparser import Fortran2003
     from habakkuk.parse2003 import walk_ast
     cblock_list = []
-    # Depending on their level in the tree produced by fparser2003,
-    # some nodes have children listed in .content and some have them
-    # listed under .items. If a node has neither then it has no
-    # children.
+    # If a node is an instance of Fortran2003.BlockBase then it has children
+    # listed in .content. Otherwise, it has children listed under
+    # .items. If a node has neither then it has no children.
     if hasattr(parent, "content"):
         children = parent.content
     elif hasattr(parent, "items"):
@@ -134,6 +133,7 @@ def translate_ast(node, parent, indent=0, debug=False):
     code_block_statements = []
 
     for idx, child in enumerate(children[:]):
+        child._parent = parent # ARPDBG - retro-fix parent
         if debug:
             print indent*"  " + "child type = ", type(child)
             
@@ -176,13 +176,14 @@ def translate_ast(node, parent, indent=0, debug=False):
             if is_kern and ((loop_var == "jk" and len(nested_loops) == 2) or
                             (loop_var == "jj" and len(nested_loops) == 1)):
                 depth = 0
-                ploop = NEMOLoop(parent=node, loop_ast=ctrl[depth],
+                ploop = NEMOLoop(parent=node, loop_ast=child, #ctrl[depth],
                                  loop_var=loop_var, contains_kern=True)
                 node.addchild(ploop)
                 for loop in nested_loops:
                     depth += 1
                     loop_var = str(ctrl[depth].items[0])
-                    nloop = NEMOLoop(parent=ploop, loop_ast=ctrl[depth],
+                    nloop = NEMOLoop(parent=ploop,
+                                     loop_ast=loop, #ctrl[depth],
                                      loop_var=loop_var)
                     ploop.addchild(nloop)
                     ploop = nloop
@@ -191,7 +192,7 @@ def translate_ast(node, parent, indent=0, debug=False):
                 kern.load(child, parent=ploop)
                 ploop.addchild(kern)
             else:
-                loop = NEMOLoop(parent=node, loop_ast=ctrl[0],
+                loop = NEMOLoop(parent=node, loop_ast=child,
                                 loop_var=loop_var)
                 node.addchild(loop)
                 translate_ast(loop, child, indent+1, debug)
@@ -530,8 +531,12 @@ class NEMOLoop(Loop):
         in the Dynamo api. '''
     def __init__(self, parent=None, topology_name="", loop_type="",
                  loop_ast=None, loop_var=None, contains_kern=False):
+        from fparser import Fortran2003
+        from habakkuk.parse2003 import walk_ast
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
+
+        ctrl = walk_ast(loop_ast.content, [Fortran2003.Loop_Control])
 
         # Whether or not this Loop is associated with a kernel
         self._contains_kern = contains_kern
@@ -561,8 +566,10 @@ class NEMOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
-        self._lower_bound = str(loop_ast.items[1][0])
-        self._upper_bound = str(loop_ast.items[1][1])
+        self._lower_bound = str(ctrl[0].items[1][0])
+        self._upper_bound = str(ctrl[0].items[1][1])
+        # Keep a pointer to the location of this loop in the fparser2 AST
+        self._ast = loop_ast
 
     def view(self, indent=0):
         ''' Print a representation of this Loop to stdout '''
