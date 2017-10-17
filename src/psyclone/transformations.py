@@ -229,7 +229,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     format(node1._upper_bound_name, node2._upper_bound_name))
             if node1._upper_bound_halo_depth != node2._upper_bound_halo_depth:
                 raise TransformationError(
-                    "Error in DynamoLoopFuse transformation. The upper bound "
+                    "Error in DynamoLoopFuse transformation. The halo-depth "
                     "indices are not the same. Found '{0}' and '{1}'".
                     format(node1._upper_bound_halo_depth,
                            node2._upper_bound_halo_depth))
@@ -1264,7 +1264,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
             if not isinstance(depth, int):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation apply "
-                    "method the supplied depth should be an integer")
+                    "method the supplied depth should be an integer but found "
+                    "type '{0}'".format(type(depth)))
             if depth < 1:
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation apply "
@@ -1275,7 +1276,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation apply "
                     "method the supplied depth must be greater than 1 as this "
-                    "loop  modifies a continuous field")
+                    "loop modifies a continuous field")
 
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
                 if node.upper_bound_halo_depth:

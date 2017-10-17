@@ -3649,15 +3649,11 @@ def test_move_fail():
 
 
 def test_redundant_computation_str():
-    '''Test the str method of the Dynamo0p3RedundantComputationTrans class'''
+    '''Test the str method and name property of the
+    Dynamo0p3RedundantComputationTrans class'''
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
-
-
-def test_redundant_computation_name():
-    ''' Test the name property of the Dynamo0p3RedundantComputationTrans class '''
-    rc_trans = Dynamo0p3RedundantComputationTrans()
     name = rc_trans.name
     assert name == "RedundantComputation"
 
@@ -3698,7 +3694,7 @@ def test_redundant_computation_invalid_loop(monkeypatch):
             "found 'colours'") in str(excinfo)
 
 
-def test_redundant_computation_nodm(monkeypatch):
+def test_redundant_computation_nodm():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if
     distributed memory is not set'''
     _, info = parse(os.path.join(BASE_PATH,
@@ -3709,8 +3705,6 @@ def test_redundant_computation_nodm(monkeypatch):
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "DISTRIBUTED_MEMORY", False)
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
@@ -3748,15 +3742,16 @@ def test_redundant_computation_invalid_depth_continuous():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=1)
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the supplied depth must be greater than 1") in str(excinfo)
+            "the supplied depth must be greater than 1 as this loop modifies "
+            "a continuous field") in str(excinfo)
 
 
 def test_redundant_computation_continuous_depth():
     '''Test that the loop bounds for a continuous kernel (iterating over
-    cells) are modified appropriately and set_clean() added correctly
-    and halo_exchange modified appropriately after applying the
-    redundant computation transformation with a fixed value for halo
-    depth'''
+    cells) are modified appropriately, that set_clean() is added
+    correctly and halo_exchange modified appropriately after applying
+    the redundant computation transformation with a fixed value for
+    halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3775,15 +3770,15 @@ def test_redundant_computation_continuous_depth():
         assert ("CALL {0}_proxy%halo_exchange(depth=3)".
                 format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(2)" in result
+    assert ("      CALL f1_proxy%set_dirty()\n"
+            "      CALL f1_proxy%set_clean(2)") in result
 
 
 def test_redundant_computation_continuous_no_depth():
     '''Test that the loop bounds for a continuous kernel (iterating over
-    cells) are modified appropriately and set_clean() added correctly
-    and halo_exchange modified appropriately after applying the
-    redundant computation transformation with no value for halo
+    cells) are modified appropriately, that set_clean() is added
+    correctly and halo_exchange modified appropriately after applying
+    the redundant computation transformation with no value for halo
     depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
@@ -3798,13 +3793,14 @@ def test_redundant_computation_continuous_no_depth():
     result = str(psy.gen)
     print result
     for field_name in ["f2", "m1", "m2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
-                "THEN".format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
+        assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_"
+                "depth())) THEN\n"
+                "        CALL {0}_proxy%halo_exchange(depth=mesh%"
                 "get_last_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth()-1)" in result
+    assert ("      CALL f1_proxy%set_dirty()\n"
+            "      CALL f1_proxy%set_clean(mesh%get_last_halo_depth"
+            "()-1)") in result
 
 
 def test_redundant_computation_discontinuous_depth():
@@ -3826,13 +3822,12 @@ def test_redundant_computation_discontinuous_depth():
     result = str(psy.gen)
     print result
     for field_name in ["f1", "f2", "m1"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
-                format(field_name)) in result
-        assert ("CALL {0}_proxy%halo_exchange(depth=3)".
+        assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL {0}_proxy%halo_exchange(depth=3)".
                 format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
-    assert "CALL m2_proxy%set_dirty()" in result
-    assert "CALL m2_proxy%set_clean(3)" in result
+    assert ("      CALL m2_proxy%set_dirty()\n"
+            "      CALL m2_proxy%set_clean(3)") in result
 
 
 def test_redundant_computation_discontinuous_no_depth():
@@ -4080,9 +4075,8 @@ def test_redundant_computation_all_discontinuous_prev_dep_no_depth_vector():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
+    assert "is_dirty" not in result
     for idx in range(1, 4):
-        assert ("IF (f1_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth("
-                "))) THEN".format(idx)) not in result
         assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_"
                 "depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
@@ -4171,12 +4165,21 @@ def test_redundant_computation_dofs_depth_prev_dep():
     for field_name in ["f1", "f2"]:
         assert ("CALL {0}_proxy%halo_exchange(depth=3"
                 ")".format(field_name)) in result
+    # there is no need for a run-time is_dirty check for field f1 as
+    # we know that we need a halo exchange. We know this as f1 is
+    # modified in an earlier loop which leaves all of f1's halo
+    # dirty. As we know that we need the halo to be clean to depth 3
+    # we can be certain we need a halo exchange.
     assert ("IF (f1_proxy%is_dirty(depth=3)) "
             "THEN") not in result
+    # there is a need for a run-time is_dirty check for field f2 as
+    # this field is not modified in this invoke and therefore its halo
+    # is in an unknown state before it is read
     assert ("IF (f2_proxy%is_dirty(depth=3)) "
             "THEN") in result
 
-    # check the existing m1 and m2 halo exchanges remain unchanged
+    # check the existing m1 and m2 halo exchanges (for the first
+    # un-modified loop) remain unchanged
     for field_name in ["m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=1)) "
                 "THEN".format(field_name)) in result
@@ -4439,7 +4442,7 @@ def test_redundant_computation_no_loop_decrease():
         schedule, _ = rc_trans.apply(loop, depth=2)
     assert ("loop is already set to the maximum halo depth so can't be "
             "set to a fixed value") in str(excinfo)
-    # no try to set the redundant computation to the same (max) value
+    # now try to set the redundant computation to the same (max) value
     # it is now
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop)
@@ -4510,8 +4513,8 @@ def test_redundant_computation_remove_halo_exchange():
 
 def test_redundant_computation_max_remove_halo_exchange():
     # add test to redundantly compute a w3 (discontinuous) and w2
-    # (discontinuous) field to the maximum halo depth and then check
-    # that a discontinuous halo exchange is removed in this case as we
+    # (continuous) field to the maximum halo depth and then check that
+    # a discontinuous halo exchange is removed in this case as we
     # always remove the halo exchange if we write to a discontinuous
     # field to maximum depth. Also check that the halo exchange is not
     # removed for the continuous case as the outer halo stays
@@ -4533,9 +4536,12 @@ def test_redundant_computation_max_remove_halo_exchange():
     loop = schedule.children[3]
     rc_trans.apply(loop)
     result = str(psy.gen)
+    print result
     # f3 halo exchange is not removed even though we redundantly
     # compute f3 as the redundant computation is on a continuous field
-    # and therefore the outermost halo stays dirty
+    # and therefore the outermost halo stays dirty. We can not be
+    # certain whether the halo exchange is required or not as we don't
+    # know the depth of the halo.
     assert "CALL f3_proxy%halo_exchange(depth=1)" in result
     # we do not know whether we need the halo exchange so we include an if
     assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
@@ -4556,7 +4562,7 @@ def test_redundant_computation_continuous_halo_remove():
     '''check that we do not remove a halo exchange when the field is
     continuous and the redundant computation depth equals the required
     halo access depth. The reason for this is that the outer halo
-    remains invalid when written to by a continuous field. Also check
+    remains invalid when written to for a continuous field. Also check
     that we do remove the halo exchange when the redundant computation
     depth is one more than the required halo access depth'''
     _, info = parse(os.path.join(BASE_PATH,
@@ -4687,13 +4693,14 @@ def test_redundant_computation_vector_reader_halo_remove():
     assert result.count("halo_exchange") == 3
 
 
-def test_halo_stencil_redundant_computation_max_depth_1():
+def test_halo_stencil_redundant_computation_max_depth_1(monkeypatch):
     '''If a loop contains a kernel with a stencil access and the loop
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
-    therefore not allowed and an exception is raised in the
-    Dynamo0p3RedundantComputationTrans transformation. This test checks
-    this exception is raised correctly'''
+    therefore not allowed and exceptions are raised in the
+    Dynamo0p3RedundantComputationTrans transformation and in
+    _compute_single_halo_info. This test checks these exceptions are
+    raised correctly'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "19.1_single_stencil.f90"),
                     api="dynamo0.3")
@@ -4708,21 +4715,7 @@ def test_halo_stencil_redundant_computation_max_depth_1():
             "'testkern_stencil_code', so it is invalid to set redundant "
             "computation to maximum depth" in str(excinfo.value))
 
-
-def test_halo_stencil_redundant_computation_max_depth_2(monkeypatch):
-    '''If a loop contains a kernel with a stencil access and the loop
-    attempts to compute redundantly into the halo to the maximum depth
-    then the stencil will access beyond the halo bounds. This is
-    therefore not allowed and an exception is raised in
-    _compute_single_halo_info. This test checks this exception is
-    raised correctly'''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "19.1_single_stencil.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
-    loop = schedule.children[3]
     monkeypatch.setattr(loop, "_upper_bound_halo_depth", None)
     with pytest.raises(GenerationError) as excinfo:
         result = halo_exchange._compute_halo_read_info()
@@ -4731,6 +4724,9 @@ def test_halo_stencil_redundant_computation_max_depth_2(monkeypatch):
 
 
 def test_redundant_computation_invalid_depth_type():
+    '''If an incorrect type is passed as a depth value to the redundant
+    computation transformation an exception should be raised. This test
+    checks that this exception is raised as expected.'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api="dynamo0.3")
@@ -4740,7 +4736,8 @@ def test_redundant_computation_invalid_depth_type():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth="2")
-    assert ("the supplied depth should be an integer" in str(excinfo.value))
+    assert ("the supplied depth should be an integer but found "
+            "type '<type 'str'>'" in str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_depth():
@@ -4763,7 +4760,7 @@ def test_loop_fusion_different_loop_depth():
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[7], schedule.children[8])
-    assert ("Error in DynamoLoopFuse transformation. The upper bound indices "
+    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
             "are not the same. Found '3' and '1'" in str(excinfo.value))
     # now redundantly compute to the full halo
     rc_trans.apply(schedule.children[8])
@@ -4771,7 +4768,7 @@ def test_loop_fusion_different_loop_depth():
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[7], schedule.children[8])
-    assert ("Error in DynamoLoopFuse transformation. The upper bound indices "
+    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
 
 
