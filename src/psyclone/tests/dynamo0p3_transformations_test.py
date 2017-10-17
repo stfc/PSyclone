@@ -4791,13 +4791,14 @@ def test_loop_fusion_different_loop_name():
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
 
+
 def test_redundant_computation_max_w_to_r_continuous_known_halo():
     '''If we have a continuous field being written to in one loop to the
     maximum halo depth and then being read in a following (dependent) loop
     to the maximum halo depth we can determine that we definitely need a
     halo exchange (at the outermost halo level). This test checks that a
     halo with no runtime checking is produced for this case.'''
-    
+
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -4823,6 +4824,7 @@ def test_redundant_computation_max_w_to_r_continuous_known_halo():
     assert required
     assert known
 
+
 def test_red_comp_w_to_multi_r_clean_gt_cleaned():
     '''Tests the case where we have multiple (derived) read dependence
     entries and one of them has a literal depth value (and no
@@ -4832,7 +4834,7 @@ def test_red_comp_w_to_multi_r_clean_gt_cleaned():
     that we need a halo exchange. This test checks that we get the
     expected behaviour.
 
-    '''    
+    '''
     # The initial test case writes to a field over dofs, then reads
     # the halo to depth 2 with a stencil, then reads the halo to a
     # variable depth with a stencil
@@ -4882,4 +4884,3 @@ def test_red_comp_w_to_multi_r_clean_gt_cleaned():
     required, known = w_to_r_halo_exchange.required()
     assert required
     assert known
-

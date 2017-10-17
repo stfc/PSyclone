@@ -7094,7 +7094,8 @@ def test_HaloReadAccess_field_not_reader():
     test checks that this exception is raised correctly
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3_only.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke_w3_only.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -7143,10 +7144,10 @@ def test_HaloReadAccess_discontinuous_field():
     kernel = loop.children[0]
     arg = kernel.arguments.args[1]
     halo_access = HaloReadAccess(arg)
-    assert halo_access.max_depth == False
-    assert halo_access.var_depth == None
+    assert not halo_access.max_depth
+    assert halo_access.var_depth is None
     assert halo_access.literal_depth == 0
-    assert halo_access.stencil_type == None
+    assert halo_access.stencil_type is None
 
 
 def test_loop_annexed_dofs_multi_write(monkeypatch):

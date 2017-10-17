@@ -385,13 +385,13 @@ class DynArgDescriptor03(Descriptor):
                     "In the dynamo0.3 API vector notation is not supported "
                     "for scalar arguments (found '{0}')".
                     format(arg_type.args[0]))
-            if not operator == "*":
+            if operator != "*":
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a meta_arg "
                     "entry may be a vector but if so must use '*' as the "
                     "separator in the format (field*n), but found '{0}' in "
                     "'{1}'".format(operator, arg_type))
-            if not self._vector_size > 1:
+            if self._vector_size <= 1:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a meta_arg "
                     "entry may be a vector but if so must contain a valid "
@@ -851,7 +851,8 @@ class DynKernMetadata(KernelType):
                 # read-only LMA operator
                 lma_read_ops = psyGen.args_filter(
                     self._arg_descriptors,
-                    arg_types=["gh_operator"], arg_accesses=GH_READ_ONLY_ACCESS)
+                    arg_types=["gh_operator"],
+                    arg_accesses=GH_READ_ONLY_ACCESS)
                 if lma_read_ops:
                     return "assembly"
                 else:
@@ -2238,7 +2239,8 @@ class DynHaloExchange(HaloExchange):
             # the depth information can't be reduced to a single
             # expression, therefore we need to determine the maximum
             # of all expresssions
-            depth_str_list = [str(depth_info) for depth_info in depth_info_list]
+            depth_str_list = [str(depth_info) for depth_info in
+                              depth_info_list]
             return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
@@ -2286,12 +2288,12 @@ class DynHaloExchange(HaloExchange):
                 # HaloDepth entry
                 depth_info = HaloDepth()
                 depth_info.set_by_value(max_depth=True, var_depth="",
-                                       literal_depth=0)
+                                        literal_depth=0)
                 return [depth_info]
 
-        literal_only = 0
         for halo_info in halo_info_list:
-            # go through the halo information associated with each read dependency
+            # go through the halo information associated with each
+            # read dependency
             var_depth = halo_info.var_depth
             literal_depth = halo_info.literal_depth
             match = False
@@ -2313,7 +2315,7 @@ class DynHaloExchange(HaloExchange):
                 # variables so create a new halo depth entry
                 depth_info = HaloDepth()
                 depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                       literal_depth=literal_depth)
+                                        literal_depth=literal_depth)
                 depth_info_list.append(depth_info)
         return depth_info_list
 
@@ -2331,7 +2333,8 @@ class DynHaloExchange(HaloExchange):
             raise GenerationError(
                 "Internal logic error. There should be at least one read "
                 "dependence for a halo exchange")
-        return [HaloReadAccess(read_dependency) for read_dependency in read_dependencies]
+        return [HaloReadAccess(read_dependency) for read_dependency
+                in read_dependencies]
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
@@ -2391,7 +2394,7 @@ class DynHaloExchange(HaloExchange):
         # no need to test whether we return at least one read
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
-        
+
         if not clean_info:
             # this halo exchange has no previous write dependencies so
             # we do not know the initial state of the halo. This means
@@ -2422,7 +2425,7 @@ class DynHaloExchange(HaloExchange):
             return required, known
 
         # at this point we know that clean_info.max_depth is False
-        
+
         if not clean_info.literal_depth:
             # if literal_depth is 0 then the writer does not
             # redundantly compute so we definitely need the halo
@@ -2467,7 +2470,8 @@ class DynHaloExchange(HaloExchange):
         # required_clean_info entry
         if len(required_clean_info) == 1:
             # the halo might be read to a fixed literal depth
-            if required_clean_info[0].var_depth or required_clean_info[0].max_depth:
+            if required_clean_info[0].var_depth or \
+               required_clean_info[0].max_depth:
                 # no it isn't so we might need the halo exchange
                 required = True
                 known = False
@@ -2512,8 +2516,8 @@ class DynHaloExchange(HaloExchange):
         _, known = self.required()
         if not known:
             if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" + self._compute_halo_depth() +
-                                ")")
+                                "%is_dirty(depth=" +
+                                self._compute_halo_depth() + ")")
             parent.add(if_then)
             halo_parent = if_then
         else:
@@ -2531,7 +2535,7 @@ class HaloDepth(object):
         self._literal_depth = 0
         self._var_depth = None
         self._max_depth = False
-    
+
     @property
     def max_depth(self):
         '''Returns whether the field is known to access all of the halo or not
@@ -2621,14 +2625,17 @@ def halo_check_arg(field, access_types):
 
     :param field: the argument object we are checking
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-    :param access_types: list of access types that the field access must be one of
+    :param access_types: list of access types that the field access
+    must be one of
     :type access_types: :func:`list` of String
     :return: the call containing the argument object
     :rtype: :py:class:`psyclone.psyGen.Call`
-    :raises GenerationError: if the first argument to this function is the wrong type
+    :raises GenerationError: if the first argument to this function is
+    the wrong type
     :raises GenerationError: if the first argument is not accessed in
     one of the ways specified by the second argument to the function
-    :raises GenerationError: if the first argument is contained within a call object
+    :raises GenerationError: if the first argument is contained within
+    a call object
 
     '''
     try:
@@ -2650,7 +2657,7 @@ def halo_check_arg(field, access_types):
             "found {1}".format(field.name, type(call)))
     return call
 
-    
+
 class HaloWriteAccess(HaloDepth):
     '''Determines how much of the halo a field writes (the halo depth) and
     when used in a particular kernel within a particular loop nest
@@ -2696,7 +2703,7 @@ class HaloWriteAccess(HaloDepth):
         # is a continuous field which writes into the halo in a loop
         # over cells
         self._dirty_outer = (not field.discontinuous and
-                       loop.upper_bound_name == "cell_halo")
+                             loop.upper_bound_name == "cell_halo")
         depth = 0
         max_depth = False
         if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
@@ -2882,7 +2889,7 @@ class DynLoop(Loop):
                                             self._upper_bound_halo_depth)
         else:
             upper_bound = self._upper_bound_name
-        print(self.indent(indent) + self.coloured_text + \
+        print(self.indent(indent) + self.coloured_text +
               "[type='{0}',field_space='{1}',it_space='{2}', "
               "upper_bound='{3}']".format(self._loop_type,
                                           self._field_space.orig_name,
@@ -3116,7 +3123,7 @@ class DynLoop(Loop):
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument reads from the halo for
         this loop. Returns True if it does and False otherwise.
-       
+
         :param arg: an argument contained within this loop
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
         :return: True if the argument reads from the halo and False otherwise.
@@ -3198,13 +3205,13 @@ class DynLoop(Loop):
         whether a halo exchange is required is within the halo
         exchange class so it is simplest to do it this way
 
-        :param halo_field: the argument requiring a halo exchange 
+        :param halo_field: the argument requiring a halo exchange
         :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
         :param index: optional argument providing the vector index if
         there is one and None if not. Defaults to None.
         :type index: int or None
 
-        '''        
+        '''
         exchange = DynHaloExchange(halo_field,
                                    parent=self.parent,
                                    vector_index=idx)
@@ -3212,21 +3219,19 @@ class DynLoop(Loop):
                                     exchange)
         # check whether this halo exchange has been placed
         # here correctly and if not, remove it.
-        write_dependencies = exchange.field.\
-                             backward_write_dependencies()
         required, _ = exchange.required()
         if not required:
             exchange.parent.children.remove(exchange)
-        
+
     def _add_halo_exchange(self, halo_field):
         '''Internal helper method to add a halo exchange call immediately
         before this loop using the halo_field argument for the
         associated field information. If the field is a vector then
         add the appropriate number of halo exchange calls.
 
-        :param halo_field: the argument requiring a halo exchange 
+        :param halo_field: the argument requiring a halo exchange
         :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
-        
+
         '''
         if halo_field.vector_size > 1:
             # the range function below returns values from
@@ -3251,7 +3256,7 @@ class DynLoop(Loop):
         # dependence on a halo exchange but no longer does
         for call in self.calls():
             for arg in call.arguments.args:
-                if arg.access in arg._writers:
+                if arg.access in GH_WRITE_ACCESSES:
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
                         if isinstance(dep_arg.call, DynHaloExchange):
