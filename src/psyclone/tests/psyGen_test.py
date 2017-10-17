@@ -1838,9 +1838,11 @@ def test_haloexchange_halo_depth_get_set():  # pylint: disable=invalid-name
 
 
 def test_haloexchange_vector_index_depend():  # pylint: disable=invalid-name
-    '''check that _find_read_arguments does not return a haloexchange as
-    a read dependence if the source node is a halo exchange and its field
-    is a vector and the other halo exchange accesses a different vector
+    '''check that _find_read_arguments does not return a haloexchange as a
+    read dependence if the source node is a halo exchange and its
+    field is a vector and the other halo exchange accesses a different
+    element of the vector
+
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
@@ -1859,10 +1861,12 @@ def test_haloexchange_vector_index_depend():  # pylint: disable=invalid-name
 
 
 def test_find_write_arguments_for_write():  # pylint: disable=invalid-name
-    '''when _find_write_arguments is called from an field argument that
-    does not read then we hould return an empty list. This test checks
-    this functionality. We use the dynamo0p3 api to create the
-    required objects'''
+    '''when backward_write_dependencies is called from an field argument
+    that does not read then we should return an empty list. This test
+    checks this functionality. We use the dynamo0p3 api to create the
+    required objects
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1878,11 +1882,12 @@ def test_find_write_arguments_for_write():  # pylint: disable=invalid-name
 
 
 def test_find_w_args_hes_no_vec(monkeypatch):  # pylint: disable=invalid-name
-    '''when _find_write_arguments, or find_read_arguments, are called and a
-    dependence is found between two halo exchanges, then the field
-    must be a vector field. If the field is not a vector then an
-    exception is raised. This test checks that the exception is raised
-    correctly.
+    '''when backward_write_dependencies, or forward_read_dependencies, are
+    called and a dependence is found between two halo exchanges, then
+    the field must be a vector field. If the field is not a vector
+    then an exception is raised. This test checks that the exception
+    is raised correctly.
+
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
@@ -1901,11 +1906,12 @@ def test_find_w_args_hes_no_vec(monkeypatch):  # pylint: disable=invalid-name
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch):  # pylint: disable=invalid-name
-    '''when _find_write_arguments, or _find_read_arguments, are called and
-    a dependence is found between two halo exchanges, then the vector
-    indices of the two halo exchanges must be different. If the vector
-    indices have the same value then an exception is raised. This test
-    checks that the exception is raised correctly.
+    '''when backward_write_dependencies, or forward_read_dependencies are
+    called, and a dependence is found between two halo exchanges, then
+    the vector indices of the two halo exchanges must be different. If
+    the vector indices have the same value then an exception is
+    raised. This test checks that the exception is raised correctly.
+
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
