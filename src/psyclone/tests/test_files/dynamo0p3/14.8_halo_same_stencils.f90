@@ -35,13 +35,10 @@
 program halo_same_stencils
 
   ! Description: two stencil accesses in different kernels associated
-  ! with the same field and therefore halo exchange when distributed
-  ! memory is used. The stencils are of different types so region is
-  ! returned to ensure that both stencil accesses are covered. This
-  ! could be improved by noticing particular cases e.g. stencil_y +
-  ! stencil_cross stays as stencil_cross (which would happen in this
-  ! example). However, the halo exchange library does make use of this
-  ! information at the moment in any case.
+  ! with the same field ('f2') and therefore halo exchange when
+  ! distributed memory is used. The stencils are of the same type
+  ! ('cross' in this case) so 'cross' is returned which will ensure
+  ! that both stencil accesses are covered.
   use testkern_stencil_w3_mod, only: testkern_stencil_w3_type
   use inf,      only: field_type
   implicit none

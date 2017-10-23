@@ -2,10 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -17,7 +13,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -35,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
@@ -1183,13 +1179,13 @@ class MoveTrans(Transformation):
 
 class Dynamo0p3RedundantComputationTrans(Transformation):
     '''This transformation allows the user to modify a loop's bounds so
-    that redundant computation will be performed. Redundant computation
-    can result in halo exchanges being modified, new halo exchange being
-    added or existing halo exchanges being removed.
+    that redundant computation will be performed. Redundant
+    computation can result in halo exchanges being modified, new halo
+    exchanges being added or existing halo exchanges being removed.
 
     * This transformation should be performed before any
-      parallelisation transformations to the loop in question and will
-      raise an exception if this is not the case.
+      parallelisation transformations (e.g. for OpenMP) to the loop in
+      question and will raise an exception if this is not the case.
 
     * This transformation can not be applied to a loop containing a
       reduction and will again raise an exception if this is the case.
@@ -1197,7 +1193,9 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
     * This transformation can only be used to add redundant
       computation to a loop, not to remove it, however it does allow
       redundant computation depths to be reduced (if this is ever
-      required).'''
+      required).
+
+    '''
 
     def __str__(self):
         return "Change iteration space to perform redundant computation"
@@ -1209,8 +1207,42 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
     def _validate(self, node, depth):
         '''Perform various checks to ensure that it is valid to apply the
-        RedundantComputation transformation to the supplied node'''
+        RedundantComputation transformation to the supplied node
 
+        :param node: the supplied node on which we are performing
+        validity checks
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param depth: the depth of the stencil if the value is
+        provided and None if not
+        :type depth: int or None
+        :raises GenerationError: if the node is not a loop
+        :raises GenerationError: if the parent of the loop is not the
+        schedule (the coding assumes this and therefore fails
+        otherwie, e.g.  when OpenMP is added)
+        :raises GenerationError: if this transformation is applied
+        when distributed memory is not switched on
+        :raises GenerationError: if the loop does not iterate over cells or dofs
+        :raises GenerationError: if the transformation is setting the
+        loop to the maximum halo depth but the loop already computes
+        to the maximum halo depth
+        :raises GenerationError: if the transformation is setting the
+        loop to the maximum halo depth but the loop contains a stencil
+        access (as this would result in the field being accessed
+        beyond the halo depth)
+        :raises GenerationError: if the supplied depth value is no an
+        integer
+        :raises GenerationError: if the supplied depth value is less
+        than 1
+        :raises GenerationError: if the supplied depth value is not
+        greater than 1 when a continuous loop is modified as this is
+        the minimum valid value
+        :raises GenerationError: if the supplied depth value is not
+        greater than the existing depth value, as we should not need
+        to undo existing transformations
+        :raises GenerationError: if a depth value has been supplied
+        but the loop has already been set to the maximum halo depth
+
+        '''
         # check node is a loop
         from psyclone.psyGen import Loop
         if not isinstance(node, Loop):
@@ -1225,7 +1257,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         if not isinstance(node.parent, Schedule):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the parent must be the schedule, but found "
+                "method the parent must be the Schedule, but found "
                 "{0}".format(type(node.parent)))
 
         import psyclone.config
@@ -1300,8 +1332,15 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         value will be the depth of the field's halo over which redundant
         computation will be performed. If :py:obj:`depth` is not set to a
         value then redundant computation will be performed to the full depth
-        of the field's halo.'''
+        of the field's halo.
 
+        :param loop: the loop that we are transforming
+        :type loop: :py:class:`psyclone.psyGen.DynLoop`
+        :param depth: the depth of the stencil. Defaults to None if a
+        depth is not provided.
+        :type depth: int or None
+
+        '''
         self._validate(loop, depth)
 
         schedule = loop.root

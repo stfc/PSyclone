@@ -4474,7 +4474,7 @@ def test_redundant_computation_no_directive():
     loop = schedule.children[0].children[0]
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
-    assert ("the parent must be the schedule") in str(excinfo)
+    assert ("the parent must be the Schedule") in str(excinfo)
 
 
 def test_redundant_computation_remove_halo_exchange():

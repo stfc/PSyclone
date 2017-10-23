@@ -40,8 +40,8 @@ program halo_different_stencils
   ! returned to ensure that both stencil accesses are covered. This
   ! could be improved by noticing particular cases e.g. stencil_y +
   ! stencil_cross stays as stencil_cross (which would happen in this
-  ! example). However, the halo exchange library does make use of this
-  ! information at the moment in any case.
+  ! example). However, the halo exchange library does not make use of
+  ! this information at the moment in any case.
   use testkern_stencil_w3_mod, only: testkern_stencil_w3_type
   use testkern_stencil_xory1d_w3_mod, only: testkern_stencil_xory1d_w3_type
   use inf,      only: field_type
