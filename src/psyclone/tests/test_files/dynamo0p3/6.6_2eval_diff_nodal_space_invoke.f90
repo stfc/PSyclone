@@ -1,3 +1,4 @@
+!-------------------------------------------------------------------------------
 ! Copyright (c) 2017, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -24,22 +25,26 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+!
+! Author: A. R. Porter STFC Daresbury Lab
+!-------------------------------------------------------------------------------
+program eval_invoke
 
-! Author R. Ford STFC Daresbury Lab
-
-program single_invoke_multi_anyw2_basis
-
-  ! Description: test that correct code is produced when we have
-  ! multiple any_w2 function spaces requiring basis and differential
-  ! basis functions in a kernel call
-  use testkern_multi_anyw2_basis_mod, only: testkern_multi_anyw2_basis_type
-  use inf,      only: field_type, quadrature_type
+  ! Test program containing a single invoke of two kernels, each requiring
+  ! an evaluator for basis/diff-basis functions on W2 and W3. However, the
+  ! quantity written to by each kernel is on a different space and therefore
+  ! the basis/diff-basis functions must be evaluated on different nodal
+  ! points for each kernel.
+  ! 
+  use testkern_eval_op_to_w0, only: testkern_eval_op_to_w0_type
+  use testkern_eval_op_to, only: testkern_eval_op_to_type
   implicit none
-  type(field_type) :: f1, f2, f3
-  type(quadrature_type) :: qr
+  type(field_type)      :: f0, f1, f2
+  type(operator_type)   :: op1, op2
   
-  call invoke(                                      &
-       testkern_multi_anyw2_basis_type(f1,f2,f3,qr) &
-          )
+  call invoke(                             &
+       testkern_eval_op_to_type(op2,f1),   &
+       testkern_eval_op_to_w0_type(op1,f0,f2) &
+       )
 
-end program single_invoke_multi_anyw2_basis
+end program val_invoke

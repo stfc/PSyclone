@@ -1,3 +1,4 @@
+!-------------------------------------------------------------------------------
 ! Copyright (c) 2017, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -24,28 +25,20 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+!
+! Author: A. R. Porter STFC Daresbury Lab
+!-------------------------------------------------------------------------------
+program eval_invoke
 
-! Author R. Ford STFC Daresbury Lab
+  ! Test program containing a single invoke of two kernels, each requiring
+  ! an evaluator and writing to a field on the same space
+  use testkern_eval, only: testkern_eval_type
+  implicit none
+  type(field_type)      :: f0, f1, f2, f3
 
-module testkern_multi_anyw2_basis_mod
-  !
-  type, extends(kernel_type) :: testkern_multi_anyw2_basis_type
-     type(arg_type), dimension(3) :: meta_args = &
-          (/ arg_type(gh_field,gh_write,any_w2), &
-             arg_type(gh_field,gh_read, any_w2), &
-             arg_type(gh_field,gh_read, any_w2)  &
-           /)
-     type(func_type), dimension(1) :: meta_funcs = &
-          (/ func_type(any_w2,gh_basis,gh_diff_basis) /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure() :: code => testkern_multi_anyw2_basis_code
-  end type testkern_multi_anyw2_basis_type
-  !
-contains
-  !
-  subroutine testkern_multi_anyw2_basis_code()
-  end subroutine testkern_multi_anyw2_basis_code
-  !
-end module testkern_multi_anyw2_basis_mod
+  call invoke(                       &
+       testkern_eval_type(f0,f1),    &
+       testkern_eval_type(f2,f3)     &
+       )
+
+end program val_invoke

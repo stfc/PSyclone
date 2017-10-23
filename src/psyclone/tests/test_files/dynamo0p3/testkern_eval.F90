@@ -1,3 +1,4 @@
+!-------------------------------------------------------------------------------
 ! Copyright (c) 2017, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -24,22 +25,37 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+!
+! Author: A. R. Porter STFC Daresbury Lab
+!-------------------------------------------------------------------------------
 
-! Author R. Ford STFC Daresbury Lab
+module testkern_eval
+  use argument_mod
+  use kernel_mod
+  type, extends(kernel_type) :: testkern_eval_type
+     type(arg_type)  :: meta_args(2) =  (/    &
+       arg_type(GH_FIELD,   GH_INC,  W0),             &
+       arg_type(GH_FIELD,   GH_READ, W1)              &
+       /)
+     type(func_type) :: meta_funcs(2) = (/                             &
+       func_type(W0, GH_BASIS),                                        &
+       func_type(W1, GH_DIFF_BASIS)                                  &
+       /)
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
+   contains
+     procedure, nopass :: code => testkern_eval_code
+  end type testkern_eval_type
+contains
 
-program single_invoke_multi_anyw2_basis
-
-  ! Description: test that correct code is produced when we have
-  ! multiple any_w2 function spaces requiring basis and differential
-  ! basis functions in a kernel call
-  use testkern_multi_anyw2_basis_mod, only: testkern_multi_anyw2_basis_type
-  use inf,      only: field_type, quadrature_type
-  implicit none
-  type(field_type) :: f1, f2, f3
-  type(quadrature_type) :: qr
-  
-  call invoke(                                      &
-       testkern_multi_anyw2_basis_type(f1,f2,f3,qr) &
-          )
-
-end program single_invoke_multi_anyw2_basis
+  subroutine testkern_eval_code(nlayers, f0, f1, ndf_w0, undf_w0, map_w0, &
+                                basis_w0, ndf_w1, undf_w1, map_w1,        &
+                                diff_basis_w1)
+    use constants_mod, only: r_def
+    implicit none
+    integer :: nlayers, ndf_w0, undf_w0, ndf_w1, undf_w1
+    integer, dimension(:) :: map_w0, map_w1
+    real(kind=r_def), dimension(:) :: f0, f1
+    real(kind=r_def), dimension(:,:,:) :: basis_w0, diff_basis_w1
+  end subroutine testkern_eval_code
+end module testkern_eval

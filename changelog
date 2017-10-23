@@ -1,3 +1,9 @@
+
+	1) #53 and PR #88 Add a version file so that PSyclone does not
+	need to be installed to generate documentation.
+
+release 1.5.0 3rd October 2017
+
         1) #20 and PR #28 Add dependence analysis (and a Move
         transformation) to PSyclone. This will subsequently allow for
         the safe implementation of more complex schedule transformations
@@ -43,6 +49,20 @@
 	failing tests (with file not found) in some environments when
 	running py.test from a different directory to the tests
 	themselves.
+
+	12) #59 and PR #75 added metadata support for inter-grid kernels
+	which will be used for the multi-grid code.
+
+	13) #82 and PR #83 modified a test to work with different versions
+	of graphviz which output files with different ammounts of white
+	space
+
+	14) #52 and PR #60 added support for evaluators. An evaluator is
+	specified by setting the gh_shape metadata in kernels
+	appropriately.
+
+	15) #85 and PR #86 - minor correction to documentation (section
+	on Inter-Grid kernel rules was in the wrong place).
 
 release 1.4.1
 
