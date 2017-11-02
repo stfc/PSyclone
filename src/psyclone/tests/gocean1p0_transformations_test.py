@@ -1196,7 +1196,7 @@ def test_loop_swap_correct():
 
     # First make sure to throw an early error if the source file
     # single_invoke_two_kernels.f90 should have been changed
-    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    assert str(psy.gen) == """  MODULE psy_test27_loop_swap
     USE field_mod
     USE kind_params_mod
     IMPLICIT NONE
@@ -1236,7 +1236,7 @@ def test_loop_swap_correct():
     swapped1, _ = swap.apply(schedule.children[0])
     psy.invokes.get('invoke_loop1').schedule = swapped1
 
-    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    assert str(psy.gen) == """  MODULE psy_test27_loop_swap
     USE field_mod
     USE kind_params_mod
     IMPLICIT NONE
@@ -1275,7 +1275,7 @@ def test_loop_swap_correct():
     swapped2, _ = swap.apply(swapped1.children[1])
     psy.invokes.get('invoke_loop1').schedule = swapped2
 
-    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    assert str(psy.gen) == """  MODULE psy_test27_loop_swap
     USE field_mod
     USE kind_params_mod
     IMPLICIT NONE
@@ -1314,7 +1314,7 @@ def test_loop_swap_correct():
     swapped3, _ = swap.apply(swapped2.children[2])
     psy.invokes.get('invoke_loop1').schedule = swapped3
 
-    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    assert str(psy.gen) == """  MODULE psy_test27_loop_swap
     USE field_mod
     USE kind_params_mod
     IMPLICIT NONE
@@ -1370,7 +1370,7 @@ def test_loop_swap_errors():
         swap.apply(schedule.children[0].children[0].children[0])
 
     # Now create an outer loop with more than one inner statements
-    # ... by fusing the first and second outer loops
+    # ... by fusing the first and second outer loops :(
     fuse = GOceanLoopFuseTrans()
     fused, _ = fuse.apply(schedule.children[0], schedule.children[1])
     psy.invokes.get('invoke_loop1').schedule = fused
