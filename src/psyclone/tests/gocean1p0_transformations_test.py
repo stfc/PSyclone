@@ -14,8 +14,7 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, LoopSwapTrans, \
-    OMPParallelTrans, \
-    GOceanOMPParallelLoopTrans,\
+    OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from psyclone.generator import GenerationError
 from utils import count_lines
@@ -492,6 +491,7 @@ def test_omp_region_before_loops_trans():
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
 
+    # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
 
