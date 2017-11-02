@@ -1096,11 +1096,11 @@ class MoveTrans(Transformation):
         ''' Returns the name of this transformation as a string '''
         return "Move"
 
-    def _validate(self, node, location, position):
+    def _validate(self, node, location, position):  # pylint: disable=no-self-use
         ''' validity checks for input arguments '''
 
         # Check that the first argument is a Node
-        from psyGen import Node
+        from .psyGen import Node
         if not isinstance(node, Node):
             raise TransformationError(
                 "In the Move transformation apply method the first argument "
@@ -1113,7 +1113,7 @@ class MoveTrans(Transformation):
                 "In the Move transformation apply method, data dependencies "
                 "forbid the move to the new location")
 
-    def apply(self, node, location, position="before"):
+    def apply(self, node, location, position="before"):  # pylint:disable=arguments-differ
         '''Move the node represented by :py:obj:`node` before location
         :py:obj:`location` (which as also a node) by default and after
         if the optional `position` argument is set to 'after'. An
@@ -1124,7 +1124,7 @@ class MoveTrans(Transformation):
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
-        from undoredo import Memento
+        from .undoredo import Memento
         keep = Memento(schedule, self, [node, location])
 
         parent = node.parent
@@ -1136,5 +1136,86 @@ class MoveTrans(Transformation):
             schedule.children.insert(location_index, my_node)
         else:
             schedule.children.insert(location_index+1, my_node)
+
+        return schedule, keep
+
+
+class LoopSwapTrans(Transformation):
+    ''' Provides a loop-swap transformation.
+        For example:
+
+        >>> from parse import parse
+        >>> from psyGen import PSyFactory
+        >>> ast,invokeInfo=parse("dynamo.F90")
+        >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
+        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+        >>> schedule.view()
+        >>>
+        >>> from transformations import LoopSwapTrans
+        >>> swap=LoopSwapTrans()
+        >>> new_schedule,memento=swap.apply(schedule.children[0],
+                                             schedule.children[1])
+        >>> new_schedule.view()
+    '''
+
+    def __str__(self):
+        return "Exchange the order of two nested loops: inner becomes " + \
+               "outer and vice versa"
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "LoopSwap"
+
+    def _validate(self, node_outer):  # pylint: disable=no-self-use
+        ''' validity checks for input arguments '''
+
+        from .psyGen import Loop
+        if not isinstance(node_outer, Loop):
+            raise TransformationError("Error in LoopSwap transformation. "
+                                      "Given node is not a loop.")
+
+        node_inner = node_outer.children[0]
+        # Check that the supplied Node is a Loop
+        if not isinstance(node_inner, Loop):
+            raise TransformationError("Error in LoopSwap transformation. "
+                                      "First inner statement is not a loop.")
+
+        if len(node_outer.children) != 1:
+            raise TransformationError("Error in LoopSwap transformation. "
+                                      "More than one statement in outer loop.")
+
+    def apply(self, outer):  # pylint: disable=arguments-differ
+        ''' Swaps the loop by :py:obj:`inner`with its inner loop. '''
+
+        self._validate(outer)
+
+        schedule = outer.root
+        inner = outer.children[0]
+        parent = outer.parent
+
+        # create a memento of the schedule and the proposed transformation
+        from .undoredo import Memento
+        keep = Memento(schedule, self, [inner, outer])
+
+        # Remove outer from parent:
+        index = parent.children.index(outer)
+        del parent.children[index]
+        outer.parent = None
+
+        # Move inner to parent:
+        inner.parent = parent
+        parent.children.insert(index, inner)
+        outer.children.remove(inner)
+
+        # Move inner's children to outer:
+        for child in inner.children:
+            inner.children.remove(child)
+            outer.children.append(child)
+            child.parent = outer
+
+        # Move outer under inner:
+        inner.children.append(outer)
+        outer.parent = inner
 
         return schedule, keep

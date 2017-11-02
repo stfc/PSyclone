@@ -9,14 +9,15 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
+import os
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
-    GOConstLoopBoundsTrans, LoopFuseTrans, OMPParallelTrans, \
+    GOConstLoopBoundsTrans, LoopFuseTrans, LoopSwapTrans, \
+    OMPParallelTrans, \
     GOceanOMPParallelLoopTrans,\
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from psyclone.generator import GenerationError
-import os
 from utils import count_lines
 import pytest
 
@@ -491,7 +492,6 @@ def test_omp_region_before_loops_trans():
     # Replace the original loop schedule with the transformed one
     invoke.schedule = omp_schedule
 
-    # Store the results of applying this code transformation as
     # a string
     gen = str(psy.gen)
 
@@ -1184,3 +1184,196 @@ def test_module_inline_warning_no_change():
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call, inline=False)
+
+
+def test_loop_swap_correct():
+    ''' Testing correct loop swapping transform. Esp. try first, middle, and
+    last invokes to make sure the inserting of the inner loop happens at
+    the right place.'''
+
+    psy, invoke = get_invoke("test27_loop_swap.f90", 0)
+    schedule = invoke.schedule
+
+    # First make sure to throw an early error if the source file
+    # single_invoke_two_kernels.f90 should have been changed
+    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_loop1(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
+      USE time_smooth_mod, ONLY: time_smooth_code
+      USE compute_cu_mod, ONLY: compute_cu_code
+      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, unew_fld, uold_fld
+      INTEGER j
+      INTEGER i
+      INTEGER istop, jstop
+      !
+      ! Look-up loop bounds
+      istop = cu_fld%grid%simulation_domain%xstop
+      jstop = cu_fld%grid%simulation_domain%ystop
+      !
+      DO j=2,jstop
+        DO i=2,istop+1
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO j=2,jstop
+        DO i=2,istop+1
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO j=1,jstop+1
+        DO i=1,istop+1
+          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_loop1
+  END MODULE psy_test27_loop_swap"""
+
+    # Now swap the first loops
+    swap = LoopSwapTrans()
+    swapped1, _ = swap.apply(schedule.children[0])
+    psy.invokes.get('invoke_loop1').schedule = swapped1
+
+    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_loop1(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
+      USE time_smooth_mod, ONLY: time_smooth_code
+      USE compute_cu_mod, ONLY: compute_cu_code
+      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, unew_fld, uold_fld
+      INTEGER i
+      INTEGER j
+      INTEGER istop, jstop
+      !
+      ! Look-up loop bounds
+      istop = cu_fld%grid%simulation_domain%xstop
+      jstop = cu_fld%grid%simulation_domain%ystop
+      !
+      DO i=2,istop+1
+        DO j=2,jstop
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO j=2,jstop
+        DO i=2,istop+1
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO j=1,jstop+1
+        DO i=1,istop+1
+          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_loop1
+  END MODULE psy_test27_loop_swap"""
+
+    # Now swap the middle loops
+    swapped2, _ = swap.apply(swapped1.children[1])
+    psy.invokes.get('invoke_loop1').schedule = swapped2
+
+    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_loop1(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
+      USE time_smooth_mod, ONLY: time_smooth_code
+      USE compute_cu_mod, ONLY: compute_cu_code
+      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, unew_fld, uold_fld
+      INTEGER i
+      INTEGER j
+      INTEGER istop, jstop
+      !
+      ! Look-up loop bounds
+      istop = cu_fld%grid%simulation_domain%xstop
+      jstop = cu_fld%grid%simulation_domain%ystop
+      !
+      DO i=2,istop+1
+        DO j=2,jstop
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO i=2,istop+1
+        DO j=2,jstop
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO j=1,jstop+1
+        DO i=1,istop+1
+          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_loop1
+  END MODULE psy_test27_loop_swap"""
+
+    # Now swap the middle loops
+    swapped3, _ = swap.apply(swapped2.children[2])
+    psy.invokes.get('invoke_loop1').schedule = swapped3
+
+    print str(psy.gen) == """  MODULE psy_test27_loop_swap
+    USE field_mod
+    USE kind_params_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE invoke_loop1(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
+      USE time_smooth_mod, ONLY: time_smooth_code
+      USE compute_cu_mod, ONLY: compute_cu_code
+      TYPE(r2d_field), intent(inout) :: cu_fld, p_fld, u_fld, unew_fld, uold_fld
+      INTEGER i
+      INTEGER j
+      INTEGER istop, jstop
+      !
+      ! Look-up loop bounds
+      istop = cu_fld%grid%simulation_domain%xstop
+      jstop = cu_fld%grid%simulation_domain%ystop
+      !
+      DO i=2,istop+1
+        DO j=2,jstop
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO i=2,istop+1
+        DO j=2,jstop
+          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO 
+      DO i=1,istop+1
+        DO j=1,jstop+1
+          CALL time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data)
+        END DO 
+      END DO 
+    END SUBROUTINE invoke_loop1
+  END MODULE psy_test27_loop_swap"""
+
+    return
+
+
+def test_loop_swap_errors():
+    ''' Test loop swapping transform with incorrect parameters. '''
+
+    psy, invoke = get_invoke("test27_loop_swap.f90", 0)
+
+    schedule = invoke.schedule
+    swap = LoopSwapTrans()
+
+    # Test error if given node is not the outer loop of an at least
+    # double nested loop:
+    with pytest.raises(TransformationError):
+        swap.apply(schedule.children[0].children[0])
+
+    # Not a loop:
+    with pytest.raises(TransformationError):
+        swap.apply(schedule.children[0].children[0].children[0])
+
+    # Now create an outer loop with more than one inner statements
+    # ... by fusing the first and second outer loops
+    fuse = GOceanLoopFuseTrans()
+    fused, _ = fuse.apply(schedule.children[0], schedule.children[1])
+    psy.invokes.get('invoke_loop1').schedule = fused
+
+    with pytest.raises(TransformationError):
+        swap.apply(fused.children[0])
