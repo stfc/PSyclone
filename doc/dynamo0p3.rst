@@ -44,7 +44,7 @@ objects and their use are discussed in the following sections.
                builtin1(scalar1, field2, field3),                &
                kernel2(field1, stencil_extent, field3, scalar1), &
 	       assembly_kernel(cma_op1, operator1),              &
-               name="some calculation"                           &
+               name="some_calculation"                           &
              )
 
 Please see the :ref:`algorithm-layer` section for a description of the
