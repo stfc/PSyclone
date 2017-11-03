@@ -38,8 +38,8 @@
 ''' Module implementing classes populated by parsing either kernel
     meta-data or invoke()'s in the Algorithm layer '''
 
-from pyparsing import ParseException
 import os
+from pyparsing import ParseException
 import fparser
 from fparser import parsefortran
 from fparser import api as fpapi
@@ -884,7 +884,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             " 'True' or 'False'")
     config.DISTRIBUTED_MEMORY = distributed_memory
     if api == "":
-        from config import DEFAULTAPI
+        from psyclone.config import DEFAULTAPI
         api = DEFAULTAPI
     else:
         check_api(api)
