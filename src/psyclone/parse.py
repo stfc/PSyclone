@@ -992,6 +992,15 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # TODO check with LFRic team - should we raise an error if
                     # it contains spaces?
                     invoke_label = invoke_label.replace(" ", "_")
+                    # Check that the resulting label is a valid Fortran Name
+                    from fparser import pattern_tools
+                    if not pattern_tools.abs_name.match(invoke_label):
+                        raise ParseError(
+                            "The (optional) name of an invoke must be a "
+                            "string containing a valid Fortran name (with "
+                            "any spaces replaced by underscores) but "
+                            "got '{0}' in file {1}".format(invoke_label,
+                                                           alg_filename))
                     # Check that it's not already been used in this Algorithm
                     if invoke_label in unique_invoke_labels:
                         raise ParseError(

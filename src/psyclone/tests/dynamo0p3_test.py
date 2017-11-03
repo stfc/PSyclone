@@ -2727,6 +2727,7 @@ def test_loopfuse():
     for kern_id in kern_idxs:
         assert kern_id > do_idx and kern_id < enddo_idx
 
+
 def test_named_psy_routine():
     ''' Check that we generate a subroutine with the expected name
     if an invoke is named '''
