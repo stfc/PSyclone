@@ -972,24 +972,32 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                         raise ParseError(
                             "The arguments to an invoke() must be either "
                             "kernel calls or an (optional) name='invoke-name' "
-                            "but got '{0}'".format(str(parsed)))
+                            "but got '{0}' in file {1}".format(str(parsed),
+                                                               alg_filename))
                     if invoke_label:
                         raise ParseError(
                             "An invoke must contain one or zero 'name=xxx' "
-                            "arguments but found more than one in: {0}".
-                            format(str(statement)))
+                            "arguments but found more than one in: {0} in "
+                            "file {1}".
+                            format(str(statement), alg_filename))
                     if not parsed.is_string:
                         raise ParseError(
                             "The (optional) name of an invoke must be "
-                            "specified as a string but got {0}.".
-                            format(str(parsed)))
-                    # Store the supplied label. Remove any spaces.
-                    invoke_label = parsed.value.replace(" ", "_")
+                            "specified as a string but got {0} in file {1}.".
+                            format(str(parsed), alg_filename))
+                    # Store the supplied label. Use lower-case (as Fortran
+                    # is case insensitive)
+                    invoke_label = parsed.value.lower()
+                    # Remove any spaces.
+                    # TODO check with LFRic team - should we raise an error if
+                    # it contains spaces?
+                    invoke_label = invoke_label.replace(" ", "_")
                     # Check that it's not already been used in this Algorithm
                     if invoke_label in unique_invoke_labels:
                         raise ParseError(
                             "Found multiple named invoke()'s with the same "
-                            "name: ''".format(invoke_label))
+                            "name ('{0}') when parsing {1}".
+                            format(invoke_label, alg_filename))
                     unique_invoke_labels.append(invoke_label)
                     # Continue parsing the other arguments to this invoke call
                     continue

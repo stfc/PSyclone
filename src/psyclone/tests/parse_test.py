@@ -208,7 +208,26 @@ def test_duplicate_named_invoke():
                          "test_files", "dynamo0p3",
                          "3.3_multi_functions_multi_invokes_name_clash.f90"),
             api="dynamo0.3")
-    assert "Found multiple named invoke()'s with the same name" in str(err)
+    print str(err)
+    assert ("Found multiple named invoke()'s with the same name ('jack') "
+            "when parsing " in str(err))
+    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
+
+
+def test_duplicate_named_invoke_case_insensitive():  # pylint: disable=invalid-name
+    ''' Test that we raise the expected error when an algorithm file
+    contains two invokes that are given the same name but with different
+    case '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "3.4_multi_invoke_name_clash_case_insensitive.f90"),
+            api="dynamo0.3")
+    print str(err)
+    assert ("Found multiple named invoke()'s with the same name ('jack') "
+            "when parsing " in str(err))
+    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
 
 
 def test_get_stencil():
