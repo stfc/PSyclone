@@ -169,6 +169,7 @@ def test_too_many_names_invoke():
             api="dynamo0.3")
     print str(err)
     assert "An invoke must contain one or zero " in str(err)
+    assert "1.0.2_many_named_invoke.f90" in str(err)
 
 
 def test_wrong_named_invoke():
@@ -197,6 +198,7 @@ def test_wrong_type_named_invoke():
             api="dynamo0.3")
     assert ("The (optional) name of an invoke must be specified as a "
             "string" in str(err))
+    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err)
 
 
 def test_duplicate_named_invoke():
