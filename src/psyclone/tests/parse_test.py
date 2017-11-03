@@ -37,6 +37,11 @@
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 import os
 import pytest
 from psyclone.parse import parse, ParseError
@@ -71,7 +76,7 @@ def test_get_builtin_defs_wrong_api():
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_wrong_api():
+def test_kerneltypefactory_wrong_api():  # pylint: disable=invalid-name
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
     from psyclone.parse import KernelTypeFactory
@@ -80,7 +85,7 @@ def test_kerneltypefactory_wrong_api():
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_default_api():
+def test_kerneltypefactory_default_api():  # pylint: disable=invalid-name
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
@@ -89,7 +94,7 @@ def test_kerneltypefactory_default_api():
     assert factory._type == DEFAULTAPI
 
 
-def test_kerneltypefactory_create_broken_type():
+def test_kerntypefactory_create_broken_type():  # pylint: disable=invalid-name
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
     from psyclone.parse import KernelTypeFactory
@@ -216,7 +221,7 @@ def test_duplicate_named_invoke():
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
 
 
-def test_duplicate_named_invoke_case_insensitive():  # pylint: disable=invalid-name
+def test_duplicate_named_invoke_case():  # pylint: disable=invalid-name
     ''' Test that we raise the expected error when an algorithm file
     contains two invokes that are given the same name but with different
     case '''
@@ -237,9 +242,9 @@ def test_get_stencil():
     passed various incorrect inputs '''
     from psyclone.parse import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
-    node = ExpressionNode(["1"])
+    enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(node, ["cross"])
+        _ = get_stencil(enode, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found the "
             "literal" in str(excinfo))
     node = FunctionVar(["stencil()"])
