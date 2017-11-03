@@ -106,7 +106,7 @@ call like so:
 
   ...
   call invoke(integrate_one_kernel(arg1,arg2), &
-              name="compute_something")
+              name="compute something")
   ...
 
 The ``name`` argument to the invoke call is optional. If supplied it
@@ -117,7 +117,7 @@ the generated PSy-layer subroutine will be named
 "invoke_compute_something." Each invoke label must currently be unique
 within an Algorithm source file. Note that, in keeping with the
 Fortran language, labels are not case sensitive. In the future it is
-intended that the labelling of invokes will allow invoke-specific
+intended that the labelling of invokes will help to support invoke-specific
 optimisations to be applied as well as enabling more readable
 profiling output. It may also be used to instruct PSyclone to just
 generate a single subroutine to implement all invokes that share the
