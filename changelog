@@ -2,6 +2,10 @@
 	1) #53 and PR #88 Add a version file so that PSyclone does not
 	need to be installed to generate documentation.
 
+	2) #94, #96, #98 and PR #97. Make name="name" support in invoke
+	calls more robust e.g. names must be valid fortran and match
+	should be insensitive to case.
+
 release 1.5.0 3rd October 2017
 
         1) #20 and PR #28 Add dependence analysis (and a Move

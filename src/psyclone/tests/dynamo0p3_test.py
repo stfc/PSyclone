@@ -2727,6 +2727,21 @@ def test_loopfuse():
     for kern_id in kern_idxs:
         assert kern_id > do_idx and kern_id < enddo_idx
 
+
+def test_named_psy_routine():
+    ''' Check that we generate a subroutine with the expected name
+    if an invoke is named '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        gen_code = str(psy.gen)
+        # Name should be all lower-case and with spaces replaced by underscores
+        assert "SUBROUTINE invoke_important_invoke" in gen_code
+
 # tests for dynamo0.3 stub generator
 
 
