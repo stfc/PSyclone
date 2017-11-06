@@ -72,6 +72,12 @@ VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
+# Dictionary allowing us to look-up the name of the Fortran module, type
+# and proxy-type associated with each quadrature shape
+QUADRATURE_TYPE_MAP = {
+    "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
+                           "type": "quadrature_xyoz_type",
+                           "proxy_type": "quadrature_xyoz_proxy_type"}}
 
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
@@ -1825,21 +1831,32 @@ class DynInvokeBasisFns(object):
         :param parent: the node in the f2pygen AST that will be the
                        parent of all of the declarations (i.e. the
                        PSy-layer subroutine)
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import TypeDeclGen
         # Create a single declaration for each quadrature type
         for shape in VALID_QUADRATURE_SHAPES:
             if shape in self._qr_vars and self._qr_vars[shape]:
-                qr_type = shape.replace("gh_", "", 1) + "_type"
-                qr_proxy_type = shape.replace("gh_", "", 1) + "_proxy_type"
-                parent.add(TypeDeclGen(parent, datatype=qr_type,
-                                       entity_decls=self._qr_vars[shape],
-                                       intent="in"))
-                parent.add(TypeDeclGen(
-                    parent, datatype=qr_proxy_type,
-                    entity_decls=[var + "_proxy" for var in
-                                  self._qr_vars[shape]]))
+                # The PSy-layer routine is passed objects of
+                # quadrature_* type
+                parent.add(
+                    TypeDeclGen(parent,
+                                datatype=QUADRATURE_TYPE_MAP[shape]["type"],
+                                entity_decls=self._qr_vars[shape],
+                                intent="in"))
+                # For each of these we'll need a corresponding proxy, use
+                # our namespace manager to avoid clashes...
+                var_names = []
+                for var in self._qr_vars[shape]:
+                    var_names.append(
+                        self._name_space_manager.create_name(
+                            root_name=var+"_proxy", context="PSyVars",
+                            label=var+"_proxy"))
+                parent.add(
+                    TypeDeclGen(
+                        parent,
+                        datatype=QUADRATURE_TYPE_MAP[shape]["proxy_type"],
+                        entity_decls=var_names))
 
     def initialise_basis_fns(self, parent):
         '''
@@ -1869,17 +1886,14 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, " Look-up quadrature variables"))
             parent.add(CommentGen(parent, ""))
 
-            # Determine which modules we need to 'use' - we simply remove
-            # the 'gh_' prefix from the shape name
-            mod_names = [shp.replace("gh_", "", 1) for shp in self._qr_vars]
-
-            for quad_type in mod_names:
+            # Look-up the module- and type-names from the QUADRATURE_TYPE_MAP
+            for shp in self._qr_vars:
                 parent.add(UseGen(parent,
-                                  name="{0}_mod".format(quad_type),
+                                  name=QUADRATURE_TYPE_MAP[shp]["module"],
                                   only=True,
                                   funcnames=[
-                                      "{0}_type".format(quad_type),
-                                      "{0}_proxy_type".format(quad_type)]))
+                                      QUADRATURE_TYPE_MAP[shp]["type"],
+                                      QUADRATURE_TYPE_MAP[shp]["proxy_type"]]))
             self._initialise_xyz_qr(parent)
             self._initialise_xyoz_qr(parent)
             self._initialise_xoyoz_qr(parent)
@@ -2028,8 +2042,8 @@ class DynInvokeBasisFns(object):
                        in which to insert the initialisation
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
         '''
-        if "gh_quadrature_xyz" not in self._qr_vars:
-            return
+        # This shape is not yet supported so we do nothing
+        return
 
     def _initialise_xyoz_qr(self, parent):
         '''
@@ -2088,8 +2102,8 @@ class DynInvokeBasisFns(object):
                        in which to insert the initialisation
         :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
         '''
-        if "gh_quadrature_xoyoz" not in self._qr_vars:
-            return
+        # This shape is not yet supported so we do nothing
+        return
 
     def compute_basis_fns(self, parent):
         '''
@@ -3291,13 +3305,14 @@ class DynKern(Kern):
             # dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
-            if self._eval_shape == "gh_quadrature_xyz":
-                self._qr_args = ["np_xyz", "weights_xyz"]
-            elif self._eval_shape == "gh_quadrature_xyoz":
+            # Currently only _xyoz is supported...
+            #if self._eval_shape == "gh_quadrature_xyz":
+            #    self._qr_args = ["np_xyz", "weights_xyz"]
+            if self._eval_shape == "gh_quadrature_xyoz":
                 self._qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
-            elif self._eval_shape == "gh_quadrature_xoyoz":
-                self._qr_args = ["np_x", "np_y", "np_z",
-                                 "weights_x", "weights_y", "weights_z"]
+            #elif self._eval_shape == "gh_quadrature_xoyoz":
+            #    self._qr_args = ["np_x", "np_y", "np_z",
+            #                     "weights_x", "weights_y", "weights_z"]
             else:
                 raise GenerationError(
                     "Internal error: unsupported shape ({0}) found in "
@@ -3318,13 +3333,12 @@ class DynKern(Kern):
                 self._nodal_fspace = arg.function_space_to
             else:
                 self._nodal_fspace = arg.function_space
-        else:
-            if self._eval_shape != "":
-                # Should never get to here!
-                raise GenerationError(
-                    "Internal error: evaluator shape '{0}' is not recognised. "
-                    "Must be one of {1}.".format(self._eval_shape,
-                                                 VALID_EVALUATOR_SHAPES))
+        elif self._eval_shape:
+            # Should never get to here!
+            raise GenerationError(
+                "Internal error: evaluator shape '{0}' is not recognised. "
+                "Must be one of {1}.".format(self._eval_shape,
+                                             VALID_EVALUATOR_SHAPES))
 
     @property
     def cma_operation(self):
