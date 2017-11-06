@@ -1939,34 +1939,26 @@ def test_op_any_space_different_space_2(  # pylint: disable=invalid-name
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-    assert generated_code.find(
-        "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()") != -1
-    assert generated_code.find(
-        "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()") != -1
-    assert generated_code.find(
-        "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()") != -1
-    assert generated_code.find(
-        "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()") != -1
-    assert generated_code.find(
-        "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()") != -1
-    assert generated_code.find(
-        "undf_any_space_4_d = d_proxy%fs_from%get_undf()") != -1
-    assert generated_code.find(
-        "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()") != -1
-    assert generated_code.find(
-        "ndf_any_space_5_a = a_proxy%vspace%get_ndf()") != -1
-    assert generated_code.find(
-        "undf_any_space_5_a = a_proxy%vspace%get_undf()") != -1
-    assert generated_code.find(
-        "CALL qr%compute_function(BASIS, b_proxy%fs_to, ") != -1
-    assert generated_code.find(
-        "CALL qr%compute_function(BASIS, d_proxy%fs_from, ") != -1
-    assert generated_code.find(
-        "CALL qr%compute_function(DIFF_BASIS, d_proxy%fs_from, ") != -1
-    assert generated_code.find(
-        "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()") != -1
-    assert generated_code.find(
-        "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()") != -1
+    assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
+    assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
+        generated_code
+    assert "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()" in generated_code
+    assert "undf_any_space_4_d = d_proxy%fs_from%get_undf()" in generated_code
+    assert "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()" in \
+        generated_code
+    assert "ndf_any_space_5_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_any_space_5_a = a_proxy%vspace%get_undf()" in generated_code
+    assert "CALL qr%compute_function(BASIS, b_proxy%fs_to, " in generated_code
+    assert "CALL qr%compute_function(BASIS, d_proxy%fs_from, " in \
+        generated_code
+    assert "CALL qr%compute_function(DIFF_BASIS, d_proxy%fs_from, " in \
+        generated_code
+    assert "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()" in \
+        generated_code
+    assert "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()" in \
+        generated_code
 
 
 def test_invoke_uniq_declns():

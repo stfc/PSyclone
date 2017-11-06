@@ -3306,13 +3306,13 @@ class DynKern(Kern):
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
             # Currently only _xyoz is supported...
-            #if self._eval_shape == "gh_quadrature_xyz":
-            #    self._qr_args = ["np_xyz", "weights_xyz"]
+            # if self._eval_shape == "gh_quadrature_xyz":
+            #     self._qr_args = ["np_xyz", "weights_xyz"]
             if self._eval_shape == "gh_quadrature_xyoz":
                 self._qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
-            #elif self._eval_shape == "gh_quadrature_xoyoz":
-            #    self._qr_args = ["np_x", "np_y", "np_z",
-            #                     "weights_x", "weights_y", "weights_z"]
+            # elif self._eval_shape == "gh_quadrature_xoyoz":
+            #     self._qr_args = ["np_x", "np_y", "np_z",
+            #                      "weights_x", "weights_y", "weights_z"]
             else:
                 raise GenerationError(
                     "Internal error: unsupported shape ({0}) found in "

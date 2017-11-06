@@ -354,7 +354,7 @@ def test_qr_basis_stub():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
+    generated_code = str(kernel.gen_stub)
     output = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -421,10 +421,9 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-
     print output
-    print str(generated_code)
-    assert str(generated_code).find(output) != -1
+    print generated_code
+    assert output in generated_code
 
 
 def test_stub_basis_wrong_shape(monkeypatch):
