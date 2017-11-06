@@ -315,7 +315,7 @@ module dynamo0p3_builtins_mod
 ! ============== Raising field to a scalar ========================== !
 ! ------------------------------------------------------------------- !
 
-  !> field =  field**scalar (real scalar)
+  !> field =  field**rscalar (real scalar)
   type, public, extends(kernel_type) :: inc_X_powreal_a
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -326,6 +326,18 @@ module dynamo0p3_builtins_mod
    contains
      procedure, nopass :: inc_X_powreal_a_code
   end type inc_X_powreal_a
+
+  !> field =  field**iscalar (integer scalar)
+  type, public, extends(kernel_type) :: inc_X_powint_n
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,   GH_INC, ANY_SPACE_1),                  &
+          arg_type(GH_INTEGER, GH_READ            )                   &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inc_X_powint_n_code
+  end type inc_X_powint_n
 
 ! ------------------------------------------------------------------- !
 ! ============== Setting field elements to a value  ================= !
@@ -466,6 +478,9 @@ contains
   ! Raising field to a scalar
   subroutine inc_X_powreal_a_code()
   end subroutine inc_X_powreal_a_code
+
+  subroutine inc_X_powint_n_code()
+  end subroutine inc_X_powint_n_code
 
   ! Setting field elements to scalar or other field's values
   subroutine setval_c_code()

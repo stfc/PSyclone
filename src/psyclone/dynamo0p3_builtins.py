@@ -595,11 +595,27 @@ class DynIncXPowrealAKern(DynBuiltIn):
     def gen_code(self, parent):
         from psyclone.f2pygen import AssignGen
         # In this case we're raising each element of a field to a
-        # supplied scalar value.
+        # supplied real scalar value.
         field_name = self.array_ref(self._arguments.args[0].proxy_name)
         real_power = self._arguments.args[1].name
         parent.add(AssignGen(parent, lhs=field_name,
                              rhs=field_name + "**" + real_power))
+
+
+class DynIncXPowintNKern(DynBuiltIn):
+    ''' Raise a field to an integer power and return it '''
+
+    def __str__(self):
+        return "Built-in: raise a field to an integer power"
+
+    def gen_code(self, parent):
+        from psyclone.f2pygen import AssignGen
+        # In this case we're raising each element of a field to a
+        # supplied integer scalar value.
+        field_name = self.array_ref(self._arguments.args[0].proxy_name)
+        integer_power = self._arguments.args[1].name
+        parent.add(AssignGen(parent, lhs=field_name,
+                             rhs=field_name + "**" + integer_power))
 
 
 # ------------------------------------------------------------------- #
@@ -731,6 +747,7 @@ BUILTIN_MAP_CAPITALISED = {
     "inc_X_divideby_Y": DynIncXDividebyYKern,
     # Raising field to a scalar
     "inc_X_powreal_a": DynIncXPowrealAKern,
+    "inc_X_powint_n": DynIncXPowintNKern,
     # Setting field elements to scalar or other field's values
     "setval_c": DynSetvalCKern,
     "setval_X": DynSetvalXKern,
