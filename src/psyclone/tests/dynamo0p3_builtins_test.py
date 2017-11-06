@@ -227,8 +227,8 @@ def test_builtin_operator_arg():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real'] but kernel " +
-            test_builtin_name.lower() + " has an argument of "
+            "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
+            "kernel " + test_builtin_name.lower() + " has an argument of "
             "type gh_operator" in str(excinfo))
 
 
@@ -1656,6 +1656,53 @@ def test_inc_X_powreal_a():  # pylint: disable=invalid-name
             assert output in code
 
 
+def test_inc_X_powint_n():  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXPowintNKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X**n where 'n' is an integer scalar and X is a field '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.6.2_inc_X_powint_n_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: raise a field to an integer power"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+                "      END DO \n"
+                "      !\n")
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+
+            assert output in code
+
+
 # ------------- Setting field elements to a value --------------------------- #
 
 
@@ -2570,6 +2617,9 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
 # ------------- Invalid built-in with an integer scalar reduction ----------- #
 
 
+@pytest.mark.xfail(
+    reason="Reduction into an integer variable is not currently supported "
+    "by the LFRic infrastructure.")
 def test_scalar_int_builtin_error(monkeypatch):
     ''' Test that specifying incorrect meta-data for built-in such that it
     claims to perform a reduction into an integer variable raises the
@@ -2583,12 +2633,13 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
-        with pytest.raises(ParseError) as excinfo:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
-        assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
-                "an argument of type gh_integer" in str(excinfo))
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        with pytest.raises(GenerationError) as excinfo:
+            _ = str(psy.gen)
+        assert ("Generation Error: Integer reductions are not currently "
+                "supported by the LFRic infrastructure. Error found in "
+                "Kernel '" + test_builtin_name.lower() + "', argument 'isum'"
+                in str(excinfo.value))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #
