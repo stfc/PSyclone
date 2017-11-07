@@ -81,6 +81,22 @@ def count_lines(root, string_name):
     return count
 
 
+def print_diffs(expected, actual):
+    '''
+    Pretty-print the diff between the two, possibly multi-line, strings
+
+    :param str expected: Multi-line string
+    :param str actual: Multi-line string
+    '''
+    import difflib
+    from pprint import pprint
+    expected_lines = expected.splitlines()
+    actual_lines = actual.splitlines()
+    diff = difflib.Differ()
+    diff_list = list(diff.compare(expected_lines, actual_lines))
+    pprint(diff_list)
+
+
 def find_fortran_file(path, root_name):
     ''' Returns the full path to a Fortran source file. Searches for
     files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
@@ -179,7 +195,6 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     kernel_modules = set()
     # Get the names of the modules associated with the kernels. By definition,
     # built-ins do not have associated Fortran modules.
-    from psyclone.psyGen import BuiltIn
     for invoke in psy_ast.invokes.invoke_list:
         for call in invoke.schedule.kern_calls():
             kernel_modules.add(call.module_name)

@@ -29,36 +29,21 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-module testkern_operator_nofield_mod
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_operator_nofield_type
-     type(arg_type), dimension(2) :: meta_args =    &
-          (/ arg_type(gh_operator,gh_write,w2,w2),  &
-             arg_type(gh_field*3,gh_read,w0)        &
-          /)
-     type(func_type) :: meta_funcs(2) =             &
-          (/ func_type(w2, gh_basis),               &
-             func_type(w0, gh_diff_basis)           &
-          /)
-     integer :: iterates_over = cells
-     integer :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure, nopass :: code => testkern_operator_nofield_code
-  end type testkern_operator_nofield_type
-contains
-  subroutine testkern_operator_nofield_code(cell, nlayers, ncell_3d, &
-       local_stencil, xdata, ydata, zdata,                           &
-       ndf_w2, basis_w2, ndf_w0, undf_w0, map_w0, diff_basis_w0,     &
-       np_xy, np_z, weights_xy, weights_z)
-    integer :: cell, nlayers, ncell_3d, ndf_w2, ndf_w0, undf_w0, np_xy, np_z
-    integer, dimension(:) :: map_w0
-    real(kind=r_def), dimension(:) :: xdata, ydata, zdata
-    real(kind=r_def), dimension(:,:,:) :: local_stencil
-    real(kind=r_def), dimension(:,:,:,:) :: basis_w2, diff_basis_w0
-    real(kind=r_def), dimension(:) :: weights_xy, weights_z
-  end subroutine testkern_operator_nofield_code
-end module testkern_operator_nofield_mod
+program multi_functions_multi_invokes
+
+  ! Description: multiple invoke calls which are (incorrectly) given the
+  ! same name, albeit capitalised differently.
+  use testkern, only: testkern_type
+  use inf,      only: field_type
+  implicit none
+  type(field_type) :: f1, f2, m1, m2
+  real(r_def) :: a, b
+
+  call invoke(name="jack",                 &
+              testkern_type(a,f1,f2,m1,m2))
+  call invoke(name="Jack",                 &
+              testkern_type(b,f1,f2,m1,m2))
+
+end program multi_functions_multi_invokes

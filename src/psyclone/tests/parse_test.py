@@ -31,11 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
+
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
 
 import os
 import pytest
@@ -48,7 +53,7 @@ def test_continuators_kernel():
        does not cause an error. '''
     _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "test_files", "dynamo0p3",
-                              "1.1_single_invoke_qr.f90"),
+                              "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3", line_length=True)
 
 
@@ -71,7 +76,7 @@ def test_get_builtin_defs_wrong_api():
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_wrong_api():
+def test_kerneltypefactory_wrong_api():  # pylint: disable=invalid-name
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
     from psyclone.parse import KernelTypeFactory
@@ -80,7 +85,7 @@ def test_kerneltypefactory_wrong_api():
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_default_api():
+def test_kerneltypefactory_default_api():  # pylint: disable=invalid-name
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
@@ -89,7 +94,7 @@ def test_kerneltypefactory_default_api():
     assert factory._type == DEFAULTAPI
 
 
-def test_kerneltypefactory_create_broken_type():
+def test_kerntypefactory_create_broken_type():  # pylint: disable=invalid-name
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
     from psyclone.parse import KernelTypeFactory
@@ -167,8 +172,8 @@ def test_too_many_names_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.2_many_named_invoke.f90"),
             api="dynamo0.3")
-    print str(err)
     assert "An invoke must contain one or zero " in str(err)
+    assert "1.0.2_many_named_invoke.f90" in str(err)
 
 
 def test_wrong_named_invoke():
@@ -197,6 +202,22 @@ def test_wrong_type_named_invoke():
             api="dynamo0.3")
     assert ("The (optional) name of an invoke must be specified as a "
             "string" in str(err))
+    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err)
+
+
+def test_invalid_named_invoke():
+    ''' Test that we raise the expected error when the invoke contains
+    a named argument but its value is not a valid Fortran name '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.6_invoke_name_invalid_chars.f90"),
+            api="dynamo0.3")
+    assert ("The (optional) name of an invoke must be a string containing a "
+            "valid Fortran name (with any spaces replaced by underscores) but "
+            "got 'ja_ck(1)' " in str(err))
+    assert "1.0.6_invoke_name_invalid_chars.f90" in str(err)
 
 
 def test_duplicate_named_invoke():
@@ -208,7 +229,26 @@ def test_duplicate_named_invoke():
                          "test_files", "dynamo0p3",
                          "3.3_multi_functions_multi_invokes_name_clash.f90"),
             api="dynamo0.3")
-    assert "Found multiple named invoke()'s with the same name" in str(err)
+    print str(err)
+    assert ("Found multiple named invoke()'s with the same name ('jack') "
+            "when parsing " in str(err))
+    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
+
+
+def test_duplicate_named_invoke_case():  # pylint: disable=invalid-name
+    ''' Test that we raise the expected error when an algorithm file
+    contains two invokes that are given the same name but with different
+    case '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "3.4_multi_invoke_name_clash_case_insensitive.f90"),
+            api="dynamo0.3")
+    print str(err)
+    assert ("Found multiple named invoke()'s with the same name ('jack') "
+            "when parsing " in str(err))
+    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
 
 
 def test_get_stencil():
@@ -216,9 +256,9 @@ def test_get_stencil():
     passed various incorrect inputs '''
     from psyclone.parse import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
-    node = ExpressionNode(["1"])
+    enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(node, ["cross"])
+        _ = get_stencil(enode, ["cross"])
     assert ("Expecting format stencil(<type>[,<extent>]) but found the "
             "literal" in str(excinfo))
     node = FunctionVar(["stencil()"])

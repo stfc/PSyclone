@@ -55,6 +55,7 @@ Note that some Linux distributions install pip only for python 3 by
 default. In this case it is necessary to install pip for python 2. For
 example in openSUSE 42.2:
 ::
+
    > zypper install python-pip
 
 and then use pip2.7 instead of pip.
@@ -114,7 +115,6 @@ latest version simply do:
 
    > pip install fparser --upgrade
 
-(See :ref:`install_fparser` for more details.)
 
 pyparsing
 ^^^^^^^^^
