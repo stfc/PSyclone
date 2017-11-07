@@ -1681,7 +1681,7 @@ This section describes the dynamo-api-specific transformations. In all
 cases, excepting **Dynamo0p3RedundantComputationTrans**, these
 transformations are specialisations of generic transformations
 described in the :ref:`transformations` section. The difference
-between these transformations and the generic ones are that these
+between these transformations and the generic ones is that these
 perform dynamo-api-specific checks to make sure the transformations
 are valid. In practice these transformations perform the required
 checks then call the generic ones internally.

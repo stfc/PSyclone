@@ -34,14 +34,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-#------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 '''A PSyclone transformation script which performs redundant
 computation to remove halo exchanges where possible and then moves the
 remaining ones to the beginning of the loop thereby separating the
-computation from the communication. The code is from the Met Office
-repository but an operator has been replaced with a field to allow
-redundant computation'''
+computation from the communication. The science code for which this
+example script has been written is taken from the Met Office
+repository but an operator has been replaced with a field in one of
+the kernels to allow redundant computation'''
 
 
 def trans(psy):

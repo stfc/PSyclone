@@ -69,19 +69,6 @@ contains
   procedure, nopass :: scaled_matrix_vector_code
 end type
 
-type, public, extends(kernel_type) :: opt_scaled_matrix_vector_kernel_type
-  private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),       &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1)                     &  
-       /)
-  integer :: iterates_over = CELLS
-contains
-  procedure, nopass :: opt_scaled_matrix_vector_code
-end type
-
 !-------------------------------------------------------------------------------
 ! Constructors
 !-------------------------------------------------------------------------------
@@ -90,23 +77,16 @@ end type
 interface scaled_matrix_vector_kernel_type
    module procedure scaled_matrix_vector_kernel_constructor
 end interface
-interface opt_scaled_matrix_vector_kernel_type
-   module procedure opt_scaled_matrix_vector_kernel_constructor
-end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public scaled_matrix_vector_code
-public opt_scaled_matrix_vector_code
 contains
 
   type(scaled_matrix_vector_kernel_type) function scaled_matrix_vector_kernel_constructor() result(self)
   return
 end function scaled_matrix_vector_kernel_constructor
-  type(opt_scaled_matrix_vector_kernel_type) function opt_scaled_matrix_vector_kernel_constructor() result(self)
-  return
-end function opt_scaled_matrix_vector_kernel_constructor
 
 !> @brief Computes lhs = y*matrix*x where matrix maps from x space to lhs space
 !>        and y is a field in the same space as lhs
@@ -161,59 +141,5 @@ subroutine scaled_matrix_vector_code(cell,        &
   end do
  
 end subroutine scaled_matrix_vector_code
-
-!=============================================================================!
-!> @brief Computes lhs = y*matrix*x where matrix maps from x space to lhs space
-!>        and y is a field in the same space as lhs which has been optimised for
-!>        lhs, y in W2, x in W3 all at lowest order
-!> @param[in] cell Horizontal cell index
-!! @param[in] nlayers Number of layers
-!! @param[in] x Input data
-!> @param[inout] lhs Output lhs (A*x)
-!! @param[in] ncell_3d Total number of cells
-!! @param[in] matrix Local matrix assembly form of the operator A 
-!! @param[in] y field to scale output by
-!! @param[in] ndf1 Number of degrees of freedom per cell for the output field
-!! @param[in] undf1 Unique number of degrees of freedom  for the output field
-!! @param[in] map1 Dofmap for the cell at the base of the column for the output field
-!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
-!! @param[in] ndf2 Number of degrees of freedom per cell for the input field
-!! @param[in] undf2 Unique number of degrees of freedom for the input field 
-subroutine opt_scaled_matrix_vector_code(cell,        &
-                                         nlayers,     &
-                                         lhs, x,      & 
-                                         ncell_3d,    &
-                                         matrix,      &
-                                         y,           &
-                                         ndf1, undf1, map1, &
-                                         ndf2, undf2, map2)
-
-  implicit none 
-  ! Arguments
-  integer,                   intent(in) :: cell, nlayers, ncell_3d
-  integer,                   intent(in) :: undf1, ndf1
-  integer,                   intent(in) :: undf2, ndf2
-  integer, dimension(ndf1),  intent(in) :: map1
-  integer, dimension(ndf2),  intent(in) :: map2
-  real(kind=r_def), dimension(undf2),        intent(in)    :: x
-  real(kind=r_def), dimension(undf1),        intent(inout) :: lhs
-  real(kind=r_def), dimension(6,1,ncell_3d), intent(in)    :: matrix
-  real(kind=r_def), dimension(undf1),        intent(in)    :: y
-
-  ! Internal variables
-  integer :: k, ik
-
-  ! Hard wired optimisation for desired configuration
-  do k = 0, nlayers-1
-    ik = (cell-1)*nlayers + k + 1
-    lhs(map1(1)+k) = lhs(map1(1)+k) + matrix(1,1,ik)*x(map2(1)+k)*y(map1(1)+k)
-    lhs(map1(2)+k) = lhs(map1(2)+k) + matrix(2,1,ik)*x(map2(1)+k)*y(map1(2)+k)
-    lhs(map1(3)+k) = lhs(map1(3)+k) + matrix(3,1,ik)*x(map2(1)+k)*y(map1(3)+k)
-    lhs(map1(4)+k) = lhs(map1(4)+k) + matrix(4,1,ik)*x(map2(1)+k)*y(map1(4)+k)
-    lhs(map1(5)+k) = lhs(map1(5)+k) + matrix(5,1,ik)*x(map2(1)+k)*y(map1(5)+k)
-    lhs(map1(6)+k) = lhs(map1(6)+k) + matrix(6,1,ik)*x(map2(1)+k)*y(map1(6)+k)
-  end do
- 
-end subroutine opt_scaled_matrix_vector_code
 
 end module scaled_matrix_vector_kernel_mod
