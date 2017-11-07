@@ -1116,8 +1116,8 @@ Built-ins
 
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
-built-ins generally follow a convention that the field/scalar written
-to comes first in the argument list. Dynamo 0.3 built-ins must conform to the
+Built-ins generally follow a convention that the field/scalar written
+to comes first in the argument list. Dynamo 0.3 Built-ins must conform to the
 following four rules:
 
  1) Built-in kernels must have one and only one modified (i.e. written
@@ -1128,28 +1128,28 @@ following four rules:
 
  3) Kernel arguments must be either fields or scalars.
 
- 4) All field arguments to a given built-in must be on the same
-    function space. This is because all current built-ins iterate over
+ 4) All field arguments to a given Built-in must be on the same
+    function space. This is because all current Built-ins iterate over
     dofs and therefore all fields should have the same number. It also
     means that we can determine the number of dofs uniquely when a
     scalar is written to.
 
-The built-ins supported for the Dynamo 0.3 API are listed in the related
+The Built-ins supported for the Dynamo 0.3 API are listed in the related
 subsections, grouped by the mathematical operation they perform. For clarity,
-the calculation performed by each built-in is described using Fortran array
+the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
-built-in (*e.g.* it could be implemented by PSyclone generating a call to an
+Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
 optimised maths library).
 
 Naming scheme
 +++++++++++++
 
-The supported built-ins in the Dynamo 0.3 API are named according to the
-scheme presented below. Any new built-ins need to comply with these rules.
+The supported Built-ins in the Dynamo 0.3 API are named according to the
+scheme presented below. Any new Built-in needs to comply with these rules.
 
-    1) Ordering of arguments in built-ins calls follows
+    1) Ordering of arguments in Built-ins calls follows
        *LHS (result) <- RHS (operation on arguments)*
-       direction, except where a built-in returns the *LHS* result to one of
+       direction, except where a Built-in returns the *LHS* result to one of
        the *RHS* arguments. In that case ordering of arguments remains as in
        the *RHS* expression, with the returning *RHS* argument written as close
        to the *LHS* as it can be without affecting the mathematical expression.
@@ -1162,7 +1162,7 @@ scheme presented below. Any new built-ins need to comply with these rules.
        **innprod** (inner/scalar product of two fields) and **sumfld**
        (sum of a field).
 
-    4) Arguments in built-ins variable declarations and constructs (PSyclone
+    4) Arguments in Built-ins variable declarations and constructs (PSyclone
        Fortran and Python definitions):
 
        a) Are always  written in long form and lower case (e.g. **field1**,
@@ -1537,22 +1537,36 @@ where:
 Raising to power
 ++++++++++++++++
 
-Built-in which raises field elements to an exponent is denoted with the keyword
-**powreal** for real exponent.
+Built-ins which raise field elements to an exponent are denoted with the
+keyword **powreal** for real exponent or **powint** for integer exponent.
 
 inc_X_powreal_a
 ###############
 
-**inc_X_powreal_a** (*field*, *scalar*)
+**inc_X_powreal_a** (*field*, *rscalar*)
 
 Raises a field to a real scalar value and returns the field (X = X**a): ::
 
-  field(:) = field(:)**scalar
+  field(:) = field(:)**rscalar
 
 where:
 
 * type(field_type), intent(inout) :: *field*
-* real(r_def), intent(in) :: *scalar*
+* real(r_def), intent(in) :: *rscalar*
+
+inc_X_powint_n
+##############
+
+**inc_X_powint_n** (*field*, *iscalar*)
+
+Raises a field to an integer scalar value and returns the field (X = X**n): ::
+
+  field(:) = field(:)**iscalar
+
+where:
+
+* type(field_type), intent(inout) :: *field*
+* integer(i_def), intent(in) :: *iscalar*
 
 Inner product
 +++++++++++++
@@ -1574,7 +1588,7 @@ where:
 * real(r_def), intent(out) :: *innprod*
 * type(field_type), intent(in) :: *field1*, *field2*
 
-.. note:: When used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
@@ -1592,7 +1606,7 @@ where:
 * real(r_def), intent(out) :: *innprod*
 * type(field_type), intent(in) :: *field*
 
-.. note:: When used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
@@ -1616,7 +1630,7 @@ where:
 * real(r_def), intent(out) :: sumfld
 * type(field_type), intent(in) :: field
 
-.. note:: When used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
