@@ -40,10 +40,10 @@
     The DynBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
-import psyGen
-from psyGen import BuiltIn, NameSpaceFactory
-from parse import ParseError
-from dynamo0p3 import DynLoop, DynKernelArguments
+from psyclone import psyGen
+from psyclone.psyGen import BuiltIn, NameSpaceFactory
+from psyclone.parse import ParseError
+from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
