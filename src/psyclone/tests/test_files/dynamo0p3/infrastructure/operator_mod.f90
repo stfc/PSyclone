@@ -38,11 +38,14 @@
 module operator_mod
   use constants_mod,            only : r_def
   use function_space_mod,       only : function_space_type
+  use mesh_mod
 
   type, public :: base_operator_type
      integer :: a
      type( function_space_type ), pointer         :: fs_from => null( )
      type( function_space_type ), pointer         :: fs_to => null( )
+   contains
+     procedure, public :: get_mesh
   end type base_operator_type
 
   type, extends(base_operator_type) :: operator_type
@@ -71,8 +74,17 @@ contains
     implicit none
     class(operator_type), target, intent(in)  :: self
 
-    get_proxy_op % fs_from                 => self % fs_from
-    get_proxy_op % fs_to                   => self % fs_to
+    get_proxy_op % fs_from                 => null()
+    get_proxy_op % fs_to                   => null()
   end function get_proxy_op
+
+  
+  function get_mesh(self) result(mesh)
+
+    implicit none
+    class (base_operator_type), intent(in) :: self
+    type(mesh_type), pointer :: mesh
+    mesh => null()
+  end function get_mesh
 
 end module operator_mod
