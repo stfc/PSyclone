@@ -1677,7 +1677,8 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags):  # pylint: disable=invalid-name
         print code
 
         if utils.TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         if not distmem:
@@ -2132,7 +2133,8 @@ def test_builtin_set(tmpdir, f90, f90flags):
         print code
 
         if utils.TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         if not distmem:
@@ -2636,10 +2638,10 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3").create(invoke_info)
         # Attempt to generate the code
         with pytest.raises(GenerationError) as excinfo:
-            _ = psy.gen
+            _ = PSyFactory("dynamo0.3",
+                           distributed_memory=dist_mem).create(invoke_info)
         assert ("Integer reductions are not currently supported "
                 "by the LFRic infrastructure. Error found in "
                 "Kernel '" + test_builtin_name.lower() + "', argument 'isum'"
