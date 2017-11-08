@@ -50,8 +50,7 @@ import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
-    DynGlobalSum, HaloReadAccess
+    FunctionSpace, VALID_STENCIL_TYPES, DynGlobalSum, HaloReadAccess
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 import fparser
@@ -2162,7 +2161,7 @@ def test_dyninvoke_first_access():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_intent_invalid_type():
+def test_dyninvoke_uniq_declns_inv_type():  # pylint: disable=invalid-name
     ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
     is called for an invalid argument type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2175,7 +2174,7 @@ def test_dyninvoke_uniq_declns_intent_invalid_type():
         in str(excinfo.value)
 
 
-def test_dyninvoke_uniq_declns_intent_fields():
+def test_dyninvoke_uniq_declns_intent_fields():  # pylint: disable=invalid-name
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for gh_fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2188,7 +2187,7 @@ def test_dyninvoke_uniq_declns_intent_fields():
     assert args['in'] == ['f2', 'm1', 'm2']
 
 
-def test_dyninvoke_uniq_declns_intent_real():
+def test_dyninvoke_uniq_declns_intent_real():  # pylint: disable=invalid-name
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for gh_real '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2201,7 +2200,7 @@ def test_dyninvoke_uniq_declns_intent_real():
     assert args['in'] == ['a']
 
 
-def test_dyninvoke_uniq_declns_intent_integer():
+def test_dyninvoke_uniq_declns_intent_int():  # pylint: disable=invalid-name
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for gh_integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2214,7 +2213,7 @@ def test_dyninvoke_uniq_declns_intent_integer():
     assert args['in'] == ['istep']
 
 
-def test_dyninvoke_uniq_declns_intent_ops():
+def test_dyninvoke_uniq_declns_intent_ops():  # pylint: disable=invalid-name
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for operator arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2385,7 +2384,8 @@ def test_bc_kernel_field_only(monkeypatch):
         # otherwise the first monkey-patch causes it to break. Since
         # it is a function we have to patch it with a temporary
         # function which we create using lambda.
-        monkeypatch.setattr(arg, "ref_name", lambda fs=None: "vspace")
+        monkeypatch.setattr(arg, "ref_name",
+                            lambda function_space=None : "vspace")
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("Expected a gh_field from which to look-up boundary dofs "
@@ -2642,7 +2642,7 @@ def test_multikern_invoke_any_space():
             "wh_qr, wv_qr" in gen)
 
 
-def test_mkern_invoke_multiple_any_spaces():
+def test_mkern_invoke_multiple_any_spaces():  # pylint: disable=invalid-name
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2747,7 +2747,7 @@ def test_stub_invalid_api():
     assert "Unsupported API 'dynamo0.1' specified" in str(excinfo.value)
 
 
-def test_stub_file_content_not_fortran():
+def test_stub_file_content_not_fortran():  # pylint: disable=invalid-name
     ''' fail if the kernel file does not contain fortran '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2822,7 +2822,7 @@ def test_stub_generate_working():
     assert str(result).find(SIMPLE) != -1
 
 
-def test_stub_generate_working_noapi():
+def test_stub_generate_working_noapi():  # pylint: disable=invalid-name
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
@@ -2879,7 +2879,7 @@ SCALAR_SUMS = (
     "  END MODULE testkern_multiple_scalar_sums_mod")
 
 
-def test_stub_generate_with_scalar_sums():
+def test_stub_generate_with_scalar_sums():  # pylint: disable=invalid-name
     '''check that the stub generator raises an exception when a kernel has
     a reduction (since these are not permitted for user-supplied kernels)'''
     with pytest.raises(ParseError) as err:
@@ -3212,7 +3212,7 @@ end module dummy_mod
 '''
 
 
-def test_stub_operator_different_spaces():
+def test_stub_operator_different_spaces():  # pylint: disable=invalid-name
     ''' test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on
     different spaces '''
@@ -3568,7 +3568,7 @@ def test_stencil_metadata():
     assert stencil_descriptor_1.stencil['extent'] is None
 
 
-def test_field_metadata_too_many_arguments():
+def test_field_metadata_too_many_arguments():  # pylint: disable=invalid-name
     '''Check that we raise an exception if more than 4 arguments are
     provided in the metadata for a gh_field arg_type.'''
     result = STENCIL_CODE.replace(
@@ -3661,7 +3661,7 @@ def test_invalid_stencil_form_6():
         in str(excinfo.value)
 
 
-def test_invalid_stencil_first_arg_1():
+def test_invalid_stencil_first_arg_1():  # pylint: disable=invalid-name
     '''Check that we raise an exception if the value of the stencil type in
     stencil(<type>[,<extent>]) is not valid and is an integer'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
@@ -3672,7 +3672,7 @@ def test_invalid_stencil_first_arg_1():
     assert "is a literal" in str(excinfo.value)
 
 
-def test_invalid_stencil_first_arg_2():
+def test_invalid_stencil_first_arg_2():  # pylint: disable=invalid-name
     '''Check that we raise an exception if the value of the stencil type in
     stencil(<type>[,<extent>]) is not valid and is a name'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
@@ -3682,7 +3682,7 @@ def test_invalid_stencil_first_arg_2():
     assert "not one of the valid types" in str(excinfo.value)
 
 
-def test_invalid_stencil_first_arg_3():
+def test_invalid_stencil_first_arg_3():  # pylint: disable=invalid-name
     '''Check that we raise an exception if the value of the stencil type in
     stencil(<type>[,<extent>]) is not valid and has brackets'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
@@ -3693,7 +3693,7 @@ def test_invalid_stencil_first_arg_3():
     assert "includes brackets" in str(excinfo.value)
 
 
-def test_invalid_stencil_second_arg_1():
+def test_invalid_stencil_second_arg_1():  # pylint: disable=invalid-name
     '''Check that we raise an exception if the value of the stencil extent in
     stencil(<type>[,<extent>]) is not an integer'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
@@ -3704,7 +3704,7 @@ def test_invalid_stencil_second_arg_1():
     assert "is not an integer" in str(excinfo.value)
 
 
-def test_invalid_stencil_second_arg_2():
+def test_invalid_stencil_second_arg_2():  # pylint: disable=invalid-name
     '''Check that we raise an exception if the value of the stencil extent in
     stencil(<type>[,<extent>]) is less than 1'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
@@ -3715,7 +3715,7 @@ def test_invalid_stencil_second_arg_2():
     assert "is less than 1" in str(excinfo.value)
 
 
-def test_unsupported_second_argument():
+def test_unsupported_second_argument():  # pylint: disable=invalid-name
     '''Check that we raise an exception if stencil extent is specified, as
     we do not currently support it'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
@@ -3735,7 +3735,7 @@ def test_valid_stencil_types():
         _ = DynKernMetadata(ast)
 
 
-def test_arg_descriptor_functions_method_error():
+def test_arg_descriptor_funcs_method_error():  # pylint: disable=invalid-name
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_spaces is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
@@ -3751,7 +3751,7 @@ def test_arg_descriptor_functions_method_error():
         'not get to here' in str(excinfo.value)
 
 
-def test_DynKernelArgument_intent_invalid():
+def test_DynKernelArgument_intent_invalid():  # pylint: disable=invalid-name
     '''Tests that an error is raised in DynKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -3860,7 +3860,7 @@ def test_no_arg_on_space(monkeypatch):
             "name = 'not_a_space_name')" in str(excinfo))
 
 
-def test_arg_descriptor_function_method_error():
+def test_arg_descriptor_func_method_error():  # pylint: disable=invalid-name
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
@@ -3938,7 +3938,7 @@ def test_arg_descriptor_repr():
         in result
 
 
-def test_arg_descriptor_function_space_tofrom_error():
+def test_arg_desc_func_space_tofrom_err():  # pylint: disable=invalid-name
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space_to or function_space_from is called and the
     internal type is not gh_operator.'''
@@ -3987,7 +3987,7 @@ def test_mangle_function_space():
     assert name == "any_space_2_f2"
 
 
-def test_no_mangle_specified_function_space():
+def test_no_mangle_specified_function_space():  # pylint: disable=invalid-name
     ''' Test that we do not name-mangle a function space that is not
     any_space '''
     from psyclone.dynamo0p3 import mangle_fs_name
@@ -4001,7 +4001,7 @@ def test_no_mangle_specified_function_space():
     assert name == "w2"
 
 
-def test_fsdescriptors_get_descriptor():
+def test_fsdescriptors_get_descriptor():  # pylint: disable=invalid-name
     ''' Test that FSDescriptors.get_descriptor() raises the expected error
     when passed a function space for which there is no corresponding kernel
     argument '''
@@ -4246,7 +4246,7 @@ def test_halo_exchange_inc():
     assert result.count("halo_exchange") == 7
 
 
-def test_no_halo_exchange_for_operator():
+def test_no_halo_exchange_for_operator():  # pylint: disable=invalid-name
     ''' Test that no halo exchange is generated before a kernel that reads
     from an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4274,7 +4274,7 @@ def test_no_set_dirty_for_operator():
     assert "is_dirty" not in result
 
 
-def test_halo_exchange_different_spaces():
+def test_halo_exchange_different_spaces():  # pylint: disable=invalid-name
     '''test that all of our different function spaces with a stencil
     access result in halo calls including any_space'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4353,7 +4353,7 @@ def test_halo_exchange_depths():
     assert expected in result
 
 
-def test_halo_exchange_depths_gh_inc():
+def test_halo_exchange_depths_gh_inc():  # pylint: disable=invalid-name
     ''' test that halo exchange includes the correct halo depth when
     we have a gh_inc as this increases the required depth by 1 (as
     redundant computation is performed in the l1 halo) '''
@@ -4539,7 +4539,7 @@ def test_lower_bound_fortran_2(monkeypatch):
 
 def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
-    method whe 'cell_halo', 'dof_halo' or 'inner' are used'''
+    method when 'cell_halo', 'dof_halo' or 'inner' are used'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -4877,7 +4877,7 @@ def test_stencil_region_unsupported():
             str(excinfo.value)
 
 
-def test_single_stencil_xory1d_literal():
+def test_single_stencil_xory1d_literal():  # pylint: disable=invalid-name
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument'''
     for dist_mem in [False, True]:
@@ -4932,7 +4932,7 @@ def test_single_stencil_xory1d_literal():
         assert output6 in result
 
 
-def test_single_stencil_xory1d_literal_mixed():
+def test_single_stencil_xory1d_literal_mixed():  # pylint: disable=invalid-name
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument and the case of the
     literal is specified in mixed case'''
@@ -5139,7 +5139,7 @@ def test_multiple_stencil_same_name():
         assert output5 in result
 
 
-def test_multiple_stencil_same_name_direction():
+def test_multi_stencil_same_name_direction():  # pylint: disable=invalid-name
     '''test the case where there is more than one stencil in a kernel with
     the same name for direction'''
     for dist_mem in [False, True]:
@@ -5220,7 +5220,7 @@ def test_multiple_stencil_same_name_direction():
         assert output5 in result
 
 
-def test_multiple_kernels_stencils_different_fields():
+def test_multi_kerns_stencils_diff_fields():  # pylint: disable=invalid-name
     '''Test the case where we have multiple kernels with stencils and
     different fields for each. We also test extent names by having both
     shared and individual names.'''
@@ -5433,7 +5433,7 @@ def test_two_stencils_same_field():
         assert output7 in result
 
 
-def test_stencils_same_field_literal_extent():
+def test_stencils_same_field_literal_extent():  # pylint: disable=invalid-name
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the extent being passed as a
     literal value. Extent is the same in two kernels and different in
@@ -5486,15 +5486,15 @@ def test_stencils_same_field_literal_extent():
         assert result.count(output4) == 1
 
         if dist_mem:
-            assert ("IF (f2_proxy%is_dirty(depth=3)) THEN" in result)
-            assert ("CALL f2_proxy%halo_exchange(depth=3)" in result)
-            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
-            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
+            assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+            assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+            assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+            assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def test_stencils_same_field_literal_direction():
+def test_stencils_same_field_literal_direct():  # pylint: disable=invalid-name
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the direction being passed as a
     literal value. In two kernels the direction value is the same and
@@ -5559,12 +5559,12 @@ def test_stencils_same_field_literal_direction():
         assert result.count(output4) == 1
 
         if dist_mem:
-            assert ("IF (f2_proxy%is_dirty(depth=3)) THEN" in result)
-            assert ("CALL f2_proxy%halo_exchange(depth=3)" in result)
-            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
-            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
+            assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+            assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+            assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+            assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
 def test_stencil_extent_specified():
@@ -5590,7 +5590,7 @@ def test_stencil_extent_specified():
             "This is not coded for." in str(err))
 
 
-def test_haloexchange_unknown_halo_depth():
+def test_haloexchange_unknown_halo_depth():  # pylint: disable=invalid-name
     '''If a stencil extent is provided in the kernel metadata then the
     value is stored in an instance of the DynHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
@@ -5622,7 +5622,7 @@ def test_haloexchange_correct_parent():  # pylint: disable=invalid-name
         assert child.parent == schedule
 
 
-def test_single_kernel_multi_field_same_stencil():
+def test_one_kern_multi_field_same_stencil():  # pylint: disable=invalid-name
     '''This test checks for the case where we have the same stencil used
     by more than one field in a kernel'''
     for dist_mem in [False, True]:
@@ -5683,7 +5683,7 @@ def test_single_kernel_multi_field_same_stencil():
         assert output5 in result
 
 
-def test_single_kernel_any_space_stencil():
+def test_single_kernel_any_space_stencil():  # pylint: disable=invalid-name
     '''This is a test for stencils and any_space within a single kernel
     and between kernels. We test when any_space is the same and when
     it is different within kernels and between kernels for the case of
@@ -5737,7 +5737,7 @@ def test_single_kernel_any_space_stencil():
 
 
 @pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
-def test_multi_kernel_any_space_stencil_1():
+def test_multi_kernel_any_space_stencil_1():  # pylint: disable=invalid-name
     '''This is a test for stencils and any_space with two kernels. We test
     when any_space is the same and when it is different for the same
     field. In our example we should have a single dofmap. However, at
@@ -5890,10 +5890,10 @@ def test_stencil_args_unique_2():
             assert (
                 "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
                 "f2_info_2+1))" in result)
-            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
-            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
+            assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+            assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
 def test_stencil_args_unique_3():
@@ -5924,13 +5924,13 @@ def test_stencil_args_unique_3():
             assert (
                 "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
                 "my_info_f2_info_2+1))" in result)
-            assert ("IF (f3_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f3_proxy%halo_exchange(depth=1)" in result)
-            assert ("IF (f4_proxy%is_dirty(depth=1)) THEN" in result)
-            assert ("CALL f4_proxy%halo_exchange(depth=1)" in result)
+            assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+            assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def test_dynloop_load_unexpected_function_space():
+def test_dynloop_load_unexpected_func_space():  # pylint: disable=invalid-name
     '''The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
@@ -5966,7 +5966,7 @@ def test_dynloop_load_unexpected_function_space():
             "'any_w2'] but found 'broken'" in str(err))
 
 
-def test_dynkernelarguments_unexpected_stencil_extent():
+def test_dynkernargs_unexpect_stencil_extent():  # pylint: disable=invalid-name
     '''This test checks that we raise an error in DynKernelArguments if
     metadata is provided with an extent value. This is a litle tricky to
     raise as the parser does not not allow this to happen. We therefore
@@ -5990,7 +5990,7 @@ def test_dynkernelarguments_unexpected_stencil_extent():
     assert "extent metadata not yet supported" in str(err)
 
 
-def test_unsupported_halo_read_access():
+def test_unsupported_halo_read_access():  # pylint: disable=invalid-name
     '''This test checks that we raise an error if the halo_read_access
     method finds an upper bound other than halo or ncells. The
     particular issue at the moment is that if inner is specified we do
@@ -6018,7 +6018,7 @@ def test_unsupported_halo_read_access():
             "'inner'." in str(err))
 
 
-def test_dynglobalsum_unsupported_scalar():
+def test_dynglobalsum_unsupported_scalar():  # pylint: disable=invalid-name
     '''Check that an instance of the DynGlobalSum class raises an
     exception if an unsupported scalar type is provided when
     dm=True '''
@@ -6104,7 +6104,7 @@ end module testkern
             "testkern_type" in str(excinfo))
 
 
-def test_multiple_updated_field_args():
+def test_multiple_updated_field_args():  # pylint: disable=invalid-name
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
     fparser.logging.disable('CRITICAL')
@@ -6138,7 +6138,7 @@ def test_multiple_updated_op_args():
     assert count == 2
 
 
-def test_multiple_updated_scalar_args():
+def test_multiple_updated_scalar_args():  # pylint: disable=invalid-name
     ''' Check that we raise the expected exception when we encounter a
     kernel that writes to more than one of its field and scalar arguments '''
     fparser.logging.disable('CRITICAL')
@@ -6401,7 +6401,7 @@ def test_kernel_stub_ind_dofmap_errors():  # pylint: disable=invalid-name
             "got") in str(excinfo)
 
 
-def test_kerncallarglist_arglist_error():
+def test_kerncallarglist_arglist_error():  # pylint: disable=invalid-name
     '''Check that we raise an exception if we call the arglist method in
     kerncallarglist without first calling the generate method'''
     for distmem in [False, True]:
@@ -6428,7 +6428,7 @@ def test_kerncallarglist_arglist_error():
             "called?") in str(excinfo.value)
 
 
-def test_kernstubarglist_arglist_error():
+def test_kernstubarglist_arglist_error():  # pylint: disable=invalid-name
     '''Check that we raise an exception if we call the arglist method in
     kernstubarglist without first calling the generate method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -6628,8 +6628,6 @@ def test_halo_for_discontinuous():
                                  "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
     result = str(psy.gen)
     print result
     assert "IF (f1_proxy%is_dirty(depth=1)) THEN" in result
@@ -6650,8 +6648,6 @@ def test_halo_for_discontinuous_2():
                                  "14.7_halo_annexed.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
     result = str(psy.gen)
     print result
     assert "IF (f1_proxy%is_dirty(depth=1)) THEN" not in result
@@ -6700,12 +6696,12 @@ def test_arg_discontinous():
     assert not field.discontinuous
 
 
-def test_halo_stencil_redundant_computation():
+def test_halo_stencil_redundant_computation():  # pylint: disable=invalid-name
     '''If a loop contains a kernel with a stencil access and the loop
     computes redundantly into the halo then the value of the stencil
     in the associated halo exchange is returned as type region
     irrespective of the type of kernel stencil. This is because the
-    redundant computation will be performed all all points (equivalent
+    redundant computation will be performed all points (equivalent
     to a full halo) and there is no support for mixing accesses at
     different levels. In this example the kernel stencil is cross.'''
 
@@ -6718,7 +6714,7 @@ def test_halo_stencil_redundant_computation():
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
-def test_halo_same_stencils_no_redundant_computation():
+def test_halo_same_stencils_no_red_comp():  # pylint: disable=invalid-name
     '''If a halo has two or more different halo reads associated with it
     and the type of stencils are the same and the loops do not
     redundantly compute into the halo then the chosen stencil type for
@@ -6733,7 +6729,7 @@ def test_halo_same_stencils_no_redundant_computation():
     assert stencil_halo_exchange._compute_stencil_type() == "cross"
 
 
-def test_halo_different_stencils_no_redundant_computation():
+def test_halo_different_stencils_no_red_comp():  # pylint: disable=invalid-name
     '''If a halo has two or more different halo reads associated with it
     and the type of stencils are different and the loops do not
     redundantly compute into the halo then the chosen stencil type is
@@ -6749,7 +6745,7 @@ def test_halo_different_stencils_no_redundant_computation():
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
-def test_halo_compute_halo_internal_error(monkeypatch):
+def test_comp_halo_intern_err(monkeypatch):  # pylint: disable=invalid-name
     '''Check that we raise an exception if the compute_halo_read_info method in
     dynhaloexchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
@@ -6760,14 +6756,14 @@ def test_halo_compute_halo_internal_error(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
-    monkeypatch.setattr(field, "forward_read_dependencies", lambda fs=None: [])
+    monkeypatch.setattr(field, "forward_read_dependencies", lambda : [])
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_read_info()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange") in str(excinfo.value)
 
 
-def test_halo_exchange_one_backward_dependence(monkeypatch):
+def test_halo_exch_1_back_dep(monkeypatch):  # pylint: disable=invalid-name
     '''Check that an internal error is raised if a halo exchange returns
     with more than one write dependency. It should only ever be 0 or 1.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -6778,7 +6774,7 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
     field = halo_exchange.field
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
-                        lambda fs=None: [1, 1])
+                        lambda ignore_halos=False : [1, 1])
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_write_info()
     assert ("Internal logic error. There should be at most one "
@@ -6786,11 +6782,11 @@ def test_halo_exchange_one_backward_dependence(monkeypatch):
             "'2'") in str(excinfo.value)
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
-                        lambda fs=None: [])
+                        lambda ignore_halos=False : [])
     assert halo_exchange._compute_halo_write_info() == []
 
 
-def test_halo_exchange_backward_dependence_no_call(monkeypatch):
+def test_halo_ex_back_dep_no_call(monkeypatch):  # pylint: disable=invalid-name
     '''Check that an internal error is raised if a halo exchange
     write dependency is not a call.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -6802,15 +6798,21 @@ def test_halo_exchange_backward_dependence_no_call(monkeypatch):
     field = halo_exchange.field
     write_dependencies = field.backward_write_dependencies()
     write_dependency = write_dependencies[0]
-    monkeypatch.setattr(write_dependency, "call",
-                        lambda fs=None: halo_exchange)
+    monkeypatch.setattr(write_dependency, "_call",
+                        lambda : halo_exchange)
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_write_info()
+    # Note, we would expect the call type returned from HaloInfo to be
+    # DynHaloExchange as that is the type of the halo_exchange
+    # variable but lambda seems to result in the returning object
+    # being of type 'function'. I'm not sure why. However, this does
+    # not matter in practice as we are just trying to get PSyclone to
+    # raise the appropriate exception.
     assert ("Generation Error: In HaloInfo class, field 'f2' should be from a "
             "call but found <type 'function'>") in str(excinfo.value)
 
 
-def test_HaloReadAccess_input_field():
+def test_HaloReadAccess_input_field():  # pylint: disable=invalid-name
     '''The HaloReadAccess class expects a DynKernelArgument or equivalent
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
@@ -6822,7 +6824,7 @@ def test_HaloReadAccess_input_field():
         "'<type 'NoneType'>'" in str(excinfo.value))
 
 
-def test_HaloReadAccess_field_in_call():
+def test_HaloReadAccess_field_in_call():  # pylint: disable=invalid-name
     '''The field passed to HaloReadAccess should be within a kernel or
     builtin. If it is not then an exception is raised. This test
     checks that this exception is raised correctly'''
@@ -6839,7 +6841,7 @@ def test_HaloReadAccess_field_in_call():
             in str(excinfo.value))
 
 
-def test_HaloReadAccess_field_not_reader():
+def test_HaloReadAccess_field_not_reader():  # pylint: disable=invalid-name
     '''The field passed to HaloReadAccess should be read within its associated
     kernel or builtin. If it is not then an exception is raised. This
     test checks that this exception is raised correctly
@@ -6860,9 +6862,9 @@ def test_HaloReadAccess_field_not_reader():
         "'gh_inc'], but found 'gh_write'" in str(excinfo.value))
 
 
-def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
+def test_HaloRead_inv_loop_upper(monkeypatch):  # pylint: disable=invalid-name
     '''The upper bound of a loop in the compute_halo_read_info method within
-    the HaloReadAccesss class hould be recognised by the logic. If not an
+    the HaloReadAccesss class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
     '''
@@ -6882,7 +6884,7 @@ def test_HaloReadAccess_invalid_loop_upper_bound(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field():
+def test_HaloReadAccess_discontinuous_field():  # pylint: disable=invalid-name
     '''When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation'''
@@ -6901,7 +6903,8 @@ def test_HaloReadAccess_discontinuous_field():
     assert halo_access.stencil_type is None
 
 
-def test_loop_annexed_dofs_multi_write(monkeypatch):
+def test_loop_annex_dofs_writes(monkeypatch):  # pylint: disable=invalid-name
+
     '''When a continuous argument is read in a discontinuous loop it
     accesses any annexed dofs. We then check any previous write
     dependences. There should be at most one of these. If there are more
@@ -6918,15 +6921,15 @@ def test_loop_annexed_dofs_multi_write(monkeypatch):
     # the test is for the length of the list returned so it does not
     # matter what is actually in the list to raise the exception
     monkeypatch.setattr(f1_arg, "backward_write_dependencies",
-                        lambda ignore_halos: [1, 1])
+                        lambda ignore_halos=False : [1, 1])
     with pytest.raises(GenerationError) as excinfo:
-        result = loop._halo_read_access(f1_arg)
+        _ = loop._halo_read_access(f1_arg)
     assert ("Internal error in _halo_read_access, kernel 'testkern_code' "
             "arg 'f1'. We should only return at most one write "
             "dependence") in str(excinfo.value)
 
 
-def test_loop_continuous_read_invalid_bound(monkeypatch):
+def test_loop_cont_read_inv_bound(monkeypatch):  # pylint: disable=invalid-name
     '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
@@ -6941,13 +6944,13 @@ def test_loop_continuous_read_invalid_bound(monkeypatch):
     #
     monkeypatch.setattr(loop, "_upper_bound_name", "invalid")
     with pytest.raises(GenerationError) as excinfo:
-        result = loop._halo_read_access(f1_arg)
+        _ = loop._halo_read_access(f1_arg)
     assert ("Internal error in _halo_read_access. It should not be "
             "possible to get to here. loop upper bound name is 'invalid' "
             "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
 
 
-def test_create_halo_exchanges_vector_field(monkeypatch):
+def test_new_halo_exch_vect_field(monkeypatch):  # pylint: disable=invalid-name
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then it
     must be a vector (as a vector field requiring a halo exchange should
@@ -6967,7 +6970,7 @@ def test_create_halo_exchanges_vector_field(monkeypatch):
     # backward_write_dependencies. Therefore also patch this function
     # to return 3 arguments
     monkeypatch.setattr(f1_field, "backward_write_dependencies",
-                        lambda fs=None: [1, 1, 1])
+                        lambda ignore_halos=False : [1, 1, 1])
     monkeypatch.setattr(f1_field, "_vector_size", 1)
     with pytest.raises(GenerationError) as excinfo:
         loop.create_halo_exchanges()
@@ -6976,7 +6979,7 @@ def test_create_halo_exchanges_vector_field(monkeypatch):
             in str(excinfo.value))
 
 
-def test_create_halo_exchanges_vector_dependencies(monkeypatch):
+def test_new_halo_exch_vect_deps(monkeypatch):  # pylint: disable=invalid-name
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -6997,7 +7000,7 @@ def test_create_halo_exchanges_vector_dependencies(monkeypatch):
     # backward_write_dependencies. Therefore also patch this function
     # to return 3 arguments
     monkeypatch.setattr(f1_field, "backward_write_dependencies",
-                        lambda fs=None: [1, 1, 1])
+                        lambda ignore_halos=False : [1, 1, 1])
     monkeypatch.setattr(f1_field, "_vector_size", 2)
     with pytest.raises(GenerationError) as excinfo:
         loop.create_halo_exchanges()
@@ -7007,11 +7010,11 @@ def test_create_halo_exchanges_vector_dependencies(monkeypatch):
         "and the vector size is '3'." in str(excinfo.value))
 
 
-def test_create_halo_exchanges_vector_dependencies(monkeypatch):
+def test_new_halo_exch_vect_deps2(monkeypatch):  # pylint: disable=invalid-name
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
-    should have a halo exchange for each vector) and each dependency
+    should have a halo exchange for each component) and each dependency
     should be a halo exchange. The method create_halo_exchanges raises
     an exception if this is not the case. This test checks that the
     exception is raised correctly.'''
@@ -7030,15 +7033,15 @@ def test_create_halo_exchanges_vector_dependencies(monkeypatch):
     # make one of the dependencies be me (an argument from a kernel)
     new_dependencies[2] = f1_field
     monkeypatch.setattr(f1_field, "backward_write_dependencies",
-                        lambda fs=None: new_dependencies)
+                        lambda ignore_halos=False : new_dependencies)
     with pytest.raises(GenerationError) as excinfo:
         loop.create_halo_exchanges()
     assert (
         "Error in create_halo_exchanges. Expecting all dependent nodes to be "
-        "halo exchanges")
+        "halo exchanges" in str(excinfo.value))
 
 
-def test_halo_required_no_read_dependencies(monkeypatch):
+def test_halo_req_no_read_deps(monkeypatch):  # pylint: disable=invalid-name
     '''If the required method in a halo exchange object does not find any
     read dependencies then there has been an internal error and an
     exception will be raised. This test checks that this exception is
