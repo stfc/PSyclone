@@ -2639,13 +2639,14 @@ def test_scalar_int_builtin_error(monkeypatch):
             os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
         # Attempt to generate the code
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
         with pytest.raises(GenerationError) as excinfo:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
+            _ = psy.gen
         assert ("Integer reductions are not currently supported "
                 "by the LFRic infrastructure. Error found in "
                 "Kernel '" + test_builtin_name.lower() + "', argument 'isum'"
-                in str(excinfo))
+                in str(excinfo.value))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #
