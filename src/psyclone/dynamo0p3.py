@@ -2364,8 +2364,7 @@ class DynInvoke(Invoke):
                 for scalar in loop.args_filter(
                         arg_types=VALID_SCALAR_NAMES,
                         arg_accesses=VALID_REDUCTION_NAMES, unique=True):
-                    if scalar.type.lower() == "gh_integer" and \
-                       scalar.access.lower() == 'gh_sum':
+                    if scalar.type.lower() == "gh_integer":
                         raise GenerationError(
                             "Integer reductions are not currently supported "
                             "by the LFRic infrastructure. Error found in "
