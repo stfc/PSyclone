@@ -1656,7 +1656,7 @@ def test_inc_X_powreal_a():  # pylint: disable=invalid-name
             assert output in code
 
 
-def test_inc_X_powint_n():  # pylint: disable=invalid-name
+def test_inc_X_powint_n(tmpdir, f90, f90flags):  # pylint: disable=invalid-name
     ''' Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a field '''
@@ -1675,6 +1675,11 @@ def test_inc_X_powint_n():  # pylint: disable=invalid-name
         # Test code generation
         code = str(psy.gen)
         print code
+
+        if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         if not distmem:
             output = (
                 "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
@@ -2127,6 +2132,7 @@ def test_builtin_set(tmpdir, f90, f90flags):
         print code
 
         if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         if not distmem:
