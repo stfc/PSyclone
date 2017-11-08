@@ -2623,9 +2623,6 @@ def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
 # ------------- Invalid built-in with an integer scalar reduction ----------- #
 
 
-@pytest.mark.xfail(
-    reason="Reduction into an integer variable is not currently supported "
-    "by the LFRic infrastructure.")
 def test_scalar_int_builtin_error(monkeypatch):
     ''' Test that specifying incorrect meta-data for built-in such that it
     claims to perform a reduction into an integer variable raises the
@@ -2640,12 +2637,13 @@ def test_scalar_int_builtin_error(monkeypatch):
             os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
             api="dynamo0.3", distributed_memory=dist_mem)
         psy = PSyFactory("dynamo0.3").create(invoke_info)
+        # Attempt to generate the code
         with pytest.raises(GenerationError) as excinfo:
-            _ = str(psy.gen)
-        assert ("Generation Error: Integer reductions are not currently "
-                "supported by the LFRic infrastructure. Error found in "
+            _ = psy.gen
+        assert ("Integer reductions are not currently supported "
+                "by the LFRic infrastructure. Error found in "
                 "Kernel '" + test_builtin_name.lower() + "', argument 'isum'"
-                in str(excinfo.value))
+                in str(excinfo))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #
