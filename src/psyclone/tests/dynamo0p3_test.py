@@ -2385,7 +2385,7 @@ def test_bc_kernel_field_only(monkeypatch):
         # it is a function we have to patch it with a temporary
         # function which we create using lambda.
         monkeypatch.setattr(arg, "ref_name",
-                            lambda function_space=None : "vspace")
+                            lambda function_space=None: "vspace")
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("Expected a gh_field from which to look-up boundary dofs "
@@ -6756,7 +6756,7 @@ def test_comp_halo_intern_err(monkeypatch):  # pylint: disable=invalid-name
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
-    monkeypatch.setattr(field, "forward_read_dependencies", lambda : [])
+    monkeypatch.setattr(field, "forward_read_dependencies", lambda: [])
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_read_info()
     assert ("Internal logic error. There should be at least one read "
@@ -6774,7 +6774,7 @@ def test_halo_exch_1_back_dep(monkeypatch):  # pylint: disable=invalid-name
     field = halo_exchange.field
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
-                        lambda ignore_halos=False : [1, 1])
+                        lambda ignore_halos=False: [1, 1])
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_write_info()
     assert ("Internal logic error. There should be at most one "
@@ -6782,7 +6782,7 @@ def test_halo_exch_1_back_dep(monkeypatch):  # pylint: disable=invalid-name
             "'2'") in str(excinfo.value)
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
-                        lambda ignore_halos=False : [])
+                        lambda ignore_halos=False: [])
     assert halo_exchange._compute_halo_write_info() == []
 
 
@@ -6799,7 +6799,7 @@ def test_halo_ex_back_dep_no_call(monkeypatch):  # pylint: disable=invalid-name
     write_dependencies = field.backward_write_dependencies()
     write_dependency = write_dependencies[0]
     monkeypatch.setattr(write_dependency, "_call",
-                        lambda : halo_exchange)
+                        lambda: halo_exchange)
     with pytest.raises(GenerationError) as excinfo:
         halo_exchange._compute_halo_write_info()
     # Note, we would expect the call type returned from HaloInfo to be
@@ -6921,7 +6921,7 @@ def test_loop_annex_dofs_writes(monkeypatch):  # pylint: disable=invalid-name
     # the test is for the length of the list returned so it does not
     # matter what is actually in the list to raise the exception
     monkeypatch.setattr(f1_arg, "backward_write_dependencies",
-                        lambda ignore_halos=False : [1, 1])
+                        lambda ignore_halos=False: [1, 1])
     with pytest.raises(GenerationError) as excinfo:
         _ = loop._halo_read_access(f1_arg)
     assert ("Internal error in _halo_read_access, kernel 'testkern_code' "
@@ -6970,7 +6970,7 @@ def test_new_halo_exch_vect_field(monkeypatch):  # pylint: disable=invalid-name
     # backward_write_dependencies. Therefore also patch this function
     # to return 3 arguments
     monkeypatch.setattr(f1_field, "backward_write_dependencies",
-                        lambda ignore_halos=False : [1, 1, 1])
+                        lambda ignore_halos=False: [1, 1, 1])
     monkeypatch.setattr(f1_field, "_vector_size", 1)
     with pytest.raises(GenerationError) as excinfo:
         loop.create_halo_exchanges()
@@ -7000,7 +7000,7 @@ def test_new_halo_exch_vect_deps(monkeypatch):  # pylint: disable=invalid-name
     # backward_write_dependencies. Therefore also patch this function
     # to return 3 arguments
     monkeypatch.setattr(f1_field, "backward_write_dependencies",
-                        lambda ignore_halos=False : [1, 1, 1])
+                        lambda ignore_halos=False: [1, 1, 1])
     monkeypatch.setattr(f1_field, "_vector_size", 2)
     with pytest.raises(GenerationError) as excinfo:
         loop.create_halo_exchanges()
@@ -7033,7 +7033,7 @@ def test_new_halo_exch_vect_deps2(monkeypatch):  # pylint: disable=invalid-name
     # make one of the dependencies be me (an argument from a kernel)
     new_dependencies[2] = f1_field
     monkeypatch.setattr(f1_field, "backward_write_dependencies",
-                        lambda ignore_halos=False : new_dependencies)
+                        lambda ignore_halos=False: new_dependencies)
     with pytest.raises(GenerationError) as excinfo:
         loop.create_halo_exchanges()
     assert (
