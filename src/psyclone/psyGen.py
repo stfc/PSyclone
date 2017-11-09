@@ -1683,15 +1683,15 @@ class HaloExchange(Node):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicatating
-    whether this halo exchange should use the runtime dirty/clean
-    logic or not.
+    :param check_dirty: optional argument default True indicating
+    whether this halo exchange should be subject to a run-time check
+    for clean/dirty halos.
     :type check_dirty: Bool
-    :param vector_index: optional vector index default None to
+    :param vector_index: optional vector index (default None) to
     identify which index of a vector field this halo exchange is
-    responsible
+    responsible for
     :type vector_index: int
-    :param parent: optional parent default None of this object
+    :param parent: optional parent (default None) of this object
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
@@ -1776,33 +1776,37 @@ class HaloExchange(Node):
         if not isinstance(node, HaloExchange):
             raise GenerationError(
                 "Internal error, the argument passed to "
-                "check_vector_halos_differ in the haloexchange class is not "
+                "HaloExchange.check_vector_halos_differ() is not "
                 "a halo exchange object")
 
-        if self._field.name != node._field.name:
+        if self.field.name != node.field.name:
             raise GenerationError(
                 "Internal error, the halo exchange object passed to "
-                "check_vector_halos_differ has a different field name '{0}' "
-                "to self '{1}'".format(node._field.name, self._field.name))
+                "HaloExchange.check_vector_halos_differ() has a different "
+                "field name '{0}' to self "
+                "'{1}'".format(node.field.name, self.field.name))
 
-        if self._field.vector_size <= 1:
+        if self.field.vector_size <= 1:
             raise GenerationError(
-                "Internal error, a halo exchange depends on another halo "
+                "Internal error, HaloExchange.check_vector_halos_differ() "
+                "a halo exchange depends on another halo "
                 "exchange but the vector size of field '{0}' is 1".
-                format(self._field.name))
+                format(self.field.name))
 
-        if self._field.vector_size != node._field.vector_size:
+        if self.field.vector_size != node.field.vector_size:
             raise GenerationError(
-                "Internal error, a halo exchange depends on another halo "
+                "Internal error, HaloExchange.check_vector_halos_differ() "
+                "a halo exchange depends on another halo "
                 "exchange but the vector sizes for field '{0}' differ".
-                format(self._field.name))
+                format(self.field.name))
 
         if self.vector_index == \
            node.vector_index:
             raise GenerationError(
-                "Internal error, a halo exchange depends on another halo "
-                "exchange and the vector id's of field '{0}' are the same".
-                format(self._field.name))
+                "Internal error, HaloExchange.check_vector_halos_differ() "
+                "a halo exchange depends on another halo "
+                "exchange but both vector id's ('{0}') of field '{1}' are "
+                "the same".format(self.vector_index, self.field.name))
 
     def view(self, indent=0):
         '''
@@ -2486,7 +2490,20 @@ class Arguments(object):
 
 class Argument(object):
     ''' argument base class '''
+
     def __init__(self, call, arg_info, access):
+        '''
+        :param call: the call that this argument is associated with
+        :type call: :py:class:`psyclone.psyGen.Call`
+        :param arg_info: Information about this argument collected by
+        the parser
+        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :param access: the way in which this argument is accessed in
+        the 'Call'. Valid values are specified in 'MAPPING_ACCESSES'
+        (and may be modified by the particular API).
+        :type access: str
+
+        '''
         self._call = call
         self._text = arg_info.text
         self._orig_name = arg_info.varName
@@ -2506,9 +2523,19 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
-        self._writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
-                         MAPPING_REDUCTIONS["sum"]]
-        self._readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        # _writers and _readers need to be instances of this class,
+        # rather than static variables, as the mapping that is used
+        # depends on the API and this is only known when a subclass of
+        # Argument is created (as the local MAPPING_ACCESSES will be
+        # used). For example, a dynamo0p3 api instantiation of a
+        # DynArgument (subclass of Argument) will use the
+        # MAPPING_ACCESSES specified in the dynamo0p3 file which
+        # overide the default ones in this file.
+        self._write_access_types = [MAPPING_ACCESSES["write"],
+                                    MAPPING_ACCESSES["inc"],
+                                    MAPPING_REDUCTIONS["sum"]]
+        self._read_access_types = [MAPPING_ACCESSES["read"],
+                                   MAPPING_ACCESSES["inc"]]
         self._vector_size = 1
 
     def __str__(self):
@@ -2644,7 +2671,7 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in self._writers:
+        if self.access not in self._write_access_types:
             # I am not a writer so there will be no read dependencies
             return []
 
@@ -2665,10 +2692,10 @@ class Argument(object):
                     # (as they act on different vector indices).
                     self.call.check_vector_halos_differ(node)
                     continue
-                if argument.access in self._readers:
+                if argument.access in self._read_access_types:
                     # there is a read dependence so append to list
                     arguments.append(argument)
-                if argument.access in self._writers:
+                if argument.access in self._write_access_types:
                     # there is a write dependence so finish our search
                     return arguments
 
@@ -2689,7 +2716,7 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in self._readers:
+        if self.access not in self._read_access_types:
             # I am not a reader so there will be no write dependencies
             return []
 
@@ -2706,7 +2733,7 @@ class Argument(object):
                 if argument.name != self.name:
                     # different names so there is no dependence
                     continue
-                if argument.access not in self._writers:
+                if argument.access not in self._write_access_types:
                     # no dependence if not a writer
                     continue
                 if isinstance(node, HaloExchange):
@@ -2770,17 +2797,24 @@ class Argument(object):
         assumption is OK as all elements of an array are typically
         accessed. However, we may need to revisit this when we change
         the iteration spaces of loops e.g. for overlapping
-        communication and computation. '''
+        communication and computation.
 
+        :param argument: the argument we will check to see whether
+        there is a dependence with this argument instance (self)
+        :type argument: :py:class:`psyclone.psyGen.Argument`
+        :return: True if there is a dependence and False if not
+        :rtype: Boolean
+
+        '''
         if argument.name == self._name:
-            if self.access in self._writers and \
-               argument.access in self._readers:
+            if self.access in self._write_access_types and \
+               argument.access in self._read_access_types:
                 return True
-            if self.access in self._readers and \
-               argument.access in self._writers:
+            if self.access in self._read_access_types and \
+               argument.access in self._write_access_types:
                 return True
-            if self.access in self._writers and \
-               argument.access in self._writers:
+            if self.access in self._write_access_types and \
+               argument.access in self._write_access_types:
                 return True
         return False
 

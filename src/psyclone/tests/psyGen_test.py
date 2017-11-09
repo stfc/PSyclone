@@ -1908,8 +1908,35 @@ def test_find_w_args_hes_no_vec(monkeypatch):  # pylint: disable=invalid-name
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
     with pytest.raises(GenerationError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, a halo exchange depends on another halo exchange "
+    assert ("Internal error, HaloExchange.check_vector_halos_differ() a "
+            "halo exchange depends on another halo exchange "
             "but the vector size of field 'd' is 1" in str(excinfo.value))
+
+
+def test_find_w_args_hes_diff_vec(monkeypatch):  # pylint: disable=invalid-name
+    '''when backward_write_dependencies, or forward_read_dependencies, are
+    called and a dependence is found between two halo exchanges, then
+    the associated fields must be equal size vectors . If the fields
+    are not vectors of equal size then an exception is raised. This
+    test checks that the exception is raised correctly.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    monkeypatch.setattr(field_d_v3, "_vector_size", 2)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = field_d_v3.backward_write_dependencies()
+    assert (
+        "Internal error, HaloExchange.check_vector_halos_differ() a halo "
+        "exchange depends on another halo exchange but the vector sizes for "
+        "field 'd' differ" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch):  # pylint: disable=invalid-name
@@ -1933,8 +1960,9 @@ def test_find_w_args_hes_vec_idx(monkeypatch):  # pylint: disable=invalid-name
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
     with pytest.raises(GenerationError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, a halo exchange depends on another halo "
-            "exchange and the vector id's of field 'd' are the "
+    assert ("Internal error, HaloExchange.check_vector_halos_differ() "
+            "a halo exchange depends on another halo "
+            "exchange but both vector id's ('3') of field 'd' are the "
             "same" in str(excinfo.value))
 
 
@@ -1978,9 +2006,8 @@ def test_check_vect_hes_differ_wrong_argtype():  # pylint: disable=invalid-name
         # pass an incorrect object to the method
         halo_exchange.check_vector_halos_differ(psy)
     assert (
-        "the argument passed to check_vector_halos_differ in the "
-        "haloexchange class is not a halo exchange object"
-        in str(excinfo.value))
+        "the argument passed to HaloExchange.check_vector_halos_differ() "
+        "is not a halo exchange object" in str(excinfo.value))
 
 
 def test_check_vec_hes_differ_diff_names():  # pylint: disable=invalid-name
@@ -2006,7 +2033,8 @@ def test_check_vec_hes_differ_diff_names():  # pylint: disable=invalid-name
         # pass halo exchange with different name to the method
         halo_exchange.check_vector_halos_differ(different_halo_exchange)
     assert (
-        "the halo exchange object passed to check_vector_halos_differ has a "
+        "the halo exchange object passed to "
+        "HaloExchange.check_vector_halos_differ() has a "
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
 
