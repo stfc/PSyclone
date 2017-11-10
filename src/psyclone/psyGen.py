@@ -1099,7 +1099,7 @@ class Node(object):
         i.e. returning the nodes closest to me first
 
         :param: reverse: An optional, default `False`, boolean flag
-        :type: reverse: Bool
+        :type: reverse: bool
         :return: A list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
@@ -1686,7 +1686,7 @@ class HaloExchange(Node):
     :param check_dirty: optional argument default True indicating
     whether this halo exchange should be subject to a run-time check
     for clean/dirty halos.
-    :type check_dirty: Bool
+    :type check_dirty: bool
     :param vector_index: optional vector index (default None) to
     identify which index of a vector field this halo exchange is
     responsible for
@@ -2605,7 +2605,7 @@ class Argument(object):
         reader then return an empty list.
 
         :param: ignore_halos: An optional, default `False`, boolean flag
-        :type: ignore_halos: Bool
+        :type: ignore_halos: bool
         :return: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
@@ -2711,7 +2711,7 @@ class Argument(object):
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
         :param: ignore_halos: An optional, default `False`, boolean flag
-        :type: ignore_halos: Bool
+        :type: ignore_halos: bool
         :return: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
@@ -2803,7 +2803,7 @@ class Argument(object):
         there is a dependence with this argument instance (self)
         :type argument: :py:class:`psyclone.psyGen.Argument`
         :return: True if there is a dependence and False if not
-        :rtype: Boolean
+        :rtype: bool
 
         '''
         if argument.name == self._name:

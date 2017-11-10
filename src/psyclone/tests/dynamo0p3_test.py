@@ -6783,7 +6783,7 @@ def test_halo_exch_1_back_dep(monkeypatch):  # pylint: disable=invalid-name
     #
     monkeypatch.setattr(field, "backward_write_dependencies",
                         lambda ignore_halos=False: [])
-    assert halo_exchange._compute_halo_write_info() == []
+    assert not halo_exchange._compute_halo_write_info()
 
 
 def test_halo_ex_back_dep_no_call(monkeypatch):  # pylint: disable=invalid-name

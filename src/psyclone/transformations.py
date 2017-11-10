@@ -1221,7 +1221,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         otherwie, e.g.  when OpenMP is added)
         :raises GenerationError: if this transformation is applied
         when distributed memory is not switched on
-        :raises GenerationError: if the loop does not iterate over cells or dofs
+        :raises GenerationError: if the loop does not iterate over
+        cells or dofs
         :raises GenerationError: if the transformation is setting the
         loop to the maximum halo depth but the loop already computes
         to the maximum halo depth
