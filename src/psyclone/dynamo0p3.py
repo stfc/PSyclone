@@ -2108,16 +2108,6 @@ class DynInvoke(Invoke):
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
-    :param alg_invocation: invoke metadata extracted from the code by
-    the parser
-    :type alg_invoke: :py:class:`psyclone.parse.InvokeCall`
-    :param idx: a unique id for this particular invoke indicating the
-    relative position of this invoke (the first invoke encountered has
-    idx=0, the second idx=1 etc.)
-    :type idx: int
-    :raises GenerationError: if integer reductions are required in the
-    psy-layer
-
     '''
     def __init__(self, alg_invocation, idx):
         '''
@@ -2125,6 +2115,8 @@ class DynInvoke(Invoke):
         :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
         :param int idx: the position of the invoke in the list of invokes
                         contained in the Algorithm
+        :raises GenerationError: if integer reductions are required in the
+        psy-layer
         '''
         if False:  # pylint: disable=using-constant-test
             self._schedule = DynSchedule(None)  # for pyreverse
@@ -2628,6 +2620,65 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
+def _create_depth_list(halo_info_list):
+    '''Halo's may have more than one dependency. This method simplifies
+    multiple dependencies to remove duplicates and any obvious
+    redundancy. For example, if one dependency is for depth=1 and
+    another for depth=2 then we do not need the former as it is
+    covered by the latter. Similarly, if we have a depth=extent+1 and
+    another for depth=extent+2 then we do not need the former as
+    it is covered by the latter.
+
+    :param: a list containing halo access information derived from
+    all read fields dependent on this halo exchange
+    :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+    :return: a list containing halo depth information derived from
+    the halo access information
+    :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
+
+    '''
+    depth_info_list = []
+    # first look to see if one of the field dependencies specifies
+    # a max_depth access. If so the whole halo region is accessed
+    # so we do not need to be concerned with other accesses.
+    for halo_info in halo_info_list:
+        if halo_info.max_depth:
+            # found a max_depth access so we only need one
+            # HaloDepth entry
+            depth_info = HaloDepth()
+            depth_info.set_by_value(max_depth=True, var_depth="",
+                                    literal_depth=0)
+            return [depth_info]
+
+    for halo_info in halo_info_list:
+        # go through the halo information associated with each
+        # read dependency
+        var_depth = halo_info.var_depth
+        literal_depth = halo_info.literal_depth
+        match = False
+        # check whether we match with existing depth information
+        for depth_info in depth_info_list:
+            if depth_info.var_depth == var_depth and not match:
+                # this dependence uses the same variable to
+                # specify its depth as an existing one, or both do
+                # not have a variable so we only have a
+                # literal. Therefore we only need to update the
+                # literal value with the maximum of the two
+                # (e.g. var_name,1 and var_name,2 => var_name,2)
+                depth_info.literal_depth = max(
+                    depth_info.literal_depth, literal_depth)
+                match = True
+                break
+        if not match:
+            # no matches were found with existing variables, or no
+            # variables so create a new halo depth entry
+            depth_info = HaloDepth()
+            depth_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                    literal_depth=literal_depth)
+            depth_info_list.append(depth_info)
+    return depth_info_list
+
+
 class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
@@ -2703,65 +2754,7 @@ class DynHaloExchange(HaloExchange):
         # get our halo information
         halo_info_list = self._compute_halo_read_info()
         # use the halo information to generate depth information
-        depth_info_list = self._create_depth_list(halo_info_list)
-        return depth_info_list
-
-    def _create_depth_list(self, halo_info_list):
-        '''Halo's may have more than one dependency. This method simplifies
-        multiple dependencies to remove duplicates and any obvious
-        redundancy. For example, if one dependency is for depth=1 and
-        another for depth=2 then we do not need the former as it is
-        covered by the latter. Similarly, if we have a depth=extent+1 and
-        another for depth=extent+2 then we do not need the former as
-        it is covered by the latter.
-
-        :param: a list containing halo access information derived from
-        all read fields dependent on this halo exchange
-        :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
-        :return: a list containing halo depth information derived from
-        the halo access information
-        :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
-
-        '''
-        depth_info_list = []
-        # first look to see if one of the field dependencies specifies
-        # a max_depth access. If so the whole field is accessed so we
-        # do not need to be concerned with other accesses.
-        for halo_info in halo_info_list:
-            if halo_info.max_depth:
-                # found a max_depth access so we only need one
-                # HaloDepth entry
-                depth_info = HaloDepth()
-                depth_info.set_by_value(max_depth=True, var_depth="",
-                                        literal_depth=0)
-                return [depth_info]
-
-        for halo_info in halo_info_list:
-            # go through the halo information associated with each
-            # read dependency
-            var_depth = halo_info.var_depth
-            literal_depth = halo_info.literal_depth
-            match = False
-            # check whether we match with existing depth information
-            for depth_info in depth_info_list:
-                if depth_info.var_depth == var_depth and not match:
-                    # this dependence uses the same variable to
-                    # specify its depth as an existing one, or both do
-                    # not have a variable so we only have a
-                    # literal. Therefore we only need to update the
-                    # literal value with the maximum of the two
-                    # (e.g. var_name,1 and var_name,2 => var_name,2)
-                    depth_info.literal_depth = max(
-                        depth_info.literal_depth, literal_depth)
-                    match = True
-                    break
-            if not match:
-                # no matches were found with existing variables, or no
-                # variables so create a new halo depth entry
-                depth_info = HaloDepth()
-                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                        literal_depth=literal_depth)
-                depth_info_list.append(depth_info)
+        depth_info_list = _create_depth_list(halo_info_list)
         return depth_info_list
 
     def _compute_halo_read_info(self):
@@ -2783,11 +2776,19 @@ class DynHaloExchange(HaloExchange):
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
-        redundant computation '''
+        redundant computation
+
+        :return: a HaloWriteAccess object containing the required
+        information, or None if no dependence information is found.
+        :rtype::py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
+        :raises GenerationError: if more than one write dependence is
+        found for this halo exchange as this should not be possible
+
+        '''
         write_dependencies = self.field.backward_write_dependencies()
         if not write_dependencies:
             # no write dependence information
-            return []
+            return None
         if len(write_dependencies) > 1:
             raise GenerationError(
                 "Internal logic error. There should be at most one write "
@@ -2828,7 +2829,7 @@ class DynHaloExchange(HaloExchange):
         - False. If the first argument is True then the second
         argument specifies whether we definitely know that we need the
         HaloExchange - True, or are not sure - False.
-        :rtype: (Bool, Bool)
+        :rtype: (bool, bool)
 
         '''
         # get *aggregated* information about halo reads
@@ -2975,19 +2976,34 @@ class DynHaloExchange(HaloExchange):
 
 
 class HaloDepth(object):
-    '''Determines how much of the halo a field accesses (the halo depth) '''
+    '''Determines how much of the halo a read to a field accesses (the
+    halo depth)
+    '''
     def __init__(self):
+        # literal_depth is used to store any known (literal) component
+        # of the depth of halo that is accessed. It may not be the
+        # full depth as there may also be an additional var_depth
+        # specified.
         self._literal_depth = 0
+        # var_depth is used to store any variable component of the
+        # depth of halo that is accessed. It may not be the full depth
+        # as there may also be an additional literal_depth specified.
         self._var_depth = None
+        # max_depth specifies whether the full depth of halo (whatever
+        # that might be) is accessed. If this is set then
+        # literal_depth and var_depth have no meaning. max_depth being
+        # False does not necessarily mean the full halo depth is not
+        # accessed, rather it means that we do not know.
         self._max_depth = False
 
     @property
     def max_depth(self):
-        '''Returns whether the field is known to access all of the halo or not
+        '''Returns whether the read to the field is known to access all of the
+        halo or not
 
-        :return: Return True if the field accesses all of
-        the halo and False otherwise
-        :rtype: Bool
+        :return: Return True if the read to the field is known to
+        access all of the halo and False otherwise
+        :rtype: bool
 
         '''
         return self._max_depth
@@ -3023,9 +3039,9 @@ class HaloDepth(object):
     def literal_depth(self, value):
         ''' Set the known fixed (literal) depth of halo access.
 
-        :return: Set the known fixed (literal) halo
+        :parameter value: Set the known fixed (literal) halo
         access depth
-        :rtype: integer
+        :type value: integer
 
         '''
         self._literal_depth = value
@@ -3035,7 +3051,7 @@ class HaloDepth(object):
 
         :param max_depth: True if the field accesses all of the halo
         and False otherwise
-        :type max_depth: Bool
+        :type max_depth: bool
         :param var_depth: A variable name specifying the halo access
         depth, if one exists, and None if not
         :type var_depth: String
@@ -3079,8 +3095,8 @@ def halo_check_arg(field, access_types):
     the wrong type
     :raises GenerationError: if the first argument is not accessed in
     one of the ways specified by the second argument to the function
-    :raises GenerationError: if the first argument is contained within
-    a call object
+    :raises GenerationError: if the first argument is not contained
+    within a call object
 
     '''
     try:
@@ -3104,8 +3120,9 @@ def halo_check_arg(field, access_types):
 
 
 class HaloWriteAccess(HaloDepth):
-    '''Determines how much of the halo a field writes (the halo depth) and
-    when used in a particular kernel within a particular loop nest
+    '''Determines how much of a field's halo is written to (the halo depth)
+    when a field is accessed in a particular kernel within a
+    particular loop nest
 
     :param field: the field that we are concerned with
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
@@ -3124,7 +3141,7 @@ class HaloWriteAccess(HaloDepth):
 
         :return: Return True if the outer layer of halo
         that is written to remains dirty and False otherwise.
-        :rtype: Bool
+        :rtype: bool
 
         '''
         return self._dirty_outer
@@ -3167,12 +3184,17 @@ class HaloWriteAccess(HaloDepth):
 
 
 class HaloReadAccess(HaloDepth):
-    '''Determines how much of the halo a field reads (the halo depth) and
-    the access pattern (the stencil) when used in a particular kernel
-    within a particular loop nest
+    '''Determines how much of a field's halo is read (the halo depth) and
+    additionally the access pattern (the stencil) when a field is
+    accessed in a particular kernel within a particular loop nest
 
     '''
     def __init__(self, field):
+        '''
+        :param field: the field that we want to get information on
+        :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
         HaloDepth.__init__(self)
         self._stencil_type = None
         self._compute_from_field(field)
@@ -3183,7 +3205,7 @@ class HaloReadAccess(HaloDepth):
         if one exists. If redundant computation (accessing the full
         halo) is combined with a stencil access (potentially accessing
         a subset of the halo) then the access is assumed to be full
-        access for all depths.
+        access (region) for all depths.
 
         :return: Return the type of stencil access used
         or None if there is no stencil.
@@ -3198,8 +3220,8 @@ class HaloReadAccess(HaloDepth):
         depth of access and the access pattern. The depth of access
         can be the maximum halo depth, a variable specifying the depth
         and/or a literal depth. The access pattern will only be
-        specified if the field performs a stencil access in the
-        kernel.
+        specified if the kernel code performs a stencil access on the
+        field.
 
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
@@ -3410,7 +3432,7 @@ class DynLoop(Loop):
         '''
         if name not in VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
-                "The specified upper bound loop name is invalid. Expected one "
+                "The specified upper loop bound name is invalid. Expected one "
                 "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
@@ -3566,13 +3588,15 @@ class DynLoop(Loop):
         return unique_fields
 
     def _halo_read_access(self, arg):
-        '''Determines whether the supplied argument reads from the halo for
-        this loop. Returns True if it does and False otherwise.
+        '''Determines whether the supplied argument has (or might have) its
+        halo data read within this loop. Returns True if it does, or if
+        it might and False if it definitely does not.
 
         :param arg: an argument contained within this loop
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :return: True if the argument reads from the halo and False otherwise.
-        :rtype: Bool
+        :return: True if the argument reads, or might read from the
+        halo and False otherwise.
+        :rtype: bool
 
         '''
         if arg.descriptor.stencil:
@@ -3607,7 +3631,7 @@ class DynLoop(Loop):
                 if len(prev_dependencies) > 1:
                     raise GenerationError(
                         "Internal error in _halo_read_access, kernel '{0}' "
-                        "arg '{1}'. We should only return at most one "
+                        "arg '{1}'. We should only find at most one "
                         "write dependence.".format(arg.call.name, arg.name))
                 upper_bound = ""
                 if prev_dependencies:

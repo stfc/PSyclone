@@ -4497,7 +4497,7 @@ def test_set_upper_bound_functions():
     my_loop = DynLoop()
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_upper_bound("invalid_loop_bounds_name")
-    assert "upper bound loop name is invalid" in str(excinfo.value)
+    assert "upper loop bound name is invalid" in str(excinfo.value)
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_upper_bound("start")
     assert "'start' is not a valid upper bound" in str(excinfo.value)
@@ -6925,7 +6925,7 @@ def test_loop_annex_dofs_writes(monkeypatch):  # pylint: disable=invalid-name
     with pytest.raises(GenerationError) as excinfo:
         _ = loop._halo_read_access(f1_arg)
     assert ("Internal error in _halo_read_access, kernel 'testkern_code' "
-            "arg 'f1'. We should only return at most one write "
+            "arg 'f1'. We should only find at most one write "
             "dependence") in str(excinfo.value)
 
 
