@@ -83,7 +83,7 @@ CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
      type(arg_type), meta_args(6) =                 &
-          (/ arg_type(gh_real, gh_read),         &
+          (/ arg_type(gh_real, gh_read),            &
              arg_type(gh_field,gh_write,w1),        &
              arg_type(gh_field,gh_read, w2),        &
              arg_type(gh_operator,gh_read, w2, w2), &

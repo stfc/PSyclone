@@ -63,7 +63,9 @@ Field Vector
 Scalar
 ++++++
 
-.. note:: To be written.
+In Dynamo 0.3 API a scalar is a single value variable that can be
+either real or integer. Real scalars are identified with ``GH_REAL``
+and integer scalars are identified with ``GH_INTEGER`` metadata.
 
 Operator
 ++++++++
@@ -510,7 +512,11 @@ For example:
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
        /)
 
-.. note:: In the Dynamo 0.3 API only :ref:`dynamo_built-ins` are permitted to write to scalar arguments (and hence perform reductions).
+.. note:: In the Dynamo 0.3 API only :ref:`dynamo_built-ins` are permitted
+          to write to scalar arguments (and hence perform reductions).
+          Furthermore, this permission is currently restricted for integer
+          scalars (``GH_INTEGER``) as the LFRic infrastructure does not
+          yet support integer reductions.
 
 For a scalar the argument metadata contains only these two entries.
 However, fields and operators require further entries specifying
@@ -607,25 +613,29 @@ then the permitted access modes depend on the type of data it is and
 the function space it is on. Valid values are given in the table
 below.
 
-======================	============================    =======================
+======================	============================    =========================
 Argument Type     	Function space                  Access type
-======================	============================    =======================
-GH_INTEGER        	n/a                             GH_SUM (Built-ins only)
+======================	============================    =========================
+*GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
 GH_REAL           	n/a                             GH_SUM (Built-ins only)
 GH_FIELD                Discontinuous (w3)              GH_WRITE
 GH_FIELD                Continuous (not w3)             GH_INC
 GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE
 GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
-======================  ============================    =======================
+======================  ============================    =========================
 
-Note that only Built-ins may modify scalar arguments. There is no
-restriction on the number and function-spaces of other quantities that
-a general-purpose kernel can modify other than that it must modify at
-least one. The rules for kernels involving CMA operators, however, are
-stricter and only one argument may be modified (the CMA operator
-itself for assembly, a field for CMA-application and a CMA operator
-for matrix-matrix kernels). If a kernel writes to quantities on
-different function spaces then PSyclone generates loop bounds
+.. note:: As mentioned above, note that only Built-ins may modify
+          scalar arguments. *Due to the LFRic infrastructure currently
+          not supporting integer reductions there is a restriction
+          on using integer sums.*
+
+There is no restriction on the number and function-spaces of other
+quantities that a general-purpose kernel can modify other than that it
+must modify at least one. The rules for kernels involving CMA operators,
+however, are stricter and only one argument may be modified (the CMA
+operator itself for assembly, a field for CMA-application and a CMA
+operator for matrix-matrix kernels). If a kernel writes to quantities
+on different function spaces then PSyclone generates loop bounds
 appropriate to the largest iteration space. This means that if a
 single kernel updates one quantity on a continuous function space and
 one on a discontinuous space then the resulting loop will include
