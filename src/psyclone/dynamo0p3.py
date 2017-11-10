@@ -551,7 +551,7 @@ class DynArgDescriptor03(Descriptor):
            self._access_descriptor.name in VALID_REDUCTION_NAMES:
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
-                "with a scalar argument, but '{1}' was found".
+                "with a real scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
         # Scalars can only be read_only or reductions
         if self._type in VALID_SCALAR_NAMES:
