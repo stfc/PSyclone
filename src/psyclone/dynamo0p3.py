@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
@@ -87,9 +88,10 @@ VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
 VALID_REDUCTION_NAMES = ["gh_sum"]
 # List of all access types that involve writing to an argument
 # in some form
-GH_WRITE_ACCESSES = ["gh_write", "gh_inc"] + VALID_REDUCTION_NAMES
+GH_WRITE_ACCESSES = ["gh_write", "gh_readwrite", "gh_inc"] + \
+                     VALID_REDUCTION_NAMES
 # List of all access types that only involve reading an argument
-GH_READ_ACCESSES = ["gh_read"]
+GH_READ_ACCESSES = ["gh_read", "gh_readwrite"]
 VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ACCESSES + GH_WRITE_ACCESSES
 
 
@@ -116,10 +118,8 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
-# Note that readwrite is not currently supported and so its associated
-# entry is left blank.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "inc": "gh_inc", "readwrite": ""}
+                    "inc": "gh_inc", "readwrite": "gh_readwrite"}
 
 # Valid Dynamo loop types. The default is "" which is over cells (in the
 # horizontal plane).
