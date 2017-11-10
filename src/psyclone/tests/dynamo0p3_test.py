@@ -36,6 +36,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
@@ -2352,9 +2353,9 @@ def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
         arg._access = "gh_read"
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
-        assert (
-            "applies boundary conditions to an operator. However its operator "
-            "argument has access gh_read rather than gh_inc") in str(excinfo)
+        assert ( "applies boundary conditions to an operator. However its "
+                 "operator argument has access gh_read rather than "
+                 "gh_readwrite") in str(excinfo)
 
 
 def test_multikernel_invoke_1():
@@ -3712,8 +3713,8 @@ def test_arg_intent_error():
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
     assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc' or one of ['gh_sum'], but found 'gh_not_an_intent'" in
-            str(excinfo))
+            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
+            "'gh_not_an_intent'" in str(excinfo))
 
 
 def test_no_arg_on_space(monkeypatch):

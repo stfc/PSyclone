@@ -37,6 +37,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modified I. Kavcic Met Office
  
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
@@ -62,13 +63,13 @@ module argument_mod
   integer, public, parameter :: GH_INTEGER  = 4
 
 ! access descriptors
-  integer, public, parameter :: GH_READ  = 11
-  integer, public, parameter :: GH_WRITE = 12
-  integer, public, parameter :: GH_RW    = 13
-  integer, public, parameter :: GH_INC   = 14
-  integer, public, parameter :: GH_SUM   = 15
-  integer, public, parameter :: GH_MIN   = 16
-  integer, public, parameter :: GH_MAX   = 17
+  integer, public, parameter :: GH_READ      = 11
+  integer, public, parameter :: GH_WRITE     = 12
+  integer, public, parameter :: GH_READWRITE = 13
+  integer, public, parameter :: GH_INC       = 14
+  integer, public, parameter :: GH_SUM       = 15
+  integer, public, parameter :: GH_MIN       = 16
+  integer, public, parameter :: GH_MAX       = 17
 
 ! distinct any_space id's. Separate id's required as we may have groups of fields
 ! that must be on the same space within a kernel.

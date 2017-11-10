@@ -92,7 +92,7 @@ GH_WRITE_ACCESSES = ["gh_write", "gh_readwrite", "gh_inc"] + \
                      VALID_REDUCTION_NAMES
 # List of all access types that only involve reading an argument
 GH_READ_ACCESSES = ["gh_read", "gh_readwrite"]
-VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ACCESSES + GH_WRITE_ACCESSES
+VALID_ACCESS_DESCRIPTOR_NAMES = list(set(GH_READ_ACCESSES + GH_WRITE_ACCESSES))
 
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -3697,11 +3697,11 @@ class ArgOrdering(object):
                     format(self._kern.name, op_arg.type))
             # TODO this access should really be "gh_readwrite". Support for
             # this will be added under #25.
-            if op_arg.access != "gh_inc":
+            if op_arg.access != "gh_readwrite":
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "
-                    "boundary conditions to an operator. However its "
-                    "operator argument has access {1} rather than gh_inc.".
+                    "boundary conditions to an operator. However its operator "
+                    "argument has access {1} rather than gh_readwrite.".
                     format(self._kern.name, op_arg.access))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
@@ -5201,12 +5201,12 @@ class DynKernelArgument(KernelArgument):
             return "in"
         elif self.access == "gh_write":
             return "out"
-        elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
+        elif self.access in ["gh_inc", "gh_readwrite"] + VALID_REDUCTION_NAMES:
             return "inout"
         else:
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc' or one of {0}, but found '{1}'".
+                "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
                 format(str(VALID_REDUCTION_NAMES), self.access))
 
     @property
