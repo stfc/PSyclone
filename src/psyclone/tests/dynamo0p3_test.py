@@ -1427,7 +1427,7 @@ def test_no_vector_real_scalar():
         str(excinfo.value)
 
 
-def test_no_vector_scalar():
+def test_no_vector_int_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
     specifies a vector integer scalar '''
     fparser.logging.disable('CRITICAL')
