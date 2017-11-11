@@ -3273,9 +3273,14 @@ class HaloReadAccess(HaloDepth):
                 format(loop.upper_bound_name))
 
         if self._max_depth or self._var_depth or self._literal_depth:
-            # default stencil type to "region" as it means all of the halo
-            # and this is what is used when we perform redundant
-            # computation
+            # Whilst stencil type has no real meaning when there is no
+            # stencil it is convenient to set it to "region" when
+            # there is redundant computation as the halo exchange
+            # logic is interested in the access pattern irrespective
+            # of whether there is a stencil access or not. We use
+            # "region" as it means access all of the halo data which
+            # is what is done when performing redundant computation
+            # with no stencil.
             self._stencil_type = "region"
         if field.descriptor.stencil:
             # field has a stencil access
@@ -3693,7 +3698,7 @@ class DynLoop(Loop):
             exchange.parent.children.remove(exchange)
 
     def _add_halo_exchange(self, halo_field):
-        '''Internal helper method to add a halo exchange call immediately
+        '''Internal helper method to add (a) halo exchange call(s) immediately
         before this loop using the halo_field argument for the
         associated field information. If the field is a vector then
         add the appropriate number of halo exchange calls.
