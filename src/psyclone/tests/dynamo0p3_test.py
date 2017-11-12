@@ -6903,32 +6903,6 @@ def test_HaloReadAccess_discontinuous_field():  # pylint: disable=invalid-name
     assert halo_access.stencil_type is None
 
 
-def test_loop_annex_dofs_writes(monkeypatch):  # pylint: disable=invalid-name
-
-    '''When a continuous argument is read in a discontinuous loop it
-    accesses any annexed dofs. We then check any previous write
-    dependences. There should be at most one of these. If there are more
-    than one then we raise an exception in _halo_read_access. This test
-    checks that this exception is raised correctly'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
-    kernel = loop.children[0]
-    f1_arg = kernel.arguments.args[1]
-    #
-    # the test is for the length of the list returned so it does not
-    # matter what is actually in the list to raise the exception
-    monkeypatch.setattr(f1_arg, "backward_write_dependencies",
-                        lambda ignore_halos=False: [1, 1])
-    with pytest.raises(GenerationError) as excinfo:
-        _ = loop._halo_read_access(f1_arg)
-    assert ("Internal error in _halo_read_access, kernel 'testkern_code' "
-            "arg 'f1'. We should only find at most one write "
-            "dependence") in str(excinfo.value)
-
-
 def test_loop_cont_read_inv_bound(monkeypatch):  # pylint: disable=invalid-name
     '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this

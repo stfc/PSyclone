@@ -3629,29 +3629,8 @@ class DynLoop(Loop):
                 # we read in the halo
                 return True
             elif self._upper_bound_name == "ncells":
-                # We read annexed dofs so need to check the previous
-                # write to this field
-                prev_dependencies = arg.backward_write_dependencies(
-                    ignore_halos=True)
-                if len(prev_dependencies) > 1:
-                    raise GenerationError(
-                        "Internal error in _halo_read_access, kernel '{0}' "
-                        "arg '{1}'. We should only find at most one "
-                        "write dependence.".format(arg.call.name, arg.name))
-                upper_bound = ""
-                if prev_dependencies:
-                    loop = prev_dependencies[0].call.parent
-                    upper_bound = loop.upper_bound_name
-                if upper_bound == "ndofs" or not prev_dependencies:
-                    # the previous write to this field (ignoring
-                    # existing halo_exchanges) is over ndofs, or is
-                    # unknown, so may be over ndofs. This means that
-                    # the annexed dofs are, or may be, dirty. The only
-                    # way we can make these clean is to perform a full
-                    # level 1 halo exchange.
-                    return True
-                else:
-                    return False
+                # we read annexed dofs
+                return True
             elif self._upper_bound_name == "ndofs":
                 # argument does not read from the halo
                 return False
