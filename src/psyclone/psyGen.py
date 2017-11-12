@@ -42,8 +42,29 @@
     particular API and implementation. '''
 
 import abc
-import psyclone
-import config
+from psyclone import config
+
+# We use the termcolor module (if available) to enable us to produce
+# coloured, textual representations of Invoke schedules. If it's not
+# available then we don't use colour.
+try:
+    from termcolor import colored
+except ImportError:
+    # We don't have the termcolor package available so provide
+    # alternative routine
+    def colored(text, _):
+        '''
+        Returns the supplied text argument unchanged. This is a swap-in
+        replacement for when termcolor.colored is not available.
+
+        :param text: Text to return
+        :type text: string
+        :param _: Fake argument, only required to match interface
+                  provided by termcolor.colored
+        :return: The supplied text, unchanged
+        :rtype: string
+        '''
+        return text
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -74,6 +95,17 @@ VALID_ARG_TYPE_NAMES = []
 # List of all valid access types for a kernel argument
 VALID_ACCESS_DESCRIPTOR_NAMES = []
 
+# Colour map to use when writing Invoke schedule to terminal. (Requires
+# that the termcolor package be installed. If it isn't then output is not
+# coloured.) See https://pypi.python.org/pypi/termcolor for details.
+SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
+                       "Loop": "white",
+                       "GlobalSum": "cyan",
+                       "Directive": "green",
+                       "HaloExchange": "blue",
+                       "Call": "red",
+                       "KernCall": "magenta"}
+
 
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
@@ -95,7 +127,7 @@ def zero_reduction_variables(red_call_list, parent):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        from f2pygen import CommentGen
+        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
         parent.add(CommentGen(parent, ""))
@@ -168,19 +200,19 @@ class PSyFactory(object):
     def create(self, invoke_info):
         ''' Return the specified version of PSy. '''
         if self._type == "gunghoproto":
-            from ghproto import GHProtoPSy
+            from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
         elif self._type == "dynamo0.1":
-            from dynamo0p1 import DynamoPSy
+            from psyclone.dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
         elif self._type == "dynamo0.3":
-            from dynamo0p3 import DynamoPSy
+            from psyclone.dynamo0p3 import DynamoPSy
             return DynamoPSy(invoke_info)
         elif self._type == "gocean0.1":
-            from gocean0p1 import GOPSy
+            from psyclone.gocean0p1 import GOPSy
             return GOPSy(invoke_info)
         elif self._type == "gocean1.0":
-            from gocean1p0 import GOPSy
+            from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
@@ -202,9 +234,10 @@ class PSy(object):
 
         For example:
 
-        >>> from parse import parse
+        >>> import psyclone
+        >>> from psyclone.parse import parse
         >>> ast, info = parse("argspec.F90")
-        >>> from psyGen import PSyFactory
+        >>> from psyclone.psyGen import PSyFactory
         >>> api = "..."
         >>> psy = PSyFactory(api).create(info)
         >>> print(psy.gen)
@@ -588,13 +621,13 @@ class Invoke(object):
         return declns
 
     def gen(self):
-        from f2pygen import ModuleGen
+        from psyclone.f2pygen import ModuleGen
         module = ModuleGen("container")
         self.gen_code(module)
         return module.root
 
     def gen_code(self, parent):
-        from f2pygen import SubroutineGen, TypeDeclGen, DeclGen, \
+        from psyclone.f2pygen import SubroutineGen, TypeDeclGen, DeclGen, \
             SelectionGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -1148,7 +1181,7 @@ class Schedule(Node):
         # and calls so that we can perform optimisations separately on the
         # two entities.
         sequence = []
-        from parse import BuiltInCall
+        from psyclone.parse import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
                 sequence.append(BuiltInFactory.create(call, parent=self))
@@ -1158,10 +1191,28 @@ class Schedule(Node):
         self._invoke = None
 
     def view(self, indent=0):
-        print self.indent(indent) + "Schedule[invoke='" + self.invoke.name + \
-            "']"
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text + \
+            "[invoke='" + self.invoke.name + "']"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
+
+        :return: Text containing the name of this node, possibly coloured
+        :rtype: string
+        '''
+        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
         result = "Schedule:\n"
@@ -1178,9 +1229,27 @@ class Schedule(Node):
 class Directive(Node):
 
     def view(self, indent=0):
-        print self.indent(indent) + "Directive"
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns a string containing the name of this element with
+        control codes for colouring in terminals that support it.
+
+        :return: Text containing the name of this node, possibly coloured
+        :rtype: string
+        '''
+        return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
 
     @property
     def dag_name(self):
@@ -1196,7 +1265,14 @@ class OMPDirective(Directive):
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
-        print self.indent(indent) + "Directive[OMP]"
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text + "[OMP]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1222,15 +1298,22 @@ class OMPParallelDirective(OMPDirective):
         return "OMP_parallel_" + str(self.abs_position)
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP parallel]"
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text + "[OMP parallel]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
         code'''
-        from f2pygen import DirectiveGen, AssignGen, UseGen, CommentGen, \
-            DeclGen
+        from psyclone.f2pygen import DirectiveGen, AssignGen, UseGen, \
+            CommentGen, DeclGen
 
         private_list = self._get_private_list()
 
@@ -1375,13 +1458,19 @@ class OMPDoDirective(OMPDirective):
         return "OMP_do_" + str(self.abs_position)
 
     def view(self, indent=0):
-        ''' Write out a textual summary of the OpenMP Do Directive '''
+        '''
+        Write out a textual summary of the OpenMP Do Directive and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         if self.reductions():
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        print self.indent(indent) + \
-            "Directive[OMP do]{0}".format(reprod)
+        print self.indent(indent) + self.coloured_text + \
+            "[OMP do]{0}".format(reprod)
 
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1402,7 +1491,7 @@ class OMPDoDirective(OMPDirective):
         return self._reprod
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen
+        from psyclone.f2pygen import DirectiveGen
 
         # It is only at the point of code generation that
         # we can check for correctness (given that we don't
@@ -1465,14 +1554,20 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         return "OMP_parallel_do_" + str(self.abs_position)
 
     def view(self, indent=0):
-        ''' Write out a textual summary of the OpenMP Parallel Do Directive '''
-        print self.indent(indent) + \
-            "Directive[OMP parallel do]"
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text + \
+            "[OMP parallel do]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen
+        from psyclone.f2pygen import DirectiveGen
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
@@ -1526,9 +1621,27 @@ class GlobalSum(Node):
         return [self._scalar]
 
     def view(self, indent):
-        ''' Class specific view  '''
+        '''
+        Print text describing this object to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + (
-            "GlobalSum[scalar='{0}']".format(self._scalar.name))
+            "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name))
+
+    @property
+    def coloured_text(self):
+        '''
+        Return a string containing the (coloured) name of this node
+        type
+
+        :return: A string containing the name of this node, possibly with
+                 control codes for colour
+        :rtype: string
+        '''
+        return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
 
 
 class HaloExchange(Node):
@@ -1573,11 +1686,28 @@ class HaloExchange(Node):
         return [self._field]
 
     def view(self, indent):
-        ''' Class specific view  '''
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
         print self.indent(indent) + (
-            "HaloExchange[field='{0}', type='{1}', depth={2}, "
-            "check_dirty={3}]".format(self._field.name, self._halo_type,
+            "{0}[field='{1}', type='{2}', depth={3}, "
+            "check_dirty={4}]".format(self.coloured_text, self._field.name,
+                                      self._halo_type,
                                       self._halo_depth, self._check_dirty))
+
+    @property
+    def coloured_text(self):
+        '''
+        Return a string containing the (coloured) name of this node type
+
+        :return: Name of this node type, possibly with colour control codes
+        :rtype: string
+        '''
+        return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
 
 class Loop(Node):
@@ -1636,11 +1766,30 @@ class Loop(Node):
         self._canvas = None
 
     def view(self, indent=0):
-        print self.indent(indent) +\
-            "Loop[type='{0}',field_space='{1}',it_space='{2}']".\
+        '''
+        Write out a textual summary of this Loop node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text + \
+            "[type='{0}',field_space='{1}',it_space='{2}']".\
             format(self._loop_type, self._field_space, self.iteration_space)
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns a string containing the name of this node along with
+        control characters for colouring in terminals that support it.
+
+        :return: The name of this node, possibly with control codes for
+                 colouring
+        :rtype: string
+        '''
+        return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
 
     @property
     def height(self):
@@ -1778,7 +1927,7 @@ class Loop(Node):
             for child in self.children:
                 child.gen_code(parent)
         else:
-            from f2pygen import DoGen, DeclGen
+            from psyclone.f2pygen import DoGen, DeclGen
             do = DoGen(parent, self._variable_name, self._start, self._stop)
             # need to add do loop before children as children may want to add
             # info outside of do loop
@@ -1799,10 +1948,23 @@ class Call(Node):
         return self.arguments.args
 
     def view(self, indent=0):
-        print self.indent(indent)+"Call", \
-            self.name+"("+str(self.arguments.raw_arg_list)+")"
+        '''
+        Write out a textual summary of this Call node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text, \
+            self.name + "(" + str(self.arguments.raw_arg_list) + ")"
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        ''' Return a string containing the (coloured) name of this node
+        type '''
+        return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
 
     @property
     def width(self):
@@ -1914,7 +2076,7 @@ class Call(Node):
         '''Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
         reductions, if specified.'''
-        from f2pygen import AssignGen, DeclGen, AllocateGen
+        from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
         if not position:
             position = ["auto"]
         var_name = self._reduction_arg.name
@@ -1956,7 +2118,7 @@ class Call(Node):
     def reduction_sum_loop(self, parent):
         '''generate the appropriate code to place after the end parallel
         region'''
-        from f2pygen import DoGen, AssignGen, DeallocateGen
+        from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
         self._name_space_manager = NameSpaceFactory().create()
         thread_idx = self._name_space_manager.create_name(
             root_name="th_idx", context="PSyVars", label="thread_index")
@@ -2050,6 +2212,14 @@ class Kern(Call):
         return "kern call: "+self._name
 
     @property
+    def module_name(self):
+        '''
+        :return: The name of the Fortran module that contains this kernel
+        :rtype: string
+        '''
+        return self._module_name
+
+    @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
         return "kernel_{0}_{1}".format(self.name, str(self.abs_position))
@@ -2071,14 +2241,32 @@ class Kern(Call):
                 kernel._module_inline = value
 
     def view(self, indent=0):
-        print self.indent(indent) + "KernCall", \
+        '''
+        Write out a textual summary of this Kernel-call node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text, \
             self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
             "[module_inline=" + str(self._module_inline) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :return: the name of this node type, possibly with control codes
+                 for colour
+        :rtype: string
+        '''
+        return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+
     def gen_code(self, parent):
-        from f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
@@ -2355,7 +2543,7 @@ class TransInfo(object):
 
     For example:
 
-    >>> from psyGen import TransInfo
+    >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
     >>> print t.list
     There is 1 transformation available:
@@ -2377,10 +2565,10 @@ class TransInfo(object):
 
         if module is None:
             # default to the transformation module
-            import transformations
+            from psyclone import transformations
             module = transformations
         if base_class is None:
-            import psyGen
+            from psyclone import psyGen
             base_class = psyGen.Transformation
         # find our transformations
         self._classes = self._find_subclasses(module, base_class)

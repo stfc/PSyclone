@@ -49,13 +49,14 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-import fparser
-from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
     FunctionSpace, VALID_STENCIL_TYPES, DynHaloExchange, \
     DynGlobalSum
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
+import fparser
+from fparser import api as fpapi
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -578,17 +579,21 @@ def test_unecessary_shape():
             in str(excinfo))
 
 
-def test_field():
+def test_field(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
-        "    USE quadrature_mod, ONLY: quadrature_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
         "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -623,17 +628,17 @@ def test_field():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -720,17 +725,17 @@ def test_field_deref():
             "      map_w3 => est_m2_proxy%vspace%get_whole_dofmap()\n"
             "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
             "      !\n"
-            "      ! Initialise sizes and allocate any basis arrays for w1\n"
+            "      ! Initialise number of DoFs for w1\n"
             "      !\n"
             "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
             "      undf_w1 = f1_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise sizes and allocate any basis arrays for w2\n"
+            "      ! Initialise number of DoFs for w2\n"
             "      !\n"
             "      ndf_w2 = est_f2_proxy%vspace%get_ndf()\n"
             "      undf_w2 = est_f2_proxy%vspace%get_undf()\n"
             "      !\n"
-            "      ! Initialise sizes and allocate any basis arrays for w3\n"
+            "      ! Initialise number of DoFs for w3\n"
             "      !\n"
             "      ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
             "      undf_w3 = est_m2_proxy%vspace%get_undf()\n"
@@ -789,7 +794,6 @@ def test_field_fs():
     output = (
         "  MODULE single_invoke_fs_psy\n"
         "    USE constants_mod, ONLY: r_def\n"
-        "    USE quadrature_mod, ONLY: quadrature_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type, "
         "columnwise_operator_type, columnwise_operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -843,37 +847,37 @@ def test_field_fs():
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for wtheta\n"
+        "      ! Initialise number of DoFs for wtheta\n"
         "      !\n"
         "      ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
         "      undf_wtheta = f3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2h\n"
+        "      ! Initialise number of DoFs for w2h\n"
         "      !\n"
         "      ndf_w2h = f4_proxy%vspace%get_ndf()\n"
         "      undf_w2h = f4_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2v\n"
+        "      ! Initialise number of DoFs for w2v\n"
         "      !\n"
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for any_w2\n"
+        "      ! Initialise number of DoFs for any_w2\n"
         "      !\n"
         "      ndf_any_w2 = m4_proxy%vspace%get_ndf()\n"
         "      undf_any_w2 = m4_proxy%vspace%get_undf()\n"
@@ -929,161 +933,6 @@ def test_field_fs():
     assert str(generated_code).find(output) != -1
 
 
-def test_field_qr():
-    ''' Tests that a call, with a set of fields requiring
-    quadrature, produces correct code. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.1_single_invoke_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = str(psy.gen)
-    print generated_code
-    output_decls = (
-        "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
-        " qr)\n"
-        "      USE testkern_qr, ONLY: testkern_qr_code\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      INTEGER, intent(in) :: istp\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
-        "      TYPE(quadrature_type), intent(in) :: qr\n"
-        "      INTEGER cell\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w1(:,:,:,:), "
-        "diff_basis_w2(:,:,:,:), basis_w3(:,:,:,:), diff_basis_w3(:,:,:,:)\n"
-        "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      REAL(KIND=r_def), pointer :: zp(:) => null(), wh(:) => null(), "
-        "wv(:) => null()\n"
-        "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
-        "      INTEGER nqp_h, nqp_v\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
-        "      INTEGER nlayers\n"
-        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
-        "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_w1(:,:) => null()\n")
-    assert output_decls in generated_code
-    output = (
-        "      !\n"
-        "      ! Initialise field and/or operator proxies\n"
-        "      !\n"
-        "      f1_proxy = f1%get_proxy()\n"
-        "      f2_proxy = f2%get_proxy()\n"
-        "      m1_proxy = m1%get_proxy()\n"
-        "      m2_proxy = m2%get_proxy()\n"
-        "      !\n"
-        "      ! Initialise number of layers\n"
-        "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh => f1%get_mesh()\n"
-        "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
-        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "      !\n"
-        "      ! Initialise qr values\n"
-        "      !\n"
-        "      wv => qr%get_wqp_v()\n"
-        "      xp => qr%get_xqp_h()\n"
-        "      zp => qr%get_xqp_v()\n"
-        "      wh => qr%get_wqp_h()\n"
-        "      nqp_h = qr%get_nqp_h()\n"
-        "      nqp_v = qr%get_nqp_v()\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
-        "      !\n"
-        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
-        "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w1(dim_w1, ndf_w1, nqp_h, nqp_v))\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
-        "      !\n"
-        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
-        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
-        "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w2(diff_dim_w2, ndf_w2, nqp_h, nqp_v))\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
-        "      !\n"
-        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
-        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
-        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v))\n"
-        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w3(diff_dim_w3, ndf_w3, nqp_h, nqp_v))\n"
-        "      !\n"
-        "      ! Compute basis arrays\n"
-        "      !\n"
-        "      CALL f1_proxy%vspace%compute_basis_function(basis_w1, ndf_w1, "
-        "nqp_h, nqp_v, xp, zp)\n"
-        "      CALL f2_proxy%vspace%compute_diff_basis_function("
-        "diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)\n"
-        "      CALL m2_proxy%vspace%compute_basis_function(basis_w3, ndf_w3, "
-        "nqp_h, nqp_v, xp, zp)\n"
-        "      CALL m2_proxy%vspace%compute_diff_basis_function("
-        "diff_basis_w3, ndf_w3, nqp_h, nqp_v, xp, zp)\n"
-        "      !\n"
-        "      ! Call kernels and communication routines\n"
-        "      !\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
-        "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
-        "map_w1(:,cell), basis_w1, ndf_w2, undf_w2, map_w2(:,cell), "
-        "diff_basis_w2, ndf_w3, undf_w3, map_w3(:,cell), basis_w3, "
-        "diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
-        "      !\n"
-        "      CALL f1_proxy%set_dirty()\n"
-        "      !\n"
-        "      !\n"
-        "      ! Deallocate basis arrays\n"
-        "      !\n"
-        "      DEALLOCATE (basis_w1, diff_basis_w2, basis_w3, diff_basis_w3)\n"
-        "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_qr_type"
-    )
-    assert output in generated_code
-
-
-def test_field_qr_deref():
-    ''' Tests that a call, with a set of fields requiring
-    quadrature, produces correct code when the quadrature is supplied as the
-    component of a derived type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.1.1_single_invoke_qr_deref.f90"),
-                           api="dynamo0.3")
-    for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print gen
-        assert (
-            "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
-            " qr_data)\n" in gen)
-        assert "TYPE(quadrature_type), intent(in) :: qr_data" in gen
-
-
 def test_real_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields)'''
@@ -1129,17 +978,17 @@ def test_real_scalar():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1212,17 +1061,17 @@ def test_int_scalar():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1296,17 +1145,17 @@ def test_two_real_scalars():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1379,17 +1228,17 @@ def test_two_int_scalars():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1470,17 +1319,17 @@ def test_two_scalars():
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      ! Initialise number of DoFs for w1\n"
         "      !\n"
         "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_w1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
@@ -1588,6 +1437,7 @@ def test_operator():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
+    print generated_code
     assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                "_type(mm_w0, chi, a, qr)") != -1
     assert generated_code.find("TYPE(operator_type), intent(inout) ::"
@@ -1595,14 +1445,14 @@ def test_operator():
     assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
                                "proxy") != -1
     assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
-    assert generated_code.find(
-        "CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_"
-        "w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_pr"
-        "oxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
-        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
+            "mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
+            "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), "
+            "basis_w0_qr, diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)") in generated_code
 
 
-def test_operator_different_spaces():
+def test_operator_different_spaces(tmpdir, f90, f90flags):
     '''tests that an operator with different to and from spaces is
     implemented correctly in the PSy layer'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1610,30 +1460,41 @@ def test_operator_different_spaces():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
-    output = (
+    print generated_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+    decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
         "(mapping, chi, qr)\n"
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
+        "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
+        "quadrature_xyoz_proxy_type\n"
+        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(in) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
-        "      TYPE(quadrature_type), intent(in) :: qr\n"
+        "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: orientation_w2(:) => null()\n"
         "      INTEGER cell\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w3(:,:,:,:), "
-        "diff_basis_w2(:,:,:,:), diff_basis_w0(:,:,:,:)\n"
-        "      INTEGER dim_w3, diff_dim_w2, diff_dim_w0\n"
+        "      REAL(KIND=r_def), allocatable :: basis_w3_qr(:,:,:,:), "
+        "diff_basis_w0_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
+        "      INTEGER dim_w3, diff_dim_w0, diff_dim_w2\n"
+        "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
+        "weights_z_qr(:) => null()\n"
+        "      INTEGER np_xy_qr, np_z_qr\n"
         "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
-        "      REAL(KIND=r_def), pointer :: zp(:) => null(), wh(:) => null(), "
-        "wv(:) => null()\n"
-        "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
-        "      INTEGER nqp_h, nqp_v\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
-        "      INTEGER, pointer :: map_w0(:,:) => null()\n"
+        "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
+        "      INTEGER, pointer :: map_w0(:,:) => null()\n")
+    assert decl_output in generated_code
+    output = (
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -1654,42 +1515,52 @@ def test_operator_different_spaces():
         "      !\n"
         "      map_w0 => chi_proxy(1)%vspace%get_whole_dofmap()\n"
         "      !\n"
-        "      ! Initialise qr values\n"
-        "      !\n"
-        "      wv => qr%get_wqp_v()\n"
-        "      xp => qr%get_xqp_h()\n"
-        "      zp => qr%get_xqp_v()\n"
-        "      wh => qr%get_wqp_h()\n"
-        "      nqp_h = qr%get_nqp_h()\n"
-        "      nqp_v = qr%get_nqp_v()\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      ! Initialise number of DoFs for w3\n"
         "      !\n"
         "      ndf_w3 = mapping_proxy%fs_to%get_ndf()\n"
-        "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
-        "      ALLOCATE (basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v))\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      ! Initialise number of DoFs for w2\n"
         "      !\n"
         "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
-        "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w2(diff_dim_w2, ndf_w2, nqp_h, nqp_v))\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w0\n"
+        "      ! Initialise number of DoFs for w0\n"
         "      !\n"
         "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
         "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Look-up quadrature variables\n"
+        "      !\n"
+        "      qr_proxy = qr%get_quadrature_proxy()\n"
+        "      np_xy_qr = qr_proxy%np_xy\n"
+        "      np_z_qr = qr_proxy%np_z\n"
+        "      weights_xy_qr => qr_proxy%weights_xy\n"
+        "      weights_z_qr => qr_proxy%weights_z\n"
+        "      !\n"
+        "      ! Allocate basis arrays\n"
+        "      !\n"
+        "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
+        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xy_qr, np_z_qr))\n"
+        "      !\n"
+        "      ! Allocate differential basis arrays\n"
+        "      !\n"
         "      diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w0(diff_dim_w0, ndf_w0, nqp_h, nqp_v))\n"
+        "      ALLOCATE (diff_basis_w0_qr(diff_dim_w0, ndf_w0, np_xy_qr, "
+        "np_z_qr))\n"
+        "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xy_qr, "
+        "np_z_qr))\n"
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      CALL mapping_proxy%fs_to%compute_basis_function(basis_w3, "
-        "ndf_w3, nqp_h, nqp_v, xp, zp)\n"
-        "      CALL mapping_proxy%fs_from%compute_diff_basis_function("
-        "diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)\n"
-        "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
-        "diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)\n"
+        "      CALL qr%compute_function(BASIS, mapping_proxy%fs_to, "
+        "dim_w3, ndf_w3, basis_w3_qr)\n"
+        "      !\n"
+        "      ! Compute differential basis arrays\n"
+        "      !\n"
+        "      CALL qr%compute_function(DIFF_BASIS, chi_proxy(1)%vspace, "
+        "diff_dim_w0, ndf_w0, diff_basis_w0_qr)\n"
+        "      CALL qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, "
+        "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
@@ -1713,21 +1584,21 @@ def test_operator_different_spaces():
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
         "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w3, "
-        "basis_w3, ndf_w2, diff_basis_w2, orientation_w2, ndf_w0, undf_w0, "
-        "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)\n"
+        "basis_w3_qr, ndf_w2, diff_basis_w2_qr, orientation_w2, "
+        "ndf_w0, undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
+        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "      END DO \n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w3, diff_basis_w2, diff_basis_w0)\n"
+        "      DEALLOCATE (diff_basis_w2_qr, diff_basis_w0_qr, basis_w3_qr)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_"
         "type")
-    print generated_code
     assert output in generated_code
 
 
-def test_operator_nofield():
+def test_operator_nofield(tmpdir, f90, f90flags):
     ''' tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1735,6 +1606,12 @@ def test_operator_nofield():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_code_str = str(psy.gen)
+    print gen_code_str
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
     assert gen_code_str.find("TYPE(operator_type), intent(inout) :: "
@@ -1743,14 +1620,16 @@ def test_operator_nofield():
     assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
     assert gen_code_str.find("undf_w2") == -1
     assert gen_code_str.find("map_w2") == -1
-    assert gen_code_str.find(
-        "CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
-        " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
-        ", chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, "
-        "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
+            "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
+            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
+            "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
-def test_operator_nofield_different_space():  # pylint: disable=invalid-name
+def test_operator_nofield_different_space(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1760,6 +1639,11 @@ def test_operator_nofield_different_space():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -1783,12 +1667,13 @@ def test_operator_nofield_scalar():
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
-    assert (
-        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-        "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+            "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
+def test_operator_nofield_scalar_deref(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -1801,12 +1686,17 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print gen
+
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         if dist_mem:
             assert "mesh => opbox_my_mapping%get_mesh()" in gen
         assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
         assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-        assert ("CALL opbox_my_mapping_proxy%fs_from%compute_basis_function("
-                "basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)" in gen)
+        assert ("qr_get_instance%compute_function(BASIS, "
+                "opbox_my_mapping_proxy%fs_from, "
+                "dim_w2, ndf_w2, basis_w2_qr_get_instance)" in gen)
         if dist_mem:
             assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
         else:
@@ -1814,11 +1704,13 @@ def test_operator_nofield_scalar_deref():  # pylint: disable=invalid-name
                 "DO cell=1,opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
         assert (
             "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
-            "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, basis_w2, "
-            "nqp_h, nqp_v, wh, wv)" in gen)
+            "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
+            "basis_w2_qr_get_instance, np_xy_qr_get_instance, "
+            "np_z_qr_get_instance, weights_xy_qr_get_instance,"
+            " weights_z_qr_get_instance)" in gen)
 
 
-def test_operator_orientation():
+def test_operator_orientation(tmpdir, f90, f90flags):
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1827,6 +1719,10 @@ def test_operator_orientation():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
     print gen_str
+
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
     assert gen_str.find("TYPE(operator_type), intent(inout) ::"
@@ -1837,14 +1733,16 @@ def test_operator_orientation():
     assert gen_str.find(
         "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
         "(cell)") != -1
-    assert gen_str.find(
-        "CALL testkern_operator_orient_code(cell, nlayers, mm_w1_proxy%ncell_"
-        "3d, mm_w1_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data,"
-        " chi_proxy(3)%data, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w"
-        "0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+    assert ("CALL testkern_operator_orient_code(cell, nlayers, "
+            "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
+            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
+            "basis_w1_qr, orientation_w1, ndf_w0, undf_w0, map_w0(:,cell), "
+            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)" in gen_str)
 
 
-def test_op_orient_different_space():  # pylint: disable=invalid-name
+def test_op_orient_different_space(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1854,30 +1752,33 @@ def test_op_orient_different_space():  # pylint: disable=invalid-name
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
     print gen_str
+
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
         " => null()" in gen_str)
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen_str
     assert "ndf_w1 = my_mapping_proxy%fs_to%get_ndf()" in gen_str
     assert "dim_w1 = my_mapping_proxy%fs_to%get_dim_space()" in gen_str
-    assert (
-        "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
-        " nqp_h, nqp_v, xp, zp)" in gen_str)
+    assert ("CALL qr%compute_function(BASIS, my_mapping_proxy%fs_to, "
+            "dim_w1, ndf_w1, basis_w1_qr)" in gen_str)
     assert (
         "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
         "cell)" in gen_str)
     assert (
         "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)"
         in gen_str)
-    assert (
-        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
-        "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
-        "ndf_w1, basis_w1, orientation_w1, ndf_w2, orientation_w2, ndf_w0, "
-        "undf_w0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)"
-        in gen_str)
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, "
+            "my_mapping_proxy%local_stencil, chi_proxy(1)%data, "
+            "chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, basis_w1_qr, "
+            "orientation_w1, ndf_w2, orientation_w2, ndf_w0, undf_w0, "
+            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
-def test_operator_deref():
+def test_operator_deref(tmpdir, f90, f90flags):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
@@ -1887,6 +1788,10 @@ def test_operator_deref():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
+        print generated_code
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                    "_type(mm_w0_op, chi, a, qr)") != -1
         assert generated_code.find("TYPE(operator_type), intent(inout) ::"
@@ -1899,8 +1804,9 @@ def test_operator_deref():
             "CALL testkern_operator_code(cell, nlayers, "
             "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
-            "ndf_w0, undf_w0, map_w0(:,cell), basis_w0, "
-            "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+            "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
+            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+            "weights_z_qr)") != -1
 
 
 def test_operator_no_dofmap_lookup():
@@ -1938,7 +1844,7 @@ def test_operator_read_level1_halo():
             "However the containing loop goes out to level 2" in str(excinfo))
 
 
-def test_any_space_1():
+def test_any_space_1(tmpdir, f90, f90flags):
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
@@ -1947,32 +1853,35 @@ def test_any_space_1():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     print generated_code
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     assert ("INTEGER, pointer :: map_w0(:,:) => null(), "
             "map_any_space_2_b(:,:) => null(), "
             "map_any_space_1_a(:,:) => null()\n" in generated_code)
     assert generated_code.find(
-        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a(:,:,:,:), "
-        "basis_any_space_2_b(:,:,:,:)") != -1
+        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a_qr(:,:,:,:), "
+        "basis_any_space_2_b_qr(:,:,:,:)") != -1
     assert generated_code.find(
-        "ALLOCATE (basis_any_space_1_a(dim_any_space_1_a, ndf_any_space_1_a, "
-        "nqp_h, nqp_v))") != -1
+        "ALLOCATE (basis_any_space_1_a_qr(dim_any_space_1_a, "
+        "ndf_any_space_1_a, np_xy_qr, np_z_qr))") != -1
     assert generated_code.find(
-        "ALLOCATE (basis_any_space_2_b(dim_any_space_2_b, ndf_any_space_2_b, "
-        "nqp_h, nqp_v))") != -1
+        "ALLOCATE (basis_any_space_2_b_qr(dim_any_space_2_b, "
+        "ndf_any_space_2_b, np_xy_qr, np_z_qr))") != -1
     assert generated_code.find(
         "map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()") != -1
     assert generated_code.find(
         "map_any_space_2_b => b_proxy%vspace%get_whole_dofmap()") != -1
-    assert generated_code.find(
-        "CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, b_proxy%"
-        "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
-        "ny_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell), "
-        "basis_any_space_1_a, ndf_any_space_2_b, undf_any_space_2_b, "
-        "map_any_space_2_b(:,cell), basis_any_space_2_b, ndf_w0, undf_w0, "
-        "map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
-    assert generated_code.find(
-        "DEALLOCATE (basis_any_space_1_a, basis_any_space_2_b, diff_basis_w"
-        "0)") != -1
+    assert ("CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, "
+            "b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, "
+            "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell),"
+            " basis_any_space_1_a_qr, ndf_any_space_2_b, undf_any_space_2_b, "
+            "map_any_space_2_b(:,cell), basis_any_space_2_b_qr, ndf_w0, "
+            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in generated_code)
+    assert ("DEALLOCATE (basis_any_space_2_b_qr, diff_basis_w0_qr, "
+            "basis_any_space_1_a_qr)" in generated_code)
 
 
 def test_any_space_2():
@@ -2017,42 +1926,39 @@ def test_op_any_space_different_space_1():  # pylint: disable=invalid-name
         "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
-def test_op_any_space_different_space_2():  # pylint: disable=invalid-name
+def test_op_any_space_different_space_2(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     print generated_code
-    assert str(generated_code).find(
-        "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()") != -1
-    assert str(generated_code).find(
-        "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()") != -1
-    assert str(generated_code).find(
-        "undf_any_space_4_d = d_proxy%fs_from%get_undf()") != -1
-    assert str(generated_code).find(
-        "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()") != -1
-    assert str(generated_code).find(
-        "ndf_any_space_5_a = a_proxy%vspace%get_ndf()") != -1
-    assert str(generated_code).find(
-        "undf_any_space_5_a = a_proxy%vspace%get_undf()") != -1
-    assert str(generated_code).find(
-        "CALL b_proxy%fs_to%compute_basis_function") != -1
-    assert str(generated_code).find(
-        "CALL d_proxy%fs_from%compute_basis_function") != -1
-    assert str(generated_code).find(
-        "CALL d_proxy%fs_from%compute_diff_basis_function") != -1
-    assert str(generated_code).find(
-        "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()") != -1
-    assert str(generated_code).find(
-        "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()") != -1
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
+    assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
+        generated_code
+    assert "ndf_any_space_2_b = b_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_any_space_3_c = c_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_any_space_4_d = d_proxy%fs_from%get_ndf()" in generated_code
+    assert "undf_any_space_4_d = d_proxy%fs_from%get_undf()" in generated_code
+    assert "dim_any_space_4_d = d_proxy%fs_from%get_dim_space()" in \
+        generated_code
+    assert "ndf_any_space_5_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_any_space_5_a = a_proxy%vspace%get_undf()" in generated_code
+    assert "CALL qr%compute_function(BASIS, b_proxy%fs_to, " in generated_code
+    assert "CALL qr%compute_function(BASIS, d_proxy%fs_from, " in \
+        generated_code
+    assert "CALL qr%compute_function(DIFF_BASIS, d_proxy%fs_from, " in \
+        generated_code
+    assert "map_any_space_5_a => a_proxy%vspace%get_whole_dofmap()" in \
+        generated_code
+    assert "map_any_space_4_d => f_proxy%vspace%get_whole_dofmap()" in \
+        generated_code
 
 
 def test_invoke_uniq_declns():
@@ -2562,7 +2468,7 @@ def test_2kern_invoke_any_space():
         in gen)
 
 
-def test_multikern_invoke_any_space():
+def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2572,20 +2478,24 @@ def test_multikern_invoke_any_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
             "map_any_space_2_f2(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), map_w0(:,:) => null()" in gen)
-    assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_f1(:,:,:,:), "
-            "basis_any_space_2_f2(:,:,:,:), diff_basis_w0(:,:,:,:), "
-            "basis_any_space_1_f2(:,:,:,:), basis_any_space_2_f1(:,:,:,:)"
-            in gen)
+    assert (
+        "REAL(KIND=r_def), allocatable :: basis_any_space_1_f1_qr(:,:,:,:), "
+        "basis_any_space_2_f2_qr(:,:,:,:), basis_any_space_1_f2_qr(:,:,:,:), "
+        "basis_any_space_2_f1_qr(:,:,:,:), diff_basis_w0_qr(:,:,:,:)"in gen)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_1_f2,"
-            " ndf_any_space_1_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
+            "dim_any_space_1_f2, ndf_any_space_1_f2, "
+            "basis_any_space_1_f2_qr)" in gen)
     assert (
         "      map_any_space_1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
@@ -2595,14 +2505,15 @@ def test_multikern_invoke_any_space():
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
             "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
-            "map_any_space_1_f1(:,cell), basis_any_space_1_f1, "
+            "map_any_space_1_f1(:,cell), basis_any_space_1_f1_qr, "
             "ndf_any_space_2_f2, undf_any_space_2_f2, "
-            "map_any_space_2_f2(:,cell), basis_any_space_2_f2, ndf_w0, "
-            "undf_w0, map_w0(:,cell), diff_basis_w0, nqp_h, nqp_v, "
-            "wh, wv" in gen)
+            "map_any_space_2_f2(:,cell), basis_any_space_2_f2_qr, ndf_w0, "
+            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr" in gen)
 
 
-def test_mkern_invoke_multiple_any_spaces():
+def test_mkern_invoke_multiple_any_spaces(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2612,12 +2523,17 @@ def test_mkern_invoke_multiple_any_spaces():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
     print gen
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f1_proxy%vspace%compute_basis_function(basis_any_space_1_f1,"
-            " ndf_any_space_1_f1, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+            "dim_any_space_1_f1, ndf_any_space_1_f1, "
+            "basis_any_space_1_f1_qr)" in gen)
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert ("CALL f2_proxy%vspace%compute_basis_function(basis_any_space_2_f2,"
-            " ndf_any_space_2_f2, nqp_h, nqp_v, xp, zp)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
+            "dim_any_space_2_f2, ndf_any_space_2_f2, "
+            "basis_any_space_2_f2_qr)" in gen)
     assert "ndf_any_space_1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_1_op = op_proxy%fs_to%get_ndf()" in gen
     assert "ndf_any_space_5_f2 = f2_proxy%vspace%get_ndf()" in gen
@@ -2626,12 +2542,28 @@ def test_mkern_invoke_multiple_any_spaces():
     assert gen.count("ndf_any_space_4_op4 = op4_proxy%fs_from%get_ndf()") == 1
     assert "ndf_any_space_3_op5" not in gen
     assert "ndf_any_space_4_f1" not in gen
-    assert ("CALL op2_proxy%fs_from%compute_basis_function("
-            "basis_any_space_2_op2, ndf_any_space_2_op2, nqp_h, "
-            "nqp_v, xp, zp)" in gen)
-    assert ("CALL op4_proxy%fs_from%compute_diff_basis_function("
-            "diff_basis_any_space_4_op4, ndf_any_space_4_op4, nqp_h, "
-            "nqp_v, xp, zp)" in gen)
+    # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
+    # DIFF_BASIS on w0
+    # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
+    assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+            "dim_any_space_1_f1, ndf_any_space_1_f1, "
+            "basis_any_space_1_f1_qr)" in gen)
+    assert ("CALL qr%compute_function(BASIS, f2_proxy%vspace, "
+            "dim_any_space_2_f2, ndf_any_space_2_f2, "
+            "basis_any_space_2_f2_qr)" in gen)
+    # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
+    # to-space of op2
+    assert ("CALL qr%compute_function(BASIS, op2_proxy%fs_to, "
+            "dim_any_space_1_op2, ndf_any_space_1_op2, "
+            "basis_any_space_1_op2_qr)" in gen)
+    # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
+    # of op4
+    assert ("CALL qr%compute_function(BASIS, op4_proxy%fs_from, "
+            "dim_any_space_4_op4, ndf_any_space_4_op4, "
+            "basis_any_space_4_op4_qr)" in gen)
+    assert ("CALL qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
+            "diff_dim_any_space_4_op4, ndf_any_space_4_op4, "
+            "diff_basis_any_space_4_op4_qr)" in gen)
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
@@ -2671,6 +2603,21 @@ def test_loopfuse():
     # both kernel calls are within the loop
     for kern_id in kern_idxs:
         assert kern_id > do_idx and kern_id < enddo_idx
+
+
+def test_named_psy_routine():
+    ''' Check that we generate a subroutine with the expected name
+    if an invoke is named '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "1.0.1_single_named_invoke.f90"),
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        gen_code = str(psy.gen)
+        # Name should be all lower-case and with spaces replaced by underscores
+        assert "SUBROUTINE invoke_important_invoke" in gen_code
 
 # tests for dynamo0.3 stub generator
 
@@ -3166,304 +3113,13 @@ def test_stub_operator_different_spaces():
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
     assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
 
-
-# basis function : spaces
-BASIS = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3),  &
-             arg_type(gh_field,   gh_write, wtheta), &
-             arg_type(gh_operator,gh_inc, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
-           /)
-     type(func_type), meta_funcs(7) =     &
-          (/ func_type(w0, gh_basis),     &
-             func_type(w1, gh_basis),     &
-             func_type(w2, gh_basis),     &
-             func_type(w3, gh_basis),     &
-             func_type(wtheta, gh_basis), &
-             func_type(w2h, gh_basis),    &
-             func_type(w2v, gh_basis)     &
-           /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_xyoz
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-
-def test_basis():
-    ''' Test that basis functions are handled correctly for kernel stubs '''
-    ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
-    output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
-        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
-        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
-        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
-        "basis_w2v, nqp_h, nqp_v, wh, wv)\n"
-        "      USE constants_mod, ONLY: r_def\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in) :: undf_wtheta\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in) :: undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-        "op_4_ncell_3d) :: op_4\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
-        "op_6_ncell_3d) :: op_6\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
-        ":: basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
-        ":: basis_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
-        ":: basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
-        ":: basis_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,nqp_h,"
-        "nqp_v) :: basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,nqp_h,nqp_v) "
-        ":: basis_w2h\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,nqp_h,nqp_v) "
-        ":: basis_w2v\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-
-    print output
-    print str(generated_code)
-    assert str(generated_code).find(output) != -1
-
-BASIS_UNSUPPORTED_SPACE = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write, any_space_1) &
-           /)
-     type(func_type), meta_funcs(1) =    &
-          (/ func_type(any_space_1, gh_basis) &
-           /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-
-def test_basis_unsupported_space():
-    ''' test that an error is raised when a basis function is on an
-    unsupported space (currently any_space_*) '''
-    ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = kernel.gen_stub
-    assert 'Unsupported space for basis function' in str(excinfo.value)
-
-# diff basis function : spaces
-DIFF_BASIS = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3),  &
-             arg_type(gh_field,   gh_write, wtheta), &
-             arg_type(gh_operator,gh_inc, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
-           /)
-     type(func_type), meta_funcs(7) =          &
-          (/ func_type(w0, gh_diff_basis),     &
-             func_type(w1, gh_diff_basis),     &
-             func_type(w2, gh_diff_basis),     &
-             func_type(w3, gh_diff_basis),     &
-             func_type(wtheta, gh_diff_basis), &
-             func_type(w2h, gh_diff_basis),    &
-             func_type(w2v, gh_diff_basis)     &
-           /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-
-def test_diff_basis():
-    ''' Test that differential basis functions are handled correctly
-    for kernel stubs '''
-    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
-    output = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
-        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, "
-        "diff_basis_w2, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
-        "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
-        "undf_w2v, map_w2v, diff_basis_w2v, nqp_h, nqp_v, wh, wv)\n"
-        "      USE constants_mod, ONLY: r_def\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in) :: undf_wtheta\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
-        "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in) :: undf_w2v\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-        "op_4_ncell_3d) :: op_4\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
-        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
-        "op_6_ncell_3d) :: op_6\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
-        ":: diff_basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
-        ":: diff_basis_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
-        ":: diff_basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,nqp_h,nqp_v) "
-        ":: diff_basis_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
-        "nqp_v) :: diff_basis_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,nqp_h,nqp_v) "
-        ":: diff_basis_w2h\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,nqp_h,nqp_v) "
-        ":: diff_basis_w2v\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    print output
-    print str(generated_code)
-    assert str(generated_code).find(output) != -1
-
-DIFF_BASIS_UNSUPPORTED_SPACE = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write, any_space_1) &
-           /)
-     type(func_type), meta_funcs(1) =    &
-          (/ func_type(any_space_1, gh_diff_basis) &
-           /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-
-def test_diff_basis_unsupp_space():
-    ''' test that an error is raised when a differential basis
-    function is on an unsupported space (currently any_space_*)'''
-    ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = kernel.gen_stub
-    assert 'Unsupported space for differential basis function' \
-        in str(excinfo.value)
-
 # orientation : spaces
 
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
     "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
-    "nqp_v, wh, wv)\n"
+    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3)\n"
     "      USE constants_mod, ONLY: r_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: cell\n"
@@ -3490,9 +3146,6 @@ ORIENTATION_OUTPUT = (
     "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
-    "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-    "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-    "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
     "    END SUBROUTINE dummy_orientation_code\n"
     "  END MODULE dummy_orientation_mod")
 
@@ -3819,14 +3472,22 @@ def test_field_metadata_too_many_arguments():
 
 def test_invalid_stencil_form_1():
     '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by being a literal integer'''
+    stencil(<type>[,<extent>]) format by being a literal integer or
+    just "stencil" '''
     result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert "entry must be a valid stencil specification" \
+    assert "entry must be either a valid stencil specification" \
         in str(excinfo.value)
-    assert "but found the literal" \
+    assert "Unrecognised meta-data entry" in str(excinfo.value)
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "entry must be either a valid stencil specification" \
+        in str(excinfo.value)
+    assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
         in str(excinfo.value)
 
 
@@ -3837,7 +3498,7 @@ def test_invalid_stencil_form_2():
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert "entry must be a valid stencil specification" \
+    assert "entry must be either a valid stencil specification" \
         in str(excinfo.value)
 
 
@@ -3848,7 +3509,7 @@ def test_invalid_stencil_form_3():
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert "entry must be a valid stencil specification" \
+    assert "entry must be either a valid stencil specification" \
         in str(excinfo.value)
 
 
@@ -3883,7 +3544,7 @@ def test_invalid_stencil_form_6():
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
-    assert "entry must be a valid stencil specification" \
+    assert "entry must be either a valid stencil specification" \
         in str(excinfo.value)
     assert "there must be at most two arguments inside the brackets" \
         in str(excinfo.value)
@@ -4053,6 +3714,39 @@ def test_arg_intent_error():
     assert ("Expecting argument access to be one of 'gh_read, gh_write, "
             "gh_inc' or one of ['gh_sum'], but found 'gh_not_an_intent'" in
             str(excinfo))
+
+
+def test_no_arg_on_space(monkeypatch):
+    ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
+    the appropriate error when there is no kernel argument on the
+    supplied space. '''
+    from psyclone.psyGen import FieldNotFoundError
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    kernel_args = first_kernel.arguments
+    # Test getting the argument by the meta-data name for the function space
+    arg = kernel_args.get_arg_on_space_name("w2")
+    assert arg.name == "f2"
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        _ = kernel_args.get_arg_on_space_name("not_a_space")
+    assert ("there is no field or operator with function space not_a_space" in
+            str(excinfo))
+    # Now test get_arg_on_space - we need a FunctionSpace object for this
+    fspace = arg.function_space
+    arg = kernel_args.get_arg_on_space(fspace)
+    assert arg.name == "f2"
+    # Take a deep copy of the function space object so that we get a new
+    # one whose state we can monkeypatch
+    import copy
+    fspace = copy.deepcopy(arg.function_space)
+    monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        _ = kernel_args.get_arg_on_space(fspace)
+    assert ("there is no field or operator with function space w2 (mangled "
+            "name = 'not_a_space_name')" in str(excinfo))
 
 
 def test_arg_descriptor_function_method_error():
@@ -4274,18 +3968,6 @@ def test_dynkern_arg_for_fs():
     with pytest.raises(GenerationError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
     assert "No argument found on 'waah' space" in str(err)
-
-
-def test_dynkern_op_name():
-    ''' Test that DynInvoke.get_operator_name() raises an error if
-    passed an invalid function space '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    with pytest.raises(GenerationError) as err:
-        _ = first_invoke.get_fs_operator_name("gh_orientation", "w3")
-    assert "no kern call with function space 'w3' and" in str(err)
 
 
 def test_dist_memory_true():
@@ -4638,22 +4320,30 @@ def test_w3_and_inc_error():
 
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
     schedule.view()
     result, _ = capsys.readouterr()
+
+    # Ensure we test for text containing the correct (colour) control codes
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+    exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+
     expected = (
-        "Schedule[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    HaloExchange[field='f2', type='cross', depth=f2_extent, "
+        sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        "    " + exch + "[field='f2', type='cross', depth=f2_extent, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f3', type='region', depth=1, "
+        "    " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    HaloExchange[field='f4', type='region', depth=1, "
+        "    " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    Loop[type='',field_space='w1',it_space='cells']\n"
-        "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
+        "    " + loop + "[type='',field_space='w1',it_space='cells']\n"
+        "        " + call + " testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
     print expected
     print result
@@ -4753,7 +4443,7 @@ def test_intent_multi_kern():
         assert "TYPE(field_type), intent(inout) :: g, f\n" in output
         assert "TYPE(field_type), intent(inout) :: b, h\n" in output
         assert "TYPE(field_type), intent(in) :: c, d, a, e(3)\n" in output
-        assert "TYPE(quadrature_type), intent(in) :: qr\n" in output
+        assert "TYPE(quadrature_xyoz_type), intent(in) :: qr\n" in output
 
 
 def test_field_gh_sum_invalid():
@@ -6600,7 +6290,7 @@ def test_multi_anyw2():
                 "      !\n"
                 "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
                 "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays "
+                "      ! Initialise number of DoFs "
                 "for any_w2\n"
                 "      !\n"
                 "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
@@ -6634,7 +6324,7 @@ def test_multi_anyw2():
                 "      !\n"
                 "      map_any_w2 => f1_proxy%vspace%get_whole_dofmap()\n"
                 "      !\n"
-                "      ! Initialise sizes and allocate any basis arrays for "
+                "      ! Initialise number of DoFs for "
                 "any_w2\n"
                 "      !\n"
                 "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
@@ -6649,40 +6339,6 @@ def test_multi_anyw2():
                 "undf_any_w2, map_any_w2(:,cell))\n"
                 "      END DO ")
             assert output in generated_code
-
-
-def test_anyw2_basis():
-    '''Check generated code works correctly when we have any_w2 fields
-    and basis functions'''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
-        api="dynamo0.3")
-    for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        print generated_code
-        output = (
-            "      ! Initialise sizes and allocate any basis arrays "
-            "for any_w2\n"
-            "      !\n"
-            "      ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_any_w2 = f1_proxy%vspace%get_undf()\n"
-            "      dim_any_w2 = f1_proxy%vspace%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2(dim_any_w2, ndf_any_w2, nqp_h, "
-            "nqp_v))\n"
-            "      diff_dim_any_w2 = f1_proxy%vspace%"
-            "get_dim_space_diff()\n"
-            "      ALLOCATE (diff_basis_any_w2(diff_dim_any_w2, "
-            "ndf_any_w2, nqp_h, nqp_v))\n"
-            "      !\n"
-            "      ! Compute basis arrays\n"
-            "      !\n"
-            "      CALL f1_proxy%vspace%compute_basis_function("
-            "basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)\n"
-            "      CALL f1_proxy%vspace%compute_diff_basis_function("
-            "diff_basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)")
-        assert output in generated_code
 
 
 def test_anyw2_vectors():
@@ -6713,19 +6369,20 @@ def test_anyw2_operators():
         generated_code = str(psy.gen)
         print generated_code
         output = (
-            "      ! Initialise sizes and allocate any basis arrays for "
-            "any_w2\n"
+            "      ! Initialise number of DoFs for any_w2\n"
             "      !\n"
             "      ndf_any_w2 = mm_w2_proxy%fs_from%get_ndf()\n"
-            "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n"
+            "      undf_any_w2 = mm_w2_proxy%fs_from%get_undf()\n")
+        assert output in generated_code
+        output = (
             "      dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
-            "      ALLOCATE (basis_any_w2(dim_any_w2, ndf_any_w2, nqp_h, "
-            "nqp_v))\n"
+            "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
+            "np_xy_qr, np_z_qr))\n"
             "      !\n"
             "      ! Compute basis arrays\n"
             "      !\n"
-            "      CALL mm_w2_proxy%fs_from%compute_basis_function("
-            "basis_any_w2, ndf_any_w2, nqp_h, nqp_v, xp, zp)")
+            "      CALL qr%compute_function(BASIS, mm_w2_proxy%fs_from, "
+            "dim_any_w2, ndf_any_w2, basis_any_w2_qr)")
         assert output in generated_code
 
 
@@ -6757,12 +6414,12 @@ def test_stub_generate_with_anyw2():
     have any_w2 fields. In particular, check basis functions as these
     have specific sizes associated with the particular function space'''
     result = generate(os.path.join(BASE_PATH,
-                                   "testkern_multi_anyw2_basis.f90"),
+                                   "testkern_multi_anyw2_basis_mod.f90"),
                       api="dynamo0.3")
     print result
     expected_output = (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
-        "nqp_h,nqp_v) :: basis_any_w2\n"
+        "np_xy,np_z) :: basis_any_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
-        "nqp_h,nqp_v) :: diff_basis_any_w2")
+        "np_xy,np_z) :: diff_basis_any_w2")
     assert expected_output in str(result)

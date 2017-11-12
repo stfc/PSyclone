@@ -1,10 +1,38 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. Ford, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Performs py.test tests on the psygen module '''
 
@@ -21,10 +49,11 @@
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
 import os
+import re
 import pytest
 from fparser import api as fpapi
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, OMPParallelDoDirective, \
+    NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyclone.psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
@@ -67,6 +96,23 @@ def test_psyfactory_valid_dm_flag():
     assert "distributed_memory flag" in str(excinfo.value)
     _ = PSyFactory(distributed_memory=True)
     _ = PSyFactory(distributed_memory=False)
+
+
+# PSy class unit tests
+
+def test_psy_base_err(monkeypatch):
+    ''' Check that we cannot call gen or psy_module on the base class
+    directly '''
+    # We have no easy way to create the extra information which
+    # the PSy constructor requires. Therefore, we use a PSyFactory
+    # object and monkey-patch it so that it has a name attribute.
+    factory = PSyFactory()
+    monkeypatch.setattr(factory, "name",
+                        value="fred", raising=False)
+    psy = PSy(factory)
+    with pytest.raises(NotImplementedError) as excinfo:
+        _ = psy.gen
+    assert "must be implemented by subclass" in str(excinfo)
 
 
 # TBD need to find a way to create a valid info object to pass to
@@ -460,21 +506,51 @@ contains
 end module dummy_mod
 '''
 
+# Schedule class tests
+
+
+def test_sched_view(capsys):
+    ''' Check the view method of the Schedule class. We need a Schedule
+    object for this so go via the dynamo0.3 sub-class '''
+    from psyclone import dynamo0p3
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
+    output, _ = capsys.readouterr()
+    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+
+
 # Kern class test
 
 
 def test_kern_class_view(capsys):
     ''' tests the view method in the Kern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     my_kern.view()
     out, _ = capsys.readouterr()
-    expected_output = \
-        "KernCall dummy_code(field_1) [module_inline=False]"
+    expected_output = (
+        colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) +
+        " dummy_code(field_1) [module_inline=False]")
     assert expected_output in out
+
+
+def test_kern_coloured_text():
+    '''Check that the coloured_text method of Kern returns what we expect '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ret_str = my_kern.coloured_text
+    assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
 
 
 def test_call_local_vars():
@@ -531,6 +607,7 @@ def test_written_arg():
 def test_ompdo_directive_class_view(capsys):
     '''tests the view method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
 
@@ -564,9 +641,13 @@ def test_ompdo_directive_class_view(capsys):
 
             out, _ = capsys.readouterr()
             expected_output = (
-                "Directive" + case["current_string"] + "\n"
-                "    Loop[type='',field_space='w1',it_space='cells']\n"
-                "        KernCall testkern_code(a,f1,f2,m1,m2) "
+                colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
+                case["current_string"] + "\n"
+                "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
+                "[type='',field_space='w1',it_space='cells']\n"
+                "        "+colored("KernCall",
+                                   SCHEDULE_COLOUR_MAP["KernCall"]) +
+                " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
 
             assert expected_output in out
@@ -607,15 +688,27 @@ def test_globalsum_view(capsys):
     '''test the view method in the GlobalSum class. The simplest way to do
     this is to use a dynamo0p3 builtin example which contains a scalar and
     then call view() on that.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from psyclone import dynamo0p3
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.0_inner_prod_builtin.f90"),
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
     print output
-    expected_output = ("GlobalSum[scalar='asum']")
+    expected_output = (colored("GlobalSum",
+                               SCHEDULE_COLOUR_MAP["GlobalSum"]) +
+                       "[scalar='asum']")
     assert expected_output in output
+    gsum = None
+    for child in psy.invokes.invoke_list[0].schedule.children:
+        if isinstance(child, dynamo0p3.DynGlobalSum):
+            gsum = child
+            break
+    assert gsum
+    ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_text
+    assert colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"]) in ret_str
 
 
 def test_args_filter():
@@ -794,7 +887,7 @@ def test_invalid_reprod_pad_size():
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -844,13 +937,14 @@ def test_argument_depends_on():
     assert arg_f2_inc._depends_on(arg_f2_read_1)
     # same name both writes (the 4.5 example only uses inc) returns True
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
-    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[1]
+    arg_f1_write_2 = schedule.children[1].children[0].arguments.args[0]
     assert arg_f1_write_1._depends_on(arg_f1_write_2)
 
 
@@ -858,13 +952,13 @@ def test_argument_find_argument():
     '''Check that the find_argument method returns the first dependent
     argument in a list of nodes, or None if none are found'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns none if none found
-    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    f1_first_read = schedule.children[0].children[0].arguments.args[2]
     # a) empty node list
     assert not f1_first_read._find_argument([])
     # b) check many reads
@@ -872,13 +966,14 @@ def test_argument_find_argument():
     assert not f1_first_read._find_argument(call_nodes)
     # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[3]
-    f3_first_read = schedule.children[0].children[0].arguments.args[2]
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_first_read = schedule.children[0].children[0].arguments.args[3]
     result = f3_write._find_argument(call_nodes)
     assert result == f3_first_read
     # 3: haloexchange node
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -893,13 +988,13 @@ def test_argument_find_argument():
     assert result == m2_read_arg
     # 4: globalsum node
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
-    kern_asum_arg = schedule.children[3].children[0].arguments.args[0]
+    kern_asum_arg = schedule.children[3].children[0].arguments.args[1]
     glob_sum_arg = schedule.children[2].scalar
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
@@ -913,7 +1008,7 @@ def test_globalsum_arg():
     '''Check that the globalsum argument is defined as gh_readwrite and
     points to the globalsum node'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -929,7 +1024,8 @@ def test_haloexchange_arg():
     '''Check that the haloexchange argument is defined as gh_readwrite and
     points to the haloexchange node'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -945,12 +1041,12 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     argument after the current Node in the schedule or None if none
     are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_first_read = schedule.children[0].children[0].arguments.args[1]
+    f1_first_read = schedule.children[0].children[0].arguments.args[2]
     # 1: internal var computed set to False
     assert not f1_first_read._fd_computed
     # 2: initial internal value set to None
@@ -961,8 +1057,8 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     assert f1_first_read._fd_computed
     # 5: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[3]
-    f3_next_read = schedule.children[4].children[0].arguments.args[2]
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_next_read = schedule.children[4].children[0].arguments.args[3]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
     # 6: haloexchange dependencies
@@ -983,15 +1079,15 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     assert result == f2_next_arg
     # 7: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[0]
-    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    prev_arg = schedule.children[0].children[0].arguments.args[1]
+    sum_arg = schedule.children[1].children[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[0]
+    next_arg = schedule.children[3].children[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
     assert result == sum_arg
@@ -1008,12 +1104,12 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     argument before the current Node in the schedule or None if none
     are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f1_last_read = schedule.children[6].children[0].arguments.args[1]
+    f1_last_read = schedule.children[6].children[0].arguments.args[2]
     # 1: internal var computed set to False
     assert not f1_last_read._bd_computed
     # 2: initial internal value set to None
@@ -1024,8 +1120,8 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     assert f1_last_read._bd_computed
     # 5: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
-    f3_write = schedule.children[3].children[0].arguments.args[3]
-    f3_prev_read = schedule.children[2].children[0].arguments.args[2]
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    f3_prev_read = schedule.children[2].children[0].arguments.args[3]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
     # 6: haloexchange dependencies
@@ -1046,15 +1142,15 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     assert result == f2_prev_arg
     # 7: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_arg = schedule.children[0].children[0].arguments.args[0]
-    sum_arg = schedule.children[1].children[0].arguments.args[1]
+    prev_arg = schedule.children[0].children[0].arguments.args[1]
+    sum_arg = schedule.children[1].children[0].arguments.args[0]
     global_sum_arg = schedule.children[2].scalar
-    next_arg = schedule.children[3].children[0].arguments.args[0]
+    next_arg = schedule.children[3].children[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
     assert result == global_sum_arg
@@ -1127,7 +1223,8 @@ def test_call_args():
     '''Test that the call class args method returns the appropriate
     arguments '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.1_builtin_and_normal_kernel_invoke.f90"),
+        os.path.join(BASE_PATH,
+                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1160,7 +1257,7 @@ def test_globalsum_args():
     '''Test that the globalsum class args method returns the appropriate
     argument '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1175,7 +1272,7 @@ def test_node_forward_dependence():
     closest dependent Node after the current Node in the schedule or
     None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1212,7 +1309,7 @@ def test_node_forward_dependence():
 
     # 4: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1234,7 +1331,7 @@ def test_node_backward_dependence():
     closest dependent Node before the current Node in the schedule or
     None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1267,7 +1364,7 @@ def test_node_backward_dependence():
     assert result == loop13
     # 4: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1289,7 +1386,7 @@ def test_call_forward_dependence():
     closest dependent call after the current call in the schedule or
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1318,7 +1415,7 @@ def test_call_backward_dependence():
     closest dependent call before the current call in the schedule or
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1344,7 +1441,7 @@ def test_omp_forward_dependence():
     returning the closest dependent Node after the current Node in the
     schedule or None if none are found. '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1370,7 +1467,7 @@ def test_omp_forward_dependence():
     assert first_omp.forward_dependence() == writer
     # 3: directive and globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1395,7 +1492,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     returning the closest dependent Node before the current Node in
     the schedule or None if none are found.'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1416,7 +1513,7 @@ def test_directive_backward_dependence():  # pylint: disable=invalid-name
     assert prev_dep_omp_node.backward_dependence() == omp3
     # 3: globalsum dependencies
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1483,7 +1580,7 @@ def test_node_is_valid_location():
     assert "the node and the location are the same" in str(excinfo.value)
     # 5: valid no previous dependency
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1527,7 +1624,7 @@ def test_dag_names():
     assert (schedule.children[3].children[0].dag_name ==
             "kernel_testkern_code_5")
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.1_sum_field_builtin.f90"),
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1535,14 +1632,14 @@ def test_dag_names():
     global_sum = schedule.children[2]
     assert global_sum.dag_name == "globalsum(asum)_2"
     builtin = schedule.children[1].children[0]
-    assert builtin.dag_name == "builtin_sum_field_4"
+    assert builtin.dag_name == "builtin_sum_x_4"
 
 
 def test_openmp_pdo_dag_name():
     '''Test that we generate the correct dag name for the OpenMP parallel
     do node'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.2.0_copy_field_builtin.f90"),
+                                 "15.7.2_setval_X_builtin.f90"),
                     api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -1623,25 +1720,32 @@ def test_node_dag_no_graphviz(tmpdir):
     if keep:
         sys.modules['graphviz'] = keep
 
-EXPECTED2 = (
-    "digraph {\n"
-    "	schedule_start\n"
-    "	schedule_end\n"
-    "	loop_0_start\n"
-    "	loop_0_end\n"
-    "		loop_0_end -> loop_1_start [color=green]\n"
-    "		schedule_start -> loop_0_start [color=blue]\n"
-    "	kernel_testkern_qr_code_2\n"
-    "		kernel_testkern_qr_code_2 -> loop_0_end [color=blue]\n"
-    "		loop_0_start -> kernel_testkern_qr_code_2 [color=blue]\n"
-    "	loop_1_start\n"
-    "	loop_1_end\n"
-    "		loop_1_end -> schedule_end [color=blue]\n"
-    "		loop_0_end -> loop_1_start [color=red]\n"
-    "	kernel_testkern_qr_code_4\n"
-    "		kernel_testkern_qr_code_4 -> loop_1_end [color=blue]\n"
-    "		loop_1_start -> kernel_testkern_qr_code_4 [color=blue]\n"
+# Use a regex to allow for whitespace differences between graphviz
+# versions. Need a raw-string (r"") to get new-lines handled nicely.
+# pylint fails to spot the 'r' at the beginning of the string (presumably
+# because it is split over several lines) so disable the (many)
+# warnings about anomalous backslashes.
+# pylint: disable=anomalous-backslash-in-string
+EXPECTED2 = re.compile(
+    r"digraph {\n"
+    "\s*schedule_start\n"
+    "\s*schedule_end\n"
+    "\s*loop_0_start\n"
+    "\s*loop_0_end\n"
+    "\s*loop_0_end -> loop_1_start \[color=green\]\n"
+    "\s*schedule_start -> loop_0_start \[color=blue\]\n"
+    "\s*kernel_testkern_qr_code_2\n"
+    "\s*kernel_testkern_qr_code_2 -> loop_0_end \[color=blue\]\n"
+    "\s*loop_0_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
+    "\s*loop_1_start\n"
+    "\s*loop_1_end\n"
+    "\s*loop_1_end -> schedule_end \[color=blue\]\n"
+    "\s*loop_0_end -> loop_1_start \[color=red\]\n"
+    "\s*kernel_testkern_qr_code_4\n"
+    "\s*kernel_testkern_qr_code_4 -> loop_1_end \[color=blue\]\n"
+    "\s*loop_1_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
     "}")
+# pylint: enable=anomalous-backslash-in-string
 
 
 def test_node_dag(tmpdir):
@@ -1661,7 +1765,8 @@ def test_node_dag(tmpdir):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    assert EXPECTED2 in result
+    print result
+    assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
     for name in ["<title>schedule_start</title>",
