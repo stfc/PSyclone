@@ -98,7 +98,8 @@ class TestAlgGenClassDynamo0p3(object):
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a
         quadrature rule'''
-        alg, _ = generate(os.path.join(BASE_PATH, "1.1_single_invoke_qr.f90"),
+        alg, _ = generate(os.path.join(BASE_PATH,
+                                       "1.1.0_single_invoke_xyoz_qr.f90"),
                           api="dynamo0.3")
         gen = str(alg)
         assert "USE testkern_qr, ONLY: testkern_qr_type" in gen

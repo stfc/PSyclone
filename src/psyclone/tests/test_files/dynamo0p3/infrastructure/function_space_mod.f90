@@ -6,7 +6,7 @@
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
-
+!
 ! BSD 3-Clause License
 !
 ! Modifications copyright (c) 2017, Science and Technology Facilities Council
@@ -115,6 +115,7 @@ contains
   procedure, public  :: get_ncolours
   procedure, public  :: set_colours
   procedure, public  :: call_function
+  procedure, public  :: get_cell_orientation
 end type function_space_type
 
 contains
@@ -437,5 +438,13 @@ function call_function(self, function_to_call, df, xi) result(evaluate)
   allocate(evaluate(1))
   evaluate = 0.0_r_def
 end function call_function
+
+function get_cell_orientation(self, cell) result(orientation)
+  implicit none
+  class(function_space_type)  :: self
+  integer, intent(in) :: cell
+  integer, dimension(:), pointer :: orientation
+  orientation => null()
+end function get_cell_orientation
 
 end module function_space_mod
