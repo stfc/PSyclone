@@ -3750,7 +3750,7 @@ class DynLoop(Loop):
                             "Error in create_halo_exchanges. Expecting field "
                             "'{0}' to be a vector as it has multiple previous "
                             "dependencies".format(halo_field.name))
-                    if not len(prev_arg_list) == halo_field.vector_size:
+                    if len(prev_arg_list) != halo_field.vector_size:
                         raise GenerationError(
                             "Error in create_halo_exchanges. Expecting a "
                             "dependence for each vector index for field '{0}' "
