@@ -1701,7 +1701,7 @@ caution. Note, if PSyclone knows the spaces are different this option
 has no effect and the transformation will always raise an exception.
 
 The **Dynamo0p3RedundantComputationTrans** transformation is only valid
-for the "Dynamo0p3" api. This is because this api is currently the
+for the "Dynamo0p3" API. This is because this API is currently the
 only one that supports distributed memory.
 
 The Dynamo-specific transformations currently available are given
