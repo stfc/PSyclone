@@ -12,6 +12,11 @@
         4) #99 and PR #100 Make the author list for the user manual
         strictly alphabetical.
 
+        5) #50 and PR #78 Implement a redundant-computation transformation.
+        This enables a user to request that a kernel (or kernels) is
+        computed out into the halo region and any affected halo swaps
+        be updated (and/or removed) as required. 
+
 release 1.5.0 3rd October 2017
 
         1) #20 and PR #28 Add dependence analysis (and a Move

@@ -252,7 +252,7 @@ class TestAlgGenClassDynamo0p3(object):
             api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "CALL invoke_0_testkern_chi_type(f1, box%chi)" in gen
+        assert "CALL invoke_0_testkern_chi_type(f1, box%chi, f2)" in gen
 
     def test_single_stencil(self):
         ''' test extent value is passed correctly from the algorithm layer '''

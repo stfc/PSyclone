@@ -91,6 +91,12 @@ cd dynamo/eg7
 ${PSYCLONE} alg.x90
 cd -
 
+echo "Running example dynamo/eg8"
+cd dynamo/eg8
+${PSYCLONE} helmholtz_solver_alg_mod.x90
+${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py

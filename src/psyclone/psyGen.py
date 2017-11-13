@@ -35,7 +35,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
     and generation. The classes in this method need to be specialised for a
@@ -1079,6 +1080,37 @@ class Node(object):
         ''' return all calls that are descendents of this node '''
         return self.walk(self.children, Call)
 
+    def following(self):
+        '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
+        schedule. Ordering is depth first.
+
+        :return: a list of nodes
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
+
+        '''
+        all_nodes = self.walk(self.root.children, Node)
+        position = all_nodes.index(self)
+        return all_nodes[position+1:]
+
+    def preceding(self, reverse=None):
+        '''Return all :py:class:`psyclone.psyGen.Node` nodes before me in the
+        schedule. Ordering is depth first. If the `reverse` argument
+        is set to `True` then the node ordering is reversed
+        i.e. returning the nodes closest to me first
+
+        :param: reverse: An optional, default `False`, boolean flag
+        :type: reverse: bool
+        :return: A list of nodes
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
+
+        '''
+        all_nodes = self.walk(self.root.children, Node)
+        position = all_nodes.index(self)
+        nodes = all_nodes[:position]
+        if reverse:
+            nodes.reverse()
+        return nodes
+
     @property
     def following_calls(self):
         ''' return all calls after me in the schedule '''
@@ -1646,10 +1678,25 @@ class GlobalSum(Node):
 
 class HaloExchange(Node):
 
-    ''' Generic Halo Exchange class which can be added to and
-    manipulated in, a schedule. '''
+    '''Generic Halo Exchange class which can be added to and
+    manipulated in, a schedule.
 
-    def __init__(self, field, halo_type, halo_depth, check_dirty, parent=None):
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating
+    whether this halo exchange should be subject to a run-time check
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to
+    identify which index of a vector field this halo exchange is
+    responsible for
+    :type vector_index: int
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._field = copy.copy(field)
@@ -1658,12 +1705,26 @@ class HaloExchange(Node):
             # HACK:TODO: update mapping to readwrite when it is supported
             self._field.access = MAPPING_ACCESSES["inc"]
             self._field.call = self
-        self._halo_type = halo_type
-        if halo_depth:
-            self._halo_depth = halo_depth
-        else:
-            self._halo_depth = "unknown"
+        self._halo_type = None
+        self._halo_depth = None
         self._check_dirty = check_dirty
+        self._vector_index = vector_index
+
+    @property
+    def vector_index(self):
+        '''If the field is a vector then return the vector index associated
+        with this halo exchange. Otherwise return None'''
+        return self._vector_index
+
+    @property
+    def halo_depth(self):
+        ''' Return the depth of the halo exchange '''
+        return self._halo_depth
+
+    @halo_depth.setter
+    def halo_depth(self, value):
+        ''' Set the depth of the halo exchange '''
+        self._halo_depth = value
 
     @property
     def field(self):
@@ -1685,7 +1746,69 @@ class HaloExchange(Node):
         base method and simply return our argument. '''
         return [self._field]
 
-    def view(self, indent):
+    def check_vector_halos_differ(self, node):
+        '''helper method which checks that two halo exchange nodes (one being
+        self and the other being passed by argument) operating on the
+        same field, both have vector fields of the same size and use
+        different vector indices. If this is the case then the halo
+        exchange nodes do not depend on each other. If this is not the
+        case then an internal error will have occured and we raise an
+        appropriate exception.
+
+        :param node: a halo exchange which should exchange the same
+        field as self
+        :type node: :py:class:`psyclone.psyGen.HaloExchange`
+        :raises GenerationError: if the argument passed is not a halo exchange
+        :raises GenerationError: if the field name in the halo
+        exchange passed in has a different name to the field in this
+        halo exchange
+        :raises GenerationError: if the field in this halo exchange is
+        not a vector field
+        :raises GenerationError: if the vector size of the field in
+        this halo exchange is different to vector size of the field in
+        the halo exchange passed by argument.
+        :raises GenerationError: if the vector index of the field in
+        this halo exchange is the same as the vector index of the
+        field in the halo exchange passed by argument.
+
+        '''
+
+        if not isinstance(node, HaloExchange):
+            raise GenerationError(
+                "Internal error, the argument passed to "
+                "HaloExchange.check_vector_halos_differ() is not "
+                "a halo exchange object")
+
+        if self.field.name != node.field.name:
+            raise GenerationError(
+                "Internal error, the halo exchange object passed to "
+                "HaloExchange.check_vector_halos_differ() has a different "
+                "field name '{0}' to self "
+                "'{1}'".format(node.field.name, self.field.name))
+
+        if self.field.vector_size <= 1:
+            raise GenerationError(
+                "Internal error, HaloExchange.check_vector_halos_differ() "
+                "a halo exchange depends on another halo "
+                "exchange but the vector size of field '{0}' is 1".
+                format(self.field.name))
+
+        if self.field.vector_size != node.field.vector_size:
+            raise GenerationError(
+                "Internal error, HaloExchange.check_vector_halos_differ() "
+                "a halo exchange depends on another halo "
+                "exchange but the vector sizes for field '{0}' differ".
+                format(self.field.name))
+
+        if self.vector_index == \
+           node.vector_index:
+            raise GenerationError(
+                "Internal error, HaloExchange.check_vector_halos_differ() "
+                "a halo exchange depends on another halo "
+                "exchange but both vector id's ('{0}') of field '{1}' are "
+                "the same".format(self.vector_index, self.field.name))
+
+    def view(self, indent=0):
         '''
         Write out a textual summary of the OpenMP Parallel Do Directive
         and then call the view() method of any children.
@@ -2367,7 +2490,20 @@ class Arguments(object):
 
 class Argument(object):
     ''' argument base class '''
+
     def __init__(self, call, arg_info, access):
+        '''
+        :param call: the call that this argument is associated with
+        :type call: :py:class:`psyclone.psyGen.Call`
+        :param arg_info: Information about this argument collected by
+        the parser
+        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :param access: the way in which this argument is accessed in
+        the 'Call'. Valid values are specified in 'MAPPING_ACCESSES'
+        (and may be modified by the particular API).
+        :type access: str
+
+        '''
         self._call = call
         self._text = arg_info.text
         self._orig_name = arg_info.varName
@@ -2387,11 +2523,20 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
-        # forward and backward dependence values
-        self._bd_computed = False
-        self._bd_value = None
-        self._fd_computed = False
-        self._fd_value = None
+        # _writers and _readers need to be instances of this class,
+        # rather than static variables, as the mapping that is used
+        # depends on the API and this is only known when a subclass of
+        # Argument is created (as the local MAPPING_ACCESSES will be
+        # used). For example, a dynamo0p3 api instantiation of a
+        # DynArgument (subclass of Argument) will use the
+        # MAPPING_ACCESSES specified in the dynamo0p3 file which
+        # overide the default ones in this file.
+        self._write_access_types = [MAPPING_ACCESSES["write"],
+                                    MAPPING_ACCESSES["inc"],
+                                    MAPPING_REDUCTIONS["sum"]]
+        self._read_access_types = [MAPPING_ACCESSES["read"],
+                                   MAPPING_ACCESSES["inc"]]
+        self._vector_size = 1
 
     def __str__(self):
         return self._name
@@ -2442,41 +2587,188 @@ class Argument(object):
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum. For performance
-        reasons only compute once then store the result. '''
-        if not self._bd_computed:
-            self._bd_computed = True
-            all_nodes = self._call.walk(self._call.root.children, Node)
-            position = all_nodes.index(self._call)
-            all_prev_nodes = all_nodes[:position]
-            all_prev_nodes.reverse()
-            self._bd_value = self._find_argument(all_prev_nodes)
-        return self._bd_value
+        exist in a call, a haloexchange, or a globalsum.
+
+        :return: the first preceding argument this argument has a
+        dependence with
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes = self._call.preceding(reverse=True)
+        return self._find_argument(nodes)
+
+    def backward_write_dependencies(self, ignore_halos=False):
+        '''Returns a list of previous write arguments that this argument has
+        dependencies with. The arguments may exist in a call, a
+        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
+        none are found then return an empty list. If self is not a
+        reader then return an empty list.
+
+        :param: ignore_halos: An optional, default `False`, boolean flag
+        :type: ignore_halos: bool
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes = self._call.preceding(reverse=True)
+        results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
+        return results
 
     def forward_dependence(self):
         '''Returns the following argument that this argument has a direct
-        dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum. For performance
-        reasons only compute once, then store the result.'''
-        if not self._fd_computed:
-            self._fd_computed = True
-            all_nodes = self._call.walk(self._call.root.children, Node)
-            position = all_nodes.index(self._call)
-            all_following_nodes = all_nodes[position+1:]
-            self._fd_value = self._find_argument(all_following_nodes)
-        return self._fd_value
+        dependence with, or `None` if there is not one. The argument may
+        exist in a call, a haloexchange, or a globalsum.
+
+        :return: the first following argument this argument has a
+        dependence with
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes = self._call.following()
+        return self._find_argument(nodes)
+
+    def forward_read_dependencies(self):
+        '''Returns a list of following read arguments that this argument has
+        dependencies with. The arguments may exist in a call, a
+        haloexchange, or a globalsum. If none are found then
+        return an empty list. If self is not a writer then return an
+        empty list.
+
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes = self._call.following()
+        return self._find_read_arguments(nodes)
 
     def _find_argument(self, nodes):
         '''Return the first argument in the list of nodes that has a
-        dependency with self. If one is not found return None'''
-        for node in nodes:
-            # only check objects which contain their own data
-            if isinstance(node, Call) or isinstance(node, HaloExchange) \
-               or isinstance(node, GlobalSum):
-                for argument in node.args:
-                    if self._depends_on(argument):
-                        return argument
+        dependency with self. If one is not found return None
+
+        :param: the list of nodes that this method examines
+        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :return: An argument object or None
+        :rtype: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
+                           isinstance(x, HaloExchange) or
+                           isinstance(x, GlobalSum)]
+        for node in nodes_with_args:
+            for argument in node.args:
+                if self._depends_on(argument):
+                    return argument
         return None
+
+    def _find_read_arguments(self, nodes):
+        '''Return a list of arguments from the list of nodes that have a read
+        dependency with self. If none are found then return an empty
+        list. If self is not a writer then return an empty list.
+
+        :param: the list of nodes that this method examines
+        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        if self.access not in self._write_access_types:
+            # I am not a writer so there will be no read dependencies
+            return []
+
+        # We only need consider nodes that have arguments
+        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
+                           isinstance(x, HaloExchange) or
+                           isinstance(x, GlobalSum)]
+        arguments = []
+        for node in nodes_with_args:
+            for argument in node.args:
+                # look at all arguments in our nodes
+                if argument.name != self.name:
+                    # different names so there is no dependence
+                    continue
+                if isinstance(node, HaloExchange) and \
+                   isinstance(self.call, HaloExchange):
+                    # no dependence if both nodes are halo exchanges
+                    # (as they act on different vector indices).
+                    self.call.check_vector_halos_differ(node)
+                    continue
+                if argument.access in self._read_access_types:
+                    # there is a read dependence so append to list
+                    arguments.append(argument)
+                if argument.access in self._write_access_types:
+                    # there is a write dependence so finish our search
+                    return arguments
+
+        # we did not find a terminating write dependence in the list
+        # of nodes so we return any read dependencies that were found
+        return arguments
+
+    def _find_write_arguments(self, nodes, ignore_halos=False):
+        '''Return a list of arguments from the list of nodes that have a write
+        dependency with self. If none are found then return an empty
+        list. If self is not a reader then return an empty list.
+
+        :param: the list of nodes that this method examines
+        :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
+        :param: ignore_halos: An optional, default `False`, boolean flag
+        :type: ignore_halos: bool
+        :return: a list of arguments that this argument has a dependence with
+        :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        if self.access not in self._read_access_types:
+            # I am not a reader so there will be no write dependencies
+            return []
+
+        # We only need consider nodes that have arguments
+        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
+                           (isinstance(x, HaloExchange) and
+                            not ignore_halos) or
+                           isinstance(x, GlobalSum)]
+        arguments = []
+        vector_count = 0
+        for node in nodes_with_args:
+            for argument in node.args:
+                # look at all arguments in our nodes
+                if argument.name != self.name:
+                    # different names so there is no dependence
+                    continue
+                if argument.access not in self._write_access_types:
+                    # no dependence if not a writer
+                    continue
+                if isinstance(node, HaloExchange):
+                    if isinstance(self.call, HaloExchange):
+                        # no dependence if both nodes are halo
+                        # exchanges (as they act on different vector
+                        # indices).
+                        self.call.check_vector_halos_differ(node)
+                        continue
+                    else:
+                        # a vector read will depend on more than one
+                        # halo exchange (a dependence for each vector
+                        # index) as halo exchanges only act on a
+                        # single vector index
+                        vector_count += 1
+                        arguments.append(argument)
+                        if vector_count == self._vector_size:
+                            # found all of the halo exchange
+                            # dependencies. As they are writers
+                            # we now return
+                            return arguments
+                else:
+                    # this argument is a writer so add it and return
+                    if arguments:
+                        raise GenerationError(
+                            "Internal error, found a writer dependence but "
+                            "there are already dependencies. This should not "
+                            "happen.")
+                    return [argument]
+        if arguments:
+            raise GenerationError(
+                "Internal error, no more nodes but there are "
+                "already dependencies. This should not happen.")
+        # no dependencies have been found
+        return []
 
     def _depends_on(self, argument):
         '''If there is a dependency between the argument and self then return
@@ -2505,17 +2797,24 @@ class Argument(object):
         assumption is OK as all elements of an array are typically
         accessed. However, we may need to revisit this when we change
         the iteration spaces of loops e.g. for overlapping
-        communication and computation. '''
+        communication and computation.
 
-        writers = [MAPPING_ACCESSES["write"], MAPPING_ACCESSES["inc"],
-                   MAPPING_REDUCTIONS["sum"]]
-        readers = [MAPPING_ACCESSES["read"], MAPPING_ACCESSES["inc"]]
+        :param argument: the argument we will check to see whether
+        there is a dependence with this argument instance (self)
+        :type argument: :py:class:`psyclone.psyGen.Argument`
+        :return: True if there is a dependence and False if not
+        :rtype: bool
+
+        '''
         if argument.name == self._name:
-            if self.access in writers and argument.access in readers:
+            if self.access in self._write_access_types and \
+               argument.access in self._read_access_types:
                 return True
-            if self.access in readers and argument.access in writers:
+            if self.access in self._read_access_types and \
+               argument.access in self._write_access_types:
                 return True
-            if self.access in writers and argument.access in writers:
+            if self.access in self._write_access_types and \
+               argument.access in self._write_access_types:
                 return True
         return False
 
