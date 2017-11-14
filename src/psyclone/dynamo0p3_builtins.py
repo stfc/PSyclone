@@ -134,7 +134,7 @@ class DynBuiltIn(BuiltIn):
     def load(self, call, parent=None):
         ''' Populate the state of this object using the supplied call
         object. '''
-        from psyclone.dynamo0p3 import FSDescriptors
+        from dynamo0p3 import FSDescriptors
         BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
@@ -184,7 +184,7 @@ class DynBuiltIn(BuiltIn):
         ''' Dynamically looks up the name of the undf variable for the
         space that this kernel updates '''
         field = self._arguments.iteration_space_arg()
-        from psyclone.dynamo0p3 import get_fs_undf_name
+        from dynamo0p3 import get_fs_undf_name
         return get_fs_undf_name(field.function_space)
 
     @property
