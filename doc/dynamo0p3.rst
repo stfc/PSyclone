@@ -514,7 +514,7 @@ For example:
 
 .. note:: In the Dynamo 0.3 API only :ref:`dynamo_built-ins` are permitted
           to write to scalar arguments (and hence perform reductions).
-          Furthermore, this permission is currently restricted for integer
+          Furthermore, this permission is currently restricted to integer
           scalars (``GH_INTEGER``) as the LFRic infrastructure does not
           yet support integer reductions.
 
@@ -625,9 +625,9 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
 ======================  ============================    =========================
 
 .. note:: As mentioned above, note that only Built-ins may modify
-          scalar arguments. *Due to the LFRic infrastructure currently
-          not supporting integer reductions there is a restriction
-          on using integer sums.*
+          scalar arguments. *Since the LFRic infrastructure does not
+          currently support integer reductions, integer scalar arguments
+          are restricted to having read-only access.*
 
 There is no restriction on the number and function-spaces of other
 quantities that a general-purpose kernel can modify other than that it
