@@ -3786,7 +3786,7 @@ class DynLoop(Loop):
         elif arg.is_operator:
             # operators do not have halos
             return False
-        elif arg.discontinuous and arg.access.lower() == "gh_read":
+        elif arg.discontinuous and arg.access.lower() in ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in ["cell_halo", "dof_halo"]
