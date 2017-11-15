@@ -2632,20 +2632,14 @@ def test_scalar_int_builtin_error(monkeypatch):
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
-    # Define the built-in name and test file
-    test_builtin_name = "X_innerproduct_Y"
-    for dist_mem in [True, False]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        if dist_mem:
-            with pytest.raises(GenerationError) as excinfo:
-                _ = PSyFactory("dynamo0.3",
-                               distributed_memory=dist_mem).create(invoke_info)
-            assert ("Integer reductions are not currently supported "
-                    "by the LFRic infrastructure. Error found in "
-                    "Kernel '" + test_builtin_name.lower() +
-                    "', argument 'isum'" in str(excinfo.value))
+    for dist_mem in [False, True]:
+        with pytest.raises(ParseError) as excinfo:
+            _, _ = parse(os.path.join(BASE_PATH,
+                                      "16.2_integer_scalar_sum.f90"),
+                         api="dynamo0.3", distributed_memory=dist_mem)
+        assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
+                "only valid with a real scalar argument, but 'gh_integer' "
+                "was found" in str(excinfo))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

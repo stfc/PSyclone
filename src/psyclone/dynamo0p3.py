@@ -547,8 +547,8 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
-        # Reduction access descriptors are only valid for scalar arguments
-        if self._type not in VALID_SCALAR_NAMES and \
+        # Reduction access descriptors are only valid for real scalar arguments
+        if self._type != "gh_real" and \
            self._access_descriptor.name in VALID_REDUCTION_NAMES:
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "

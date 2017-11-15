@@ -146,8 +146,7 @@ def test_ad_scalar_type_too_few_args():  # pylint: disable=invalid-name
     metadata for a real or an integer scalar has fewer than 2 args. '''
     fparser.logging.disable('CRITICAL')
     name = "testkern_qr_type"
-    for scalar_name in VALID_SCALAR_NAMES:
-        argname = scalar_name.lower()
+    for argname in VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -162,8 +161,7 @@ def test_ad_scalar_type_too_many_args():  # pylint: disable=invalid-name
     metadata for a real or an integer scalar has more than 2 args. '''
     fparser.logging.disable('CRITICAL')
     name = "testkern_qr_type"
-    for scalar_name in VALID_SCALAR_NAMES:
-        argname = scalar_name.lower()
+    for argname in VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_read, w1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -178,8 +176,7 @@ def test_ad_scalar_type_no_write():  # pylint: disable=invalid-name
     metadata for a real or an integer scalar specifies GH_WRITE '''
     fparser.logging.disable('CRITICAL')
     name = "testkern_qr_type"
-    for scalar_name in VALID_SCALAR_NAMES:
-        argname = scalar_name.lower()
+    for argname in VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_write)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -194,8 +191,7 @@ def test_ad_scalar_type_no_inc():  # pylint: disable=invalid-name
     metadata for a real or an integer scalar specifies GH_INC '''
     fparser.logging.disable('CRITICAL')
     name = "testkern_qr_type"
-    for scalar_name in VALID_SCALAR_NAMES:
-        argname = scalar_name.lower()
+    for argname in VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_inc)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -203,6 +199,20 @@ def test_ad_scalar_type_no_inc():  # pylint: disable=invalid-name
             _ = DynKernMetadata(ast, name=name)
         assert ("scalar arguments must be read-only (gh_read) or a reduction "
                 "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
+
+
+def test_ad_int_scalar_type_no_sum():  # pylint: disable=invalid-name
+    ''' Tests that an error is raised when the argument descriptor
+    metadata for an integer scalar specifies GH_SUM (reduction) '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_integer, gh_read)",
+                        "arg_type(gh_integer, gh_sum)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("reduction access 'gh_sum' is only valid with a real scalar "
+            "argument, but 'gh_integer' was found" in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():  # pylint: disable=invalid-name
@@ -1371,12 +1381,10 @@ def test_no_vector_scalar():
     specifies a vector real or integer scalar '''
     fparser.logging.disable('CRITICAL')
     name = "testkern_qr_type"
-    for scalar_name in VALID_SCALAR_NAMES:
-        argname = scalar_name.lower()
+    for argname in VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + "*3, gh_read)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
-        name = "testkern_qr_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert 'vector notation is not supported for scalar arguments' in \
