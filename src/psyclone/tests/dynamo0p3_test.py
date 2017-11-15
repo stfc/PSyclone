@@ -145,12 +145,12 @@ def test_ad_scalar_type_too_few_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar has fewer than 2 args. '''
     fparser.logging.disable('CRITICAL')
-    for name in VALID_SCALAR_NAMES:
-        argname = name.lower()
+    name = "testkern_qr_type"
+    for scalar_name in VALID_SCALAR_NAMES:
+        argname = scalar_name.lower()
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
-        name = "testkern_qr_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert 'each meta_arg entry must have at least 2 args' \
@@ -161,12 +161,12 @@ def test_ad_scalar_type_too_many_args():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar has more than 2 args. '''
     fparser.logging.disable('CRITICAL')
-    for name in VALID_SCALAR_NAMES:
-        argname = name.lower()
+    name = "testkern_qr_type"
+    for scalar_name in VALID_SCALAR_NAMES:
+        argname = scalar_name.lower()
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_read, w1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
-        name = "testkern_qr_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert 'each meta_arg entry must have 2 arguments if' \
@@ -177,44 +177,32 @@ def test_ad_scalar_type_no_write():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar specifies GH_WRITE '''
     fparser.logging.disable('CRITICAL')
-    for name in VALID_SCALAR_NAMES:
-        argname = name.lower()
+    name = "testkern_qr_type"
+    for scalar_name in VALID_SCALAR_NAMES:
+        argname = scalar_name.lower()
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_write)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
-        name = "testkern_qr_type"
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
         assert ("scalar arguments must be read-only (gh_read) or a reduction "
                 "(['gh_sum']) but found 'gh_write'" in str(excinfo.value))
 
 
-def test_ad_real_scalar_type_no_inc():  # pylint: disable=invalid-name
+def test_ad_scalar_type_no_inc():  # pylint: disable=invalid-name
     ''' Tests that an error is raised when the argument descriptor
-    metadata for a real scalar specifies GH_INC '''
+    metadata for a real or an integer scalar specifies GH_INC '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_real, gh_read)",
-                        "arg_type(gh_real, gh_inc)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("scalar arguments must be read-only (gh_read) or a reduction "
-            "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
-
-
-def test_ad_int_scalar_type_no_inc():  # pylint: disable=invalid-name
-    ''' Tests that an error is raised when the argument descriptor
-    metadata for an integer scalar specifies GH_INC '''
-    fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_integer, gh_read)",
-                        "arg_type(gh_integer, gh_inc)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("scalar arguments must be read-only (gh_read) or a reduction "
-            "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
+    for scalar_name in VALID_SCALAR_NAMES:
+        argname = scalar_name.lower()
+        code = CODE.replace("arg_type(" + argname + ", gh_read)",
+                            "arg_type(" + argname + ", gh_inc)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("scalar arguments must be read-only (gh_read) or a reduction "
+                "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():  # pylint: disable=invalid-name
@@ -1378,32 +1366,21 @@ def test_two_scalars():
     assert expected in generated_code
 
 
-def test_no_vector_real_scalar():
+def test_no_vector_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
-    specifies a vector real scalar '''
+    specifies a vector real or integer scalar '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_real, gh_read)",
-                        "arg_type(gh_real*3, gh_read)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert 'vector notation is not supported for scalar arguments' in \
-        str(excinfo.value)
-
-
-def test_no_vector_int_scalar():
-    ''' Tests that we raise an error when kernel meta-data erroneously
-    specifies a vector integer scalar '''
-    fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_integer, gh_read)",
-                        "arg_type(gh_integer*3, gh_read)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert 'vector notation is not supported for scalar arguments' in \
-        str(excinfo.value)
+    for scalar_name in VALID_SCALAR_NAMES:
+        argname = scalar_name.lower()
+        code = CODE.replace("arg_type(" + argname + ", gh_read)",
+                            "arg_type(" + argname + "*3, gh_read)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        name = "testkern_qr_type"
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert 'vector notation is not supported for scalar arguments' in \
+            str(excinfo.value)
 
 
 def test_vector_field():
