@@ -45,6 +45,7 @@ from __future__ import absolute_import
 import os
 import pytest
 import fparser
+import utils
 from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse import ParseError, parse
@@ -53,6 +54,8 @@ from psyclone.psyGen import PSyFactory
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+API = "dynamo0.3"
 
 RESTRICT_MDATA = '''
 module restrict_mod
@@ -203,79 +206,173 @@ def test_field_vector():
     assert dkm.arg_descriptors[1].vector_size == 1
 
 
-def test_field_prolong():
+def test_field_prolong(tmpdir, f90, f90flags):
     ''' Check that we generate correct psy-layer code for an invoke
     containing a kernel that performs a prolongation operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.0_intergrid_prolong.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
-    print gen_code
-    expected = (
-        "    USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
-        "    TYPE(field_type), intent(inout) :: field1\n"
-        "    TYPE(field_type), intent(in) :: field2\n"
-        "    INTEGER cell\n"
-        # We only require ndf for the fine field (on W1), not the coarse field
-        "    INTEGER ndf_w1, undf_w1, undf_w2\n"
-        "    INTEGER nlayers\n"
-        "    TYPE(field_proxy_type) field1_proxy, field2_proxy\n")
-    assert expected in gen_code
+                           api=API)
+    for distmem in [True, False]:
+        psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+        gen_code = str(psy.gen)
+        print gen_code
 
-    expected = (
-        "    type(mesh_map_type), pointer :: mesh_map => null()\n"
-        "    type(mesh_type), pointer     :: mesh => null(), mesh_f=>null()\n"
-        "    integer :: ncell_f, ncell_c, nc2f, cell\n"
-        "    integer, pointer :: cell_map(:,:)\n")
-    assert expected in gen_code
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
-    expected = (
-        "    ! dof maps\n"
-        "    integer, pointer :: dofmap_f(:,:) => null(), dofmap_c(:,:) => null()\n"
-        "    integer :: nlayers, ndf, undf_f, undf_c\n"
-        "   \n" 
-        "\n"
-        "    ! get the proxies \n"
-        "    fc_fp = fc%get_proxy()\n"
-        "    ff_fp = ff%get_proxy()\n"
-        "\n"
-        "    mesh => fc%get_mesh()\n"
-        "    mesh_f => ff%get_mesh()\n"
-        "    mesh_map => mesh%get_mesh_map(mesh_f)\n"
-        "    nlayers = ff_fp%vspace%get_nlayers()\n"
-        "    ! get the horinzontal loop counter from the fine mesh\n"
-        "    ncell_f = mesh_f%get_last_halo_cell(depth=2)\n"
-        "    ncell_c = mesh%get_last_halo_cell(depth=1)\n"
-        "    ! get the ratio\n"
-        "    nc2f = mesh_map%get_ntarget_cells_per_source_cell()\n"
-        "    ! check this looks sane\n"
-        "    write(*,*) \"meshes:\",ncell_f, ncell_c, nc2f\n"
-        "    nlayers = ff_fp%vspace%get_nlayers()\n"
-        "\n"
-        "    dofmap_f => ff_fp%vspace%get_whole_dofmap()\n"
-        "    dofmap_c => fc_fp%vspace%get_whole_dofmap()\n"
-        "    ndf = ff_fp%vspace%get_ndf()\n"
-        "    undf_f = ff_fp%vspace%get_undf()\n"
-        "    undf_c = fc_fp%vspace%get_undf()\n"
-        "\n"
-        "    ! halo exchange to depth two on the fine \n"
-        "    if (ff_fp%is_dirty(depth=2)) then\n"
-        "       call ff_fp%halo_exchange(depth=2)\n"
-        "    end if\n"
-        "\n"
-        "    ! halo exchange to depth one on the coarse\n"
-        "    ! to last halo cell(1)\n"
-        "    if (fc_fp%is_dirty(depth=1)) then\n"
-        "       call fc_fp%halo_exchange(depth=1)\n"
-        "    end if\n"
-        "\n"
-        "    cell_map => mesh_map%get_whole_cell_map()\n"
-        "\n"
-        "    do cell = 1, ncell_c\n"
-        "       call prolong_kernel_code(nlayers, cell_map(:,cell), nc2f, dofmap_f, &\n"
-        "            ncell_f,dofmap_c(:,cell),ndf, undf_c, undf_f, fc_fp%data, ff_fp%data)\n"
-        "    end do \n"
-"\n"
-        "    call ff_fp%set_dirty()\n")
-    assert expected in gen_code
+        expected = (
+            "    USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
+            "    TYPE(field_type), intent(inout) :: field1\n"
+            "    TYPE(field_type), intent(in) :: field2\n"
+            "    INTEGER cell\n"
+            # We only require ndf for the fine field (on W1), not the coarse
+            # field
+            "    INTEGER ndf_w1, undf_w1, undf_w2\n"
+            "    INTEGER nlayers\n"
+            "    TYPE(field_proxy_type) field1_proxy, field2_proxy\n")
+        assert expected in gen_code
+
+        expected = (
+            "    type(mesh_map_type), pointer :: mesh_map => null()\n"
+            "    type(mesh_type), pointer     :: mesh => null(), mesh_f=>null()\n"
+            "    integer :: ncell_f, ncell_c, nc2f, cell\n"
+            "    integer, pointer :: cell_map(:,:)\n")
+        assert expected in gen_code
+
+        expected = (
+            "    ! dof maps\n"
+            "    integer, pointer :: dofmap_f(:,:) => null(), dofmap_c(:,:) => null()\n"
+            "    integer :: nlayers, ndf, undf_f, undf_c\n"
+            "   \n" 
+            "\n"
+            "    ! get the proxies \n"
+            "    fc_fp = fc%get_proxy()\n"
+            "    ff_fp = ff%get_proxy()\n"
+            "\n"
+            "    mesh => fc%get_mesh()\n"
+            "    mesh_f => ff%get_mesh()\n"
+            "    mesh_map => mesh%get_mesh_map(mesh_f)\n"
+            "    nlayers = ff_fp%vspace%get_nlayers()\n"
+            "    ! get the horinzontal loop counter from the fine mesh\n"
+            "    ncell_f = mesh_f%get_last_halo_cell(depth=2)\n"
+            "    ncell_c = mesh%get_last_halo_cell(depth=1)\n"
+            "    ! get the ratio\n"
+            "    nc2f = mesh_map%get_ntarget_cells_per_source_cell()\n"
+            "    ! check this looks sane\n"
+            "    write(*,*) \"meshes:\",ncell_f, ncell_c, nc2f\n"
+            "    nlayers = ff_fp%vspace%get_nlayers()\n"
+            "\n"
+            "    dofmap_f => ff_fp%vspace%get_whole_dofmap()\n"
+            "    dofmap_c => fc_fp%vspace%get_whole_dofmap()\n"
+            "    ndf = ff_fp%vspace%get_ndf()\n"
+            "    undf_f = ff_fp%vspace%get_undf()\n"
+            "    undf_c = fc_fp%vspace%get_undf()\n"
+            "\n"
+            "    ! halo exchange to depth two on the fine \n"
+            "    if (ff_fp%is_dirty(depth=2)) then\n"
+            "       call ff_fp%halo_exchange(depth=2)\n"
+            "    end if\n"
+            "\n"
+            "    ! halo exchange to depth one on the coarse\n"
+            "    ! to last halo cell(1)\n"
+            "    if (fc_fp%is_dirty(depth=1)) then\n"
+            "       call fc_fp%halo_exchange(depth=1)\n"
+            "    end if\n"
+            "\n"
+            "    cell_map => mesh_map%get_whole_cell_map()\n"
+            "\n"
+            "    do cell = 1, ncell_c\n"
+            "       call prolong_kernel_code(nlayers, cell_map(:,cell), nc2f, dofmap_f, &\n"
+            "            ncell_f,dofmap_c(:,cell),ndf, undf_c, undf_f, fc_fp%data, ff_fp%data)\n"
+            "    end do \n"
+    "\n"
+            "    call ff_fp%set_dirty()\n")
+        assert expected in gen_code
+
+
+def test_field_restrict(tmpdir, f90, f90flags):
+    ''' Test that we generate correct code for an invoke containing a
+    single restriction operation '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1_intergrid_restrict.f90"),
+                           api=API)
+    for distmem in [True, False]:
+        psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+        output = str(psy.gen)
+        print output
+
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+
+        defs = (
+            "    use restrict_kernel_mod, only : restrict_kernel_code\n"
+            "    type(field_type), intent(inout) :: fc, ff\n"
+            "    type(field_proxy_type) :: fc_fp, ff_fp\n"
+            "\n"
+            "    integer(kind=i_def) :: ndofs_c, ndofs_f\n"
+            "    integer(kind=i_def) :: ncell_ratio, ncell_f, ncell_c\n"
+            "    type(mesh_map_type), pointer :: mesh_map => null()\n"
+            "    type(mesh_type), pointer     :: mesh => null()\n"
+            "    type(mesh_type), pointer     :: mesh_f => null()\n"
+            "\n"
+            "    integer(kind=i_def), pointer :: dofmap_f(:,:) => null(), dofmap_c(:,:) => null()\n"
+            "    integer(kind=i_def) :: cell\n"
+            "    integer(kind=i_def) :: nlayers, ndf, undf_f, undf_c\n"
+            "\n"
+            "    integer(kind=i_def), pointer :: cell_map(:,:) => null()\n")
+        assert defs in output
+
+        inits = (
+            "    ! get the field proxies\n"
+            "    fc_fp = fc%get_proxy()\n"
+            "    ff_fp = ff%get_proxy()\n"
+            "\n"
+            "    ! get the mesh from the first field argument, this is the\n"
+            "    ! field which is being written too. See Kernel Metadata\n"
+            "    mesh => fc%get_mesh() \n"
+            "    ! get the map from the 1st to the 2nd , i.e. coarse to fine\n"
+            "    mesh_f => ff%get_mesh()\n"
+            "    mesh_map => mesh%get_mesh_map( mesh_f )\n"
+            "    ! could get nlayers from either, but lets be consistent, get it from\n"
+            "    ! the field we are writing too.\n"
+            "    nlayers = fc_fp%vspace%get_nlayers()\n"
+            "    !    ncell_f = mesh_map%get_nsource_cells()\n"
+            "    ! there are multiple routes to this information which we don't want, so \n"
+            "    ! always get the number of cells from the mesh, not the map\n"
+            "    ncell_f = mesh_f%get_last_halo_cell(depth=2)\n"
+            "    ncell_c = mesh%get_last_halo_cell(depth=1)\n"
+            "    ncell_ratio = mesh_map%get_ncell_map_ratio()\n"
+            "\n"
+            "    dofmap_f => ff_fp%vspace%get_whole_dofmap()\n"
+            "    dofmap_c => fc_fp%vspace%get_whole_dofmap()\n"
+            "    ndf = ff_fp%vspace%get_ndf()\n"
+            "    undf_f = ff_fp%vspace%get_undf()\n"
+            "    undf_c = fc_fp%vspace%get_undf()\n")
+        assert inits in output
+
+        halo_exchs = (
+            "    ! halo exchange to depth two on the fine as we are reading from\n"
+            "    if (ff_fp%is_dirty(depth=2)) then\n"
+            "       call ff_fp%halo_exchange(depth=2)\n"
+            "    end if\n"
+            "\n"
+            "    ! halo exchange to depth one because we are incrementing and looping \n"
+            "    ! to last halo cell(1)\n"
+            "    if (fc_fp%is_dirty(depth=1)) then\n"
+            "       call fc_fp%halo_exchange(depth=1)\n"
+            "    end if\n"
+            "\n"
+            "    cell_map => mesh_map%get_whole_cell_map()\n")
+        assert halo_exchs in output
+
+        kern_call = (
+            "    ! if we are using OpenMP, using the coarse grid colouring is still correct\n"
+            "    do cell = 1, ncell_c\n"
+            "\n"
+            "       ! pass the whole dofmap for the fine (we are reading from)\n"
+            "       call restrict_kernel_code(nlayers, cell_map(:,cell), ncell_ratio, &\n"
+            "            dofmap_f, ncell_f, dofmap_c(:,cell), ndf, undf_f, undf_c, fc_fp%data, ff_fp%data)\n"
+            "    end do \n"
+            "    \n"
+            "    call fc_fp%set_dirty()\n")
+        assert kern_call in output
