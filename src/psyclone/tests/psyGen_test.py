@@ -31,8 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psygen module '''
 
@@ -129,7 +130,7 @@ def test_base_class_not_callable():
     '''make sure we can not instantiate abstract Transformation class
     directly'''
     with pytest.raises(TypeError):
-        _ = Transformation()
+        _ = Transformation()  # pylint: disable=abstract-class-instantiated
 
 
 # TransInfo class unit tests
@@ -559,13 +560,13 @@ def test_call_local_vars():
     from psyclone.psyGen import Call, Arguments
     my_arguments = Arguments(None)
 
-    class KernType(object):
+    class KernType(object):  # pylint: disable=too-few-public-methods
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):
+    class DummyClass(object):  # pylint: disable=too-few-public-methods
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
@@ -624,8 +625,7 @@ def test_ompdo_directive_class_view(capsys):
 
             psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
                 create(invoke_info)
-            invoke = psy.invokes.invoke_list[0]
-            schedule = invoke.schedule
+            schedule = psy.invokes.invoke_list[0].schedule
             otrans = OMPParallelLoopTrans()
 
             if dist_mem:
@@ -644,12 +644,14 @@ def test_ompdo_directive_class_view(capsys):
                 colored("Directive", SCHEDULE_COLOUR_MAP["Directive"]) +
                 case["current_string"] + "\n"
                 "    "+colored("Loop", SCHEDULE_COLOUR_MAP["Loop"]) +
-                "[type='',field_space='w1',it_space='cells']\n"
+                "[type='',field_space='w1',it_space='cells', "
+                "upper_bound='ncells']\n"
                 "        "+colored("KernCall",
                                    SCHEDULE_COLOUR_MAP["KernCall"]) +
                 " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
-
+            print out
+            print expected_output
             assert expected_output in out
 
 
@@ -680,8 +682,8 @@ def test_call_abstract_methods():
 def test_haloexchange_unknown_halo_depth():  # pylint: disable=invalid-name
     '''test the case when the halo exchange base class is called without
     a halo depth'''
-    halo_exchange = HaloExchange(None, None, None, None, None)
-    assert halo_exchange._halo_depth == "unknown"
+    halo_exchange = HaloExchange(None)
+    assert halo_exchange._halo_depth is None
 
 
 def test_globalsum_view(capsys):
@@ -1003,6 +1005,40 @@ def test_argument_find_argument():
     assert result == kern_asum_arg
 
 
+def test_argument_find_read_arguments():  # pylint: disable=invalid-name
+    '''Check that the find_read_arguments method returns the appropriate
+    arguments in a list of nodes.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: returns [] if not a writer. f1 is read, not written.
+    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    call_nodes = schedule.calls()
+    assert f1_first_read._find_read_arguments(call_nodes) == []
+    # 2: return list of readers (f3 is written to and then read by
+    # three following calls)
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    result = f3_write._find_read_arguments(call_nodes[4:])
+    assert len(result) == 3
+    for idx in range(3):
+        loop = schedule.children[idx+4]
+        assert result[idx] == loop.children[0].arguments.args[3]
+    # 3: Return empty list if no readers (f2 is written to but not
+    # read)
+    f2_write = schedule.children[0].children[0].arguments.args[0]
+    assert f2_write._find_read_arguments(call_nodes[1:]) == []
+    # 4: Return list of readers before a subsequent writer
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    result = f3_write._find_read_arguments(call_nodes)
+    assert len(result) == 3
+    for idx in range(3):
+        loop = schedule.children[idx]
+        assert result[idx] == loop.children[0].arguments.args[3]
+
+
 @pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_globalsum_arg():
     '''Check that the globalsum argument is defined as gh_readwrite and
@@ -1036,6 +1072,33 @@ def test_haloexchange_arg():
     assert halo_exchange_arg.call == halo_exchange
 
 
+def test_argument_forward_read_dependencies():  # pylint: disable=invalid-name
+    '''Check that the forward_read_dependencies method returns the appropriate
+    arguments in a schedule.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # 1: returns [] if not a writer. f1 is read, not written.
+    f1_first_read = schedule.children[0].children[0].arguments.args[2]
+    _ = schedule.calls()
+    assert f1_first_read.forward_read_dependencies() == []
+    # 2: return list of readers (f3 is written to and then read by
+    # three following calls)
+    f3_write = schedule.children[3].children[0].arguments.args[0]
+    result = f3_write.forward_read_dependencies()
+    assert len(result) == 3
+    for idx in range(3):
+        loop = schedule.children[idx+4]
+        assert result[idx] == loop.children[0].arguments.args[3]
+    # 3: Return empty list if no readers (f2 is written to but not
+    # read)
+    f2_write = schedule.children[0].children[0].arguments.args[0]
+    assert f2_write.forward_read_dependencies() == []
+
+
 def test_argument_forward_dependence():  # pylint: disable=invalid-name
     '''Check that forward_dependence method returns the first dependent
     argument after the current Node in the schedule or None if none
@@ -1047,37 +1110,31 @@ def test_argument_forward_dependence():  # pylint: disable=invalid-name
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f1_first_read = schedule.children[0].children[0].arguments.args[2]
-    # 1: internal var computed set to False
-    assert not f1_first_read._fd_computed
-    # 2: initial internal value set to None
-    assert not f1_first_read._fd_value
-    # 3: returns none if none found (check many reads)
+    # 1: returns none if none found (check many reads)
     assert not f1_first_read.forward_dependence()
-    # 4: computed set to True once run
-    assert f1_first_read._fd_computed
-    # 5: returns first dependent kernel arg when there are many
+    # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
     f3_write = schedule.children[3].children[0].arguments.args[0]
     f3_next_read = schedule.children[4].children[0].arguments.args[3]
     result = f3_write.forward_dependence()
     assert result == f3_next_read
-    # 6: haloexchange dependencies
+    # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
-    f2_halo_field = schedule.children[15].field
-    f2_next_arg = schedule.children[17].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[8].field
+    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
     # b) halo arg depends on following kern arg
     result = f2_halo_field.forward_dependence()
     assert result == f2_next_arg
-    # 7: globalsum dependencies
+    # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1110,37 +1167,31 @@ def test_argument_backward_dependence():  # pylint: disable=invalid-name
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f1_last_read = schedule.children[6].children[0].arguments.args[2]
-    # 1: internal var computed set to False
-    assert not f1_last_read._bd_computed
-    # 2: initial internal value set to None
-    assert not f1_last_read._bd_value
-    # 3: returns none if none found (check many reads)
+    # 1: returns none if none found (check many reads)
     assert not f1_last_read.backward_dependence()
-    # 4: computed set to True once run
-    assert f1_last_read._bd_computed
-    # 5: returns first dependent kernel arg when there are many
+    # 2: returns first dependent kernel arg when there are many
     # dependencies (check first read returned)
     f3_write = schedule.children[3].children[0].arguments.args[0]
     f3_prev_read = schedule.children[2].children[0].arguments.args[3]
     result = f3_write.backward_dependence()
     assert result == f3_prev_read
-    # 6: haloexchange dependencies
+    # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[14].children[0].arguments.args[1]
-    f2_halo_field = schedule.children[15].field
-    f2_next_arg = schedule.children[17].children[0].arguments.args[0]
+    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[8].field
+    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
     # b) halo arg depends on previous kern arg
     result = f2_halo_field.backward_dependence()
     assert result == f2_prev_arg
-    # 7: globalsum dependencies
+    # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1299,9 +1350,9 @@ def test_node_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    prev_loop = schedule.children[14]
-    halo_field = schedule.children[15]
-    next_loop = schedule.children[17]
+    prev_loop = schedule.children[7]
+    halo_field = schedule.children[8]
+    next_loop = schedule.children[9]
     # a) previous loop depends on halo exchange
     assert prev_loop.forward_dependence() == halo_field
     # b) halo exchange depends on following loop
@@ -1353,15 +1404,15 @@ def test_node_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop13 = schedule.children[14]
-    halo_exchange = schedule.children[16]
-    loop16 = schedule.children[17]
+    loop2 = schedule.children[7]
+    halo_exchange = schedule.children[8]
+    loop3 = schedule.children[9]
     # a) following loop node depends on halo exchange node
-    result = loop16.backward_dependence()
+    result = loop3.backward_dependence()
     assert result == halo_exchange
     # b) halo exchange node depends on previous loop node
     result = halo_exchange.backward_dependence()
-    assert result == loop13
+    assert result == loop2
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
@@ -1780,3 +1831,294 @@ def test_node_dag(tmpdir):
     with pytest.raises(GenerationError) as excinfo:
         schedule.dag(file_name=my_file.strpath, file_format="rubbish")
     assert "unsupported graphviz file format" in str(excinfo.value)
+
+
+def test_haloexchange_halo_depth_get_set():  # pylint: disable=invalid-name
+    '''test that the halo_exchange getter and setter work correctly '''
+    halo_depth = 4
+    halo_exchange = HaloExchange(None)
+    # getter
+    assert halo_exchange.halo_depth is None
+    # setter
+    halo_exchange.halo_depth = halo_depth
+    assert halo_exchange.halo_depth == halo_depth
+
+
+def test_haloexchange_vector_index_depend():  # pylint: disable=invalid-name
+    '''check that _find_read_arguments does not return a haloexchange as a
+    read dependence if the source node is a halo exchange and its
+    field is a vector and the other halo exchange accesses a different
+    element of the vector
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.9_named_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    first_d_field_halo_exchange = schedule.children[3]
+    field = first_d_field_halo_exchange.field
+    from psyclone.psyGen import Node
+    all_nodes = schedule.walk(schedule.children, Node)
+    following_nodes = all_nodes[4:]
+    result_list = field._find_read_arguments(following_nodes)
+    assert len(result_list) == 1
+    assert result_list[0].call.name == 'ru_code'
+
+
+def test_find_write_arguments_for_write():  # pylint: disable=invalid-name
+    '''when backward_write_dependencies is called from an field argument
+    that does not read then we should return an empty list. This test
+    checks this functionality. We use the dynamo0p3 api to create the
+    required objects
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[3]
+    kernel = loop.children[0]
+    field_writer = kernel.arguments.args[1]
+    node_list = field_writer.backward_write_dependencies()
+    assert node_list == []
+
+
+def test_find_w_args_hes_no_vec(monkeypatch):  # pylint: disable=invalid-name
+    '''when backward_write_dependencies, or forward_read_dependencies, are
+    called and a dependence is found between two halo exchanges, then
+    the field must be a vector field. If the field is not a vector
+    then an exception is raised. This test checks that the exception
+    is raised correctly.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    monkeypatch.setattr(field_d_v3, "_vector_size", 1)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = field_d_v3.backward_write_dependencies()
+    assert ("Internal error, HaloExchange.check_vector_halos_differ() a "
+            "halo exchange depends on another halo exchange "
+            "but the vector size of field 'd' is 1" in str(excinfo.value))
+
+
+def test_find_w_args_hes_diff_vec(monkeypatch):  # pylint: disable=invalid-name
+    '''when backward_write_dependencies, or forward_read_dependencies, are
+    called and a dependence is found between two halo exchanges, then
+    the associated fields must be equal size vectors . If the fields
+    are not vectors of equal size then an exception is raised. This
+    test checks that the exception is raised correctly.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    monkeypatch.setattr(field_d_v3, "_vector_size", 2)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = field_d_v3.backward_write_dependencies()
+    assert (
+        "Internal error, HaloExchange.check_vector_halos_differ() a halo "
+        "exchange depends on another halo exchange but the vector sizes for "
+        "field 'd' differ" in str(excinfo.value))
+
+
+def test_find_w_args_hes_vec_idx(monkeypatch):  # pylint: disable=invalid-name
+    '''when backward_write_dependencies, or forward_read_dependencies are
+    called, and a dependence is found between two halo exchanges, then
+    the vector indices of the two halo exchanges must be different. If
+    the vector indices have the same value then an exception is
+    raised. This test checks that the exception is raised correctly.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    halo_exchange_d_v2 = schedule.children[4]
+    monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = field_d_v3.backward_write_dependencies()
+    assert ("Internal error, HaloExchange.check_vector_halos_differ() "
+            "a halo exchange depends on another halo "
+            "exchange but both vector id's ('3') of field 'd' are the "
+            "same" in str(excinfo.value))
+
+
+def test_find_w_args_hes_vec_no_dep():  # pylint: disable=invalid-name
+    '''when _find_write_arguments, or _find_read_arguments, are called,
+    halo exchanges with the same field but a different index should
+    not depend on each other. This test checks that this behaviour is
+    working correctly
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    # there are two halo exchanges before d_v3 which should not count
+    # as dependencies
+    node_list = field_d_v3.backward_write_dependencies()
+    assert node_list == []
+
+
+def test_check_vect_hes_differ_wrong_argtype():  # pylint: disable=invalid-name
+    '''when the check_vector_halos_differ method is called from a halo
+    exchange object the argument being passed should be a halo
+    exchange. If this is not the case an exception should be
+    raised. This test checks that this exception is working correctly.
+    '''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[0]
+    with pytest.raises(GenerationError) as excinfo:
+        # pass an incorrect object to the method
+        halo_exchange.check_vector_halos_differ(psy)
+    assert (
+        "the argument passed to HaloExchange.check_vector_halos_differ() "
+        "is not a halo exchange object" in str(excinfo.value))
+
+
+def test_check_vec_hes_differ_diff_names():  # pylint: disable=invalid-name
+    '''when the check_vector_halos_differ method is called from a halo
+    exchange object the argument being passed should be a halo
+    exchange with an argument having the same name as the local halo
+    exchange argument name. If this is not the case an exception
+    should be raised. This test checks that this exception is working
+    correctly.
+    '''
+
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[0]
+    # obtain another halo exchange object which has an argument with a
+    # different name
+    different_halo_exchange = schedule.children[1]
+    with pytest.raises(GenerationError) as excinfo:
+        # pass halo exchange with different name to the method
+        halo_exchange.check_vector_halos_differ(different_halo_exchange)
+    assert (
+        "the halo exchange object passed to "
+        "HaloExchange.check_vector_halos_differ() has a "
+        "different field name 'm1' to self 'f2'" in str(excinfo.value))
+
+
+def test_find_w_args_multiple_deps_error():  # pylint: disable=invalid-name
+    '''when _find_write_arguments finds a write that causes it to return
+    there should not be any previous dependencies. This test checks
+    that an error is raised if this is not the case.
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    del schedule.children[4]
+    loop = schedule.children[6]
+    kernel = loop.children[0]
+    d_field = kernel.arguments.args[0]
+    with pytest.raises(GenerationError) as excinfo:
+        d_field.backward_write_dependencies()
+    assert (
+        "found a writer dependence but there are already dependencies"
+        in str(excinfo.value))
+
+
+def test_find_write_arguments_no_more_nodes():  # pylint: disable=invalid-name
+    '''when _find_write_arguments has looked through all nodes but has not
+    returned it should mean that is has not found any write
+    dependencies. This test checks that an error is raised if this is
+    not the case.
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    del schedule.children[3]
+    loop = schedule.children[5]
+    kernel = loop.children[0]
+    d_field = kernel.arguments.args[5]
+    with pytest.raises(GenerationError) as excinfo:
+        d_field.backward_write_dependencies()
+    assert (
+        "no more nodes but there are already dependencies"
+        in str(excinfo.value))
+
+
+def test_find_w_args_multiple_deps():  # pylint: disable=invalid-name
+    '''_find_write_arguments should return as many halo exchange
+    dependencies as the vector size of the associated field. This test
+    checks that this is the case and that the returned objects are
+    what is expected.
+    '''
+
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[7]
+    kernel = loop.children[0]
+    d_field = kernel.arguments.args[0]
+    vector_size = d_field.vector_size
+    result_list = d_field.backward_write_dependencies()
+    # we have as many dependencies as the field vector size
+    assert vector_size == len(result_list)
+    indices = set()
+    for result in result_list:
+        # each dependence is a halo exchange nodes
+        assert isinstance(result.call, HaloExchange)
+        # the name of the halo exchange field and the initial
+        # field are the same
+        assert result.name == d_field.name
+        # the size of the halo exchange field vector and the initial
+        # field vector are the same
+        assert result.vector_size == vector_size
+        indices.add(result.call.vector_index)
+    # each of the indices are unique (otherwise the set would be
+    # smaller)
+    assert len(indices) == vector_size
