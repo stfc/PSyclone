@@ -1096,7 +1096,8 @@ class MoveTrans(Transformation):
         ''' Returns the name of this transformation as a string '''
         return "Move"
 
-    def _validate(self, node, location, position):  # pylint: disable=no-self-use
+    # pylint: disable=no-self-use
+    def _validate(self, node, location, position):
         ''' validity checks for input arguments '''
 
         # Check that the first argument is a Node
@@ -1112,6 +1113,7 @@ class MoveTrans(Transformation):
             raise TransformationError(
                 "In the Move transformation apply method, data dependencies "
                 "forbid the move to the new location")
+        # pylint: enable=no-self-use
 
     def apply(self, node, location, position="before"):  # pylint:disable=arguments-differ
         '''Move the node represented by :py:obj:`node` before location
