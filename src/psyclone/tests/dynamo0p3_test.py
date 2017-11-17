@@ -2356,9 +2356,9 @@ def test_operator_bc_kernel_wrong_access_err():  # pylint: disable=invalid-name
         arg._access = "gh_read"
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
-        assert ( "applies boundary conditions to an operator. However its "
-                 "operator argument has access gh_read rather than "
-                 "gh_readwrite") in str(excinfo)
+        assert ("applies boundary conditions to an operator. However its "
+                "operator argument has access gh_read rather than "
+                "gh_readwrite") in str(excinfo)
 
 
 def test_multikernel_invoke_1():
@@ -6752,7 +6752,8 @@ def test_HaloReadAccess_field_not_reader():  # pylint: disable=invalid-name
         _ = HaloReadAccess(argument)
     assert (
         "In HaloInfo class, field 'f1' should be one of ['gh_read', "
-        "'gh_inc'], but found 'gh_write'" in str(excinfo.value))
+        "'gh_readwrite', 'gh_inc'], but found 'gh_write'"
+        in str(excinfo.value))
 
 
 def test_HaloRead_inv_loop_upper(monkeypatch):  # pylint: disable=invalid-name
