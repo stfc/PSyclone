@@ -780,6 +780,11 @@ class DynKernMetadata(KernelType):
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
 
+        # Whether or not this is an inter-grid kernel (i.e. has a mesh
+        # specified for each [field] argument). This property is
+        # set to True if all the checks in _validate_inter_grid() pass.
+        self._is_intergrid = False
+
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
@@ -990,6 +995,8 @@ class DynKernMetadata(KernelType):
                 "on different meshes. However kernel {0} has a field on "
                 "function space(s) {1} on each of the mesh types {2}.".
                 format(self.name, list(fs_common), mesh_list))
+        # Finally, record that this is a valid inter-grid kernel
+        self._is_intergrid = True
 
     def _identify_cma_op(self, cwise_ops):
         '''Identify and return the type of CMA-operator-related operation
@@ -1155,6 +1162,15 @@ class DynKernMetadata(KernelType):
             return self._eval_shape
         else:
             return ""
+
+    @property
+    def is_intergrid(self):
+        '''
+        Returns whether or not this is an inter-grid kernel
+        :return: True if kernel is an inter-grid kernel, False otherwise
+        :rtype: bool
+        '''
+        return self._is_intergrid
 
 # Second section : PSy specialisations
 
@@ -1733,6 +1749,108 @@ class DynInvokeCMAOperators(object):
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=param_names))
 
+
+class DynInterGrid(object):
+    ''' Holds all information required for kernels performing inter-grid
+    operations '''
+
+    def __init__(self, schedule):
+        '''
+        :param schedule: the schedule of the Invoke for which to extract
+                         information on all required inter-grid operations
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+        '''
+        self._name_space_manager = NameSpaceFactory().create()
+
+        self._kern_calls = []
+        # Loop over all kernel calls in the schedule
+        for call in schedule.kern_calls():
+            if not call.is_intergrid:
+                # Skip over any non-inter-grid kernels
+                continue
+            fine_arg = None
+            coarse_arg = None
+            for arg in call.arguments.args:
+                print type(arg)
+                print dir(arg)
+                print arg.mesh
+                if arg.mesh == "gh_fine":
+                    fine_arg = arg
+                elif arg.mesh == "gh_coarse":
+                    coarse_arg = arg
+                else:
+                    raise GenerationError("ARPDBG")
+            self._kern_calls.append({"fine": fine_arg,
+                                     "coarse": coarse_arg})
+        print "Have {0} inter-grid kernels".format(len(self._kern_calls))
+
+    def declarations(self, parent):
+        '''
+        Declare variables specific to inter-grid kernels
+        '''
+        pass
+
+    def initialise(self, parent):
+        '''
+        Initialise parameters specific to inter-grid kernels
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+
+        # If we haven't got any inter-grid kernels in this invoke then we
+        # don't do anything
+        if len(self._kern_calls) == 0:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                              " Look-up mesh objects for inter-grid kernels"))
+        parent.add(CommentGen(parent, ""))
+
+        for kern in self._kern_calls:
+            # We need pointers to both the coarse and the fine mesh
+            fine_mesh = self._name_space_manager.create_name(
+                root_name="fine_mesh_{0}".format(kern["fine"].name),
+                context="PSyVars",
+                label="fine_mesh_{0}".format(kern["fine"].name))
+            coarse_mesh = self._name_space_manager.create_name(
+                root_name="coarse_mesh_{0}".format(kern["coarse"].name),
+                context="PSyVars",
+                label="coarse_mesh_{0}".format(kern["coarse"].name))
+            parent.add(
+                AssignGen(parent, pointer=True,
+                          lhs=fine_mesh,
+                          rhs=kern["fine"].proxy_name + "%get_mesh()"))
+            parent.add(
+                AssignGen(parent, pointer=True,
+                          lhs=coarse_mesh,
+                          rhs=kern["coarse"].proxy_name + "%get_mesh()"))
+            # We also need a pointer to the mesh map which we get from
+            # the coarse mesh
+            base_mmap_name = "mmap_{0}_{1}".format(kern["fine"].name,
+                                                   kern["coarse"].name)
+            mmap = self._name_space_manager.create_name(
+                root_name=base_mmap_name,
+                context="PSyVars",
+                label=base_mmap_name)
+            parent.add(
+                AssignGen(parent, pointer=True, lhs=mmap,
+                          rhs="{0}%get_mesh_map({1})".format(fine_mesh,
+                                                             coarse_mesh)))
+            # Number of cells in each mesh
+            ncell = {}
+            for mesh in ["fine", "coarse"]:
+                ncell[mesh] = self._name_space_manager.create_name(
+                    root_name="_".join(["ncell", mesh, kern[mesh].name]),
+                    context="PSyVars",
+                    label="_".join(["ncell", mesh, kern[mesh].name]))
+            parent.add(
+                # TODO what should this be when not doing DM?
+                AssignGen(parent, lhs=ncell["fine"],
+                          rhs=fine_mesh+"%get_last_halo_cell(depth=2)"))
+            parent.add(
+                # TODO what should this be when not doing DM?
+                AssignGen(parent, lhs=ncell["coarse"],
+                          rhs=coarse_mesh+"%get_last_halo_cell(depth=1)"))
 
 class DynInvokeBasisFns(object):
     ''' Holds all information on the basis and differential basis
@@ -2327,6 +2445,10 @@ class DynInvoke(Invoke):
         # and/or evaluators required by this invoke
         self.evaluators = DynInvokeBasisFns(self.schedule)
 
+        # Initialise the object holding all information related to
+        # inter-grid operations
+        self.inter_grid = DynInterGrid(self.schedule)
+
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -2674,6 +2796,10 @@ class DynInvoke(Invoke):
 
         # Initialise CMA operators and associated parameters
         self.cma_ops.initialise_cma_ops(invoke_sub)
+
+        # Initialise quantities for inter-grid kernels (pointers to meshes,
+        # number of fine cells per coarse cell etc.)
+        self.inter_grid.initialise(invoke_sub)
 
         var_list = []
         # loop over all unique function spaces used by the kernels in this
@@ -4306,6 +4432,10 @@ class DynKern(Kern):
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
+        # Record whether or not the kernel meta-data specifies that this
+        # is an inter-grid kernel
+        self._is_intergrid = ktype.is_intergrid
+
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
@@ -4367,6 +4497,15 @@ class DynKern(Kern):
         (one of 'assembly', 'apply' or 'matrix-matrix') or None if the
         the kernel does not involve CMA operators '''
         return self._cma_operation
+
+    @property
+    def is_intergrid(self):
+        '''
+        Getter for whether or not this is an inter-grid kernel call
+        :return: True if it is an inter-grid kernel, False otherwise
+        :rtype: bool
+        '''
+        return self._is_intergrid
 
     @property
     def fs_descriptors(self):
@@ -6048,6 +6187,7 @@ class DynKernelArgument(KernelArgument):
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
         self._stencil = None
+        self._mesh = arg_meta_data.mesh
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -6132,6 +6272,15 @@ class DynKernelArgument(KernelArgument):
     def type(self):
         ''' Returns the type of this argument. '''
         return self._type
+
+    @property
+    def mesh(self):
+        '''
+        Getter for the mesh associated with this argument
+        :return: Mesh associated with argument (GH_FINE or GH_COARSE)
+        :rtype: str
+        '''
+        return self._mesh
 
     @property
     def vector_size(self):
