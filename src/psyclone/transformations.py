@@ -1179,7 +1179,6 @@ class MoveTrans(Transformation):
         return schedule, keep
 
 
-=======
 class Dynamo0p3RedundantComputationTrans(Transformation):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant
@@ -1206,7 +1205,6 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string '''
-=======
         return "RedundantComputation"
 
     def _validate(self, node, depth):
@@ -1443,3 +1441,5 @@ class LoopSwapTrans(Transformation):
         # Move outer under inner:
         inner.children.append(outer)
         outer.parent = inner
+
+        return schedule, keep
