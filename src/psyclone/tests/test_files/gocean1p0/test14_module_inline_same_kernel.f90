@@ -12,4 +12,4 @@ PROGRAM module_inline_same_kernel
 
   call invoke( time_smooth(a,b,c), time_smooth(b,c,d) )
 
-END PROGRAM module_inline_with_use
+END PROGRAM module_inline_same_kernel
