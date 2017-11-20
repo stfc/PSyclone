@@ -1,3 +1,24 @@
+
+	1) #53 and PR #88 Add a version file so that PSyclone does not
+	need to be installed to generate documentation.
+
+	2) #94, #96, #98 and PR #97 Make name="name" support in invoke
+	calls more robust e.g. names must be valid fortran and match
+	should be insensitive to case.
+
+	3) #76 and PR #89 Add support for the new LFRic quadrature
+	api. Currently only gh_quadrature_xyoz is supported.
+
+        4) #99 and PR #100 Make the author list for the user manual
+        strictly alphabetical.
+
+        5) #50 and PR #78 Implement a redundant-computation transformation.
+        This enables a user to request that a kernel (or kernels) is
+        computed out into the halo region and any affected halo swaps
+        be updated (and/or removed) as required. 
+
+release 1.5.0 3rd October 2017
+
         1) #20 and PR #28 Add dependence analysis (and a Move
         transformation) to PSyclone. This will subsequently allow for
         the safe implementation of more complex schedule transformations
@@ -24,6 +45,39 @@
 
 	7) #55 and PR #66 Update the documentation to cover installation
 	on systems running OpenSUSE.
+
+	8) #61 and PR #71 Re-name existing Dynamo0.3 builtins to follow
+	a consistent scheme and add support for some new ones (including
+	setval_{c,X}, X_minus_bY etc.). See psyclone.pdf for the full list.
+
+	9) #32 and PR #39 Adds the ability to build the generated code
+	when performing python tests. Generated code can now be checked
+	that it compiles as part of the development process helping avoid
+	making releases with errors in them. Note, existing tests still
+	need to be updated.
+
+	10) #54 and PR #63 The view() method (used to look at the internal
+	representation of a schedule) now outputs coloured text (for
+	easier viewing) if the termcolor package is installed.
+
+	11) #69 and PR #73 setup.py now uses an absolute path to avoid
+	failing tests (with file not found) in some environments when
+	running py.test from a different directory to the tests
+	themselves.
+
+	12) #59 and PR #75 added metadata support for inter-grid kernels
+	which will be used for the multi-grid code.
+
+	13) #82 and PR #83 modified a test to work with different versions
+	of graphviz which output files with different ammounts of white
+	space
+
+	14) #52 and PR #60 added support for evaluators. An evaluator is
+	specified by setting the gh_shape metadata in kernels
+	appropriately.
+
+	15) #85 and PR #86 - minor correction to documentation (section
+	on Inter-Grid kernel rules was in the wrong place).
 
 release 1.4.1
 

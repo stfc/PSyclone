@@ -145,8 +145,8 @@ the following output:
    Schedule[invoke='invoke_0' dm=True]
        Directive[OMP parallel do]
            Loop[type='dofs',field_space='any_space_1',it_space='dofs']
-               Call copy_field_code(z,p)
-               Call inner_product_code(res,z,rs_old)
+               Call setval_X_code(p,z)
+               Call X_innerproduct_Y_code(rs_old,res,z)
        GlobalSum[scalar='rs_old']
 
 The above output tells us that the invoke name for the schedule we are

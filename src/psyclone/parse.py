@@ -1,21 +1,51 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Modifications copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author L. Mitchell Imperial College
-# Modified by R. Ford STFC Daresbury Lab
-#     "       A. Porter STFC Daresbury Lab
+# Modified by R. W. Ford STFC Daresbury Lab
+#     "       A. R. Porter STFC Daresbury Lab
 
+''' Module implementing classes populated by parsing either kernel
+    meta-data or invoke()'s in the Algorithm layer '''
+
+import os
+from pyparsing import ParseException
 import fparser
 from fparser import parsefortran
 from fparser import api as fpapi
-import expression as expr
-import os
-from line_length import FortLineLength
-import config
-from pyparsing import ParseException
+import psyclone.expression as expr
+from psyclone.line_length import FortLineLength
+from psyclone import config
 
 
 def check_api(api):
@@ -36,13 +66,111 @@ def get_builtin_defs(api):
     check_api(api)
 
     if api == "dynamo0.3":
-        from dynamo0p3_builtins import BUILTIN_MAP as builtins
-        from dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as fname
+        from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
+        from psyclone.dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as \
+            fname
     else:
         # We don't support any built-ins for this API
         builtins = []
         fname = None
     return builtins, fname
+
+
+def get_mesh(metadata, valid_mesh_types):
+    '''
+    Returns the mesh-type described by the supplied meta-data
+    :param  metadata: node in parser ast
+    :type metadata: py:class:`psyclone.expression.NamedArg`
+    :param valid_mesh_types: List of valid mesh types
+    :type valid_mesh_types: list of strings
+    :return: the name of the mesh
+    :rtype: string
+    :raises ParseError: if the supplied meta-data is not a recognised
+                        mesh identifier
+    '''
+    if not isinstance(metadata, expr.NamedArg) or \
+       metadata.name.lower() != "mesh_arg":
+        raise ParseError(
+            "{0} is not a valid mesh identifier (expected "
+            "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
+            format(str(metadata), valid_mesh_types))
+    mesh = metadata.value.lower()
+    if mesh not in valid_mesh_types:
+        raise ParseError("mesh_arg must be one of {0} but got {1}".
+                         format(valid_mesh_types, mesh))
+    return mesh
+
+
+def get_stencil(metadata, valid_types):
+    '''
+    Returns stencil_type and stencil_extent as a dictionary
+    object from stencil metadata if the metadata conforms to the
+    stencil(type[,extent]) format
+
+    :param metadata: Component of kernel meta-data stored as a node in the
+                     parser AST
+    :type metadata: :py:class:`psyclone.expression.FunctionVar`
+    :param list valid_types: List of valid stencil types (strings)
+    :return: The stencil type and extent described in the meta-data
+    :rtype: dict with keys 'type' (str) and 'extent' (int)
+
+    :raises ParseError: if the supplied meta-data is not a recognised
+                        stencil specification
+    '''
+
+    if not isinstance(metadata, expr.FunctionVar):
+        raise ParseError(
+            "Expecting format stencil(<type>[,<extent>]) but found the "
+            "literal {0}".format(metadata))
+    if metadata.name.lower() != "stencil" or not metadata.args:
+        raise ParseError(
+            "Expecting format stencil(<type>[,<extent>]) but found {0}".
+            format(metadata))
+    if len(metadata.args) > 2:
+        raise ParseError(
+            "Expecting format stencil(<type>[,<extent>]) but there must "
+            "be at most two arguments inside the brackets {0}".
+            format(metadata))
+    if not isinstance(metadata.args[0], expr.FunctionVar):
+        if isinstance(metadata.args[0], str):
+            raise ParseError(
+                "Expecting format stencil(<type>[,<extent>]). However, "
+                "the specified <type> '{0}' is a literal and therefore is "
+                "not one of the valid types '{1}'".
+                format(metadata.args[0], valid_types))
+        else:
+            raise ParseError(
+                "Internal error, expecting either FunctionVar or "
+                "str from the expression analyser but found {0}".
+                format(type(metadata.args[0])))
+    if metadata.args[0].args:
+        raise ParseError(
+            "Expected format stencil(<type>[,<extent>]). However, the "
+            "specified <type> '{0}' includes brackets")
+    stencil_type = metadata.args[0].name
+    if stencil_type not in valid_types:
+        raise ParseError(
+            "Expected format stencil(<type>[,<extent>]). However, the "
+            "specified <type> '{0}' is not one of the valid types '{1}'".
+            format(stencil_type, valid_types))
+
+    stencil_extent = None
+    if len(metadata.args) == 2:
+        if not isinstance(metadata.args[1], str):
+            raise ParseError(
+                "Expected format stencil(<type>[,<extent>]). However, the "
+                "specified <extent> '{0}' is not an integer".
+                format(metadata.args[1]))
+        stencil_extent = int(metadata.args[1])
+        if stencil_extent < 1:
+            raise ParseError(
+                "Expected format stencil(<type>[,<extent>]). However, the "
+                "specified <extent> '{0}' is less than 1".
+                format(str(stencil_extent)))
+        raise ParseError(
+            "Kernels with fixed stencil extents are not currently "
+            "supported")
+    return {"type": stencil_type, "extent": stencil_extent}
 
 
 class ParseError(Exception):
@@ -55,10 +183,18 @@ class ParseError(Exception):
 
 class Descriptor(object):
     """A description of how a kernel argument is accessed"""
-    def __init__(self, access, space, stencil=None):
+    def __init__(self, access, space, stencil=None, mesh=None):
+        '''
+        :param string access: whether argument is read/write etc.
+        :param string space: which function space/grid-point type
+                             argument is on
+        :param dict stencil: type of stencil access for this argument
+        :param string mesh: which mesh this argument is on
+        '''
         self._access = access
         self._space = space
         self._stencil = stencil
+        self._mesh = mesh
 
     @property
     def access(self):
@@ -72,73 +208,13 @@ class Descriptor(object):
     def stencil(self):
         return self._stencil
 
-    def _get_stencil(self, metadata, valid_types):
-
-        ''' Returns stencil_type and stencil_extent as a dictionary
-        object from stencil metadata if the metadata conforms to the
-        stencil(type[,extent]) format '''
-
-        if not isinstance(metadata, expr.FunctionVar):
-            raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but found the "
-                "literal {0}".format(metadata))
-        if metadata.name.lower() != "stencil" or not metadata.args:
-            raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but found {0}".
-                format(metadata))
-        if len(metadata.args) == 0:
-            # this check is unreachable as the tokeniser fails
-            # (currently at line 394 of this file) when no arguments
-            # are supplied.
-            raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but there must "
-                "be at least one argument inside the brackets {0}".
-                format(metadata))
-        if len(metadata.args) > 2:
-            raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but there must "
-                "be at most two arguments inside the brackets {0}".
-                format(metadata))
-        if not isinstance(metadata.args[0], expr.FunctionVar):
-            if isinstance(metadata.args[0], str):
-                raise ParseError(
-                    "Expecting format stencil(<type>[,<extent>]). However, "
-                    "the specified <type> '{0}' is a literal and therefore is "
-                    "not one of the valid types '{1}'".
-                    format(metadata.args[0], valid_types))
-            else:
-                raise ParseError(
-                    "Internal error, expecting either FunctionVar or "
-                    "str from the expression analyser but found {0}".
-                    format(type(metadata.args[0])))
-        if metadata.args[0].args:
-            raise ParseError(
-                "Expected format stencil(<type>[,<extent>]). However, the "
-                "specified <type> '{0}' includes brackets")
-        stencil_type = metadata.args[0].name
-        if stencil_type not in valid_types:
-            raise ParseError(
-                "Expected format stencil(<type>[,<extent>]). However, the "
-                "specified <type> '{0}' is not one of the valid types '{1}'".
-                format(stencil_type, valid_types))
-
-        stencil_extent = None
-        if len(metadata.args) == 2:
-            if not isinstance(metadata.args[1], str):
-                raise ParseError(
-                    "Expected format stencil(<type>[,<extent>]). However, the "
-                    "specified <extent> '{0}' is not an integer".
-                    format(metadata.args[1]))
-            stencil_extent = int(metadata.args[1])
-            if stencil_extent < 1:
-                raise ParseError(
-                    "Expected format stencil(<type>[,<extent>]). However, the "
-                    "specified <extent> '{0}' is less than 1".
-                    format(str(stencil_extent)))
-            raise ParseError(
-                "Kernels with fixed stencil extents are not currently "
-                "supported")
-        return {"type": stencil_type, "extent": stencil_extent}
+    @property
+    def mesh(self):
+        '''
+        :return: the mesh the argument is on (or None)
+        :rtype: string
+        '''
+        return self._mesh
 
     def __repr__(self):
         return 'Descriptor(%s, %s)' % (self.stencil, self.access)
@@ -359,12 +435,12 @@ class KernelTypeFactory(object):
         elif self._type == "dynamo0.1":
             return DynKernelType(ast, name=name)
         elif self._type == "dynamo0.3":
-            from dynamo0p3 import DynKernMetadata
+            from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(ast, name=name)
         elif self._type == "gocean0.1":
             return GOKernelType(ast, name=name)
         elif self._type == "gocean1.0":
-            from gocean1p0 import GOKernelType1p0
+            from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(ast, name=name)
         else:
             raise ParseError(
@@ -808,7 +884,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             " 'True' or 'False'")
     config.DISTRIBUTED_MEMORY = distributed_memory
     if api == "":
-        from config import DEFAULTAPI
+        from psyclone.config import DEFAULTAPI
         api = DEFAULTAPI
     else:
         check_api(api)
@@ -896,24 +972,41 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                         raise ParseError(
                             "The arguments to an invoke() must be either "
                             "kernel calls or an (optional) name='invoke-name' "
-                            "but got '{0}'".format(str(parsed)))
+                            "but got '{0}' in file {1}".format(str(parsed),
+                                                               alg_filename))
                     if invoke_label:
                         raise ParseError(
                             "An invoke must contain one or zero 'name=xxx' "
-                            "arguments but found more than one in: {0}".
-                            format(str(statement)))
+                            "arguments but found more than one in: {0} in "
+                            "file {1}".
+                            format(str(statement), alg_filename))
                     if not parsed.is_string:
                         raise ParseError(
                             "The (optional) name of an invoke must be "
-                            "specified as a string but got {0}.".
-                            format(str(parsed)))
-                    # Store the supplied label. Remove any spaces.
-                    invoke_label = parsed.value.replace(" ", "_")
+                            "specified as a string but got {0} in file {1}.".
+                            format(str(parsed), alg_filename))
+                    # Store the supplied label. Use lower-case (as Fortran
+                    # is case insensitive)
+                    invoke_label = parsed.value.lower()
+                    # Remove any spaces.
+                    # TODO check with LFRic team - should we raise an error if
+                    # it contains spaces?
+                    invoke_label = invoke_label.replace(" ", "_")
+                    # Check that the resulting label is a valid Fortran Name
+                    from fparser import pattern_tools
+                    if not pattern_tools.abs_name.match(invoke_label):
+                        raise ParseError(
+                            "The (optional) name of an invoke must be a "
+                            "string containing a valid Fortran name (with "
+                            "any spaces replaced by underscores) but "
+                            "got '{0}' in file {1}".format(invoke_label,
+                                                           alg_filename))
                     # Check that it's not already been used in this Algorithm
                     if invoke_label in unique_invoke_labels:
                         raise ParseError(
                             "Found multiple named invoke()'s with the same "
-                            "name: ''".format(invoke_label))
+                            "name ('{0}') when parsing {1}".
+                            format(invoke_label, alg_filename))
                     unique_invoke_labels.append(invoke_label)
                     # Continue parsing the other arguments to this invoke call
                     continue
