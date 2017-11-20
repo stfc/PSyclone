@@ -1678,12 +1678,13 @@ Transformations
 ---------------
 
 This section describes the dynamo-api-specific transformations. In all
-cases these transformations are specialisations of generic
-transformations described in the :ref:`transformations` section. The
-difference between these transformations and the generic ones are that
-these perform dynamo-api-specific checks to make sure the
-transformations are valid. In practice these transformations perform
-the required checks then call the generic ones internally.
+cases, excepting **Dynamo0p3RedundantComputationTrans**, these
+transformations are specialisations of generic transformations
+described in the :ref:`transformations` section. The difference
+between these transformations and the generic ones is that these
+perform dynamo-api-specific checks to make sure the transformations
+are valid. In practice these transformations perform the required
+checks then call the generic ones internally.
 
 The use of the dynamo-api-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
@@ -1698,6 +1699,10 @@ allow loop fusion if it does not know the spaces are the same. The
 the spaces are the same. This option should therefore be used with
 caution. Note, if PSyclone knows the spaces are different this option
 has no effect and the transformation will always raise an exception.
+
+The **Dynamo0p3RedundantComputationTrans** transformation is only valid
+for the "Dynamo0p3" API. This is because this API is currently the
+only one that supports distributed memory.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
@@ -1718,5 +1723,9 @@ all versions of the Dynamo API.
     :noindex:
 
 .. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.Dynamo0p3RedundantComputationTrans
     :members:
     :noindex:

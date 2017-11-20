@@ -63,11 +63,11 @@ def generate(filename, api="", kernel_path="", script_name=None,
     For example:
 
     >>> from generator import generate
-    >>> psy, alg = generate("algspec.f90")
-    >>> psy, alg = generate("algspec.f90", kernel_path="src/kernels")
-    >>> psy, alg = generate("algspec.f90", script_name="optimise.py")
-    >>> psy, alg = generate("algspec.f90", line_length=True)
-    >>> psy, alg = generate("algspec.f90", distributed_memory=False)
+    >>> alg, psy = generate("algspec.f90")
+    >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
+    >>> alg, psy = generate("algspec.f90", script_name="optimise.py")
+    >>> alg, psy = generate("algspec.f90", line_length=True)
+    >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
 

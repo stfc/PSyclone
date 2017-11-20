@@ -198,7 +198,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "      END DO \n"
         "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"

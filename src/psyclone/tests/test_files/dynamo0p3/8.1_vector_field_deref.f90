@@ -13,9 +13,9 @@ program vector_field
   use testkern_chi, only: testkern_chi_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1
+  type(field_type) :: f1, f2
   type(field_container_type) :: box
 
-  call invoke( testkern_chi_type(f1,box%chi) )
+  call invoke( testkern_chi_type(f1,box%chi,f2) )
 
 end program vector_field
