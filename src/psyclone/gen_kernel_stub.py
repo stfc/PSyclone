@@ -39,7 +39,6 @@
 '''
 
 import fparser
-from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.psyGen import GenerationError
 from psyclone.parse import ParseError
@@ -76,8 +75,10 @@ def generate(filename, api=""):
     fparser.logging.disable('CRITICAL')
     try:
         ast = fparser.api.parse(filename, ignore_comments=False)
-    except AttributeError:
-        raise ParseError("Code appears to be invalid Fortran")
+
+    except (fparser.utils.AnalyzeError, AttributeError) as error:
+        raise ParseError("Code appears to be invalid Fortran: " +
+                         str(error))
 
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
