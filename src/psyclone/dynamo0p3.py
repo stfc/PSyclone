@@ -1782,7 +1782,6 @@ class DynInterGrid(object):
                     raise GenerationError("ARPDBG")
             self._kern_calls.append({"fine": fine_arg,
                                      "coarse": coarse_arg})
-        print "Have {0} inter-grid kernels".format(len(self._kern_calls))
 
     def declarations(self, parent):
         '''
@@ -1839,10 +1838,9 @@ class DynInterGrid(object):
             # Number of cells in each mesh
             ncell = {}
             for mesh in ["fine", "coarse"]:
+                base_name = "_".join(["ncell", mesh, kern[mesh].name])
                 ncell[mesh] = self._name_space_manager.create_name(
-                    root_name="_".join(["ncell", mesh, kern[mesh].name]),
-                    context="PSyVars",
-                    label="_".join(["ncell", mesh, kern[mesh].name]))
+                    root_name=base_name, context="PSyVars", label=base_name)
             parent.add(
                 # TODO what should this be when not doing DM?
                 AssignGen(parent, lhs=ncell["fine"],
@@ -1851,6 +1849,24 @@ class DynInterGrid(object):
                 # TODO what should this be when not doing DM?
                 AssignGen(parent, lhs=ncell["coarse"],
                           rhs=coarse_mesh+"%get_last_halo_cell(depth=1)"))
+
+            # Number of fine cells per coarse cell.
+            base_name = "_".join(["nc2f", kern["coarse"].name,
+                                  kern["fine"].name])
+            ncell_c2f = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            parent.add(
+                AssignGen(parent, lhs=ncell_c2f,
+                          rhs=mmap+"%get_ntarget_cells_per_source_cell()"))
+
+            # Cell map. This is obtained from the mesh map.
+            base_name = "cell_map_" + kern["coarse"].name
+            cell_map = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            parent.add(
+                AssignGen(parent, pointer=True, lhs=cell_map,
+                          rhs=mmap+"%get_whole_cell_map()"))
+
 
 class DynInvokeBasisFns(object):
     ''' Holds all information on the basis and differential basis
