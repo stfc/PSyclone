@@ -18,7 +18,7 @@ module testkern
    contains
      procedure() :: code => testkern_code
   end type testkern_type
-contain
+contains
 
   subroutine testkern_code(a,b,c,d)
   end subroutine testkern_code
