@@ -3901,8 +3901,9 @@ class DynLoop(Loop):
         exist in order to find out. The appropriate logic is coded in
         the _add_halo_exchange helper method. '''
         for halo_field in self.unique_fields_with_halo_reads():
-            # for each unique field in this loop that requires a halo
-            # exchange find the previous write to this field
+            # for each unique field in this loop that has its halo
+            # read (including annexed dofs), find the previous write
+            # to this field
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
@@ -3934,9 +3935,34 @@ class DynLoop(Loop):
                                 "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
                 if not isinstance(prev_node, DynHaloExchange):
-                    # previous dependence is not a halo exchange so
-                    # create a new halo exchange
-                    self._add_halo_exchange(halo_field)
+                    # Previous dependence is not a halo exchange.
+                    #
+                    # There is still one case where we do not want to
+                    # add in a halo exchange. This is when the field
+                    # is continuous but only its annexed dofs are read
+                    # and the previous write is to the level 1 halo
+                    # (or more).
+                    if self._upper_bound_name == "ncells":
+                        # Only this fields annexed dofs are read. We also
+                        # now know that this is a continuous field.
+                        loop = prev_node.parent
+                        upper_bound = loop.upper_bound_name
+                        if upper_bound in ["ncells", "cell_halo"]:
+                            # we do not require a halo exchange as the
+                            # writer ensures annexed dofs are clean
+                            pass
+                        elif upper_bound == "ndofs":
+                            # we require a halo exchange as the writer
+                            # does not write annexed dofs
+                            self._add_halo_exchange(halo_field)
+                        else:
+                            raise GenerationError(
+                                "Error in create_halo_exchanges. Unsupported "
+                                "upper bound '{0}' found for annexed dofs "
+                                "previous writer logic".format(upper_bound))
+                    else:
+                        # we require a halo exchange
+                        self._add_halo_exchange(halo_field)
 
     def gen_code(self, parent):
         '''Work out the appropriate loop bounds and variable name
