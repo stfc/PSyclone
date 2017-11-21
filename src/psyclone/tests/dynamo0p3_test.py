@@ -6926,3 +6926,18 @@ def test_halo_req_no_read_deps(monkeypatch):  # pylint: disable=invalid-name
         _, _ = halo_exchange.required()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange" in str(excinfo.value))
+
+
+def test_no_halo_exchange_annexed_dofs():  # pylint: disable=invalid-name
+    '''If kernel writes to a discontinuous field and also reads from a
+    continuous field then that field reads to its annexed dofs. If the
+    continuous field is written to, into its level1 halo in a previous
+    loop then no halo exchange is required'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    result = str(psy.gen)
+    print result
+    assert "CALL f1_proxy%halo_exchange" in result
+    assert "CALL f2_proxy%halo_exchange" not in result
