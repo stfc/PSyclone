@@ -2809,10 +2809,10 @@ def _create_depth_list(halo_info_list):
     depth_info_list = []
     # first look to see if all field dependencies specify
     # annexed_only. If so we only access annexed dofs
-    annexed_only=True
+    annexed_only = True
     for halo_info in halo_info_list:
         if not halo_info.annexed_only:
-            annexed_only=False
+            annexed_only = False
             break
     if annexed_only:
         depth_info = HaloDepth()
@@ -3190,7 +3190,6 @@ class HaloDepth(object):
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
-
 
     @property
     def annexed_only(self):

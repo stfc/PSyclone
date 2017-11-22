@@ -6944,7 +6944,6 @@ def test_no_halo_exchange_annex_dofs(  # pylint: disable=invalid-name
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
     result = str(psy.gen)
     print result
     if utils.TEST_COMPILE:
