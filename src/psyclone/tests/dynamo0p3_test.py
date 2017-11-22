@@ -6928,7 +6928,8 @@ def test_halo_req_no_read_deps(monkeypatch):  # pylint: disable=invalid-name
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annexed_dofs():  # pylint: disable=invalid-name
+def test_no_halo_exchange_annex_dofs(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that field reads to its annexed dofs. If the
     continuous field is written to, into its level1 halo in a previous
@@ -6939,26 +6940,8 @@ def test_no_halo_exchange_annexed_dofs():  # pylint: disable=invalid-name
     schedule = psy.invokes.invoke_list[0].schedule
     result = str(psy.gen)
     print result
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert "CALL f1_proxy%halo_exchange" in result
     assert "CALL f2_proxy%halo_exchange" not in result
-
-
-def test_halo_ex_inv_ub(monkeypatch):  # pylint: disable=invalid-name
-    '''If kernel writes to a discontinuous field and also reads from a
-    continuous field then that field reads to its annexed dofs. If the
-    continuous field is written to, we then check the upper bound of
-    the associated loop. If that upper bound is unsupported we raise
-    an exception. This test checks that this exception is raised
-    correctly.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    writer_loop = schedule.children[2]
-    reader_loop = schedule.children[5]
-    monkeypatch.setattr(writer_loop, "_upper_bound_name", "ninner")
-    with pytest.raises(GenerationError) as excinfo:
-        reader_loop.create_halo_exchanges()
-    assert ("Error in create_halo_exchanges. Unsupported upper bound "
-            "'ninner' found for annexed dofs previous writer "
-            "logic" in str(excinfo.value))
