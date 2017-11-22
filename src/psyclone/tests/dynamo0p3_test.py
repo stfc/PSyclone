@@ -6931,9 +6931,16 @@ def test_halo_req_no_read_deps(monkeypatch):  # pylint: disable=invalid-name
 def test_no_halo_exchange_annex_dofs(  # pylint: disable=invalid-name
         tmpdir, f90, f90flags):
     '''If a kernel writes to a discontinuous field and also reads from a
-    continuous field then that field reads to its annexed dofs. If the
-    continuous field is written to, into its level1 halo in a previous
-    loop then no halo exchange is required'''
+    continuous field then that fields annexed dofs are read (but not
+    the rest of its level1 halo). If the previous modification of this
+    continuous field makes the annexed dofs valid then no halo
+    exchange is required. This is the case when the previous loop
+    iterates over cells as it computes into the l1 halo by default
+    precisely in order to ensure that the annexed dofs are correct for
+    subsequent reading (whilst the rest of the l1 halo ends up being
+    dirty).
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
