@@ -4886,3 +4886,25 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():  # pylint: disable=invalid-name
     required, known = w_to_r_halo_exchange.required()
     assert required
     assert known
+
+
+def test_rc_colour():
+    '''Test that we can redundantly compute over a colour in a coloured loop'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the colour loop
+    rc_trans.apply(cschedule.children[3].children[0], depth=1)
+
+    schedule.view()
+    exit(1)

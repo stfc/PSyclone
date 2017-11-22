@@ -1251,14 +1251,21 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
 
-        # check loop's parent is the schedule otherwise halo exchange
-        # placement fails. The only current example when this would be
-        # the case is when directives have been added.
+        # check loop's parent is the schedule, or its parent is a
+        # colours loop, otherwise halo exchange placement fails. We
+        # also check that the parent of the colours loop is a schedule
+        # but that should always be true. The only current example
+        # when this would be the case is when directives have been
+        # added.
         from psyclone.psyGen import Schedule
-        if not isinstance(node.parent, Schedule):
+        if not ( isinstance(node.parent, Schedule) or
+                 (isinstance(node.parent, Loop) and
+                  node.parent.loop_type == "colours" and
+                  isinstance(node.parent.parent, Schedule))):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the parent must be the Schedule, but found "
+                "method the parent must be the Schedule, or a colours loop "
+                "(whose parent is the Schedule), but found "
                 "{0}".format(type(node.parent)))
 
         import psyclone.config
