@@ -17,6 +17,10 @@
         computed out into the halo region and any affected halo swaps
         be updated (and/or removed) as required. 
 
+        6) #103 and PR #104. Bug fix to ensure that a halo swap is not
+        inserted if read annexed dofs are already clean due to a previous
+	write to the L1 halo.
+
 release 1.5.0 3rd October 2017
 
         1) #20 and PR #28 Add dependence analysis (and a Move
