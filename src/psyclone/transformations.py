@@ -1250,24 +1250,49 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method the first argument is not a Loop")
-
         # check loop's parent is the schedule, or its parent is a
-        # colours loop, otherwise halo exchange placement fails. We
-        # also check that the parent of the colours loop is a schedule
-        # but that should always be true. The only current example
-        # when this would be the case is when directives have been
-        # added.
+        # colours loop and perform other colour(s) loop checks,
+        # otherwise halo exchange placement might fail. The only
+        # current example where the placement would fail is when
+        # directives have already been added. This could be fixed but
+        # it actually makes sense to require redundant computation
+        # transformations to be applied before adding directives so it
+        # is not particularly important.
         from psyclone.psyGen import Schedule
         if not ( isinstance(node.parent, Schedule) or
-                 (isinstance(node.parent, Loop) and
-                  node.parent.loop_type == "colours" and
-                  isinstance(node.parent.parent, Schedule))):
-            raise TransformationError(
-                "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the parent must be the Schedule, or a colours loop "
-                "(whose parent is the Schedule), but found "
-                "{0}".format(type(node.parent)))
-
+                 (isinstance(node.parent, Loop))):
+            from psyclone.psyGen import Directive
+            if isinstance(node.parent, Directive):
+                raise TransformationError(
+                    "In the Dynamo0p3RedundantComputation transformation "
+                    "apply method the parent of the supplied loop is a "
+                    "directive of type {0}. Redundant computation must be "
+                    "applied before directives are "
+                    "added.".format(type(node.parent)))
+            else:
+                raise TransformationError(
+                    "In the Dynamo0p3RedundantComputation transformation apply "
+                    "method the parent of the supplied loop must be the Schedule, "
+                    "or a Loop, but found {0}".format(type(node.parent)))
+        if isinstance(node.parent, Loop):
+            if not node.loop_type == "colour":
+                raise TransformationError(
+                    "In the Dynamo0p3RedundantComputation transformation apply "
+                    "method, if the parent of the supplied Loop is also a Loop "
+                    "then the supplied Loop must iterate over 'colour', but "
+                    "found '{0}'".format(node.loop_type))
+            if not node.parent.loop_type == "colours":
+                raise TransformationError(
+                    "In the Dynamo0p3RedundantComputation transformation apply "
+                    "method, if the parent of the supplied Loop is also a Loop "
+                    "then the parent must iterate over 'colours', but found "
+                    "'{0}'".format(node.parent.loop_type))
+            if not isinstance(node.parent.parent, Schedule):
+                raise TransformationError(
+                    "In the Dynamo0p3RedundantComputation transformation apply "
+                    "method, if the parent of the supplied Loop is also a Loop "
+                    "then the parent's parent must be the Schedule, but found "
+                    "{0}".format(type(node.parent)))
         import psyclone.config
         if not psyclone.config.DISTRIBUTED_MEMORY:
             raise TransformationError(

@@ -4888,6 +4888,63 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():  # pylint: disable=invalid-name
     assert known
 
 
+def test_rc_no_directive():
+    '''When the redundant computation transformation is given a Loop whose
+    parent is a directive an exception is raised as this is not
+    supported (redundant computation transformations must be applied
+    before directives are added). This test checks that this exception
+    is raised correctly.'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create a colouring transformation and apply this to the loop
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    # create an openmp transformation and apply this to the loop
+    otrans = DynamoOMPParallelLoopTrans()
+    schedule, _ = otrans.apply(schedule.children[3].children[0])
+
+    # create a redundant computation transformation and apply this to the loop
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(
+            schedule.children[3].children[0].children[0], depth=1)
+    assert ("Redundant computation must be applied before directives are added"
+            in str(excinfo.value))
+
+
+def test_rc_wrong_parent(monkeypatch):
+    '''When the redundant computation transformation is given a Loop which
+    has the wrong parent, and that parent is not a Directive (which is
+    handled in a separate case) an exception is raised. This test
+    checks that this exception is raised correctly.'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # make the parent of the loop a halo exchange
+    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(schedule.children[3], depth=1)
+    assert ("the parent of the supplied loop must be the Schedule, or a Loop"
+            in str(excinfo.value))
+
+
+# if parent is a loop then I must iterate over colour
+# if parent is a loop then it must iterate over colours
+# if parent is a loop then its parent must be the schedule
+
+
+@pytest.mark.xfail(reason="work in progress")
 def test_rc_colour():
     '''Test that we can redundantly compute over a colour in a coloured loop'''
     _, invoke_info = parse(os.path.join(
@@ -4907,4 +4964,4 @@ def test_rc_colour():
     rc_trans.apply(cschedule.children[3].children[0], depth=1)
 
     schedule.view()
-    exit(1)
+    # don't forget to compile the output of this
