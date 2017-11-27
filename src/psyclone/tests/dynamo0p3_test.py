@@ -2653,7 +2653,7 @@ def test_stub_file_fortran_invalid():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
                  api="dynamo0.3")
-    assert 'does not have \'_mod\' as an extension' in str(excinfo.value)
+    assert 'contain <== no parse pattern found' in str(excinfo.value)
 
 
 def test_file_fortran_not_kernel():
