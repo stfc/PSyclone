@@ -4939,9 +4939,96 @@ def test_rc_wrong_parent(monkeypatch):
             in str(excinfo.value))
 
 
-# if parent is a loop then I must iterate over colour
-# if parent is a loop then it must iterate over colours
-# if parent is a loop then its parent must be the schedule
+def test_rc_parent_loop_colour(monkeypatch):
+    '''If the parent of the loop supplied to the redundant computation
+    transformation is a loop then the supplied loop should iterate
+    over 'colour'. If this is not the case then an exception is
+    raised. This test checks that the exception is raised correctly
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # apply colouring
+    # create colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+    
+    # make the innermost loop iterate over cells (it should be colour)
+    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+                        "cells")
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "supplied Loop must iterate over 'colour'" in str(excinfo.value))
+
+
+def test_rc_parent_loop_colours(monkeypatch):
+    '''If the parent of the loop supplied to the redundant computation
+    transformation is a loop then the parent loop should iterate over
+    'colours'. If this is not the case then an exception is
+    raised. This test checks that the exception is raised correctly
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # apply colouring
+    # create colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+    
+    # make the outermost loop iterate over cells (it should be colours)
+    monkeypatch.setattr(schedule.children[3], "_loop_type", "cells")
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "parent must iterate over 'colours'" in str(excinfo.value))
+
+
+def test_rc_parent_loop_colours(monkeypatch):
+    '''If the parent of the loop supplied to the redundant computation
+    transformation is a loop then the parent loop's parent should be a
+    schedule. If this is not the case then an exception is
+    raised. This test checks that the exception is raised correctly
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # apply colouring
+    # create colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+    
+    # make the parent of the outermost something other than Schedule
+    # (a halo exchange)
+    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "parent's parent must be the Schedule" in str(excinfo.value))
 
 
 @pytest.mark.xfail(reason="work in progress")

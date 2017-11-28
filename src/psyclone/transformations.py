@@ -1215,10 +1215,22 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :param depth: the depth of the stencil if the value is
         provided and None if not
         :type depth: int or None
-        :raises GenerationError: if the node is not a loop
-        :raises GenerationError: if the parent of the loop is not the
-        schedule (the coding assumes this and therefore fails
-        otherwie, e.g.  when OpenMP is added)
+        :raises GenerationError: if the node is not a
+        :py:class:`psyclone.psyGen.Loop`
+        :raises GenerationError: if the parent of the loop is a
+        :py:class:`psyclone.psyGen.Directive`
+        :raises GenerationError: if the parent of the loop is not a
+        :py:class:`psyclone.psyGen.Loop` or a
+        :py:class:`psyclone.psyGen.Schedule`
+        :raises GenerationError: if the parent of the loop is a
+        :py:class:`psyclone.psyGen.Loop` but the original loop does
+        not iterate over 'colour'
+        :raises GenerationError: if the parent of the loop is a
+        :py:class:`psyclone.psyGen.Loop` but the parent does not
+        iterate over 'colours'
+        :raises GenerationError: if the parent of the loop is a
+        :py:class:`psyclone.psyGen.Loop` but the parent's parent is
+        not a :py:class:`psyclone.psyGen.Schedule`
         :raises GenerationError: if this transformation is applied
         when distributed memory is not switched on
         :raises GenerationError: if the loop does not iterate over
@@ -1230,7 +1242,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         loop to the maximum halo depth but the loop contains a stencil
         access (as this would result in the field being accessed
         beyond the halo depth)
-        :raises GenerationError: if the supplied depth value is no an
+        :raises GenerationError: if the supplied depth value is not an
         integer
         :raises GenerationError: if the supplied depth value is less
         than 1
