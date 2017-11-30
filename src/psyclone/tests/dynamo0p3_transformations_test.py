@@ -3690,7 +3690,7 @@ def test_rc_invalid_loop(monkeypatch):  # pylint: disable=invalid-name
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply "
-            "method the loop must iterate over cells or dofs, but "
+            "method the loop must iterate over cells, dofs or colour, but "
             "found 'colours'") in str(excinfo)
 
 
@@ -5029,6 +5029,42 @@ def test_rc_parent_loop_colours(monkeypatch):
         _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
             "parent's parent must be the Schedule" in str(excinfo.value))
+
+
+def test_rc_unsupported_loop_type(monkeypatch):
+    '''When an unsupported loop type is provided to the redundant
+    computation apply method an exception is raised. It is not
+    possible to get to this exception in normal circumstances due to
+    the validation tests so we monkey patch it. This test checks that
+    the exception is raised correctly.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # apply colouring
+    # create colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+
+    # make the loop type invalid
+    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+                        "invalid")
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # switch off validation
+    monkeypatch.setattr(rc_trans, "_validate",
+                        lambda loop, depth: None)
+
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("Unsupported loop_type 'invalid' found" in str(excinfo.value))
 
 
 @pytest.mark.xfail(reason="work in progress")

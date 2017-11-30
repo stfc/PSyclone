@@ -1311,14 +1311,13 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")
 
-        # loop must iterate over cells or dofs. This currently
-        # precludes loops over colours. Note, an empty loop_type
-        # iterates over cells
-        if node.loop_type not in ["", "dofs"]:
+        # loop must iterate over cells, dofs or colour. Note, an
+        # empty loop_type iterates over cells
+        if node.loop_type not in ["", "dofs", "colour"]:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the loop must iterate over cells or dofs, but found "
-                "'{0}'".format(node.loop_type))
+                "method the loop must iterate over cells, dofs or colour, "
+                "but found '{0}'".format(node.loop_type))
 
         if depth is None:
             if node.upper_bound_name in ["cell_halo", "dof_halo"]:
@@ -1348,8 +1347,10 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
-            if not node.field.discontinuous and depth == 1 and \
-               node.iteration_space == "cells":
+            # TBD CHECK FOR colour and continuous here too, but there
+            # is no valid field. Is this an error?
+            if node.loop_type == "" and depth == 1 and \
+               not node.field.discontinuous:
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth must be greater than "
@@ -1397,9 +1398,14 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         if loop.loop_type == "":  # iteration space is cells
             loop.set_upper_bound("cell_halo", depth)
-        else:  # iteration space is dofs
+        elif loop.loop_type == "colour":
+            loop.set_upper_bound("colour_halo", depth)
+        elif loop.loop_type == "dofs":
             loop.set_upper_bound("dof_halo", depth)
-
+        else:
+            raise TransformationError(
+                "Unsupported loop_type '{0}' found in Dynamo0p3Redundant"
+                "ComputationTrans.apply()".format(loop.loop_type))
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
