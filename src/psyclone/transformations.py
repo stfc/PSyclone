@@ -717,7 +717,11 @@ class ColourTrans(Transformation):
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
-        colour_loop.set_upper_bound("ncolour")
+        import psyclone.config
+        if psyclone.config.DISTRIBUTED_MEMORY:
+            colour_loop.set_upper_bound("colour_halo", index=1)
+        else:  # no distributed memory
+            colour_loop.set_upper_bound("ncolour")
         # Add this loop as a child of our loop over colours
         colours_loop.addchild(colour_loop)
 

@@ -49,6 +49,7 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
+import utils
 
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
@@ -62,7 +63,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_colour_trans_declarations():
+def test_colour_trans_declarations(tmpdir, f90, f90flags):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
     is both off and on '''
@@ -97,12 +98,20 @@ def test_colour_trans_declarations():
 
         # Check that we've declared the loop-related variables
         # and colour-map pointers
-        assert "integer ncolour" in gen
+        if dist_mem:
+            assert "integer, pointer :: cmap(:,:)" in gen
+        else:
+            assert "integer ncolour" in gen
+            assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
         assert "integer colour" in gen
-        assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans():
+def test_colour_trans(tmpdir, f90, f90flags):
     '''test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -133,17 +142,22 @@ def test_colour_trans():
         gen = gen.lower()
         print gen
         # Check that we're calling the API to get the no. of colours
-        assert "f1_proxy%vspace%get_colours(" in gen
-
-        col_loop_idx = -1
-        cell_loop_idx = -1
-        for idx, line in enumerate(gen.split('\n')):
-            if "do colour=1,ncolour" in line:
-                col_loop_idx = idx
-            if "do cell=1,ncp_colour(colour)" in line:
-                cell_loop_idx = idx
-
-        assert cell_loop_idx - col_loop_idx == 1
+        # and the generated loop bounds are correct
+        if dist_mem:
+            output = (
+                "      cmap => mesh%get_colour_map()\n"
+                "      !\n"
+                "      do colour=1,mesh%get_ncolours()\n"
+                "        do cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n")
+        else:  # not dist_mem
+            output = (
+                "      call f1_proxy%vspace%get_colours(ncolour, ncp_colour, "
+                "cmap)\n"
+                "      !\n"
+                "      do colour=1,ncolour\n"
+                "        do cell=1,ncp_colour(colour)\n")
+        assert output in gen
 
         # Check that we're using the colour map when getting the cell dof maps
         assert (
@@ -165,6 +179,12 @@ def test_colour_trans():
                 "      call f1_proxy%set_dirty()\n")
             assert dirty_str in gen
             assert gen.count("set_dirty()") == 1
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 
 def test_colour_trans_operator():

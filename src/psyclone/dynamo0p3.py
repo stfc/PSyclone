@@ -115,7 +115,8 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "cell_halo", "ncolour",
-                           "ncolours", "ncells", "ndofs", "dof_halo"]
+                           "ncolours", "ncells", "ndofs", "dof_halo",
+                           "colour_halo"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -2708,15 +2709,19 @@ class DynInvoke(Invoke):
         self.evaluators.initialise_basis_fns(invoke_sub)
 
         if self.is_coloured():
-            # Add declarations of the colour map and array holding the
-            # no. of cells of each colour
-            invoke_sub.add(DeclGen(parent, datatype="integer",
+            # Declare the colour map
+            declns = ["cmap(:,:)"]
+            if not config.DISTRIBUTED_MEMORY:
+                # Declare the array holding the no. of cells of each
+                # colour
+                declns.append("ncp_colour(:)")
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    pointer=True,
-                                   entity_decls=["cmap(:,:)",
-                                                 "ncp_colour(:)"]))
-            # Declaration of variable to hold the number of colours
-            invoke_sub.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=["ncolour"]))
+                                   entity_decls=declns))
+            if not config.DISTRIBUTED_MEMORY:
+                # Declaration of variable to hold the number of colours
+                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                       entity_decls=["ncolour"]))
 
         # add calls to compute the values of any basis arrays
         self.evaluators.compute_basis_fns(invoke_sub)
@@ -3401,7 +3406,7 @@ class HaloReadAccess(HaloDepth):
         loop = call.parent
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
-        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+        if loop.upper_bound_name in ["cell_halo", "dof_halo", "colour_halo"]:
             # this loop performs redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
@@ -3610,7 +3615,8 @@ class DynLoop(Loop):
                 "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "cell_halo", "dof_halo"] and index is not None:
+        if name in ["inner", "cell_halo", "dof_halo", "colour_halo"] and \
+           index is not None:
             if index < 1:
                 raise GenerationError(
                     "The specified index '{0}' for this upper loop bound is "
@@ -3684,9 +3690,19 @@ class DynLoop(Loop):
             halo_index = str(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
-            return "ncolour"
+            if config.DISTRIBUTED_MEMORY:
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                return "{0}%get_ncolours()".format(mesh_obj_name)
+            else:
+                return "ncolour"
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
+        elif self._upper_bound_name == "colour_halo":
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            return ("{0}%get_last_halo_cell_per_colour(colour,"
+                    "{1})".format(mesh_obj_name, halo_index))
         elif self._upper_bound_name == "ndofs":
             if config.DISTRIBUTED_MEMORY:
                 result = self.field.proxy_name_indexed + "%" + \
@@ -3789,12 +3805,14 @@ class DynLoop(Loop):
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
-            return self._upper_bound_name in ["cell_halo", "dof_halo"]
+            return self._upper_bound_name in ["cell_halo", "dof_halo",
+                                              "colour_halo"]
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness
-            if self._upper_bound_name in ["cell_halo", "dof_halo"]:
+            if self._upper_bound_name in ["cell_halo", "dof_halo",
+                                          "colour_halo"]:
                 # we read in the halo
                 return True
             elif self._upper_bound_name == "ncells":
@@ -4437,12 +4455,20 @@ class DynKern(Kern):
                            position=["before", position])
             new_parent.add(CommentGen(new_parent, ""),
                            position=["before", position])
-            name = arg.proxy_name_indexed + \
-                "%" + arg.ref_name() + "%get_colours"
-            new_parent.add(CallGen(new_parent,
-                                   name=name,
-                                   args=["ncolour", "ncp_colour", "cmap"]),
-                           position=["before", position])
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            if config.DISTRIBUTED_MEMORY:
+                new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
+                                         rhs=mesh_obj_name+"%get_colour_map()"),
+                               position=["before", position])
+            else:
+                name = arg.proxy_name_indexed + \
+                       "%" + arg.ref_name() + "%get_colours"
+                new_parent.add(CallGen(new_parent,
+                                       name=name,
+                                       args=["ncolour", "ncp_colour", "cmap"]),
+                               position=["before", position])
+
             new_parent.add(CommentGen(new_parent, ""),
                            position=["before", position])
 
