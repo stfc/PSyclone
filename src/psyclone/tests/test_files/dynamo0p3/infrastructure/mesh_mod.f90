@@ -89,6 +89,8 @@ module mesh_mod
     integer(i_def), allocatable, private :: ncells_per_colour(:)
     integer(i_def), allocatable, private :: cells_in_colour(:,:)
 
+    integer(i_def),allocatable           :: last_halo_cell_per_colour(:,:)
+
   contains
 
     procedure, public :: get_nlayers
@@ -128,6 +130,9 @@ module mesh_mod
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
     procedure, public :: get_last_halo_cell
+
+    procedure, public :: get_last_halo_cell_per_colour
+    
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
 
@@ -137,6 +142,7 @@ module mesh_mod
     procedure, public :: set_colours
     procedure, public :: get_ncolours
     procedure, public :: get_colours
+    procedure, public :: get_colour_map
     procedure, public :: is_coloured
 
   end type mesh_type
@@ -505,6 +511,19 @@ contains
     last_halo_cell = 0
   end function get_last_halo_cell
 
+  function get_last_halo_cell_per_colour( self, colour, depth ) &
+                                        result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: depth
+    integer(i_def), intent(in) :: colour
+    integer(i_def)             :: ncells_colour
+
+    ncells_colour = 0
+  end function get_last_halo_cell_per_colour
+
   function get_num_cells_ghost( self ) result ( ghost_cells )
 
     implicit none
@@ -563,6 +582,16 @@ contains
     ncells_per_colour => null()
     colour_map => null()
   end subroutine get_colours
+
+
+  function get_colour_map(self) result (colour_map)
+    implicit none
+    class(mesh_type), intent(in), target      :: self
+    integer(i_def), pointer                   :: colour_map(:,:)
+
+    colour_map => self%cells_in_colour
+
+  end function get_colour_map
 
   function is_coloured(self) result(cstat)
     implicit none
