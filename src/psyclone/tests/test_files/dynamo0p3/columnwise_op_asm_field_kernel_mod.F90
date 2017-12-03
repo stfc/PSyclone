@@ -1,18 +1,48 @@
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
-
-!> @brief Kernel which assembles a locally assembled matrix (LMA) into a
-!! columnwise assembled matrix (CMA). Takes a read-only field as argument too.
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications Copyright (c) 2017, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 module columnwise_op_asm_field_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                    &
+use argument_mod,            only : arg_type, func_type, GH_FIELD,          &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
                                     GH_READ, GH_WRITE,                      &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
@@ -44,7 +74,7 @@ end type
 !-------------------------------------------------------------------------------
 
 ! overload the default structure constructor for function space
-interface columnwise_op_asm_kernel_type
+interface columnwise_op_asm_field_kernel_type
    module procedure columnwise_constructor
 end interface
 
@@ -54,7 +84,7 @@ end interface
 public columnwise_op_asm_field_kernel_code
 contains
   
-  type(columnwise_op_asm_kernel_type) function columnwise_constructor() result(self)
+  type(columnwise_op_asm_field_kernel_type) function columnwise_constructor() result(self)
     implicit none
     return
   end function columnwise_constructor
@@ -87,8 +117,8 @@ contains
   subroutine columnwise_op_asm_field_kernel_code(cell,              &
                                             nlayers,           &
                                             ncell_2d,          &
-                                            ncell_3d,          &
                                             field,             &
+                                            ncell_3d,          &
                                             local_stencil,     &
                                             columnwise_matrix, &
                                             nrow,              &
@@ -100,22 +130,24 @@ contains
                                             gamma_p,           &
                                             undf, ndf,         & ! any_space_1
                                             dofmap_field,      &
-                                            ndf_lma_from,      & ! any_space_2
                                             column_banded_dofmap_to, &
+                                            ndf_lma_from,      & ! any_space_2
                                             column_banded_dofmap_from)
 
     implicit none
     
     ! Arguments
-    integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
-    integer(kind=i_def), intent(in) :: ndf_lma_to, ndf_lma_from
-    integer(kind=i_def), intent(in) :: ndf_to, ndf_from
-    real(kind=r_def), dimension(ndf_lma_to,ndf_lma_from,ncell_3d), intent(in) :: local_stencil
+    integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_2d, ncell_3d
+    integer(kind=i_def), intent(in) :: ndf_lma_from
+    integer(kind=i_def), intent(in) :: undf, ndf
+    real(kind=r_def), dimension(undf), intent(in) :: field
+    real(kind=r_def), dimension(:,:,:), intent(in) :: local_stencil
     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
+    real(kind=r_def), dimension(:,:,:), intent(out) :: columnwise_matrix
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to
-    integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
+    integer(kind=i_def), dimension(:), intent(in) :: dofmap_field
+    integer(kind=i_def), dimension(:,:), intent(in) :: column_banded_dofmap_to
+    integer(kind=i_def), dimension(:,:), intent(in) :: column_banded_dofmap_from
 
     write (*,*) "Hello CMA World"
 

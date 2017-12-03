@@ -186,8 +186,7 @@ def test_colour_trans(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-
-def test_colour_trans_operator():
+def test_colour_trans_operator(tmpdir, f90, f90flags):
     '''test of the colouring transformation of a single loop with an
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -218,8 +217,13 @@ def test_colour_trans_operator():
         # check the first argument is a colourmap lookup
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
+
+def test_colour_trans_cma_operator(tmpdir, f90, f90flags):  # pylint: disable=invalid-name
     '''test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -233,7 +237,6 @@ def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
         invoke = psy.invokes.get(
             'invoke_0_columnwise_op_asm_field_kernel_type')
         schedule = invoke.schedule
-        schedule.view()
         ctrans = Dynamo0p3ColourTrans()
 
         if dist_mem:
@@ -249,10 +252,23 @@ def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
         gen = str(psy.gen)
         print gen
 
+        if dist_mem:
+            assert (
+                "      DO colour=1,mesh%get_ncolours()\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n"
+                "          !\n"
+                "          CALL columnwise_op_asm_field_kernel_code("
+                "cmap(colour, ") in gen
+        else:
+            assert (
+                "      DO colour=1,ncolour\n"
+                "        DO cell=1,ncp_colour(colour)\n"
+                "          !\n"
+                "          CALL columnwise_op_asm_field_kernel_code(cmap"
+                "(colour, ") in gen
+
         assert (
-            "      DO colour=1,ncolour\n"
-            "        DO cell=1,ncp_colour(colour)\n"
-            "          !\n"
             "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
             "cell), nlayers, ncell_2d, afield_proxy%data, "
             "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
@@ -265,8 +281,13 @@ def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
             "        END DO \n"
             "      END DO \n") in gen
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_colour_trans_stencil():
+
+def test_colour_trans_stencil(tmpdir, f90, f90flags):
     '''test of the colouring transformation of a single loop with a
     stencil access. We test when distributed memory is both off and
     on    '''
@@ -304,6 +325,12 @@ def test_colour_trans_stencil():
             "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
             "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
             "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
+
+        # check whether lfric supports stencil(cross) metadata format
+        #if utils.TEST_COMPILE:
+        #    # If compilation testing has been enabled (--compile flag
+        #    # to py.test)
+        #    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colouring_not_a_loop():
@@ -420,7 +447,7 @@ def test_colour_str():
     assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
 
 
-def test_omp_colour_trans():
+def test_omp_colour_trans(tmpdir, f90, f90flags):
     '''Test the OpenMP transformation applied to a coloured loop. We test
     when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -450,25 +477,34 @@ def test_omp_colour_trans():
         code = str(psy.gen)
         print code
 
-        col_loop_idx = -1
-        omp_idx = -1
-        cell_loop_idx = -1
-        for idx, line in enumerate(code.split('\n')):
-            if "DO colour=1,ncolour" in line:
-                col_loop_idx = idx
-            if "DO cell=1,ncp_colour(colour)" in line:
-                cell_loop_idx = idx
-            if "!$omp parallel do" in line:
-                omp_idx = idx
+        if dist_mem:
+            output = (
+                "      cmap => mesh%get_colour_map()\n"
+                "      !\n"
+                "      DO colour=1,mesh%get_ncolours()\n"
+                "        !$omp parallel do default(shared), private(cell), "
+                "schedule(static)\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n")
+        else:
+            output = (
+                "      CALL f1_proxy%vspace%get_colours(ncolour, "
+                "ncp_colour, cmap)\n"
+                "      !\n"
+                "      DO colour=1,ncolour\n"
+                "        !$omp parallel do default(shared), private(cell), "
+                "schedule(static)\n"
+                "        DO cell=1,ncp_colour(colour)\n")
+            
+        assert output in code
 
-        assert cell_loop_idx - omp_idx == 1
-        assert omp_idx - col_loop_idx == 1
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-        # Check that the list of private variables is correct
-        assert "private(cell)" in code
 
-
-def test_omp_colour_orient_trans():
+def test_omp_colour_orient_trans(tmpdir, f90, f90flags):
     '''Test the OpenMP transformation applied to a coloured loop when the
     kernel expects orientation information. We test when distributed
     memory is on or off '''
@@ -503,6 +539,11 @@ def test_omp_colour_orient_trans():
 
         # Check that the list of private variables is correct
         assert "private(cell,orientation_w2)" in code
+
+        #if utils.TEST_COMPILE:
+        #    # If compilation testing has been enabled (--compile flag
+        #    # to py.test)
+        #    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_parallel_colouring_needed():  # pylint: disable=invalid-name
@@ -657,7 +698,7 @@ def test_colouring_after_openmp():
         assert "within an OpenMP parallel region" in str(excinfo.value)
 
 
-def test_colouring_multi_kernel():
+def test_colouring_multi_kernel(tmpdir, f90, f90flags):
     '''Test that we correctly generate all the map-lookups etc.  when an
     invoke contains more than one kernel. We test when distributed
     memory is on or off '''
@@ -694,11 +735,19 @@ def test_colouring_multi_kernel():
         print gen
 
         # Check that we're calling the API to get the no. of colours
-        assert "a_proxy%vspace%get_colours(" in gen
-        assert "f_proxy%vspace%get_colours(" in gen
-        assert gen.count("_proxy%vspace%get_colours(") == 2
+        if dist_mem:
+            assert gen.count("cmap => mesh%get_colour_map()") == 2
+        else:
+            assert "a_proxy%vspace%get_colours(" in gen
+            assert "f_proxy%vspace%get_colours(" in gen
+            assert gen.count("_proxy%vspace%get_colours(") == 2
         assert "private(cell)" in gen
         assert gen.count("private(cell)") == 2
+
+        #if utils.TEST_COMPILE:
+        #    # If compilation testing has been enabled (--compile flag
+        #    # to py.test)
+        #    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_region_omp_do():
@@ -1110,54 +1159,75 @@ def test_fuse_colour_loops():
         code = str(psy.gen)
         print code
 
-        # Test that the generated code is as expected
-        omp_para_idx = -1
-        omp_do_idx1 = -1
-        omp_do_idx2 = -1
-        cell_loop_idx1 = -1
-        cell_loop_idx2 = -1
-        end_loop_idx1 = -1
-        end_loop_idx2 = -1
-        end_loop_idx3 = -1
-        call_idx1 = -1
-        call_idx2 = -1
-        for idx, line in enumerate(code.split('\n')):
-            if "END DO" in line:
-                if end_loop_idx1 == -1:
-                    end_loop_idx1 = idx
-                elif end_loop_idx2 == -1:
-                    end_loop_idx2 = idx
-                else:
-                    end_loop_idx3 = idx
-            if "DO cell=1,ncp_colour(colour)" in line:
-                if cell_loop_idx1 == -1:
-                    cell_loop_idx1 = idx
-                else:
-                    cell_loop_idx2 = idx
-            if "DO colour=1,ncolour" in line:
-                col_loop_idx = idx
-            if "CALL ru_code(nlayers," in line:
-                if call_idx1 == -1:
-                    call_idx1 = idx
-                else:
-                    call_idx2 = idx
-            if "!$omp parallel default(shared), " +\
-               "private(cell)" in line:
-                omp_para_idx = idx
-            if "!$omp do schedule(static)" in line:
-                if omp_do_idx1 == -1:
-                    omp_do_idx1 = idx
-                else:
-                    omp_do_idx2 = idx
+        if dist_mem:
+            output = (
+                "      cmap => mesh%get_colour_map()\n"
+                "      !\n"
+                "      DO colour=1,mesh%get_ncolours()\n"
+                "        !$omp parallel default(shared), private(cell)\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour"
+                "(colour,1)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp end parallel\n"
+                "      END DO \n")
+        else:
+            output = (
+                "      CALL f_proxy%vspace%get_colours(ncolour, ncp_colour, "
+                "cmap)\n"
+                "      !\n"
+                "      DO colour=1,ncolour\n"
+                "        !$omp parallel default(shared), private(cell)\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,ncp_colour(colour)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,ncp_colour(colour)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp end parallel\n"
+                "      END DO \n")
 
-        assert (omp_para_idx - col_loop_idx) == 1
-        assert (omp_do_idx1 - omp_para_idx) == 1
-        assert (cell_loop_idx1 - omp_do_idx1) == 1
-        assert (cell_loop_idx2 - omp_do_idx2) == 1
-        assert (end_loop_idx3 - end_loop_idx2) == 3
-        assert call_idx2 > call_idx1
-        assert call_idx1 < end_loop_idx1
-        assert call_idx2 < end_loop_idx2
+        assert output in code
 
         if dist_mem:
             set_dirty_str = (

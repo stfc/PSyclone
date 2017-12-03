@@ -36,7 +36,7 @@
 ! Author R. Ford and A. R. Porter, STFC Daresbury Lab
 
 module operator_mod
-  use constants_mod,            only : r_def
+  use constants_mod,            only : r_def, i_def
   use function_space_mod,       only : function_space_type
   use mesh_mod
 
@@ -62,13 +62,34 @@ module operator_mod
 
   type, extends(base_operator_type) ::  columnwise_operator_type
      integer :: c
+  contains
+     procedure, public :: get_proxy => get_proxy_columnwise
   end type columnwise_operator_type
 
   type, extends(base_operator_type) ::  columnwise_operator_proxy_type
-     integer :: d
+     !type( function_space_type ), pointer :: fs_to
+     !type( function_space_type ), pointer :: fs_from
+     integer(i_def) :: alpha
+     integer(i_def) :: beta
+     integer(i_def) :: gamma_m, gamma_p
+     integer(i_def) :: bandwidth
+     integer(i_def) :: nrow
+     integer(i_def) :: ncol
+     real(kind=r_def), pointer :: columnwise_matrix( :, :, : )
+     integer :: ncell_2d
+     integer(kind=i_def), pointer :: column_banded_dofmap_to( :, : )
+     integer(kind=i_def), pointer :: column_banded_dofmap_from( :, : )
+     integer(kind=i_def), pointer :: indirection_dofmap_to( :)
+     integer(kind=i_def), pointer :: indirection_dofmap_from( :)
+
   end type columnwise_operator_proxy_type
 
 contains
+
+ type(columnwise_operator_proxy_type ) function get_proxy_columnwise(self)
+    implicit none
+    class(columnwise_operator_type), target, intent(in)  :: self
+  end function get_proxy_columnwise
 
   type(operator_proxy_type ) function get_proxy_op(self)
     implicit none
