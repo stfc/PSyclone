@@ -93,7 +93,11 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
                       "grid_lat_u": "gphiu",
                       "grid_lat_v": "gphiv",
                       "grid_dx_const": "dx",
-                      "grid_dy_const": "dy"}
+                      "grid_dy_const": "dy",
+                      "grid_x_min_index":"simulation_domain%xstart",
+                      "grid_x_max_index":"simulation_domain%xstop",
+                      "grid_y_min_index":"1",
+                      "grid_y_max_index":"ny"}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
