@@ -31,32 +31,30 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+program single_invoke_annexed
 
-module testkern_w3
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: testkern_w3_type
-     type(arg_type), dimension(5) :: meta_args =    &
-          (/ arg_type(gh_real, gh_read),     &
-             arg_type(gh_field,gh_read,w1), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_write, w3)  &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_w3_code
-  end type testkern_w3_type
-contains
+  ! Description: f1 and f2 are written to over cells and then read. f1
+  ! is on the w1 function space and f2 is on the w2 function space, so
+  ! both are continuous and therefore have annexed dofs. By default
+  ! loops over cells write to the level 1 halo in order to ensure that
+  ! annexed dofs are correct (clean). Therefore halo exchanges will
+  ! not be required so that for both f1 and f2 are clean when they are
+  ! read.
+  use testkern_w3, only: testkern_w3_type
+  use testkern_w2_only, only: testkern_w2_only_type
+  use inf, only: field_type
+  implicit none
+  type(field_type) :: f1, f2, f3, f4, m1, m2
+  real(r_def) :: a
 
-  subroutine testkern_w3_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
-                           ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
-    integer :: nlayers
-    real(kind=r_def) :: ascalar
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
-    integer, dimension(:) :: map_w1, map_w2, map_w3
-  end subroutine testkern_w3_code
-end module testkern_w3
+  call invoke(                         &
+       ! update f1 locally
+       setval_c(f1,0.0),               &
+       ! update f2 in l1 halo
+       testkern_w2_only_type(f2,f3),   &
+       ! read f1 and f2 annexed dofs
+       ! no halo exchange should be added for f2
+       testkern_w3_type(a,f1,f2,m1,m2) &
+          )
+
+end program single_invoke_annexed
