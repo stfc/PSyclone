@@ -1,4 +1,8 @@
 
+        1) #91 and PR #111 Remove unnecessary __init__.py files.
+
+release 1.5.1 3rd December 2017
+
 	1) #53 and PR #88 Add a version file so that PSyclone does not
 	need to be installed to generate documentation.
 
@@ -15,7 +19,11 @@
         5) #50 and PR #78 Implement a redundant-computation transformation.
         This enables a user to request that a kernel (or kernels) is
         computed out into the halo region and any affected halo swaps
-        be updated (and/or removed) as required. 
+        be updated (and/or removed) as required.
+
+        6) #103 and PR #104. Bug fix to ensure that a halo swap is not
+        inserted if read annexed dofs are already clean due to a previous
+	write to the L1 halo.
 
 release 1.5.0 3rd October 2017
 

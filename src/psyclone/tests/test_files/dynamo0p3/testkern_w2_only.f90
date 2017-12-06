@@ -30,20 +30,27 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 module testkern_w2_only
+  use argument_mod
+  use kernel_mod
+  use constants_mod
   type, extends(kernel_type) :: testkern_w2_only_type
      type(arg_type), dimension(2) :: meta_args =  (/  &
              arg_type(gh_field,gh_write,w2), &
              arg_type(gh_field,gh_read, w2)  &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
+     procedure, nopass :: code => testkern_code_w2_only
   end type testkern_w2_only_type
 contains
 
-  subroutine testkern_code()
-  end subroutine testkern_code
+  subroutine testkern_code_w2_only(nlayers, fld1, fld2, ndf_w2, undf_w2, map_w2)
+    integer :: nlayers
+    real(kind=r_def), dimension(:) :: fld1, fld2
+    integer :: ndf_w2, undf_w2
+    integer, dimension(:) :: map_w2
+  end subroutine testkern_code_w2_only
 end module testkern_w2_only

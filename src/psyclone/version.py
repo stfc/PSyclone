@@ -38,7 +38,7 @@
 
 __MAJOR__ = 1
 __MINOR__ = 5
-__MICRO__ = 0
+__MICRO__ = 1
 
 __SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)
 __VERSION__ = "{0:d}.{1:d}.{2:d}".format(__MAJOR__, __MINOR__, __MICRO__)
