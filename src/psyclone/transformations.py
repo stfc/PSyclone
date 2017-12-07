@@ -1238,7 +1238,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :raises GenerationError: if this transformation is applied
         when distributed memory is not switched on
         :raises GenerationError: if the loop does not iterate over
-        cells or dofs
+        cells, dofs or colour
         :raises GenerationError: if the transformation is setting the
         loop to the maximum halo depth but the loop already computes
         to the maximum halo depth
@@ -1324,7 +1324,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "but found '{0}'".format(node.loop_type))
 
         if depth is None:
-            if node.upper_bound_name in ["cell_halo", "dof_halo"]:
+            if node.upper_bound_name in ["cell_halo", "dof_halo",
+                                         "colour_halo"]:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -1351,16 +1352,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
-            # TBD CHECK FOR colour and continuous here too, but there
-            # is no valid field. Is this an error?
-            if node.loop_type == "" and depth == 1 and \
-               not node.field.discontinuous:
-                raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation "
-                    "apply method the supplied depth must be greater than "
-                    "1 as this loop modifies a continuous field")
-
-            if node.upper_bound_name in ["cell_halo", "dof_halo"]:
+            if node.upper_bound_name in ["cell_halo", "dof_halo",
+                                         "colour_halo"]:
                 if node.upper_bound_halo_depth:
                     if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(

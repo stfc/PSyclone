@@ -3981,9 +3981,11 @@ class DynLoop(Loop):
         Loop.gen_code(self, parent)
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+
             # Set halo clean/dirty for all fields that are modified
             from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
+
             if fields:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
@@ -4024,13 +4026,16 @@ class DynLoop(Loop):
                                                "%set_dirty()"))
                 # now set appropriate parts of the halo clean where
                 # redundant computation has been performed
-                if self._upper_bound_name in ["cell_halo", "dof_halo"]:
+                if self._upper_bound_name in ["cell_halo", "dof_halo",
+                                              "ncolours"]:
                     for field in fields:
-                        if self._upper_bound_halo_depth:
+                        loop = field.call.parent
+                        if loop._upper_bound_halo_depth:
                             # halo exchange(s) is/are to a fixed depth
-                            halo_depth = self._upper_bound_halo_depth
+                            halo_depth = loop._upper_bound_halo_depth
                             if not field.discontinuous and \
-                               self._upper_bound_name == "cell_halo":
+                               loop._upper_bound_name in ["cell_halo",
+                                                          "colour_halo"]:
                                 halo_depth -= 1
                             if halo_depth > 0:
                                 if field.vector_size > 1:
@@ -4056,7 +4061,7 @@ class DynLoop(Loop):
                             # halo exchange(s) is/are to the full halo
                             # depth (-1 if continuous)
                             halo_depth = "mesh%get_last_halo_depth()"
-                            if self._upper_bound_name == "cell_halo" and not \
+                            if loop._upper_bound_name == "cell_halo" and not \
                                field.discontinuous:
                                 # a continuous field iterating over
                                 # cells leaves the outermost halo

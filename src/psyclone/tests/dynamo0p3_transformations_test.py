@@ -3818,24 +3818,6 @@ def test_rc_invalid_depth():  # pylint: disable=invalid-name
             "the supplied depth is less than 1") in str(excinfo)
 
 
-def test_rc_invalid_depth_continuous():  # pylint: disable=invalid-name
-    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
-    supplied depth equals 1 when modifying a continuous field '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[3]
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(loop, depth=1)
-    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the supplied depth must be greater than 1 as this loop modifies "
-            "a continuous field") in str(excinfo)
-
-
 def test_rc_continuous_depth():  # pylint: disable=invalid-name
     '''Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
@@ -5157,8 +5139,51 @@ def test_rc_unsupported_loop_type(monkeypatch):
     assert ("Unsupported loop_type 'invalid' found" in str(excinfo.value))
 
 
-@pytest.mark.xfail(reason="work in progress")
-def test_rc_colour():
+def test_rc_colour_no_loop_decrease():  # pylint: disable=invalid-name
+    '''Test that we raise an exception if we try to reduce the size of a
+    loop halo depth when using the redundant computation transformation. This is
+    not allowed partly for simplicity but also because, in the current
+    implementation we might not decrease the size of the relevant halo
+    exchange as these can only be increased with the current logic'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+    
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # first set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[3].children[0]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to the level 1 halo
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=1)
+    assert ("supplied depth (1) must be greater than the existing halo depth "
+            "(2)") in str(excinfo)
+    # second set our loop to redundantly compute to the maximum halo depth
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to a fixed value
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=2)
+    assert ("loop is already set to the maximum halo depth so can't be "
+            "set to a fixed value") in str(excinfo)
+    # now try to set the redundant computation to the same (max) value
+    # it is now
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop)
+    assert ("loop is already set to the maximum halo depth so this "
+            "transformation does nothing") in str(excinfo)
+
+
+def test_rc_colour(tmpdir, f90, f90flags):
     '''Test that we can redundantly compute over a colour in a coloured loop'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
@@ -5174,7 +5199,37 @@ def test_rc_colour():
     # create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # apply redundant computation to the colour loop
-    rc_trans.apply(cschedule.children[3].children[0], depth=1)
+    rc_trans.apply(cschedule.children[3].children[0], depth=2)
 
-    schedule.view()
-    # don't forget to compile the output of this
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=2)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=2)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=2)\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,2)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+# test same as above but when all of the halo is written to
+# colour and redundantly compute discontinuous?
