@@ -6963,3 +6963,28 @@ def test_halo_req_no_read_deps(monkeypatch):  # pylint: disable=invalid-name
         _, _ = halo_exchange.required()
     assert ("Internal logic error. There should be at least one read "
             "dependence for a halo exchange" in str(excinfo.value))
+
+
+def test_no_halo_exchange_annex_dofs(  # pylint: disable=invalid-name
+        tmpdir, f90, f90flags):
+    '''If a kernel writes to a discontinuous field and also reads from a
+    continuous field then that fields annexed dofs are read (but not
+    the rest of its level1 halo). If the previous modification of this
+    continuous field makes the annexed dofs valid then no halo
+    exchange is required. This is the case when the previous loop
+    iterates over cells as it computes into the l1 halo by default
+    precisely in order to ensure that the annexed dofs are correct for
+    subsequent reading (whilst the rest of the l1 halo ends up being
+    dirty).
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert "CALL f1_proxy%halo_exchange" in result
+    assert "CALL f2_proxy%halo_exchange" not in result
