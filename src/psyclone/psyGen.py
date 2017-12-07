@@ -415,7 +415,8 @@ class Invoke(object):
     ''' Manage an individual invoke call '''
 
     def __str__(self):
-        return self._name+"("+", ".join(map(lambda x:str(x), self._alg_unique_args))+")"
+        return self._name+"("+", ".join([str(arg) for arg in
+                                         self._alg_unique_args])
 
     def __init__(self, alg_invocation, idx, schedule_class,
                  reserved_names=None):

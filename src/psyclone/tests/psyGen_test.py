@@ -446,16 +446,11 @@ def test_reset():
 # tests for class Call
 
 
-def test_invokes_can_always_be_printed():
+def test_invokes_can_always_be_printed():  # pylint: disable=invalid-name
     '''Test that an Invoke instance can always be printed (i.e. is
     initialised fully)'''
     inv = Invoke(None, None, None)
     assert inv.__str__() == "invoke()"
-
-
-def test_invokes_can_always_be_printed2():
-    '''Test that an Invoke instance can always be printed (i.e. is
-    initialised fully) 2'''
 
     invoke_call = InvokeCall([], "TestName")
     inv = Invoke(invoke_call, 12, DynSchedule)
@@ -475,7 +470,8 @@ def test_invokes_can_always_be_printed2():
 
     alg_invocation = invoke.calls.values()[0]
     inv = Invoke(alg_invocation, 0, DynSchedule)
-    assert inv.__str__() == "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
+    assert inv.__str__() == \
+        "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
 
 
 def test_same_name_invalid():
