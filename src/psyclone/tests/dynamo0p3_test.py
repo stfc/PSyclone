@@ -2648,15 +2648,6 @@ def test_stub_file_content_not_fortran():  # pylint: disable=invalid-name
         in str(excinfo.value)
 
 
-def test_stub_file_content_not_module():  # pylint: disable=invalid-name
-    ''' fail if the kernel file does not contain a module '''
-    with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "8_vector_field.f90"),
-                 api="dynamo0.3")
-    assert 'the file does not contain a module. Is it a Kernel file?' \
-        in str(excinfo.value)
-
-
 def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
