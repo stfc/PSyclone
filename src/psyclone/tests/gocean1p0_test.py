@@ -781,6 +781,7 @@ def test_offset_any_all_points():
 
 def test_goschedule_view(capsys):
     ''' Test that the GOSchedule::view() method works as expected '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -795,16 +796,24 @@ def test_goschedule_view(capsys):
     # by default. We have to query this captured output.
     out, _ = capsys.readouterr()
 
+    # Ensure we check for the correct (colour) control codes in the output
+    sched = colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
+
     expected_output = (
-        "GOSchedule[invoke='invoke_0',Constant loop bounds=True]\n"
-        "    Loop[type='outer',field_space='cu',it_space='internal_pts']\n"
-        "        Loop[type='inner',field_space='cu',it_space='internal_pts']\n"
-        "            KernCall compute_cu_code(cu_fld,p_fld,u_fld) "
-        "[module_inline=False]\n"
-        "    Loop[type='outer',field_space='every',it_space='internal_pts']\n"
-        "        Loop[type='inner',field_space='every',"
+        sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
+        "    " + loop + "[type='outer',field_space='cu',"
         "it_space='internal_pts']\n"
-        "            KernCall time_smooth_code(u_fld,unew_fld,uold_fld) "
+        "        " + loop + "[type='inner',field_space='cu',"
+        "it_space='internal_pts']\n"
+        "            " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
+        "[module_inline=False]\n"
+        "    " + loop + "[type='outer',field_space='every',"
+        "it_space='internal_pts']\n"
+        "        " + loop + "[type='inner',field_space='every',"
+        "it_space='internal_pts']\n"
+        "            " + call + " time_smooth_code(u_fld,unew_fld,uold_fld) "
         "[module_inline=False]")
 
     assert expected_output in out

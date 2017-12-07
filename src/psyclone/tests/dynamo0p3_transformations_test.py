@@ -1,10 +1,38 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
@@ -19,7 +47,8 @@ from psyclone.transformations import TransformationError, \
     DynamoOMPParallelLoopTrans, \
     DynamoLoopFuseTrans, \
     KernelModuleInlineTrans, \
-    MoveTrans
+    MoveTrans, \
+    Dynamo0p3RedundantComputationTrans
 
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
@@ -130,7 +159,7 @@ def test_colour_trans():
             dirty_str = (
                 "      end do \n"
                 "      !\n"
-                "      ! set halos dirty for fields modified in the "
+                "      ! set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      call f1_proxy%set_dirty()\n")
@@ -284,7 +313,7 @@ def test_no_colour_dofs():
     cells. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "15_single_pointwise_invoke.f90"),
+                                 "15.12.3_single_pointwise_builtin.f90"),
                     api=TEST_API)
     ctrans = Dynamo0p3ColourTrans()
     for dist_mem in [False, True]:
@@ -456,7 +485,7 @@ def test_omp_colour_orient_trans():
         assert "private(cell,orientation_w2)" in code
 
 
-def test_omp_parallel_colouring_needed():
+def test_omp_parallel_colouring_needed():  # pylint: disable=invalid-name
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
@@ -482,7 +511,7 @@ def test_omp_parallel_colouring_needed():
         assert "Colouring is required" in str(excinfo.value)
 
 
-def test_omp_colouring_needed():
+def test_omp_colouring_needed():  # pylint: disable=invalid-name
     '''Test that we raise an error when applying an OpenMP DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
@@ -509,7 +538,7 @@ def test_omp_colouring_needed():
         assert "Colouring is required" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_parallel_do():
+def test_check_seq_colours_omp_parallel_do():  # pylint: disable=invalid-name
     '''Test that we raise an error if the user attempts to apply an OpenMP
     PARALLEL DO transformation to a loop over colours (since any such
     loop must be sequential). We test when distributed memory is on or
@@ -626,11 +655,6 @@ def test_colouring_multi_kernel():
         mtrans = MoveTrans()
 
         if dist_mem:
-            # We have halo exchanges inbetween the two loops which we
-            # are going to get rid of for simplicity. Fields b, d and
-            # the 3e's are already covered before the first loop so
-            # can be removed
-            del schedule.children[8:13]
             # f is required but can be moved before the first loop
             schedule, _ = mtrans.apply(schedule.children[7],
                                        schedule.children[6])
@@ -718,7 +742,7 @@ def test_omp_region_omp_do():
         assert (omp_enddo_idx - cell_end_loop_idx) == 1
 
 
-def test_multi_kernel_single_omp_region():
+def test_multi_kernel_single_omp_region():  # pylint: disable=invalid-name
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
     within a single OMP region'''
@@ -732,11 +756,6 @@ def test_multi_kernel_single_omp_region():
         schedule = invoke.schedule
 
         if dist_mem:
-            # We have halo exchanges inbetween the two loops which we
-            # are going to get rid of for simplicity. Fields f2, m1 and m2
-            # are already covered before the first loop so
-            # can be removed
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -801,7 +820,7 @@ def test_multi_different_kernel_omp():
 
         if dist_mem:
             index1 = 6
-            index2 = 10
+            index2 = 9
         else:
             index1 = 0
             index2 = 1
@@ -840,10 +859,6 @@ def test_loop_fuse_different_spaces():
             ftrans = DynamoLoopFuseTrans()
             mtrans = MoveTrans()
             if dist_mem:
-                # b halo exchange between loops can be removed as access
-                # in both loops is read and it is already covered by the
-                # first loop
-                del schedule.children[7]
                 # c and g halo exchange between loops can be moved before
                 # 1st loop as they are not accessed in first loop
                 schedule, _ = mtrans.apply(schedule.children[7],
@@ -884,10 +899,6 @@ def test_loop_fuse_unexpected_error():
         schedule = invoke.schedule
 
         if dist_mem:
-            # remove unecessary halos between loops. At the moment we have no
-            # intra halo analysis so we add them before all loops just in
-            # case.
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -915,10 +926,6 @@ def test_loop_fuse():
         schedule = invoke.schedule
 
         if dist_mem:
-            # remove unecessary halos between loops. At the moment we have no
-            # intra halo analysis so we add them before all loops just in
-            # case.
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -967,12 +974,6 @@ def test_loop_fuse_set_dirty():
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
-    schedule.view()
-    # remove unecessary halos between loops. At the moment we have no
-    # intra halo analysis so we add them before all loops just in
-    # case.
-    del schedule.children[4:7]
-    schedule.view()
     # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[3],
                                schedule.children[4])
@@ -995,10 +996,6 @@ def test_loop_fuse_omp():
         schedule = invoke.schedule
 
         if dist_mem:
-            # remove unecessary halos between loops. At the moment we have no
-            # intra halo analysis so we add them before all loops just in
-            # case.
-            del schedule.children[4:7]
             index = 3
         else:
             index = 0
@@ -1068,11 +1065,6 @@ def test_fuse_colour_loops():
         mtrans = MoveTrans()
 
         if dist_mem:
-            # We have halo exchanges inbetween the two loops which we
-            # are going to get rid of for simplicity. Fields b, d and
-            # the 3e's are already covered before the first loop so
-            # can be removed
-            del schedule.children[8:13]
             # f is required but can be moved before the first loop
             schedule, _ = mtrans.apply(schedule.children[7],
                                        schedule.children[6])
@@ -1149,8 +1141,8 @@ def test_fuse_colour_loops():
 
         if dist_mem:
             set_dirty_str = (
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL a_proxy%set_dirty()\n"
                 "      CALL f_proxy%set_dirty()\n")
@@ -1166,17 +1158,19 @@ def test_loop_fuse_cma():
                                  "20.6_multi_invoke_with_cma.f90"),
                     api=TEST_API)
     ftrans = DynamoLoopFuseTrans()
+    mtrans = MoveTrans()
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
         if dist_mem:
-            # We have halo-swaps between the two loops but these can
-            # all be moved before the first loop since the first
-            # kernel doesn't look at the corresponding fields
-            schedule.children.insert(1, schedule.children.pop(2))
-            schedule.children.insert(2, schedule.children.pop(3))
-            schedule.children.insert(3, schedule.children.pop(4))
+            # move halo exchanges before the first loop
+            schedule, _ = mtrans.apply(schedule.children[2],
+                                       schedule.children[1])
+            schedule, _ = mtrans.apply(schedule.children[3],
+                                       schedule.children[2])
+            schedule, _ = mtrans.apply(schedule.children[4],
+                                       schedule.children[3])
             index = 4
         else:
             index = 0
@@ -1223,7 +1217,7 @@ def test_loop_fuse_cma():
             "map_w3(:,cell))\n") in code
 
 
-def test_omp_parallel_and_halo_exchange_error():
+def test_omp_par_and_halo_exchange_error():  # pylint: disable=invalid-name
     '''Tests that we raise an error if we try to apply an omp parallel
     transformation to a list containing halo_exchange calls. If this is
     allowed then it is likely that we will get incorrect results, or that
@@ -1241,7 +1235,7 @@ def test_omp_parallel_and_halo_exchange_error():
 
     # Apply OpenMP to each of the loops
     schedule, _ = otrans.apply(schedule.children[3])
-    schedule, _ = otrans.apply(schedule.children[7])
+    schedule, _ = otrans.apply(schedule.children[4])
 
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
@@ -1263,8 +1257,7 @@ def test_module_inline():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
         if dist_mem:
-            schedule.view()
-            index = 13
+            index = 8
         else:
             index = 1
         kern_call = schedule.children[index].children[0]
@@ -1277,12 +1270,12 @@ def test_module_inline():
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_builtin_single_OpenMP_pdo():
+def test_builtin_single_OpenMP_pdo():  # pylint: disable=invalid-name
     '''Test that we generate correct code if an OpenMP parallel do is
     applied to a single builtin'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.2.0_copy_field_builtin.f90"),
+                                     "15.7.2_setval_X_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1302,8 +1295,8 @@ def test_builtin_single_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()") in result
 
@@ -1311,18 +1304,18 @@ def test_builtin_single_OpenMP_pdo():
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do") in result
 
 
-def test_builtin_multiple_OpenMP_pdo():
+def test_builtin_multiple_OpenMP_pdo():  # pylint: disable=invalid-name
     '''Test that we generate correct code if OpenMP parallel do's are
     applied to multiple builtins'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1343,7 +1336,7 @@ def test_builtin_multiple_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1355,7 +1348,7 @@ def test_builtin_multiple_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
@@ -1367,7 +1360,7 @@ def test_builtin_multiple_OpenMP_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()") in result
@@ -1399,7 +1392,7 @@ def test_builtin_loop_fuse_pdo():
     is safe to loop fuse. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1426,7 +1419,7 @@ def test_builtin_loop_fuse_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1444,12 +1437,12 @@ def test_builtin_loop_fuse_pdo():
                 "      !$omp end parallel do") in result
 
 
-def test_builtin_single_OpenMP_do():
+def test_builtin_single_OpenMP_do():  # pylint: disable=invalid-name
     '''Test that we generate correct code if an OpenMP do (with an outer
     OpenMP parallel) is applied to a single builtin '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.2.0_copy_field_builtin.f90"),
+                                     "15.7.2_setval_X_builtin.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1474,7 +1467,7 @@ def test_builtin_single_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1486,19 +1479,19 @@ def test_builtin_single_OpenMP_do():
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_f1\n"
+                "      DO df=1,undf_any_space_1_f2\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in result
 
 
-def test_builtin_multiple_OpenMP_do():
+def test_builtin_multiple_OpenMP_do():  # pylint: disable=invalid-name
     '''Test that we generate correct code if OpenMP do's are
     applied to multiple builtins'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1524,7 +1517,7 @@ def test_builtin_multiple_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1537,7 +1530,7 @@ def test_builtin_multiple_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1550,7 +1543,7 @@ def test_builtin_multiple_OpenMP_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1585,7 +1578,7 @@ def test_builtin_loop_fuse_do():
     perform loop fusion. '''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -1617,7 +1610,7 @@ def test_builtin_loop_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -1646,7 +1639,7 @@ def test_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1686,7 +1679,7 @@ def test_reduction_real_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1730,7 +1723,7 @@ def test_multi_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.11.0_two_same_builtin_reductions.f90"),
+                         "15.15.1_two_same_builtin_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -1796,11 +1789,11 @@ def test_multi_reduction_real_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-def test_reduction_after_normal_real_do():
+def test_reduction_after_normal_real_do():  # pylint: disable=invalid-name
     '''test that we produce correct code when we have a reduction after
     a "normal" builtin and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls'''
-    file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
+    file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -1836,8 +1829,8 @@ def test_reduction_after_normal_real_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1872,12 +1865,11 @@ def test_reduction_after_normal_real_do():
         assert expected_output in result
 
 
-def test_reprod_reduction_after_normal_real_do():
+def test_reprod_red_after_normal_real_do():  # pylint: disable=invalid-name
     '''test that we produce correct code when we have a reproducible
     reduction after a "normal" builtin and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls'''
-
-    file_name = "15.14.0_two_builtins_standard_then_reduction.f90"
+    file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -1916,8 +1908,8 @@ def test_reprod_reduction_after_normal_real_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -1976,7 +1968,7 @@ def test_two_reductions_real_do():
     builtin with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
     single parallel region over all calls '''
-    file_name = "15.12.0_two_different_builtin_reductions.f90"
+    file_name = "15.16.1_two_different_builtin_reductions.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -2050,12 +2042,12 @@ def test_two_reductions_real_do():
         assert expected_output in result
 
 
-def test_two_reprod_reductions_real_do():
+def test_two_reprod_reductions_real_do():  # pylint: disable=invalid-name
     '''test that we produce correct code when we have more than one
     builtin with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls'''
-    file_name = "15.12.0_two_different_builtin_reductions.f90"
+    file_name = "15.16.1_two_different_builtin_reductions.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -2165,11 +2157,11 @@ def test_two_reprod_reductions_real_do():
         assert expected_output in result
 
 
-def test_multi_reduction_same_name_real_do():
+def test_multi_reduction_same_name_real_do():  # pylint: disable=invalid-name
     '''test that we raise an exception when we have multiple reductions in
     an invoke with the same name as this is not supported (it would
     cause incorrect code to be created in certain cases). '''
-    file_name = "15.11.0_two_same_builtin_reductions.f90"
+    file_name = "15.15.1_two_same_builtin_reductions.f90"
     for reprod in [True, False]:
         for distmem in [False, True]:
             _, invoke_info = parse(
@@ -2207,8 +2199,8 @@ def test_multi_reduction_real_fuse():
     '''test that we raise an exception when we loop fuse two kernels with
     reductions. We need to specify that the loop-fuse is valid in terms of
     iteration spaces.'''
-    for file_name in ["15.11.0_two_same_builtin_reductions.f90",
-                      "15.12.0_two_different_builtin_reductions.f90"]:
+    for file_name in ["15.15.1_two_same_builtin_reductions.f90",
+                      "15.16.1_two_different_builtin_reductions.f90"]:
 
         for distmem in [False, True]:
             _, invoke_info = parse(
@@ -2236,13 +2228,13 @@ def test_multi_reduction_real_fuse():
                 "reduction") in str(excinfo.value)
 
 
-def test_multi_different_reduction_real_pdo():
+def test_multi_different_reduction_real_pdo():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP parallel do reduction for
-    two different builtins. We use inner product and sum_field'''
+    two different builtins. We use inner product and sum_X'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.12.0_two_different_builtin_reductions.f90"),
+                         "15.16.1_two_different_builtin_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2310,13 +2302,13 @@ def test_multi_different_reduction_real_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_reduction_then_standard_pdo():
+def test_multi_builtins_red_then_pdo():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins, first a reduction then not'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2348,15 +2340,15 @@ def test_multi_builtins_reduction_then_standard_pdo():
                 "      asum = global_sum%get_sum()\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
-                "      CALL bsum_proxy%set_dirty()\n") in code
+                "      CALL f1_proxy%set_dirty()\n") in code
         else:
             assert (
                 "      ! Zero summation variables\n"
@@ -2371,19 +2363,19 @@ def test_multi_builtins_reduction_then_standard_pdo():
                 "      !$omp end parallel do\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bsum\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_reduction_then_standard_do():
+def test_multi_builtins_red_then_do():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP do reduction for
     two different builtins, first a reduction then not'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2419,16 +2411,16 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -2447,14 +2439,14 @@ def test_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bsum\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
 
 
-def test_multi_builtins_reduction_then_standard_fuse_pdo():
+def test_multi_builtins_red_then_fuse_pdo():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a reduction then not. We
     need to specify that the fused loops are on the same iteration
@@ -2462,7 +2454,7 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2492,14 +2484,14 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n") in code
@@ -2513,12 +2505,12 @@ def test_multi_builtins_reduction_then_standard_fuse_pdo():
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_reduction_then_standard_fuse_do():
+def test_multi_builtins_red_then_fuse_do():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP do reduction for
     two different loop-fused builtins, first a reduction then not. We
     need to specify that the fused loops are on the same iteration
@@ -2526,7 +2518,7 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2556,15 +2548,15 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -2578,19 +2570,19 @@ def test_multi_builtins_reduction_then_standard_fuse_do():
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n") in code
 
 
-def test_multi_builtins_standard_then_reduction_pdo():
+def test_multi_builtins_usual_then_red_pdo():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins, first a standard builtin then a reduction'''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2615,8 +2607,8 @@ def test_multi_builtins_standard_then_reduction_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
@@ -2654,7 +2646,7 @@ def test_multi_builtins_standard_then_reduction_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_standard_then_reduction_fuse_pdo():
+def test_builtins_usual_then_red_fuse_pdo():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -2662,7 +2654,7 @@ def test_multi_builtins_standard_then_reduction_fuse_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2691,8 +2683,8 @@ def test_multi_builtins_standard_then_reduction_fuse_pdo():
                 "      END DO \n"
                 "      !$omp end parallel do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
@@ -2713,7 +2705,7 @@ def test_multi_builtins_standard_then_reduction_fuse_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_standard_then_reduction_fuse_do():
+def test_builtins_usual_then_red_fuse_do():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -2721,7 +2713,7 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2750,8 +2742,8 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
                 "      CALL f1_proxy%set_dirty()\n"
@@ -2778,7 +2770,7 @@ def test_multi_builtins_standard_then_reduction_fuse_do():
 # examples in either case
 
 
-def test_multi_builtins_fuse_error():
+def test_multi_builtins_fuse_error():  # pylint: disable=invalid-name
     '''test that we raise an exception when we try to loop fuse a
     reduction with another builtin that uses the value of the
     reduction as it will give us incorrect results. Only required for
@@ -2788,7 +2780,7 @@ def test_multi_builtins_fuse_error():
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.15.0_builtins_reduction_fuse_error.f90"),
+                     "15.18.1_builtins_reduction_fuse_error.f90"),
         distributed_memory=False,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
@@ -2811,7 +2803,7 @@ def test_loop_fuse_error():
     the loops has an any_space iteration space'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
-                                     "15.0.2_multiple_set_kernels.f90"),
+                                     "15.14.2_multiple_set_kernels.f90"),
                         api=TEST_API, distributed_memory=dist_mem)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
@@ -2833,7 +2825,7 @@ def test_reprod_reduction_real_pdo():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2855,7 +2847,7 @@ def test_reprod_reduction_real_do():
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2935,13 +2927,13 @@ def test_reprod_reduction_real_do():
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_no_global_sum_in_parallel_region():
+def test_no_global_sum_in_parallel_region():  # pylint: disable=invalid-name
     '''test that we raise an error if we try to put a parallel region
     around loops with a global sum'''
     for distmem in [True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -2964,14 +2956,14 @@ def test_no_global_sum_in_parallel_region():
             "containing children of different types") in str(excinfo.value)
 
 
-def test_reprod_multi_builtins_reduction_then_standard_do():
+def test_reprod_builtins_red_then_usual_do():  # pylint: disable=invalid-name
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different builtins, first a reduction then not when we
     have reprod set to True '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3023,16 +3015,16 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,bsum_proxy%vspace%get_last_dof_owned()\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the above "
-                "loop\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -3060,8 +3052,8 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,undf_any_space_1_bsum\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -3074,7 +3066,7 @@ def test_reprod_multi_builtins_reduction_then_standard_do():
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
+def test_repr_bltins_red_then_usual_fuse_do():  # pylint: disable=invalid-name
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different loop-fused builtins, first a reduction then
     not. We need to specify that the fused loops are on the same
@@ -3082,7 +3074,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.13.0_two_builtins_reduction_then_standard.f90"),
+                         "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3130,15 +3122,15 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
-                "      CALL bsum_proxy%set_dirty()\n"
+                "      CALL f1_proxy%set_dirty()\n"
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp end parallel\n"
@@ -3163,7 +3155,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
-                "        bsum_proxy%data(df) = f1*bsum_proxy%data(df)\n"
+                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
@@ -3176,7 +3168,7 @@ def test_reprod_multi_builtins_reduction_then_standard_fuse_do():
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
+def test_repr_bltins_usual_then_red_fuse_do():  # pylint: disable=invalid-name
     '''test that we generate a correct OpenMP do reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -3184,7 +3176,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.14.0_two_builtins_standard_then_reduction.f90"),
+                         "15.17.2_one_standard_builtin_one_reduction.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3218,7 +3210,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !\n"
-                "      ! Set halos dirty for fields modified in the "
+                "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
                 "      !$omp master\n"
@@ -3260,7 +3252,7 @@ def test_reprod_multi_builtins_standard_then_reduction_fuse_do():
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_reprod_three_builtins_two_reductions_do():
+def test_repr_3_builtins_2_reductions_do():  # pylint: disable=invalid-name
     '''test that we generate correct reproducible OpenMP do reductions
     when we have three different builtins, first a reduction, then a
     normal builtin then a reduction. '''
@@ -3269,7 +3261,7 @@ def test_reprod_three_builtins_two_reductions_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.16.0_three_builtins_two_reductions.f90"),
+                         "15.19.1_three_builtins_two_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3358,11 +3350,19 @@ def test_reprod_three_builtins_two_reductions_do():
 def test_reprod_view(capsys):
     '''test that we generate a correct view() for OpenMP do reductions '''
     from psyclone.dynamo0p3 import DynLoop
-    from psyclone.psyGen import OMPDoDirective
+    from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
+
+    # Ensure we check to text containing the correct (colour) control codes
+    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
+    gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
+    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
+    call = colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.16.0_three_builtins_two_reductions.f90"),
+                         "15.19.1_three_builtins_two_reductions.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3383,48 +3383,54 @@ def test_reprod_view(capsys):
         result, _ = capsys.readouterr()
         if distmem:
             expected = (
-                "Schedule[invoke='invoke_0' dm=True]\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call inner_product(f1,f2,asum)\n"
-                "    GlobalSum[scalar='asum']\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call scale_field(f1,asum)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call sum_field(f2,bsum)\n"
-                "    GlobalSum[scalar='bsum']\n")
+                sched + "[invoke='invoke_0' dm=True]\n"
+                "    " + directive+"[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
+                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+                "    " + gsum + "[scalar='asum']\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
+                "                " + call + " inc_a_times_x(asum,f1)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
+                "                " + call + " sum_x(bsum,f2)\n"
+                "    " + gsum + "[scalar='bsum']\n")
         else:
             expected = (
-                "Schedule[invoke='invoke_0' dm=False]\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call inner_product(f1,f2,asum)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call scale_field(f1,asum)\n"
-                "    Directive[OMP parallel]\n"
-                "        Directive[OMP do][reprod=True]\n"
-                "            Loop[type='dofs',field_space='any_space_1',"
-                "it_space='dofs']\n"
-                "                Call sum_field(f2,bsum)\n")
-
-        print "Expected ..."
-        print expected
-        print "Found ..."
-        print result
-        assert expected in result
+                sched + "[invoke='invoke_0' dm=False]\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
+                "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
+                "                " + call + " inc_a_times_x(asum,f1)\n"
+                "    " + directive + "[OMP parallel]\n"
+                "        " + directive + "[OMP do][reprod=True]\n"
+                "            " + loop + "[type='dofs',"
+                "field_space='any_space_1',it_space='dofs', "
+                "upper_bound='ndofs']\n"
+                "                " + call + " sum_x(bsum,f2)\n")
+        if expected not in result:
+            print "Expected ..."
+            print expected
+            print "Found ..."
+            print result
+            assert 0
 
 
 def test_reductions_reprod():
@@ -3434,7 +3440,7 @@ def test_reductions_reprod():
         for distmem in [True, False]:
             _, invoke_info = parse(
                 os.path.join(BASE_PATH,
-                             "15.9.0_inner_prod_builtin.f90"),
+                             "15.9.1_X_innerproduct_Y_builtin.f90"),
                 distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory("dynamo0.3",
@@ -3451,9 +3457,9 @@ def test_reductions_reprod():
             assert len(schedule.reductions(reprod=reprod)) == 1
             assert len(schedule.reductions(reprod=not reprod)) == 0
             assert len(schedule.reductions()) == 1
-            from psyclone.dynamo0p3_builtins import DynInnerProductKern
+            from psyclone.dynamo0p3_builtins import DynXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               DynInnerProductKern))
+                               DynXInnerproductYKern))
 
 
 def test_list_multiple_reductions():
@@ -3465,7 +3471,7 @@ def test_list_multiple_reductions():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "15.9.0_inner_prod_builtin.f90"),
+                         "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
@@ -3481,11 +3487,11 @@ def test_list_multiple_reductions():
         invoke.schedule = schedule
         omp_loop_directive = schedule.children[0].children[0]
         call = omp_loop_directive.children[0].children[0]
-        arg = call.arguments.args[1]
+        arg = call.arguments.args[2]
         arg._type = "gh_real"
         arg.descriptor._access = "gh_sum"
         result = omp_loop_directive._reduction_string()
-        assert ", reduction(+:f2), reduction(+:asum)" in result
+        assert ", reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():
@@ -3522,7 +3528,7 @@ def test_move_back():
     '''Test that MoveTrans moves the node backwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3545,7 +3551,7 @@ def test_move_back_after():
     '''Test that MoveTrans moves the node backwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3569,7 +3575,7 @@ def test_move_forward():
     '''Test that MoveTrans moves the node forwards to the expected
     location'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3594,7 +3600,7 @@ def test_move_forward_after():
     '''Test that MoveTrans moves the node forwards to the expected
     location when location="after" '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "15.0.2_multiple_set_kernels.f90"),
+                                 "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3620,7 +3626,8 @@ def test_move_forward_after():
 def test_move_fail():
     '''Test that MoveTrans fails to move the node backwards and forwards
     if there is a dependence. '''
-    _, info = parse(os.path.join(BASE_PATH, "15.3.4_multi_axpy_invoke.f90"),
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.14.1_multi_aX_plus_Y_builtin.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3639,3 +3646,1243 @@ def test_move_fail():
         move_trans.apply(schedule.children[initial_index],
                          schedule.children[target_index])
     assert "data dependencies forbid the move" in str(excinfo.value)
+
+
+def test_rc_str():
+    '''Test the str method and name property of the
+    Dynamo0p3RedundantComputationTrans class'''
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_name = str(rc_trans)
+    assert rc_name == "Change iteration space to perform redundant computation"
+    name = rc_trans.name
+    assert name == "RedundantComputation"
+
+
+def test_rc_node_not_loop():  # pylint: disable=invalid-name
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    node argument is not a loop'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[0])
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+            "the first argument is not a Loop") in str(excinfo)
+
+
+def test_rc_invalid_loop(monkeypatch):  # pylint: disable=invalid-name
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    supplied loop does not iterate over cells or dofs'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    # set the loop to a type that should raise an exception
+    monkeypatch.setattr(loop, "loop_type", value="colours")
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("In the Dynamo0p3RedundantComputation transformation apply "
+            "method the loop must iterate over cells or dofs, but "
+            "found 'colours'") in str(excinfo)
+
+
+def test_rc_nodm():
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if
+    distributed memory is not set'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+            "distributed memory must be switched on") in str(excinfo)
+
+
+def test_rc_invalid_depth():  # pylint: disable=invalid-name
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    supplied depth is less than 1 '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, depth=0)
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+            "the supplied depth is less than 1") in str(excinfo)
+
+
+def test_rc_invalid_depth_continuous():  # pylint: disable=invalid-name
+    '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
+    supplied depth equals 1 when modifying a continuous field '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, depth=1)
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+            "the supplied depth must be greater than 1 as this loop modifies "
+            "a continuous field") in str(excinfo)
+
+
+def test_rc_continuous_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a continuous kernel (iterating over
+    cells) are modified appropriately, that set_clean() is added
+    correctly and halo_exchange modified appropriately after applying
+    the redundant computation transformation with a fixed value for
+    halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for field_name in ["f2", "m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
+                format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=3)".
+                format(field_name)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert ("      CALL f1_proxy%set_dirty()\n"
+            "      CALL f1_proxy%set_clean(2)") in result
+
+
+def test_rc_continuous_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a continuous kernel (iterating over
+    cells) are modified appropriately, that set_clean() is added
+    correctly and halo_exchange modified appropriately after applying
+    the redundant computation transformation with no value for halo
+    depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for field_name in ["f2", "m1", "m2"]:
+        assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_"
+                "depth())) THEN\n"
+                "        CALL {0}_proxy%halo_exchange(depth=mesh%"
+                "get_last_halo_depth())".format(field_name)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert ("      CALL f1_proxy%set_dirty()\n"
+            "      CALL f1_proxy%set_clean(mesh%get_last_halo_depth"
+            "()-1)") in result
+
+
+def test_rc_discontinuous_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with continuous reads are modified appropriately and
+    set_clean() added correctly and halo_exchange modified
+    appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for field_name in ["f1", "f2", "m1"]:
+        assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL {0}_proxy%halo_exchange(depth=3)".
+                format(field_name)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert ("      CALL m2_proxy%set_dirty()\n"
+            "      CALL m2_proxy%set_clean(3)") in result
+
+
+def test_rc_discontinuous_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with continuous reads are modified appropriately and
+    set_clean() added correctly and halo_exchange added/modified
+    appropriately after applying the redundant computation
+    transformation with no halo depth value'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for field_name in ["f1", "f2", "m1"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
+                "get_last_halo_depth())".format(field_name)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "CALL m2_proxy%set_dirty()" not in result
+    assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
+
+
+def test_rc_all_discontinuous_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with discontinuous reads are modified appropriately
+    and set_clean() added correctly and halo_exchange added
+    appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(3)" in result
+
+
+def test_rc_all_discontinuous_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with discontinuous reads are modified appropriately
+    and set_clean() added correctly and halo_exchange added
+    appropriately after applying the redundant computation
+    transformation with no halo depth value'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_last_halo_dep"
+            "th())") in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+
+
+def test_rc_all_discontinuous_vector_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly and halo_exchange added appropriately for vector fields
+    after applying the redundant computation transformation with a
+    fixed value for halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for idx in range(1, 4):
+        assert ("IF (f2_proxy({0})%is_dirty(depth=3)) THEN".
+                format(idx)) in result
+        assert ("CALL f2_proxy({0})%halo_exchange(depth=3)".
+                format(idx)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    for idx in range(1, 4):
+        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
+        assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
+
+
+def test_rc_all_disc_vector_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly and halo_exchange added appropriately for vector fields
+    after applying the redundant computation transformation with no
+    halo depth value'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for idx in range(1, 4):
+        assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth"
+                "())) THEN".format(idx)) in result
+        assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_last_halo"
+                "_depth())".format(idx)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    for idx in range(1, 4):
+        assert ("CALL f1_proxy({0})%set_clean(mesh%get_last_halo_"
+                "depth())".format(idx)) in result
+
+
+def test_rc_all_disc_prev_depend_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with discontinuous reads are modified appropriately
+    and set_clean() added correctly and halo_exchange added
+    appropriately in the case where the field requiring a halo
+    exchange has a previous non-halo dependence, after applying the
+    redundant computation transformation with a fixed value for halo
+    depth '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.12_multikernel_invokes_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "IF (f1_proxy%is_dirty(depth=3)) THEN" not in result
+    assert "CALL f1_proxy%halo_exchange(depth=3)" in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f3_proxy%set_dirty()" in result
+    assert "CALL f3_proxy%set_clean(3)" in result
+
+
+def test_rc_all_disc_prev_depend_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly and halo_exchange added appropriately in the case where
+    the field now requiring a halo exchange has a previous non-halo
+    dependence after applying the redundant computation transformation
+    with no halo depth value '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.12_multikernel_invokes_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") not in result
+    assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_last_halo_dept"
+            "h())") in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
+
+
+def test_rc_all_disc_prev_dep_depth_vector():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) with discontinuous reads are modified appropriately
+    and set_clean() added correctly and halo_exchange added
+    appropriately in the case where the vector field requiring a halo
+    exchange has a previous non-halo dependence, after applying the
+    redundant computation transformation with a fixed value for halo
+    depth '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for idx in range(1, 4):
+        assert ("IF (f1_proxy({0})%is_dirty(depth="
+                "3)) THEN".format(idx)) not in result
+        assert ("CALL f1_proxy({0})%halo_exchange("
+                "depth=3)".format(idx)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    for idx in range(1, 4):
+        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
+        assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
+        assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
+
+
+def test_rc_all_disc_prev_dep_no_depth_vect():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly and halo_exchange added appropriately in the case where
+    the vector field now requiring a halo exchange has a previous non-halo
+    dependence after applying the redundant computation transformation
+    with no halo depth value '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "is_dirty" not in result
+    for idx in range(1, 4):
+        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_"
+                "depth())".format(idx)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    for idx in range(1, 4):
+        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
+        assert ("CALL f3_proxy({0})%set_clean(mesh%get_last_halo_depth())".
+                format(idx)) in result
+
+
+def test_rc_dofs_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth where the halo
+    fields have no previous dependence'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_inc_X_plus_Y_builtin.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for field_name in ["f1", "f2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=3)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=3"
+                ")".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(3)" in result
+
+
+def test_rc_dofs_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with no halo depth value where the halo fields have
+    no previous dependence'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_inc_X_plus_Y_builtin.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    for field_name in ["f1", "f2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
+                "get_last_halo_depth())".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "CALL f1_proxy%set_dirty()" not in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+
+
+def test_rc_dofs_depth_prev_dep():  # pylint: disable=invalid-name
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth where the halo
+    fields have a previous (non-halo-exchange) dependence'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    # check the f1 halo exchange is added and the f2 halo exchange is
+    # modified
+    for field_name in ["f1", "f2"]:
+        assert ("CALL {0}_proxy%halo_exchange(depth=3"
+                ")".format(field_name)) in result
+    # there is no need for a run-time is_dirty check for field f1 as
+    # we know that we need a halo exchange. We know this as f1 is
+    # modified in an earlier loop which leaves all of f1's halo
+    # dirty. As we know that we need the halo to be clean to depth 3
+    # we can be certain we need a halo exchange.
+    assert ("IF (f1_proxy%is_dirty(depth=3)) "
+            "THEN") not in result
+    # there is a need for a run-time is_dirty check for field f2 as
+    # this field is not modified in this invoke and therefore its halo
+    # is in an unknown state before it is read
+    assert ("IF (f2_proxy%is_dirty(depth=3)) "
+            "THEN") in result
+
+    # check the existing m1 and m2 halo exchanges (for the first
+    # un-modified loop) remain unchanged
+    for field_name in ["m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=1"
+                ")".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(3)" in result
+
+
+def test_rc_dofs_no_depth_prev_dep():  # pylint: disable=invalid-name
+    '''Test that the loop bounds when iterating over dofs are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with no halo depth value where the halo
+    fields have a previous (non-halo-exchange) dependence'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    # check the f1 halo exchange is added and the f2 halo exchange is
+    # modified
+    for field_name in ["f1", "f2"]:
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_last_halo_depth()"
+                ")".format(field_name)) in result
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") not in result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    # check the existing m1 and m2 halo exchanges remain unchanged
+    for field_name in ["m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=1"
+                ")".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+
+
+def test_continuous_no_set_clean():
+    '''Test that set_clean is not added for the default iteration space of
+    a continuous loop. This is probably covered from tests in
+    dynamo0p3_test.py but it is good to have a specific test'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_halo_cell(1)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(" not in result
+
+
+def test_discontinuous_no_set_clean():
+    '''Test that set_clean is not added for the default iteration space of
+    a discontinuous loop. This is probably covered from tests in
+    dynamo0p3_test.py but it is good to have a specific test'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    print result
+    assert "DO cell=1,mesh%get_last_edge_cell()" in result
+    assert "CALL m2_proxy%set_dirty()" in result
+    assert "CALL m2_proxy%set_clean(" not in result
+
+
+def test_dofs_no_set_clean():
+    '''Test that set_clean is not added for the default iteration space of
+    a loop over dofs. This is probably covered from tests in
+    dynamo0p3_builtins_test.py but it is good to have a specific test'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.7.1_setval_c_builtin.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    print result
+    assert "halo_exchange" not in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_owned()" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(" not in result
+
+
+def test_rc_vector_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a (continuous) vector are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added/modified appropriately after applying the redundant
+    computation transformation with a fixed value for halo depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8_vector_field.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
+    for index in range(1, 4):
+        assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
+    for index in range(1, 4):
+        assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
+
+
+def test_rc_vector_no_depth():  # pylint: disable=invalid-name
+    '''Test that the loop bounds for a (continuous) vector are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added/modified appropriately after applying the redundant
+    computation transformation with no halo depth value'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8_vector_field.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
+            "get_last_halo_depth())") in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    for index in range(1, 4):
+        assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
+    for index in range(1, 4):
+        assert ("CALL chi_proxy({0})%set_clean(mesh%get_last_halo_depth()"
+                "-1)".format(index) in result)
+
+
+def test_rc_no_halo_decrease():  # pylint: disable=invalid-name
+    '''Test that we do not decrease an existing halo size when setting it
+    to a particular value. This situation may happen when the
+    redundant computation affects the same field in two different
+    loops and both depend on the same halo exchange'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # first, change the size of the f2 halo exchange to 3 by performing
+    # redundant computation in the first loop
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
+    # second, try to change the size of the f2 halo exchange to 2 by
+    # performing redundant computation in the second loop
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
+    # third, set the size of the f2 halo exchange to the full halo
+    # depth by performing redundant computation in the second loop
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
+    # fourth, try to change the size of the f2 halo exchange to 4 by
+    # performing redundant computation in the first loop
+    loop = schedule.children[3]
+    schedule, _ = rc_trans.apply(loop, depth=4)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+            "THEN") in result
+    assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
+    assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
+
+
+def test_rc_updated_dependence_analysis():  # pylint: disable=invalid-name
+    '''Test that the dependence analyis updates when new halo exchanges
+    are added to the schedule'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[0]
+    kernel = loop.children[0]
+    f2_field = kernel.args[1]
+    assert not f2_field.backward_dependence()
+    # set our loop to redundantly compute to the level 2 halo. This
+    # introduces a new halo exchange
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    previous_field = f2_field.backward_dependence()
+    previous_node = previous_field.call
+    from psyclone.dynamo0p3 import DynHaloExchange
+    # check f2_field has a backward dependence with the new halo
+    # exchange field
+    assert isinstance(previous_node, DynHaloExchange)
+    # check the new halo exchange field has a forward dependence with
+    # the kernel f2_field
+    assert previous_field.forward_dependence() == f2_field
+
+
+def test_rc_no_loop_decrease():  # pylint: disable=invalid-name
+    '''Test that we raise an exception if we try to reduce the size of a
+    loop halo when using the redundant computation transformation. This is
+    not allowed partly for simplicity but also because, in the current
+    implementation we might not decrease the size of the relevant halo
+    exchange as these can only be increased with the current logic'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # first set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to the level 1 halo
+    loop = schedule.children[1]
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=1)
+    assert ("supplied depth (1) must be greater than the existing halo depth "
+            "(2)") in str(excinfo)
+    # second set our loop to redundantly compute to the maximum halo depth
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to a fixed value
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=2)
+    assert ("loop is already set to the maximum halo depth so can't be "
+            "set to a fixed value") in str(excinfo)
+    # now try to set the redundant computation to the same (max) value
+    # it is now
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop)
+    assert ("loop is already set to the maximum halo depth so this "
+            "transformation does nothing") in str(excinfo)
+
+
+def test_rc_no_directive():  # pylint: disable=invalid-name
+    '''Test that we raise an exception if we try to use the redundant
+    computation transformation after adding parallel directives (or in
+    general anything that becomes a parent of the loop). This is a
+    limitation that could be fixed and is down to the way we place new
+    halos (we put them before the loop and don't check whether there are
+    any parent directives). However this is not an unreasonable constraint
+    as we would expect to perform loop optimisations before adding
+    directives.'''
+
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    loop = schedule.children[0]
+    schedule, _ = otrans.apply(loop)
+    invoke.schedule = schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert "the parent must be the Schedule" in str(excinfo)
+
+
+def test_rc_remove_halo_exchange():  # pylint: disable=invalid-name
+    '''Test that a halo exchange is removed if redundant computation means
+    that it is no longer required'''
+    _, info = parse(os.path.join(
+        BASE_PATH, "14.7_halo_annexed.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    #
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    #
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    rc_trans.apply(loop, depth=1)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    #
+    loop = schedule.children[1]
+    rc_trans.apply(loop, depth=1)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange(depth=1)" not in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+
+def test_rc_max_remove_halo_exchange():  # pylint: disable=invalid-name
+
+    '''add test to redundantly compute a w3 (discontinuous) and w2
+    (continuous) field to the maximum halo depth and then check that a
+    discontinuous halo exchange is removed in this case as we always
+    remove the halo exchange if we write to a discontinuous field to
+    maximum depth. Also check that the halo exchange is not removed
+    for the continuous case as the outer halo stays dirty. The halo
+    should also have an if round it as we do not know how much
+    redundant computation we are doing.'''
+
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    result = str(psy.gen)
+    #
+    # at this point we know we need a halo exchange of depth 1 for f3
+    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[3]
+    rc_trans.apply(loop)
+    result = str(psy.gen)
+    print result
+    # f3 halo exchange is not removed even though we redundantly
+    # compute f3 as the redundant computation is on a continuous field
+    # and therefore the outermost halo stays dirty. We can not be
+    # certain whether the halo exchange is required or not as we don't
+    # know the depth of the halo.
+    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    # we do not know whether we need the halo exchange so we include an if
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+    #
+    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
+    loop = schedule.children[4]
+    rc_trans.apply(loop)
+    result = str(psy.gen)
+    # f4 halo exchange is removed as it is redundantly computed to the
+    # last level halo and is discontinuous so all levels of the halo
+    # are clean. However, we introduce a new halo exchange for
+    # f5. This could be removed by redundant computation but we don't
+    # bother as that is not relevant to this test.
+    assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
+
+
+def test_rc_continuous_halo_remove():  # pylint: disable=invalid-name
+    '''check that we do not remove a halo exchange when the field is
+    continuous and the redundant computation depth equals the required
+    halo access depth. The reason for this is that the outer halo
+    remains invalid when written to for a continuous field. Also check
+    that we do remove the halo exchange when the redundant computation
+    depth is one more than the required halo access depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    f3_write_loop = schedule.children[3]
+    f3_read_loop = schedule.children[7]
+    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans.apply(f3_read_loop, depth=3)
+    rc_trans.apply(f3_write_loop, depth=3)
+    result = str(psy.gen)
+    assert "CALL f3_proxy%halo_exchange(depth=3)" in result
+    assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
+    #
+    rc_trans.apply(f3_write_loop, depth=4)
+    result = str(psy.gen)
+    assert "CALL f3_proxy%halo_exchange(depth=" not in result
+    assert "IF (f3_proxy%is_dirty(depth=" not in result
+
+
+def test_rc_discontinuous_halo_remove():  # pylint: disable=invalid-name
+    '''check that we do remove a halo exchange when the field is
+    discontinuous and the redundant computation depth equals the
+    required halo access depth. Also check that we do not remove the
+    halo exchange when the redundant computation depth is one less
+    than the required halo access depth'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    f4_write_loop = schedule.children[4]
+    f4_read_loop = schedule.children[7]
+    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans.apply(f4_read_loop, depth=3)
+    rc_trans.apply(f4_write_loop, depth=2)
+    result = str(psy.gen)
+    assert "CALL f4_proxy%halo_exchange(depth=3)" in result
+    assert "IF (f4_proxy%is_dirty(depth=3)) THEN" not in result
+    #
+    rc_trans.apply(f4_write_loop, depth=3)
+    result = str(psy.gen)
+    assert "CALL f4_proxy%halo_exchange(depth=" not in result
+    assert "IF (f4_proxy%is_dirty(depth=" not in result
+
+
+def test_rc_reader_halo_remove():  # pylint: disable=invalid-name
+    '''check that we do not add an unnecessary halo exchange when we
+    increase the depth of halo that a loop computes but the previous loop
+    still computes deep enough into the halo to avoid needing a halo
+    exchange.'''
+
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # redundant computation to avoid halo exchange for f2
+    schedule, _ = rc_trans.apply(schedule.children[1], depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "CALL f2_proxy%halo_exchange(" not in result
+
+    # redundant computation to depth 2 in f2 reader loop should not
+    # cause a new halo exchange as it is still covered by depth=2 in
+    # the writer loop
+    schedule, _ = rc_trans.apply(schedule.children[2], depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert "CALL f2_proxy%halo_exchange(" not in result
+
+
+def test_rc_vector_reader_halo_remove():  # pylint: disable=invalid-name
+    '''check that we do not add unnecessary halo exchanges for a vector
+    field when we increase the depth of halo that a loop computes but
+    the previous loop still computes deep enough into the halo to
+    avoid needing halo exchanges.'''
+
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    assert "is_dirty" not in result
+    assert "halo_exchange" not in result
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # redundant computation for first loop
+    schedule, _ = rc_trans.apply(schedule.children[0], depth=1)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("is_dirty") == 3
+    assert result.count("halo_exchange") == 3
+
+    # redundant computation in reader loop should not
+    # cause a new halo exchange as it is still covered by depth=1 in
+    # the writer loop
+    schedule, _ = rc_trans.apply(schedule.children[4], depth=1)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("is_dirty") == 3
+    assert result.count("halo_exchange") == 3
+
+
+def test_stencil_rc_max_depth_1(monkeypatch):  # pylint: disable=invalid-name
+    '''If a loop contains a kernel with a stencil access and the loop
+    attempts to compute redundantly into the halo to the maximum depth
+    then the stencil will access beyond the halo bounds. This is
+    therefore not allowed and exceptions are raised in the
+    Dynamo0p3RedundantComputationTrans transformation and in
+    _compute_single_halo_info. This test checks these exceptions are
+    raised correctly'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "19.1_single_stencil.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("In the Dynamo0p3RedundantComputation transformation apply method "
+            "the loop contains field 'f2' with a stencil access in kernel "
+            "'testkern_stencil_code', so it is invalid to set redundant "
+            "computation to maximum depth" in str(excinfo.value))
+
+    halo_exchange = schedule.children[0]
+    monkeypatch.setattr(loop, "_upper_bound_halo_depth", None)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = halo_exchange._compute_halo_read_info()
+    assert ("redundant computation to max depth with a stencil is "
+            "invalid" in str(excinfo.value))
+
+
+def test_rc_invalid_depth_type():  # pylint: disable=invalid-name
+    '''If an incorrect type is passed as a depth value to the redundant
+    computation transformation an exception should be raised. This test
+    checks that this exception is raised as expected.'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, depth="2")
+    assert ("the supplied depth should be an integer but found "
+            "type '<type 'str'>'" in str(excinfo.value))
+
+
+def test_loop_fusion_different_loop_depth():  # pylint: disable=invalid-name
+    '''We can only loop fuse if two loops iterate over the same entities
+    and iterate over the same depth. The loop fusion transformation
+    raises an exception if this is not the case. This test checks that
+    the exception is raised correctly.'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.6_multikernel_invokes.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # move the halo exchange between the two loops
+    move_trans = MoveTrans()
+    move_trans.apply(schedule.children[7], schedule.children[6])
+    # make the first loop redundantly compute to halo level 3
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[7], depth=3)
+    # try to fuse the loops. This should fail as the depths are different
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        f_trans.apply(schedule.children[7], schedule.children[8])
+    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
+            "are not the same. Found '3' and '1'" in str(excinfo.value))
+    # now redundantly compute to the full halo
+    rc_trans.apply(schedule.children[8])
+    # try to fuse the loops. This should fail as the depths are different
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        f_trans.apply(schedule.children[7], schedule.children[8])
+    assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
+            "are not the same. Found '3' and 'None'" in str(excinfo.value))
+
+
+def test_loop_fusion_different_loop_name():  # pylint: disable=invalid-name
+    '''We can only loop fuse if two loops iterate over the same entities
+    and iterate over the same depth. The loop fusion transformation
+    raises an exception if this is not the case. This test checks that
+    the exception is raised correctly.'''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.12_multikernel_invokes_w3.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[0], depth=3)
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        f_trans.apply(schedule.children[1], schedule.children[2])
+    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+            "are not the same. Found 'cell_halo' and 'ncells'"
+            in str(excinfo.value))
+
+
+def test_rc_max_w_to_r_continuous_known_halo():  # pylint: disable=invalid-name
+    '''If we have a continuous field being written to in one loop to the
+    maximum halo depth and then being read in a following (dependent) loop
+    to the maximum halo depth we can determine that we definitely need a
+    halo exchange (at the outermost halo level). This test checks that a
+    halo with no runtime checking is produced for this case.'''
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    w_loop = schedule.children[2]
+    r_loop = schedule.children[5]
+
+    # make both the writer and reader loops use the full halo
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(w_loop)
+    rc_trans.apply(r_loop)
+
+    w_to_r_halo_exchange = schedule.children[4]
+
+    # sanity check that the halo exchange goes to the full halo depth
+    assert ("w_to_r_halo_exchange._compute_halo_depth() == "
+            "mesh%get_last_halo_depth()")
+
+    # the halo exchange should be both required to be added and known
+    # to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert known
+
+
+def test_red_comp_w_to_n_r_clean_gt_cleaned():  # pylint: disable=invalid-name
+    '''Tests the case where we have multiple (derived) read dependence
+    entries and one of them has a literal depth value (and no
+    associated variable) and we write redundantly into the halo with a
+    literal depth. Depending on the literal values of the halo-reads
+    and the halo-depth of the redundant write we may, or may not, know
+    that we need a halo exchange. This test checks that we get the
+    expected behaviour.
+
+    '''
+    # The initial test case writes to a field over dofs, then reads
+    # the halo to depth 2 with a stencil, then reads the halo to a
+    # variable depth with a stencil
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.11_halo_required_clean_multi.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    w_loop = schedule.children[0]
+    w_to_r_halo_exchange = schedule.children[1]
+
+    # make the writer loop write redundantly into the level 1 halo. We
+    # now make the level one halo clean but we still definitely need a
+    # halo exchange as one of the readers reads the halo to level 2
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(w_loop, depth=1)
+
+    # the halo exchange should be both required and known to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert known
+
+    # make the writer loop write redundantly into the level 2 halo. We
+    # now make the level two halo clean so the reader that reads to
+    # the level 2 halo does not need a halo exchange, but another
+    # reader reads to a variable level so we are not sure if we need a
+    # halo exchange or not.
+    rc_trans.apply(w_loop, depth=2)
+
+    w_to_r_halo_exchange = schedule.children[1]
+
+    # the halo exchange should be required but not known to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert not known
+
+    # make the reader loop with a variable size also write redundantly
+    # into the level 3 halo. We now know that we need a halo exchange
+    # as the minimum halo depth that needs to be clean is level 3 and
+    # we only clean up to the level 2 halo.
+    r_var_stencil_loop = schedule.children[2]
+    rc_trans.apply(r_var_stencil_loop, depth=3)
+
+    w_to_r_halo_exchange = schedule.children[1]
+
+    # the halo exchange should be required and known to be needed
+    required, known = w_to_r_halo_exchange.required()
+    assert required
+    assert known
