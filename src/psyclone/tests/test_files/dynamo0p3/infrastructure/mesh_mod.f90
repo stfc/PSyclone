@@ -131,7 +131,11 @@ module mesh_mod
     procedure, public :: get_num_cells_halo
     procedure, public :: get_last_halo_cell
 
-    procedure, public :: get_last_halo_cell_per_colour
+    procedure, public :: get_last_halo_cell_per_colour_any
+    procedure, public :: get_last_halo_cell_per_colour_deepest
+    generic           :: get_last_halo_cell_per_colour => &
+                            get_last_halo_cell_per_colour_any, &
+                            get_last_halo_cell_per_colour_deepest
     
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
@@ -511,7 +515,7 @@ contains
     last_halo_cell = 0
   end function get_last_halo_cell
 
-  function get_last_halo_cell_per_colour( self, colour, depth ) &
+  function get_last_halo_cell_per_colour_any( self, colour, depth ) &
                                         result ( ncells_colour )
     implicit none
 
@@ -522,7 +526,19 @@ contains
     integer(i_def)             :: ncells_colour
 
     ncells_colour = 0
-  end function get_last_halo_cell_per_colour
+  end function get_last_halo_cell_per_colour_any
+
+  function get_last_halo_cell_per_colour_deepest( self, colour) &
+                                        result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: colour
+    integer(i_def)             :: ncells_colour
+
+    ncells_colour = 0
+  end function get_last_halo_cell_per_colour_deepest
 
   function get_num_cells_ghost( self ) result ( ghost_cells )
 

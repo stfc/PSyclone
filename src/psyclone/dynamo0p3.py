@@ -2902,7 +2902,7 @@ class DynHaloExchange(HaloExchange):
             depth_info = depth_info_list[0]
             if depth_info.max_depth:
                 # return the maximum halo depth
-                return "mesh%get_last_halo_depth()"
+                return "mesh%get_halo_depth()"
             else:  # return the variable and/or literal depth expression
                 return str(depth_info)
         else:
@@ -3701,8 +3701,11 @@ class DynLoop(Loop):
         elif self._upper_bound_name == "colour_halo":
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
-            return ("{0}%get_last_halo_cell_per_colour(colour,"
-                    "{1})".format(mesh_obj_name, halo_index))
+            append = ""
+            if halo_index:
+                append = ","+halo_index
+            return ("{0}%get_last_halo_cell_per_colour(colour"
+                    "{1})".format(mesh_obj_name, append))
         elif self._upper_bound_name == "ndofs":
             if config.DISTRIBUTED_MEMORY:
                 result = self.field.proxy_name_indexed + "%" + \
@@ -4060,8 +4063,9 @@ class DynLoop(Loop):
                         else:
                             # halo exchange(s) is/are to the full halo
                             # depth (-1 if continuous)
-                            halo_depth = "mesh%get_last_halo_depth()"
-                            if loop._upper_bound_name == "cell_halo" and not \
+                            halo_depth = "mesh%get_halo_depth()"
+                            if loop._upper_bound_name in \
+                               ["cell_halo", "colour_halo"] and not \
                                field.discontinuous:
                                 # a continuous field iterating over
                                 # cells leaves the outermost halo

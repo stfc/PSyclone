@@ -3865,13 +3865,13 @@ def test_rc_continuous_no_depth():  # pylint: disable=invalid-name
     result = str(psy.gen)
     print result
     for field_name in ["f2", "m1", "m2"]:
-        assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_"
+        assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_halo_"
                 "depth())) THEN\n"
                 "        CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_last_halo_depth())".format(field_name)) in result
+                "get_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(mesh%get_last_halo_depth"
+            "      CALL f1_proxy%set_clean(mesh%get_halo_depth"
             "()-1)") in result
 
 
@@ -3921,13 +3921,13 @@ def test_rc_discontinuous_no_depth():  # pylint: disable=invalid-name
     result = str(psy.gen)
     print result
     for field_name in ["f1", "f2", "m1"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_last_halo_depth())".format(field_name)) in result
+                "get_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL m2_proxy%set_dirty()" not in result
-    assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL m2_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_rc_all_discontinuous_depth():  # pylint: disable=invalid-name
@@ -3973,12 +3973,12 @@ def test_rc_all_discontinuous_no_depth():  # pylint: disable=invalid-name
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
-    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_last_halo_dep"
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_dep"
             "th())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_rc_all_discontinuous_vector_depth():  # pylint: disable=invalid-name
@@ -4029,13 +4029,13 @@ def test_rc_all_disc_vector_no_depth():  # pylint: disable=invalid-name
     result = str(psy.gen)
     print result
     for idx in range(1, 4):
-        assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth"
+        assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_halo_depth"
                 "())) THEN".format(idx)) in result
-        assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_last_halo"
+        assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_halo"
                 "_depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for idx in range(1, 4):
-        assert ("CALL f1_proxy({0})%set_clean(mesh%get_last_halo_"
+        assert ("CALL f1_proxy({0})%set_clean(mesh%get_halo_"
                 "depth())".format(idx)) in result
 
 
@@ -4088,12 +4088,12 @@ def test_rc_all_disc_prev_depend_no_depth():  # pylint: disable=invalid-name
     result = str(psy.gen)
     print result
     assert "CALL f1_proxy%set_dirty()" in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") not in result
-    assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_last_halo_dept"
+    assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_halo_dept"
             "h())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f3_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_rc_all_disc_prev_dep_depth_vector():  # pylint: disable=invalid-name
@@ -4149,12 +4149,12 @@ def test_rc_all_disc_prev_dep_no_depth_vect():  # pylint: disable=invalid-name
     print result
     assert "is_dirty" not in result
     for idx in range(1, 4):
-        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_"
+        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
                 "depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert ("CALL f3_proxy({0})%set_clean(mesh%get_last_halo_depth())".
+        assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
 
 
@@ -4205,13 +4205,13 @@ def test_rc_dofs_no_depth():  # pylint: disable=invalid-name
     result = str(psy.gen)
     print result
     for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_last_halo_depth())".format(field_name)) in result
+                "get_halo_depth())".format(field_name)) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" not in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_rc_dofs_depth_prev_dep():  # pylint: disable=invalid-name
@@ -4283,11 +4283,11 @@ def test_rc_dofs_no_depth_prev_dep():  # pylint: disable=invalid-name
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_last_halo_depth()"
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
                 ")".format(field_name)) in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") not in result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     # check the existing m1 and m2 halo exchanges remain unchanged
     for field_name in ["m1", "m2"]:
@@ -4297,7 +4297,7 @@ def test_rc_dofs_no_depth_prev_dep():  # pylint: disable=invalid-name
                 ")".format(field_name)) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_continuous_no_set_clean():
@@ -4389,15 +4389,15 @@ def test_rc_vector_no_depth():  # pylint: disable=invalid-name
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
-            "get_last_halo_depth())") in result
+            "get_halo_depth())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
     for index in range(1, 4):
-        assert ("CALL chi_proxy({0})%set_clean(mesh%get_last_halo_depth()"
+        assert ("CALL chi_proxy({0})%set_clean(mesh%get_halo_depth()"
                 "-1)".format(index) in result)
 
 
@@ -4436,7 +4436,7 @@ def test_rc_no_halo_decrease():  # pylint: disable=invalid-name
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
@@ -4447,7 +4447,7 @@ def test_rc_no_halo_decrease():  # pylint: disable=invalid-name
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
@@ -4890,7 +4890,7 @@ def test_rc_max_w_to_r_continuous_known_halo():  # pylint: disable=invalid-name
 
     # sanity check that the halo exchange goes to the full halo depth
     assert ("w_to_r_halo_exchange._compute_halo_depth() == "
-            "mesh%get_last_halo_depth()")
+            "mesh%get_halo_depth()")
 
     # the halo exchange should be both required to be added and known
     # to be needed
@@ -5231,5 +5231,55 @@ def test_rc_colour(tmpdir, f90, f90flags):
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-# test same as above but when all of the halo is written to
+
+def test_rc_max_colour(tmpdir, f90, f90flags):
+    '''Test that we can redundantly compute over a colour to the maximum
+    depth in a coloured loop'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the colour loop
+    rc_trans.apply(cschedule.children[3].children[0])
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 # colour and redundantly compute discontinuous?
+# test fusing loops with colouring and rc
