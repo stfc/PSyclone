@@ -60,4 +60,4 @@ program single_invoke_builtin_then_kernel
        testkern_type(scalar, f1, f2, f3, f4) &
           )
 
-end program single_invoke
+end program single_invoke_builtin_then_kernel

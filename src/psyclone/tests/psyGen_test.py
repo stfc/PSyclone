@@ -1859,8 +1859,13 @@ def test_node_dag(tmpdir):
                  "<title>loop_0_end</title>",
                  "<title>kernel_testkern_qr_code_2</title>",
                  "<title>kernel_testkern_qr_code_4</title>",
-                 "<svg", "</svg>", "blue", "green", "red"]:
+                 "<svg", "</svg>", ]:
         assert name in result
+    for colour_name, colour_code in [("blue", "#0000ff"),
+                                     ("green", "#00ff00"),
+                                     ("red", "#ff0000")]:
+        assert colour_name in result or colour_code in result
+
     with pytest.raises(GenerationError) as excinfo:
         schedule.dag(file_name=my_file.strpath, file_format="rubbish")
     assert "unsupported graphviz file format" in str(excinfo.value)
