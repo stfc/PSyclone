@@ -25,29 +25,47 @@ Using CLAW with PSyclone
 ------------------------
 
 A key concept in PSyclone is the application of transformations to the
-generated PSy layer. These are supplied by the user in the form of a
-Python script which makes use of the various Transformation classes
-implemented in PSyclone. These transformations affect only the PSy
-layer - any user-supplied kernels (written in Fortran) are treated as
-'black-boxes' and are left untouched. In order to modify the kernels
-themselves, the user-supplied script must invoke CLAW. This may be
-done through the ``claw`` module supplied with PSyclone, e.g.:
+PSy layer before the associated Fortran code is actually
+generated. These transformations are supplied by the user in the form
+of a Python script which makes use of the various Transformation
+classes implemented in PSyclone to modify the Abstract Syntax Tree
+(AST) of the PSy layer. Any user-supplied kernels (written in Fortran)
+are treated as 'black-boxes' and are left untouched during this
+process. In order to modify the kernels themselves, the user-supplied
+script must invoke CLAW.
+
+In contrast to PSyclone's native transformations which operate on the
+PSy AST, CLAW operates on Fortran source code. In this case this will
+be one or more of the kernels called from the PSy layer.  PSyclone
+already has the location of these kernels since the meta-data they
+contain must be parsed. This location information must now also be
+passed to the transformation script in case it wishes to modify the
+kernels.
+
+Rather than re-name any transformed kernels, PSyclone instead creates
+them in a user-specified location. This information must be passed
+to PSyclone when it is invoked from the command line. An example script
+that uses CLAW to transform kernels might look like:
 
 ::
-    # Parse the file containing the algorithm specification
-    _, invokeInfo = parse("dynamo.F90", api=api)
 
-    # Create the PSy-layer object using the invokeInfo
-    psy = PSyFactory(api).create(invokeInfo)
+    def trans(psy, kernel_search_path, out_dir):
 
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
 
-    # Get the schedule associated with the required invoke
-    invoke = psy.invokes.get('invoke_0_v3_kernel_type')
-    schedule = invoke.schedule
+        # Get an OpenMPLoop-transformation
+        from psyclone.transformations import OMPParallelLoopTrans
+        ol = OMPParallelLoopTrans()
 
-    # Create an OpenMPLoop-transformation
-    ol = t.get_trans_name('OMPParallelLoopTrans')
+        # Apply it to the first loop in the schedule
+        new_schedule, memento = ol.apply(schedule.children[0])
 
-    # Apply it to the loop schedule of the selected invoke
-    new_schedule,memento = ol.apply(schedule.children[0])
+	# Transform the associated kernel
+	from psyclone import claw
+	kern = schedule.children[0].children[0]
+	kernel_list = [kern.name]
+	claw_script = "some jython file"
+        claw.trans(kernel_list, kernel_search_path, claw_script, out_dir)
 
+        return psy
