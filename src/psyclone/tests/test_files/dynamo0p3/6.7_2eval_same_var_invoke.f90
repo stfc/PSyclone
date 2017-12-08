@@ -42,4 +42,4 @@ program eval_invoke
        testkern_eval_anyspace2_type(f0,f1,f3)     &
        )
 
-end program val_invoke
+end program eval_invoke

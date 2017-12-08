@@ -2,6 +2,7 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -29,35 +30,19 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author I. Kavcic Met Office
 
-! Author R. W. Ford, STFC Daresbury Lab
+program single_invoke
 
-program single_invoke_builtin_then_kernel
-
-  ! Description: single invoke call with a builtin followed by a kernel call
+  ! Description: single point-wise operation (raise field to an integer power)
+  ! specified in an invoke call
   use testkern, only: testkern_type
-  use testkern_w3_only, only: testkern_w3_only_type
-  use testkern_w2_only, only: testkern_w2_only_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4
-  real(r_def) :: scalar = 0.0
-  
-  call invoke(                               &
-       setval_c(f5, 0.0),                    &
-       setval_c(f2, 0.0),                    &
-       ! f3 function space w2, write
-       ! f2 function space w2, read
-       testkern_w2_only_type(f3, f2),        &
-       ! f4 function space w3, write
-       ! f5 function space w3, read
-       testkern_w3_only_type(f4, f5),        &
-       ! scalar, read
-       ! f1 function space w1, write
-       ! f2 function space w2, read
-       ! f3 function space w2, read
-       ! f4 function space w3, read
-       testkern_type(scalar, f1, f2, f3, f4) &
-          )
+  type(field_type) :: f1
+  integer(i_def) :: i_scalar
 
-end program single_invoke_builtin_then_kernel
+  call invoke( inc_X_powint_n(f1, i_scalar) )
+
+end program single_invoke

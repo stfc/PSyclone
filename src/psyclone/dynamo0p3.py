@@ -46,10 +46,10 @@ import os
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
+from psyclone import psyGen, config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
-from psyclone import psyGen, config
 
 # first section : Parser specialisations and classes
 
@@ -549,12 +549,12 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
-        # Reduction access descriptors are only valid for scalar arguments
-        if self._type not in VALID_SCALAR_NAMES and \
+        # Reduction access descriptors are only valid for real scalar arguments
+        if self._type != "gh_real" and \
            self._access_descriptor.name in VALID_REDUCTION_NAMES:
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
-                "with a scalar argument, but '{1}' was found".
+                "with a real scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
         # Scalars can only be read_only or reductions
         if self._type in VALID_SCALAR_NAMES:
@@ -2807,7 +2807,19 @@ def _create_depth_list(halo_info_list):
 
     '''
     depth_info_list = []
-    # first look to see if one of the field dependencies specifies
+    # first look to see if all field dependencies specify
+    # annexed_only. If so we only access annexed dofs
+    annexed_only = True
+    for halo_info in halo_info_list:
+        if not halo_info.annexed_only:
+            annexed_only = False
+            break
+    if annexed_only:
+        depth_info = HaloDepth()
+        depth_info.set_by_value(max_depth=False, var_depth="",
+                                literal_depth=1, annexed_only=True)
+        return [depth_info]
+    # next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
     # so we do not need to be concerned with other accesses.
     for halo_info in halo_info_list:
@@ -2816,7 +2828,7 @@ def _create_depth_list(halo_info_list):
             # HaloDepth entry
             depth_info = HaloDepth()
             depth_info.set_by_value(max_depth=True, var_depth="",
-                                    literal_depth=0)
+                                    literal_depth=0, annexed_only=False)
             return [depth_info]
 
     for halo_info in halo_info_list:
@@ -2843,7 +2855,8 @@ def _create_depth_list(halo_info_list):
             # variables so create a new halo depth entry
             depth_info = HaloDepth()
             depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                    literal_depth=literal_depth)
+                                    literal_depth=literal_depth,
+                                    annexed_only=False)
             depth_info_list.append(depth_info)
     return depth_info_list
 
@@ -2974,10 +2987,10 @@ class DynHaloExchange(HaloExchange):
         required. The second argument is used to specify whether we definitely
         know that it is required or are not sure.
 
-        Whilst a halo exchange is only ever added if it is required,
-        or if it may be required, this situation can change if
-        redundant computation transformations are applied. The first
-        argument can be used to remove such halo exchanges if
+        Whilst a halo exchange is generally only ever added if it is
+        required, or if it may be required, this situation can change
+        if redundant computation transformations are applied. The
+        first argument can be used to remove such halo exchanges if
         required.
 
         When the first argument is True, the second argument can be
@@ -3051,9 +3064,19 @@ class DynHaloExchange(HaloExchange):
 
         if clean_info.literal_depth == 1 and clean_info.dirty_outer:
             # the writer redundantly computes in the level 1 halo but
-            # leaves it dirty so we definitely need the halo exchange
-            required = True
-            known = True
+            # leaves it dirty (although annexed dofs are now clean).
+            if len(required_clean_info) == 1 and \
+               required_clean_info[0].annexed_only:
+                # we definitely don't need the halo exchange as we
+                # only read annexed dofs and these have been made
+                # clean by the redundant computation
+                required = False
+                known = True  # redundant information as it is always known
+            else:
+                # we definitely need the halo exchange as the reader(s)
+                # require the halo to be clean
+                required = True
+                known = True
             return required, known
 
         # At this point we know that the writer cleans the halo to a
@@ -3164,6 +3187,21 @@ class HaloDepth(object):
         # False does not necessarily mean the full halo depth is not
         # accessed, rather it means that we do not know.
         self._max_depth = False
+        # annexed only is True if the only access in the halo is for
+        # annexed dofs
+        self._annexed_only = False
+
+    @property
+    def annexed_only(self):
+        '''Returns whether the access to the halo is solely to annexed dofs,
+        or not
+
+        :return: Return True if only annexed dofs are accessed in the
+        halo and False otherwise
+        :rtype: bool
+
+        '''
+        return self._annexed_only
 
     @property
     def max_depth(self):
@@ -3215,7 +3253,7 @@ class HaloDepth(object):
         '''
         self._literal_depth = value
 
-    def set_by_value(self, max_depth, var_depth, literal_depth):
+    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only):
         '''Set halo depth information directly
 
         :param max_depth: True if the field accesses all of the halo
@@ -3227,11 +3265,15 @@ class HaloDepth(object):
         :param literal_depth: The known fixed (literal) halo access
         depth
         :type literal_depth: integer
+        :param annexed_only: True if only the halo's annexed dofs are
+        accessed and False otherwise
+        :type max_depth: bool
 
         '''
         self._max_depth = max_depth
         self._var_depth = var_depth
         self._literal_depth = literal_depth
+        self._annexed_only = annexed_only
 
     def __str__(self):
         '''return the depth of a halo dependency
@@ -3349,7 +3391,10 @@ class HaloWriteAccess(HaloDepth):
         # variable used to specify the depth. Variables are currently
         # not used when a halo is written to, so we pass None which
         # indicates there is no variable.
-        HaloDepth.set_by_value(self, max_depth, None, depth)
+        # the fifth argument for set_by_value indicates whether we
+        # only access annexed_dofs. At the moment this is not possible
+        # when modifying a field so we always return False
+        HaloDepth.set_by_value(self, max_depth, None, depth, False)
 
 
 class HaloReadAccess(HaloDepth):
@@ -3396,6 +3441,7 @@ class HaloReadAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
+        self._annexed_only = False
         call = halo_check_arg(field, GH_READ_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
@@ -3431,6 +3477,7 @@ class HaloReadAccess(HaloDepth):
                     # mechanism to perform a halo exchange solely on
                     # annexed dofs.
                     self._literal_depth = 1
+                    self._annexed_only = True
         elif loop.upper_bound_name == "ndofs":
             # we only access owned dofs so there is no access to the
             # halo
@@ -3901,8 +3948,9 @@ class DynLoop(Loop):
         exist in order to find out. The appropriate logic is coded in
         the _add_halo_exchange helper method. '''
         for halo_field in self.unique_fields_with_halo_reads():
-            # for each unique field in this loop that requires a halo
-            # exchange find the previous write to this field
+            # for each unique field in this loop that has its halo
+            # read (including annexed dofs), find the previous update
+            # of this field
             prev_arg_list = halo_field.backward_write_dependencies()
             if not prev_arg_list:
                 # field has no previous dependence so create new halo
@@ -3935,7 +3983,9 @@ class DynLoop(Loop):
                 prev_node = prev_arg_list[0].call
                 if not isinstance(prev_node, DynHaloExchange):
                     # previous dependence is not a halo exchange so
-                    # create a new halo exchange
+                    # call the add halo exchange logic which
+                    # determines whether a halo exchange is required
+                    # or not
                     self._add_halo_exchange(halo_field)
 
     def gen_code(self, parent):
