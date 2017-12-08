@@ -1,3 +1,4 @@
+# -*- coding: iso-8859-1 -*-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -3833,7 +3834,8 @@ class DynLoop(Loop):
         elif arg.is_operator:
             # operators do not have halos
             return False
-        elif arg.discontinuous and arg.access.lower() in ["gh_read", "gh_readwrite"]:
+        elif arg.discontinuous and arg.access.lower() in \
+                ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in ["cell_halo", "dof_halo"]
@@ -6175,12 +6177,20 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def intent(self):
-        ''' Returns the fortran intent of this argument. '''
+        '''
+        Returns the fortran intent of this argument.
+
+        :return: the expected fortran intent for this argument as specified
+                 by the kernel argument metadata.
+        :rtype: str
+        '''
         if self.access == "gh_read":
             return "in"
         elif self.access == "gh_write":
             return "out"
-        elif self.access in ["gh_inc", "gh_readwrite"] + VALID_REDUCTION_NAMES:
+        elif self.access == "gh_readwrite":
+            return "inout"
+        elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
             return "inout"
         else:
             raise GenerationError(
