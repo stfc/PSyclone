@@ -227,8 +227,8 @@ def test_builtin_operator_arg():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
-            "must be one of ['gh_field', 'gh_real'] but kernel " +
-            test_builtin_name.lower() + " has an argument of "
+            "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
+            "kernel " + test_builtin_name.lower() + " has an argument of "
             "type gh_operator" in str(excinfo))
 
 
@@ -1656,6 +1656,59 @@ def test_inc_X_powreal_a():  # pylint: disable=invalid-name
             assert output in code
 
 
+def test_inc_X_powint_n(tmpdir, f90, f90flags):  # pylint: disable=invalid-name
+    ''' Test that 1) the str method of DynIncXPowintNKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation X = X**n where 'n' is an integer scalar and X is a field '''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.6.2_inc_X_powint_n_builtin.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: raise a field to an integer power"
+        # Test code generation
+        code = str(psy.gen)
+        print code
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        if not distmem:
+            output = (
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+                "      END DO \n"
+                "      !\n")
+        else:
+            mesh_code_present("f1", code)
+            output = (
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()")
+
+            assert output in code
+
+
 # ------------- Setting field elements to a value --------------------------- #
 
 
@@ -2080,6 +2133,8 @@ def test_builtin_set(tmpdir, f90, f90flags):
         print code
 
         if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         if not distmem:
@@ -2577,18 +2632,14 @@ def test_scalar_int_builtin_error(monkeypatch):
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
-    # Define the built-in name and test file
-    test_builtin_name = "X_innerproduct_Y"
-    for dist_mem in [True, False]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
+    for dist_mem in [False, True]:
         with pytest.raises(ParseError) as excinfo:
-            _ = PSyFactory("dynamo0.3",
-                           distributed_memory=dist_mem).create(invoke_info)
-        assert ("an argument to a built-in kernel must be one of ['gh_field', "
-                "'gh_real'] but kernel " + test_builtin_name.lower() + " has "
-                "an argument of type gh_integer" in str(excinfo))
+            _, _ = parse(os.path.join(BASE_PATH,
+                                      "16.2_integer_scalar_sum.f90"),
+                         api="dynamo0.3", distributed_memory=dist_mem)
+        assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
+                "only valid with a real scalar argument, but 'gh_integer' "
+                "was found" in str(excinfo))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

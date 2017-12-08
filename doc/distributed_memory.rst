@@ -46,7 +46,7 @@ only be used where necessary.
 A global sum is required with distributed memory when a scalar is
 written to. Global sums can have performance implications so should
 only be used where necessary. Global sums currently only occur in
-certain built-in kernels. The description of built-ins indicates when
+certain Built-in kernels. The description of Built-ins indicates when
 this is the case.
 
 
