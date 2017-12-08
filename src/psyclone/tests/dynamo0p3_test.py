@@ -2665,7 +2665,7 @@ def test_stub_file_content_not_fortran():  # pylint: disable=invalid-name
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "dynamo0p3_test.py"), api="dynamo0.3")
-    assert 'the file does not contain a module. Is it a Kernel file?' \
+    assert 'no parse pattern found' \
         in str(excinfo.value)
 
 
@@ -2674,7 +2674,7 @@ def test_stub_file_fortran_invalid():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
                  api="dynamo0.3")
-    assert 'invalid Fortran' in str(excinfo.value)
+    assert 'contain <== no parse pattern found' in str(excinfo.value)
 
 
 def test_file_fortran_not_kernel():
