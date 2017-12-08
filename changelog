@@ -5,6 +5,10 @@
 	to fparser 0.0.6. Update to catch new AnalyzeError raised by
         fparser.
 
+        3) #90 and PR #102 Add support for integer, read-only, scalar
+        arguments to built-in kernels. Add new inc_X_powint_n Built-in
+        that raises a field to an integer power.
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not
