@@ -108,6 +108,9 @@ echo "Running transformation examples"
 cd transformations/inline
 python module_inline_example.py
 cd -
+cd transformations/claw
+python claw_trans.py
+cd -
 
 echo "Running line-length examples"
 cd line_length
