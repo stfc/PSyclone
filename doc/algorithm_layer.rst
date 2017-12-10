@@ -5,7 +5,7 @@ Algorithm layer
 
 In the PSyKAl separation of concerns, the Algorithm layer specifies
 the algorithm that the scientist would like to run (in terms of calls
-to kernel routines and built-in operations) and logically operates on full
+to kernel routines and Built-in operations) and logically operates on full
 fields. Algorithm code in the algorithm layer is not allowed to
 include any parallelisation calls or directives and passes datatypes
 specified by the particular API.
@@ -42,11 +42,10 @@ layer file and must therefore be run multiple times if multiple files
 containing ``invoke()`` calls exist in the algorithm layer.
 
 The algorithm developer is also able to reference more than one
-Kernel/Built-in
-within an invoke. In fact this feature is encouraged for performance
-reasons. **As a general guideline the developer should aim to use as
-few invokes as possible with as many Kernel references within them as
-is possible**. The reason for this is that it allows for greater
+Kernel/Built-in within an invoke. In fact this feature is encouraged for
+performance reasons. **As a general guideline the developer should aim to
+use as few invokes as possible with as many Kernel references within them
+as is possible**. The reason for this is that it allows for greater
 freedom for optimisation in the PSy layer as PSy layer optimisations
 are limited to the contents of individual invoke calls - PSyclone
 currently does not attempt to optimise the PSy layer over multiple

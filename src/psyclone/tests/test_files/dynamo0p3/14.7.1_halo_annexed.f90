@@ -29,35 +29,32 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+program single_invoke_annexed
 
-! Author R. W. Ford, STFC Daresbury Lab
-
-program single_invoke_builtin_then_kernel
-
-  ! Description: single invoke call with a builtin followed by a kernel call
-  use testkern, only: testkern_type
-  use testkern_w3_only, only: testkern_w3_only_type
+  ! Description: f1 and f2 are written to over cells and then read. f1
+  ! is on the w1 function space and f2 is on the w2 function space, so
+  ! both are continuous and therefore have annexed dofs. By default
+  ! loops over cells write to the level 1 halo in order to ensure that
+  ! annexed dofs are correct (clean). Therefore halo exchanges will
+  ! not be required so that for both f1 and f2 are clean when they are
+  ! read.
+  use testkern_w3, only: testkern_w3_type
   use testkern_w2_only, only: testkern_w2_only_type
-  use inf,      only: field_type
+  use inf, only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4
-  real(r_def) :: scalar = 0.0
-  
-  call invoke(                               &
-       setval_c(f5, 0.0),                    &
-       setval_c(f2, 0.0),                    &
-       ! f3 function space w2, write
-       ! f2 function space w2, read
-       testkern_w2_only_type(f3, f2),        &
-       ! f4 function space w3, write
-       ! f5 function space w3, read
-       testkern_w3_only_type(f4, f5),        &
-       ! scalar, read
-       ! f1 function space w1, write
-       ! f2 function space w2, read
-       ! f3 function space w2, read
-       ! f4 function space w3, read
-       testkern_type(scalar, f1, f2, f3, f4) &
+  type(field_type) :: f1, f2, f3, f4, m1, m2
+  real(r_def) :: a
+
+  call invoke(                         &
+       ! update f1 locally
+       setval_c(f1,0.0),               &
+       ! update f2 in l1 halo
+       testkern_w2_only_type(f2,f3),   &
+       ! read f1 and f2 annexed dofs
+       ! no halo exchange should be added for f2
+       testkern_w3_type(a,f1,f2,m1,m2) &
           )
 
-end program single_invoke_builtin_then_kernel
+end program single_invoke_annexed
