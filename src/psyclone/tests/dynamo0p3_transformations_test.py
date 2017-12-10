@@ -407,8 +407,9 @@ def test_omp_not_a_loop():
         # the loop
         with pytest.raises(TransformationError) as excinfo:
             _, _ = otrans.apply(schedule)
-        assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
-        assert "The node is not a loop" in str(excinfo.value)
+
+        assert "Cannot apply an OpenMP Loop directive" in str(excinfo.value)
+        assert "to something that is not a loop" in str(excinfo.value)
 
 
 def test_omp_parallel_not_a_loop():
@@ -510,18 +511,18 @@ def test_omp_colour_orient_trans(tmpdir, f90, f90flags):
     memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "9.1_orientation2.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
         if dist_mem:
-            index = 4
+            index = 5
         else:
             index = 0
 
@@ -606,14 +607,14 @@ def test_check_seq_colours_omp_parallel_do():  # pylint: disable=invalid-name
     off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "9.1_orientation2.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
         if dist_mem:
-            index = 4
+            index = 5
         else:
             index = 0
 
@@ -638,14 +639,14 @@ def test_check_seq_colours_omp_do():
     be sequential). We test when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "9.1_orientation2.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
         if dist_mem:
-            index = 4
+            index = 5
         else:
             index = 0
 
@@ -659,6 +660,7 @@ def test_check_seq_colours_omp_do():
         # colours
         with pytest.raises(TransformationError) as excinfo:
             schedule, _ = otrans.apply(cschedule.children[index])
+
         assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
         assert "target loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
@@ -668,23 +670,20 @@ def test_colouring_after_openmp():
     '''Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
     distributed memory is on or off '''
-    # For this test we must use a kernel that doesn't actually require
-    # colouring as otherwise PSyclone won't let us apply the OpenMP
-    # transformation first!
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "1_single_invoke.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
         if dist_mem:
-            index = 4
+            index = 3
         else:
             index = 0
 
@@ -5281,5 +5280,28 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-# colour and redundantly compute discontinuous?
+
+def test_colour_discontinuous():
+    '''Test that we raise an exception if we try to colour a loop
+    containing a kernel that modifies a discontinuous field
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_w3_only.f90"),
+                    api=TEST_API)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    
+    with pytest.raises(TransformationError) as excinfo:
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
+    assert ("Loops iterating over a discontinuous function space are not "
+            "currently supported") in str(excinfo)
+
+
+# test redundant then colour
 # test fusing loops with colouring and rc

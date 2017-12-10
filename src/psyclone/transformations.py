@@ -353,6 +353,20 @@ class OMPLoopTrans(Transformation):
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
 
+    def _validate(self, node):
+        ''' Perform validation checks before applying the transformation'''
+        # Check that the supplied node is a Loop
+        from psyclone.psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError("Cannot apply an OpenMP Loop "
+                                      "directive to something that is "
+                                      "not a loop")
+        # Check we are not a sequential loop
+        if node.loop_type == 'colours':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                                      "The target loop is over colours and "
+                                      "must be computed serially.")
+
     def apply(self, node, reprod=None):
         '''Apply the OMPLoopTrans transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -379,21 +393,11 @@ class OMPLoopTrans(Transformation):
 
         '''
 
+        self._validate(node)
+        
         if reprod is None:
             import psyclone.config
             reprod = psyclone.config.REPRODUCIBLE_REDUCTIONS
-
-        # Check that the supplied node is a Loop
-        from psyclone.psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Cannot apply an OpenMP Loop "
-                                      "directive to something that is "
-                                      "not a loop")
-        # Check we are not a sequential loop
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The target loop is over colours and "
-                                      "must be computed serially.")
 
         schedule = node.root
 
@@ -609,11 +613,8 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
             import psyclone.config
             reprod = psyclone.config.REPRODUCIBLE_REDUCTIONS
 
-        # check node is a loop
-        from psyclone.psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The node is not a loop.")
+        OMPLoopTrans._validate(self, node)
+
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
@@ -874,10 +875,11 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        if node.field_space.orig_name == "w3":
-            pass
-            # TODO generate a warning here as we don't need to colour
-            # a loop that updates a field on W3.
+        from dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+        if node.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
+            raise TransformationError(
+                "Error in DynamoColour transformation. Loops iterating over "
+                "a discontinuous function space are not currently supported.")
 
         # Colouring is only necessary (and permitted) if the loop is
         # over cells. Since this is the default it is represented by
