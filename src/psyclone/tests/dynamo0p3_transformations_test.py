@@ -326,12 +326,6 @@ def test_colour_trans_stencil(tmpdir, f90, f90flags):
             "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
             "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
 
-        # check whether lfric supports stencil(cross) metadata format
-        #if utils.TEST_COMPILE:
-        #    # If compilation testing has been enabled (--compile flag
-        #    # to py.test)
-        #    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-
 
 def test_colouring_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to colour
@@ -541,11 +535,6 @@ def test_omp_colour_orient_trans(tmpdir, f90, f90flags):
         # Check that the list of private variables is correct
         assert "private(cell,orientation_w2)" in code
 
-        #if utils.TEST_COMPILE:
-        #    # If compilation testing has been enabled (--compile flag
-        #    # to py.test)
-        #    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-
 
 def test_omp_parallel_colouring_needed():  # pylint: disable=invalid-name
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
@@ -742,11 +731,6 @@ def test_colouring_multi_kernel(tmpdir, f90, f90flags):
             assert gen.count("_proxy%vspace%get_colours(") == 2
         assert "private(cell)" in gen
         assert gen.count("private(cell)") == 2
-
-        #if utils.TEST_COMPILE:
-        #    # If compilation testing has been enabled (--compile flag
-        #    # to py.test)
-        #    assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_region_omp_do():
@@ -5303,5 +5287,177 @@ def test_colour_discontinuous():
             "currently supported") in str(excinfo)
 
 
-# test redundant then colour
-# test fusing loops with colouring and rc
+def test_rc_then_colour(tmpdir, f90, f90flags):
+    '''Test that we generate correct code when we first perform redundant
+    computation to a fixed depth then colour the loop
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(schedule.children[3], 3)
+
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    psy.invokes.invoke_list[0].schedule = schedule
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=3)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=3)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=3)\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,3)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(2)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_rc_then_colour2(tmpdir, f90, f90flags):
+    '''Test that we generate correct code when we first perform redundant
+    computation to the full depth then colour the loop
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(schedule.children[3])
+
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    psy.invokes.invoke_list[0].schedule = schedule
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
+    '''Test that we are able to fuse two loops together, perform
+    redundant computation and then colour'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+    
+    ftrans = DynamoLoopFuseTrans()
+    
+    # fuse the loops
+    schedule, _ = ftrans.apply(schedule.children[3],
+                               schedule.children[4])
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(schedule.children[3])
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    psy.invokes.invoke_list[0].schedule = schedule
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)

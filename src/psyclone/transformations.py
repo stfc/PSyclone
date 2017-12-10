@@ -720,7 +720,8 @@ class ColourTrans(Transformation):
         colour_loop.set_lower_bound("start")
         import psyclone.config
         if psyclone.config.DISTRIBUTED_MEMORY:
-            colour_loop.set_upper_bound("colour_halo", index=1)
+            index = node.upper_bound_halo_depth
+            colour_loop.set_upper_bound("colour_halo", index)
         else:  # no distributed memory
             colour_loop.set_upper_bound("ncolour")
         # Add this loop as a child of our loop over colours
