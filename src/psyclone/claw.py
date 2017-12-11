@@ -4,7 +4,7 @@ either the command-line or from other Python code '''
 from claw_config import *
 from .transformations import TransformationError
 
-def claw_driver(argv):
+def _claw_driver(argv):
     ''' Top level python driver for Claw compiler '''
     from os import path
 
@@ -25,35 +25,54 @@ def claw_driver(argv):
 
 
 def omni_frontend(fort_file, xml_file):
+    '''
+    Runs the front-end of the OMNI compiler (which must be on the user's PATH)
+
+    :param str fort_file: the name of the Fortran file to process
+    :param str xml_file: the XcodeML/F file to create
+    '''
     from subprocess import call
     call(["F_Front", fort_file, "-o", str(xml_file)])
     print "Produced XCodeML file: {0}".format(xml_file)
 
 
-def trans(invoke_list, kernel_list, script_file):
+def trans(invoke_list, kernel_list, script_file, xmod_search_path):
     '''
-    Main interface to CLAW from PSyclone
+    PSyclone interface to CLAW
+
+    Applies the (Jython) script_file to the specified kernels in the
+    specified invokes using CLAW. Transformed kernels are renamed
+    and written to the current working directory. All kernel dependencies
+    (i.e. other Fortran modules) must have been passed through the
+    Front-end of the OMNI compiler to generate .xmod files. The location(s)
+    of these .xmod files must be provided in the xmod_search_path.
 
     :param invoke_list: List of invoke objects
     :type invoke_list: List of `py:class:Invoke`
     :param kernel_list: List of names of kernels to transform
     :type kernel_list: List of str
     :param str script_file: Claw Jython script to perform transformation
+    :param xmod_search_path: List of locations to search for .xmod files
+    :type xmod_search_path: list of str
     '''
     import tempfile
     from psyclone.psyGen import Kern
 
-    # Create a dictionary so that we can look-up the AST of a kernel
-    # from its name
-    kernel_ast_list = {}
     # Create a dictionary to hold which kernels are used by which invoke
     unique_kern_list = set(kernel_list)
     invokes_by_kernel = {name: [] for name in unique_kern_list}
+    # Create a dictionary so that we can look-up the kernel object(s)
+    # from its name. Each entry is a list in case the same kernel is
+    # used more than once.
+    # TODO if the same kernel *is* used more than once, is each kernel
+    # object in the AST unique?
+    kernel_obj_list = {name: [] for name in unique_kern_list}
+
     for invoke in invoke_list:
         kernels = invoke.schedule.walk(invoke.schedule.children, Kern)
         for kern in kernels:
             invokes_by_kernel[kern.name].append(invoke)
-            kernel_ast_list[kern.name] = kern._module_code
+            kernel_obj_list[kern.name].append(kern)
     # Sanity check that we have at least one invoke using each kernel
     for kern, inv_list in invokes_by_kernel.items():
         if len(inv_list) < 1:
@@ -62,11 +81,10 @@ def trans(invoke_list, kernel_list, script_file):
     # XcodeML/F AST. We must therefore generate a Fortran file for each
     # kernel and then use the OMNI frontend to get the XcodeML/F
     # representation.
-    for name in kernel_list:
-        # Work out which invokes use this kernel
-        invoke = invokes_by_kernel[name][0]
-        # Use the fparser AST to generate a temporary Fortran file
-        fortran = kernel_ast_list[name].tofortran()
+    for name, kern_list in kernel_obj_list.items():
+
+        # Use the fparser AST to generate a (temporary) Fortran file
+        fortran = kern_list[0]._module_code.tofortran()
         # delete=False is required to ensure the file is not deleted
         # when it is closed
         fort_file = tempfile.NamedTemporaryFile(delete=False, suffix=".f90")
@@ -75,17 +93,29 @@ def trans(invoke_list, kernel_list, script_file):
         # Create a name for the output xml file
         xml_name = fort_file.name[:]
         xml_name += ".xml"
-        print xml_name
+
         # Run OMNI to get temporary XML file
         omni_frontend(fort_file.name, xml_name)
 
-        # Generate name for transformed kernel
+        # Generate name for transformed kernel and accompanying module
+        # TODO do this properly!
+        new_kernel_name = name + "_claw"
+        new_mod_name = new_kernel_name + "_mod"
+        new_file_name = "new_mod_name" + ".f90"
 
-        # Update the invokes to use this name for the kernel
-        for invoke in inv_list:
-            pass
+        # Update the invokes to use this name for the kernel - this means
+        # modifying any USE statements as well as the calls themselves
+        for kern in kern_list:
+            kern._module_name = new_mod_name
+            kern._name = new_kernel_name
+
+        # Alter the XcodeML/F so that it uses the new kernel name
+        rename_kernel(xml_name, new_kernel_name)
+
         # Run the CLAW script on the XML file and generate a new kernel
         # file
+        _run_claw(["xmod search path here"], xml_name,
+                  new_file_name, script_file)
 
 
 def transform_kernel(fort_file, script_file):
@@ -113,22 +143,50 @@ def transform_kernel(fort_file, script_file):
 
     output_fortran_file = path.join(dir_path, output_fortran_file)
 
-    # Then transform this XcodeML representation using CLAW and use OMNI to
-    # de-compile it back to Fortran
-    call(["/usr/bin/java", "-Xmx200m", "-Xms200m", "-cp", CLASS_PATH,
-          "claw.ClawX2T", "--config-path={0}".format(CLAW_CONFIG_FILE_DIR),
+    _run_claw(["xmod search path here"], xml_file,
+             output_fortran_file, script_file)
+
+
+def _run_claw(xmod_search_path, xml_file, output_file, script_file):
+    '''
+    Transform the XcodeML representation in xml_file using CLAW and
+    then use OMNI to de-compile it back to Fortran in output_file
+
+    :param xmod_search_path: list of dirs in which to find xmod files
+    :type xmod_search_path: list of str
+    :param str xml_file: the file containing XcodeML/F to transform
+    :param str output_file: the Fortran file to create
+    :param str script_file: the Jython CLAW script specifying the
+                            transformations
+    '''
+    from subprocess import call
+
+    xmod_paths = ["-M{0}".format(path) for path in xmod_search_path]
+
+    call(["/usr/bin/java", "-Xmx200m", "-Xms200m",
+          "-cp", CLASS_PATH,
+          "claw.ClawX2T",
+          "--config-path={0}".format(CLAW_CONFIG_FILE_DIR),
           "--schema={0}".format(os.path.join(CLAW_CONFIG_FILE_DIR,
                                              "claw_config.xsd")),
           "-w", str(NUM_OUTPUT_COLUMNS), "-l",
-          "-M/home/kbc59144/Projects/code_fragments",
-          "-M/home/kbc59144/MyInstalls/fincludes",
-          "-o", "claw_5f_example_f90_out.xml",
-          "-f", output_fortran_file,
+          " ".join(xmod_paths),
+          #"-M/home/kbc59144/Projects/code_fragments",
+          #"-M/home/kbc59144/MyInstalls/fincludes",
+          #"-o", "claw_5f_example_f90_out.xml",
+          "-f", output_file,
           "-script", script_file,
           xml_file])
+
+
+def rename_kernel(xml_file, name):
+    '''
+    Process the supplied XcodeML and re-name the specified kernel
+    '''
+    pass
 
 
 if __name__ == "__main__":
     ''' Entry point for this driver when run from command line '''
     import sys
-    claw_driver(sys.argv[1:])
+    _claw_driver(sys.argv[1:])
