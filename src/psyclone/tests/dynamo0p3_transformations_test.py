@@ -223,7 +223,8 @@ def test_colour_trans_operator(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans_cma_operator(tmpdir, f90, f90flags):  # pylint: disable=invalid-name
+def test_colour_trans_cma_operator(tmpdir, f90,
+                                   f90flags):  # pylint: disable=invalid-name
     '''test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -287,7 +288,7 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags):  # pylint: disable=in
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans_stencil(tmpdir, f90, f90flags):
+def test_colour_trans_stencil():
     '''test of the colouring transformation of a single loop with a
     stencil access. We test when distributed memory is both off and
     on    '''
@@ -490,7 +491,7 @@ def test_omp_colour_trans(tmpdir, f90, f90flags):
                 "        !$omp parallel do default(shared), private(cell), "
                 "schedule(static)\n"
                 "        DO cell=1,ncp_colour(colour)\n")
-            
+
         assert output in code
 
         if utils.TEST_COMPILE:
@@ -499,7 +500,7 @@ def test_omp_colour_trans(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_omp_colour_orient_trans(tmpdir, f90, f90flags):
+def test_omp_colour_orient_trans():
     '''Test the OpenMP transformation applied to a coloured loop when the
     kernel expects orientation information. We test when distributed
     memory is on or off '''
@@ -686,7 +687,7 @@ def test_colouring_after_openmp():
         assert "within an OpenMP parallel region" in str(excinfo.value)
 
 
-def test_colouring_multi_kernel(tmpdir, f90, f90flags):
+def test_colouring_multi_kernel():
     '''Test that we correctly generate all the map-lookups etc.  when an
     invoke contains more than one kernel. We test when distributed
     memory is on or off '''
@@ -4943,7 +4944,7 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():  # pylint: disable=invalid-name
     assert known
 
 
-def test_rc_no_directive():
+def test_rc_no_directive_2():
     '''When the redundant computation transformation is given a Loop whose
     parent is a directive an exception is raised as this is not
     supported (redundant computation transformations must be applied
@@ -5011,8 +5012,8 @@ def test_rc_parent_loop_colour(monkeypatch):
     # create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
-    
+    schedule, _ = ctrans.apply(schedule.children[3])
+
     # make the innermost loop iterate over cells (it should be colour)
     monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
                         "cells")
@@ -5042,8 +5043,8 @@ def test_rc_parent_loop_colours(monkeypatch):
     # create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
-    
+    schedule, _ = ctrans.apply(schedule.children[3])
+
     # make the outermost loop iterate over cells (it should be colours)
     monkeypatch.setattr(schedule.children[3], "_loop_type", "cells")
 
@@ -5055,7 +5056,7 @@ def test_rc_parent_loop_colours(monkeypatch):
             "parent must iterate over 'colours'" in str(excinfo.value))
 
 
-def test_rc_parent_loop_colours(monkeypatch):
+def test_rc_parent_loop_colours_2(monkeypatch):
     '''If the parent of the loop supplied to the redundant computation
     transformation is a loop then the parent loop's parent should be a
     schedule. If this is not the case then an exception is
@@ -5072,8 +5073,8 @@ def test_rc_parent_loop_colours(monkeypatch):
     # create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
-    
+    schedule, _ = ctrans.apply(schedule.children[3])
+
     # make the parent of the outermost something other than Schedule
     # (a halo exchange)
     monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
@@ -5104,7 +5105,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     # create colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[3])
+    schedule, _ = ctrans.apply(schedule.children[3])
 
     # make the loop type invalid
     monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
@@ -5119,15 +5120,18 @@ def test_rc_unsupported_loop_type(monkeypatch):
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
-    assert ("Unsupported loop_type 'invalid' found" in str(excinfo.value))
+    assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
 def test_rc_colour_no_loop_decrease():  # pylint: disable=invalid-name
     '''Test that we raise an exception if we try to reduce the size of a
-    loop halo depth when using the redundant computation transformation. This is
-    not allowed partly for simplicity but also because, in the current
-    implementation we might not decrease the size of the relevant halo
-    exchange as these can only be increased with the current logic'''
+    loop halo depth when using the redundant computation
+    transformation. This is not allowed partly for simplicity but also
+    because, in the current implementation we might not decrease the
+    size of the relevant halo exchange as these can only be increased
+    with the current logic
+
+    '''
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
@@ -5139,7 +5143,7 @@ def test_rc_colour_no_loop_decrease():  # pylint: disable=invalid-name
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
     schedule, _ = ctrans.apply(schedule.children[3])
-    
+
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[3].children[0]
@@ -5173,7 +5177,7 @@ def test_rc_colour(tmpdir, f90, f90flags):
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    
+
     # create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
@@ -5223,7 +5227,7 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    
+
     # create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
     # Colour the loop
@@ -5271,18 +5275,18 @@ def test_colour_discontinuous():
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
-                    api=TEST_API)
+                                        "1_single_invoke_w3_only.f90"),
+                           api=TEST_API)
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    
+
     # create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
-    
+
     with pytest.raises(TransformationError) as excinfo:
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        _, _ = ctrans.apply(schedule.children[0])
     assert ("Loops iterating over a discontinuous function space are not "
             "currently supported") in str(excinfo)
 
@@ -5293,18 +5297,18 @@ def test_rc_then_colour(tmpdir, f90, f90flags):
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
+                                        "1_single_invoke.f90"),
+                           api=TEST_API)
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    
+
     # create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
     # create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    
+
     # apply redundant computation to the loop
     schedule, _ = rc_trans.apply(schedule.children[3], 3)
 
@@ -5350,18 +5354,18 @@ def test_rc_then_colour2(tmpdir, f90, f90flags):
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
+                                        "1_single_invoke.f90"),
+                           api=TEST_API)
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    
+
     # create our colour transformation
     ctrans = Dynamo0p3ColourTrans()
 
     # create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    
+
     # apply redundant computation to the loop
     schedule, _ = rc_trans.apply(schedule.children[3])
 
@@ -5411,16 +5415,16 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
-    
+
     ftrans = DynamoLoopFuseTrans()
-    
+
     # fuse the loops
     schedule, _ = ftrans.apply(schedule.children[3],
                                schedule.children[4])
 
     # create our redundant computation transformation
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    
+
     # apply redundant computation to the loop
     schedule, _ = rc_trans.apply(schedule.children[3])
 

@@ -394,7 +394,7 @@ class OMPLoopTrans(Transformation):
         '''
 
         self._validate(node)
-        
+
         if reprod is None:
             import psyclone.config
             reprod = psyclone.config.REPRODUCIBLE_REDUCTIONS
@@ -876,7 +876,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Error in DynamoColour transformation. "
                                       "The supplied node is not a loop")
         # Check we need colouring
-        from dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+        from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
         if node.field_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
@@ -1278,8 +1278,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # transformations to be applied before adding directives so it
         # is not particularly important.
         from psyclone.psyGen import Schedule
-        if not ( isinstance(node.parent, Schedule) or
-                 (isinstance(node.parent, Loop))):
+        if not (isinstance(node.parent, Schedule) or
+                (isinstance(node.parent, Loop))):
             from psyclone.psyGen import Directive
             if isinstance(node.parent, Directive):
                 raise TransformationError(
@@ -1290,28 +1290,29 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "added.".format(type(node.parent)))
             else:
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation apply "
-                    "method the parent of the supplied loop must be the Schedule, "
-                    "or a Loop, but found {0}".format(type(node.parent)))
+                    "In the Dynamo0p3RedundantComputation transformation "
+                    "apply method the parent of the supplied loop must be "
+                    "the Schedule, or a Loop, but found {0}".
+                    format(type(node.parent)))
         if isinstance(node.parent, Loop):
-            if not node.loop_type == "colour":
+            if node.loop_type != "colour":
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation apply "
-                    "method, if the parent of the supplied Loop is also a Loop "
-                    "then the supplied Loop must iterate over 'colour', but "
-                    "found '{0}'".format(node.loop_type))
-            if not node.parent.loop_type == "colours":
+                    "In the Dynamo0p3RedundantComputation transformation "
+                    "apply method, if the parent of the supplied Loop is "
+                    "also a Loop then the supplied Loop must iterate over "
+                    "'colour', but found '{0}'".format(node.loop_type))
+            if node.parent.loop_type != "colours":
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation apply "
-                    "method, if the parent of the supplied Loop is also a Loop "
-                    "then the parent must iterate over 'colours', but found "
-                    "'{0}'".format(node.parent.loop_type))
+                    "In the Dynamo0p3RedundantComputation transformation "
+                    "apply method, if the parent of the supplied Loop is "
+                    "also a Loop then the parent must iterate over "
+                    "'colours', but found '{0}'".format(node.parent.loop_type))
             if not isinstance(node.parent.parent, Schedule):
                 raise TransformationError(
-                    "In the Dynamo0p3RedundantComputation transformation apply "
-                    "method, if the parent of the supplied Loop is also a Loop "
-                    "then the parent's parent must be the Schedule, but found "
-                    "{0}".format(type(node.parent)))
+                    "In the Dynamo0p3RedundantComputation transformation "
+                    "apply method, if the parent of the supplied Loop is "
+                    "also a Loop then the parent's parent must be the "
+                    "Schedule, but found {0}".format(type(node.parent)))
         import psyclone.config
         if not psyclone.config.DISTRIBUTED_MEMORY:
             raise TransformationError(

@@ -4084,11 +4084,11 @@ class DynLoop(Loop):
                                               "ncolours"]:
                     for field in fields:
                         loop = field.call.parent
-                        if loop._upper_bound_halo_depth:
+                        if loop.upper_bound_halo_depth:
                             # halo exchange(s) is/are to a fixed depth
-                            halo_depth = loop._upper_bound_halo_depth
+                            halo_depth = loop.upper_bound_halo_depth
                             if not field.discontinuous and \
-                               loop._upper_bound_name in ["cell_halo",
+                               loop.upper_bound_name in ["cell_halo",
                                                           "colour_halo"]:
                                 halo_depth -= 1
                             if halo_depth > 0:
@@ -4115,7 +4115,7 @@ class DynLoop(Loop):
                             # halo exchange(s) is/are to the full halo
                             # depth (-1 if continuous)
                             halo_depth = "mesh%get_halo_depth()"
-                            if loop._upper_bound_name in \
+                            if loop.upper_bound_name in \
                                ["cell_halo", "colour_halo"] and not \
                                field.discontinuous:
                                 # a continuous field iterating over
@@ -4519,7 +4519,8 @@ class DynKern(Kern):
                 root_name="mesh", context="PSyVars", label="mesh")
             if config.DISTRIBUTED_MEMORY:
                 new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
-                                         rhs=mesh_obj_name+"%get_colour_map()"),
+                                         rhs=mesh_obj_name +
+                                         "%get_colour_map()"),
                                position=["before", position])
             else:
                 name = arg.proxy_name_indexed + \
