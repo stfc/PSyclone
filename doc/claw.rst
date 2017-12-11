@@ -34,38 +34,41 @@ are treated as 'black-boxes' and are left untouched during this
 process. In order to modify the kernels themselves, the user-supplied
 script must invoke CLAW.
 
-In contrast to PSyclone's native transformations which operate on the
-PSy AST, CLAW operates on Fortran source code. In this case this will
-be one or more of the kernels called from the PSy layer.  PSyclone
-already has the location of these kernels since the meta-data they
-contain must be parsed. This location information must now also be
-passed to the transformation script in case it wishes to modify the
-kernels.
+Just as PSyclone's native transformations operate on the PSy AST, CLAW
+also operates on the AST of a kernel. In this case however the AST is
+in XcodeML/F form which is obtained by running the front-end of the
+OMNI compiler. This process of obtaining an XcodeML/F kernel AST
+(instead of the one produced by fparser) is performed 'under the hood'
+of the PSyclone interface to CLAW.
 
-Rather than re-name any transformed kernels, PSyclone instead creates
-them in a user-specified location. This information must be passed
-to PSyclone when it is invoked from the command line. An example script
-that uses CLAW to transform kernels might look like:
+Each transformed kernel is written to the same location as the generated
+PSy-layer code. In order to distinguish these kernels from the originals,
+they are given unique names (based on their original name and the name of
+the PSy-layer routine that calls them) and the PSy AST updated
+to use them. 
+
+An example script that uses CLAW to transform kernels might look like:
 
 ::
 
-    def trans(psy, kernel_search_path, out_dir):
+    def trans(psy):
+        from psyclone.transformations import OMPParallelLoopTrans
+	from psyclone import claw
 
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
         # Get an OpenMPLoop-transformation
-        from psyclone.transformations import OMPParallelLoopTrans
         ol = OMPParallelLoopTrans()
 
         # Apply it to the first loop in the schedule
         new_schedule, memento = ol.apply(schedule.children[0])
 
-	# Transform the associated kernel
-	from psyclone import claw
+	# Transform the associated kernel for the one invoke
 	kern = schedule.children[0].children[0]
 	kernel_list = [kern.name]
+	invoke_list = [invoke]
 	claw_script = "some jython file"
-        claw.trans(kernel_list, kernel_search_path, claw_script, out_dir)
+        claw.trans(invoke_list, kernel_list, claw_script)
 
         return psy
