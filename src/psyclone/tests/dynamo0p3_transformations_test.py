@@ -4506,33 +4506,6 @@ def test_rc_no_loop_decrease():  # pylint: disable=invalid-name
             "transformation does nothing") in str(excinfo)
 
 
-def test_rc_no_directive():  # pylint: disable=invalid-name
-    '''Test that we raise an exception if we try to use the redundant
-    computation transformation after adding parallel directives (or in
-    general anything that becomes a parent of the loop). This is a
-    limitation that could be fixed and is down to the way we place new
-    halos (we put them before the loop and don't check whether there are
-    any parent directives). However this is not an unreasonable constraint
-    as we would expect to perform loop optimisations before adding
-    directives.'''
-
-    _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
-    loop = schedule.children[0]
-    schedule, _ = otrans.apply(loop)
-    invoke.schedule = schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[0].children[0]
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(loop)
-    assert "the parent must be the Schedule" in str(excinfo)
-
-
 def test_rc_remove_halo_exchange():  # pylint: disable=invalid-name
     '''Test that a halo exchange is removed if redundant computation means
     that it is no longer required'''
@@ -4944,7 +4917,7 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():  # pylint: disable=invalid-name
     assert known
 
 
-def test_rc_no_directive_2():
+def test_rc_no_directive():
     '''When the redundant computation transformation is given a Loop whose
     parent is a directive an exception is raised as this is not
     supported (redundant computation transformations must be applied
