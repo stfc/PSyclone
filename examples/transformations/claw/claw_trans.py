@@ -34,15 +34,24 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
+import os
 
-def trans(psy, kernel_search_path, out_path):
-    pass
+def trans(psy):
+    from psyclone import claw
+    # Just get the first invoke
+    invoke = psy.invokes.invoke_list[0]
+    invoke.schedule.view()
+    # Get the kernel
+    kern = invoke.schedule.children[0].children[0].children[0]
+    print kern.name
+    # Invoke claw on the kernel using the claw_trans script in
+    # this file
+    claw.trans([invoke], [kern.name], os.path.abspath(__file__))
 
 def claw_trans():
     pass
 
 if __name__ == "__main__":
-    import os
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -51,7 +60,6 @@ if __name__ == "__main__":
     _, info = parse(os.path.join(src_path, "single_invoke.f90"),
                     api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(info)
-
-    trans(psy, src_path, os.path.abspath(__file__))
+    trans(psy)
 
     print "All done!"
