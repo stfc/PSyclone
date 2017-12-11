@@ -490,7 +490,9 @@ class KernelType(object):
     how that procedure is mapped over mesh entities."""
 
     def __init__(self, ast, name=None):
-
+        '''
+        :param ast: the fparser AST for the module containing this kernel
+        '''
         if name is None:
             # if no name is supplied then use the module name to
             # determine the type name. The assumed convention is that
