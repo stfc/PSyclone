@@ -90,7 +90,8 @@ REDUCTION_OPERATOR_MAPPING = {"sum": "+"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument
-MAPPING_ACCESSES = {"inc": "inc", "write": "write", "read": "read"}
+MAPPING_ACCESSES = {"inc": "inc", "write": "write",
+                    "read": "read", "readwrite": "readwrite"}
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
 # List of all valid access types for a kernel argument
@@ -574,15 +575,17 @@ class Invoke(object):
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
 
-        # Get the lists of all kernel arguments that are accessed
-        # as inc (shared update), write and read. A single argument may
-        # be accessed in different ways by different kernels.
+        # Get the lists of all kernel arguments that are accessed as
+        # inc (shared update), write, read and readwrite. A single argument
+        # may be accessed in different ways by different kernels.
         inc_args = self.unique_declarations(datatype,
                                             access=MAPPING_ACCESSES["inc"])
         write_args = self.unique_declarations(datatype,
                                               access=MAPPING_ACCESSES["write"])
         read_args = self.unique_declarations(datatype,
                                              access=MAPPING_ACCESSES["read"])
+        readwrite_args = self.unique_declarations(
+                              datatype, access=MAPPING_ACCESSES["readwrite"])
         sum_args = self.unique_declarations(datatype,
                                             access=MAPPING_REDUCTIONS["sum"])
         # sum_args behave as if they are write_args from the
@@ -631,6 +634,11 @@ class Invoke(object):
             else:
                 if name not in declns["out"]:
                     declns["out"].append(name)
+
+        # Reader/writter arguments are always declared as intent(inout).
+        for name in readwrite_args:
+            if name not in declns["inout"]:
+                declns["inout"].append(name)
 
         # Anything we have left must be declared as intent(in)
         for name in read_args:
@@ -1651,7 +1659,8 @@ class GlobalSum(Node):
         if scalar:
             # update scalar values appropriately
             # HACK:TODO: update mapping to readwrite when it is supported
-            self._scalar.access = MAPPING_ACCESSES["inc"]
+            # self._scalar.access = MAPPING_ACCESSES["inc"]
+            self._scalar.access = MAPPING_ACCESSES["readwrite"]
             self._scalar.call = self
 
     @property
@@ -1721,7 +1730,8 @@ class HaloExchange(Node):
         if field:
             # update fields values appropriately
             # HACK:TODO: update mapping to readwrite when it is supported
-            self._field.access = MAPPING_ACCESSES["inc"]
+            # self._field.access = MAPPING_ACCESSES["inc"]
+            self._field.access = MAPPING_ACCESSES["readwrite"]
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None
@@ -2550,9 +2560,11 @@ class Argument(object):
         # MAPPING_ACCESSES specified in the dynamo0p3 file which
         # overide the default ones in this file.
         self._write_access_types = [MAPPING_ACCESSES["write"],
+                                    MAPPING_ACCESSES["readwrite"],
                                     MAPPING_ACCESSES["inc"],
                                     MAPPING_REDUCTIONS["sum"]]
         self._read_access_types = [MAPPING_ACCESSES["read"],
+                                   MAPPING_ACCESSES["readwrite"],
                                    MAPPING_ACCESSES["inc"]]
         self._vector_size = 1
 
