@@ -56,9 +56,10 @@ from fparser import api as fpapi
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
-from psyclone.psyGen import GenerationError, FieldNotFoundError, HaloExchange
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
-from psyclone.parse import parse
+from psyclone.psyGen import GenerationError, FieldNotFoundError, \
+     HaloExchange, Invoke
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
+from psyclone.parse import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
 from psyclone.generator import generate
 
@@ -443,6 +444,34 @@ def test_reset():
     assert ns1 != ns2
 
 # tests for class Call
+
+
+def test_invokes_can_always_be_printed():  # pylint: disable=invalid-name
+    '''Test that an Invoke instance can always be printed (i.e. is
+    initialised fully)'''
+    inv = Invoke(None, None, None)
+    assert inv.__str__() == "invoke()"
+
+    invoke_call = InvokeCall([], "TestName")
+    inv = Invoke(invoke_call, 12, DynSchedule)
+    # Name is converted to lower case if set in constructor of InvokeCall:
+    assert inv.__str__() == "invoke_testname()"
+
+    invoke_call._name = None
+    inv = Invoke(invoke_call, 12, DynSchedule)
+    assert inv.__str__() == "invoke_12()"
+
+    # Last test case: one kernel call - to avoid constructing
+    # the InvokeCall, parse an existing Fortran file"
+
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
+        api="dynamo0.3")
+
+    alg_invocation = invoke.calls.values()[0]
+    inv = Invoke(alg_invocation, 0, DynSchedule)
+    assert inv.__str__() == \
+        "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
 
 
 def test_same_name_invalid():
