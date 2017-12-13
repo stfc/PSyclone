@@ -4567,9 +4567,21 @@ class ArgOrdering(object):
         self._kern = kern
 
     def generate(self):
-        '''specifies which arguments appear in an argument list, their type
+        '''
+        Specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
-        that can be specialised by a child class for its particular need'''
+        that can be specialised by a child class for its particular need.
+
+        :raises GenerationError: if an unexpected argument type is found
+        in Dynamo0p3 API.
+        :raises GenerationError: if a boundary condition kernel has more
+        than one LMA operator as argument.
+        :raises GenerationError: if an argument to a boundary condition
+        kernel is not an LMA operator.
+        :raises GenerationError: if the operator argument to a boundary
+        condition kernel does not have "readwrite" access.
+
+        '''
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
@@ -4676,8 +4688,6 @@ class ArgOrdering(object):
                     "Expected a LMA operator from which to look-up boundary "
                     "dofs but kernel {0} has argument {1}.".
                     format(self._kern.name, op_arg.type))
-            # TODO this access should really be "gh_readwrite". Support for
-            # this will be added under #25.
             if op_arg.access != "gh_readwrite":
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "

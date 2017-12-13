@@ -1651,16 +1651,22 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 
 class GlobalSum(Node):
-    ''' Generic Global Sum class which can be added to and
-    manipulated in, a schedule. '''
+    '''
+    Generic Global Sum class which can be added to and manipulated
+    in, a schedule.
+
+    :param scalar: the scalar that the global sum is stored into
+    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
         if scalar:
-            # update scalar values appropriately
-            # HACK:TODO: update mapping to readwrite when it is supported
-            # self._scalar.access = MAPPING_ACCESSES["inc"]
+            # Update scalar values appropriately
             self._scalar.access = MAPPING_ACCESSES["readwrite"]
             self._scalar.call = self
 
@@ -1676,7 +1682,7 @@ class GlobalSum(Node):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Override
+        ''' Return the list of arguments associated with this node. Override
         the base method and simply return our argument.'''
         return [self._scalar]
 
@@ -1729,9 +1735,7 @@ class HaloExchange(Node):
         import copy
         self._field = copy.copy(field)
         if field:
-            # update fields values appropriately
-            # HACK:TODO: update mapping to readwrite when it is supported
-            # self._field.access = MAPPING_ACCESSES["inc"]
+            # Update fields values appropriately
             self._field.access = MAPPING_ACCESSES["readwrite"]
             self._field.call = self
         self._halo_type = None

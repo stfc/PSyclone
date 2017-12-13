@@ -1068,7 +1068,6 @@ def test_argument_find_read_arguments():  # pylint: disable=invalid-name
         assert result[idx] == loop.children[0].arguments.args[3]
 
 
-###@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_globalsum_arg():
     '''Check that the globalsum argument is defined as gh_readwrite and
     points to the globalsum node'''
@@ -1084,7 +1083,6 @@ def test_globalsum_arg():
     assert glob_sum_arg.call == glob_sum
 
 
-###@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_haloexchange_arg():
     '''Check that the haloexchange argument is defined as gh_readwrite and
     points to the haloexchange node'''

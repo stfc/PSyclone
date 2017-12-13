@@ -72,7 +72,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface enforce_operator_bc_kernel_type
   module procedure enforce_operator_bc_kernel_constructor
 end interface
@@ -101,7 +101,7 @@ subroutine enforce_operator_bc_code(cell, nlayers,                   &
                                     ndf1, ndf2, boundary_value       &
                                    )
   
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers, cell, ncell_3d
   integer, intent(in) :: ndf1, ndf2
   integer, dimension(ndf1,2), intent(in) :: boundary_value
