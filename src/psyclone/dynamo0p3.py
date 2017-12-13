@@ -1,4 +1,3 @@
-# -*- coding: iso-8859-1 -*-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -2492,7 +2491,7 @@ class DynInvoke(Invoke):
                                            intent=fort_intent))
 
         # Add the subroutine argument declarations for operators that
-        # are read or written (operators are always on discontinous spaces
+        # are read or written (operators are always on discontinuous spaces
         # and therefore are never 'inc')
         op_declarations_dict = self.unique_declns_by_intent("gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
@@ -4458,7 +4457,8 @@ class DynKern(Kern):
 
         # Check whether this kernel reads from an operator
         op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
-                                          arg_accesses=["gh_read"])
+                                          arg_accesses=["gh_read",
+                                                        "gh_readwrite"])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.

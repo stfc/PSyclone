@@ -37,6 +37,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
 # -----------------------------------------------------------------------------
+# Modified I. Kavcic, Met Office
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
     and generation. The classes in this method need to be specialised for a
