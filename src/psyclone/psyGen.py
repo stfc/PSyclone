@@ -622,12 +622,17 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
+        for name in readwrite_args:
+            # Reader/writter arguments are always declared as intent(inout).
+            if name not in declns["inout"]:
+                declns["inout"].append(name)
+
         for name in write_args:
             # For every argument that is written to by at least one kernel,
             # identify the type of the first access - if it is read
             # or inc'd before it is written then it must have intent(inout).
-            # However, we deal with inc args separately so we do
-            # not consider those here.
+            # However, we deal with inc and readwrite args separately so we
+            # do not consider those here.
             first_arg = self.first_access(name)
             if first_arg.access == MAPPING_ACCESSES["read"]:
                 if name not in declns["inout"]:
@@ -635,11 +640,6 @@ class Invoke(object):
             else:
                 if name not in declns["out"]:
                     declns["out"].append(name)
-
-        # Reader/writter arguments are always declared as intent(inout).
-        for name in readwrite_args:
-            if name not in declns["inout"]:
-                declns["inout"].append(name)
 
         # Anything we have left must be declared as intent(in)
         for name in read_args:
