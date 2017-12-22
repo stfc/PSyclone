@@ -188,6 +188,11 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
 
     xmod_paths = ["-M{0}".format(path) for path in xmod_search_path]
 
+    # We have to provide a name for the output file containing the
+    # transformed XML in order that it can be given to the Omni
+    # backend
+    intermediate_xml_file = "{0}.tmp.xml".format(xml_file)
+
     # Ensure the Claw Python module is on the JYTHONPATH
     my_env = os.environ.copy()
     my_env["JYTHONPATH"] = claw_config.CLAW_PYTHON_PATH
@@ -202,6 +207,7 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
                     "-w", str(NUM_OUTPUT_COLUMNS), "-l",
                     " ".join(xmod_paths),
                     "-f", output_file,
+                    "-o", intermediate_xml_file,
                     "-script", script_file,
                     xml_file],
                    env=my_env)
