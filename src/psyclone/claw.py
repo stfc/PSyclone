@@ -182,7 +182,7 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     :param str script_file: the Jython CLAW script specifying the
                             transformations
     '''
-    from subprocess import Popen
+    from subprocess import check_call, CalledProcessError
     import os
     from . import claw_config
 
@@ -192,18 +192,23 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     my_env = os.environ.copy()
     my_env["JYTHONPATH"] = claw_config.CLAW_PYTHON_PATH
 
-    Popen(["/usr/bin/java", "-Xmx200m", "-Xms200m",
-          "-cp", CLASS_PATH,
-          "claw.ClawX2T",
-          "--config-path={0}".format(CLAW_CONFIG_FILE_DIR),
-          "--schema={0}".format(os.path.join(CLAW_CONFIG_FILE_DIR,
-                                             "claw_config.xsd")),
-          "-w", str(NUM_OUTPUT_COLUMNS), "-l",
-          " ".join(xmod_paths),
-          "-f", output_file,
-          "-script", script_file,
-           xml_file],
-          env=my_env)
+    try:
+        check_call(["/usr/bin/java", "-Xmx200m", "-Xms200m",
+                    "-cp", CLASS_PATH,
+                    "claw.ClawX2T",
+                    "--config-path={0}".format(CLAW_CONFIG_FILE_DIR),
+                    "--schema={0}".format(os.path.join(CLAW_CONFIG_FILE_DIR,
+                                                       "claw_config.xsd")),
+                    "-w", str(NUM_OUTPUT_COLUMNS), "-l",
+                    " ".join(xmod_paths),
+                    "-f", output_file,
+                    "-script", script_file,
+                    xml_file],
+                   env=my_env)
+    except CalledProcessError as err:
+        print "Execution of CLAW failed:"
+        print str(err)
+        raise err
 
 
 def rename_kernel(xml_file, name):
