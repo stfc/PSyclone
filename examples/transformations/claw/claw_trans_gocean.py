@@ -88,6 +88,8 @@ if __name__ == "__main__":
     _, info = parse(os.path.join(src_path, "single_invoke.f90"),
                     api="gocean1.0")
     psy = PSyFactory("gocean1.0").create(info)
+    # Mimic PSyclone by calling the trans() function defined in this
+    # script to transform the supplied PSy layer.
     trans(psy)
 
     print "All done!"
