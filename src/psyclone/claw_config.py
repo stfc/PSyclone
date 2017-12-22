@@ -26,7 +26,9 @@ OMNI_MODULES_PATH = {"dynamo0.3":
                      os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "tests", "test_files", "dynamo0p3",
                                   "infrastructure"),
-                     "gocean1.0": "/home/kbc59144/Projects/dl_esm_inf/src"}
+                     "gocean1.0":
+                     "/home/kbc59144/Projects/dl_esm_inf/finite_difference/"
+                     "src"}
 
 # The OMNI and CLAW jars
 OMNI_JARS = ["om-exc-tools.jar",
