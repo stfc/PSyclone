@@ -17,6 +17,13 @@ NUM_OUTPUT_COLUMNS = 80
 # Location that CLAW is installed to
 CLAW_INSTALL_PATH = os.path.join(CLAW_INSTALL_ROOT, "share")
 
+# Root of location of OMNI-compiled Fortran modules use'd by any kernels
+# to be transformed by CLAW.
+# TODO move this location out of the tests directory if/when we decide
+# that this approach is correct
+OMNI_MODULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "tests", "test_files")
+
 # The OMNI and CLAW jars
 OMNI_JARS = ["om-exc-tools.jar",
              "om-common.jar",
