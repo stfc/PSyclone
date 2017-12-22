@@ -34,10 +34,9 @@ def omni_frontend(fort_file, xml_file, mod_search_paths):
     :type mod_search_paths: list of str
     '''
     from subprocess import check_call, CalledProcessError
-    print type(mod_search_paths)
+
     inc_args = ["-I{0}".format(path) for path in mod_search_paths]
     mod_path = " ".join(inc_args)
-    print "omni_frontend: module path = {0}".format(mod_path)
     try:
         check_call(["F_Front", mod_path, fort_file, "-o", str(xml_file)])
     except CalledProcessError as err:
