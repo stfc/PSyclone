@@ -105,9 +105,13 @@ def trans(invoke_list, kernel_list, script_file):
         xml_name = fort_file.name[:]
         xml_name += ".xml"
 
-        # TODO work out which API this is from the fparser AST
-        mod_search_path = os.path.join(claw_config.OMNI_MODULES_PATH,
-                                       "dynamo0p3", "infrastructure")
+        # Work out which API this is from the fparser AST
+        api = _api_from_ast(kern_list[0])
+        if api not in claw_config.OMNI_MODULES_PATH:
+            raise TransformationError(
+                "No location specified for OMNI-compiled infrastructure "
+                "for API {0}. Please add to claw_config.py".format(api))
+        mod_search_path = claw_config.OMNI_MODULES_PATH[api]
 
         # Run OMNI to get temporary XML file
         omni_frontend(fort_file.name, xml_name, [mod_search_path])
@@ -199,6 +203,21 @@ def rename_kernel(xml_file, name):
     Process the supplied XcodeML and re-name the specified kernel
     '''
     pass
+
+
+def _api_from_ast(kern):
+    '''
+    Work out which PSyclone API the supplied kernel is for
+    '''
+    from psyclone.dynamo0p3 import DynKern
+    from psyclone.gocean1p0 import GOKern
+    if isinstance(kern, DynKern):
+        return "dynamo0.3"
+    elif isinstance(kern, GOKern):
+        return "gocean1.0"
+    else:
+        raise TransformationError(
+            "Cannot determine API for kernel of type {0}".format(type(kern)))
 
 
 if __name__ == "__main__":
