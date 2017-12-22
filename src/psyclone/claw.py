@@ -64,8 +64,9 @@ def trans(invoke_list, kernel_list, script_file):
     :param str script_file: Claw Jython script to perform transformation
     '''
     import tempfile
-    from psyclone.psyGen import Kern
-    from psyclone import claw_config
+    from .psyGen import Kern
+    from . import claw_config
+    from .line_length import FortLineLength
 
     # Create a dictionary to hold which kernels are used by which invoke
     unique_kern_list = set(kernel_list)
@@ -87,6 +88,9 @@ def trans(invoke_list, kernel_list, script_file):
         if len(inv_list) < 1:
             raise TransformationError("Huh")
 
+    # Omni cares about line lengths so get a line-length limiter
+    fll = FortLineLength()
+
     # We have the fparser1 AST for each kernel but CLAW works with the
     # XcodeML/F AST. We must therefore generate a Fortran file for each
     # kernel and then use the OMNI frontend to get the XcodeML/F
@@ -95,10 +99,11 @@ def trans(invoke_list, kernel_list, script_file):
 
         # Use the fparser AST to generate a (temporary) Fortran file
         fortran = kern_list[0]._module_code.tofortran()
+        fortran_limited = fll.process(fortran)
         # delete=False is required to ensure the file is not deleted
         # when it is closed
         fort_file = tempfile.NamedTemporaryFile(delete=False, suffix=".f90")
-        fort_file.write(fortran)
+        fort_file.write(fortran_limited)
         fort_file.close()
         # Create a name for the output xml file
         xml_name = fort_file.name[:]
