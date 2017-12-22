@@ -2,6 +2,8 @@
 *~
 .cache
 .coverage
+*.xmod
+*.s
 doc/_build
 fparser.log
 htmlcov
