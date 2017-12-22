@@ -16,6 +16,8 @@ CLAW_CONFIG_FILE_DIR = os.path.join(CLAW_INSTALL_ROOT, "etc")
 NUM_OUTPUT_COLUMNS = 80
 # Location that CLAW is installed to
 CLAW_INSTALL_PATH = os.path.join(CLAW_INSTALL_ROOT, "share")
+# Location that CLAW Python module is installed to
+CLAW_PYTHON_PATH = os.path.join(CLAW_INSTALL_ROOT, "lib")
 
 # Dictionary (indexed by PSyclone API name) containing the location of
 # OMNI-compiled Fortran modules use'd by any kernels to be transformed

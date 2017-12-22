@@ -4,6 +4,7 @@
 .coverage
 *.xmod
 *.s
+*.egg-info
 doc/_build
 fparser.log
 htmlcov

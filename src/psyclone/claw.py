@@ -182,11 +182,17 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     :param str script_file: the Jython CLAW script specifying the
                             transformations
     '''
-    from subprocess import call
+    from subprocess import Popen
+    import os
+    from . import claw_config
 
     xmod_paths = ["-M{0}".format(path) for path in xmod_search_path]
 
-    call(["/usr/bin/java", "-Xmx200m", "-Xms200m",
+    # Ensure the Claw Python module is on the JYTHONPATH
+    my_env = os.environ.copy()
+    my_env["JYTHONPATH"] = claw_config.CLAW_PYTHON_PATH
+
+    Popen(["/usr/bin/java", "-Xmx200m", "-Xms200m",
           "-cp", CLASS_PATH,
           "claw.ClawX2T",
           "--config-path={0}".format(CLAW_CONFIG_FILE_DIR),
@@ -194,12 +200,10 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
                                              "claw_config.xsd")),
           "-w", str(NUM_OUTPUT_COLUMNS), "-l",
           " ".join(xmod_paths),
-          #"-M/home/kbc59144/Projects/code_fragments",
-          #"-M/home/kbc59144/MyInstalls/fincludes",
-          #"-o", "claw_5f_example_f90_out.xml",
           "-f", output_file,
           "-script", script_file,
-          xml_file])
+           xml_file],
+          env=my_env)
 
 
 def rename_kernel(xml_file, name):

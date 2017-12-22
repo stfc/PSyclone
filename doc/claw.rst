@@ -20,6 +20,11 @@ You will also need Jython (a Java implementation of Python).
 Installation/Configuration
 --------------------------
 
+* Install Omni (>=1.2.2) from http://omni-compiler.org/.
+* Install Jython.
+* Install Claw.
+  cp claw-compiler/omni-cx2x/src/claw/python/ClawTransform.py <claw-install-root>/lib
+* Configure `src/claw_config.py`.
 
 Using CLAW with PSyclone
 ------------------------
