@@ -1,12 +1,12 @@
 ''' Top-level driver script allowing the Claw compiler to be executed from
 either the command-line or from other Python code '''
 
-from claw_config import *
+import os
+from .claw_config import *
 from .transformations import TransformationError
 
 def _claw_driver(argv):
     ''' Top level python driver for Claw compiler '''
-    from os import path
 
     # Set-up command-line argument parser
     import argparse
@@ -24,19 +24,30 @@ def _claw_driver(argv):
     transform_kernel(fortran_file, script_file)
 
 
-def omni_frontend(fort_file, xml_file):
+def omni_frontend(fort_file, xml_file, mod_search_paths):
     '''
     Runs the front-end of the OMNI compiler (which must be on the user's PATH)
 
     :param str fort_file: the name of the Fortran file to process
     :param str xml_file: the XcodeML/F file to create
+    :param mod_search_paths: list of locations to search for xmod files
+    :type mod_search_paths: list of str
     '''
-    from subprocess import call
-    call(["F_Front", fort_file, "-o", str(xml_file)])
-    print "Produced XCodeML file: {0}".format(xml_file)
+    from subprocess import check_call, CalledProcessError
+    print type(mod_search_paths)
+    inc_args = ["-I {0}".format(path) for path in mod_search_paths]
+    mod_path = " ".join(inc_args)
+    print "omni_frontend: module path = {0}".format(mod_path)
+    try:
+        check_call(["F_Front", mod_path, fort_file, "-o", str(xml_file)])
+    except CalledProcessError as err:
+        print "The Omni frontend raised an error ({0}) when processing " \
+            "file {1}".format(str(err), fort_file)
+        raise err
+    print "omni_frontend: produced XCodeML file: {0}".format(xml_file)
 
 
-def trans(invoke_list, kernel_list, script_file, xmod_search_path):
+def trans(invoke_list, kernel_list, script_file):
     '''
     PSyclone interface to CLAW
 
@@ -52,11 +63,10 @@ def trans(invoke_list, kernel_list, script_file, xmod_search_path):
     :param kernel_list: List of names of kernels to transform
     :type kernel_list: List of str
     :param str script_file: Claw Jython script to perform transformation
-    :param xmod_search_path: List of locations to search for .xmod files
-    :type xmod_search_path: list of str
     '''
     import tempfile
     from psyclone.psyGen import Kern
+    from psyclone import claw_config
 
     # Create a dictionary to hold which kernels are used by which invoke
     unique_kern_list = set(kernel_list)
@@ -77,6 +87,7 @@ def trans(invoke_list, kernel_list, script_file, xmod_search_path):
     for kern, inv_list in invokes_by_kernel.items():
         if len(inv_list) < 1:
             raise TransformationError("Huh")
+
     # We have the fparser1 AST for each kernel but CLAW works with the
     # XcodeML/F AST. We must therefore generate a Fortran file for each
     # kernel and then use the OMNI frontend to get the XcodeML/F
@@ -94,8 +105,12 @@ def trans(invoke_list, kernel_list, script_file, xmod_search_path):
         xml_name = fort_file.name[:]
         xml_name += ".xml"
 
+        # TODO work out which API this is from the fparser AST
+        mod_search_path = os.path.join(claw_config.OMNI_MODULES_PATH,
+                                       "dynamo0p3", "infrastructure")
+
         # Run OMNI to get temporary XML file
-        omni_frontend(fort_file.name, xml_name)
+        omni_frontend(fort_file.name, xml_name, [mod_search_path])
 
         # Generate name for transformed kernel and accompanying module
         # TODO do this properly!
@@ -114,7 +129,7 @@ def trans(invoke_list, kernel_list, script_file, xmod_search_path):
 
         # Run the CLAW script on the XML file and generate a new kernel
         # file
-        _run_claw(["xmod search path here"], xml_name,
+        _run_claw([mod_search_path], xml_name,
                   new_file_name, script_file)
 
 
@@ -123,7 +138,6 @@ def transform_kernel(fort_file, script_file):
     :param str fort_file: The Fortran file to transform
     :param str script_file: The Jython script specifying the transformation(s)
     '''
-    from subprocess import call
     from os import path
     # Use the OMNI frontend to generate the XcodeML representation of
     # the Fortran file
@@ -139,12 +153,13 @@ def transform_kernel(fort_file, script_file):
                         "got {0}".format(input_fortran_file))
 
     xml_file = path.join(dir_path, xml_file)
-    omni_frontend(fort_file, xml_file)
+    # TODO add cmd-line option for specifying module search path
+    omni_frontend(fort_file, xml_file, [])
 
     output_fortran_file = path.join(dir_path, output_fortran_file)
 
     _run_claw(["xmod search path here"], xml_file,
-             output_fortran_file, script_file)
+              output_fortran_file, script_file)
 
 
 def _run_claw(xmod_search_path, xml_file, output_file, script_file):

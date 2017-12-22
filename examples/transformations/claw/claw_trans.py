@@ -51,8 +51,7 @@ def trans(psy):
     print kern.name
     # Invoke claw on the kernel using the claw_trans function in
     # this file
-    claw.trans([invoke], [kern.name], os.path.abspath(__file__),
-               ["xmod_path"])
+    claw.trans([invoke], [kern.name], os.path.abspath(__file__))
 
 
 def claw_trans(xast):
@@ -78,6 +77,9 @@ def claw_trans(xast):
 
 
 if __name__ == "__main__":
+    '''
+    Entry point for running this script from the command line
+    '''
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
