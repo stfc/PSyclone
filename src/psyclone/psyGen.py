@@ -1688,7 +1688,7 @@ class GlobalSum(Node):
         self._scalar = copy.copy(scalar)
         if scalar:
             # Update scalar values appropriately
-            self._scalar.access = MAPPING_ACCESSES["readwrite"]
+            self._scalar.access = MAPPING_ACCESSES["inc"]
             self._scalar.call = self
 
     @property

@@ -1069,7 +1069,7 @@ def test_argument_find_read_arguments():  # pylint: disable=invalid-name
 
 
 def test_globalsum_arg():
-    '''Check that the globalsum argument is defined as gh_readwrite and
+    '''Check that the globalsum argument is defined as gh_inc and
     points to the globalsum node'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
@@ -1079,7 +1079,7 @@ def test_globalsum_arg():
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
     glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == "gh_readwrite"
+    assert glob_sum_arg.access == "gh_inc"
     assert glob_sum_arg.call == glob_sum
 
 
