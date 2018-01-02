@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 #
 # All rights reserved.
 #
@@ -35,3 +35,19 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 
 ''' Tests for the CLAW interface implemented in PSyclone '''
+
+import pytest
+
+
+def test_omni_fe_error(monkeypatch):
+    ''' Check that we raise the expected exception if the Omni frontend
+    fails '''
+    from psyclone.claw import omni_frontend
+    import subprocess
+    def fake_check_call(args):
+        raise subprocess.CalledProcessError(1, "fake cmd")
+    monkeypatch.setattr(subprocess, "check_call", fake_check_call)
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        omni_frontend("some_file.f90", "some_file.xml", ".")
+    assert "fake cmd" in str(err)
+
