@@ -73,3 +73,24 @@ def test_run_claw(monkeypatch):
     assert "jython.jar claw.ClawX2T --config-path=" in output
     assert ("-M. -f some_file.f90 -o some_file.xml.tmp.xml -script "
             "some_script.py some_file.xml" in output)
+
+
+def test_api_from_ast():
+    ''' Test for the utility routine that gives us the name of the PSyclone
+    API to which a kernel object belongs '''
+    from psyclone.dynamo0p3 import DynKern
+    from psyclone.gocean1p0 import GOKern
+    from psyclone.transformations import TransformationError
+    from psyclone.claw import _api_from_ast
+    dkern = DynKern()
+    api = _api_from_ast(dkern)
+    assert api == "dynamo0.3"
+
+    gkern = GOKern()
+    api = _api_from_ast(gkern)
+    assert api == "gocean1.0"
+
+    no_kern = "not a kernel"
+    with pytest.raises(TransformationError) as err:
+        _ = _api_from_ast(no_kern)
+    assert "Cannot determine API for kernel" in str(err)
