@@ -51,7 +51,8 @@ def trans(psy):
     print "Kernel name: ", kern.name
     # Invoke claw on the kernel using the claw_trans function in
     # this file
-    claw.trans([invoke], [kern.name], os.path.abspath(__file__))
+    kern_names = claw.trans([invoke], [kern.name], os.path.abspath(__file__))
+    print "Transformed kernel names: ", kern_names
 
 
 def claw_trans(xast):
@@ -92,4 +93,5 @@ if __name__ == "__main__":
     # script to transform the supplied PSy layer.
     trans(psy)
 
+    print str(psy.gen)
     print "All done!"

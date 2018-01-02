@@ -55,19 +55,24 @@ def trans(invoke_list, kernel_list, script_file):
     and written to the current working directory. All kernel dependencies
     (i.e. other Fortran modules) must have been passed through the
     Front-end of the OMNI compiler to generate .xmod files. The location(s)
-    of these .xmod files must be provided in the xmod_search_path.
+    of these .xmod files must be provided in the claw_config.py configuration
+    file.
 
     :param invoke_list: List of invoke objects
     :type invoke_list: List of `py:class:Invoke`
     :param kernel_list: List of names of kernels to transform
     :type kernel_list: List of str
     :param str script_file: Claw Jython script to perform transformation
+    :return: Dictionary of re-named kernels, indexed by orig names
+    :rtype: dict
     '''
     import tempfile
     from .psyGen import Kern
     from . import claw_config
-    from .line_length import FortLineLength
 
+    # Create dictionary containing mapping from original to new kernel
+    # names
+    new_kern_names = {}
     # Create a dictionary to hold which kernels are used by which invoke
     unique_kern_list = set(kernel_list)
     invokes_by_kernel = {name: [] for name in unique_kern_list}
@@ -89,6 +94,7 @@ def trans(invoke_list, kernel_list, script_file):
             raise TransformationError("Huh")
 
     # Omni cares about line lengths so get a line-length limiter
+    from .line_length import FortLineLength
     fll = FortLineLength()
 
     # We have the fparser1 AST for each kernel but CLAW works with the
@@ -109,11 +115,13 @@ def trans(invoke_list, kernel_list, script_file):
         xml_name = fort_file.name[:]
         xml_name += ".xml"
 
-        # Work out which API this is from the fparser AST
+        # Work out which API this is from the fparser AST and use this to
+        # look-up the path to the Omni-compiled infrastructure modules that
+        # a kernel may depend upon.
         api = _api_from_ast(kern_list[0])
         if api not in claw_config.OMNI_MODULES_PATH:
             raise TransformationError(
-                "No location specified for OMNI-compiled infrastructure "
+                "No location specified for Omni-compiled infrastructure "
                 "for API {0}. Please add to claw_config.py".format(api))
         mod_search_path = claw_config.OMNI_MODULES_PATH[api]
 
@@ -123,8 +131,9 @@ def trans(invoke_list, kernel_list, script_file):
         # Generate name for transformed kernel and accompanying module
         # TODO do this properly!
         new_kernel_name = name + "_claw"
+        new_kern_names[name] = new_kernel_name
         new_mod_name = new_kernel_name + "_mod"
-        new_file_name = "new_mod_name" + ".f90"
+        new_file_name = new_mod_name + ".f90"
 
         # Update the invokes to use this name for the kernel - this means
         # modifying any USE statements as well as the calls themselves
@@ -133,12 +142,14 @@ def trans(invoke_list, kernel_list, script_file):
             kern._name = new_kernel_name
 
         # Alter the XcodeML/F so that it uses the new kernel name
-        rename_kernel(xml_name, new_kernel_name)
+        _rename_kernel(xml_name, name, new_kernel_name)
 
         # Run the CLAW script on the XML file and generate a new kernel
         # file
         _run_claw([mod_search_path], xml_name,
                   new_file_name, script_file)
+
+    return new_kern_names
 
 
 def transform_kernel(fort_file, script_file):
@@ -188,8 +199,8 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
 
     xmod_paths = ["-M{0}".format(path) for path in xmod_search_path]
 
-    # We have to provide a name for the output file containing the
-    # transformed XML in order that it can be given to the Omni
+    # We have to provide a name for the output file that will contain
+    # the transformed XML in order that it can be given to the Omni
     # backend
     intermediate_xml_file = "{0}.tmp.xml".format(xml_file)
 
@@ -217,11 +228,14 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
         raise err
 
 
-def rename_kernel(xml_file, name):
+def _rename_kernel(xml_file, old_name, new_name):
     '''
     Process the supplied XcodeML and re-name the specified kernel
     '''
-    pass
+    with open(xml_file, "r") as xfile:
+        # TODO parse the xml file and re-name the necessary elements
+        pass
+    return
 
 
 def _api_from_ast(kern):
