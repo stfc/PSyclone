@@ -38,16 +38,38 @@
 
 import pytest
 
+def _fake_check_call(args, env=None):
+    '''
+    Function to be used to monkeypatch the check_call() function of
+    the subprocess module.
+    :param list args: List of items from which to construct system call
+    :raises: subprocess.CalledProcessError
+    '''
+    from subprocess import CalledProcessError
+    raise CalledProcessError(1, " ".join(args))
+
 
 def test_omni_fe_error(monkeypatch):
     ''' Check that we raise the expected exception if the Omni frontend
     fails '''
     from psyclone.claw import omni_frontend
     import subprocess
-    def fake_check_call(args):
-        raise subprocess.CalledProcessError(1, "fake cmd")
-    monkeypatch.setattr(subprocess, "check_call", fake_check_call)
+    monkeypatch.setattr(subprocess, "check_call", _fake_check_call)
     with pytest.raises(subprocess.CalledProcessError) as err:
         omni_frontend("some_file.f90", "some_file.xml", ".")
-    assert "fake cmd" in str(err)
+    assert "F_Front -I. some_file.f90 -o some_file.xml" in str(err)
 
+
+def test_run_claw(monkeypatch):
+    ''' Check the _run_claw() routine in the claw module '''
+    from psyclone.claw import _run_claw
+    import subprocess
+    monkeypatch.setattr(subprocess, "check_call", _fake_check_call)
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _run_claw(["."], "some_file.xml", "some_file.f90", "some_script.py")
+    output = str(err)
+    print output
+    assert "java -Xmx200m -Xms200m -cp" in str(err)
+    assert "jython.jar claw.ClawX2T --config-path=" in output
+    assert ("-M. -f some_file.f90 -o some_file.xml.tmp.xml -script "
+            "some_script.py some_file.xml" in output)

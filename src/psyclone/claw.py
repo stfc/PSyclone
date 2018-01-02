@@ -1,27 +1,50 @@
-''' Top-level driver script allowing the Claw compiler to be executed from
-either the command-line or from other Python code '''
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+
+'''
+Module implementing the interface between PSyclone and the Claw
+compiler.
+
+The primary method provided by this module is `trans()` which is
+designed to be used from within a PSyclone transformation script.
+'''
 
 import os
 from .claw_config import *
 from .transformations import TransformationError
-
-def _claw_driver(argv):
-    ''' Top level python driver for Claw compiler '''
-
-    # Set-up command-line argument parser
-    import argparse
-    parser = argparse.ArgumentParser(description='Run Claw on a Fortran file')
-    parser.add_argument("filename", 
-                        help="Full path and name of target Fortran file")
-    parser.add_argument('-s', '--script', help='filename of a Claw'
-                        ' transformation script')
-    args = parser.parse_args(argv)
-
-    fortran_file = args.filename
-    script_file = args.script
-    print "Processing file {0} using recipe {1}".format(fortran_file,
-                                                        script_file)
-    transform_kernel(fortran_file, script_file)
 
 
 def omni_frontend(fort_file, xml_file, mod_search_paths):
@@ -152,35 +175,6 @@ def trans(invoke_list, kernel_list, script_file):
     return new_kern_names
 
 
-def transform_kernel(fort_file, script_file):
-    '''
-    :param str fort_file: The Fortran file to transform
-    :param str script_file: The Jython script specifying the transformation(s)
-    '''
-    from os import path
-    # Use the OMNI frontend to generate the XcodeML representation of
-    # the Fortran file
-    (dir_path, input_fortran_file) = path.split(fort_file)
-    if input_fortran_file.endswith(".F90"):
-        xml_file = input_fortran_file.replace(".F90", ".xml", 1)
-        output_fortran_file = input_fortran_file.replace(".F90", ".new.F90", 1)
-    elif input_fortran_file.endswith(".f90"):
-        xml_file = input_fortran_file.replace(".f90", ".xml", 1)
-        output_fortran_file = input_fortran_file.replace(".f90", ".new.f90", 1)
-    else:
-        raise Exception("Fortran file must have .f90 or .F90 suffix but "
-                        "got {0}".format(input_fortran_file))
-
-    xml_file = path.join(dir_path, xml_file)
-    # TODO add cmd-line option for specifying module search path
-    omni_frontend(fort_file, xml_file, [])
-
-    output_fortran_file = path.join(dir_path, output_fortran_file)
-
-    _run_claw(["xmod search path here"], xml_file,
-              output_fortran_file, script_file)
-
-
 def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     '''
     Transform the XcodeML representation in xml_file using CLAW and
@@ -241,6 +235,11 @@ def _rename_kernel(xml_file, old_name, new_name):
 def _api_from_ast(kern):
     '''
     Work out which PSyclone API the supplied kernel is for
+
+    :param kern: Kernel object to examine
+    :type kern: :py:class:`psyclone.psyGen.Kern`
+    :return: Name of the corresponding API
+    :rtype: str
     '''
     from psyclone.dynamo0p3 import DynKern
     from psyclone.gocean1p0 import GOKern
@@ -251,9 +250,3 @@ def _api_from_ast(kern):
     else:
         raise TransformationError(
             "Cannot determine API for kernel of type {0}".format(type(kern)))
-
-
-if __name__ == "__main__":
-    ''' Entry point for this driver when run from command line '''
-    import sys
-    _claw_driver(sys.argv[1:])
