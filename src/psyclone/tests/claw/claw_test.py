@@ -36,7 +36,15 @@
 
 ''' Tests for the CLAW interface implemented in PSyclone '''
 
+import os
 import pytest
+from psyclone.transformations import TransformationError
+
+
+# constants
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "test_files", "dynamo0p3")
+
 
 def _fake_check_call(args, env=None):
     '''
@@ -80,7 +88,6 @@ def test_api_from_ast():
     API to which a kernel object belongs '''
     from psyclone.dynamo0p3 import DynKern
     from psyclone.gocean1p0 import GOKern
-    from psyclone.transformations import TransformationError
     from psyclone.claw import _api_from_ast
     dkern = DynKern()
     api = _api_from_ast(dkern)
@@ -94,3 +101,34 @@ def test_api_from_ast():
     with pytest.raises(TransformationError) as err:
         _ = _api_from_ast(no_kern)
     assert "Cannot determine API for kernel" in str(err)
+
+
+def test_trans(tmpdir, monkeypatch):
+    ''' Tests for the trans() routine '''
+    import subprocess
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory
+    from psyclone import claw
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kern = invoke.schedule.children[0].children[0]
+    orig_name = kern.name[:]
+    script_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "claw_trans.py")
+    # Monkeypatch subprocess.check_call() so that it does nothing. This means
+    # that this test does not actually run Omni or Claw.
+    monkeypatch.setattr(subprocess, "check_call",
+                        lambda args, env=None: None)
+    with pytest.raises(TransformationError) as err:
+        _ = claw.trans([invoke], [kern.name], script_file)
+    assert "XcodeML/F representation of kernel {0}".format(orig_name) in \
+        str(err)
+    # Since we're not running Omni, we don't generate any xml files so also
+    # monkeypatch the kernel-renaming routine so that it does nothing.
+    monkeypatch.setattr(claw, "_rename_kernel",
+                        lambda xml, name, new_name: None)
+    new_names = claw.trans([invoke], [kern.name], script_file)
+
+    assert new_names[orig_name] == orig_name + "_claw"

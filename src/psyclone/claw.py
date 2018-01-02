@@ -158,14 +158,20 @@ def trans(invoke_list, kernel_list, script_file):
         new_mod_name = new_kernel_name + "_mod"
         new_file_name = new_mod_name + ".f90"
 
-        # Update the invokes to use this name for the kernel - this means
-        # modifying any USE statements as well as the calls themselves
+        # Alter the XcodeML/F so that it uses the new kernel name
+        try:
+            _rename_kernel(xml_name, name, new_kernel_name)
+        except IOError as err:
+            raise TransformationError(
+                "Failed to find file {0} containing the XcodeML/F "
+                "representation of kernel {1}. Is the Omni frontend on your "
+                "PATH and working?".format(xml_name, name))
+
+        # Update the invokes to use this name for the kernel. This is simply
+        # achieved by updating the relevant properties of the kernel object.
         for kern in kern_list:
             kern._module_name = new_mod_name
             kern._name = new_kernel_name
-
-        # Alter the XcodeML/F so that it uses the new kernel name
-        _rename_kernel(xml_name, name, new_kernel_name)
 
         # Run the CLAW script on the XML file and generate a new kernel
         # file
@@ -225,6 +231,7 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
 def _rename_kernel(xml_file, old_name, new_name):
     '''
     Process the supplied XcodeML and re-name the specified kernel
+    :raises IOError: if supplied file is not found
     '''
     with open(xml_file, "r") as xfile:
         # TODO parse the xml file and re-name the necessary elements
