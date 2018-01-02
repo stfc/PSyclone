@@ -568,8 +568,20 @@ class Invoke(object):
                               "'{0}'".format(arg_name))
 
     def unique_declns_by_intent(self, datatype):
-        ''' Returns a dictionary listing all required declarations for each
-        type of intent ('inout', 'out' and 'in'). '''
+        '''
+        Returns a dictionary listing all required declarations for each
+        type of intent ('inout', 'out' and 'in').
+
+        :param string datatype: the type of the kernel argument for the
+                                particular API for which the intent is
+                                required.
+        :return: dictionary containing 'intent' keys holding the kernel
+                 argument intent and declarations of all kernel arguments
+                 for each type of intent.
+        :rtype: dict
+        :raises GenerationError: if the kernel argument is not a valid
+                                 datatype for the particular API.
+        '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declns_by_intent called with an invalid datatype. "
@@ -589,9 +601,11 @@ class Invoke(object):
                               datatype, access=MAPPING_ACCESSES["readwrite"])
         sum_args = self.unique_declarations(datatype,
                                             access=MAPPING_REDUCTIONS["sum"])
-        # sum_args behave as if they are write_args from the
-        # PSy-layer's perspective
-        write_args += sum_args
+        # sum_args and readwrite_args behave as if they are write_args from
+        # the PSy-layer's perspective.
+        write_args += sum_args + readwrite_args
+        # readwrite_args can also behave as read_args
+        read_args += readwrite_args
         # Rationalise our lists so that any fields that have inc
         # do not appear in the list of those that are written.
         for arg in write_args[:]:
@@ -622,17 +636,24 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
-        for name in readwrite_args:
-            # Reader/writter arguments are always declared as intent(inout).
-            if name not in declns["inout"]:
-                declns["inout"].append(name)
-
         for name in write_args:
             # For every argument that is written to by at least one kernel,
             # identify the type of the first access - if it is read
             # or inc'd before it is written then it must have intent(inout).
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
+            first_arg = self.first_access(name)
+            if first_arg.access == MAPPING_ACCESSES["read"]:
+                if name not in declns["inout"]:
+                    declns["inout"].append(name)
+            else:
+                if name not in declns["out"]:
+                    declns["out"].append(name)
+
+        for name in readwrite_args:
+            # For every readwrite argument identify the type of the first
+            # access - if it is read before it is written then it must have
+            # intent(inout), otherwise it is intent(out).
             first_arg = self.first_access(name)
             if first_arg.access == MAPPING_ACCESSES["read"]:
                 if name not in declns["inout"]:
