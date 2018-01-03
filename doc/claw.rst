@@ -14,17 +14,102 @@ Prerequisites
 -------------
 
 In order to use the CLAW functionality you will obviously need the CLAW
-compiler installed. This in turn requires the OMNI compiler.
+compiler installed. This in turn requires the Omni compiler.
 You will also need Jython (a Java implementation of Python).
 
 Installation/Configuration
 --------------------------
 
-* Install Omni (>=1.2.2) from http://omni-compiler.org/.
-* Install Jython.
-* Install Claw.
-  cp claw-compiler/omni-cx2x/src/claw/python/ClawTransform.py <claw-install-root>/lib
-* Configure `src/claw_config.py`.
+Omni Compiler
+^^^^^^^^^^^^^
+
+The Omni Fortran compiler is available from http://omni-compiler.org/.
+PSyclone has been tested with version 1.2.2 but should work with any
+version that is more recent than this. In order to build it you will
+first need to install yacc, flex and the Java development kit.
+
+Once Omni has been built and installed it will need to be available
+on your PATH so that PSyclone can find it.
+
+Jython
+^^^^^^
+
+Jython is a Java implementation of Python and is available from
+http://www.jython.org/downloads.html. Once you have downloaded the
+installer jar, installation is performed by doing:
+
+::
+
+    java -jar jython-installer-2.7.0.jar
+
+
+CLAW
+^^^^
+
+The CLAW compiler is available from https://github.com/C2SM-RCM/claw-compiler.
+See the INSTALL.md file for installation instructions.
+Once it is installed, you will need to manually copy the Python interface 
+module into the `lib` directory of the Claw installation:
+
+::
+
+    cp claw-compiler/omni-cx2x/src/claw/python/ClawTransform.py <claw-install-root>/lib
+
+.. note:: The need to manually copy the `ClawTransform.py` file will be removed in a future release.
+
+
+Configure PSyclone
+^^^^^^^^^^^^^^^^^^
+
+In order for PSyclone to make use of CLAW, it must be told the
+location of the Jython jar file (`jython.jar`) and the root directory
+of the CLAW installation. This is achieved by editing the
+`src/claw_config.py` configuration file and setting `JYTHON_JAR` and
+`CLAW_INSTALL_ROOT` appropriately, e.g.:
+
+::
+
+  # Location of the Jython Jar
+  JYTHON_JAR = "/home/myuser/MyInstalls/jython2.7.0/jython.jar"
+  # Root directory of the CLAW installation
+  CLAW_INSTALL_ROOT = "/home/myuser/MyInstalls"
+
+.. note:: the actual location of the `claw_config.py` file after installing PSyclone via pip is still to be determined.
+
+CLAW relies upon the front-end of the Omni compiler to generate the
+XCodeML/F representation of any Fortran code that is to be
+transformed.  In turn, the Omni compiler requires a `.xmod` file for
+each Fortran module that is USE'd in the Fortran code being
+analysed. A `.xmod` file is obtained by running the Omni front-end on
+the corresponding Fortran module. It therefore follows that in order
+to use CLAW to transform a kernel, we require `.xmod` files for all of
+the Fortran modules on which it depends. The location of these files
+is specified in `claw_config.py` through the `OMNI_MODULES_PATH`
+dictionary. The keys of this dictionary are the names of supported
+PSyclone APIs (e.g. "dynamo0.3"). The corresponding entries contain
+the path to a directory where the `.xmod` files for the API may be
+found, e.g.:
+
+::
+
+  # Dictionary (indexed by PSyclone API name) containing the location of
+  # Omni-compiled Fortran modules use'd by any kernels to be transformed
+  # by CLAW.
+  OMNI_MODULES_PATH = {"dynamo0.3":
+                       os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "tests", "test_files", "dynamo0p3",
+                                    "infrastructure"),
+                       "gocean1.0":
+                       "/home/myuser/Projects/dl_esm_inf/finite_difference/"
+                       "src"}
+
+The creation of the `.xmod` files themselves is the responsibility of
+the user. However, a suitable Makefile is provided for the 'stub'
+LFRic infrastructure that is distributed with PSyclone (in
+`PSyclone/src/psyclone/tests/test_files/dynamo0p3/infrastructure`).
+
+.. note:: the stub LFRic infrastructure was originally introduced to allow for compilation of generated code within the PSyclone test suite, hence its location. It may be moved to a more appropriate location in future.
+
 
 Using CLAW with PSyclone
 ------------------------
@@ -42,7 +127,7 @@ script must invoke CLAW.
 Just as PSyclone's native transformations operate on the PSy AST, CLAW
 also operates on the AST of a kernel. In this case however the AST is
 in XcodeML/F form which is obtained by running the front-end of the
-OMNI compiler. This process of obtaining an XcodeML/F kernel AST
+Omni compiler. This process of obtaining an XcodeML/F kernel AST
 (instead of the one produced by fparser) is performed 'under the hood'
 of the PSyclone interface to CLAW.
 
