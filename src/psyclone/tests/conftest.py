@@ -41,13 +41,19 @@ import pytest
 
 
 def pytest_addoption(parser):
-    ''' Adds command-line options to py.test '''
+    '''
+    Adds command-line options to py.test
+
+    :param parser: the command-line parser object to add options to
+    '''
     parser.addoption("--f90", action="store", default="gfortran",
                      help="The Fortran compiler to use")
     parser.addoption("--f90flags", action="store", default="",
                      help="Flags to pass to the Fortran compiler")
     parser.addoption("--compile", action="store_true", default=False,
                      help="run tests for code compilation")
+    parser.addoption("--with-claw", action="store_true", default=False,
+                     help="run tests that exercise the Claw compiler")
 
 
 @pytest.fixture
