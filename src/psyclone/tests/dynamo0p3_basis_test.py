@@ -1142,14 +1142,14 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_read,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_read,w3, w3),  &
-             arg_type(gh_field,   gh_read, wtheta), &
-             arg_type(gh_operator,gh_read, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                     &
+          (/ arg_type(gh_field,    gh_write, w0),       &
+             arg_type(gh_operator, gh_read,  w1, w1),   &
+             arg_type(gh_field,    gh_read,  w2),       &
+             arg_type(gh_operator, gh_read,  w3, w3),   &
+             arg_type(gh_field,    gh_read,  wtheta),   &
+             arg_type(gh_operator, gh_read,  w2h, w2h), &
+             arg_type(gh_field,    gh_read,  w2v)       &
            /)
      type(func_type), meta_funcs(7) =     &
           (/ func_type(w0, gh_basis),     &
@@ -1393,14 +1393,14 @@ def test_diff_basis():
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_read,w0), &
-             arg_type(gh_operator,gh_inc,  w2, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_read,w3, w3),  &
-             arg_type(gh_field,   gh_read, wtheta), &
-             arg_type(gh_operator,gh_read, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                         &
+          (/ arg_type(gh_field,    gh_read,      w0),       &
+             arg_type(gh_operator, gh_readwrite, w2, w1),   &
+             arg_type(gh_field,    gh_read,      w2),       &
+             arg_type(gh_operator, gh_read,      w3, w3),   &
+             arg_type(gh_field,    gh_read,      wtheta),   &
+             arg_type(gh_operator, gh_read,      w2h, w2h), &
+             arg_type(gh_field,    gh_read,      w2v)       &
            /)
      type(func_type), meta_funcs(7) =          &
           (/ func_type(w0, gh_diff_basis),     &
