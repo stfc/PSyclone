@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
@@ -513,7 +514,7 @@ def test_two_identical_qr(tmpdir, f90, f90flags):
 
 
 def test_anyw2(tmpdir, f90, f90flags):
-    '''Check generated code works correctly when we have any_w2 fields
+    ''' Check generated code works correctly when we have any_w2 fields
     and basis functions'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
@@ -1264,7 +1265,7 @@ end module dummy_mod
 
 
 def test_basis_unsupported_space():
-    ''' test that an error is raised when a basis function is on an
+    ''' Test that an error is raised when a basis function is on an
     unsupported space (currently any_space_*) '''
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1279,14 +1280,14 @@ def test_basis_unsupported_space():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3),  &
-             arg_type(gh_field,   gh_write, wtheta), &
-             arg_type(gh_operator,gh_inc, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                         &
+          (/ arg_type(gh_field,    gh_write,     w0),       &
+             arg_type(gh_operator, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_read,      w2),       &
+             arg_type(gh_operator, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_read,      w2v)       &
            /)
      type(func_type), meta_funcs(7) =          &
           (/ func_type(w0, gh_diff_basis),     &
@@ -1387,6 +1388,7 @@ def test_diff_basis():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
 
 DIFF_BASIS_EVAL = '''
 module dummy_mod
@@ -1519,7 +1521,7 @@ end module dummy_mod
 
 
 def test_diff_basis_unsupp_space():
-    ''' test that an error is raised when a differential basis
+    ''' Test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*)'''
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)

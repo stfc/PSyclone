@@ -2708,6 +2708,7 @@ def test_kernel_datatype_not_found():
                  api="dynamo0.3")
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
+
 SIMPLE = (
     "  MODULE simple_mod\n"
     "    IMPLICIT NONE\n"
@@ -2741,6 +2742,7 @@ def test_stub_generate_working_noapi():  # pylint: disable=invalid-name
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
     print result
     assert str(result).find(SIMPLE) != -1
+
 
 SIMPLE_WITH_SCALARS = (
     "  MODULE simple_with_scalars_mod\n"
@@ -2870,6 +2872,7 @@ def test_intent():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
 # fields : spaces
 SPACES = '''
 module dummy_mod
@@ -2955,6 +2958,7 @@ def test_spaces():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
 # fields : vectors
 VECTORS = '''
 module dummy_mod
@@ -3026,12 +3030,12 @@ def test_arg_descriptor_vec_str():
 OPERATORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(5) =    &
-          (/ arg_type(gh_operator,gh_write, w0, w0), &
-             arg_type(gh_operator,gh_inc,   w1, w1), &
-             arg_type(gh_operator,gh_read,  w2, w2), &
-             arg_type(gh_operator,gh_write, w3, w3), &
-             arg_type(gh_operator,gh_read, any_space_1, any_space_1)  &
+     type(arg_type), meta_args(5) =                                        &
+          (/ arg_type(gh_operator, gh_write,     w0, w0),                  &
+             arg_type(gh_operator, gh_readwrite, w1, w1),                  &
+             arg_type(gh_operator, gh_read,      w2, w2),                  &
+             arg_type(gh_operator, gh_write,     w3, w3),                  &
+             arg_type(gh_operator, gh_read,      any_space_1, any_space_1) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -3137,8 +3141,8 @@ def test_stub_operator_different_spaces():  # pylint: disable=invalid-name
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
     assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
 
-# orientation : spaces
 
+# orientation : spaces
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
@@ -3262,6 +3266,7 @@ def test_enforce_op_bc_kernel_stub_gen():  # pylint: disable=invalid-name
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
 # fields : intent
+
 
 SUB_NAME = '''
 module dummy_mod
@@ -3450,6 +3455,7 @@ def test_stub_stencil_multi():
         "field_4_stencil_map")
 
     assert result2 in generated_code
+
 
 STENCIL_CODE = '''
 module stencil_mod
