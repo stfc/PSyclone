@@ -611,12 +611,18 @@ class DynArgDescriptor03(Descriptor):
                         "grid kernels). However, "
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
-
+            # Test allowed accesses for fields
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
                     "It does not make sense for a quantity on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
+                    format(self._function_space1.lower()))
+            if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor.name.lower() == "gh_readwrite":
+                raise ParseError(
+                    "It does not make sense for a quantity on a continuous "
+                    "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
             if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"

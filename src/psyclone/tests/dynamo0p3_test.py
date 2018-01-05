@@ -4344,6 +4344,20 @@ def test_w3_and_inc_error():
         "(w3) to have a 'gh_inc' access" in str(excinfo.value))
 
 
+def test_fs_continuous_and_readwrite_error():
+    ''' Test that an error is raised if a continuous function space and
+        gh_readwrite are provided for the same field in the metadata '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                        "arg_type(gh_field,gh_readwrite, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name="testkern_qr_type")
+    assert (
+        "It does not make sense for a quantity on a continuous space "
+        "(w2) to have a 'gh_readwrite' access" in str(excinfo.value))
+
+
 def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
