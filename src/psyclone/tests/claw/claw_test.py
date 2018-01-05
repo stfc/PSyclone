@@ -50,7 +50,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_CLAW = pytest.config.getoption("--with-claw")
 
 
-def _fake_check_call(args, env=None):
+def _fake_check_call(args, env=None):  # pylint:disable=unused-argument
     '''
     Function to be used to monkeypatch the check_call() function of
     the subprocess module.
@@ -131,7 +131,7 @@ def test_trans(tmpdir, monkeypatch):
         monkeypatch.setattr(subprocess, "check_call",
                             lambda args, env=None: None)
         with pytest.raises(TransformationError) as err:
-            _ = claw.trans([invoke], [kern.name], script_file)
+            _ = claw.trans([kern], script_file)
         # Check that we've raised the correct error about not finding the
         # XML output of the Omni Frontend
         assert "XcodeML/F representation of kernel {0}".format(orig_name) in \
@@ -139,20 +139,22 @@ def test_trans(tmpdir, monkeypatch):
         # Since we're not running Omni, we don't generate any xml files so also
         # monkeypatch the kernel-renaming routine so that it does nothing.
         monkeypatch.setattr(claw, "_rename_kernel",
-                            lambda xml, name, new_name: None)
-    new_names = claw.trans([invoke], [kern.name], script_file)
+                            lambda xml, name, mode: name+"_claw0")
+    new_names = claw.trans([kern], script_file)
 
     assert new_names[orig_name] == orig_name + "_claw"
 
 
 def test_rename_kern(tmpdir):
     ''' Check that _rename_kernel() works as it should '''
+    import shutil
     from psyclone.claw import _rename_kernel
-    # We use an XML file we prepared earlier so as not to have to rely
-    # on Omni being installed
-    xml_file = os.path.join(BASE_PATH, "kernel_in_module.xml")
+    # We use a copy of an XML file we prepared earlier so as not to have
+    # to rely on Omni being installed
+    xml_file = os.path.join(BASE_PATH, "testkern.xml")
     oldpwd = tmpdir.chdir()
-
+    shutil.copy(xml_file, str(tmpdir))
+    xml_file = os.path.join(str(tmpdir), "testkern.xml")
     new_base_name = _rename_kernel(xml_file, "next_sshu", "keep")
     assert new_base_name == "next_sshu_claw0"
     # Create a fake renamed kernel file
@@ -173,15 +175,17 @@ def test_rename_kern(tmpdir):
     new_kern_type_name = new_base_name + "_type"
     new_mod_name = new_base_name + "_mod"
 
-    proc_name_list = []
     from xml.dom import minidom
     with open(xml_file, "r") as xfile:
         xml_doc = minidom.parse(xfile)
+        # Kernel is a type-bound procedure in the meta-data
         procs = xml_doc.getElementsByTagName("typeBoundProcedure")
+        proc_name_list = []
         for proc in procs:
             bindings = proc.getElementsByTagName("binding")
             names = bindings[0].getElementsByTagName("name")
             proc_name_list.append(names[0].firstChild.data)
+        assert new_kern_name in proc_name_list
         # Global symbols
         gsymbols = xml_doc.getElementsByTagName("globalSymbols")
         gids = gsymbols[0].getElementsByTagName("id")
@@ -195,13 +199,26 @@ def test_rename_kern(tmpdir):
         assert modefs[0].getAttribute("name") == new_mod_name
         symbols = modefs[0].getElementsByTagName("symbols")
         symbol_ids = symbols[0].getElementsByTagName("id")
+        found_ftype = False
         for sid in symbol_ids:
             class_attr = sid.getAttribute("sclass")
             if class_attr == "ftype_name":
+                # The symbol table may hold more than one ftype (because it
+                # includes symbols from use'd modules too) so
+                # we can only be sure once we've seen them all
                 names = sid.getElementsByTagName("name")
-                assert names[0].firstChild.data == new_kern_type_name
+                if names[0].firstChild.data == new_kern_type_name:
+                    found_ftype = True
             elif class_attr == "ffunc":
                 names = sid.getElementsByTagName("name")
                 assert names[0].firstChild.data == new_kern_name
-
-    assert new_kern_name in proc_name_list
+        assert found_ftype
+        # Function/routine definitions
+        func_list = xml_doc.getElementsByTagName("FfunctionDefinition")
+        names = func_list[0].getElementsByTagName("name")
+        assert names[0].firstChild.data == new_kern_name
+        sym_list = func_list[0].getElementsByTagName("id")
+        for sym in sym_list:
+            if sym.getAttribute("sclass") == "ffunc":
+                names = sym.getElementsByTagName("name")
+                assert names[0].firstChild.data == new_kern_name

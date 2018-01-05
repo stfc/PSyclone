@@ -69,7 +69,7 @@ def omni_frontend(fort_file, xml_file, mod_search_paths):
     print "omni_frontend: produced XCodeML file: {0}".format(xml_file)
 
 
-def trans(invoke_list, kernel_list, script_file, mode=None):
+def trans(kernel_list, script_file, mode=None):
     '''
     PSyclone interface to CLAW
 
@@ -78,13 +78,11 @@ def trans(invoke_list, kernel_list, script_file, mode=None):
     and written to the current working directory. All kernel dependencies
     (i.e. other Fortran modules) must have been passed through the
     Front-end of the OMNI compiler to generate .xmod files. The location(s)
-    of these .xmod files must be provided in the claw_config.py configuration
-    file.
+    of these .xmod files must be provided in the Claw configuration
+    file (see the PSyclone documentation for details).
 
-    :param invoke_list: List of invoke objects
-    :type invoke_list: List of `py:class:Invoke`
-    :param kernel_list: List of names of kernels to transform
-    :type kernel_list: List of str
+    :param kernel_list: List of kernel objects to transform
+    :type kernel_list: List of objects of type :py:class:`psyclone.psyGen.Kern`
     :param str script_file: Claw Jython script to perform transformation
     :param str mode: How to handle any name clashes for transformed kernels.
                      One of ["overwrite", "keep", "abort"]. Defaults
@@ -93,7 +91,6 @@ def trans(invoke_list, kernel_list, script_file, mode=None):
     :rtype: dict
     '''
     import tempfile
-    from .psyGen import Kern
     from . import claw_config
 
     if mode is None:
@@ -108,25 +105,6 @@ def trans(invoke_list, kernel_list, script_file, mode=None):
     # Create dictionary containing mapping from original to new kernel
     # names
     new_kern_names = {}
-    # Create a dictionary to hold which kernels are used by which invoke
-    unique_kern_list = set(kernel_list)
-    invokes_by_kernel = {name: [] for name in unique_kern_list}
-    # Create a dictionary so that we can look-up the kernel object(s)
-    # from its name. Each entry is a list in case the same kernel is
-    # used more than once.
-    # TODO if the same kernel *is* used more than once, is each kernel
-    # object in the AST unique?
-    kernel_obj_list = {name: [] for name in unique_kern_list}
-
-    for invoke in invoke_list:
-        kernels = invoke.schedule.walk(invoke.schedule.children, Kern)
-        for kern in kernels:
-            invokes_by_kernel[kern.name].append(invoke)
-            kernel_obj_list[kern.name].append(kern)
-    # Sanity check that we have at least one invoke using each kernel
-    for kern, inv_list in invokes_by_kernel.items():
-        if len(inv_list) < 1:
-            raise TransformationError("Huh")
 
     # Omni cares about line lengths so get a line-length limiter
     from .line_length import FortLineLength
@@ -136,10 +114,10 @@ def trans(invoke_list, kernel_list, script_file, mode=None):
     # XcodeML/F AST. We must therefore generate a Fortran file for each
     # kernel and then use the OMNI frontend to get the XcodeML/F
     # representation.
-    for name, kern_list in kernel_obj_list.items():
+    for kern in kernel_list:
 
         # Use the fparser AST to generate a (temporary) Fortran file
-        fortran = kern_list[0]._module_code.tofortran()
+        fortran = kern._module_code.tofortran()
         fortran_limited = fll.process(fortran)
         # delete=False is required to ensure the file is not deleted
         # when it is closed
@@ -155,7 +133,7 @@ def trans(invoke_list, kernel_list, script_file, mode=None):
         # a kernel may depend upon. We must do it this way since this
         # routine is intended to be used from a transformation script rather
         # than from directly within PSyclone.
-        api = _api_from_ast(kern_list[0])
+        api = _api_from_ast(kern)
         if api not in claw_config.OMNI_MODULES_PATH:
             raise TransformationError(
                 "No location specified for Omni-compiled infrastructure "
@@ -165,28 +143,30 @@ def trans(invoke_list, kernel_list, script_file, mode=None):
         # Run OMNI to get temporary XML file
         omni_frontend(fort_file.name, xml_name, [mod_search_path])
 
-        # Alter the XcodeML/F so that it uses the new kernel name
+        # Generate a new name for the transformed kernel and alter the
+        # XcodeML/F so that it uses the new name
         try:
-            new_base_name = _rename_kernel(xml_name, name, new_kernel_name,
-                                           naming_mode)
-        except IOError as err:
+            mod_name, type_name, kern_name = _rename_kernel(xml_name, kern, naming_mode)
+        except IOError:
             raise TransformationError(
                 "Failed to find file {0} containing the XcodeML/F "
                 "representation of kernel {1}. Is the Omni frontend on your "
-                "PATH and working?".format(xml_name, name))
+                "PATH and working?".format(xml_name, kern.name))
 
-        new_kern_names[name] = new_base_name + "_kern"
+        new_kern_name = new_base_name + "_kern"
         new_mod_name = new_base_name + "_mod"
         new_file_name = new_mod_name + ".f90"
+        new_kern_names[kern.name] = new_kern_name
 
-        # Update the invokes to use this name for the kernel. This is simply
-        # achieved by updating the relevant properties of the kernel object.
-        for kern in kern_list:
-            kern._module_name = new_mod_name
-            kern._name = new_kernel_name
+        # Update the kernel object with its new name (and corresponding
+        # module name). These properties are then picked-up at code-gen
+        # time for the associated USE and CALL statements.
+        kern._module_name = new_mod_name
+        kern._name = new_kern_name
 
         # Run the CLAW script on the XML file and generate a new kernel
-        # file
+        # file. This call is SLOW because it requires the startup of a
+        # Java VM.
         _run_claw([mod_search_path], xml_name,
                   new_file_name, script_file)
 
@@ -206,7 +186,6 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
                             transformations
     '''
     from subprocess import check_call, CalledProcessError
-    import os
     from . import claw_config
 
     xmod_paths = ["-M{0}".format(path) for path in xmod_search_path]
@@ -240,15 +219,16 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
         raise err
 
 
-def _rename_kernel(xml_file, old_name, mode):
+def _rename_kernel(xml_file, kernel, mode):
     '''
     Process the supplied XcodeML and re-name the specified kernel
 
     :param str xml_file: Full path to the XCodeML/F file containing
                          the kernel
+    :param kernel: Kernel object that is being renamed
     :param str mode: How to handle name clashes
-    :return: Base name of transformed kernel
-    :rtype: str
+    :return: Tupe of names of transformed module, kernel-type and kernel
+    :rtype: 3-tuple of str
 
     :raises IOError: if supplied file is not found
     :raises TransformationError: if renaming the kernel would cause a clash
@@ -256,31 +236,102 @@ def _rename_kernel(xml_file, old_name, mode):
                                  CWD) and mode=="abort"
     '''
 
+    # We read and write files in the current working directory
     pwd = os.getcwd()
-    new_name = old_name + "_claw0"
+
+    orig_mod_name = kernel._module_name
+    # This is the name of the actual subroutine, not the metadata type
+    orig_kern_name = kernel._name
+
+    # Read the XCodeML into a buffer and parse it to get a DOM
+    xml_string = ""
+    with open(xml_file, "r") as xfile:
+        xml_string = xfile.read()
+    from xml.dom import minidom
+    xmldoc = minidom.parseString(xml_string)
+
+    # Get the name of the original Fortran source file
+    progNode = xmldoc.firstChild
+    orig_file = progNode.getAttribute("source")
+    if orig_file is None:
+        orig_file = orig_mod_name + ".f90"
+
+    old_base_name = orig_file[:]
+    if orig_file.endswith("_mod.f90"):
+        # File follows PSyclone naming convention
+        old_base_name.replace("_mod.f90", "", 1)
+    else:
+        old_base_name.replace(".f90", "", 1)
+
+    new_suffix = "_claw0"
 
     if mode == "keep":
         name_idx = -1
         while True:
             name_idx += 1
-            new_name = old_name + "_claw{0}".format(name_idx)
-            filename = os.path.join(pwd, new_name+"_mod.f90")
+            new_suffix = "_claw{0}".format(name_idx)
+            new_name = old_base_name + new_suffix + "_mod.f90"
+            filename = os.path.join(pwd, new_name)
             if not os.path.isfile(filename):
+                # There isn't a src file with this name so we're done
                 break
     elif mode == "overwrite":
+        # We don't care whether there's already a src file with the new name
         pass
     elif mode == "abort":
-        filename = os.path.join(pwd, new_name+"_mod.f90")
+        filename = os.path.join(pwd, old_base_name+new_suffix+"_mod.f90")
         if os.path.isfile(filename):
             raise TransformationError(
-                "Kernel file {0} already exists and renaming mode is {0} "
+                "Kernel file {0} already exists and renaming mode is {1} "
                 "so refusing to overwrite".format(filename, mode))
 
-    from xml.dom import minidom
-    with open(xml_file, "r") as xfile:
-        # TODO parse the xml file and re-name the necessary elements
-        xmldoc = minidom.parse(xfile)
-    return new_name
+
+    if orig_mod_name.endswith("_mod"):
+        idx = orig_mod_name.find("_mod")
+        new_mod_name = orig_mod_name[:idx] + new_suffix + "_mod"
+    else:
+        new_mod_name = orig_mod_name + new_suffix
+
+    if orig_kern_name.endswith("_code"):
+        idx = orig_kern_name.find("_code")
+        new_kern_name = orig_kern_name[:idx] + new_suffix + "_code"
+    else:
+        new_kern_name = orig_kern_name + new_suffix
+
+    orig_type_name = _get_type_by_binding_name(xmldoc, orig_kern_name)
+    if orig_type_name.endswith("_type"):
+        new_type_name = orig_type_name[:-5] + new_suffix + "_type"
+    else:
+        new_type_name = orig_type_name + new_suffix
+
+    # Construct a dictionary for mapping from old kernel/type/module
+    # names to the corresponding new ones
+    rename_map = {orig_mod_name: new_mod_name,
+                  orig_kern_name: new_kern_name,
+                  orig_type_name: new_type_name}
+
+    # Re-write the necessary text nodes and attributes
+    names = xmldoc.getElementsByTagName("name")
+    for name in names:
+        try:
+            new_value = rename_map[name.firstChild.data]
+            for child in name.childNodes[:]:
+                name.removeChild(child)
+            new_txt = xmldoc.createTextNode(new_value)
+            name.appendChild(new_txt)
+        except KeyError:
+            # This is not one of the names we are looking for
+            pass
+    mod_defs = xmldoc.getElementsByTagName("FmoduleDefinition")
+    for mod in mod_defs:
+        if mod.getAttribute("name") in rename_map:
+            mod.setAttribute("name", rename_map[mod.getAttribute("name")])
+
+    # Write the modified XML back to the same file
+    with open(xml_file, "w") as xfile:
+        xfile.write(xmldoc.toxml())
+
+    return (new_mod_name, new_type_name, new_kern_name)
 
 
 def _api_from_ast(kern):
@@ -301,3 +352,55 @@ def _api_from_ast(kern):
     else:
         raise TransformationError(
             "Cannot determine API for kernel of type {0}".format(type(kern)))
+
+
+def _get_type_by_binding_name(xmldoc, kern_name):
+    '''
+    Query the XML doc to find the name of the type with which the
+    named kernel is associated.
+
+    :param xmldoc: minidom XML document object holding XCodeML/F
+    :param str kern_name: name of the kernel subroutine
+    :return: Name of the type which has the specified kernel as a
+             type-bound procedure
+    :rtype: str
+    :raises: TODO
+    '''
+    type_defs = xmldoc.getElementsByTagName("FstructType")
+    if not type_defs:
+        # TODO use correct type of exception
+        raise Exception("XCodeML/F does not contain any type definitions")
+
+    tindex = ""
+    for tdef in type_defs:
+        tbound_procs = tdef.getElementsByTagName("typeBoundProcedure")
+        if tbound_procs is None:
+            continue
+        for proc in tbound_procs:
+            bindings = proc.getElementsByTagName("binding")
+            names = bindings[0].getElementsByTagName("name")
+            name = names[0].firstChild.data
+            if name == kern_name:
+                # This is the matching Type definition so store its
+                # type index
+                tindex = tdef.getAttribute("type")
+                break
+        if tindex:
+            break
+
+    if not tindex:
+        raise Exception("Failed to find a Type definition containing a "
+                        "type-bound procedure with name {0}".format(kern_name))
+
+    # Now we have the type index, we can find its name
+    gdeclns = xmldoc.getElementsByTagName("globalDeclarations")
+    symbol_lists = gdeclns.getElementsByTagName("symbols")
+    for symbol in symbol_lists:
+        id_list = symbol.getElementsByTagName("id")
+        for id_node in id_list:
+            if id_node.getAttribute("type") == tindex:
+                # This is the matching symbol
+                names = id_node.getElementsByTagName("name")
+                return names[0].firstChild.data
+    raise Exception("Could not find symbol ID for the derived type "
+                    "with type={0}".format(tindex))
