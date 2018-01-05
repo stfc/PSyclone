@@ -14,7 +14,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -143,3 +143,65 @@ def test_trans(tmpdir, monkeypatch):
     new_names = claw.trans([invoke], [kern.name], script_file)
 
     assert new_names[orig_name] == orig_name + "_claw"
+
+
+def test_rename_kern(tmpdir):
+    ''' Check that _rename_kernel() works as it should '''
+    from psyclone.claw import _rename_kernel
+    # We use an XML file we prepared earlier so as not to have to rely
+    # on Omni being installed
+    xml_file = os.path.join(BASE_PATH, "kernel_in_module.xml")
+    oldpwd = tmpdir.chdir()
+
+    new_base_name = _rename_kernel(xml_file, "next_sshu", "keep")
+    assert new_base_name == "next_sshu_claw0"
+    # Create a fake renamed kernel file
+    with open("next_sshu_claw0_mod.f90", "w") as ffile:
+        ffile.write("Hello")
+    # Check that we get a different kernel name if "keep" is specified
+    new_base_name = _rename_kernel(xml_file, "next_sshu", "keep")
+    assert new_base_name == "next_sshu_claw1"
+    new_base_name = _rename_kernel(xml_file, "next_sshu", "overwrite")
+    assert new_base_name == "next_sshu_claw0"
+    with pytest.raises(TransformationError) as err:
+        _ = _rename_kernel(xml_file, "next_sshu", "abort")
+    assert "next_sshu_claw0_mod.f90 already exists and renaming mode is" \
+        in str(err)
+
+    # Now check the transformed XCodeML
+    new_kern_name = new_base_name + "_code"
+    new_kern_type_name = new_base_name + "_type"
+    new_mod_name = new_base_name + "_mod"
+
+    proc_name_list = []
+    from xml.dom import minidom
+    with open(xml_file, "r") as xfile:
+        xml_doc = minidom.parse(xfile)
+        procs = xml_doc.getElementsByTagName("typeBoundProcedure")
+        for proc in procs:
+            bindings = proc.getElementsByTagName("binding")
+            names = bindings[0].getElementsByTagName("name")
+            proc_name_list.append(names[0].firstChild.data)
+        # Global symbols
+        gsymbols = xml_doc.getElementsByTagName("globalSymbols")
+        gids = gsymbols[0].getElementsByTagName("id")
+        for gid in gids:
+            if gid.getAttribute("sclass") == "ffunc":
+                names = gid.getElementsByTagName("name")
+                assert names[0].firstChild.data == new_mod_name
+        # Global declarations
+        gdeclns = xml_doc.getElementsByTagName("globalDeclarations")
+        modefs = gdeclns[0].getElementsByTagName("FmoduleDefinition")
+        assert modefs[0].getAttribute("name") == new_mod_name
+        symbols = modefs[0].getElementsByTagName("symbols")
+        symbol_ids = symbols[0].getElementsByTagName("id")
+        for sid in symbol_ids:
+            class_attr = sid.getAttribute("sclass")
+            if class_attr == "ftype_name":
+                names = sid.getElementsByTagName("name")
+                assert names[0].firstChild.data == new_kern_type_name
+            elif class_attr == "ffunc":
+                names = sid.getElementsByTagName("name")
+                assert names[0].firstChild.data == new_kern_name
+
+    assert new_kern_name in proc_name_list

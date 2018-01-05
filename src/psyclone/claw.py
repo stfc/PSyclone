@@ -69,7 +69,7 @@ def omni_frontend(fort_file, xml_file, mod_search_paths):
     print "omni_frontend: produced XCodeML file: {0}".format(xml_file)
 
 
-def trans(invoke_list, kernel_list, script_file):
+def trans(invoke_list, kernel_list, script_file, mode=None):
     '''
     PSyclone interface to CLAW
 
@@ -86,12 +86,24 @@ def trans(invoke_list, kernel_list, script_file):
     :param kernel_list: List of names of kernels to transform
     :type kernel_list: List of str
     :param str script_file: Claw Jython script to perform transformation
+    :param str mode: How to handle any name clashes for transformed kernels.
+                     One of ["overwrite", "keep", "abort"]. Defaults
+                     to "keep" if not specified.
     :return: Dictionary of re-named kernels, indexed by orig names
     :rtype: dict
     '''
     import tempfile
     from .psyGen import Kern
     from . import claw_config
+
+    if mode is None:
+        # By default we ensure that the name of any newly-transformed
+        # kernel is unique (since the same kernel may have been
+        # transformed differently for some other invoke in a different
+        # Algorithm file).
+        naming_mode = "keep"
+    else:
+        naming_mode = mode
 
     # Create dictionary containing mapping from original to new kernel
     # names
@@ -140,7 +152,9 @@ def trans(invoke_list, kernel_list, script_file):
 
         # Work out which API this is from the fparser AST and use this to
         # look-up the path to the Omni-compiled infrastructure modules that
-        # a kernel may depend upon.
+        # a kernel may depend upon. We must do it this way since this
+        # routine is intended to be used from a transformation script rather
+        # than from directly within PSyclone.
         api = _api_from_ast(kern_list[0])
         if api not in claw_config.OMNI_MODULES_PATH:
             raise TransformationError(
@@ -151,21 +165,19 @@ def trans(invoke_list, kernel_list, script_file):
         # Run OMNI to get temporary XML file
         omni_frontend(fort_file.name, xml_name, [mod_search_path])
 
-        # Generate name for transformed kernel and accompanying module
-        # TODO do this properly!
-        new_kernel_name = name + "_claw"
-        new_kern_names[name] = new_kernel_name
-        new_mod_name = new_kernel_name + "_mod"
-        new_file_name = new_mod_name + ".f90"
-
         # Alter the XcodeML/F so that it uses the new kernel name
         try:
-            _rename_kernel(xml_name, name, new_kernel_name)
+            new_base_name = _rename_kernel(xml_name, name, new_kernel_name,
+                                           naming_mode)
         except IOError as err:
             raise TransformationError(
                 "Failed to find file {0} containing the XcodeML/F "
                 "representation of kernel {1}. Is the Omni frontend on your "
                 "PATH and working?".format(xml_name, name))
+
+        new_kern_names[name] = new_base_name + "_kern"
+        new_mod_name = new_base_name + "_mod"
+        new_file_name = new_mod_name + ".f90"
 
         # Update the invokes to use this name for the kernel. This is simply
         # achieved by updating the relevant properties of the kernel object.
@@ -228,15 +240,47 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
         raise err
 
 
-def _rename_kernel(xml_file, old_name, new_name):
+def _rename_kernel(xml_file, old_name, mode):
     '''
     Process the supplied XcodeML and re-name the specified kernel
+
+    :param str xml_file: Full path to the XCodeML/F file containing
+                         the kernel
+    :param str mode: How to handle name clashes
+    :return: Base name of transformed kernel
+    :rtype: str
+
     :raises IOError: if supplied file is not found
+    :raises TransformationError: if renaming the kernel would cause a clash
+                                 with a previously re-named kernel (in the
+                                 CWD) and mode=="abort"
     '''
+
+    pwd = os.getcwd()
+    new_name = old_name + "_claw0"
+
+    if mode == "keep":
+        name_idx = -1
+        while True:
+            name_idx += 1
+            new_name = old_name + "_claw{0}".format(name_idx)
+            filename = os.path.join(pwd, new_name+"_mod.f90")
+            if not os.path.isfile(filename):
+                break
+    elif mode == "overwrite":
+        pass
+    elif mode == "abort":
+        filename = os.path.join(pwd, new_name+"_mod.f90")
+        if os.path.isfile(filename):
+            raise TransformationError(
+                "Kernel file {0} already exists and renaming mode is {0} "
+                "so refusing to overwrite".format(filename, mode))
+
+    from xml.dom import minidom
     with open(xml_file, "r") as xfile:
         # TODO parse the xml file and re-name the necessary elements
-        pass
-    return
+        xmldoc = minidom.parse(xfile)
+    return new_name
 
 
 def _api_from_ast(kern):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 #
 # All rights reserved.
 #
@@ -36,6 +36,7 @@
 
 import os
 
+
 def trans(psy):
     '''
     An example PSyclone transformation script. Here we might
@@ -50,9 +51,17 @@ def trans(psy):
     kern = invoke.schedule.children[3].children[0]
     print "Kernel name: ", kern.name
     # Invoke claw on the kernel using the claw_trans function in
-    # this file
-    kern_names = claw.trans([invoke], [kern.name], os.path.abspath(__file__))
+    # this file. This will produce new kernel source file(s).
+    kern_names = claw.trans([invoke], [kern.name], os.path.abspath(__file__),
+                            mode="overwrite")
     print "Transformed kernel names: ", kern_names
+    # Update selected kernels in selected invokes to use the transformed
+    # kernel(s). If multiple invokes use the same kernel and we want them
+    # to all be replaced by the transformed version then we do that here.
+    # On the other hand, if an invoke in a different Algorithm uses the
+    # same kernel then we may have already transformed it and thus may
+    # have a clash
+    
 
 
 def claw_trans(xast):
