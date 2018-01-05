@@ -50,9 +50,10 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
-    DynGlobalSum, HaloReadAccess
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
+     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
+     VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
+     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 import fparser
@@ -4330,32 +4331,36 @@ def test_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-def test_w3_and_inc_error():
-    '''test that an error is raised if w3 and gh_inc are provided for the
-    same field in the metadata '''
+def test_fs_discontinuous_and_inc_error():  # pylint: disable=invalid-name
+    ''' Test that an error is raised if a discontinuous function space
+    and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field,gh_read, w3)",
-                        "arg_type(gh_field,gh_inc, w3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="testkern_qr_type")
-    assert (
-        "It does not make sense for a quantity on a discontinuous space "
-        "(w3) to have a 'gh_inc' access" in str(excinfo.value))
+    for fsname in DISCONTINUOUS_FUNCTION_SPACES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w3)",
+                            "arg_type(gh_field,gh_inc, "
+                            + fsname + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("It does not make sense for a quantity on a discontinuous "
+                "space (" + fsname + ") to have a 'gh_inc' access"
+                in str(excinfo.value))
 
 
-def test_fs_continuous_and_readwrite_error():
+def test_fs_continuous_and_readwrite_error():  # pylint: disable=invalid-name
     ''' Test that an error is raised if a continuous function space and
-        gh_readwrite are provided for the same field in the metadata '''
+    gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                        "arg_type(gh_field,gh_readwrite, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="testkern_qr_type")
-    assert (
-        "It does not make sense for a quantity on a continuous space "
-        "(w2) to have a 'gh_readwrite' access" in str(excinfo.value))
+    for fsname in CONTINUOUS_FUNCTION_SPACES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                            "arg_type(gh_field,gh_readwrite, "
+                            + fsname + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("It does not make sense for a quantity on a continuous "
+                "space (" + fsname + ") to have a 'gh_readwrite' access"
+                in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
