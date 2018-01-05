@@ -4580,7 +4580,6 @@ class ArgOrdering(object):
         kernel is not an LMA operator.
         :raises GenerationError: if the operator argument to a boundary
         condition kernel does not have "readwrite" access.
-
         '''
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
@@ -6188,10 +6187,10 @@ class DynKernelArgument(KernelArgument):
     @property
     def intent(self):
         '''
-        Returns the fortran intent of this argument.
+        Returns the Fortran intent of this argument.
 
         :return: the expected fortran intent for this argument as specified
-                 by the kernel argument metadata.
+                 by the kernel argument metadata
         :rtype: str
         '''
         if self.access == "gh_read":

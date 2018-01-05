@@ -574,10 +574,10 @@ class Invoke(object):
 
         :param string datatype: the type of the kernel argument for the
                                 particular API for which the intent is
-                                required.
+                                required
         :return: dictionary containing 'intent' keys holding the kernel
                  argument intent and declarations of all kernel arguments
-                 for each type of intent.
+                 for each type of intent
         :rtype: dict
         :raises GenerationError: if the kernel argument is not a valid
                                  datatype for the particular API.
@@ -1672,17 +1672,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 
 class GlobalSum(Node):
-    '''
-    Generic Global Sum class which can be added to and manipulated
-    in, a schedule.
-
-    :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyGen.node`
-
-    '''
+    ''' Generic Global Sum class which can be added to and manipulated
+    in, a schedule. '''
     def __init__(self, scalar, parent=None):
+        '''
+        :param scalar: the scalar that the global sum is stored into
+        :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param parent: optional parent (default None) of this object
+        :type parent: :py:class:`psyclone.psyGen.node`
+        '''
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
@@ -2461,7 +2459,17 @@ class Kern(Call):
                                  format(self.name, mapping["inc"]))
 
     def written_arg(self, mapping={}):
-        ''' Returns the argument that has WRITE access '''
+        '''
+        Returns the argument that can be written to (has WRITE or READWRITE
+        access).
+
+        :param mapping: dictionary of access types associated with arguments
+                        with their metadata strings as keys
+        :type mapping: dict
+        :return: a Fortran argument name
+        :rtype: string
+        :raises FieldNotFoundError: if none is found.
+        '''
         assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
             "mapping must be provided"
         for access in ["write", "readwrite"]:
@@ -2543,7 +2551,7 @@ class Arguments(object):
 
 
 class Argument(object):
-    ''' argument base class '''
+    ''' Argument base class '''
 
     def __init__(self, call, arg_info, access):
         '''
