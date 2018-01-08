@@ -148,6 +148,13 @@ def test_trans(tmpdir, monkeypatch):
     # specifying the naming mode to use
     new_names = claw.trans([orig_kern], script_file, naming_mode="keep")
     assert new_names[orig_name] == "testkern_claw0_code"
+    # Exercise the catch for missing infrastructure location for an API
+    monkeypatch.setattr(claw, "_api_from_ast",
+                        lambda kern: "not_an_api")
+    with pytest.raises(TransformationError) as err:
+        _ = claw.trans([orig_kern], script_file, naming_mode="keep")
+    assert ("No location specified for Omni-compiled infrastructure for "
+            "API not_an_api" in str(err))
 
 
 def test_rename_kern_with_mod(tmpdir):
