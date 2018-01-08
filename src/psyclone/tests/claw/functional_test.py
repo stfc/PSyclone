@@ -64,6 +64,19 @@ def test_loop_reorder(tmpdir, monkeypatch):
     # space with generated files
     _ = tmpdir.chdir()
 
+    # Perform the kernel transformation
     new_names = claw.trans([kern], script_file)
-    assert new_names[orig_name] == "testkern_claw0_code"
 
+    assert new_names[orig_name] == "testkern_claw0_code"
+    kernel_file = os.path.join(str(tmpdir), "testkern_claw0_mod.f90")
+    assert os.path.isfile(kernel_file)
+    expected_loop = ("DO jj = 1 , ndf_w2 , 1\n"
+                     "   DO ji = 1 , ndf_w1 , 1")
+    with open(kernel_file, "r") as ffile:
+        kernel_code = ffile.read()
+        assert expected_loop in kernel_code
+
+    psy_code = str(psy.gen)
+    print psy_code
+    assert "USE testkern_claw0_mod, ONLY: testkern_claw0_code" in psy_code
+    assert "CALL testkern_claw0_code(" in psy_code
