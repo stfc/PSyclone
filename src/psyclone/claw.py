@@ -69,7 +69,7 @@ def omni_frontend(fort_file, xml_file, mod_search_paths):
     print "omni_frontend: produced XCodeML file: {0}".format(xml_file)
 
 
-def trans(kernel_list, script_file, mode=None):
+def trans(kernel_list, script_file, naming_mode=None):
     '''
     PSyclone interface to CLAW
 
@@ -84,23 +84,23 @@ def trans(kernel_list, script_file, mode=None):
     :param kernel_list: List of kernel objects to transform
     :type kernel_list: List of objects of type :py:class:`psyclone.psyGen.Kern`
     :param str script_file: Claw Jython script to perform transformation
-    :param str mode: How to handle any name clashes for transformed kernels.
-                     One of ["overwrite", "keep", "abort"]. Defaults
-                     to "keep" if not specified.
+    :param str naming_mode: How to handle any name clashes for transformed
+                            kernels. One of ["overwrite", "keep", "abort"].
+                            Defaults to "keep" if not specified.
     :return: Dictionary of re-named kernels, indexed by orig names
     :rtype: dict
     '''
     import tempfile
     from . import claw_config
 
-    if mode is None:
+    if naming_mode is None:
         # By default we ensure that the name of any newly-transformed
         # kernel is unique (since the same kernel may have been
         # transformed differently for some other invoke in a different
         # Algorithm file).
-        naming_mode = "keep"
+        _naming_mode = "keep"
     else:
-        naming_mode = mode
+        _naming_mode = naming_mode
 
     # Create dictionary containing mapping from original to new kernel
     # names
@@ -148,7 +148,7 @@ def trans(kernel_list, script_file, mode=None):
         try:
             mod_name, type_name, kern_name = _rename_kernel(xml_name,
                                                             kern._name,
-                                                            naming_mode)
+                                                            _naming_mode)
         except IOError:
             raise TransformationError(
                 "Failed to find file {0} containing the XcodeML/F "

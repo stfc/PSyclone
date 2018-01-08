@@ -139,7 +139,14 @@ def test_trans(tmpdir, monkeypatch):
                             lambda xml, name, mode: ("testkern_claw0_mod",
                                                      "testkern_claw0_type",
                                                      "testkern_claw0_code"))
+    # Keep a copy of our kernel object as transforming it modifies it
+    import copy
+    orig_kern = copy.deepcopy(kern)
     new_names = claw.trans([kern], script_file)
+    assert new_names[orig_name] == "testkern_claw0_code"
+    # Repeat test for un-changed copy of kernel but this time explicitly
+    # specifying the naming mode to use
+    new_names = claw.trans([orig_kern], script_file, naming_mode="keep")
     assert new_names[orig_name] == "testkern_claw0_code"
 
 
