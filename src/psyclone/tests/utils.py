@@ -49,6 +49,14 @@ TEST_COMPILE = pytest.config.getoption("--compile")
 COMPILE = pytest.mark.skipif(not TEST_COMPILE,
                              reason="Need --compile option to run")
 
+# Whether or not we run tests that require the Claw compiler is picked-up
+# from a command-line flag. (This is set-up in conftest.py.)
+TEST_CLAW = pytest.config.getoption("--with-claw")
+
+# Allows us to mark a test with @utils.CLAW if it is only to be
+# run with the --with-claw option is passed to py.test
+CLAW = pytest.mark.skipif(not pytest.config.getoption("--with-claw"),
+                          reason="Need --with-claw option to run")
 
 class CompileError(Exception):
     ''' Exception raised when compilation of a Fortran source file

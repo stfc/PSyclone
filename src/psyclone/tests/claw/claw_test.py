@@ -38,17 +38,13 @@
 
 import os
 import pytest
+import utils
 from psyclone.transformations import TransformationError
 
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "test_files")
-
-# Whether or not we run tests that require the Claw compiler is picked-up
-# from a command-line flag. (This is set-up in conftest.py.)
-TEST_CLAW = pytest.config.getoption("--with-claw")
-
 
 def _fake_check_call(args, env=None):  # pylint:disable=unused-argument
     '''
@@ -126,7 +122,7 @@ def test_trans(tmpdir, monkeypatch):
     # space with generated files
     _ = tmpdir.chdir()
 
-    if not TEST_CLAW:
+    if not utils.TEST_CLAW:
         # Monkeypatch subprocess.check_call() so that it does
         # nothing. This means that we don't actually run Omni or Claw.
         monkeypatch.setattr(subprocess, "check_call",
