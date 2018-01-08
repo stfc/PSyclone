@@ -304,25 +304,35 @@ def _rename_kernel(xml_file, kernel_name, mode):
                 "so refusing to overwrite".format(filename, mode))
 
 
+    # Use the suffix we have determined to create a new module name
     if orig_mod_name.endswith("_mod"):
-        idx = orig_mod_name.find("_mod")
-        new_mod_name = orig_mod_name[:idx] + new_suffix + "_mod"
+        new_mod_name = orig_mod_name[:-4] + new_suffix
     else:
         new_mod_name = orig_mod_name + new_suffix
+    # Our new module name will conform to the PSyclone convention of
+    # ending in "_mod"
+    new_mod_name += "_mod"
 
+    # Use the suffix we have determined to create a new kernel name
     if kernel_name.endswith("_code"):
         idx = kernel_name.find("_code")
-        new_kern_name = kernel_name[:idx] + new_suffix + "_code"
+        new_kern_name = kernel_name[:-5] + new_suffix
     else:
         new_kern_name = kernel_name + new_suffix
+    # The new name for the kernel subroutine will conform to the
+    # PSyclone convention of ending in "_code"
+    new_kern_name += "_code"
 
     # Query the XML to determine the name of the type that contains
     # the kernel subroutine as a type-bound procedure
     orig_type_name = _get_type_by_binding_name(xmldoc, kernel_name)
     if orig_type_name.endswith("_type"):
-        new_type_name = orig_type_name[:-5] + new_suffix + "_type"
+        new_type_name = orig_type_name[:-5] + new_suffix
     else:
         new_type_name = orig_type_name + new_suffix
+    # The new name for the type containing kernel metadata will
+    # conform to the PSyclone convention of ending in "_type"
+    new_type_name += "_type"
 
     # Construct a dictionary for mapping from old kernel/type/module
     # names to the corresponding new ones

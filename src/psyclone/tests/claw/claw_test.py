@@ -140,11 +140,10 @@ def test_trans(tmpdir, monkeypatch):
         # Since we're not running Omni, we don't generate any xml files so also
         # monkeypatch the kernel-renaming routine so that it does nothing.
         monkeypatch.setattr(claw, "_rename_kernel",
-                            lambda xml, name, mode: (name+"_claw0",
-                                                     name+"_claw0_type",
-                                                     name+"_claw0_code"))
+                            lambda xml, name, mode: ("testkern_claw0_mod",
+                                                     "testkern_claw0_type",
+                                                     "testkern_claw0_code"))
     new_names = claw.trans([kern], script_file)
-
     assert new_names[orig_name] == "testkern_claw0_code"
 
 
@@ -159,8 +158,26 @@ def test_rename_kern_with_mod(tmpdir):
     oldpwd = tmpdir.chdir()
     shutil.copy(orig_xml_file, str(tmpdir))
     xml_file = os.path.join(str(tmpdir), "next_sshu_mod.xml")
-    _, _, new_name = _rename_kernel(xml_file, "next_sshu_code", "keep")
+    new_mod, new_type, new_name = _rename_kernel(xml_file,
+                                                 "next_sshu_code", "keep")
     assert new_name == "next_sshu_claw0_code"
+    assert new_mod == "next_sshu_claw0_mod"
+    assert new_type == "next_sshu_claw0_type"
+
+    with open("next_sshu_claw0_mod.f90", "w") as ffile:
+        ffile.write("Hello")
+    shutil.copy(orig_xml_file, str(tmpdir))
+    new_mod, new_type, new_name = _rename_kernel(xml_file,
+                                                 "next_sshu_code", "keep")
+    assert new_name == "next_sshu_claw1_code"
+    assert new_mod == "next_sshu_claw1_mod"
+    assert new_type == "next_sshu_claw1_type"
+
+    shutil.copy(orig_xml_file, str(tmpdir))
+    with pytest.raises(TransformationError) as err:
+        _ = _rename_kernel(xml_file, "next_sshu_code", "abort")
+    assert ("next_sshu_claw0_mod.f90 already exists and renaming mode is "
+            "'abort'" in str(err))
 
 
 def test_rename_kern_no_mod(tmpdir):
@@ -200,7 +217,7 @@ def test_rename_kern_no_mod(tmpdir):
     new_base_name = "testkern_claw0"
     new_kern_name = new_base_name + "_code"
     new_kern_type_name = new_base_name + "_type"
-    new_mod_name = new_base_name
+    new_mod_name = new_base_name + "_mod"
 
     from xml.dom import minidom
     with open(xml_file, "r") as xfile:
