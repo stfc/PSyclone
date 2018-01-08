@@ -1,0 +1,572 @@
+<XcodeProgram source="next_sshu_mod.f90"
+              language="Fortran"
+              time="2018-01-08 11:01:53"
+              compiler-info="XcodeML/Fortran-FrontEnd"
+              version="1.0">
+  <typeTable>
+    <FfunctionType type="F1ad8ad0" return_type="Fvoid">
+      <params>
+        <name type="A1ad9e80">fld</name>
+      </params>
+    </FfunctionType>
+    <FbasicType type="A1ad9d50" ref="Freal">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="A1ad9e80" ref="Freal">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="I1ab75c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab77e0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab7a00" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab7c20" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab7e40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab80c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab8340" is_parameter="true" ref="Fint"/>
+    <FstructType type="S1ab85c0">
+      <symbols>
+        <id type="Fint">
+          <name>arg_intent</name>
+        </id>
+        <id type="Fint">
+          <name>element</name>
+        </id>
+        <id type="Fint">
+          <name>stencil</name>
+          <value>
+            <FintConstant type="Fint">0</FintConstant>
+          </value>
+        </id>
+      </symbols>
+    </FstructType>
+    <FbasicType type="I1ab8840" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab8ac0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab8d40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab8fe0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aaee30" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aaf0d0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aaf370" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aaf610" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aaf8b0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aafb50" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1aafdf0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab0090" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab0330" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab05d0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab0870" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab0b10" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab1590" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab1830" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab1ad0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab1d70" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab2010" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab22b0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad0770" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ab6170" ref="Fint">
+      <kind>
+        <FintConstant type="Fint">4</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="I1ab6430" is_parameter="true" ref="I1ab6170"/>
+    <FbasicType type="I1ad0990" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad0bb0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad0dd0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad0ff0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad1270" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad14f0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad1770" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad19f0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad1c70" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad1ef0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1ad2170" is_parameter="true" ref="Fint"/>
+    <FstructType type="S1ad2410" is_internal_private="true">
+      <symbols>
+        <id type="Flogical">
+          <name>no_op</name>
+        </id>
+      </symbols>
+    </FstructType>
+    <FstructType type="S1ad3c10" extends="S1ad2410">
+      <symbols>
+        <id type="A1ad4db0">
+          <name>meta_args</name>
+          <value>
+            <FarrayConstructor type="A1ad62b0">
+              <FstructConstructor type="S1ad5fa0">
+                <Var type="Freal" scope="local">gh_field</Var>
+                <Var type="Freal" scope="local">gh_write</Var>
+                <Var type="Freal" scope="local">w1</Var>
+              </FstructConstructor>
+            </FarrayConstructor>
+          </value>
+        </id>
+        <id type="Fint">
+          <name>iterates_over</name>
+          <value>
+            <Var type="Freal" scope="local">cells</Var>
+          </value>
+        </id>
+      </symbols>
+      <typeBoundProcedures>
+        <typeBoundProcedure type="F1ad7940" pass="nopass">
+          <name>code</name>
+          <binding>
+            <name>next_sshu_code</name>
+          </binding>
+        </typeBoundProcedure>
+      </typeBoundProcedures>
+    </FstructType>
+    <FbasicType type="S1ad4a60" ref="S1ab85c0"/>
+    <FbasicType type="S1ad4c80" ref="S1ad4a60"/>
+    <FbasicType type="A1ad4db0" ref="S1ad4c80">
+      <indexRange>
+        <lowerBound>
+          <FintConstant type="Fint">1</FintConstant>
+        </lowerBound>
+        <upperBound>
+          <FintConstant type="Fint">1</FintConstant>
+        </upperBound>
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="S1ad5fa0" ref="S1ab85c0"/>
+    <FbasicType type="A1ad62b0" ref="S1ad5fa0">
+      <indexRange>
+        <lowerBound>
+          <FintConstant type="Fint">1</FintConstant>
+        </lowerBound>
+        <upperBound>
+          <FintConstant type="Fint">1</FintConstant>
+        </upperBound>
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="F1ad7940" ref="F1ad8ad0"/>
+    <FbasicType type="V1ad7810" ref="FnumericAll"/>
+  </typeTable>
+  <globalSymbols>
+    <id sclass="ffunc">
+      <name>next_sshu_mod</name>
+    </id>
+  </globalSymbols>
+  <globalDeclarations>
+    <FmoduleDefinition name="next_sshu_mod" lineno="1" file="next_sshu_mod.f90">
+      <symbols>
+        <id type="I1ab75c0" sclass="flocal" declared_in="argument_mod">
+          <name>go_read</name>
+        </id>
+        <id type="I1ab77e0" sclass="flocal" declared_in="argument_mod">
+          <name>go_write</name>
+        </id>
+        <id type="I1ab7a00" sclass="flocal" declared_in="argument_mod">
+          <name>go_readwrite</name>
+        </id>
+        <id type="I1ab7c20" sclass="flocal" declared_in="argument_mod">
+          <name>go_inc</name>
+        </id>
+        <id type="I1ab7e40" sclass="flocal" declared_in="argument_mod">
+          <name>go_min</name>
+        </id>
+        <id type="I1ab80c0" sclass="flocal" declared_in="argument_mod">
+          <name>go_max</name>
+        </id>
+        <id type="I1ab8340" sclass="flocal" declared_in="argument_mod">
+          <name>go_sum</name>
+        </id>
+        <id type="S1ab85c0" sclass="ftype_name" declared_in="argument_mod">
+          <name>arg</name>
+        </id>
+        <id type="I1ab8840" sclass="flocal" declared_in="argument_mod">
+          <name>go_r_scalar</name>
+        </id>
+        <id type="I1ab8ac0" sclass="flocal" declared_in="argument_mod">
+          <name>go_i_scalar</name>
+        </id>
+        <id type="I1ab8d40" sclass="flocal" declared_in="argument_mod">
+          <name>go_every</name>
+        </id>
+        <id type="I1ab8fe0" sclass="flocal" declared_in="argument_mod">
+          <name>cu</name>
+        </id>
+        <id type="I1aaee30" sclass="flocal" declared_in="argument_mod">
+          <name>cv</name>
+        </id>
+        <id type="I1aaf0d0" sclass="flocal" declared_in="argument_mod">
+          <name>ct</name>
+        </id>
+        <id type="I1aaf370" sclass="flocal" declared_in="argument_mod">
+          <name>cf</name>
+        </id>
+        <id type="I1aaf610" sclass="flocal" declared_in="argument_mod">
+          <name>time_step</name>
+        </id>
+        <id type="I1aaf8b0" sclass="flocal" declared_in="argument_mod">
+          <name>grid_area_t</name>
+        </id>
+        <id type="I1aafb50" sclass="flocal" declared_in="argument_mod">
+          <name>grid_area_u</name>
+        </id>
+        <id type="I1aafdf0" sclass="flocal" declared_in="argument_mod">
+          <name>grid_area_v</name>
+        </id>
+        <id type="I1ab0090" sclass="flocal" declared_in="argument_mod">
+          <name>grid_mask_t</name>
+        </id>
+        <id type="I1ab0330" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dx_t</name>
+        </id>
+        <id type="I1ab05d0" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dx_u</name>
+        </id>
+        <id type="I1ab0870" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dx_v</name>
+        </id>
+        <id type="I1ab0b10" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dy_t</name>
+        </id>
+        <id type="I1ab1590" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dy_u</name>
+        </id>
+        <id type="I1ab1830" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dy_v</name>
+        </id>
+        <id type="I1ab1ad0" sclass="flocal" declared_in="argument_mod">
+          <name>grid_lat_u</name>
+        </id>
+        <id type="I1ab1d70" sclass="flocal" declared_in="argument_mod">
+          <name>grid_lat_v</name>
+        </id>
+        <id type="I1ab2010" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dx_const</name>
+        </id>
+        <id type="I1ab22b0" sclass="flocal" declared_in="argument_mod">
+          <name>grid_dy_const</name>
+        </id>
+        <id type="I1ad0770" sclass="flocal" declared_in="global_parameters_mod">
+          <name>dp</name>
+        </id>
+        <id type="I1ad0990" sclass="flocal" declared_in="global_parameters_mod">
+          <name>go_cells</name>
+        </id>
+        <id type="I1ad0bb0" sclass="flocal" declared_in="global_parameters_mod">
+          <name>go_edges</name>
+        </id>
+        <id type="I1ad0dd0" sclass="flocal" declared_in="global_parameters_mod">
+          <name>go_vertices</name>
+        </id>
+        <id type="I1ad0ff0" sclass="flocal" declared_in="global_parameters_mod">
+          <name>go_fe</name>
+        </id>
+        <id type="I1ad1270" sclass="flocal" declared_in="kernel_mod">
+          <name>pointwise</name>
+        </id>
+        <id type="I1ad14f0" sclass="flocal" declared_in="kernel_mod">
+          <name>dofs</name>
+        </id>
+        <id type="I1ad1770" sclass="flocal" declared_in="kernel_mod">
+          <name>internal_pts</name>
+        </id>
+        <id type="I1ad19f0" sclass="flocal" declared_in="kernel_mod">
+          <name>external_pts</name>
+        </id>
+        <id type="I1ad1c70" sclass="flocal" declared_in="kernel_mod">
+          <name>all_pts</name>
+        </id>
+        <id type="I1ad1ef0" sclass="flocal" declared_in="kernel_mod">
+          <name>go_orthogonal_regular</name>
+        </id>
+        <id type="I1ad2170" sclass="flocal" declared_in="kernel_mod">
+          <name>go_orthogonal_curvilinear</name>
+        </id>
+        <id type="S1ad2410" sclass="ftype_name" declared_in="kernel_mod">
+          <name>kernel_type</name>
+        </id>
+        <id type="S1ad3c10" sclass="ftype_name" declared_in="next_sshu_mod">
+          <name>next_sshu_type</name>
+        </id>
+        <id type="Freal" sclass="fsave">
+          <name>gh_field</name>
+        </id>
+        <id type="Freal" sclass="fsave">
+          <name>gh_write</name>
+        </id>
+        <id type="Freal" sclass="fsave">
+          <name>w1</name>
+        </id>
+        <id type="Freal" sclass="fsave">
+          <name>cells</name>
+        </id>
+        <id type="F1ad8ad0" sclass="ffunc">
+          <name>next_sshu_code</name>
+        </id>
+      </symbols>
+      <declarations>
+        <FuseDecl name="argument_mod" lineno="2" file="next_sshu_mod.f90">
+        </FuseDecl>
+        <FuseDecl name="kernel_mod" lineno="3" file="next_sshu_mod.f90">
+        </FuseDecl>
+        <FstructDecl lineno="5" file="next_sshu_mod.f90">
+          <name type="S1ad3c10">next_sshu_type</name>
+        </FstructDecl>
+        <varDecl>
+          <name type="I1ab75c0">go_read</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab77e0">go_write</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab7a00">go_readwrite</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab7c20">go_inc</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab7e40">go_min</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab80c0">go_max</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab8340">go_sum</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab8840">go_r_scalar</name>
+          <value>
+            <FintConstant type="Fint">0</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab8ac0">go_i_scalar</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab8d40">go_every</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab8fe0">cu</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aaee30">cv</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aaf0d0">ct</name>
+          <value>
+            <FintConstant type="Fint">3</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aaf370">cf</name>
+          <value>
+            <FintConstant type="Fint">4</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aaf610">time_step</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aaf8b0">grid_area_t</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aafb50">grid_area_u</name>
+          <value>
+            <FintConstant type="Fint">3</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1aafdf0">grid_area_v</name>
+          <value>
+            <FintConstant type="Fint">4</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab0090">grid_mask_t</name>
+          <value>
+            <FintConstant type="Fint">5</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab0330">grid_dx_t</name>
+          <value>
+            <FintConstant type="Fint">6</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab05d0">grid_dx_u</name>
+          <value>
+            <FintConstant type="Fint">7</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab0870">grid_dx_v</name>
+          <value>
+            <FintConstant type="Fint">8</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab0b10">grid_dy_t</name>
+          <value>
+            <FintConstant type="Fint">9</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab1590">grid_dy_u</name>
+          <value>
+            <FintConstant type="Fint">10</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab1830">grid_dy_v</name>
+          <value>
+            <FintConstant type="Fint">11</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab1ad0">grid_lat_u</name>
+          <value>
+            <FintConstant type="Fint">12</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab1d70">grid_lat_v</name>
+          <value>
+            <FintConstant type="Fint">13</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab2010">grid_dx_const</name>
+          <value>
+            <FintConstant type="Fint">14</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ab22b0">grid_dy_const</name>
+          <value>
+            <FintConstant type="Fint">15</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad0770">dp</name>
+          <value>
+            <Var type="I1ab6430" scope="local">c_double</Var>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad0990">go_cells</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad0bb0">go_edges</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad0dd0">go_vertices</name>
+          <value>
+            <FintConstant type="Fint">0</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad0ff0">go_fe</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad1270">pointwise</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad14f0">dofs</name>
+          <value>
+            <FintConstant type="Fint">5</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad1770">internal_pts</name>
+          <value>
+            <FintConstant type="Fint">0</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad19f0">external_pts</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad1c70">all_pts</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad1ef0">go_orthogonal_regular</name>
+          <value>
+            <FintConstant type="Fint">7</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1ad2170">go_orthogonal_curvilinear</name>
+          <value>
+            <FintConstant type="Fint">8</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="Freal">gh_field</name>
+        </varDecl>
+        <varDecl>
+          <name type="Freal">gh_write</name>
+        </varDecl>
+        <varDecl>
+          <name type="Freal">w1</name>
+        </varDecl>
+        <varDecl>
+          <name type="Freal">cells</name>
+        </varDecl>
+      </declarations>
+      <FcontainsStatement lineno="13" file="next_sshu_mod.f90">
+        <FfunctionDefinition lineno="15" file="next_sshu_mod.f90">
+          <name type="F1ad8ad0">next_sshu_code</name>
+          <symbols>
+            <id type="F1ad8ad0" sclass="ffunc">
+              <name>next_sshu_code</name>
+            </id>
+            <id type="A1ad9e80" sclass="fparam">
+              <name>fld</name>
+            </id>
+          </symbols>
+          <declarations>
+            <varDecl lineno="15" file="next_sshu_mod.f90">
+              <name type="F1ad8ad0">next_sshu_code</name>
+            </varDecl>
+            <varDecl lineno="17" file="next_sshu_mod.f90">
+              <name type="A1ad9e80">fld</name>
+            </varDecl>
+          </declarations>
+          <body>
+          </body>
+        </FfunctionDefinition>
+      </FcontainsStatement>
+    </FmoduleDefinition>
+  </globalDeclarations>
+</XcodeProgram>

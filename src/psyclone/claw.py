@@ -146,23 +146,23 @@ def trans(kernel_list, script_file, mode=None):
         # Generate a new name for the transformed kernel and alter the
         # XcodeML/F so that it uses the new name
         try:
-            mod_name, type_name, kern_name = _rename_kernel(xml_name, kern, naming_mode)
+            mod_name, type_name, kern_name = _rename_kernel(xml_name,
+                                                            kern._name,
+                                                            naming_mode)
         except IOError:
             raise TransformationError(
                 "Failed to find file {0} containing the XcodeML/F "
                 "representation of kernel {1}. Is the Omni frontend on your "
                 "PATH and working?".format(xml_name, kern.name))
 
-        new_kern_name = new_base_name + "_kern"
-        new_mod_name = new_base_name + "_mod"
-        new_file_name = new_mod_name + ".f90"
-        new_kern_names[kern.name] = new_kern_name
+        new_file_name = mod_name + ".f90"
+        new_kern_names[kern.name] = kern_name
 
         # Update the kernel object with its new name (and corresponding
         # module name). These properties are then picked-up at code-gen
         # time for the associated USE and CALL statements.
-        kern._module_name = new_mod_name
-        kern._name = new_kern_name
+        kern._module_name = mod_name
+        kern._name = kern_name
 
         # Run the CLAW script on the XML file and generate a new kernel
         # file. This call is SLOW because it requires the startup of a
@@ -219,13 +219,13 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
         raise err
 
 
-def _rename_kernel(xml_file, kernel, mode):
+def _rename_kernel(xml_file, kernel_name, mode):
     '''
     Process the supplied XcodeML and re-name the specified kernel
 
-    :param str xml_file: Full path to the XCodeML/F file containing
-                         the kernel
-    :param kernel: Kernel object that is being renamed
+    :param str xml_file: Full path to the file containing the XcodeML/F
+                         representation of the kernel
+    :param str kernel_name: Name of the kernel subroutine to be renamed
     :param str mode: How to handle name clashes
     :return: Tupe of names of transformed module, kernel-type and kernel
     :rtype: 3-tuple of str
@@ -239,10 +239,6 @@ def _rename_kernel(xml_file, kernel, mode):
     # We read and write files in the current working directory
     pwd = os.getcwd()
 
-    orig_mod_name = kernel._module_name
-    # This is the name of the actual subroutine, not the metadata type
-    orig_kern_name = kernel._name
-
     # Read the XCodeML into a buffer and parse it to get a DOM
     xml_string = ""
     with open(xml_file, "r") as xfile:
@@ -250,20 +246,42 @@ def _rename_kernel(xml_file, kernel, mode):
     from xml.dom import minidom
     xmldoc = minidom.parseString(xml_string)
 
+    # Query the XML doc to determine the name of the module that contains
+    # our kernel
+    orig_mod_name = _get_kernel_module(xmldoc, kernel_name)
+
     # Get the name of the original Fortran source file
     progNode = xmldoc.firstChild
     orig_file = progNode.getAttribute("source")
     if orig_file is None:
         orig_file = orig_mod_name + ".f90"
 
-    old_base_name = orig_file[:]
-    if orig_file.endswith("_mod.f90"):
+    # Remove the .[fF]90 suffix and also any "_mod" if the file follows
+    # the PSyclone naming convention
+    if orig_file.endswith("_mod.f90") or orig_file.endswith("_mod.F90"):
         # File follows PSyclone naming convention
-        old_base_name.replace("_mod.f90", "", 1)
+        old_base_name = orig_file[:-8]
+    elif orig_file.endswith(".f90") or orig_file.endswith(".F90"):
+        old_base_name = orig_file[:-4]
     else:
-        old_base_name.replace(".f90", "", 1)
+        # The filename doesn't end in .[fF]90. This shouldn't happen!
+        raise TransformationError(
+            "Internal error: filename '{0}' for module does not end in "
+            ".[Ff]90.".format(orig_file))
 
+    # Determine the new suffix to use by looking at what files are already
+    # in our working directory
     new_suffix = "_claw0"
+    current_files = os.listdir(pwd)
+    # Convert all suffixes to .f90 to simplify things below (we don't
+    # want to end up with two files with the same name and only differing
+    # in whether they are .f90 or .F90)
+    current_files_lower = []
+    for afile in current_files:
+        if afile.endswith(".f90"):
+            current_files_lower.append(afile)
+        elif afile.endswith(".F90"):
+            current_files_lower.append(afile[-3]+"f90")
 
     if mode == "keep":
         name_idx = -1
@@ -271,18 +289,18 @@ def _rename_kernel(xml_file, kernel, mode):
             name_idx += 1
             new_suffix = "_claw{0}".format(name_idx)
             new_name = old_base_name + new_suffix + "_mod.f90"
-            filename = os.path.join(pwd, new_name)
-            if not os.path.isfile(filename):
+            print "new_name = ", new_name
+            if new_name not in current_files_lower:
                 # There isn't a src file with this name so we're done
                 break
     elif mode == "overwrite":
         # We don't care whether there's already a src file with the new name
         pass
     elif mode == "abort":
-        filename = os.path.join(pwd, old_base_name+new_suffix+"_mod.f90")
-        if os.path.isfile(filename):
+        filename = old_base_name+new_suffix+"_mod.f90"
+        if filename in current_files_lower:
             raise TransformationError(
-                "Kernel file {0} already exists and renaming mode is {1} "
+                "Kernel file {0} already exists and renaming mode is '{1}' "
                 "so refusing to overwrite".format(filename, mode))
 
 
@@ -292,13 +310,15 @@ def _rename_kernel(xml_file, kernel, mode):
     else:
         new_mod_name = orig_mod_name + new_suffix
 
-    if orig_kern_name.endswith("_code"):
-        idx = orig_kern_name.find("_code")
-        new_kern_name = orig_kern_name[:idx] + new_suffix + "_code"
+    if kernel_name.endswith("_code"):
+        idx = kernel_name.find("_code")
+        new_kern_name = kernel_name[:idx] + new_suffix + "_code"
     else:
-        new_kern_name = orig_kern_name + new_suffix
+        new_kern_name = kernel_name + new_suffix
 
-    orig_type_name = _get_type_by_binding_name(xmldoc, orig_kern_name)
+    # Query the XML to determine the name of the type that contains
+    # the kernel subroutine as a type-bound procedure
+    orig_type_name = _get_type_by_binding_name(xmldoc, kernel_name)
     if orig_type_name.endswith("_type"):
         new_type_name = orig_type_name[:-5] + new_suffix + "_type"
     else:
@@ -307,7 +327,7 @@ def _rename_kernel(xml_file, kernel, mode):
     # Construct a dictionary for mapping from old kernel/type/module
     # names to the corresponding new ones
     rename_map = {orig_mod_name: new_mod_name,
-                  orig_kern_name: new_kern_name,
+                  kernel_name: new_kern_name,
                   orig_type_name: new_type_name}
 
     # Re-write the necessary text nodes and attributes
@@ -394,7 +414,7 @@ def _get_type_by_binding_name(xmldoc, kern_name):
 
     # Now we have the type index, we can find its name
     gdeclns = xmldoc.getElementsByTagName("globalDeclarations")
-    symbol_lists = gdeclns.getElementsByTagName("symbols")
+    symbol_lists = gdeclns[0].getElementsByTagName("symbols")
     for symbol in symbol_lists:
         id_list = symbol.getElementsByTagName("id")
         for id_node in id_list:
@@ -404,3 +424,34 @@ def _get_type_by_binding_name(xmldoc, kern_name):
                 return names[0].firstChild.data
     raise Exception("Could not find symbol ID for the derived type "
                     "with type={0}".format(tindex))
+
+
+def _get_kernel_module(xmldoc, kern_name):
+    '''
+    Query the XML doc to find the name of the module which contains
+    the named kernel.
+
+    :param xmldoc: minidom XML document object holding XCodeML/F
+    :param str kern_name: name of the kernel subroutine
+    :return: Name of the module which contains the specified kernel
+    :rtype: str
+    :raises: TODO
+    '''
+    modules = xmldoc.getElementsByTagName("FmoduleDefinition")
+    for module in modules:
+        contains = module.getElementsByTagName("FcontainsStatement")
+        funcs = contains[0].getElementsByTagName("FfunctionDefinition")
+        for func in funcs:
+            for child in func.childNodes:
+                if child.nodeType == child.ELEMENT_NODE and \
+                   child.tagName == "name":
+                    func_name = child.firstChild.data
+                    if func_name == kern_name:
+                        # We've found our kernel so we need the name
+                        # of this module
+                        return module.getAttribute("name")
+                    else:
+                        # This isn't our kernel
+                        break
+    # We didn't find the named kernel
+    return ""

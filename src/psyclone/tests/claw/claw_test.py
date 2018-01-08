@@ -43,7 +43,7 @@ from psyclone.transformations import TransformationError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "..", "test_files", "dynamo0p3")
+                         "..", "test_files")
 
 # Whether or not we run tests that require the Claw compiler is picked-up
 # from a command-line flag. (This is set-up in conftest.py.)
@@ -113,7 +113,8 @@ def test_trans(tmpdir, monkeypatch):
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     from psyclone import claw
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "dynamo0p3",
+                                        "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -139,41 +140,67 @@ def test_trans(tmpdir, monkeypatch):
         # Since we're not running Omni, we don't generate any xml files so also
         # monkeypatch the kernel-renaming routine so that it does nothing.
         monkeypatch.setattr(claw, "_rename_kernel",
-                            lambda xml, name, mode: name+"_claw0")
+                            lambda xml, name, mode: (name+"_claw0",
+                                                     name+"_claw0_type",
+                                                     name+"_claw0_code"))
     new_names = claw.trans([kern], script_file)
 
-    assert new_names[orig_name] == orig_name + "_claw"
+    assert new_names[orig_name] == "testkern_claw0_code"
 
 
-def test_rename_kern(tmpdir):
-    ''' Check that _rename_kernel() works as it should '''
+def test_rename_kern_with_mod(tmpdir):
+    ''' Check that _rename_kernel() works as it should when the file/
+    module names follow the PSyclone convention of having '_mod' '''
     import shutil
     from psyclone.claw import _rename_kernel
     # We use a copy of an XML file we prepared earlier so as not to have
     # to rely on Omni being installed
-    xml_file = os.path.join(BASE_PATH, "testkern.xml")
+    orig_xml_file = os.path.join(BASE_PATH, "gocean1p0", "next_sshu_mod.xml")
     oldpwd = tmpdir.chdir()
-    shutil.copy(xml_file, str(tmpdir))
+    shutil.copy(orig_xml_file, str(tmpdir))
+    xml_file = os.path.join(str(tmpdir), "next_sshu_mod.xml")
+    _, _, new_name = _rename_kernel(xml_file, "next_sshu_code", "keep")
+    assert new_name == "next_sshu_claw0_code"
+
+
+def test_rename_kern_no_mod(tmpdir):
+    ''' Check that _rename_kernel() works as it should when the Fortran/
+    module names do not follow the convention of having '_mod' '''
+    import shutil
+    from psyclone.claw import _rename_kernel
+    # We use a copy of an XML file we prepared earlier so as not to have
+    # to rely on Omni being installed
+    orig_xml_file = os.path.join(BASE_PATH, "dynamo0p3", "testkern.xml")
+    oldpwd = tmpdir.chdir()
+    shutil.copy(orig_xml_file, str(tmpdir))
     xml_file = os.path.join(str(tmpdir), "testkern.xml")
-    new_base_name = _rename_kernel(xml_file, "next_sshu", "keep")
-    assert new_base_name == "next_sshu_claw0"
-    # Create a fake renamed kernel file
-    with open("next_sshu_claw0_mod.f90", "w") as ffile:
+    _, _, new_name = _rename_kernel(xml_file, "testkern_code", "keep")
+    assert new_name == "testkern_claw0_code"
+
+    # Check that we get a different kernel name if "keep" is specified and
+    # there would be a clash - create a fake renamed kern file first
+    with open("testkern_claw0_mod.f90", "w") as ffile:
         ffile.write("Hello")
-    # Check that we get a different kernel name if "keep" is specified
-    new_base_name = _rename_kernel(xml_file, "next_sshu", "keep")
-    assert new_base_name == "next_sshu_claw1"
-    new_base_name = _rename_kernel(xml_file, "next_sshu", "overwrite")
-    assert new_base_name == "next_sshu_claw0"
+    shutil.copy(orig_xml_file, str(tmpdir))
+    _, _, new_name = _rename_kernel(xml_file, "testkern_code", "keep")
+    assert new_name == "testkern_claw1_code"
+
+    shutil.copy(orig_xml_file, str(tmpdir))
     with pytest.raises(TransformationError) as err:
-        _ = _rename_kernel(xml_file, "next_sshu", "abort")
-    assert "next_sshu_claw0_mod.f90 already exists and renaming mode is" \
+        _ = _rename_kernel(xml_file, "testkern_code", "abort")
+    assert "testkern_claw0_mod.f90 already exists and renaming mode is" \
         in str(err)
 
+    # Overwrite any existing transformed kernel
+    shutil.copy(orig_xml_file, str(tmpdir))
+    _, _, new_name = _rename_kernel(xml_file, "testkern_code", "overwrite")
+    assert new_name == "testkern_claw0_code"
+
     # Now check the transformed XCodeML
+    new_base_name = "testkern_claw0"
     new_kern_name = new_base_name + "_code"
     new_kern_type_name = new_base_name + "_type"
-    new_mod_name = new_base_name + "_mod"
+    new_mod_name = new_base_name
 
     from xml.dom import minidom
     with open(xml_file, "r") as xfile:
