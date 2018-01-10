@@ -57,6 +57,80 @@ def _fake_check_call(args, env=None):  # pylint:disable=unused-argument
     raise CalledProcessError(1, " ".join(args))
 
 
+def test_validate_omni(monkeypatch, tmpdir):
+    ''' Tests for the _validate_omni_setup routine '''
+    from psyclone import claw_config
+    from psyclone import claw
+    # Create a fake 'F_Front' file in our tmpdir
+    _ = tmpdir.chdir()
+    with open("F_Front", "w") as ffile:
+        ffile.write("Fake Omni frontend")
+    # Monkeypatch PATH so that our fake F_Front is on it
+    monkeypatch.setenv('PATH', str(tmpdir))
+    # Now monkeypatch the OMNI_MODULES_PATH dict so that it contains
+    # a non-existant path
+    apis = claw_config.OMNI_MODULES_PATH.keys()
+    monkeypatch.setitem(claw_config.OMNI_MODULES_PATH, apis[0],
+                        "/not/a/path")
+    with pytest.raises(TransformationError) as err:
+        claw._validate_omni_setup()
+    assert ("location (/not/a/path) for Omni-compiled modules for the "
+            "{0} API does not exist".format(apis[0]) in str(err))
+
+    # Monkeypatch PATH so that we can't find F_Front
+    monkeypatch.setenv('PATH', "")
+    with pytest.raises(TransformationError) as err:
+        claw._validate_omni_setup()
+    assert ("frontend of the Omni compiler (F_Front) cannot be found. Please "
+            "ensure that it is on your PATH ()" in str(err))
+    
+    monkeypatch.setenv('PATH', "/not/a/path")
+    with pytest.raises(TransformationError) as err:
+        claw._validate_omni_setup()
+    assert ("frontend of the Omni compiler (F_Front) cannot be found. Please "
+            "ensure that it is on your PATH (/not/a/path)" in str(err))
+
+
+def test_validate_claw(monkeypatch, tmpdir):
+    ''' Tests for the _validate_claw_setup routine '''
+    from psyclone import claw_config
+    from psyclone import claw
+    monkeypatch.setattr(claw_config, "JAVA_BINARY",
+                        "this_binary_does_not_exist")
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("java binary (this_binary_does_not_exist) specified in the "
+            "PSyclone configuration file cannot be found on your PATH."
+            in str(err))
+
+    # Point the JAVA_BINARY at a specific file that doesn't exist
+    fake_java = str(os.path.join(str(tmpdir), "my_java"))
+    monkeypatch.setattr(claw_config, "JAVA_BINARY", fake_java)
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("but the specified java binary ({0}) does not exist".
+            format(fake_java) in str(err))
+
+    # Now create that specific file
+    with open(fake_java, "w") as ffile:
+        ffile.write("Fake java binary")
+    # Monkeypatch the CLAW install location to be something that does not exist
+    monkeypatch.setattr(claw_config, "CLAW_INSTALL_PATH", "/not/a/path")
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("location of the CLAW installation (/not/a/path) specified in "
+            "the PSyclone configuration file does not exist" in str(err))
+
+    # Monkeypatch the CLAW install location to be our tmpdir
+    monkeypatch.setattr(claw_config, "CLAW_INSTALL_PATH", str(tmpdir))
+    # Break the class-path by changing it to a non-existant file
+    monkeypatch.setattr(claw_config, "CLASS_PATH", "/not/a/file.jar")
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("File /not/a/file.jar in the CLASS_PATH used when running "
+            "CLAW does not exist" in str(err))
+
+
 def test_omni_fe_error(monkeypatch):
     ''' Check that we raise the expected exception if the Omni frontend
     fails '''
@@ -68,12 +142,14 @@ def test_omni_fe_error(monkeypatch):
     assert "F_Front -I. some_file.f90 -o some_file.xml" in str(err)
 
 
-def test_run_claw(monkeypatch):
-    ''' Check the _run_claw() routine in the claw module '''
+def test_run_claw_error(monkeypatch):
+    ''' Check that we handle errors in the claw._run_claw() routine '''
     from psyclone.claw import _run_claw
+    # Monkeypatch the subprocess.check_call() method so that it raises
+    # an exception
     import subprocess
     monkeypatch.setattr(subprocess, "check_call", _fake_check_call)
-    with pytest.raises(subprocess.CalledProcessError) as err:
+    with pytest.raises(TransformationError) as err:
         _run_claw(["."], "some_file.xml", "some_file.f90", "some_script.py")
     output = str(err)
     print output
@@ -81,6 +157,21 @@ def test_run_claw(monkeypatch):
     assert "jython.jar claw.ClawX2T --config-path=" in output
     assert ("-M. -f some_file.f90 -o some_file.xml.tmp.xml -script "
             "some_script.py some_file.xml" in output)
+
+
+@utils.CLAW
+def test_run_claw_broken_classpath(monkeypatch):
+    ''' Check that we raise the expected error if the classpath provided
+    in the configuration file is not correct '''
+    from psyclone.claw import _run_claw
+    from psyclone import claw_config
+    monkeypatch.setattr(claw_config, "CLASS_PATH", "broken")
+    monkeypatch.setattr(claw, "_validate_omni_setup", lambda: None)
+    monkeypatch.setattr(claw, "_validate_claw_setup", lambda: None)
+    with pytest.raises(TransformationError) as err:
+        _run_claw(["."], "some_file.xml", "some_file.f90", "some_script.py")
+    assert "Could not find or load main class claw.ClawX2T" in str(err)
+
 
 
 def test_api_from_ast():
@@ -127,6 +218,10 @@ def test_trans(tmpdir, monkeypatch):
         # nothing. This means that we don't actually run Omni or Claw.
         monkeypatch.setattr(subprocess, "check_call",
                             lambda args, env=None: None)
+        # We must also monkeypatch our validation routines
+        monkeypatch.setattr(claw, "_validate_omni_setup", lambda: None)
+        monkeypatch.setattr(claw, "_validate_claw_setup", lambda: None)
+
         with pytest.raises(TransformationError) as err:
             _ = claw.trans([kern], script_file)
         # Check that we've raised the correct error about not finding the

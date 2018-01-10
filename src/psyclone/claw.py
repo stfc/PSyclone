@@ -43,7 +43,6 @@ designed to be used from within a PSyclone transformation script.
 '''
 
 import os
-from .claw_config import *
 from .transformations import TransformationError
 
 
@@ -101,6 +100,11 @@ def trans(kernel_list, script_file, naming_mode=None):
         _naming_mode = "keep"
     else:
         _naming_mode = naming_mode
+
+    # Check that everything is set-up correctly before we attempt
+    # to launch CLAW
+    _validate_omni_setup()
+    _validate_claw_setup()
 
     # Create dictionary containing mapping from original to new kernel
     # names
@@ -184,6 +188,8 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     :param str output_file: the Fortran file to create
     :param str script_file: the Jython CLAW script specifying the
                             transformations
+    :raises TransformationError: if an error occurs when trying to run
+                                 CLAW
     '''
     from subprocess import check_call, CalledProcessError
     from . import claw_config
@@ -198,25 +204,28 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     # Ensure the Claw Python module is on the JYTHONPATH
     my_env = os.environ.copy()
     my_env["JYTHONPATH"] = claw_config.CLAW_PYTHON_PATH
-
+    
     try:
-        check_call(["/usr/bin/java", "-Xmx200m", "-Xms200m",
-                    "-cp", CLASS_PATH,
+        check_call([claw_config.JAVA_BINARY,
+                    "-Xmx200m", "-Xms200m",
+                    "-cp", claw_config.CLASS_PATH,
                     "claw.ClawX2T",
-                    "--config-path={0}".format(CLAW_CONFIG_FILE_DIR),
-                    "--schema={0}".format(os.path.join(CLAW_CONFIG_FILE_DIR,
-                                                       "claw_config.xsd")),
-                    "-w", str(NUM_OUTPUT_COLUMNS), "-l",
+                    "--config-path={0}".format(
+                        claw_config.CLAW_CONFIG_FILE_DIR),
+                    "--schema={0}".format(os.path.join(
+                        claw_config.CLAW_CONFIG_FILE_DIR,
+                        "claw_config.xsd")),
+                    "-w", str(claw_config.NUM_OUTPUT_COLUMNS), "-l",
                     " ".join(xmod_paths),
                     "-f", output_file,
                     "-o", intermediate_xml_file,
                     "-script", script_file,
                     xml_file],
                    env=my_env)
+
     except CalledProcessError as err:
-        print "Execution of CLAW failed:"
-        print str(err)
-        raise err
+        raise TransformationError("Execution of CLAW failed: {0}".
+                                  format(str(err)))
 
 
 def _rename_kernel(xml_file, kernel_name, mode):
@@ -251,8 +260,7 @@ def _rename_kernel(xml_file, kernel_name, mode):
     orig_mod_name = _get_kernel_module(xmldoc, kernel_name)
 
     # Get the name of the original Fortran source file
-    progNode = xmldoc.firstChild
-    orig_file = progNode.getAttribute("source")
+    orig_file = _get_src_filename(xmldoc)
     if not orig_file:
         orig_file = orig_mod_name + ".f90"
 
@@ -441,7 +449,7 @@ def _get_kernel_module(xmldoc, kern_name):
     Query the XML doc to find the name of the module which contains
     the named kernel.
 
-    :param xmldoc: minidom XML document object holding XCodeML/F
+    :param xmldoc: minidom XML DOM object holding XCodeML/F
     :param str kern_name: name of the kernel subroutine
     :return: Name of the module which contains the specified kernel
     :rtype: str
@@ -465,3 +473,123 @@ def _get_kernel_module(xmldoc, kern_name):
                         break
     # We didn't find the named kernel
     return ""
+
+
+def _get_src_filename(xmldoc):
+    '''
+    Query the XML DOM to find the name of the Fortran source file from
+    which the XcodeML representation was generated.
+
+    :param xmldoc: minidom XML DOM object holding XCodeML/F
+    :type xmldoc: :py:class:xml.dom.minidom.Document
+    :return: Name of the original Fortran source file or empty str
+             if none found
+    :rtype: str
+    '''
+    progNode = xmldoc.firstChild
+    orig_file = progNode.getAttribute("source")
+    return orig_file
+
+
+def _validate_claw_setup():
+    '''
+    Perform some manual checks to catch any obvious errors in configuration/
+    installation of CLAW
+
+    :raises TransformationError: if a problem is found
+    '''
+    from . import claw_config
+
+    # Check that we know where java is
+    if not os.path.dirname(claw_config.JAVA_BINARY):
+        # No path to the binary has been specified so check that it is on
+        # our PATH
+        found = False
+        path_env = os.environ['PATH']
+        for locn in path_env.split(':'):
+            if os.path.isfile(os.path.join(locn, claw_config.JAVA_BINARY)):
+                found = True
+                break
+        if not found:
+            raise TransformationError(
+                "CLAW is a Java application but the java binary ({0}) "
+                "specified in the PSyclone configuration file cannot be "
+                "found on your PATH. "
+                "Please ensure Java is installed and either set your PATH "
+                "appropriately or provide the full path to the binary in the "
+                "PSyclone configuration file.".format(claw_config.JAVA_BINARY))
+    else:
+        if not os.path.isfile(claw_config.JAVA_BINARY):
+            raise TransformationError(
+                "CLAW is a Java application but the specified java binary "
+                "({0}) does not exist. Please install Java and/or correct "
+                "this value in the PSyclone configuration file.".
+                format(claw_config.JAVA_BINARY))
+
+    # Check that CLAW is installed and the jar files can be found
+    if not os.path.exists(claw_config.CLAW_INSTALL_PATH):
+        raise TransformationError(
+            "The location of the CLAW installation ({0}) specified in the "
+            "PSyclone configuration file does not exist.".
+            format(claw_config.CLAW_INSTALL_PATH))
+
+    # The classpath needs to include jars for both Omni and CLAW so we check
+    # for all of them
+    jar_files = claw_config.CLASS_PATH.split(":")
+    for jar in jar_files:
+        if not os.path.isfile(jar):
+            raise TransformationError(
+                "File {0} in the CLASS_PATH used when running CLAW does "
+                "not exist. Are both CLAW and Omni installed and the PSyclone "
+                "configuration file set-up appropriately?".format(jar))
+
+    # Check that Jython is installed
+    if not os.path.isfile(claw_config.JYTHON_JAR):
+        raise TransformationError(
+            "The PSyclone interface to CLAW uses Jython but the jar file "
+            "({0}) specified in the PSyclone configuration file does not "
+            "exist.".format(claw_config.JYTHON_JAR))
+
+    # Check that the Python interface file exists
+    if not os.path.isfile(os.path.join(claw_config.CLAW_PYTHON_PATH,
+                                       "ClawTransform.py")):
+        raise TransformationError(
+            "The CLAW-python interface file (ClawTransform.py) cannot be"
+            " found. This should be installed to CLAW_INSTALL_ROOT/lib "
+            "where CLAW_INSTALL_ROOT is currently set to {0} in the "
+            "PSyclone configuration file.".
+            format(claw_config.CLAW_INSTALL_ROOT))
+
+
+def _validate_omni_setup():
+    '''
+    Perform some manual checks to catch any obvious errors in configuration/
+    installation of Omni
+
+    :raises TransformationError: if a problem is found
+    '''
+    from . import claw_config
+
+    # Check that the Omni frontend is on our path
+    found = False
+    path_env = os.environ['PATH']
+    if path_env:
+        for locn in path_env.split(':'):
+            if os.path.isfile(os.path.join(locn, "F_Front")):
+                found = True
+                break
+    if not found:
+        raise TransformationError(
+            "The frontend of the Omni compiler (F_Front) cannot be "
+            "found. Please ensure that it is on your PATH ({0}).".
+            format(path_env))
+
+    # Check that any locations specified for Omni-compiled modules do
+    # at least exist
+    for api in claw_config.OMNI_MODULES_PATH:
+        if not os.path.exists(claw_config.OMNI_MODULES_PATH[api]):
+            raise TransformationError(
+                "The location ({0}) for Omni-compiled modules for the {1} "
+                "API does not exist. Please correct OMNI_MODULES_PATH in "
+                "the PSyclone configuration file.".
+                format(claw_config.OMNI_MODULES_PATH[api], api))

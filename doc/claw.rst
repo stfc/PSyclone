@@ -42,14 +42,17 @@ installer jar, installation is performed by doing:
 
     java -jar jython-installer-2.7.0.jar
 
+You will then need to edit the PSyclone configuration file and specify
+the location of the jython.jar file.
 
 CLAW
 ^^^^
 
-The CLAW compiler is available from https://github.com/C2SM-RCM/claw-compiler.
-See the INSTALL.md file for installation instructions.
-Once it is installed, you will need to manually copy the Python interface 
-module into the `lib` directory of the Claw installation:
+The version of the CLAW compiler used by PSyclone is available from
+https://github.com/stfc/claw-compiler.  See the INSTALL.md file for
+installation instructions.  Once it is installed, you will need to
+manually copy the Python interface module into the `lib` directory of
+the Claw installation:
 
 ::
 
