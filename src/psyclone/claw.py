@@ -253,7 +253,7 @@ def _rename_kernel(xml_file, kernel_name, mode):
     # Get the name of the original Fortran source file
     progNode = xmldoc.firstChild
     orig_file = progNode.getAttribute("source")
-    if orig_file is None:
+    if not orig_file:
         orig_file = orig_mod_name + ".f90"
 
     # Remove the .[fF]90 suffix and also any "_mod" if the file follows

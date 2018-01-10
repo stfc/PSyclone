@@ -190,6 +190,36 @@ def test_rename_kern_with_mod(tmpdir):
             "'abort'" in str(err))
 
 
+def test_rename_no_filename(tmpdir):
+    ''' Test that _rename_kernel() works OK if the original filename
+    is missing from the XcodeML/F '''
+    import shutil
+    from xml.dom import minidom
+    from psyclone.claw import _rename_kernel
+    # We use a copy of an XML file we prepared earlier so as not to have
+    # to rely on Omni being installed
+    orig_xml_file = os.path.join(BASE_PATH, "gocean1p0", "next_sshu_mod.xml")
+    oldpwd = tmpdir.chdir()
+    orig_xml = ""
+    # We read-in the XML file, parse it and then manipulate the DOM to
+    # remove the name of the Fortran source file
+    with open(orig_xml_file, "r") as xfile:
+        orig_xml = xfile.read()
+    xdoc = minidom.parseString(orig_xml)
+    prog_node = xdoc.firstChild
+    prog_node.removeAttribute("source")
+    new_file = os.path.join(str(tmpdir), "next_sshu_mod.xml")
+    with open(new_file, "w") as xfile:
+        xfile.write(xdoc.toxml())
+    # Now that we've created the XML file without the name of the original
+    # Fortran source file, try re-naming the kernel
+    new_mod, new_type, new_name = _rename_kernel(new_file,
+                                                 "next_sshu_code", "keep")
+    assert new_name == "next_sshu_claw0_code"
+    assert new_type == "next_sshu_claw0_type"
+    assert new_mod == "next_sshu_claw0_mod"
+
+
 def test_rename_kern_no_mod(tmpdir):
     ''' Check that _rename_kernel() works as it should when the Fortran/
     module names do not follow the convention of having '_mod' '''
