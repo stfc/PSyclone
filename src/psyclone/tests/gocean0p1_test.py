@@ -5,9 +5,9 @@
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 
+import os
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
-import os
 
 API = "gocean0.1"
 
@@ -47,5 +47,7 @@ def test_gobuiltin_call_factory():
     ''' Test that the GOBuiltInCallFactory does nothing in version 0.1
     of the GOcean API '''
     from psyclone.gocean0p1 import GOBuiltInCallFactory
+    # pylint:disable=assignment-from-none
     builtin = GOBuiltInCallFactory.create()
+    # pylint:enable=assignment-from-none
     assert builtin is None

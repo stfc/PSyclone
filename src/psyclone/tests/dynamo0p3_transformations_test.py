@@ -50,10 +50,6 @@ from psyclone.transformations import TransformationError, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
 
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
-# pylint: disable=protected-access
 
 # The version of the API that the tests in this file
 # exercise.
@@ -199,7 +195,7 @@ def test_colour_trans_operator():
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
 
-def test_colour_trans_cma_operator():  # pylint: disable=invalid-name
+def test_colour_trans_cma_operator():
     '''test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -485,7 +481,7 @@ def test_omp_colour_orient_trans():
         assert "private(cell,orientation_w2)" in code
 
 
-def test_omp_parallel_colouring_needed():  # pylint: disable=invalid-name
+def test_omp_parallel_colouring_needed():
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
@@ -511,7 +507,7 @@ def test_omp_parallel_colouring_needed():  # pylint: disable=invalid-name
         assert "Colouring is required" in str(excinfo.value)
 
 
-def test_omp_colouring_needed():  # pylint: disable=invalid-name
+def test_omp_colouring_needed():
     '''Test that we raise an error when applying an OpenMP DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
@@ -538,7 +534,7 @@ def test_omp_colouring_needed():  # pylint: disable=invalid-name
         assert "Colouring is required" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_parallel_do():  # pylint: disable=invalid-name
+def test_check_seq_colours_omp_parallel_do():
     '''Test that we raise an error if the user attempts to apply an OpenMP
     PARALLEL DO transformation to a loop over colours (since any such
     loop must be sequential). We test when distributed memory is on or
@@ -742,7 +738,7 @@ def test_omp_region_omp_do():
         assert (omp_enddo_idx - cell_end_loop_idx) == 1
 
 
-def test_multi_kernel_single_omp_region():  # pylint: disable=invalid-name
+def test_multi_kernel_single_omp_region():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
     within a single OMP region'''
@@ -1217,7 +1213,7 @@ def test_loop_fuse_cma():
             "map_w3(:,cell))\n") in code
 
 
-def test_omp_par_and_halo_exchange_error():  # pylint: disable=invalid-name
+def test_omp_par_and_halo_exchange_error():
     '''Tests that we raise an error if we try to apply an omp parallel
     transformation to a list containing halo_exchange calls. If this is
     allowed then it is likely that we will get incorrect results, or that
@@ -1270,7 +1266,7 @@ def test_module_inline():
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
 
-def test_builtin_single_OpenMP_pdo():  # pylint: disable=invalid-name
+def test_builtin_single_OpenMP_pdo():
     '''Test that we generate correct code if an OpenMP parallel do is
     applied to a single builtin'''
     for dist_mem in [False, True]:
@@ -1310,7 +1306,7 @@ def test_builtin_single_OpenMP_pdo():  # pylint: disable=invalid-name
                 "      !$omp end parallel do") in result
 
 
-def test_builtin_multiple_OpenMP_pdo():  # pylint: disable=invalid-name
+def test_builtin_multiple_OpenMP_pdo():
     '''Test that we generate correct code if OpenMP parallel do's are
     applied to multiple builtins'''
     for dist_mem in [False, True]:
@@ -1437,7 +1433,7 @@ def test_builtin_loop_fuse_pdo():
                 "      !$omp end parallel do") in result
 
 
-def test_builtin_single_OpenMP_do():  # pylint: disable=invalid-name
+def test_builtin_single_OpenMP_do():
     '''Test that we generate correct code if an OpenMP do (with an outer
     OpenMP parallel) is applied to a single builtin '''
     for dist_mem in [False, True]:
@@ -1486,7 +1482,7 @@ def test_builtin_single_OpenMP_do():  # pylint: disable=invalid-name
                 "      !$omp end parallel\n") in result
 
 
-def test_builtin_multiple_OpenMP_do():  # pylint: disable=invalid-name
+def test_builtin_multiple_OpenMP_do():
     '''Test that we generate correct code if OpenMP do's are
     applied to multiple builtins'''
     for dist_mem in [False, True]:
@@ -1789,7 +1785,7 @@ def test_multi_reduction_real_pdo():
                 "      !$omp end parallel do\n") in code
 
 
-def test_reduction_after_normal_real_do():  # pylint: disable=invalid-name
+def test_reduction_after_normal_real_do():
     '''test that we produce correct code when we have a reduction after
     a "normal" builtin and we use OpenMP DO loops for parallelisation
     with a single parallel region over all calls'''
@@ -1865,7 +1861,7 @@ def test_reduction_after_normal_real_do():  # pylint: disable=invalid-name
         assert expected_output in result
 
 
-def test_reprod_red_after_normal_real_do():  # pylint: disable=invalid-name
+def test_reprod_red_after_normal_real_do():
     '''test that we produce correct code when we have a reproducible
     reduction after a "normal" builtin and we use OpenMP DO loops for
     parallelisation with a single parallel region over all calls'''
@@ -2042,7 +2038,7 @@ def test_two_reductions_real_do():
         assert expected_output in result
 
 
-def test_two_reprod_reductions_real_do():  # pylint: disable=invalid-name
+def test_two_reprod_reductions_real_do():
     '''test that we produce correct code when we have more than one
     builtin with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
@@ -2157,7 +2153,7 @@ def test_two_reprod_reductions_real_do():  # pylint: disable=invalid-name
         assert expected_output in result
 
 
-def test_multi_reduction_same_name_real_do():  # pylint: disable=invalid-name
+def test_multi_reduction_same_name_real_do():
     '''test that we raise an exception when we have multiple reductions in
     an invoke with the same name as this is not supported (it would
     cause incorrect code to be created in certain cases). '''
@@ -2228,7 +2224,7 @@ def test_multi_reduction_real_fuse():
                 "reduction") in str(excinfo.value)
 
 
-def test_multi_different_reduction_real_pdo():  # pylint: disable=invalid-name
+def test_multi_different_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins. We use inner product and sum_X'''
     for distmem in [False, True]:
@@ -2302,7 +2298,7 @@ def test_multi_different_reduction_real_pdo():  # pylint: disable=invalid-name
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_red_then_pdo():  # pylint: disable=invalid-name
+def test_multi_builtins_red_then_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins, first a reduction then not'''
     for distmem in [False, True]:
@@ -2369,7 +2365,7 @@ def test_multi_builtins_red_then_pdo():  # pylint: disable=invalid-name
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_red_then_do():  # pylint: disable=invalid-name
+def test_multi_builtins_red_then_do():
     '''test that we generate a correct OpenMP do reduction for
     two different builtins, first a reduction then not'''
     for distmem in [False, True]:
@@ -2446,7 +2442,7 @@ def test_multi_builtins_red_then_do():  # pylint: disable=invalid-name
                 "      !$omp end parallel\n") in code
 
 
-def test_multi_builtins_red_then_fuse_pdo():  # pylint: disable=invalid-name
+def test_multi_builtins_red_then_fuse_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a reduction then not. We
     need to specify that the fused loops are on the same iteration
@@ -2510,7 +2506,7 @@ def test_multi_builtins_red_then_fuse_pdo():  # pylint: disable=invalid-name
                 "      !$omp end parallel do\n") in code
 
 
-def test_multi_builtins_red_then_fuse_do():  # pylint: disable=invalid-name
+def test_multi_builtins_red_then_fuse_do():
     '''test that we generate a correct OpenMP do reduction for
     two different loop-fused builtins, first a reduction then not. We
     need to specify that the fused loops are on the same iteration
@@ -2576,7 +2572,7 @@ def test_multi_builtins_red_then_fuse_do():  # pylint: disable=invalid-name
                 "      !$omp end parallel\n") in code
 
 
-def test_multi_builtins_usual_then_red_pdo():  # pylint: disable=invalid-name
+def test_multi_builtins_usual_then_red_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different builtins, first a standard builtin then a reduction'''
     for distmem in [False, True]:
@@ -2646,7 +2642,7 @@ def test_multi_builtins_usual_then_red_pdo():  # pylint: disable=invalid-name
                 "      !$omp end parallel do\n") in code
 
 
-def test_builtins_usual_then_red_fuse_pdo():  # pylint: disable=invalid-name
+def test_builtins_usual_then_red_fuse_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -2705,7 +2701,7 @@ def test_builtins_usual_then_red_fuse_pdo():  # pylint: disable=invalid-name
                 "      !$omp end parallel do\n") in code
 
 
-def test_builtins_usual_then_red_fuse_do():  # pylint: disable=invalid-name
+def test_builtins_usual_then_red_fuse_do():
     '''test that we generate a correct OpenMP parallel do reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -2770,7 +2766,7 @@ def test_builtins_usual_then_red_fuse_do():  # pylint: disable=invalid-name
 # examples in either case
 
 
-def test_multi_builtins_fuse_error():  # pylint: disable=invalid-name
+def test_multi_builtins_fuse_error():
     '''test that we raise an exception when we try to loop fuse a
     reduction with another builtin that uses the value of the
     reduction as it will give us incorrect results. Only required for
@@ -2927,7 +2923,7 @@ def test_reprod_reduction_real_do():
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_no_global_sum_in_parallel_region():  # pylint: disable=invalid-name
+def test_no_global_sum_in_parallel_region():
     '''test that we raise an error if we try to put a parallel region
     around loops with a global sum'''
     for distmem in [True]:
@@ -2956,7 +2952,7 @@ def test_no_global_sum_in_parallel_region():  # pylint: disable=invalid-name
             "containing children of different types") in str(excinfo.value)
 
 
-def test_reprod_builtins_red_then_usual_do():  # pylint: disable=invalid-name
+def test_reprod_builtins_red_then_usual_do():
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different builtins, first a reduction then not when we
     have reprod set to True '''
@@ -3066,7 +3062,7 @@ def test_reprod_builtins_red_then_usual_do():  # pylint: disable=invalid-name
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_repr_bltins_red_then_usual_fuse_do():  # pylint: disable=invalid-name
+def test_repr_bltins_red_then_usual_fuse_do():
     '''test that we generate a correct reproducible OpenMP do reduction
     for two different loop-fused builtins, first a reduction then
     not. We need to specify that the fused loops are on the same
@@ -3168,7 +3164,7 @@ def test_repr_bltins_red_then_usual_fuse_do():  # pylint: disable=invalid-name
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_repr_bltins_usual_then_red_fuse_do():  # pylint: disable=invalid-name
+def test_repr_bltins_usual_then_red_fuse_do():
     '''test that we generate a correct OpenMP do reduction for
     two different loop-fused builtins, first a normal builtin then a
     reduction. We need to specify that the fused loops iterate over
@@ -3252,7 +3248,7 @@ def test_repr_bltins_usual_then_red_fuse_do():  # pylint: disable=invalid-name
                 "      DEALLOCATE (l_asum)\n") in code
 
 
-def test_repr_3_builtins_2_reductions_do():  # pylint: disable=invalid-name
+def test_repr_3_builtins_2_reductions_do():
     '''test that we generate correct reproducible OpenMP do reductions
     when we have three different builtins, first a reduction, then a
     normal builtin then a reduction. '''
@@ -3658,7 +3654,7 @@ def test_rc_str():
     assert name == "RedundantComputation"
 
 
-def test_rc_node_not_loop():  # pylint: disable=invalid-name
+def test_rc_node_not_loop():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     node argument is not a loop'''
     _, info = parse(os.path.join(BASE_PATH,
@@ -3674,7 +3670,7 @@ def test_rc_node_not_loop():  # pylint: disable=invalid-name
             "the first argument is not a Loop") in str(excinfo)
 
 
-def test_rc_invalid_loop(monkeypatch):  # pylint: disable=invalid-name
+def test_rc_invalid_loop(monkeypatch):
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied loop does not iterate over cells or dofs'''
     _, info = parse(os.path.join(BASE_PATH,
@@ -3711,7 +3707,7 @@ def test_rc_nodm():
             "distributed memory must be switched on") in str(excinfo)
 
 
-def test_rc_invalid_depth():  # pylint: disable=invalid-name
+def test_rc_invalid_depth():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1 '''
     _, info = parse(os.path.join(BASE_PATH,
@@ -3728,7 +3724,7 @@ def test_rc_invalid_depth():  # pylint: disable=invalid-name
             "the supplied depth is less than 1") in str(excinfo)
 
 
-def test_rc_invalid_depth_continuous():  # pylint: disable=invalid-name
+def test_rc_invalid_depth_continuous():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth equals 1 when modifying a continuous field '''
     _, info = parse(os.path.join(BASE_PATH,
@@ -3746,7 +3742,7 @@ def test_rc_invalid_depth_continuous():  # pylint: disable=invalid-name
             "a continuous field") in str(excinfo)
 
 
-def test_rc_continuous_depth():  # pylint: disable=invalid-name
+def test_rc_continuous_depth():
     '''Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
@@ -3774,7 +3770,7 @@ def test_rc_continuous_depth():  # pylint: disable=invalid-name
             "      CALL f1_proxy%set_clean(2)") in result
 
 
-def test_rc_continuous_no_depth():  # pylint: disable=invalid-name
+def test_rc_continuous_no_depth():
     '''Test that the loop bounds for a continuous kernel (iterating over
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
@@ -3803,7 +3799,7 @@ def test_rc_continuous_no_depth():  # pylint: disable=invalid-name
             "()-1)") in result
 
 
-def test_rc_discontinuous_depth():  # pylint: disable=invalid-name
+def test_rc_discontinuous_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange modified
@@ -3830,7 +3826,7 @@ def test_rc_discontinuous_depth():  # pylint: disable=invalid-name
             "      CALL m2_proxy%set_clean(3)") in result
 
 
-def test_rc_discontinuous_no_depth():  # pylint: disable=invalid-name
+def test_rc_discontinuous_no_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange added/modified
@@ -3858,7 +3854,7 @@ def test_rc_discontinuous_no_depth():  # pylint: disable=invalid-name
     assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_depth():  # pylint: disable=invalid-name
+def test_rc_all_discontinuous_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -3883,7 +3879,7 @@ def test_rc_all_discontinuous_depth():  # pylint: disable=invalid-name
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
-def test_rc_all_discontinuous_no_depth():  # pylint: disable=invalid-name
+def test_rc_all_discontinuous_no_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -3909,7 +3905,7 @@ def test_rc_all_discontinuous_no_depth():  # pylint: disable=invalid-name
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_vector_depth():  # pylint: disable=invalid-name
+def test_rc_all_discontinuous_vector_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
@@ -3938,7 +3934,7 @@ def test_rc_all_discontinuous_vector_depth():  # pylint: disable=invalid-name
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_rc_all_disc_vector_no_depth():  # pylint: disable=invalid-name
+def test_rc_all_disc_vector_no_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
@@ -3967,7 +3963,7 @@ def test_rc_all_disc_vector_no_depth():  # pylint: disable=invalid-name
                 "depth())".format(idx)) in result
 
 
-def test_rc_all_disc_prev_depend_depth():  # pylint: disable=invalid-name
+def test_rc_all_disc_prev_depend_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -3996,7 +3992,7 @@ def test_rc_all_disc_prev_depend_depth():  # pylint: disable=invalid-name
     assert "CALL f3_proxy%set_clean(3)" in result
 
 
-def test_rc_all_disc_prev_depend_no_depth():  # pylint: disable=invalid-name
+def test_rc_all_disc_prev_depend_no_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
@@ -4024,7 +4020,7 @@ def test_rc_all_disc_prev_depend_no_depth():  # pylint: disable=invalid-name
     assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_disc_prev_dep_depth_vector():  # pylint: disable=invalid-name
+def test_rc_all_disc_prev_dep_depth_vector():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -4056,7 +4052,7 @@ def test_rc_all_disc_prev_dep_depth_vector():  # pylint: disable=invalid-name
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_rc_all_disc_prev_dep_no_depth_vect():  # pylint: disable=invalid-name
+def test_rc_all_disc_prev_dep_no_depth_vect():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
@@ -4086,7 +4082,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect():  # pylint: disable=invalid-name
                 format(idx)) in result
 
 
-def test_rc_dofs_depth():  # pylint: disable=invalid-name
+def test_rc_dofs_depth():
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
@@ -4114,7 +4110,7 @@ def test_rc_dofs_depth():  # pylint: disable=invalid-name
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
-def test_rc_dofs_no_depth():  # pylint: disable=invalid-name
+def test_rc_dofs_no_depth():
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
@@ -4142,7 +4138,7 @@ def test_rc_dofs_no_depth():  # pylint: disable=invalid-name
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_dofs_depth_prev_dep():  # pylint: disable=invalid-name
+def test_rc_dofs_depth_prev_dep():
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
@@ -4190,7 +4186,7 @@ def test_rc_dofs_depth_prev_dep():  # pylint: disable=invalid-name
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
-def test_rc_dofs_no_depth_prev_dep():  # pylint: disable=invalid-name
+def test_rc_dofs_no_depth_prev_dep():
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
@@ -4274,7 +4270,7 @@ def test_dofs_no_set_clean():
     assert "CALL f1_proxy%set_clean(" not in result
 
 
-def test_rc_vector_depth():  # pylint: disable=invalid-name
+def test_rc_vector_depth():
     '''Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
@@ -4300,7 +4296,7 @@ def test_rc_vector_depth():  # pylint: disable=invalid-name
         assert "CALL chi_proxy({0})%set_clean(2)".format(index) in result
 
 
-def test_rc_vector_no_depth():  # pylint: disable=invalid-name
+def test_rc_vector_no_depth():
     '''Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
@@ -4329,7 +4325,7 @@ def test_rc_vector_no_depth():  # pylint: disable=invalid-name
                 "-1)".format(index) in result)
 
 
-def test_rc_no_halo_decrease():  # pylint: disable=invalid-name
+def test_rc_no_halo_decrease():
     '''Test that we do not decrease an existing halo size when setting it
     to a particular value. This situation may happen when the
     redundant computation affects the same field in two different
@@ -4381,7 +4377,7 @@ def test_rc_no_halo_decrease():  # pylint: disable=invalid-name
     assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
 
 
-def test_rc_updated_dependence_analysis():  # pylint: disable=invalid-name
+def test_rc_updated_dependence_analysis():
     '''Test that the dependence analyis updates when new halo exchanges
     are added to the schedule'''
     _, info = parse(os.path.join(
@@ -4411,7 +4407,7 @@ def test_rc_updated_dependence_analysis():  # pylint: disable=invalid-name
     assert previous_field.forward_dependence() == f2_field
 
 
-def test_rc_no_loop_decrease():  # pylint: disable=invalid-name
+def test_rc_no_loop_decrease():
     '''Test that we raise an exception if we try to reduce the size of a
     loop halo when using the redundant computation transformation. This is
     not allowed partly for simplicity but also because, in the current
@@ -4450,7 +4446,7 @@ def test_rc_no_loop_decrease():  # pylint: disable=invalid-name
             "transformation does nothing") in str(excinfo)
 
 
-def test_rc_no_directive():  # pylint: disable=invalid-name
+def test_rc_no_directive():
     '''Test that we raise an exception if we try to use the redundant
     computation transformation after adding parallel directives (or in
     general anything that becomes a parent of the loop). This is a
@@ -4477,7 +4473,7 @@ def test_rc_no_directive():  # pylint: disable=invalid-name
     assert "the parent must be the Schedule" in str(excinfo)
 
 
-def test_rc_remove_halo_exchange():  # pylint: disable=invalid-name
+def test_rc_remove_halo_exchange():
     '''Test that a halo exchange is removed if redundant computation means
     that it is no longer required'''
     _, info = parse(os.path.join(
@@ -4511,7 +4507,7 @@ def test_rc_remove_halo_exchange():  # pylint: disable=invalid-name
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_rc_max_remove_halo_exchange():  # pylint: disable=invalid-name
+def test_rc_max_remove_halo_exchange():
 
     '''add test to redundantly compute a w3 (discontinuous) and w2
     (continuous) field to the maximum halo depth and then check that a
@@ -4560,7 +4556,7 @@ def test_rc_max_remove_halo_exchange():  # pylint: disable=invalid-name
     assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
 
 
-def test_rc_continuous_halo_remove():  # pylint: disable=invalid-name
+def test_rc_continuous_halo_remove():
     '''check that we do not remove a halo exchange when the field is
     continuous and the redundant computation depth equals the required
     halo access depth. The reason for this is that the outer halo
@@ -4592,7 +4588,7 @@ def test_rc_continuous_halo_remove():  # pylint: disable=invalid-name
     assert "IF (f3_proxy%is_dirty(depth=" not in result
 
 
-def test_rc_discontinuous_halo_remove():  # pylint: disable=invalid-name
+def test_rc_discontinuous_halo_remove():
     '''check that we do remove a halo exchange when the field is
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
@@ -4623,7 +4619,7 @@ def test_rc_discontinuous_halo_remove():  # pylint: disable=invalid-name
     assert "IF (f4_proxy%is_dirty(depth=" not in result
 
 
-def test_rc_reader_halo_remove():  # pylint: disable=invalid-name
+def test_rc_reader_halo_remove():
     '''check that we do not add an unnecessary halo exchange when we
     increase the depth of halo that a loop computes but the previous loop
     still computes deep enough into the halo to avoid needing a halo
@@ -4659,7 +4655,7 @@ def test_rc_reader_halo_remove():  # pylint: disable=invalid-name
     assert "CALL f2_proxy%halo_exchange(" not in result
 
 
-def test_rc_vector_reader_halo_remove():  # pylint: disable=invalid-name
+def test_rc_vector_reader_halo_remove():
     '''check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
     the previous loop still computes deep enough into the halo to
@@ -4695,7 +4691,7 @@ def test_rc_vector_reader_halo_remove():  # pylint: disable=invalid-name
     assert result.count("halo_exchange") == 3
 
 
-def test_stencil_rc_max_depth_1(monkeypatch):  # pylint: disable=invalid-name
+def test_stencil_rc_max_depth_1(monkeypatch):
     '''If a loop contains a kernel with a stencil access and the loop
     attempts to compute redundantly into the halo to the maximum depth
     then the stencil will access beyond the halo bounds. This is
@@ -4725,7 +4721,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):  # pylint: disable=invalid-name
             "invalid" in str(excinfo.value))
 
 
-def test_rc_invalid_depth_type():  # pylint: disable=invalid-name
+def test_rc_invalid_depth_type():
     '''If an incorrect type is passed as a depth value to the redundant
     computation transformation an exception should be raised. This test
     checks that this exception is raised as expected.'''
@@ -4742,7 +4738,7 @@ def test_rc_invalid_depth_type():  # pylint: disable=invalid-name
             "type '<type 'str'>'" in str(excinfo.value))
 
 
-def test_loop_fusion_different_loop_depth():  # pylint: disable=invalid-name
+def test_loop_fusion_different_loop_depth():
     '''We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
@@ -4774,7 +4770,7 @@ def test_loop_fusion_different_loop_depth():  # pylint: disable=invalid-name
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
 
 
-def test_loop_fusion_different_loop_name():  # pylint: disable=invalid-name
+def test_loop_fusion_different_loop_name():
     '''We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
@@ -4794,7 +4790,7 @@ def test_loop_fusion_different_loop_name():  # pylint: disable=invalid-name
             in str(excinfo.value))
 
 
-def test_rc_max_w_to_r_continuous_known_halo():  # pylint: disable=invalid-name
+def test_rc_max_w_to_r_continuous_known_halo():
     '''If we have a continuous field being written to in one loop to the
     maximum halo depth and then being read in a following (dependent) loop
     to the maximum halo depth we can determine that we definitely need a
@@ -4827,7 +4823,7 @@ def test_rc_max_w_to_r_continuous_known_halo():  # pylint: disable=invalid-name
     assert known
 
 
-def test_red_comp_w_to_n_r_clean_gt_cleaned():  # pylint: disable=invalid-name
+def test_red_comp_w_to_n_r_clean_gt_cleaned():
     '''Tests the case where we have multiple (derived) read dependence
     entries and one of them has a literal depth value (and no
     associated variable) and we write redundantly into the halo with a

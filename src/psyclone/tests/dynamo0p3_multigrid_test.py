@@ -36,11 +36,6 @@
 ''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
     using pytest. '''
 
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
-# pylint: disable=protected-access
-
 import pytest
 import fparser
 from fparser import api as fpapi

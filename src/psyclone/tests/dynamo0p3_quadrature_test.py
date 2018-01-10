@@ -36,10 +36,6 @@
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
 
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
-# pylint: disable=protected-access
 
 import os
 import pytest
@@ -451,7 +447,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
             str(excinfo))
 
 
-def test_stub_dbasis_wrong_shape(monkeypatch):  # pylint: disable=invalid-name
+def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
     functions for quadrature raises the correct errors if the kernel meta-data
     is broken '''

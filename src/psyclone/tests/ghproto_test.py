@@ -8,9 +8,9 @@
 
 ''' Tests specific to the GungHo prototype API '''
 
+import os
 from psyclone.parse import parse, ParseError
 import pytest
-import os
 
 
 def test_single_invoke_undeclared():
