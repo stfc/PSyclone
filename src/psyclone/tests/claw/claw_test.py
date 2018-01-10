@@ -95,6 +95,9 @@ def test_validate_claw(monkeypatch, tmpdir):
     ''' Tests for the _validate_claw_setup routine '''
     from psyclone import claw_config
     from psyclone import claw
+
+    # Specify an unqualified name for the java binary that cannot be
+    # found on our PATH
     monkeypatch.setattr(claw_config, "JAVA_BINARY",
                         "this_binary_does_not_exist")
     with pytest.raises(TransformationError) as err:
@@ -102,33 +105,66 @@ def test_validate_claw(monkeypatch, tmpdir):
     assert ("java binary (this_binary_does_not_exist) specified in the "
             "PSyclone configuration file cannot be found on your PATH."
             in str(err))
+    
+    not_a_file = str(os.path.join("not", "a", "file"))
 
     # Point the JAVA_BINARY at a specific file that doesn't exist
-    fake_java = str(os.path.join(str(tmpdir), "my_java"))
-    monkeypatch.setattr(claw_config, "JAVA_BINARY", fake_java)
+    monkeypatch.setattr(claw_config, "JAVA_BINARY", not_a_file)
     with pytest.raises(TransformationError) as err:
         claw._validate_claw_setup()
     assert ("but the specified java binary ({0}) does not exist".
-            format(fake_java) in str(err))
+            format(not_a_file) in str(err))
 
-    # Now create that specific file
+    # Now create a file and point JAVA_BINARY at that
+    fake_java = str(os.path.join(str(tmpdir), "my_java"))
     with open(fake_java, "w") as ffile:
         ffile.write("Fake java binary")
+    monkeypatch.setattr(claw_config, "JAVA_BINARY", fake_java)
+
     # Monkeypatch the CLAW install location to be something that does not exist
-    monkeypatch.setattr(claw_config, "CLAW_INSTALL_PATH", "/not/a/path")
+    monkeypatch.setattr(claw_config, "CLAW_INSTALL_PATH", not_a_file)
     with pytest.raises(TransformationError) as err:
         claw._validate_claw_setup()
-    assert ("location of the CLAW installation (/not/a/path) specified in "
-            "the PSyclone configuration file does not exist" in str(err))
+    assert ("location of the CLAW installation ({0}) specified in "
+            "the PSyclone configuration file does not exist".
+            format(not_a_file) in str(err))
+
+    # Repeat but with the fake java binary now to be found on our PATH
+    monkeypatch.setattr(claw_config, "JAVA_BINARY", "my_java")
+    monkeypatch.setenv("PATH", str(tmpdir))
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("location of the CLAW installation ({0}) specified in "
+            "the PSyclone configuration file does not exist".
+            format(not_a_file) in str(err))
 
     # Monkeypatch the CLAW install location to be our tmpdir
     monkeypatch.setattr(claw_config, "CLAW_INSTALL_PATH", str(tmpdir))
     # Break the class-path by changing it to a non-existant file
-    monkeypatch.setattr(claw_config, "CLASS_PATH", "/not/a/file.jar")
+    monkeypatch.setattr(claw_config, "CLASS_PATH", not_a_file)
     with pytest.raises(TransformationError) as err:
         claw._validate_claw_setup()
-    assert ("File /not/a/file.jar in the CLASS_PATH used when running "
-            "CLAW does not exist" in str(err))
+    assert ("File {0} in the CLASS_PATH used when running "
+            "CLAW does not exist".format(not_a_file) in str(err))
+
+    # Monkeypatch the class-path to point to an existing file (doesn't
+    # have to be an actual jar file)
+    monkeypatch.setattr(claw_config, "CLASS_PATH", fake_java)
+    # Break the location of the Jython jar
+    monkeypatch.setattr(claw_config, "JYTHON_JAR", not_a_file)
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("CLAW uses Jython but the jar file ({0}) specified "
+            "in".format(not_a_file) in str(err))
+
+    # Monkeypatch the location of the Jython jar to be the file
+    # we created earlier in this test
+    monkeypatch.setattr(claw_config, "JYTHON_JAR", fake_java)
+    # Break the location of the CLAW-python interface file
+    monkeypatch.setattr(claw_config, "CLAW_PYTHON_PATH", not_a_file)
+    with pytest.raises(TransformationError) as err:
+        claw._validate_claw_setup()
+    assert ("interface file (ClawTransform.py) cannot be found" in str(err))
 
 
 def test_omni_fe_error(monkeypatch):
