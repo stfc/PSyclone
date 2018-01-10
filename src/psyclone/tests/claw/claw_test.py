@@ -288,37 +288,51 @@ def test_trans(tmpdir, monkeypatch):
             "API not_an_api" in str(err))
 
 
-def test_rename_kern_with_mod(tmpdir):
+def test_rename_kern_with_mod(tmpdir, monkeypatch):
     ''' Check that _rename_kernel() works as it should when the file/
     module names follow the PSyclone convention of having '_mod' '''
     import shutil
-    from psyclone.claw import _rename_kernel
+    from psyclone import claw
     # We use a copy of an XML file we prepared earlier so as not to have
     # to rely on Omni being installed
     orig_xml_file = os.path.join(BASE_PATH, "gocean1p0", "next_sshu_mod.xml")
     oldpwd = tmpdir.chdir()
     shutil.copy(orig_xml_file, str(tmpdir))
     xml_file = os.path.join(str(tmpdir), "next_sshu_mod.xml")
-    new_mod, new_type, new_name = _rename_kernel(xml_file,
-                                                 "next_sshu_code", "keep")
+    new_mod, new_type, new_name = claw._rename_kernel(xml_file,
+                                                      "next_sshu_code", "keep")
     assert new_name == "next_sshu_claw0_code"
     assert new_mod == "next_sshu_claw0_mod"
     assert new_type == "next_sshu_claw0_type"
 
+    # Create two fake kernel files (one with .F90 instead of .f90) and ensure
+    # that we get the next name in the sequence when calling _rename_kernel()
     with open("next_sshu_claw0_mod.f90", "w") as ffile:
         ffile.write("Hello")
+    with open("next_sshu_claw1_mod.F90", "w") as ffile:
+        ffile.write("Hello")
     shutil.copy(orig_xml_file, str(tmpdir))
-    new_mod, new_type, new_name = _rename_kernel(xml_file,
-                                                 "next_sshu_code", "keep")
-    assert new_name == "next_sshu_claw1_code"
-    assert new_mod == "next_sshu_claw1_mod"
-    assert new_type == "next_sshu_claw1_type"
+    new_mod, new_type, new_name = claw._rename_kernel(xml_file,
+                                                      "next_sshu_code", "keep")
+    assert new_name == "next_sshu_claw2_code"
+    assert new_mod == "next_sshu_claw2_mod"
+    assert new_type == "next_sshu_claw2_type"
 
     shutil.copy(orig_xml_file, str(tmpdir))
     with pytest.raises(TransformationError) as err:
-        _ = _rename_kernel(xml_file, "next_sshu_code", "abort")
+        _ = claw._rename_kernel(xml_file, "next_sshu_code", "abort")
     assert ("next_sshu_claw0_mod.f90 already exists and renaming mode is "
             "'abort'" in str(err))
+
+    # Check that we raise the correct error if we somehow get a filename
+    # that doesn't end in .[Ff]90
+    monkeypatch.setattr(claw, "_get_src_filename",
+                        lambda xmldoc: "a_file.txt")
+    shutil.copy(orig_xml_file, str(tmpdir))
+    with pytest.raises(TransformationError) as err:
+        _ = claw._rename_kernel(xml_file, "next_sshu_code", "keep")
+    assert ("filename 'a_file.txt' for module does not end in .[Ff]90"
+            in str(err))
 
 
 def test_rename_no_filename(tmpdir):
@@ -437,3 +451,54 @@ def test_rename_kern_no_mod(tmpdir):
             if sym.getAttribute("sclass") == "ffunc":
                 names = sym.getElementsByTagName("name")
                 assert names[0].firstChild.data == new_kern_name
+
+
+def test_rename_kern_no_code(tmpdir):
+    ''' Check that _rename_kern() works as it should when the original
+    kernel subroutine name does not end in '_code' '''
+    from psyclone.claw import _rename_kernel
+    # We use a copy of an XML file we prepared earlier so as not to have
+    # to rely on Omni being installed
+    orig_xml_file = os.path.join(BASE_PATH, "dynamo0p3", "testkern.xml")
+    with open(orig_xml_file, "r") as xfile:
+        xml_txt = xfile.read()
+    # Change the XML so that all instances of "testkern_code" are
+    # replaced by "my_kernel"
+    new_xml = xml_txt.replace("testkern_code", "my_kernel")
+    _ = tmpdir.chdir()
+    xml_file = os.path.join(str(tmpdir), "testkern.xml")
+    with open(xml_file, "w") as xfile:
+        xfile.write(new_xml)
+    _, _, new_name = _rename_kernel(xml_file, "my_kernel", "keep")
+    assert new_name == "my_kernel_claw0_code"
+
+
+def test_rename_kern_no_type(tmpdir):
+    ''' Check that _rename_kern() works as it should when the original
+    kernel-type name does not end in '_type' '''
+    from psyclone.claw import _rename_kernel
+    # We use a copy of an XML file we prepared earlier so as not to have
+    # to rely on Omni being installed
+    orig_xml_file = os.path.join(BASE_PATH, "dynamo0p3", "testkern.xml")
+    with open(orig_xml_file, "r") as xfile:
+        xml_txt = xfile.read()
+    # Change the XML so that all instances of "testkern_code" are
+    # replaced by "my_kernel"
+    new_xml = xml_txt.replace("testkern_type", "my_kernel_def")
+    _ = tmpdir.chdir()
+    xml_file = os.path.join(str(tmpdir), "testkern.xml")
+    with open(xml_file, "w") as xfile:
+        xfile.write(new_xml)
+    new_mod, new_type, new_name = _rename_kernel(xml_file,
+                                                 "testkern_code", "keep")
+    assert new_name == "testkern_claw0_code"
+    assert new_type == "my_kernel_def_claw0_type"
+    
+
+def test_get_type():
+    ''' Check that _get_type_by_binding_name() works as it should '''
+    from psyclone.claw import _get_type_by_binding_name
+
+    # type_name =_get_type_by_binding_name(xmldoc, kernel_name)
+    #assert type_name == 
+    pass

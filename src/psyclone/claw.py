@@ -277,10 +277,11 @@ def _rename_kernel(xml_file, kernel_name, mode):
             "Internal error: filename '{0}' for module does not end in "
             ".[Ff]90.".format(orig_file))
 
-    # Determine the new suffix to use by looking at what files are already
+    # Determine the new name to use by looking at what files are already
     # in our working directory
     new_suffix = "_claw0"
     current_files = os.listdir(pwd)
+
     # Convert all suffixes to .f90 to simplify things below (we don't
     # want to end up with two files with the same name and only differing
     # in whether they are .f90 or .F90)
@@ -289,7 +290,7 @@ def _rename_kernel(xml_file, kernel_name, mode):
         if afile.endswith(".f90"):
             current_files_lower.append(afile)
         elif afile.endswith(".F90"):
-            current_files_lower.append(afile[-3]+"f90")
+            current_files_lower.append(afile[:-3]+"f90")
 
     if mode == "keep":
         name_idx = -1
