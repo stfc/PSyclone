@@ -5,19 +5,14 @@
 
 import os
 
+# Location of the java binary (or just its name if it is on your PATH)
+JAVA_BINARY = "java"
+
 # Location of the Jython Jar
 JYTHON_JAR = "/home/kbc59144/MyInstalls/jython2.7.0/jython.jar"
+
 # Root directory of the CLAW installation
 CLAW_INSTALL_ROOT = "/home/kbc59144/MyInstalls"
-
-# Location of the CLAW configuration file (read by CLAW)
-CLAW_CONFIG_FILE_DIR = os.path.join(CLAW_INSTALL_ROOT, "etc")
-# Width of output Fortran
-NUM_OUTPUT_COLUMNS = 80
-# Location that CLAW is installed to
-CLAW_INSTALL_PATH = os.path.join(CLAW_INSTALL_ROOT, "share")
-# Location that CLAW Python module is installed to
-CLAW_PYTHON_PATH = os.path.join(CLAW_INSTALL_ROOT, "lib")
 
 # Dictionary (indexed by PSyclone API name) containing the location of
 # OMNI-compiled Fortran modules use'd by any kernels to be transformed
@@ -31,6 +26,19 @@ OMNI_MODULES_PATH = {"dynamo0.3":
                      "gocean1.0":
                      "/home/kbc59144/Projects/dl_esm_inf/finite_difference/"
                      "src"}
+
+# ################################################################
+# Users should not have to edit anything below this line
+# ################################################################
+
+# Location of the CLAW configuration file (read by CLAW)
+CLAW_CONFIG_FILE_DIR = os.path.join(CLAW_INSTALL_ROOT, "etc")
+# Width of output Fortran
+NUM_OUTPUT_COLUMNS = 80
+# Location that CLAW is installed to
+CLAW_INSTALL_PATH = os.path.join(CLAW_INSTALL_ROOT, "share")
+# Location that CLAW Python module is installed to
+CLAW_PYTHON_PATH = os.path.join(CLAW_INSTALL_ROOT, "lib")
 
 # The OMNI and CLAW jars
 OMNI_JARS = ["om-exc-tools.jar",
