@@ -42,7 +42,6 @@ CLAW_PYTHON_PATH = os.path.join(CLAW_INSTALL_ROOT, "lib")
 
 # The OMNI and CLAW jars
 OMNI_JARS = ["om-exc-tools.jar",
-             "om-common.jar",
              "om-f-back.jar",
              "om-c-back.jar"]
 CLAW_JARS = ["om-cx2x-claw.jar",
