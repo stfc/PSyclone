@@ -198,9 +198,15 @@ these is reproduced below:
         do_loops = xast.matchAll(Xcode.F_DO_STATEMENT)
 
         # Perform a simple loop interchange (inner becomes outer)
-        # using Claw primitives
+        # using CLAW primitives
         nested_loop = NestedDoStatement(do_loops[0])
         Loop.reorder(nested_loop, ["jj", "ji"])
 
         return xast
 
+This example queries the AST to find all DO loops and then applies a
+CLAW primitive to the first one in order inter-change the inner and
+outer loops. Note that, for brevity, no attempt has been made to
+verify that the supplied kernel has the expected structure.
+
+.. note:: We need a link to the CLAW documentation describing the available transforms. However, I'm not sure that such documentation exists yet.
