@@ -195,7 +195,7 @@ A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
 ::
 
-    def trans(psy)
+    def trans(psy):
         ...
         return psy
 

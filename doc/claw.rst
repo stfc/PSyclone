@@ -1,4 +1,6 @@
-.. Copyright (C) 2017, Science and Technology Facilities Council, UK
+.. Copyright (C) 2017-2018, Science and Technology Facilities Council, UK
+
+.. _claw:
 
 CLAW
 ====
@@ -157,11 +159,48 @@ An example script that uses CLAW to transform kernels might look like:
         # Apply it to the first loop in the schedule
         new_schedule, memento = ol.apply(schedule.children[0])
 
-	# Transform the associated kernel for the one invoke
-	kern = schedule.children[0].children[0]
-	kernel_list = [kern.name]
-	invoke_list = [invoke]
-	claw_script = "some jython file"
-        claw.trans(invoke_list, kernel_list, claw_script)
+	# Use CLAW to transform the associated kernel
+	kernel_list = [schedule.children[0].children[0]]
+	claw_script = "some_jython_file.py"
+        claw.trans(kernel_list, claw_script)
 
         return psy
+
+As can be seen in the above example, the application of CLAW to one or
+more kernels is performed through the `claw.trans()` routine:
+
+.. autofunction:: psyclone.claw.trans
+    :noindex:
+
+Just as standard PSyclone transformations must be implemented within a
+`trans()` function in a supplied Python script file, CLAW
+transformations must be implemented within a `claw_trans()`
+function. This too uses Python but is actually executed by Jython
+since this gives access to the (Java) transformations provided by CLAW.
+The `claw_trans` function must accept the XcodeML/F AST of the kernel to
+be transformed and return an object of the same type, i.e.:
+::
+
+    def claw_trans(xast):
+        ...
+        return xast
+
+Two examples are distributed with PSyclone in the
+`examples/transformations/claw` directory. The essentials of one of
+these is reproduced below:
+::
+
+    def claw_trans(xast):
+        from claw.tatsu.primitive import Loop
+        from claw.tatsu.xcodeml.abstraction import NestedDoStatement
+        from claw.tatsu.xcodeml.xnode.common import Xcode
+
+        do_loops = xast.matchAll(Xcode.F_DO_STATEMENT)
+
+        # Perform a simple loop interchange (inner becomes outer)
+        # using Claw primitives
+        nested_loop = NestedDoStatement(do_loops[0])
+        Loop.reorder(nested_loop, ["jj", "ji"])
+
+        return xast
+

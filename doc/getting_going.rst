@@ -60,9 +60,13 @@ example in openSUSE 42.2:
 
 and then use pip2.7 instead of pip.
 
+PSyclone supports the use of the CLAW compiler
+(https://github.com/C2SM-RCM/claw-compiler) to perform kernel
+transformations. If this functionality is required then obviously
+CLAW must be installed. See the :ref:`claw` chapter for further details.
 
-In addition to the mandatory dependencies just described, PSyclone
-also has optional dependencies on both ``graphviz`` and ``termcolor``.
+In addition to the dependencies just described, PSyclone also has
+optional dependencies on both ``graphviz`` and ``termcolor``.
 PSyclone can use graphviz to produce a visualisation of a schedule's
 dependency graph. If this is desired then the Python package
 ``graphviz`` (for the Python bindings) as well as the graphviz package

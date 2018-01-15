@@ -72,17 +72,19 @@ def trans(kernel_list, script_file, naming_mode=None):
     '''
     PSyclone interface to CLAW
 
-    Applies the (Jython) script_file to the specified kernels in the
-    specified invokes using CLAW. Transformed kernels are renamed
-    and written to the current working directory. All kernel dependencies
+    Applies the `claw_trans()` routine in the supplied (Jython) `script_file`
+    to the specified kernel objects using CLAW.
+    Transformed kernels are renamed and written to the current working
+    directory. All kernel dependencies
     (i.e. other Fortran modules) must have been passed through the
     Front-end of the OMNI compiler to generate .xmod files. The location(s)
-    of these .xmod files must be provided in the Claw configuration
+    of these .xmod files must be provided in the CLAW configuration
     file (see the PSyclone documentation for details).
 
     :param kernel_list: List of kernel objects to transform
     :type kernel_list: List of objects of type :py:class:`psyclone.psyGen.Kern`
-    :param str script_file: Claw Jython script to perform transformation
+    :param str script_file: (fully-qualified path to) CLAW Jython script to
+                            perform transformation
     :param str naming_mode: How to handle any name clashes for transformed
                             kernels. One of ["overwrite", "keep", "abort"].
                             Defaults to "keep" if not specified.
