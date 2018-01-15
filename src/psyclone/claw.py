@@ -403,18 +403,18 @@ def _get_type_by_binding_name(xmldoc, kern_name):
     :return: Name of the type which has the specified kernel as a
              type-bound procedure
     :rtype: str
-    :raises: TODO
+    :raises TransformationError: if XML document does not contain
+                                 the expected elements or named kernel
     '''
     type_defs = xmldoc.getElementsByTagName("FstructType")
     if not type_defs:
-        # TODO use correct type of exception
-        raise Exception("XCodeML/F does not contain any type definitions")
+        raise TransformationError(
+            "XCodeML/F does not contain any type definitions - cannot "
+            "find kernel '{0}'".format(kern_name))
 
     tindex = ""
     for tdef in type_defs:
         tbound_procs = tdef.getElementsByTagName("typeBoundProcedure")
-        if tbound_procs is None:
-            continue
         for proc in tbound_procs:
             bindings = proc.getElementsByTagName("binding")
             names = bindings[0].getElementsByTagName("name")
@@ -428,8 +428,9 @@ def _get_type_by_binding_name(xmldoc, kern_name):
             break
 
     if not tindex:
-        raise Exception("Failed to find a Type definition containing a "
-                        "type-bound procedure with name {0}".format(kern_name))
+        raise TransformationError(
+            "Failed to find a Type definition containing a type-bound "
+            "procedure with name '{0}'".format(kern_name))
 
     # Now we have the type index, we can find its name
     gdeclns = xmldoc.getElementsByTagName("globalDeclarations")
@@ -441,8 +442,8 @@ def _get_type_by_binding_name(xmldoc, kern_name):
                 # This is the matching symbol
                 names = id_node.getElementsByTagName("name")
                 return names[0].firstChild.data
-    raise Exception("Could not find symbol ID for the derived type "
-                    "with type={0}".format(tindex))
+    raise TransformationError("Could not find symbol definition (ID) for "
+                              "the derived type with type={0}".format(tindex))
 
 
 def _get_kernel_module(xmldoc, kern_name):

@@ -230,6 +230,62 @@ def test_api_from_ast():
     assert "Cannot determine API for kernel" in str(err)
 
 
+def test_get_type_by_binding():
+    ''' Tests for the _get_type_by_binding_name() routine '''
+    from xml.dom import minidom    
+    from psyclone import claw
+    # We use a copy of an XML file we prepared earlier so as not to have
+    # to rely on Omni being installed
+    orig_xml_file = os.path.join(BASE_PATH, "gocean1p0", "next_sshu_mod.xml")
+    # We read-in the XML file, parse it and then manipulate the DOM to
+    # remove parts in order to trigger errors
+    orig_xml = ""
+    with open(orig_xml_file, "r") as xfile:
+        orig_xml = xfile.read()
+    xdoc = minidom.parseString(orig_xml)
+
+    # First, test what happens when the named kernel is not present
+    with pytest.raises(TransformationError) as err:
+        _ = claw._get_type_by_binding_name(xdoc, "not_a_kern")
+    assert ("Failed to find a Type definition containing a type-bound "
+            "procedure with name 'not_a_kern'" in str(err))
+
+    # Now we progressively break the XML document so as to trigger other
+    # errors
+    gdeclns = xdoc.getElementsByTagName("globalDeclarations")
+    symbol_lists = gdeclns[0].getElementsByTagName("symbols")
+    for symbol in symbol_lists:
+        id_list = symbol.getElementsByTagName("id")
+        for id_node in id_list:
+            id_node.setAttribute("type", "000")
+    with pytest.raises(TransformationError) as err:
+        _ = claw._get_type_by_binding_name(xdoc, "next_sshu_code")
+    assert ("Could not find symbol definition (ID) for the derived type "
+            "with type=" in str(err))
+
+    # Re-name any binding names
+    type_defs = xdoc.getElementsByTagName("FstructType")
+    for tdef in type_defs:
+        tbound_procs = tdef.getElementsByTagName("typeBoundProcedure")
+        for proc in tbound_procs:
+            bindings = proc.getElementsByTagName("binding")
+            names = bindings[0].getElementsByTagName("name")
+            names[0].firstChild.data = "some_name"
+    with pytest.raises(TransformationError) as err:
+        _ = claw._get_type_by_binding_name(xdoc, "next_sshu_code")
+    assert ("Failed to find a Type definition containing a type-bound "
+            "procedure with name 'next_sshu_code'" in str(err))
+
+    # Remove any type definitions
+    type_defs = xdoc.getElementsByTagName("FstructType")
+    for tdef in type_defs:
+        tdef.parentNode.removeChild(tdef)
+    with pytest.raises(TransformationError) as err:
+        _ = claw._get_type_by_binding_name(xdoc, "next_sshu_code")
+    assert ("XCodeML/F does not contain any type definitions - cannot "
+            "find kernel 'next_sshu_code'" in str(err))
+
+
 def test_trans(tmpdir, monkeypatch):
     ''' Tests for the trans() routine '''
     import subprocess
