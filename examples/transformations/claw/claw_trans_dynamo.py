@@ -54,7 +54,7 @@ def trans(psy):
     # this file. This will produce a new source file(s) for each kernel
     # object.
     kern_names = claw.trans([kern], os.path.abspath(__file__),
-                            mode="keep")
+                            naming_mode="keep")
     print "Transformed kernel names: ", kern_names
     # Update selected kernels in selected invokes to use the transformed
     # kernel(s). If multiple invokes use the same kernel and we want them

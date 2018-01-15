@@ -51,7 +51,7 @@ def trans(psy):
     print kern.name
     # Invoke claw on the kernel using the claw_trans function in
     # this file
-    claw.trans([invoke], [kern.name], os.path.abspath(__file__))
+    claw.trans([kern], os.path.abspath(__file__))
 
 
 def claw_trans(xast):
