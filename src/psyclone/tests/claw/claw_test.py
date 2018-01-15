@@ -234,8 +234,7 @@ def test_get_type_by_binding():
     ''' Tests for the _get_type_by_binding_name() routine '''
     from xml.dom import minidom    
     from psyclone import claw
-    # We use a copy of an XML file we prepared earlier so as not to have
-    # to rely on Omni being installed
+    # We use an XML file we prepared earlier
     orig_xml_file = os.path.join(BASE_PATH, "gocean1p0", "next_sshu_mod.xml")
     # We read-in the XML file, parse it and then manipulate the DOM to
     # remove parts in order to trigger errors
@@ -284,6 +283,26 @@ def test_get_type_by_binding():
         _ = claw._get_type_by_binding_name(xdoc, "next_sshu_code")
     assert ("XCodeML/F does not contain any type definitions - cannot "
             "find kernel 'next_sshu_code'" in str(err))
+
+
+def test_get_mod_name():
+    ''' Tests for the claw._get_kernel_module() routine '''
+    from xml.dom import minidom    
+    from psyclone import claw
+    # We use an XML file we prepared earlier
+    orig_xml_file = os.path.join(BASE_PATH, "gocean1p0", "next_sshu_mod.xml")
+    # We read-in the XML file, parse it and then manipulate the DOM to
+    # remove parts in order to trigger errors
+    orig_xml = ""
+    with open(orig_xml_file, "r") as xfile:
+        orig_xml = xfile.read()
+    xdoc = minidom.parseString(orig_xml)
+    # Ask for the name of the module for a kernel routine that doesn't exist
+    name = claw._get_kernel_module(xdoc, "not_a_kernel")
+    assert name == ""
+    # Now with the correct name for the kernel routine 
+    name = claw._get_kernel_module(xdoc, "next_sshu_code")
+    assert name == "next_sshu_mod"
 
 
 def test_trans(tmpdir, monkeypatch):
