@@ -1779,7 +1779,9 @@ def test_node_dag_no_graphviz(tmpdir):
     import sys
     keep = None
     try:
+        # pylint: disable=unused-variable
         import graphviz
+        # pylint: enable=unused-variable
         keep = sys.modules['graphviz']
         sys.modules['graphviz'] = None
     except ImportError:
@@ -1829,7 +1831,9 @@ def test_node_dag(tmpdir):
     '''test that dag generation works correctly. Skip the test if
     graphviz is not installed'''
     try:
+        # pylint: disable=unused-variable
         import graphviz
+        # pylint: enable=unused-variable
     except ImportError:
         return
     _, invoke_info = parse(
