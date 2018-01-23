@@ -40,6 +40,7 @@
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
 
+from __future__ import absolute_import
 import os
 import pytest
 import fparser

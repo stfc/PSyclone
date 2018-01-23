@@ -36,6 +36,7 @@
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
 
+from __future__ import absolute_import
 import os
 import pytest
 import fparser

@@ -39,6 +39,7 @@
     they iterate over DOFs. However this may change in the future. '''
 
 # imports
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.parse import parse, ParseError

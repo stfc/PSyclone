@@ -45,6 +45,7 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
+from __future__ import absolute_import
 import os
 import re
 import pytest

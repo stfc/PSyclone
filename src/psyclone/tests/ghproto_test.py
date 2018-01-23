@@ -8,6 +8,7 @@
 
 ''' Tests specific to the GungHo prototype API '''
 
+from __future__ import absolute_import
 import os
 from psyclone.parse import parse, ParseError
 import pytest

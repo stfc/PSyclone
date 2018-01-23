@@ -9,6 +9,7 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.parse import parse

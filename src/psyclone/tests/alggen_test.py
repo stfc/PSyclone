@@ -9,6 +9,7 @@
 ''' Tests for the algorithm generation (re-writing) as implemented
     in algGen.py '''
 
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.generator import generate, GenerationError

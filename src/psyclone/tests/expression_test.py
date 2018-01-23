@@ -1,6 +1,7 @@
 
 ''' Module containing tests for the Fortran expression parser '''
 
+from __future__ import absolute_import
 from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
 
 

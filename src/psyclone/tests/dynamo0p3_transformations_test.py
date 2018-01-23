@@ -36,6 +36,7 @@
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.parse import parse
