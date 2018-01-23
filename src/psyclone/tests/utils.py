@@ -55,6 +55,7 @@ class CompileError(Exception):
     ''' Exception raised when compilation of a Fortran source file
     fails '''
     def __init__(self, value):
+        # pylint: disable=super-init-not-called
         self.value = "Compile error: " + value
 
     def __str__(self):
