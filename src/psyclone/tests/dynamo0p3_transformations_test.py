@@ -983,6 +983,7 @@ def test_loop_fuse_set_dirty():
 def test_loop_fuse_omp():
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region'''
+    # pylint: disable=too-many-branches
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1046,6 +1047,7 @@ def test_fuse_colour_loops():
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
     both sequential and distributed-memory code '''
+    # pylint: disable=too-many-branches,too-many-statements
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
