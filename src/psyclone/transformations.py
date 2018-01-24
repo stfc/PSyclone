@@ -1396,7 +1396,7 @@ class LoopSwapTrans(Transformation):
         '''Checks if the given nodes contains a valid Fortran structure
            to allow swapping loops. This means the node must represent
            a loop, and it must have exactly one child that is also a loop.
-           :param node_outer A node from an AST.
+           :param node_outer: A node from an AST.
            :type metadata: py:class:`psyclone.psyGen.Node`
            :raises TransformationError: if the supplied node does not
                                         allow a loop swap to be done.
@@ -1439,8 +1439,13 @@ class LoopSwapTrans(Transformation):
                                               node_outer.children[1]))
 
     def apply(self, outer):  # pylint: disable=arguments-differ
-        ''' Swaps the loop by :py:obj:`inner`with its inner loop. '''
-
+        '''The argument outer must be a loop which has exactly one inner loop.
+        this transform then swaps the outer and inner loop.
+        :param outer: The node representing the outer loop.
+        :type py:class:`psyclone.psyGen.Node`
+        :return: A tuple consisteng of the new schedule, and a Memento.
+        :raises TransformationError: if the supplied node does not
+                                        allow a loop swap to be done.'''
         self._validate(outer)
 
         schedule = outer.root
