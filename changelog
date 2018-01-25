@@ -1,6 +1,18 @@
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.
 
+        2) PR #107 Fix errors in Fortran test files revealed by update
+	to fparser 0.0.6. Update to catch new AnalyzeError raised by
+        fparser.
+
+        3) #90 and PR #102 Add support for integer, read-only, scalar
+        arguments to built-in kernels. Add new inc_X_powint_n Built-in
+        that raises a field to an integer power.
+
+        4) #67 Bug fix - printing Invoke object caused crash.
+
+        5) #112 and PR #113 - add travis support for codecov coverage tool
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not

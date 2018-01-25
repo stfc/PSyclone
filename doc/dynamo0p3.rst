@@ -63,7 +63,9 @@ Field Vector
 Scalar
 ++++++
 
-.. note:: To be written.
+In Dynamo 0.3 API a scalar is a single value variable that can be
+either real or integer. Real scalars are identified with ``GH_REAL``
+and integer scalars are identified with ``GH_INTEGER`` metadata.
 
 Operator
 ++++++++
@@ -510,7 +512,11 @@ For example:
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
        /)
 
-.. note:: In the Dynamo 0.3 API only :ref:`dynamo_built-ins` are permitted to write to scalar arguments (and hence perform reductions).
+.. note:: In the Dynamo 0.3 API only :ref:`dynamo_built-ins` are permitted
+          to write to scalar arguments (and hence perform reductions).
+          Furthermore, this permission is currently restricted to integer
+          scalars (``GH_INTEGER``) as the LFRic infrastructure does not
+          yet support integer reductions.
 
 For a scalar the argument metadata contains only these two entries.
 However, fields and operators require further entries specifying
@@ -607,25 +613,29 @@ then the permitted access modes depend on the type of data it is and
 the function space it is on. Valid values are given in the table
 below.
 
-======================	============================    =======================
+======================	============================    =========================
 Argument Type     	Function space                  Access type
-======================	============================    =======================
-GH_INTEGER        	n/a                             GH_SUM (Built-ins only)
+======================	============================    =========================
+*GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
 GH_REAL           	n/a                             GH_SUM (Built-ins only)
 GH_FIELD                Discontinuous (w3)              GH_WRITE
 GH_FIELD                Continuous (not w3)             GH_INC
 GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE
 GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
-======================  ============================    =======================
+======================  ============================    =========================
 
-Note that only Built-ins may modify scalar arguments. There is no
-restriction on the number and function-spaces of other quantities that
-a general-purpose kernel can modify other than that it must modify at
-least one. The rules for kernels involving CMA operators, however, are
-stricter and only one argument may be modified (the CMA operator
-itself for assembly, a field for CMA-application and a CMA operator
-for matrix-matrix kernels). If a kernel writes to quantities on
-different function spaces then PSyclone generates loop bounds
+.. note:: As mentioned above, note that only Built-ins may modify
+          scalar arguments. *Since the LFRic infrastructure does not
+          currently support integer reductions, integer scalar arguments
+          are restricted to having read-only access.*
+
+There is no restriction on the number and function-spaces of other
+quantities that a general-purpose kernel can modify other than that it
+must modify at least one. The rules for kernels involving CMA operators,
+however, are stricter and only one argument may be modified (the CMA
+operator itself for assembly, a field for CMA-application and a CMA
+operator for matrix-matrix kernels). If a kernel writes to quantities
+on different function spaces then PSyclone generates loop bounds
 appropriate to the largest iteration space. This means that if a
 single kernel updates one quantity on a continuous function space and
 one on a discontinuous space then the resulting loop will include
@@ -1116,8 +1126,8 @@ Built-ins
 
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
-built-ins generally follow a convention that the field/scalar written
-to comes first in the argument list. Dynamo 0.3 built-ins must conform to the
+Built-ins generally follow a convention that the field/scalar written
+to comes first in the argument list. Dynamo 0.3 Built-ins must conform to the
 following four rules:
 
  1) Built-in kernels must have one and only one modified (i.e. written
@@ -1128,28 +1138,28 @@ following four rules:
 
  3) Kernel arguments must be either fields or scalars.
 
- 4) All field arguments to a given built-in must be on the same
-    function space. This is because all current built-ins iterate over
+ 4) All field arguments to a given Built-in must be on the same
+    function space. This is because all current Built-ins iterate over
     dofs and therefore all fields should have the same number. It also
     means that we can determine the number of dofs uniquely when a
     scalar is written to.
 
-The built-ins supported for the Dynamo 0.3 API are listed in the related
+The Built-ins supported for the Dynamo 0.3 API are listed in the related
 subsections, grouped by the mathematical operation they perform. For clarity,
-the calculation performed by each built-in is described using Fortran array
+the calculation performed by each Built-in is described using Fortran array
 syntax; this does not necessarily reflect the actual implementation of the
-built-in (*e.g.* it could be implemented by PSyclone generating a call to an
+Built-in (*e.g.* it could be implemented by PSyclone generating a call to an
 optimised maths library).
 
 Naming scheme
 +++++++++++++
 
-The supported built-ins in the Dynamo 0.3 API are named according to the
-scheme presented below. Any new built-ins need to comply with these rules.
+The supported Built-ins in the Dynamo 0.3 API are named according to the
+scheme presented below. Any new Built-in needs to comply with these rules.
 
-    1) Ordering of arguments in built-ins calls follows
+    1) Ordering of arguments in Built-ins calls follows
        *LHS (result) <- RHS (operation on arguments)*
-       direction, except where a built-in returns the *LHS* result to one of
+       direction, except where a Built-in returns the *LHS* result to one of
        the *RHS* arguments. In that case ordering of arguments remains as in
        the *RHS* expression, with the returning *RHS* argument written as close
        to the *LHS* as it can be without affecting the mathematical expression.
@@ -1162,7 +1172,7 @@ scheme presented below. Any new built-ins need to comply with these rules.
        **innprod** (inner/scalar product of two fields) and **sumfld**
        (sum of a field).
 
-    4) Arguments in built-ins variable declarations and constructs (PSyclone
+    4) Arguments in Built-ins variable declarations and constructs (PSyclone
        Fortran and Python definitions):
 
        a) Are always  written in long form and lower case (e.g. **field1**,
@@ -1537,22 +1547,36 @@ where:
 Raising to power
 ++++++++++++++++
 
-Built-in which raises field elements to an exponent is denoted with the keyword
-**powreal** for real exponent.
+Built-ins which raise field elements to an exponent are denoted with the
+keyword **powreal** for real exponent or **powint** for integer exponent.
 
 inc_X_powreal_a
 ###############
 
-**inc_X_powreal_a** (*field*, *scalar*)
+**inc_X_powreal_a** (*field*, *rscalar*)
 
 Raises a field to a real scalar value and returns the field (X = X**a): ::
 
-  field(:) = field(:)**scalar
+  field(:) = field(:)**rscalar
 
 where:
 
 * type(field_type), intent(inout) :: *field*
-* real(r_def), intent(in) :: *scalar*
+* real(r_def), intent(in) :: *rscalar*
+
+inc_X_powint_n
+##############
+
+**inc_X_powint_n** (*field*, *iscalar*)
+
+Raises a field to an integer scalar value and returns the field (X = X**n): ::
+
+  field(:) = field(:)**iscalar
+
+where:
+
+* type(field_type), intent(inout) :: *field*
+* integer(i_def), intent(in) :: *iscalar*
 
 Inner product
 +++++++++++++
@@ -1574,7 +1598,7 @@ where:
 * real(r_def), intent(out) :: *innprod*
 * type(field_type), intent(in) :: *field1*, *field2*
 
-.. note:: When used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
@@ -1592,7 +1616,7 @@ where:
 * real(r_def), intent(out) :: *innprod*
 * type(field_type), intent(in) :: *field*
 
-.. note:: When used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 
@@ -1616,7 +1640,7 @@ where:
 * real(r_def), intent(out) :: sumfld
 * type(field_type), intent(in) :: field
 
-.. note:: When used with distributed memory this built-in will trigger
+.. note:: When used with distributed memory this Built-in will trigger
           the addition of a global sum which may affect the
           performance and/or scalability of the code.
 

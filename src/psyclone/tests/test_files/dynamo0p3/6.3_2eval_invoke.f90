@@ -41,4 +41,4 @@ program eval_invoke
        testkern_eval_type(f2,f3)     &
        )
 
-end program val_invoke
+end program eval_invoke

@@ -47,4 +47,4 @@ program eval_invoke
        testkern_eval_op_to_w0_type(op1,f0,f2) &
        )
 
-end program val_invoke
+end program eval_invoke

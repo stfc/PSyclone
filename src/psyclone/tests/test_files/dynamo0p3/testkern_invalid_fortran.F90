@@ -15,10 +15,10 @@ module testkern
              arg_type(gh_field,gh_read, w3)  &
            /)
      integer, parameter :: iterates_over = cells
-   contains
+   contain
      procedure() :: code => testkern_code
   end type testkern_type
-contain
+contains
 
   subroutine testkern_code(a,b,c,d)
   end subroutine testkern_code
