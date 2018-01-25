@@ -169,7 +169,8 @@ class GOInvoke(Invoke):
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if arg.type == 'scalar' and \
-                   arg.space.lower() == "r_scalar" and arg.name not in result:
+                   arg.space.lower() == "r_scalar" and \
+                   not arg.is_literal and arg.name not in result:
                     result.append(arg.name)
         return result
 
@@ -181,7 +182,8 @@ class GOInvoke(Invoke):
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if arg.type == 'scalar' and \
-                   arg.space.lower() == "i_scalar" and arg.name not in result:
+                   arg.space.lower() == "i_scalar" and \
+                   not arg.is_literal and arg.name not in result:
                     result.append(arg.name)
         return result
 

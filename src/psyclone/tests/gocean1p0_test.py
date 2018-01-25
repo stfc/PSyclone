@@ -974,7 +974,6 @@ def test00p1_kernel_wrong_meta_arg_count():
               api="gocean1.0")
 
 
-@pytest.mark.xfail(reason="Known bug in PSyclone")
 def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
     '''Check' that using a const scalar as parameter works.'''
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -982,7 +981,7 @@ def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
                             "test00.1_invoke_kernel_using_const_scalar.f90")
     _, invoke_info = parse(filename, api="gocean1.0")
     out = str(PSyFactory(API).create(invoke_info).gen)
-    # Old verssions of PSyclone tried to declare '0' as a variable:
+    # Old versions of PSyclone tried to declare '0' as a variable:
     # REAL(KIND=wp), intent(inout) :: 0
     # Make sure this is not happening anymor
     import re
