@@ -8,10 +8,11 @@
 
 ''' Contains tests for transformations on the GOcean 0.1 API '''
 
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+from __future__ import absolute_import
 import os
 import pytest
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError,\
     LoopFuseTrans,\
     GOceanLoopFuseTrans,\
