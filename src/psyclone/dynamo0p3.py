@@ -115,9 +115,10 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
 # perform prolongation/restriction).
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
-VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "cell_halo", "ncolour",
-                           "ncolours", "ncells", "ndofs", "dof_halo",
-                           "colour_halo"]
+HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo", "colour_halo"]
+
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
+                           "ndofs"] + HALO_ACCESS_LOOP_BOUNDS
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -3453,7 +3454,7 @@ class HaloReadAccess(HaloDepth):
         loop = call.parent
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
-        if loop.upper_bound_name in ["cell_halo", "dof_halo", "colour_halo"]:
+        if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
             # this loop performs redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
@@ -3663,7 +3664,11 @@ class DynLoop(Loop):
                 "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "cell_halo", "dof_halo", "colour_halo"] and \
+        # Only halo bounds and inner may have an index. We could just
+        # test for index here and assume that index is None for other
+        # types of bounds, but checking the type of bound as well is a
+        # safer option.
+        if name in (["inner"] + HALO_ACCESS_LOOP_BOUNDS) and \
            index is not None:
             if index < 1:
                 raise GenerationError(
@@ -3856,14 +3861,12 @@ class DynLoop(Loop):
         elif arg.discontinuous and arg.access.lower() == "gh_read":
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
-            return self._upper_bound_name in ["cell_halo", "dof_halo",
-                                              "colour_halo"]
+            return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness
-            if self._upper_bound_name in ["cell_halo", "dof_halo",
-                                          "colour_halo"]:
+            if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 # we read in the halo
                 return True
             elif self._upper_bound_name == "ncells":
