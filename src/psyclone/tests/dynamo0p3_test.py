@@ -3965,7 +3965,9 @@ def test_arg_descriptor_init_error():
         _ = DynArgDescriptor03(arg_type)
     assert 'Internal error in DynArgDescriptor03.__init__' \
         in str(excinfo.value)
+    # pylint: disable=invalid-name
     VALID_ARG_TYPE_NAMES = keep
+    # pylint: enable=invalid-name
 
 
 def test_func_descriptor_repr():
