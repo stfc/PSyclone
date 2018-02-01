@@ -5438,3 +5438,112 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
         # If compilation testing has been enabled (--compile flag
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_haloex_colouring():
+    '''Check that the halo exchange logic for halo exchanges between
+    loops works when we colour the loops'''
+
+    def check_halo_exchange(halo_exchange):
+        '''internal method to check the validity of the halo exchange'''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange.required
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert not write_access.max_depth
+        assert write_access.literal_depth == 1
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert depth_info.literal_depth == 1
+        assert not depth_info.max_depth
+        assert not depth_info.var_depth
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+    # start with a loop which modifies the continuous field f1 followed by a
+    # loop which modifies the continuous field f3 and reads field f1. This will
+    # produce a guaranteed halo exchange of depth 1 for field f1.
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK1"
+
+    # check that loop colouring the first loop makes no difference to
+    # the halo exchange
+    w_loop = schedule.children[2]
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(w_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK2"
+
+    # check that loop colouring the first and second loops makes no
+    # difference to the halo exchange
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK3"
+
+    # check that loop colouring just the second loop makes no
+    # difference to the halo exchange
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK4"
+
+# check that loop following by coloured loop (and other orderings) with rc creates appropriate halo exchange depths - i.e. check HaloWriteAccess and HaloReadAccess classes in the presence of coloured loops.
+# write to l2 halo of a field in a coloured loop then read from the field.
+
+# now add in rc
+
+def test_XXXX():
+
+    pass
+    # make both the writer and reader loops use the full halo
+    #rc_trans = Dynamo0p3RedundantComputationTrans()
+    #rc_trans.apply(w_loop)
+
+    # Colour the loop
+    #w_loop = schedule.children[2]
+    #schedule, _ = ctrans.apply(w_loop)
+
+    #invoke.schedule = schedule
+
+    #gen = str(psy.gen)
+    #print gen
+    #exit(1)
+
+    #rc_trans.apply(r_loop)
+
+    #w_to_r_halo_exchange = schedule.children[4]
+
+
+
+# TODO: use HaloWriteAccess(field) object in set_clean logic????
+# TODO: dynamo0p3.py line 3869. What about stencil accesses?
+# can we loop fuse a coloured loop?
+# colouring for a discontinuous writer is not allowed?
+# colouring for iterating over dofs including dof_halo not allowed - surely there is a test for this?
+
