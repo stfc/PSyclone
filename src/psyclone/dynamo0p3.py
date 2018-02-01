@@ -3645,7 +3645,7 @@ class DynLoop(Loop):
         if name not in VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
                 "The specified lower bound loop name is invalid")
-        if name in ["inner", "cell_halo"] and index < 1:
+        if name in ["inner"] + HALO_ACCESS_LOOP_BOUNDS and index < 1:
             raise GenerationError(
                 "The specified index '{0}' for this lower loop bound is "
                 "invalid".format(str(index)))
@@ -3688,7 +3688,7 @@ class DynLoop(Loop):
     @property
     def upper_bound_halo_depth(self):
         '''Returns the index of the upper loop bound. This is None if the upper
-        bound name is not "cell_halo" or "dof_halo"
+        bound name is not in HALO_ACCESS_LOOP_BOUNDS
 
         :return: the depth of the halo for a loops upper bound. If it
         is None then a depth has not been provided. The depth value is only
