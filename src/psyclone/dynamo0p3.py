@@ -3030,6 +3030,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
+
         if not clean_info:
             # this halo exchange has no previous write dependencies so
             # we do not know the initial state of the halo. This means
@@ -3382,11 +3383,13 @@ class HaloWriteAccess(HaloDepth):
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
-        self._dirty_outer = (not field.discontinuous and
-                             loop.upper_bound_name == "cell_halo")
+        self._dirty_outer = (
+            not field.discontinuous and
+            loop.iteration_space == "cells" and
+            loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS)
         depth = 0
         max_depth = False
-        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+        if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
             # loop does redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
