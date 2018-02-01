@@ -9,6 +9,9 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
+from __future__ import absolute_import
+import os
+import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
@@ -16,9 +19,7 @@ from psyclone.transformations import TransformationError, \
     GOceanOMPParallelLoopTrans,\
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from psyclone.generator import GenerationError
-import os
 from utils import count_lines
-import pytest
 
 # The version of the PSyclone API that the tests in this file
 # exercise
