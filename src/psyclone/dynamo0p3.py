@@ -4064,10 +4064,8 @@ class DynLoop(Loop):
                 # first set all of the halo dirty unless we are
                 # subsequently going to set all of the halo clean
                 for field in fields:
-                    if not self._upper_bound_halo_depth and \
-                       (self._upper_bound_name == "dof_halo" or
-                        (self._upper_bound_name == "cell_halo" and
-                         field.discontinuous)):
+                    hwa = HaloWriteAccess(field)
+                    if hwa.max_depth and not hwa.dirty_outer:
                         # do not output set dirty as it will all be
                         # set to clean
                         pass
@@ -4086,66 +4084,60 @@ class DynLoop(Loop):
                                                "%set_dirty()"))
                 # now set appropriate parts of the halo clean where
                 # redundant computation has been performed
-                if self._upper_bound_name in ["cell_halo", "dof_halo",
-                                              "ncolours"]:
-                    for field in fields:
-                        loop = field.call.parent
-                        if loop.upper_bound_halo_depth:
-                            # halo exchange(s) is/are to a fixed depth
-                            halo_depth = loop.upper_bound_halo_depth
-                            if not field.discontinuous and \
-                               loop.upper_bound_name in ["cell_halo",
-                                                          "colour_halo"]:
-                                halo_depth -= 1
-                            if halo_depth > 0:
-                                if field.vector_size > 1:
-                                    # the range function below returns
-                                    # values from 1 to the vector size
-                                    # which is what we require in our
-                                    # Fortran code
-                                    for index in range(1, field.vector_size+1):
-                                        parent.add(
-                                            CallGen(parent,
-                                                    name="{0}({1})%set_clean"
-                                                    "({2})".format(
-                                                        field.proxy_name,
-                                                        str(index),
-                                                        halo_depth)))
-                                else:
-                                    parent.add(
-                                        CallGen(parent,
-                                                name="{0}%set_clean({1})".
-                                                format(field.proxy_name,
-                                                       halo_depth)))
-                        else:
-                            # halo exchange(s) is/are to the full halo
-                            # depth (-1 if continuous)
-                            halo_depth = "mesh%get_halo_depth()"
-                            if loop.upper_bound_name in \
-                               ["cell_halo", "colour_halo"] and not \
-                               field.discontinuous:
-                                # a continuous field iterating over
-                                # cells leaves the outermost halo
-                                # dirty
-                                halo_depth += "-1"
+                for field in fields:
+                    hwa = HaloWriteAccess(field)
+                    if hwa.literal_depth:
+                        # halo exchange(s) is/are to a fixed depth
+                        halo_depth = hwa.literal_depth
+                        if hwa.dirty_outer:
+                            halo_depth -= 1
+                        if halo_depth > 0:
                             if field.vector_size > 1:
                                 # the range function below returns
                                 # values from 1 to the vector size
                                 # which is what we require in our
                                 # Fortran code
                                 for index in range(1, field.vector_size+1):
-                                    call = CallGen(parent,
-                                                   name="{0}({1})%set_clean("
-                                                   "{2})".format(
-                                                       field.proxy_name,
-                                                       str(index),
-                                                       halo_depth))
-                                    parent.add(call)
+                                    parent.add(
+                                        CallGen(parent,
+                                                name="{0}({1})%set_clean"
+                                                "({2})".format(
+                                                    field.proxy_name,
+                                                    str(index),
+                                                    halo_depth)))
                             else:
-                                call = CallGen(parent, name="{0}%set_clean("
-                                               "{1})".format(field.proxy_name,
-                                                             halo_depth))
+                                parent.add(
+                                    CallGen(parent,
+                                            name="{0}%set_clean({1})".
+                                            format(field.proxy_name,
+                                                   halo_depth)))
+                    elif hwa.max_depth:
+                        # halo exchange(s) is/are to the full halo
+                        # depth (-1 if continuous)
+                        halo_depth = "mesh%get_halo_depth()"
+                        if hwa.dirty_outer:
+                            # a continuous field iterating over
+                            # cells leaves the outermost halo
+                            # dirty
+                            halo_depth += "-1"
+                        if field.vector_size > 1:
+                            # the range function below returns
+                            # values from 1 to the vector size
+                            # which is what we require in our
+                            # Fortran code
+                            for index in range(1, field.vector_size+1):
+                                call = CallGen(parent,
+                                               name="{0}({1})%set_clean("
+                                               "{2})".format(
+                                                   field.proxy_name,
+                                                   str(index),
+                                                   halo_depth))
                                 parent.add(call)
+                        else:
+                            call = CallGen(parent, name="{0}%set_clean("
+                                           "{1})".format(field.proxy_name,
+                                                         halo_depth))
+                            parent.add(call)
 
                 if use_omp_master:
                     # I am within an OpenMP Do directive so protect
