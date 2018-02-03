@@ -5440,17 +5440,18 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_haloex_colouring():
+def test_haloex_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between
     loops works when we colour the loops'''
 
     def check_halo_exchange(halo_exchange):
-        '''internal method to check the validity of the halo exchange'''
+        '''internal method to check the validity of a particular halo
+        exchange'''
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
         assert halo_exchange._compute_halo_depth() == "1"
-        assert halo_exchange.required
+        assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
@@ -5501,6 +5502,11 @@ def test_haloex_colouring():
     check_halo_exchange(halo_exchange)
     print "OK3"
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     # check that loop colouring just the second loop makes no
     # difference to the halo exchange
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -5513,37 +5519,409 @@ def test_haloex_colouring():
     check_halo_exchange(halo_exchange)
     print "OK4"
 
-# check that loop following by coloured loop (and other orderings) with rc creates appropriate halo exchange depths - i.e. check HaloWriteAccess and HaloReadAccess classes in the presence of coloured loops.
-# write to l2 halo of a field in a coloured loop then read from the field.
-
-# now add in rc
-
-def test_XXXX():
-
-    pass
-    # make both the writer and reader loops use the full halo
-    #rc_trans = Dynamo0p3RedundantComputationTrans()
-    #rc_trans.apply(w_loop)
-
-    # Colour the loop
-    #w_loop = schedule.children[2]
-    #schedule, _ = ctrans.apply(w_loop)
-
-    #invoke.schedule = schedule
-
-    #gen = str(psy.gen)
-    #print gen
-    #exit(1)
-
-    #rc_trans.apply(r_loop)
-
-    #w_to_r_halo_exchange = schedule.children[4]
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
+def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    the maximum depth for the reader. We first check the halo exchange
+    properties are correct with no colouring then apply colouring to
+    the first loop, then the second and finally both. In each case we
+    check that the halo exchange properties do not change. We expect
+    to see a definite (no runtime check) halo exchange to the maximum
+    halo depth.'''
 
-# TODO: use HaloWriteAccess(field) object in set_clean logic????
+    def check_halo_exchange(halo_exchange):
+        '''internal method to check the validity of a particular halo
+        exchange'''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "mesh%get_halo_depth()"
+        assert halo_exchange.required
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert not write_access.max_depth
+        assert write_access.literal_depth == 1
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert not depth_info.literal_depth
+        assert depth_info.max_depth
+        assert not depth_info.var_depth
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+    # start with a loop which modifies the continuous field f1
+    # followed by a loop which modifies the continuous field f3 to the
+    # maximum depth and reads field f1. This will produce a guaranteed
+    # halo exchange of maximum depth for field f1.
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    r_loop = schedule.children[5]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK1"
+
+    # check that loop colouring the first loop makes no difference to
+    # the halo exchange
+    w_loop = schedule.children[2]
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(w_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK2"
+
+    # check that loop colouring the first and second loops makes no
+    # difference to the halo exchange
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK3"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+    # check that loop colouring just the second loop makes no
+    # difference to the halo exchange
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    r_loop = schedule.children[5]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(r_loop)
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK4"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    the maximum depth for the writer. We first check the halo exchange
+    properties are correct with no colouring then apply colouring to
+    the first loop, then the second and finally both. In each case we
+    check that the halo exchange properties do not change. We expect
+    to see a potential (runtime check) halo exchange of depth 1.'''
+
+    def check_halo_exchange(halo_exchange):
+        '''internal method to check the validity of a particular halo
+        exchange'''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange.required() == (True, False)
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert write_access.max_depth
+        assert not write_access.literal_depth
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert depth_info.literal_depth == 1
+        assert not depth_info.max_depth
+        assert not depth_info.var_depth
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+    # start with a loop which modifies the continuous field f1 to the
+    # maximum depth followed by a loop which modifies the continuous
+    # field f3 and reads field f1. This will produce a guaranteed halo
+    # exchange of maximum depth for field f1.
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    w_loop = schedule.children[2]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(w_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK1"
+
+    # check that loop colouring the first loop makes no difference to
+    # the halo exchange
+    w_loop = schedule.children[2]
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(w_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK2"
+
+    # check that loop colouring the first and second loops makes no
+    # difference to the halo exchange
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK3"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+    # check that loop colouring just the second loop makes no
+    # difference to the halo exchange
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    w_loop = schedule.children[2]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(w_loop)
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK4"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    the maximum depth for the writer and the reader. We first check
+    the halo exchange properties are correct with no colouring then
+    apply colouring to the first loop, then the second and finally
+    both. In each case we check that the halo exchange properties do
+    not change. We expect to see a definite (no runtime check) halo
+    exchange to the maximum halo depth. We could halo exchange only
+    the outermost halo depth but the LFRic API does not currently
+    support this option.'''
+
+    def check_halo_exchange(halo_exchange):
+        '''internal method to check the validity of a particular halo
+        exchange'''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "mesh%get_halo_depth()"
+        assert halo_exchange.required() == (True, True)
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert write_access.max_depth
+        assert not write_access.literal_depth
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert not depth_info.literal_depth
+        assert depth_info.max_depth
+        assert not depth_info.var_depth
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+    # start with a loop which modifies the continuous field f1 to the
+    # maximum depth followed by a loop which modifies the continuous
+    # field f3 to the maximum depth and reads field f1. This will
+    # produce a guaranteed halo exchange of maximum depth for field
+    # f1.
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    w_loop = schedule.children[2]
+    r_loop = schedule.children[5]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(w_loop)
+    schedule, _ = rc_trans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK1"
+
+    # check that loop colouring the first loop makes no difference to
+    # the halo exchange
+    w_loop = schedule.children[2]
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(w_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK2"
+
+    # check that loop colouring the first and second loops makes no
+    # difference to the halo exchange
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK3"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+    # check that loop colouring just the second loop makes no
+    # difference to the halo exchange
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    w_loop = schedule.children[2]
+    r_loop = schedule.children[5]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(w_loop)
+    schedule, _ = rc_trans.apply(r_loop)
+    r_loop = schedule.children[5]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    halo_exchange = schedule.children[4]
+    check_halo_exchange(halo_exchange)
+    print "OK4"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    depth 2 for the writer. We first check a halo exchange is not
+    generated. We then apply colouring to the first loop, then the
+    second and finally both. In each case we check that a halo
+    exchange is not generated.'''
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    # at the start we have two halo exchange calls for f1, one before
+    # the first loop and one between the twp loops
+    assert result.count("f1_proxy%halo_exchange(") == 2
+    
+    # start with a loop which modifies the continuous field f1 to
+    # depth=2 followed by a loop which modifies the continuous field
+    # f3 and reads field f1. This will not produce a halo exchange
+    # between the two loops for field f1. We will therefore only have
+    # one halo exchange for field f1 (before the first loop).
+
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    w_loop = schedule.children[2]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(w_loop, depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("f1_proxy%halo_exchange(") == 1
+    print "OK1"
+
+    # check that loop colouring the first loop makes no difference to
+    # the halo exchange
+    w_loop = schedule.children[2]
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(w_loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("f1_proxy%halo_exchange(") == 1
+    print "OK2"
+
+    # check that loop colouring the first and second loops makes no
+    # difference to the halo exchange
+    r_loop = schedule.children[4]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("f1_proxy%halo_exchange(") == 1
+    print "OK3"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+    # check that loop colouring just the second loop makes no
+    # difference to the halo exchange
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    w_loop = schedule.children[2]
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(w_loop, depth=2)
+    # we have removed a halo exchange so the reader loop is one
+    # earlier in the schedule
+    r_loop = schedule.children[4]
+    schedule, _ = ctrans.apply(r_loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("f1_proxy%halo_exchange(") == 1
+    print "OK4"
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
 # TODO: dynamo0p3.py line 3869. What about stencil accesses?
 # can we loop fuse a coloured loop?
-# colouring for a discontinuous writer is not allowed?
-# colouring for iterating over dofs including dof_halo not allowed - surely there is a test for this?
-
