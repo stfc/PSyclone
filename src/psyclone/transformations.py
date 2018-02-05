@@ -84,7 +84,23 @@ class LoopFuseTrans(Transformation):
         return "LoopFuse"
 
     def _validate(self, node1, node2):
-        ''' validity checks for input arguments '''
+        '''Perform various checks to ensure that it is valid to apply the
+        LoopFuseTrans transformation to the supplied nodes
+
+        :param node1: the first node we are checking
+        :type node1: :py:class:`psyclone.psyGen.Node`
+        :param node2: the second node we are checking
+        :type node2: :py:class:`psyclone.psyGen.Node`
+        :raises TransformationError: if one or both of the nodes is/are not a 
+        :py:class:`psyclone.psyGen.Loop`
+        :raises TransformationError: if the nodes do not have the same parent
+        :raises TransformationError: if the nodes are not next to each
+        other in the tree
+        :raises TransformationError: if the
+        :py:class:`psyclone.psyGen.Loop`s do not have the same
+        iteration space
+
+        '''
         # Check that the supplied Node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
@@ -390,6 +406,17 @@ class OMPLoopTrans(Transformation):
         reproducible in this case means obtaining the same results
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
+
+        :param node: the supplied node to which we will apply the
+        OMPLoopTrans transformation
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param reprod: optional argument to determine whether to
+        generate reproducible OpenMP reductions (True) or not
+        (False). The default value is None which will cause PSyclone
+        to look up a default value
+        :type reprod: Boolean, or None
+        :return: (:py:class:`psyclone.psyGen.Schedule`,
+        :py:class:`psyclone.undoredo.Memento`)
 
         '''
 

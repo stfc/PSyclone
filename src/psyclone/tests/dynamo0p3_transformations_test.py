@@ -4983,8 +4983,9 @@ def test_rc_wrong_parent(monkeypatch):
 def test_rc_parent_loop_colour(monkeypatch):
     '''If the parent of the loop supplied to the redundant computation
     transformation is a loop then the supplied loop should iterate
-    over 'colour'. If this is not the case then an exception is
-    raised. This test checks that the exception is raised correctly
+    over cells of a given colour. If this is not the case then an
+    exception is raised. This test checks that the exception is raised
+    correctly
 
     '''
     _, invoke_info = parse(os.path.join(

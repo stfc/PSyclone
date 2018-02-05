@@ -89,65 +89,36 @@ contains
     return
   end function columnwise_constructor
 
-  !> @brief The subroutine which is called directly from the PSY layer and
-  !> assembles the LMA into a CMA
-  !> @detail Given an LMA representation of the operator mapping between two
-  !> horizontally discontinuous spaces, assemble the columnwise matrix
-  !> representation of the operator.
-  !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] nlayers number of vertical layers
-  !> @param [in] ncell_3d total number of cells
-  !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [in] field example field argument
-  !> @param [in] local_stencil locally assembled matrix
-  !> @param [out] columnwise_matrix banded matrix to assemble into
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] ndf No. of dofs per cell for the F-S that the field is on
-  !> @param [in] dofmap_field Dofmap for the field
-  !> @param [in] ndf_lma_from number of degrees of freedom per cell for the from-sp
-  !> @param [in] column_banded_dofmap_to list of offsets for to-space
-  !> @param [in] column_banded_dofmap_from list of offsets for from-space
-  subroutine columnwise_op_asm_field_kernel_code(cell,              &
-                                            nlayers,           &
-                                            ncell_2d,          &
-                                            field,             &
-                                            ncell_3d,          &
-                                            local_stencil,     &
-                                            columnwise_matrix, &
-                                            nrow,              &
-                                            ncol,              &
-                                            bandwidth,         &
-                                            alpha,             &
-                                            beta,              &
-                                            gamma_m,           &
-                                            gamma_p,           &
-                                            undf, ndf,         & ! any_space_1
-                                            dofmap_field,      &
-                                            column_banded_dofmap_to, &
-                                            ndf_lma_from,      & ! any_space_2
-                                            column_banded_dofmap_from)
-
-    implicit none
-    
-    ! Arguments
-    integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_2d, ncell_3d
-    integer(kind=i_def), intent(in) :: ndf_lma_from
-    integer(kind=i_def), intent(in) :: undf, ndf
-    real(kind=r_def), dimension(undf), intent(in) :: field
-    real(kind=r_def), dimension(:,:,:), intent(in) :: local_stencil
-    integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    real(kind=r_def), dimension(:,:,:), intent(out) :: columnwise_matrix
-    integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(:), intent(in) :: dofmap_field
-    integer(kind=i_def), dimension(:,:), intent(in) :: column_banded_dofmap_to
-    integer(kind=i_def), dimension(:,:), intent(in) :: column_banded_dofmap_from
+  SUBROUTINE columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, &
+       field_1_any_space_1_field_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, &
+       cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, &
+       cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_any_space_1_field_1, &
+       undf_any_space_1_field_1, map_any_space_1_field_1, &
+       cbanded_map_any_space_1_field_1, ndf_any_space_2_op_2, &
+       cbanded_map_any_space_2_op_2)
+      USE constants_mod, ONLY: r_def
+      IMPLICIT NONE
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: ncell_2d
+      INTEGER, intent(in) :: ndf_any_space_1_field_1
+      INTEGER, intent(in) :: undf_any_space_1_field_1
+      INTEGER, intent(in) :: ndf_any_space_2_op_2
+      REAL(KIND=r_def), intent(in), &
+           dimension(undf_any_space_1_field_1) :: field_1_any_space_1_field_1
+      INTEGER, intent(in) :: op_2_ncell_3d
+      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_field_1, &
+           ndf_any_space_2_op_2,op_2_ncell_3d) :: op_2
+      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, &
+           cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p
+      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth, &
+           cma_op_3_nrow,ncell_2d) :: cma_op_3
+      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: &
+           map_any_space_1_field_1
+      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,nlayers) :: &
+           cbanded_map_any_space_1_field_1
+      INTEGER, intent(in), dimension(ndf_any_space_2_op_2,nlayers) :: &
+           cbanded_map_any_space_2_op_2
 
     write (*,*) "Hello CMA World"
 

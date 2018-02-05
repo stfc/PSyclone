@@ -619,7 +619,7 @@ contains
     class(mesh_type), intent(in), target      :: self
     integer(i_def), pointer                   :: colour_map(:,:)
 
-    colour_map => self%cells_in_colour
+    colour_map => null()
 
   end function get_colour_map
 

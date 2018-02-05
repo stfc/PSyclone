@@ -67,8 +67,6 @@ module operator_mod
   end type columnwise_operator_type
 
   type, extends(base_operator_type) ::  columnwise_operator_proxy_type
-     !type( function_space_type ), pointer :: fs_to
-     !type( function_space_type ), pointer :: fs_from
      integer(i_def) :: alpha
      integer(i_def) :: beta
      integer(i_def) :: gamma_m, gamma_p
