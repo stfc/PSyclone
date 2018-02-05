@@ -129,7 +129,11 @@ module mesh_mod
     procedure, public :: get_last_edge_cell
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
-    procedure, public :: get_last_halo_cell
+    procedure, public :: get_last_halo_cell_any
+    procedure, public :: get_last_halo_cell_deepest
+    generic           :: get_last_halo_cell => &
+                            get_last_halo_cell_any, &
+                            get_last_halo_cell_deepest
 
     procedure, public :: get_last_halo_cell_per_colour_any
     procedure, public :: get_last_halo_cell_per_colour_deepest
@@ -504,7 +508,7 @@ contains
     halo_cells = 0
   end function get_num_cells_halo
 
-  function get_last_halo_cell( self, depth ) result ( last_halo_cell )
+  function get_last_halo_cell_any( self, depth ) result ( last_halo_cell )
     implicit none
 
     class(mesh_type), intent(in) :: self
@@ -513,7 +517,17 @@ contains
     integer(i_def)             :: last_halo_cell
 
     last_halo_cell = 0
-  end function get_last_halo_cell
+  end function get_last_halo_cell_any
+
+
+  function get_last_halo_cell_deepest( self ) result ( last_halo_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def)             :: last_halo_cell
+    last_halo_cell = 0
+  end function get_last_halo_cell_deepest
 
   function get_last_halo_cell_per_colour_any( self, colour, depth ) &
                                         result ( ncells_colour )

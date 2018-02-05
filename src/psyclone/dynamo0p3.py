@@ -2715,13 +2715,18 @@ class DynInvoke(Invoke):
             declns = ["cmap(:,:)"]
             if not config.DISTRIBUTED_MEMORY:
                 # Declare the array holding the no. of cells of each
-                # colour
+                # colour. For distributed memory this variable is not
+                # used, as a function is called to determine the upper
+                # bound in a loop
                 declns.append("ncp_colour(:)")
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    pointer=True,
                                    entity_decls=declns))
             if not config.DISTRIBUTED_MEMORY:
-                # Declaration of variable to hold the number of colours
+                # Declaration of variable to hold the number of
+                # colours. For distributed memory this variable is not
+                # used, as a function is called to determine loop
+                # colour information
                 invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                        entity_decls=["ncolour"]))
 
@@ -3747,6 +3752,9 @@ class DynLoop(Loop):
 
         if self._upper_bound_name == "ncolours":
             if config.DISTRIBUTED_MEMORY:
+                # Extract the value in-place rather than extracting to
+                # a variable first. This is the way the manual
+                # reference examples were implemented so I copied these
                 mesh_obj_name = self._name_space_manager.create_name(
                     root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_ncolours()".format(mesh_obj_name)
@@ -3755,10 +3763,21 @@ class DynLoop(Loop):
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
         elif self._upper_bound_name == "colour_halo":
+            # the LFRic API used here allows for colouring with
+            # redundant computation. This API is now used when
+            # ditributed memory is switched on (the default for
+            # LFRic). THe original API (see previous elif) is now only
+            # used when distributed memory is switched off.
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             append = ""
             if halo_index:
+                # The colouring API support an additional optional
+                # argument which specifies the depth of the halo to
+                # which the coloured loop computes. If no argument is
+                # supplied it is assumed that the coloured loop
+                # computes to the full depth of the halo (whatever that
+                # may be).
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
                     "{1})".format(mesh_obj_name, append))
@@ -4064,6 +4083,9 @@ class DynLoop(Loop):
                 # first set all of the halo dirty unless we are
                 # subsequently going to set all of the halo clean
                 for field in fields:
+                    # The HaloWriteAccess class provides information
+                    # about how the supplied field is accessed within
+                    # its parent loop
                     hwa = HaloWriteAccess(field)
                     if hwa.max_depth and not hwa.dirty_outer:
                         # do not output set dirty as it will all be
@@ -4085,9 +4107,12 @@ class DynLoop(Loop):
                 # now set appropriate parts of the halo clean where
                 # redundant computation has been performed
                 for field in fields:
+                    # The HaloWriteAccess class provides information
+                    # about how the supplied field is accessed within
+                    # its parent loop
                     hwa = HaloWriteAccess(field)
                     if hwa.literal_depth:
-                        # halo exchange(s) is/are to a fixed depth
+                        # halo access(es) is/are to a fixed depth
                         halo_depth = hwa.literal_depth
                         if hwa.dirty_outer:
                             halo_depth -= 1
@@ -4112,7 +4137,7 @@ class DynLoop(Loop):
                                             format(field.proxy_name,
                                                    halo_depth)))
                     elif hwa.max_depth:
-                        # halo exchange(s) is/are to the full halo
+                        # halo accesses(s) is/are to the full halo
                         # depth (-1 if continuous)
                         halo_depth = "mesh%get_halo_depth()"
                         if hwa.dirty_outer:
@@ -4516,6 +4541,10 @@ class DynKern(Kern):
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             if config.DISTRIBUTED_MEMORY:
+                # the LFRic colouring API for ditributed memory
+                # differs from the API without distributed
+                # memory. This is to support and control redundant
+                # computation with coloured loops.
                 new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
                                          rhs=mesh_obj_name +
                                          "%get_colour_map()"),
