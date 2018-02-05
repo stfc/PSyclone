@@ -1324,8 +1324,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         if node.loop_type not in ["", "dofs", "colour"]:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
-                "method the loop must iterate over cells, dofs or colour, "
-                "but found '{0}'".format(node.loop_type))
+                "method the loop must iterate over cells, dofs or cells of "
+                "a given colour, but found '{0}'".format(node.loop_type))
 
         if depth is None:
             if node.upper_bound_name in ["cell_halo", "dof_halo",

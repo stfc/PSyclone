@@ -623,7 +623,7 @@ def test_check_seq_colours_omp_parallel_do():  # pylint: disable=invalid-name
         assert "must be computed serially" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_do():
+def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
     be sequential). We test when distributed memory is on or off '''
@@ -654,6 +654,12 @@ def test_check_seq_colours_omp_do():
         assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
         assert "target loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test) This test checks the code without OpenMP as
+            # this transformation fails
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colouring_after_openmp():
@@ -1098,7 +1104,7 @@ def test_loop_fuse_omp():
         assert omp_endpara_idx - cell_enddo_idx == 1
 
 
-def test_fuse_colour_loops():
+def test_fuse_colour_loops(tmpdir, f90, f90flags):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
     both sequential and distributed-memory code '''
@@ -1223,6 +1229,12 @@ def test_fuse_colour_loops():
             assert set_dirty_str in code
             assert code.count("set_dirty()") == 2
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
 
 def test_loop_fuse_cma():
     ''' Test that we can loop fuse two loops when one contains a
@@ -1339,7 +1351,7 @@ def test_module_inline():
         schedule, _ = inline_trans.apply(kern_call)
         gen = str(psy.gen)
         # check that the subroutine has been inlined
-        assert 'SUBROUTINE ru_code()' in gen
+        assert 'SUBROUTINE ru_code(' in gen
         # check that the associated psy "use" does not exist
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
@@ -3764,8 +3776,8 @@ def test_rc_invalid_loop(monkeypatch):  # pylint: disable=invalid-name
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply "
-            "method the loop must iterate over cells, dofs or colour, but "
-            "found 'colours'") in str(excinfo)
+            "method the loop must iterate over cells, dofs or cells of a "
+            "given colour, but found 'colours'") in str(excinfo)
 
 
 def test_rc_nodm():

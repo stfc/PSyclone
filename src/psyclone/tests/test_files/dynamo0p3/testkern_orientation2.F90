@@ -30,9 +30,12 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-module testkern_orientation2_mod
+module testkern_orientation2
+  use argument_mod
+  use kernel_mod
+  use constants_mod
   type, public, extends(kernel_type) :: testkern_orientation2_type
     private
     type(arg_type) :: meta_args(3) = (/                                  &
@@ -46,11 +49,41 @@ module testkern_orientation2_mod
          func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
          /)
     integer :: iterates_over = CELLS
-    integer, parameter :: gh_shape = gh_quadrature_XYoZ
+    integer :: gh_shape = gh_quadrature_XYoZ
   contains
-    procedure() :: code => testkern_orientation2_code
+    procedure, nopass :: code => testkern_orientation2_code
   end type testkern_orientation2_type
 contains
-  subroutine testkern_orientation2_code()
+  subroutine testkern_orientation2_code(nlayers, field_1_w1, field_2_w2,   &
+       field_3_w0_v1, field_3_w0_v2, field_3_w0_v3, ndf_w1, undf_w1,       &
+       map_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, &
+       orientation_w2, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0,   &
+       np_xy, np_z, weights_xy, weights_z)
+      USE constants_mod, ONLY: r_def
+      IMPLICIT NONE
+      INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: ndf_w1
+      INTEGER, intent(in) :: undf_w1
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: field_1_w1
+      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_2_w2
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0_v1
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0_v2
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0_v3
+      INTEGER, intent(in), dimension(ndf_w1) :: map_w1
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) :: basis_w1
+      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,np_xy,np_z) :: diff_basis_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) :: basis_w0
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,np_xy,np_z) :: diff_basis_w0
+      INTEGER, intent(in) :: np_xy, np_z
+      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy
+      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z
   end subroutine testkern_orientation2_code
-end module testkern_orientation2_mod
+end module testkern_orientation2
