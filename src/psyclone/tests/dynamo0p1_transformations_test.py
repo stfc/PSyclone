@@ -8,10 +8,11 @@
 
 ''' Contains tests for transformations on the Dynamo 0.1 API '''
 
+from __future__ import absolute_import
+import os
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import OMPParallelTrans
-import os
 
 TEST_API = "dynamo0.1"
 

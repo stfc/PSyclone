@@ -8,6 +8,7 @@
 
 ''' Tests for the f2pygen module of PSyclone '''
 
+from __future__ import absolute_import
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     ImplicitNoneGen, UseGen, DirectiveGen, AssignGen

@@ -9,10 +9,11 @@
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
+from __future__ import absolute_import
+import os
+import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
-import pytest
-import os
 from psyclone.generator import GenerationError, ParseError
 
 API = "gocean1.0"
@@ -1152,4 +1153,4 @@ def test14_no_builtins():
     from psyclone.gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
-    assert ("Built-ins are not supported for the GOcean" in str(excinfo.value))
+    assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
