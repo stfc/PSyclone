@@ -1105,7 +1105,6 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
     both sequential and distributed-memory code '''
-    # pylint: disable=too-many-branches,too-many-statements
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1231,7 +1230,6 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags):
             # If compilation testing has been enabled (--compile flag
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-
 
 
 def test_loop_fuse_cma():
@@ -3826,8 +3824,8 @@ def test_rc_invalid_depth_continuous():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=1)
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the supplied depth must be greater than 1 as this loop modifies "
-            "a continuous field") in str(excinfo)
+            "the supplied depth (1) must be greater than the existing halo "
+            "depth (1)") in str(excinfo)
 
 
 def test_rc_continuous_depth():
@@ -4534,7 +4532,7 @@ def test_rc_no_loop_decrease():
             "transformation does nothing") in str(excinfo)
 
 
-def test_rc_no_directive():
+def test_rc_no_directive_2():
     '''Test that we raise an exception if we try to use the redundant
     computation transformation after adding parallel directives (or in
     general anything that becomes a parent of the loop). This is a
@@ -4972,7 +4970,7 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     assert known
 
 
-def test_rc_no_directive():
+def test_rc_no_directive_1():
     '''When the redundant computation transformation is given a Loop whose
     parent is a directive an exception is raised as this is not
     supported (redundant computation transformations must be applied
@@ -5152,7 +5150,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
 
 
-def test_rc_colour_no_loop_decrease():  # pylint: disable=invalid-name
+def test_rc_colour_no_loop_decrease():
     '''Test that we raise an exception if we try to reduce the size of a
     loop halo depth when using the redundant computation
     transformation. This is not allowed partly for simplicity but also
@@ -5500,6 +5498,7 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between
     loops works when we colour the loops'''
 
+    # pylint: disable=too-many-statements
     def check_halo_exchange(halo_exchange):
         '''internal method to check the validity of a particular halo
         exchange'''
@@ -5580,6 +5579,8 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
+    # pylint: enable=too-many-statements
+
 
 def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -5591,6 +5592,7 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
     to see a definite (no runtime check) halo exchange to the maximum
     halo depth.'''
 
+    # pylint: disable=too-many-statements
     def check_halo_exchange(halo_exchange):
         '''internal method to check the validity of a particular halo
         exchange'''
@@ -5683,6 +5685,8 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
+    # pylint: enable=too-many-statements
+
 
 def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -5693,6 +5697,7 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
     check that the halo exchange properties do not change. We expect
     to see a potential (runtime check) halo exchange of depth 1.'''
 
+    # pylint: disable=too-many-statements
     def check_halo_exchange(halo_exchange):
         '''internal method to check the validity of a particular halo
         exchange'''
@@ -5785,6 +5790,8 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
+    # pylint: enable=too-many-statements
+
 
 def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -5798,6 +5805,7 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
     the outermost halo depth but the LFRic API does not currently
     support this option.'''
 
+    # pylint: disable=too-many-statements
     def check_halo_exchange(halo_exchange):
         '''internal method to check the validity of a particular halo
         exchange'''
@@ -5895,6 +5903,8 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         # to py.test)
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
+    # pylint: enable=too-many-statements
+
 
 def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -5911,7 +5921,7 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
     # at the start we have two halo exchange calls for f1, one before
     # the first loop and one between the twp loops
     assert result.count("f1_proxy%halo_exchange(") == 2
-    
+
     # start with a loop which modifies the continuous field f1 to
     # depth=2 followed by a loop which modifies the continuous field
     # f3 and reads field f1. This will not produce a halo exchange

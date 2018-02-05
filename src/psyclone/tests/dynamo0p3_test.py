@@ -2704,6 +2704,7 @@ def test_kernel_datatype_not_found():
                  api="dynamo0.3")
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
+
 SIMPLE = (
     "  MODULE simple_mod\n"
     "    IMPLICIT NONE\n"
@@ -2737,6 +2738,7 @@ def test_stub_generate_working_noapi():
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
     print result
     assert str(result).find(SIMPLE) != -1
+
 
 SIMPLE_WITH_SCALARS = (
     "  MODULE simple_with_scalars_mod\n"
@@ -2866,6 +2868,7 @@ def test_intent():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
 # fields : spaces
 SPACES = '''
 module dummy_mod
@@ -2950,6 +2953,7 @@ def test_spaces():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
 
 # fields : vectors
 VECTORS = '''
@@ -3133,8 +3137,8 @@ def test_stub_operator_different_spaces():
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
     assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
 
-# orientation : spaces
 
+# orientation : spaces
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
@@ -3255,9 +3259,11 @@ def test_enforce_op_bc_kernel_stub_gen():
     print generated_code
     assert output in generated_code
 
+
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
 # fields : intent
+
 
 SUB_NAME = '''
 module dummy_mod
@@ -3446,6 +3452,7 @@ def test_stub_stencil_multi():
         "field_4_stencil_map")
 
     assert result2 in generated_code
+
 
 STENCIL_CODE = '''
 module stencil_mod

@@ -3035,7 +3035,6 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-
         if not clean_info:
             # this halo exchange has no previous write dependencies so
             # we do not know the initial state of the halo. This means

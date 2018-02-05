@@ -91,7 +91,7 @@ class LoopFuseTrans(Transformation):
         :type node1: :py:class:`psyclone.psyGen.Node`
         :param node2: the second node we are checking
         :type node2: :py:class:`psyclone.psyGen.Node`
-        :raises TransformationError: if one or both of the nodes is/are not a 
+        :raises TransformationError: if one or both of the nodes is/are not a
         :py:class:`psyclone.psyGen.Loop`
         :raises TransformationError: if the nodes do not have the same parent
         :raises TransformationError: if the nodes are not next to each
