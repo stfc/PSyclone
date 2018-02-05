@@ -37,11 +37,8 @@
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
 
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
-# pylint: disable=protected-access
 
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.parse import parse, ParseError
@@ -76,7 +73,7 @@ def test_get_builtin_defs_wrong_api():
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_wrong_api():  # pylint: disable=invalid-name
+def test_kerneltypefactory_wrong_api():
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
     from psyclone.parse import KernelTypeFactory
@@ -85,7 +82,7 @@ def test_kerneltypefactory_wrong_api():  # pylint: disable=invalid-name
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_default_api():  # pylint: disable=invalid-name
+def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
@@ -94,7 +91,7 @@ def test_kerneltypefactory_default_api():  # pylint: disable=invalid-name
     assert factory._type == DEFAULTAPI
 
 
-def test_kerntypefactory_create_broken_type():  # pylint: disable=invalid-name
+def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
     from psyclone.parse import KernelTypeFactory
@@ -235,7 +232,7 @@ def test_duplicate_named_invoke():
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
 
 
-def test_duplicate_named_invoke_case():  # pylint: disable=invalid-name
+def test_duplicate_named_invoke_case():
     ''' Test that we raise the expected error when an algorithm file
     contains two invokes that are given the same name but with different
     case '''

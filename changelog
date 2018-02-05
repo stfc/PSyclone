@@ -13,6 +13,10 @@
 
         5) #112 and PR #113 - add travis support for codecov coverage tool
 
+	6) #118 and PR #122 - add .pylintrc file in tests directory
+	to disable some warnings that we don't care about (for testing
+	code).
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not
