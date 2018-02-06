@@ -33,17 +33,26 @@
 ! Author R. Ford STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_fs
+module testkern_fs_mod
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
-  implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
+  type, extends(kernel_type) :: testkern_fs_type
+     type(arg_type), dimension(8) :: meta_args =   &
+          (/ arg_type(gh_field, gh_write, w1),     &
+             arg_type(gh_field, gh_read,  w2),     &
+             arg_type(gh_field, gh_read,  w2),     &
+             arg_type(gh_field, gh_read,  w3),     &
+             arg_type(gh_field, gh_write, wtheta), &
+             arg_type(gh_field, gh_read,  w2h),    &
+             arg_type(gh_field, gh_read,  w2v),    &
+             arg_type(gh_field, gh_read,  any_w2)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_fs_code
+  end type testkern_fs_type
+contains
 
-  call invoke(                                           &
-       testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4)  &
-          )
+  subroutine testkern_fs_code()
+  end subroutine testkern_fs_code
 
-end program single_invoke_fs
+end module testkern_fs_mod

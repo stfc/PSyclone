@@ -46,9 +46,10 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
-    DynGlobalSum, HaloReadAccess
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
+    DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
+    VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
+    DISCONTINUOUS_FUNCTION_SPACES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 import fparser
@@ -816,7 +817,7 @@ def test_field_fs():
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
         "m3, m4)\n"
-        "      USE testkern_fs, ONLY: testkern_code\n"
+        "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f3\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
@@ -925,7 +926,7 @@ def test_field_fs():
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
         "m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, "
@@ -939,6 +940,7 @@ def test_field_fs():
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
@@ -2704,6 +2706,7 @@ def test_kernel_datatype_not_found():
                  api="dynamo0.3")
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
+
 SIMPLE = (
     "  MODULE simple_mod\n"
     "    IMPLICIT NONE\n"
@@ -2737,6 +2740,7 @@ def test_stub_generate_working_noapi():
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
     print result
     assert str(result).find(SIMPLE) != -1
+
 
 SIMPLE_WITH_SCALARS = (
     "  MODULE simple_with_scalars_mod\n"
@@ -2866,6 +2870,7 @@ def test_intent():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
 # fields : spaces
 SPACES = '''
 module dummy_mod
@@ -2950,6 +2955,7 @@ def test_spaces():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
 
 # fields : vectors
 VECTORS = '''
@@ -3135,6 +3141,7 @@ def test_stub_operator_different_spaces():
 
 # orientation : spaces
 
+
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
@@ -3258,6 +3265,7 @@ def test_enforce_op_bc_kernel_stub_gen():
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
 # fields : intent
+
 
 SUB_NAME = '''
 module dummy_mod
@@ -3446,6 +3454,7 @@ def test_stub_stencil_multi():
         "field_4_stencil_map")
 
     assert result2 in generated_code
+
 
 STENCIL_CODE = '''
 module stencil_mod
@@ -4322,18 +4331,20 @@ def test_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-def test_w3_and_inc_error():
-    '''test that an error is raised if w3 and gh_inc are provided for the
-    same field in the metadata '''
+def test_fs_discontinuous_and_inc_error():
+    ''' Test that an error is raised if a discontinuous function space
+    and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field,gh_read, w3)",
-                        "arg_type(gh_field,gh_inc, w3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="testkern_qr_type")
-    assert (
-        "It does not make sense for a quantity on a discontinuous space "
-        "(w3) to have a 'gh_inc' access" in str(excinfo.value))
+    for fsname in DISCONTINUOUS_FUNCTION_SPACES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w3)",
+                            "arg_type(gh_field,gh_inc, "
+                            + fsname + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("It does not make sense for a quantity on a discontinuous "
+                "space (" + fsname + ") to have a 'gh_inc' access"
+                in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
@@ -5889,7 +5900,7 @@ def test_dynloop_load_unexpected_func_space():
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v', "
+            "one of ['w3', 'wtheta', 'w2v', 'w0', 'w1', 'w2', 'w2h', "
             "'any_w2'] but found 'broken'" in str(err))
 
 
