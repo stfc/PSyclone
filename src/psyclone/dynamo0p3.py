@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
@@ -45,10 +46,10 @@ import os
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
+from psyclone import psyGen, config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
-from psyclone import psyGen, config
 
 # first section : Parser specialisations and classes
 
@@ -549,12 +550,12 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
-        # Reduction access descriptors are only valid for scalar arguments
-        if self._type not in VALID_SCALAR_NAMES and \
+        # Reduction access descriptors are only valid for real scalar arguments
+        if self._type != "gh_real" and \
            self._access_descriptor.name in VALID_REDUCTION_NAMES:
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
-                "with a scalar argument, but '{1}' was found".
+                "with a real scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
         # Scalars can only be read_only or reductions
         if self._type in VALID_SCALAR_NAMES:

@@ -9,27 +9,27 @@ Python) are operations which can be specified within an invoke call in
 the algorithm layer but do not require an associated kernel to be
 implemented as they are provided directly by the infrastructure.
 
-One use of built-ins is for commonly used operations. In
-this case built-ins simplify the use of the system as users
+One use of Built-ins is for commonly used operations. In
+this case Built-ins simplify the use of the system as users
 do not need to write kernel routines. Built-ins also
 offer a potential performance advantage as they provide a
 specification of what is required without an implementation. Therefore
 the PSy layer is free to implement these operations in whatever way it
 chooses.
 
-.. note:: In general, PSyclone will need to know the types of the arguments being passed to any built-ins. The parser obtains this information from an API-specific file that contains the meta-data for all built-in operations supported for that API.
+.. note:: In general, PSyclone will need to know the types of the arguments being passed to any Built-ins. The parser obtains this information from an API-specific file that contains the meta-data for all Built-in operations supported for that API.
 
 Example
 -------
 
 .. highlight:: fortran
 
-In the following example, the invoke call includes a call to a built-in
+In the following example, the invoke call includes a call to a Built-in
 (``setval_c``) and a user-supplied kernel
 (``matrix_vector_kernel_mm_type``). The
-built-in sets all values in the field ``Ax`` to
+Built-in sets all values in the field ``Ax`` to
 ``0.0``. Notice that, unlike the kernel call, no use association is
-required for the built-in since it is provided as part of the environment
+required for the Built-in since it is provided as part of the environment
 (*c.f.* Fortran intrinsics such as ``sin()``).
 ::
 
@@ -99,7 +99,7 @@ and the translated algorithm code are:
 * the generic calls to ``invoke`` have been replaced by specific ``CALL invoke_xx``. The calls within the invoke are removed, as are duplicate arguments and any literals leaving the three fields being passed in.
 * a use statement is added for the each of the new ``CALL invoke_xx`` which will call the generated PSy layer code.
 
-The existance of a call to a built-in has made no difference at this point:
+The existance of a call to a Built-in has made no difference at this point:
 ::
 
     SUBROUTINE jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
@@ -126,10 +126,10 @@ The existance of a call to a built-in has made no difference at this point:
 
 A vanilla (not optimised) version of the generated PSy layer is given
 below. As expected the kernel code is called from the PSy
-layer. However, in the case of the `setval_c` built-in, the
+layer. However, in the case of the `setval_c` Built-in, the
 code for this has been written directly into the PSy layer (the loop
 setting `ax_proxy%data(df) = 0.0`). This example illustrates that
-built-ins may be implemented in whatever way the generator
+Built-ins may be implemented in whatever way the generator
 sees fit with no change to the algorithm and kernel layers.  ::
 
   MODULE solver_mod_psy
@@ -203,22 +203,22 @@ sees fit with no change to the algorithm and kernel layers.  ::
 This example is distributed with PSyclone and can be found in
 ``<PSYCLONEHOME>/examples/dynamo/eg4``.
 
-Supported built-in operations
+Supported Built-in operations
 -----------------------------
 
-The list of supported built-ins is API-specific and
+The list of supported Built-ins is API-specific and
 therefore is described under the documentation of each API.
 
-Adding new additional built-in operations
+Adding new additional Built-in operations
 -----------------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
     dynamo0.3 it is ``src/dynamo0p3_builtins.py``.
  2. Edit this source file to create the class for this new call. It must
-    inherit from the API-specific parent class for built-in operations
+    inherit from the API-specific parent class for Built-in operations
     (``DynBuiltInKern`` for dynamo0.3).
  3. Implement ``__str__`` and ``gen_code()`` methods for this new class.
- 4. Add the name of the new built-in operation and its corresponding class
+ 4. Add the name of the new Built-in operation and its corresponding class
     to the ``BUILTIN_MAP`` dictionary in that source file.
  5. Add meta-data describing this call to the appropriate file specified in
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
@@ -228,20 +228,20 @@ Adding new additional built-in operations
     The tests rely on ``single_invoke`` Fortran examples in the relevant 
     ``src/tests/test_files/`` subfolder. 
  7. Add an appropriate Fortran ``single_invoke`` example for the new    
-    built-in in the relevant ``src/tests/test_files/`` subfolder. *e.g.* 
+    Built-in in the relevant ``src/tests/test_files/`` subfolder. *e.g.*
     for dynamo0.3 it is ``src/tests/test_files/dynamo0p3/``.
     Names of examples follow the template 
     ``<category.number>.<subcategory.number>_<single_invoke_name>.f90``.
     *e.g.* for dynamo0.3 ``<category.number>`` is 15.
- 8. Document the new built-in in the documentation of the
+ 8. Document the new Built-in in the documentation of the
     relevant API (*e.g.* ``doc/dynamo0p3.rst``).
 
 
-If the API being extended does not currently support any built-ins
+If the API being extended does not currently support any Built-ins
 then the ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` module
 variables must be added to the source file for the API.  A Fortran
 module file must be created in the PSyclone src directory (with the
 name specified in ``BUILTIN_DEFINITIONS_FILE``) containing meta-data
-describing the built-in operations. Finally,
+describing the Built-in operations. Finally,
 ``parse.get_builtin_defs()`` must be extended to import
 ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` for this API.

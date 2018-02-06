@@ -1,6 +1,7 @@
 
 ''' Module containing tests for the Fortran expression parser '''
 
+from __future__ import absolute_import
 from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
 
 
@@ -10,14 +11,18 @@ def my_test(name, parser, test_string, names=None):
     preserved by the parsing operation, so the test_string must conform to
     the whitespace conventions of the unparser for the test to succeed.'''
     # These imports are required in order for the exec in the code below
-    # to work
-    from psyclone.expression import Grouping, BinaryOperator, FunctionVar, \
-        Slicing, LiteralArray, NamedArg
+    # to work. Pylint complains about those as unused variables
+    # pylint: disable=unused-variable
+    from psyclone.expression import BinaryOperator, FunctionVar, Grouping, \
+        LiteralArray, NamedArg, Slicing
+    # pylint: enable=unused-variable
     pstr = parser.parseString(test_string)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
     # ast.literal_eval can't be used here as the generated expression
     # calls constructors of user-defined objects
+    # pylint: disable=exec-used
     exec("pstr="+repr(pstr[0]))
+    # pylint: enable=exec-used
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
     if names:
         assert pstr.names == set(names), "Names do not match for " + name + "."
