@@ -5,6 +5,7 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -975,7 +976,7 @@ def test00p1_kernel_wrong_meta_arg_count():
 
 
 def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
-    '''Check' that using a const scalar as parameter works.'''
+    '''Check that using a const scalar as parameter works.'''
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "gocean1p0",
                             "test00.1_invoke_kernel_using_const_scalar.f90")
