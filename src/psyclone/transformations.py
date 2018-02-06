@@ -1397,7 +1397,7 @@ class LoopSwapTrans(Transformation):
            to allow swapping loops. This means the node must represent
            a loop, and it must have exactly one child that is also a loop.
            :param node_outer: A node from an AST.
-           :type metadata: py:class:`psyclone.psyGen.Node`
+           :type node_outer: py:class:`psyclone.psyGen.Node`
            :raises TransformationError: if the supplied node does not
                                         allow a loop swap to be done.
          '''
@@ -1443,7 +1443,7 @@ class LoopSwapTrans(Transformation):
         this transform then swaps the outer and inner loop.
         :param outer: The node representing the outer loop.
         :type py:class:`psyclone.psyGen.Node`
-        :return: A tuple consisteng of the new schedule, and a Memento.
+        :return: A tuple consistent of the new schedule, and a Memento.
         :raises TransformationError: if the supplied node does not
                                         allow a loop swap to be done.'''
         self._validate(outer)
