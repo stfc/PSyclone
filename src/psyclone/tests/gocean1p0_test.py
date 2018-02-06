@@ -987,6 +987,7 @@ def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
     # Make sure this is not happening anymor
     import re
     assert re.search(r"\s*real.*:: *0", out, re.I) is None
+    assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
 
 
 def test00p2_kernel_invalid_meta_args():

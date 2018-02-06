@@ -38,12 +38,14 @@ subroutine const_parameter()
   ! the PSyclone code generation system.
 
   use field_mod, only : r2d_field
-  use kernel_scalar_float, only: bc_ssh
+  use kernel_scalar_float, only: bc_ssh, bc_ssh_value
   implicit none
 
+  real            :: real_val
   type(r2d_field) :: p_fld
 
   call invoke( bc_ssh(0, p_fld) )
+  call invoke( bc_ssh_value(real_val, p_fld) )
 
 END subroutine CONST_PARAMETER
 
