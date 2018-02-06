@@ -13,6 +13,7 @@
 from __future__ import absolute_import
 import os
 import pytest
+import re
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
