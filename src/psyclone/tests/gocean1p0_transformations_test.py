@@ -1251,9 +1251,9 @@ kern call: bc_solid_v_code'''
 def test_loop_swap_errors():
     ''' Test loop swapping transform with incorrect parameters. '''
 
-    psy, invoke = get_invoke("test27_loop_swap.f90", 1)
+    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", 1)
 
-    schedule = invoke.schedule
+    schedule = invoke_loop1.schedule
     swap = LoopSwapTrans()
     assert swap.name == "LoopSwap"
     assert str(swap) == "Exchange the order of two nested loops: inner "\
@@ -1275,12 +1275,12 @@ def test_loop_swap_errors():
 
     # Now create an outer loop with more than one inner statement
     # ... by fusing the first and second outer loops :(
-    invoke = psy.invokes.get("invoke_loop2")
-    schedule = invoke.schedule
+    invoke_loop2 = psy.invokes.get("invoke_loop2")
+    schedule = invoke_loop2.schedule
 
     fuse = GOceanLoopFuseTrans()
     fused, _ = fuse.apply(schedule.children[0], schedule.children[1])
-    psy.invokes.get('invoke_loop2').schedule = fused
+    invoke_loop2.schedule = fused
 
     with pytest.raises(TransformationError) as error:
         swap.apply(fused.children[0])
