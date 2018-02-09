@@ -4,14 +4,22 @@
 dynamo0.3 API
 =============
 
-This section describes the dynamo0.3 application programming interface
+This section describes the Dynamo0.3 application programming interface
 (API). This API explains what a user needs to write in order to make
-use of the dynamo0.3 API in PSyclone.
+use of the Dynamo0.3 API in PSyclone.
 
-As with all PSyclone API's the dynamo0.3 API specifies how a user
+As with all PSyclone API's the Dynamo0.3 API specifies how a user
 needs to write the algorithm layer and the kernel layer to allow
 PSyclone to generate the PSy layer. These algorithm and kernel API's
 are discussed separately in the following sections.
+
+The Dynamo0.3 API supports the Met Office's finite element (hereafter FEM)
+based GungHo dynamical core (see :ref:`introduction`). The Met Office
+Collaboration Wiki (login required) provides more detailed information
+about the dynamical core's `formulation
+<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_formulation.pdf>`_
+and `data model
+<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
 
 .. _dynamo0.3-api-algorithm:
 
@@ -27,7 +35,7 @@ dynamo0.3-specific specialisations and extensions.
 Example
 +++++++
 
-An example dynamo0.3 API invoke call is given below with various
+An example Dynamo0.3 API invoke call is given below with various
 different types of objects supported by the API. These different
 objects and their use are discussed in the following sections.
 
@@ -50,15 +58,45 @@ objects and their use are discussed in the following sections.
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
 
+Objects in Dynamo0.3 API can be categorised by their functionality
+as data types and information that specifies supported operations on
+a particular data type. The above example introduces four of five data
+types supported by Dynamo0.3 API: field, scalar, operator and column-wise
+operator (field vector is the fifth). ``qr`` represents a quadrature
+object which provides information required by a kernel to operate
+on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+
+.. _dynamo0.3-field:
+
 Field
 +++++
 
-.. note:: To be written.
+Dynamo 0.3 API fields, identified with ``GH_FIELD`` metadata, represent
+FEM discretisations of various dynamical core prognostic and diagnostic
+variables. In FEM variables are discretised by placing them into a
+function space (:ref:`dynamo0.3-function-space`) from which they inherit
+a polynomial expansion via the basis functions of that space.
+Field values at points within a cell are evaluated as the sum of a set
+of basis functions multiplied by coefficients which are the data points.
+Points of evaluation are determined by a quadrature object
+(:ref:`dynamo0.3-quadrature`) and are independent of a function space
+the field is on. Placement of field data points, also called degrees of
+freedom ("dof"), is determined by the function space the field is on.
+
+.. _dynamo0.3-field-vector:
 
 Field Vector
 ++++++++++++
 
-.. note:: To be written.
+Depending on the function space a field lives on the field data at a
+point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
+for the list of scalar and vector function spaces). There is an
+additional option which specifies whether the data itself is vector
+valued and it usually refers to bundles of scalar valued fields.
+Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
+size of the vector. The 3D coordinate field, for example, has
+``(x, y, z)`` scalar values at the nodes and therefore has a
+vector size of 3.
 
 Scalar
 ++++++
@@ -71,15 +109,17 @@ Operator
 ++++++++
 
 Represents a matrix constructed on a per-cell basis using Local
-Matrix Assembly (LMA).
+Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
+metadata.
 
 Column-Wise Operator
 ++++++++++++++++++++
 
 The Dynamo 0.3 API has support for the construction and use of
-column-wise/Column Matrix Assembly (CMA) operators. As the name
-suggests, these are operators constructed for a whole column of the
-mesh. These are themselves constructed from the Local Matrix Assembly
+column-wise/Column Matrix Assembly (CMA) operators whose metadata
+identifier is ``GH_COLUMNWISE_OPERATOR``. As the name suggests,
+these are operators constructed for a whole column of the mesh.
+These are themselves constructed from the Local Matrix Assembly
 (LMA) operators of each cell in the column. The rules governing
 Kernels that have CMA operators as arguments are given in the
 :ref:`dynamo0.3-kernel` section below.
@@ -120,7 +160,7 @@ meta-data (see :ref:`cma_meta_data_rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
-.. _quadrature:
+.. _dynamo0.3-quadrature:
 
 Quadrature
 ++++++++++
@@ -276,19 +316,19 @@ types.
     over that space.
 
  2) The continuity of the iteration space of the Kernel is determined
-    from the function space of the modified argument. If more than one
-    argument is modified then the iteration space is taken to be the
-    largest required by any of those arguments. e.g. if a Kernel
+    from the function space of the modified argument (:ref:`dynamo0.3-function-space`).
+    If more than one argument is modified then the iteration space is taken
+    to be the largest required by any of those arguments. e.g. if a Kernel
     writes to two fields, the first on W3 (discontinuous) and the
     second on W1 (continuous), then the iteration space of that Kernel
     will be determined by the field on the continuous space.
 
  3) If the function space of the modified argument(s) cannot be
     determined then they are assumed to be continuous. This is
-    the case if any of the modified arguments are declared as ANY_SPACE and
-    their actual space cannot be determined statically. This assumption is
-    always safe but leads to additional computation if the quantities being
-    updated are actually on discontinuous function spaces.
+    the case if any of the modified arguments are declared as ``ANY_SPACE``
+    and their actual space cannot be determined statically. This assumption
+    is always safe but leads to additional computation if the quantities
+    being updated are actually on discontinuous function spaces.
 
  4) Operators do not have halo operations operating on them as they
     are either cell- (LMA) or column-based (CMA) and therefore act
@@ -460,9 +500,8 @@ being passed is for a real scalar (``GH_REAL``), an integer scalar
 information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
-fields (see the :ref:`dynamo0.3-api-algorithm` section for more
-details). If so, the size of the vector is specified using the
-notation ``GH_FIELD*N``, where ``N`` is the size of the vector.
+fields (see the :ref:`dynamo0.3-field-vector` section for more
+details).
 
 As an example, the following ``meta_args`` metadata describes 4
 entries, the first is a real scalar, the next two are fields and the
@@ -527,8 +566,8 @@ field or an operator is being described.
 In the case of an operator, the 3rd and 4th arguments describe the
 ``to`` and ``from`` function spaces respectively. In the case of a
 field the 3rd argument specifies the function space that the field
-lives on. Supported function spaces are ``w0``, ``w1``, ``w2``, ``w3``,
-``wtheta``, ``w2h`` and ``w2v``.
+lives on. More details about the supported function spaces are in
+subsection :ref:`dynamo0.3-function-space`.
 
 For example, the meta-data for a kernel that applies a Column-wise
 operator to a field might look like:
@@ -568,10 +607,10 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
 
 ::
 
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1 ),                       &
-       arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2 ),                   &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
+  type(arg_type) :: meta_args(3) = (/                           &
+       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                 &
+       arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2),             &
+       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 
 Note also that the scope of this naming of any-space function spaces is
@@ -583,11 +622,11 @@ contained two calls of a kernel with arguments described by the above
 meta-data then the first field argument passed to each kernel call
 need not be on the same space.
 
-.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
-          pattern must be a discontinuous function in the
-          horizontal. At the moment that means it must be ``w3`` but
-          in the future there will be more discontinuous function
-          spaces. A GH_FIELD that specifies GH_INC as its access
+.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` as its
+          access pattern must be a discontinuous function in the
+          horizontal. That means it must belong to ``w3``, ``wtheta``
+          or ``w2v`` function spaces (:ref:`dynamo0.3-function-space`).
+          A ``GH_FIELD`` that specifies ``GH_INC`` as its access
           pattern may be continuous in the vertical (and discontinuous
           in the horizontal), continuous in the horizontal (and
           discontinuous in the vertical), or continuous in both. In
@@ -618,8 +657,8 @@ Argument Type     	Function space                  Access type
 ======================	============================    =========================
 *GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
 GH_REAL           	n/a                             GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous (w3)              GH_WRITE
-GH_FIELD                Continuous (not w3)             GH_INC
+GH_FIELD                Discontinuous                   GH_WRITE
+GH_FIELD                Continuous                      GH_INC
 GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE
 GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
 ======================  ============================    =========================
@@ -653,6 +692,67 @@ discontinuous function spaces. In conjunction with this, PSyclone also
 checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
+
+.. _dynamo0.3-function-spaces:
+
+Supported function spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As mentioned in :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
+sections, the function space of an argument specifies how it maps
+onto the underlying topology and, additionally, whether the data at a
+point is a vector.
+
+Function spaces can share dofs between cells in horizontal, vertical
+or both directions. This property is referred to as the **continuity**
+of a function space (horizontal, vertical or full). Alternatively, if
+there are no shared dofs a function space is described as
+**discontinuous** (fully or in a particular direction).
+
+The mixed FEM formulation is built on a foundation set of four function
+spaces:
+
+* ``w0`` is the space of scalar functions with full continuity;
+
+* ``w1`` is the space of vector functions with full continuity;
+
+* ``w2`` is the space of vector functions with full continuity;
+
+* ``w3`` is the space of scalar functions with full discontinuity.
+
+Additional function spaces required for representation of scalar or
+component-wise vector variables are:
+
+* ``wtheta`` is the space of scalar functions based on the vertical
+    part of ``w2``, discontinuous in the horizontal and continuous
+    in the vertical;
+
+* ``w2v`` is the space of vector functions based on the vertical
+    part of ``w2``, discontinuous in the horizontal and continuous
+    in the vertical;
+
+* ``w2h`` is the space of vector functions based on the horizontal
+    part of ``w2``. It is continuous in the horizontal and
+    discontinuous in the vertical.
+
+Since Dynamo0.3 API operates on columns of data, function spaces are
+categorised as continuous or discontinuous with regard to their
+horizontal continuity.
+
+* Continuous function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
+
+* Discontinuous function spaces are ``w3``, ``wtheta`` and ``w2v``.
+
+Two additonal function space metadata descriptors as mentioned in
+sections above are:
+
+* ``ANY_SPACE`` for when the function spaces of the modified argument(s)
+    cannot be determined;
+
+* ``ANY_W2`` for any type of ``w2`` function spaces.
+
+As mentioned previously, both ``ANY_SPACE`` and ``ANY_SPACE`` function
+space types are treated as continuous.
 
 Optional Field Metadata
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -866,7 +966,7 @@ associated kernel is updating. All necessary data is extracted in the
 PSy layer and passed to the kernel(s) as required - nothing is
 required from the Algorithm layer. If a kernel requires quadrature on
 the other hand, the Algorithm writer must supply a ``quadrature_type``
-object as the last argument to the kernel (see Section :ref:`quadrature`).
+object as the last argument to the kernel (see Section :ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are
