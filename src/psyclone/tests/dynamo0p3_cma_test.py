@@ -36,6 +36,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
 the Dynamo 0.3 API using pytest. '''
@@ -857,30 +858,42 @@ def test_cma_apply():
         assert "cma_op1_proxy%is_dirty(" not in code
 
 
-def test_cma_apply_w3_space(): #### Add/modify/rename??
+def test_cma_apply_discontinuous_spaces():
     ''' Test that we generate correct code for a kernel that applies
-    a CMA operator to a field on a discontinuous space '''
+    a CMA operator to fields on discontinuous spaces w3 and w2v '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "20.1.2_cma_apply_w3.f90"),
+                         "20.1.2_cma_apply_discontinuous.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+        # Check w3
         assert "INTEGER ncell_2d" in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
         assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
         assert ("INTEGER, pointer :: cma_indirection_map_w3(:) "
-                "=> null(), cma_indirection_map_any_space_2_field_b(:) => "
+                "=> null(), cma_indirection_map_any_space_1_field_b(:) => "
                 "null()\n") in code
         assert ("ndf_w3 = field_a_proxy%vspace%get_ndf()\n"
                 "      undf_w3 = field_a_proxy%vspace%"
                 "get_undf()") in code
         assert ("cma_indirection_map_w3 => "
                 "cma_op1_proxy%indirection_dofmap_to") in code
+        # Check w2v
+        assert "TYPE(columnwise_operator_proxy_type) cma_op2_proxy" in code
+        assert "ncell_2d = cma_op2_proxy%ncell_2d" in code
+        assert ("INTEGER, pointer :: "
+                "cma_indirection_map_any_space_2_field_d(:) => null(), "
+                "cma_indirection_map_w2v(:) => null()\n") in code
+        assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
+                "      undf_w2v = field_c_proxy%vspace%"
+                "get_undf()") in code
+        assert ("cma_indirection_map_w2v => "
+                "cma_op2_proxy%indirection_dofmap_to") in code
         if distmem:
             # The kernel only *reads* from a CMA operator and writes to a
             # field on a discontinuous space - therefore we do not need to
@@ -888,20 +901,38 @@ def test_cma_apply_w3_space(): #### Add/modify/rename??
             assert "DO cell=1,mesh%get_last_edge_cell()" in code
         else:
             assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
+            assert "DO cell=1,field_c_proxy%vspace%get_ncell()" in code
 
+        # Check w3
         assert ("CALL columnwise_op_app_w3_kernel_code(cell, ncell_2d, "
                 "field_a_proxy%data, field_b_proxy%data, "
                 "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
                 "cma_op1_bandwidth, cma_op1_alpha, "
                 "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
                 "ndf_w3, undf_w3, map_w3(:,cell), cma_indirection_map_w3, "
-                "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
-                "map_any_space_2_field_b(:,cell), "
-                "cma_indirection_map_any_space_2_field_b)") \
+                "ndf_any_space_1_field_b, undf_any_space_1_field_b, "
+                "map_any_space_1_field_b(:,cell), "
+                "cma_indirection_map_any_space_1_field_b)") \
             in code
+        # Check w2v
+        assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
+                "field_c_proxy%data, field_d_proxy%data, "
+                "cma_op2_matrix, cma_op2_nrow, cma_op2_ncol, "
+                "cma_op2_bandwidth, cma_op2_alpha, "
+                "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, "
+                "ndf_w2v, undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
+                "ndf_any_space_2_field_d, undf_any_space_2_field_d, "
+                "map_any_space_2_field_d(:,cell), "
+                "cma_indirection_map_any_space_2_field_d)") \
+            in code
+
         if distmem:
+            # Check w3
             assert "CALL field_a_proxy%set_dirty()" in code
             assert "cma_op1_proxy%is_dirty(" not in code
+            # Check w2v
+            assert "CALL field_c_proxy%set_dirty()" in code
+            assert "cma_op2_proxy%is_dirty(" not in code
 
 
 def test_cma_apply_same_space():

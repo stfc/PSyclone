@@ -2,8 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 ! All rights reserved.
@@ -36,19 +34,28 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program single_invoke_cma
+program single_invokes_cma_discontinuous
 
-  ! Description: single function specified in an invoke call
-  use columnwise_op_app_w3_kernel_mod, only: &
+  ! Description: two single invokes containing multiple CMA-related kernels
+  !              on discontinuous spaces w3 and w2v
+  use inf,                              only: field_type, &
+                                              columnwise_operator_type
+  use columnwise_op_app_w3_kernel_mod,  only: &
                             columnwise_op_app_w3_kernel_type
-  use inf,      only: field_type
+  use columnwise_op_app_w2v_kernel_mod, only: &
+                            columnwise_op_app_w2v_kernel_type
+
   implicit none
-  type(field_type) :: field_a, field_b
-  type(columnwise_operator_type) :: cma_op1
 
-  call invoke(                      &
-          columnwise_op_app_w3_kernel_type(field_a, field_b, cma_op1) &
-          )
+  type(field_type)               :: field_a, field_b
+  type(field_type)               :: field_c, field_d
+  type(columnwise_operator_type) :: cma_op1, cma_op2
 
-end program single_invoke_cma
+  call invoke( &
+         columnwise_op_app_w3_kernel_type(field_a, field_b, cma_op1) )
+  call invoke( &
+         columnwise_op_app_w2v_kernel_type(field_c, field_d, cma_op2) )
+
+end program single_invokes_cma_discontinuous

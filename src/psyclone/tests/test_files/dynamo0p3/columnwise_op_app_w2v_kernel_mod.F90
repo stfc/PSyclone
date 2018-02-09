@@ -38,15 +38,15 @@
 ! -----------------------------------------------------------------------------
 !
 !> @brief Kernel which applies a columnwise assembled operator to a field
-!!        on W3 (discontinuous)
+!!        on W2V (discontinuous)
 
-module columnwise_op_app_w3_kernel_mod
+module columnwise_op_app_w2v_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
                                     GH_READ, GH_INC,                  &
-                                    W3, ANY_SPACE_1,                  &
+                                    W2V, ANY_SPACE_2,                 &
                                     GH_COLUMN_INDIRECTION_DOFMAP,     &
                                     CELLS 
 
@@ -58,37 +58,37 @@ implicit none
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, extends(kernel_type) :: columnwise_op_app_w3_kernel_type
+type, public, extends(kernel_type) :: columnwise_op_app_w2v_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                              &
-       arg_type(GH_FIELD,               GH_WRITE, W3),             &  
-       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_1),    &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  W3, ANY_SPACE_1) &
+  type(arg_type) :: meta_args(3) = (/                               &
+       arg_type(GH_FIELD,               GH_WRITE, W2V),             &  
+       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_2),     &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  W2V, ANY_SPACE_2) &
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass :: columnwise_op_app_w3_kernel_code
-end type columnwise_op_app_w3_kernel_type
+  procedure, nopass :: columnwise_op_app_w2v_kernel_code
+end type columnwise_op_app_w2v_kernel_type
 
 !-------------------------------------------------------------------------------
 ! Constructors
 !-------------------------------------------------------------------------------
 
 ! Overload the default structure constructor for function space
-interface columnwise_op_app_w3_kernel_type
-   module procedure columnwise_op_app_w3_kernel_constructor
+interface columnwise_op_app_w2v_kernel_type
+   module procedure columnwise_op_app_w2v_kernel_constructor
 end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_app_w3_kernel_code
+public columnwise_op_app_w2v_kernel_code
 contains
   
-  type(columnwise_op_app_w3_kernel_type) function columnwise_op_app_w3_kernel_constructor() result(self)
+  type(columnwise_op_app_w2v_kernel_type) function columnwise_op_app_w2v_kernel_constructor() result(self)
     implicit none
     return
-  end function columnwise_op_app_w3_kernel_constructor
+  end function columnwise_op_app_w2v_kernel_constructor
 
   !> @brief The subroutine which is called directly from the PSY layer and
   !> applies the operator as lhs += A.x
@@ -113,7 +113,7 @@ contains
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
   !> @param [in] indirection_dofmap_to indirection map for to-space
   !> @param [in] indirection_dofmap_from indirection map for from-space
-  subroutine columnwise_op_app_w3_kernel_code(cell,               &
+  subroutine columnwise_op_app_w2v_kernel_code(cell,              &
                                            ncell_2d,              &
                                            lhs, x,                & 
                                            columnwise_matrix,     &
@@ -130,6 +130,6 @@ contains
                                            indirection_dofmap_from)
     implicit none
 
-  end subroutine columnwise_op_app_w3_kernel_code
+  end subroutine columnwise_op_app_w2v_kernel_code
 
-end module columnwise_op_app_w3_kernel_mod
+end module columnwise_op_app_w2v_kernel_mod
