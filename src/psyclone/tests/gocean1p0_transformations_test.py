@@ -17,7 +17,7 @@ import re
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
-    GOConstLoopBoundsTrans, LoopFuseTrans, LoopSwapTrans, \
+    GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from psyclone.generator import GenerationError
@@ -1217,7 +1217,7 @@ kern call: bc_solid_v_code'''
     assert expected_schedule in schedule_str
 
     # Now swap the first loops
-    swap = LoopSwapTrans()
+    swap = GOLoopSwapTrans()
     swapped1, _ = swap.apply(schedule.children[0])
     psy.invokes.get('invoke_loop1').schedule = swapped1
     schedule_str = str(swapped1)
@@ -1249,14 +1249,14 @@ kern call: bc_solid_v_code'''
     return
 
 
-def test_loop_swap_errors():
+def test_go_loop_swap_errors():
     ''' Test loop swapping transform with incorrect parameters. '''
 
     psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", 1)
 
     schedule = invoke_loop1.schedule
-    swap = LoopSwapTrans()
-    assert swap.name == "LoopSwap"
+    swap = GOLoopSwapTrans()
+    assert swap.name == "GOLoopSwap"
     assert str(swap) == "Exchange the order of two nested loops: inner "\
         "becomes outer and vice versa"
 
@@ -1299,4 +1299,20 @@ def test_loop_swap_errors():
     assert re.search("Supplied node .* must be the outer loop of a loop nest "
                      "and must have one inner loop, but this node does not "
                      "have any statements inside.",
+                     str(error.value)) is not None
+
+    # Check if a non gocean1p0 API raises an error
+    _, info = parse(os.path.
+                    join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.1_single_named_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invokes = psy.invokes
+    invoke = invokes.get(invokes.names[0])
+    with pytest.raises(TransformationError) as error:
+        swap.apply(invoke.schedule.children[3])
+
+    assert re.search("Given node .* is not a GOLoop, "
+                     "but an instance of .*DynLoop",
                      str(error.value)) is not None

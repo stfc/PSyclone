@@ -1366,7 +1366,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         return schedule, keep
 
 
-class LoopSwapTrans(Transformation):
+class GOLoopSwapTrans(Transformation):
     ''' Provides a loop-swap transformation.
         For example:
 
@@ -1377,8 +1377,8 @@ class LoopSwapTrans(Transformation):
         >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> schedule.view()
         >>>
-        >>> from transformations import LoopSwapTrans
-        >>> swap=LoopSwapTrans()
+        >>> from transformations import GOLoopSwapTrans
+        >>> swap=GOLoopSwapTrans()
         >>> new_schedule,memento=swap.apply(schedule.children[0])
         >>> new_schedule.view()
     '''
@@ -1390,7 +1390,7 @@ class LoopSwapTrans(Transformation):
     @property
     def name(self):
         '''Returns the name of this transformation as a string'''
-        return "LoopSwap"
+        return "GOLoopSwap"
 
     def _validate(self, node_outer):  # pylint: disable=no-self-use
         '''Checks if the given nodes contains a valid Fortran structure
@@ -1402,14 +1402,20 @@ class LoopSwapTrans(Transformation):
                                         allow a loop swap to be done.
          '''
 
-        from .psyGen import Loop
+        from psyclone.psyGen import Loop
         if not isinstance(node_outer, Loop):
-            raise TransformationError("Error in LoopSwap transformation. "
+            raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Given node '{0}' is not a loop."
                                       .format(node_outer))
 
+        from psyclone.gocean1p0 import GOLoop
+        if not isinstance(node_outer, GOLoop):
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Given node '{0}' is not a GOLoop, but an instance of '{1}."
+                                      .format(node_outer, type(node_outer)))
+
         if len(node_outer.children) == 0:
-            raise TransformationError("Error in LoopSwap transformation. "
+            raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have one "
                                       "inner loop, but this node does not "
@@ -1419,7 +1425,7 @@ class LoopSwapTrans(Transformation):
         node_inner = node_outer.children[0]
         # Check that the supplied Node is a Loop
         if not isinstance(node_inner, Loop):
-            raise TransformationError("Error in LoopSwap transformation. "
+            raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest but the first "
                                       "inner statement is not a loop, got "
@@ -1427,7 +1433,7 @@ class LoopSwapTrans(Transformation):
                                       .format(node_outer, node_inner))
 
         if len(node_outer.children) > 1:
-            raise TransformationError("Error in LoopSwap transformation. "
+            raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have "
                                       "exactly one inner loop, but this node "
