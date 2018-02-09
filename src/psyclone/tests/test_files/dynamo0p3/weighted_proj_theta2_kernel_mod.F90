@@ -1,11 +1,43 @@
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
 !
-!-------------------------------------------------------------------------------
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! All rights reserved.
+! 
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+! 
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+! 
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+! 
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+! 
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+!
 !> @brief Compute the projection operator from the velocity space to
 !!        the potential temperature space weighted by the potential temperature gradient
 !> @details Compute the projection operator \f[<\gamma,\nabla(\theta*)v>\f]
@@ -46,7 +78,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface weighted_proj_theta2_kernel_type
    module procedure weighted_proj_theta2_kernel_constructor
 end interface
@@ -86,8 +118,9 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,              &
                                      ndf_w2, w2_basis,                     &
                                      nqp_h, nqp_v, wqp_h, wqp_v )
 
-  
-  !Arguments
+  implicit none
+
+  ! Arguments
   integer(kind=i_def), intent(in) :: cell, nlayers, ncell_3d, nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_wtheta, ndf_w2, undf_wtheta
 
@@ -103,7 +136,7 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,              &
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def) :: df, k, ik, dft, df2
   integer(kind=i_def) :: qp1, qp2
   

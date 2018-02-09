@@ -2129,7 +2129,7 @@ def test_dyninvoke_arg_for_fs():
         in str(excinfo.value)
 
 
-def test_kernel_specific():
+def test_kernel_specific(): #### Effect from w2v changes??
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
@@ -2164,7 +2164,7 @@ def test_kernel_specific():
     assert output6 not in generated_code
 
 
-def test_multi_kernel_specific():
+def test_multi_kernel_specific(): #### Effect from w2v changes??
     '''Test that a call to enforce boundary conditions is *not* added following
     multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
     must now be explicitly specified as part of the Algorithm. '''
@@ -2412,7 +2412,7 @@ def test_multikernel_invoke_qr():
     assert str(generated_code).count("CALL testkern_qr_code") == 2
 
 
-def test_mkern_invoke_vec_fields():
+def test_mkern_invoke_vec_fields(): #### Effect from w2v changes??
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with vector fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2428,7 +2428,7 @@ def test_mkern_invoke_vec_fields():
     assert str(generated_code).find(output2) == -1
 
 
-def test_multikern_invoke_orient():
+def test_multikern_invoke_orient(): #### Effect from w2v changes??
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with orientation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2445,7 +2445,7 @@ def test_multikern_invoke_orient():
     assert str(generated_code).find(output2) == -1
 
 
-def test_multikern_invoke_oper():
+def test_multikern_invoke_oper(): #### Effect from w2v changes??
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with operators '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4072,7 +4072,7 @@ def test_halo_dirty_3():
     assert str(generated_code).count("CALL f1_proxy%set_dirty()") == 2
 
 
-def test_halo_dirty_4():
+def test_halo_dirty_4(): #### Effect from w2v changes??
     ''' check halo_dirty calls with field vectors '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api="dynamo0.3")
@@ -4222,7 +4222,7 @@ def test_halo_exchange_different_spaces():
     assert result.count("halo_exchange") == 9
 
 
-def test_halo_exchange_vectors_1():
+def test_halo_exchange_vectors_1(): #### Effect from w2v changes??
     ''' test that halo exchange produces correct code for vector
     fields. Test a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4242,7 +4242,7 @@ def test_halo_exchange_vectors_1():
     assert expected in result
 
 
-def test_halo_exchange_vectors():
+def test_halo_exchange_vectors(): #### Effect from w2v changes??
     ''' test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -6091,7 +6091,7 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w3_w1():
+def test_itn_space_write_w3_w1(): #### Add/modify/rename??
     ''' Check that generated loop over cells in the psy layer has the correct
     upper bound when a kernel writes to two fields, the first on a
     discontinuous space and the second on a continuous space. The resulting
@@ -6118,7 +6118,7 @@ def test_itn_space_write_w3_w1():
             assert output in generated_code
 
 
-def test_itn_space_fld_and_op_writers():
+def test_itn_space_fld_and_op_writers(): #### Add/modify/rename??
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6457,7 +6457,7 @@ def test_multi_anyw2():
             assert output in generated_code
 
 
-def test_anyw2_vectors():
+def test_anyw2_vectors(): #### Effect from w2v changes???????
     '''Check generated code works correctly when we have any_w2 field
     vectors'''
     _, invoke_info = parse(
@@ -6541,7 +6541,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous():
+def test_no_halo_for_discontinous(): #### Add/modify/rename??
     '''Test that we do not create halo exchange calls when our loop only
     iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6555,7 +6555,7 @@ def test_no_halo_for_discontinous():
     assert "halo_exchange" not in result
 
 
-def test_halo_for_discontinuous():
+def test_halo_for_discontinuous(): #### Add/modify/rename??
     '''Test that we create halo exchange call when our loop iterates over
     owned cells (e.g. it writes to a discontinuous field), we read
     from a continous field, there are no stencil accesses, but we do
@@ -6576,7 +6576,7 @@ def test_halo_for_discontinuous():
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_halo_for_discontinuous_2():
+def test_halo_for_discontinuous_2(): #### Add/modify/rename??
     '''Test that we create halo exchange call when our loop iterates over
     owned cells (e.g. it writes to a discontinuous field), we read
     from a continous field, there are no stencil accesses, and the
@@ -6596,7 +6596,7 @@ def test_halo_for_discontinuous_2():
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_arg_discontinous():
+def test_arg_discontinous(): #### Add/modify/rename??
     '''test that the discontinuous method in the dynamo argument class
     returns the correct values '''
 
@@ -6822,7 +6822,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field():
+def test_HaloReadAccess_discontinuous_field(): #### Add/modify/rename??
     '''When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation'''
@@ -6862,7 +6862,7 @@ def test_loop_cont_read_inv_bound(monkeypatch):
             "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
 
 
-def test_new_halo_exch_vect_field(monkeypatch):
+def test_new_halo_exch_vect_field(monkeypatch): #### Effect from w2v changes??
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then it
     must be a vector (as a vector field requiring a halo exchange should
@@ -6891,7 +6891,7 @@ def test_new_halo_exch_vect_field(monkeypatch):
             in str(excinfo.value))
 
 
-def test_new_halo_exch_vect_deps(monkeypatch):
+def test_new_halo_exch_vect_deps(monkeypatch): #### Effect from w2v changes??
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -6922,7 +6922,7 @@ def test_new_halo_exch_vect_deps(monkeypatch):
         "and the vector size is '3'." in str(excinfo.value))
 
 
-def test_new_halo_exch_vect_deps2(monkeypatch):
+def test_new_halo_exch_vect_deps2(monkeypatch): #### Effect from w2v changes??
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -6975,7 +6975,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
 
 def test_no_halo_exchange_annex_dofs(
-        tmpdir, f90, f90flags):
+        tmpdir, f90, f90flags): #### Add/modify/rename??
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this

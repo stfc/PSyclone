@@ -3802,7 +3802,7 @@ def test_rc_continuous_no_depth():
             "()-1)") in result
 
 
-def test_rc_discontinuous_depth():
+def test_rc_discontinuous_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange modified
@@ -3829,7 +3829,7 @@ def test_rc_discontinuous_depth():
             "      CALL m2_proxy%set_clean(3)") in result
 
 
-def test_rc_discontinuous_no_depth():
+def test_rc_discontinuous_no_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange added/modified
@@ -3857,7 +3857,7 @@ def test_rc_discontinuous_no_depth():
     assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_depth():
+def test_rc_all_discontinuous_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -3882,7 +3882,7 @@ def test_rc_all_discontinuous_depth():
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
-def test_rc_all_discontinuous_no_depth():
+def test_rc_all_discontinuous_no_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -3908,7 +3908,7 @@ def test_rc_all_discontinuous_no_depth():
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_vector_depth():
+def test_rc_all_discontinuous_vector_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
@@ -3937,7 +3937,7 @@ def test_rc_all_discontinuous_vector_depth():
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_rc_all_disc_vector_no_depth():
+def test_rc_all_disc_vector_no_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
@@ -3966,7 +3966,7 @@ def test_rc_all_disc_vector_no_depth():
                 "depth())".format(idx)) in result
 
 
-def test_rc_all_disc_prev_depend_depth():
+def test_rc_all_disc_prev_depend_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -3995,7 +3995,7 @@ def test_rc_all_disc_prev_depend_depth():
     assert "CALL f3_proxy%set_clean(3)" in result
 
 
-def test_rc_all_disc_prev_depend_no_depth():
+def test_rc_all_disc_prev_depend_no_depth(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
@@ -4023,7 +4023,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_disc_prev_dep_depth_vector():
+def test_rc_all_disc_prev_dep_depth_vector(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -4055,7 +4055,7 @@ def test_rc_all_disc_prev_dep_depth_vector():
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_rc_all_disc_prev_dep_no_depth_vect():
+def test_rc_all_disc_prev_dep_no_depth_vect(): #### Add/modify/rename??
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
@@ -4242,7 +4242,7 @@ def test_continuous_no_set_clean():
     assert "CALL f1_proxy%set_clean(" not in result
 
 
-def test_discontinuous_no_set_clean():
+def test_discontinuous_no_set_clean(): #### Add/modify/rename??
     '''Test that set_clean is not added for the default iteration space of
     a discontinuous loop. This is probably covered from tests in
     dynamo0p3_test.py but it is good to have a specific test'''
@@ -4510,7 +4510,7 @@ def test_rc_remove_halo_exchange():
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_rc_max_remove_halo_exchange():
+def test_rc_max_remove_halo_exchange(): #### Add/modify/rename??
 
     '''add test to redundantly compute a w3 (discontinuous) and w2
     (continuous) field to the maximum halo depth and then check that a
@@ -4591,7 +4591,7 @@ def test_rc_continuous_halo_remove():
     assert "IF (f3_proxy%is_dirty(depth=" not in result
 
 
-def test_rc_discontinuous_halo_remove():
+def test_rc_discontinuous_halo_remove(): #### Add/modify/rename??
     '''check that we do remove a halo exchange when the field is
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
@@ -4658,7 +4658,7 @@ def test_rc_reader_halo_remove():
     assert "CALL f2_proxy%halo_exchange(" not in result
 
 
-def test_rc_vector_reader_halo_remove():
+def test_rc_vector_reader_halo_remove(): #### Effect from w3 changes??
     '''check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
     the previous loop still computes deep enough into the halo to

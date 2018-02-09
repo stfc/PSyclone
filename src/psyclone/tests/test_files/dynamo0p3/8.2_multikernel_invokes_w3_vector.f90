@@ -44,7 +44,7 @@ program single_invoke_w3_only_vector
 
   call invoke(                               &
        testkern_w3_only_vector_type(f1, f2), &
-       !field f1 write to read dependence but no halo exchange required as w3
+       ! Field f1 write to read dependence but no halo exchange required as w3
        testkern_w3_only_vector_type(f3, f1)  &
           )
 

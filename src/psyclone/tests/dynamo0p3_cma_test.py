@@ -857,7 +857,7 @@ def test_cma_apply():
         assert "cma_op1_proxy%is_dirty(" not in code
 
 
-def test_cma_apply_w3_space():
+def test_cma_apply_w3_space(): #### Add/modify/rename??
     ''' Test that we generate correct code for a kernel that applies
     a CMA operator to a field on a discontinuous space '''
     for distmem in [False, True]:
