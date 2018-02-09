@@ -31,18 +31,19 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_w3
 
   ! Description: single function iterating over w3 specified in an invoke call
-  use testkern_w3, only: testkern_w3_type
-  use inf,      only: field_type
+  use testkern_w3_mod, only: testkern_w3_type
+  use inf,             only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
   real(r_def) :: a
 
-  call invoke(                      &
-       testkern_w3_type(a,f1,f2,m1,m2)   &
+  call invoke(                             &
+       testkern_w3_type(a, f1, f2, m1, m2) &
           )
 
 end program single_invoke_w3

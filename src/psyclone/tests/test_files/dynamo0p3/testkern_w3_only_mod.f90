@@ -31,19 +31,23 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-module testkern_w3_only
+module testkern_w3_only_mod
+
   type, extends(kernel_type) :: testkern_w3_only_type
-     type(arg_type), dimension(2) :: meta_args =  (/  &
-             arg_type(gh_field,gh_write,w3), &
-             arg_type(gh_field,gh_read, w3)  &
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field, gh_write, w3),    &
+             arg_type(gh_field, gh_read,  w3)     &
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
+     procedure() :: code => testkern_w3_only_code
   end type testkern_w3_only_type
+
 contains
 
-  subroutine testkern_code()
-  end subroutine testkern_code
-end module testkern_w3_only
+  subroutine testkern_w3_only_code()
+  end subroutine testkern_w3_only_code
+
+end module testkern_w3_only_mod

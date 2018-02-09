@@ -29,16 +29,17 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-
+! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_builtin_then_kernel
 
   ! Description: single invoke call with a builtin followed by a kernel call
-  use testkern, only: testkern_type
-  use testkern_w3_only, only: testkern_w3_only_type
-  use testkern_w2_only, only: testkern_w2_only_type
-  use inf,      only: field_type
+  use testkern,             only: testkern_type
+  use testkern_w3_only_mod, only: testkern_w3_only_type
+  use testkern_w2_only,     only: testkern_w2_only_type
+  use inf,                  only: field_type
   implicit none
   type(field_type) :: f1, f2, f3, f4
   real(r_def) :: scalar = 0.0

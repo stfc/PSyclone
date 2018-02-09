@@ -50,6 +50,7 @@ module testkern_fs_mod
    contains
      procedure() :: code => testkern_fs_code
   end type testkern_fs_type
+
 contains
 
   subroutine testkern_fs_code()
