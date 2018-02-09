@@ -42,10 +42,12 @@ subroutine const_parameter()
   implicit none
 
   real            :: real_val
+  integer         :: int_val
   type(r2d_field) :: p_fld
 
   call invoke( bc_ssh(0, p_fld) )
-  call invoke( bc_ssh_value(real_val, p_fld) )
+  call invoke( bc_ssh_value(real_val, int_val, p_fld) )
+  call invoke( bc_ssh_value(0, 0, p_fld) )
 
 END subroutine CONST_PARAMETER
 

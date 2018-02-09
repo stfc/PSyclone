@@ -41,8 +41,9 @@ module kernel_scalar_float
 
 
   type, extends(kernel_type) :: bc_ssh_value
-     type(arg), dimension(3) :: meta_args =        &
+     type(arg), dimension(4) :: meta_args =        &
           (/ arg(READ,      R_SCALAR, POINTWISE),  &
+             arg(READ,      I_SCALAR, POINTWISE),  &
              arg(READWRITE, CT,       POINTWISE),  &
              arg(READ,      GRID_MASK_T)           &
            /)
@@ -93,15 +94,16 @@ contains
 
   end subroutine bc_ssh_code
 
-  subroutine bc_ssh_value_code(ji, jj, rtime, ssha, tmask)
+  subroutine bc_ssh_value_code(ji, jj, rtime, itime, ssha, tmask)
     use model_mod, only: rdt
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
     real(wp), value           intent(in)    :: rtime
+    integer,  value           intent(in)    :: itime
     real(wp), dimension(:,:), intent(inout) :: ssha
     ! Locals
-    real(wp) :: amp_tide, omega_tide, rtime
+    real(wp) :: amp_tide, omega_tide
 
     amp_tide   = 0.2_wp
     omega_tide = 2.0_wp * 3.14159_wp / (12.42_wp * 3600._wp)
