@@ -33,15 +33,30 @@
 ! Author R. Ford STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_fs
+! A kernel which writes to two fields, one on any space and one on W3 
+! (discontinuous). The generated loop bounds in the PSy layer must therefore
+! be for the 'worst case' which is the continuous space (because we have to
+! allow for the any-space space being continuous).
+module testkern_write_any_w3_mod
 
-  ! Description: single function that writes to fields on any-space and
-  ! W3
-  use testkern_write_any_w3_mod, only: testkern_write_any_w3_type
-  use inf,                       only: field_type
-  implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3
+  type, extends(kernel_type) :: testkern_write_any_w3_type
+     type(arg_type), dimension(7) :: meta_args =        &
+          (/ arg_type(gh_field, gh_write, any_space_1), &
+             arg_type(gh_field, gh_read,  w2),          &
+             arg_type(gh_field, gh_read,  w2),          &
+             arg_type(gh_field, gh_write, w3),          &
+             arg_type(gh_field, gh_read,  wtheta),      &
+             arg_type(gh_field, gh_read,  w2h),         &
+             arg_type(gh_field, gh_read,  w2v)          &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_write_any_w3_code
+  end type testkern_write_any_w3_type
 
-  call invoke( testkern_write_any_w3_type(f1, m1, m2, f2, f3, f4, m3) )
+contains
 
-end program single_invoke_fs
+  subroutine testkern_write_any_w3_code()
+  end subroutine testkern_write_any_w3_code
+
+end module testkern_write_any_w3_mod
