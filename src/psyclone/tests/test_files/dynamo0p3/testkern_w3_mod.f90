@@ -68,10 +68,14 @@ contains
     integer(kind=i_def), intent(in)  :: ndf_w1, undf_w1, &
                                         ndf_w2, undf_w2, &
                                         ndf_w3, undf_w3
-    integer(kind=i_def), dimension(:), intent(in) :: map_w1, map_w2, map_w3
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
     real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(:), intent(in) :: fld1, fld2, fld3
-    real(kind=r_def), dimension(:), intent(out) :: fld4
+    real(kind=r_def), dimension(undf_w1), intent(in) :: fld1
+    real(kind=r_def), dimension(undf_w2), intent(in) :: fld2
+    real(kind=r_def), dimension(undf_w2), intent(in) :: fld3
+    real(kind=r_def), dimension(undf_w3), intent(out) :: fld4
 
   end subroutine testkern_w3_code
 
