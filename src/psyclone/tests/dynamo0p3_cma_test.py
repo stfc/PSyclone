@@ -864,7 +864,7 @@ def test_cma_apply_discontinuous_spaces():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
-                         "20.1.2_cma_apply_discontinuous.f90"),
+                         "20.1.2_cma_apply_disc.f90"),
             distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
