@@ -41,29 +41,40 @@
 ! -----------------------------------------------------------------------------
 ! Modified, A. R. Porter, STFC Daresbury Lab
 
-module prolong_kernel_mod
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: prolong_kernel_type
-     type(arg_type), dimension(2) :: meta_args =                &
-          (/ arg_type(gh_field,gh_write,w1, mesh_arg=gh_fine),  &
-             arg_type(gh_field,gh_read, w2, mesh_arg=gh_coarse) &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => prolong_kernel_code
-  end type prolong_kernel_type
+module restrict_kernel_mod
+use constants_mod,           only: i_def, r_def
+use kernel_mod,              only: kernel_type
+use argument_mod,            only: arg_type, &      
+                                   GH_FIELD, GH_READ, GH_INC, CELLS, &
+                                   ANY_SPACE_1, ANY_SPACE_2,GH_COARSE, GH_FINE
+implicit none
+
+type, public, extends(kernel_type) :: restrict_kernel_type
+   private 
+   type(arg_type) :: meta_args(2) = (/                                      &
+       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1, mesh_arg=GH_COARSE),         &
+       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, mesh_arg=GH_FINE   )       &
+       /)
+  integer :: iterates_over = CELLS
+contains
+  procedure, nopass :: restrict_kernel_code
+end type restrict_kernel_type
+
 contains
 
-  subroutine prolong_kernel_code(nlayers, cell_map, ncell_f_per_c, &
-                                 dofmap_w1, ncell_f, dofmap_w2,    &
-                                 ndf_w1, undf_w1, undf_w2, fld1, fld2)
-    integer :: nlayers, ncell_f_per_c, ncell_f
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, undf_w2
-    integer, dimension(:) :: cell_map, dofmap_w2
-    integer, dimension(:,:) :: dofmap_w1
+  subroutine restrict_kernel_code(nlayers, cell_map, ncell_f_per_c, &
+       dofmap_f, ncell_f, dofmap_c, ndf, undf_f, undf_c, coarse, fine)
+    integer, intent(in) :: nlayers
+    integer, intent(in) :: ncell_f_per_c
+    integer, dimension(ncell_f_per_c), intent(in) :: cell_map
+    integer, intent(in) :: ncell_f
+    integer, intent(in) :: ndf
+    integer, dimension(ndf, ncell_f), intent(in) :: dofmap_f
+    integer, dimension(ndf), intent(in) :: dofmap_c
+    integer, intent(in) :: undf_f, undf_c
+    real(kind=r_def), dimension(undf_c), intent(inout) :: coarse
+    real(kind=r_def), dimension(undf_f), intent(in) :: fine
 
-  end subroutine prolong_kernel_code
-end module prolong_kernel_mod
+  end subroutine restrict_kernel_code
+
+end module restrict_kernel_mod

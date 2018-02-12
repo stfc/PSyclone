@@ -1,15 +1,7 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-! LICENCE.original is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
-!
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,31 +31,16 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified, A. R. Porter, STFC Daresbury Lab
+! Author R. Ford and A. R. Porter, STFC Daresbury Lab
 
-module prolong_kernel_mod
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-  type, extends(kernel_type) :: prolong_kernel_type
-     type(arg_type), dimension(2) :: meta_args =                &
-          (/ arg_type(gh_field,gh_write,w1, mesh_arg=gh_fine),  &
-             arg_type(gh_field,gh_read, w2, mesh_arg=gh_coarse) &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => prolong_kernel_code
-  end type prolong_kernel_type
-contains
+program single_invoke_restrict
 
-  subroutine prolong_kernel_code(nlayers, cell_map, ncell_f_per_c, &
-                                 dofmap_w1, ncell_f, dofmap_w2,    &
-                                 ndf_w1, undf_w1, undf_w2, fld1, fld2)
-    integer :: nlayers, ncell_f_per_c, ncell_f
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
-    integer :: ndf_w1, undf_w1, undf_w2
-    integer, dimension(:) :: cell_map, dofmap_w2
-    integer, dimension(:,:) :: dofmap_w1
+  ! Description: invoke of single kernel that performs a restriction (map
+  ! field from coarse to fine mesh)
+  use restrict_kernel_mod, only: restrict_kernel_type
+  implicit none
+  type(field_type) :: field1, field2
 
-  end subroutine prolong_kernel_code
-end module prolong_kernel_mod
+  call invoke( restrict_kernel_type(field1, field2) )
+
+end program single_invoke_restrict
