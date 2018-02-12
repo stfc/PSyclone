@@ -3857,14 +3857,14 @@ def test_rc_discontinuous_no_depth(): #### Add/modify/rename??
     assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_depth(): #### Add/modify/rename??
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with discontinuous reads are modified appropriately
-    and set_clean() added correctly and halo_exchange added
-    appropriately after applying the redundant computation
-    transformation with a fixed value for halo depth'''
+def test_rc_all_discontinuous_depth():
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with discontinuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_disc_only.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3882,14 +3882,14 @@ def test_rc_all_discontinuous_depth(): #### Add/modify/rename??
     assert "CALL f1_proxy%set_clean(3)" in result
 
 
-def test_rc_all_discontinuous_no_depth(): #### Add/modify/rename??
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with discontinuous reads are modified appropriately
-    and set_clean() added correctly and halo_exchange added
-    appropriately after applying the redundant computation
-    transformation with no halo depth value'''
+def test_rc_all_discontinuous_no_depth():
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with discontinuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_disc_only.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3966,16 +3966,16 @@ def test_rc_all_discontinuous_vector_no_depth():
                 "depth())".format(idx)) in result
 
 
-def test_rc_all_disc_prev_depend_depth(): #### Add/modify/rename??
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with discontinuous reads are modified appropriately
-    and set_clean() added correctly and halo_exchange added
-    appropriately in the case where the field requiring a halo
+def test_rc_all_disc_prev_depend_depth():
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iteratingover cells) with discontinuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately in the case where the field requiring a halo
     exchange has a previous non-halo dependence, after applying the
     redundant computation transformation with a fixed value for halo
     depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w3.f90"),
+                                 "4.12_multikernel_invokes_disc.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3995,15 +3995,15 @@ def test_rc_all_disc_prev_depend_depth(): #### Add/modify/rename??
     assert "CALL f3_proxy%set_clean(3)" in result
 
 
-def test_rc_all_disc_prev_depend_no_depth(): #### Add/modify/rename??
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) are modified appropriately and set_clean() added
-    correctly and halo_exchange added appropriately in the case where
-    the field now requiring a halo exchange has a previous non-halo
-    dependence after applying the redundant computation transformation
-    with no halo depth value '''
+def test_rc_all_disc_prev_depend_no_depth():
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) are modified appropriately and set_clean()
+    added correctly and halo_exchange added appropriately in the case
+    where the field now requiring a halo exchange has a previous
+    non-halo dependence after applying the redundant computation
+    transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w3.f90"),
+                                 "4.12_multikernel_invokes_disc.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4381,10 +4381,10 @@ def test_rc_no_halo_decrease():
 
 
 def test_rc_updated_dependence_analysis():
-    '''Test that the dependence analyis updates when new halo exchanges
-    are added to the schedule'''
+    ''' Test that the dependence analyis updates when new halo exchanges
+    are added to the schedule '''
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
+        BASE_PATH, "1_single_invoke_disc_only.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4411,13 +4411,13 @@ def test_rc_updated_dependence_analysis():
 
 
 def test_rc_no_loop_decrease():
-    '''Test that we raise an exception if we try to reduce the size of a
+    ''' Test that we raise an exception if we try to reduce the size of a
     loop halo when using the redundant computation transformation. This is
     not allowed partly for simplicity but also because, in the current
     implementation we might not decrease the size of the relevant halo
-    exchange as these can only be increased with the current logic'''
+    exchange as these can only be increased with the current logic '''
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
+        BASE_PATH, "1_single_invoke_disc_only.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4450,17 +4450,17 @@ def test_rc_no_loop_decrease():
 
 
 def test_rc_no_directive():
-    '''Test that we raise an exception if we try to use the redundant
+    ''' Test that we raise an exception if we try to use the redundant
     computation transformation after adding parallel directives (or in
     general anything that becomes a parent of the loop). This is a
     limitation that could be fixed and is down to the way we place new
     halos (we put them before the loop and don't check whether there are
     any parent directives). However this is not an unreasonable constraint
     as we would expect to perform loop optimisations before adding
-    directives.'''
+    directives '''
 
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
+        BASE_PATH, "1_single_invoke_disc_only.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4774,12 +4774,12 @@ def test_loop_fusion_different_loop_depth():
 
 
 def test_loop_fusion_different_loop_name():
-    '''We can only loop fuse if two loops iterate over the same entities
+    ''' We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
-    the exception is raised correctly.'''
+    the exception is raised correctly. '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w3.f90"),
+                                 "4.12_multikernel_invokes_disc.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule

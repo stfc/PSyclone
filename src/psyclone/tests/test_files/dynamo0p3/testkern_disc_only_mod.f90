@@ -33,17 +33,21 @@
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_w3_only
+module testkern_disc_only_mod
 
-  ! Description: single function in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only_mod, only: testkern_w3_only_type
-  use inf,                  only: field_type
-  implicit none
-  type(field_type) :: f1, f2
+  type, extends(kernel_type) :: testkern_disc_only_type
+     type(arg_type), dimension(2) :: meta_args =   &
+          (/ arg_type(gh_field, gh_write, wtheta), &
+             arg_type(gh_field, gh_read,  w3)      &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_disc_only_code
+  end type testkern_disc_only_type
 
-  call invoke(                       &
-       testkern_w3_only_type(f1, f2) &
-          )
+contains
 
-end program single_invoke_w3_only
+  subroutine testkern_disc_only_code()
+  end subroutine testkern_disc_only_code
+
+end module testkern_disc_only_mod

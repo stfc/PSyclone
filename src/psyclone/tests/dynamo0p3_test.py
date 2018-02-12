@@ -6541,13 +6541,13 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous(): #### Add/modify/rename??
-    '''Test that we do not create halo exchange calls when our loop only
-    iterates over owned cells (e.g. it writes to a discontinuous
+def test_no_halo_for_discontinous():
+    ''' Test that we do not create halo exchange calls when our loop
+    only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
-    stencil accesses'''
+    stencil accesses '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_disc_only.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     result = str(psy.gen)
@@ -6596,18 +6596,21 @@ def test_halo_for_discontinuous_2(): #### Add/modify/rename??
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_arg_discontinous(): #### Add/modify/rename??
-    '''test that the discontinuous method in the dynamo argument class
-    returns the correct values '''
+def test_arg_discontinous(): ## To add for w2v
+    ''' Test that the discontinuous method in the dynamo argument
+    class returns the correct values '''
 
     # 1 discontinuous field returns true
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_disc_only.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[0].children[0]
     field = kernel.arguments.args[0]
+    assert field.space == 'wtheta'
+    assert field.discontinuous
+    field = kernel.arguments.args[1]
     assert field.space == 'w3'
     assert field.discontinuous
 
@@ -6780,13 +6783,13 @@ def test_HaloReadAccess_field_in_call():
 
 
 def test_HaloReadAccess_field_not_reader():
-    '''The field passed to HaloReadAccess should be read within its associated
-    kernel or builtin. If it is not then an exception is raised. This
-    test checks that this exception is raised correctly
+    ''' The field passed to HaloReadAccess should be read within its
+    associated kernel or builtin. If it is not then an exception is raised.
+    This test checks that this exception is raised correctly
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1_single_invoke_w3_only.f90"),
+                                        "1_single_invoke_disc_only.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6822,12 +6825,12 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field(): #### Add/modify/rename??
-    '''When a discontinuous argument is read in a loop with an iteration
+def test_HaloReadAccess_discontinuous_field():
+    ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation'''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_disc_only.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
