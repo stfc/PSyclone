@@ -5,6 +5,7 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -------------------------------------------------------------------------
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
@@ -12,10 +13,11 @@
 from __future__ import absolute_import
 import os
 import pytest
+import re
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
-    GOConstLoopBoundsTrans, LoopFuseTrans, LoopSwapTrans, \
+    GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from psyclone.generator import GenerationError
@@ -1192,7 +1194,7 @@ def test_loop_swap_correct():
     last invokes to make sure the inserting of the inner loop happens at
     the right place.'''
 
-    psy, invoke = get_invoke("test27_loop_swap.f90", 0)
+    psy, _ = get_invoke("test27_loop_swap.f90", 0)
     invoke = psy.invokes.get("invoke_loop1")
     schedule = invoke.schedule
     schedule_str = str(schedule)
@@ -1202,13 +1204,12 @@ def test_loop_swap_correct():
     expected_schedule = '''Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code'''
-    assert expected_schedule in  schedule_str
+    assert expected_schedule in schedule_str
 
     expected_schedule = '''Loop[]: j= lower=1,jstop+1,1
 Loop[]: i= lower=1,istop,1
 kern call: bc_solid_u_code'''
-    #assert expected_schedule in  schedule_str
-    print expected_schedule, "\n++++++++\n",schedule_str
+    assert expected_schedule in schedule_str
 
     expected_schedule = '''Loop[]: j= lower=1,jstop,1
 Loop[]: i= lower=1,istop+1,1
@@ -1216,7 +1217,7 @@ kern call: bc_solid_v_code'''
     assert expected_schedule in schedule_str
 
     # Now swap the first loops
-    swap = LoopSwapTrans()
+    swap = GOLoopSwapTrans()
     swapped1, _ = swap.apply(schedule.children[0])
     psy.invokes.get('invoke_loop1').schedule = swapped1
     schedule_str = str(swapped1)
@@ -1236,7 +1237,7 @@ Loop[]: j= lower=1,jstop+1,1
 kern call: bc_solid_u_code'''
     assert expected_schedule in schedule_str
 
-    # Now swap the middle loops
+    # Now swap the last loops
     swapped3, _ = swap.apply(swapped2.children[2])
     psy.invokes.get('invoke_loop1').schedule = swapped3
     schedule_str = str(swapped3)
@@ -1248,35 +1249,70 @@ kern call: bc_solid_v_code'''
     return
 
 
-def test_loop_swap_errors():
+def test_go_loop_swap_errors():
     ''' Test loop swapping transform with incorrect parameters. '''
 
-    psy, invoke = get_invoke("test27_loop_swap.f90", 1)
+    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", 1)
 
-    schedule = invoke.schedule
-    swap = LoopSwapTrans()
+    schedule = invoke_loop1.schedule
+    swap = GOLoopSwapTrans()
+    assert swap.name == "GOLoopSwap"
+    assert str(swap) == "Exchange the order of two nested loops: inner "\
+        "becomes outer and vice versa"
 
-    # Test error if given node is not the outer loop of an at least
-    # double nested loop:
+    # Test error if given node is not the outer loop of at least
+    # a double nested loop:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].children[0])
-    assert "First inner statement is not a loop" in str(error.value)
+    assert re.search("Supplied node .* must be the outer loop of a loop nest "
+                     "but the first inner statement is not a loop, got .*",
+                     str(error.value)) is not None
 
-    # Not a loop:
+    # Not a loop: use the cal to bc_ssh_code node as example for this test:
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].children[0].children[0])
-    assert "Given node is not a loop" in str(error.value)
+    assert "Given node 'kern call: bc_ssh_code' is not a loop" in \
+        str(error.value)
 
-    # Now create an outer loop with more than one inner statements
+    # Now create an outer loop with more than one inner statement
     # ... by fusing the first and second outer loops :(
-    invoke = psy.invokes.get("invoke_loop2")
-    schedule = invoke.schedule
+    invoke_loop2 = psy.invokes.get("invoke_loop2")
+    schedule = invoke_loop2.schedule
 
     fuse = GOceanLoopFuseTrans()
     fused, _ = fuse.apply(schedule.children[0], schedule.children[1])
-    psy.invokes.get('invoke_loop2').schedule = fused
+    invoke_loop2.schedule = fused
 
     with pytest.raises(TransformationError) as error:
         swap.apply(fused.children[0])
-    assert "More than one statement in outer loop" in str(error.value)
+    assert re.search("Supplied node .* must be the outer loop of a loop nest "
+                     "and must have exactly one inner loop, but this node "
+                     "has 2 inner statements, the first two being .* and .*",
+                     str(error.value)) is not None
 
+    # Now remove the body of the first inner loop, and pass the first
+    # inner loop --> i.e. a loop with an empty body
+    del fused.children[0].children[0].children[0]
+
+    with pytest.raises(TransformationError) as error:
+        swap.apply(fused.children[0].children[0])
+    assert re.search("Supplied node .* must be the outer loop of a loop nest "
+                     "and must have one inner loop, but this node does not "
+                     "have any statements inside.",
+                     str(error.value)) is not None
+
+    # Check if a non gocean1p0 API raises an error
+    _, info = parse(os.path.
+                    join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.1_single_named_invoke.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invokes = psy.invokes
+    invoke = invokes.get(invokes.names[0])
+    with pytest.raises(TransformationError) as error:
+        swap.apply(invoke.schedule.children[3])
+
+    assert re.search("Given node .* is not a GOLoop, "
+                     "but an instance of .*DynLoop",
+                     str(error.value)) is not None

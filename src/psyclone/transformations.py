@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#        J. Henrichs, Bureau of Meteorology
 
 ''' This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
@@ -1152,11 +1153,12 @@ class MoveTrans(Transformation):
                 "forbid the move to the new location")
         # pylint: enable=no-self-use
 
-    def apply(self, node, location, position="before"):  # pylint:disable=arguments-differ
+    def apply(self, node, location, position="before"):
         '''Move the node represented by :py:obj:`node` before location
         :py:obj:`location` (which is also a node) by default and after
         if the optional `position` argument is set to 'after'. An
         exception is raised if the move is invalid '''
+        # pylint:disable=arguments-differ
 
         self._validate(node, location, position)
 
@@ -1328,7 +1330,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
-    def apply(self, loop, depth=None):
+    def apply(self, loop, depth=None):  # pylint:disable=arguments-differ
         '''Apply the redundant computation tranformation to the loop
         :py:obj:`loop`. This transformation can be applied to loops iterating
         over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
@@ -1336,7 +1338,6 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         computation will be performed. If :py:obj:`depth` is not set to a
         value then redundant computation will be performed to the full depth
         of the field's halo.
-
         :param loop: the loop that we are transforming
         :type loop: :py:class:`psyclone.psyGen.DynLoop`
         :param depth: the depth of the stencil. Defaults to None if a
@@ -1365,7 +1366,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         return schedule, keep
 
 
-class LoopSwapTrans(Transformation):
+class GOLoopSwapTrans(Transformation):
     ''' Provides a loop-swap transformation.
         For example:
 
@@ -1376,42 +1377,81 @@ class LoopSwapTrans(Transformation):
         >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> schedule.view()
         >>>
-        >>> from transformations import LoopSwapTrans
-        >>> swap=LoopSwapTrans()
-        >>> new_schedule,memento=swap.apply(schedule.children[0],
-                                             schedule.children[1])
+        >>> from transformations import GOLoopSwapTrans
+        >>> swap=GOLoopSwapTrans()
+        >>> new_schedule,memento=swap.apply(schedule.children[0])
         >>> new_schedule.view()
     '''
 
     def __str__(self):
         return "Exchange the order of two nested loops: inner becomes " + \
                "outer and vice versa"
+
     @property
-    def name(selfself):
+    def name(self):
         '''Returns the name of this transformation as a string'''
-        return "LoopSwap"
+        return "GOLoopSwap"
 
     def _validate(self, node_outer):  # pylint: disable=no-self-use
-        ''' validity checks for input arguments '''
+        '''Checks if the given nodes contains a valid Fortran structure
+           to allow swapping loops. This means the node must represent
+           a loop, and it must have exactly one child that is also a loop.
+           :param node_outer: A node from an AST.
+           :type node_outer: py:class:`psyclone.psyGen.Node`
+           :raises TransformationError: if the supplied node does not
+                                        allow a loop swap to be done.
+         '''
 
-        from .psyGen import Loop
+        from psyclone.psyGen import Loop
         if not isinstance(node_outer, Loop):
-            raise TransformationError("Error in LoopSwap transformation. "
-                                      "Given node is not a loop.")
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Given node '{0}' is not a loop."
+                                      .format(node_outer))
+
+        from psyclone.gocean1p0 import GOLoop
+        if not isinstance(node_outer, GOLoop):
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Given node '{0}' is not a GOLoop, but an instance of '{1}."
+                                      .format(node_outer, type(node_outer)))
+
+        if len(node_outer.children) == 0:
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Supplied node '{0}' must be the outer "
+                                      "loop of a loop nest and must have one "
+                                      "inner loop, but this node does not "
+                                      "have any statements inside."
+                                      .format(node_outer))
 
         node_inner = node_outer.children[0]
         # Check that the supplied Node is a Loop
         if not isinstance(node_inner, Loop):
-            raise TransformationError("Error in LoopSwap transformation. "
-                                      "First inner statement is not a loop.")
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Supplied node '{0}' must be the outer "
+                                      "loop of a loop nest but the first "
+                                      "inner statement is not a loop, got "
+                                      "'{1}'."
+                                      .format(node_outer, node_inner))
 
-        if len(node_outer.children) != 1:
-            raise TransformationError("Error in LoopSwap transformation. "
-                                      "More than one statement in outer loop.")
+        if len(node_outer.children) > 1:
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Supplied node '{0}' must be the outer "
+                                      "loop of a loop nest and must have "
+                                      "exactly one inner loop, but this node "
+                                      "has {1} inner statements, the first "
+                                      "two being '{2}' and '{3}'"
+                                      .format(node_outer,
+                                              len(node_outer.children),
+                                              node_outer.children[0],
+                                              node_outer.children[1]))
 
     def apply(self, outer):  # pylint: disable=arguments-differ
-        ''' Swaps the loop by :py:obj:`inner`with its inner loop. '''
-
+        '''The argument outer must be a loop which has exactly one inner loop.
+        this transform then swaps the outer and inner loop.
+        :param outer: The node representing the outer loop.
+        :type py:class:`psyclone.psyGen.Node`
+        :return: A tuple consistent of the new schedule, and a Memento.
+        :raises TransformationError: if the supplied node does not
+                                        allow a loop swap to be done.'''
         self._validate(outer)
 
         schedule = outer.root
