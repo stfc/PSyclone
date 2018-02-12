@@ -4055,7 +4055,7 @@ def test_rc_all_disc_prev_dep_depth_vector():
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_rc_all_disc_prev_dep_no_depth_vect(): #### Add/modify/rename??
+def test_rc_all_disc_prev_dep_no_depth_vect():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
@@ -4063,7 +4063,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(): #### Add/modify/rename??
     dependence after applying the redundant computation transformation
     with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                                 "8.2_multikernel_invokes_disc_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4658,14 +4658,14 @@ def test_rc_reader_halo_remove():
     assert "CALL f2_proxy%halo_exchange(" not in result
 
 
-def test_rc_vector_reader_halo_remove(): #### Effect from w3 changes??
-    '''check that we do not add unnecessary halo exchanges for a vector
+def test_rc_vector_reader_halo_remove():
+    ''' Check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
     the previous loop still computes deep enough into the halo to
-    avoid needing halo exchanges.'''
+    avoid needing halo exchanges '''
 
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                                 "8.2_multikernel_invokes_disc_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
