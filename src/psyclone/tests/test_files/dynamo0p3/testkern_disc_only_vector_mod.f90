@@ -35,6 +35,7 @@
 
 module testkern_disc_only_vector_mod
 
+  ! Description: discontinuous field vector writer (w3) and reader (wtheta)
   type, extends(kernel_type) :: testkern_disc_only_vector_type
      type(arg_type), dimension(2) :: meta_args =     &
           (/  arg_type(gh_field*3, gh_write, w3),    &

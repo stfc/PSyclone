@@ -35,6 +35,7 @@
 
 module testkern_disc_only_mod
 
+  ! Description: discontinuous field writer (wtheta) and reader (w3)
   type, extends(kernel_type) :: testkern_disc_only_type
      type(arg_type), dimension(2) :: meta_args =   &
           (/ arg_type(gh_field, gh_write, wtheta), &

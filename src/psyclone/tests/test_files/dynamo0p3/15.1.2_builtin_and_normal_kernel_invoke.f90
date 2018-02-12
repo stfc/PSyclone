@@ -50,7 +50,7 @@ program single_invoke_builtin_then_kernel
        ! f3 function space w2, write
        ! f2 function space w2, read
        testkern_w2_only_type(f3, f2),        &
-       ! f4 function space w3, write
+       ! f4 function space wtheta, write
        ! f5 function space w3, read
        testkern_disc_only_type(f4, f5),      &
        ! scalar, read

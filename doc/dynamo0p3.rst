@@ -1,7 +1,7 @@
 .. Modified I. Kavcic Met Office
 .. _dynamo0.3-api:
 
-dynamo0.3 API
+Dynamo0.3 API
 =============
 
 This section describes the Dynamo0.3 application programming interface
@@ -28,7 +28,7 @@ Algorithm
 
 The general requirements for the structure of an Algorithm are explained
 in the :ref:`algorithm-layer` section. This section explains the
-dynamo0.3-specific specialisations and extensions.
+Dynamo0.3-specific specialisations and extensions.
 
 .. _dynamo0.3-example:
 
@@ -197,7 +197,7 @@ stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
 maximum distance from the central cell that the stencil extends). The
-dynamo0.3 API expects this information to be added as an additional
+Dynamo0.3 API expects this information to be added as an additional
 ``integer`` argument immediately after the relevant field when specifying
 the Kernel via an ``invoke``.
 
@@ -221,7 +221,7 @@ stencil access.
 If the Kernel metadata specifies that the stencil is of type
 ``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
 must specify whether the stencil is ``X1D`` or ``Y1D`` for that
-particular kernel call. The dynamo0.3 API expects this information to
+particular kernel call. The Dynamo0.3 API expects this information to
 be added as an additional argument immediately after the relevant
 stencil extent argument. The argument should be an ``integer`` with
 valid values being ``x_direction`` or ``y_direction``, both being
@@ -265,7 +265,7 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the dynamo0.3 api test suite gives::
+For example, running test 19.2 from the Dynamo0.3 API test suite gives::
 
   cd <PSYCLONEHOME>/src/tests
   python ../../src/generator.py test_files/dynamo0p3/19.2_single_stencil_broken.f90 
@@ -443,7 +443,7 @@ Rules for Inter-Grid Kernels
 Metadata
 ++++++++
 
-The code below outlines the elements of the dynamo0.3 API kernel
+The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
 'iterates_over' and 5) 'procedure'.
 
@@ -695,7 +695,7 @@ accesses are found then PSyclone aborts.
 
 .. _dynamo0.3-function-spaces:
 
-Supported function spaces
+Supported Function Spaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As mentioned in :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
@@ -724,34 +724,34 @@ Additional function spaces required for representation of scalar or
 component-wise vector variables are:
 
 * ``wtheta`` is the space of scalar functions based on the vertical
-    part of ``w2``, discontinuous in the horizontal and continuous
-    in the vertical;
+  part of ``w2``, discontinuous in the horizontal and continuous
+  in the vertical;
 
 * ``w2v`` is the space of vector functions based on the vertical
-    part of ``w2``, discontinuous in the horizontal and continuous
-    in the vertical;
+  part of ``w2``, discontinuous in the horizontal and continuous
+  in the vertical;
 
 * ``w2h`` is the space of vector functions based on the horizontal
-    part of ``w2``. It is continuous in the horizontal and
-    discontinuous in the vertical.
+  part of ``w2``, continuous in the horizontal and discontinuous
+  in the vertical.
 
 Since Dynamo0.3 API operates on columns of data, function spaces are
 categorised as continuous or discontinuous with regard to their
 horizontal continuity.
 
-* Continuous function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
+* **Continuous** function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
 
-* Discontinuous function spaces are ``w3``, ``wtheta`` and ``w2v``.
+* **Discontinuous** function spaces are ``w3``, ``wtheta`` and ``w2v``.
 
 Two additonal function space metadata descriptors as mentioned in
 sections above are:
 
 * ``ANY_SPACE`` for when the function spaces of the modified argument(s)
-    cannot be determined;
+  cannot be determined;
 
 * ``ANY_W2`` for any type of ``w2`` function spaces.
 
-As mentioned previously, both ``ANY_SPACE`` and ``ANY_SPACE`` function
+As mentioned previously, both ``ANY_SPACE`` and ``ANY_W2`` function
 space types are treated as continuous.
 
 Optional Field Metadata
@@ -1003,7 +1003,7 @@ Rules for General-Purpose Kernels
 
 The arguments to general-purpose kernels (those that do not involve
 CMA operators) follow a set of rules which have been specified for
-the dynamo0.3 API. These rules are encoded in the ``generate()``
+the Dynamo0.3 API. These rules are encoded in the ``generate()``
 method within the ``ArgOrdering`` abstract class in the
 ``dynamo0p3.py`` file. The rules, along with PSyclone's naming
 conventions, are:
@@ -1747,7 +1747,7 @@ where:
 Boundary Conditions
 -------------------
 
-In the dynamo0.3 API, boundary conditions for a field or LMA operator can
+In the Dynamo0.3 API, boundary conditions for a field or LMA operator can
 be enforced by the algorithm developer by calling the Kernels
 ``enforce_bc_type`` or ``enforce_operator_bc_type``,
 respectively. These kernels take a field or operator as input and apply
@@ -1784,7 +1784,7 @@ example.
 Conventions
 -----------
 
-There is a convention in the dynamo0.3 API kernel code that if the
+There is a convention in the Dynamo0.3 API kernel code that if the
 name of the operation being performed is ``<name>`` then a kernel file
 is ``<name>_mod.[fF90]``, the name of the module inside the kernel
 file is ``<name>_mod``, the name of the kernel metadata in the module
