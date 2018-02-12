@@ -4253,7 +4253,7 @@ def test_discontinuous_no_set_clean():
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_edge_cell()" in result
-    assert "CALL mm_proxy%set_dirty()" in result
+    assert "CALL m2_proxy%set_dirty()" in result
     assert "CALL m2_proxy%set_clean(" not in result
 
 
