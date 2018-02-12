@@ -35,15 +35,16 @@
 
 program single_invoke_fs
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_write_w3_w1_mod, only: testkern_write_w3_w1_type
-  use inf,                      only: field_type
+  ! Description: single function specified in an invoke call using
+  ! all function spaces with one continuous writer (w1) and one
+  ! discontinuous writer (w2v)
+  use testkern_write_w2v_w1_mod, only: testkern_write_w2v_w1_type
+  use inf,                       only: field_type
   implicit none
   type(field_type) :: f1, f2, f3, f4, m1, m2, m3
 
-  call invoke(                                               &
-       testkern_write_w3_w1_type(f1, f2, m1, m2, f3, f4, m3) &
+  call invoke(                                                &
+       testkern_write_w2v_w1_type(f1, f2, m1, m2, f3, f4, m3) &
           )
 
 end program single_invoke_fs

@@ -3802,7 +3802,7 @@ def test_rc_continuous_no_depth():
             "()-1)") in result
 
 
-def test_rc_discontinuous_depth(): #### Add/modify/rename??
+def test_rc_discontinuous_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange modified
@@ -3829,7 +3829,7 @@ def test_rc_discontinuous_depth(): #### Add/modify/rename??
             "      CALL m2_proxy%set_clean(3)") in result
 
 
-def test_rc_discontinuous_no_depth(): #### Add/modify/rename??
+def test_rc_discontinuous_no_depth():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with continuous reads are modified appropriately and
     set_clean() added correctly and halo_exchange added/modified
@@ -4242,7 +4242,7 @@ def test_continuous_no_set_clean():
     assert "CALL f1_proxy%set_clean(" not in result
 
 
-def test_discontinuous_no_set_clean(): #### Add/modify/rename??
+def test_discontinuous_no_set_clean():
     '''Test that set_clean is not added for the default iteration space of
     a discontinuous loop. This is probably covered from tests in
     dynamo0p3_test.py but it is good to have a specific test'''
@@ -4253,7 +4253,7 @@ def test_discontinuous_no_set_clean(): #### Add/modify/rename??
     result = str(psy.gen)
     print result
     assert "DO cell=1,mesh%get_last_edge_cell()" in result
-    assert "CALL m2_proxy%set_dirty()" in result
+    assert "CALL mm_proxy%set_dirty()" in result
     assert "CALL m2_proxy%set_clean(" not in result
 
 
@@ -4510,17 +4510,15 @@ def test_rc_remove_halo_exchange():
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_rc_max_remove_halo_exchange(): #### Add/modify/rename??
-
-    '''add test to redundantly compute a w3 (discontinuous) and w2
-    (continuous) field to the maximum halo depth and then check that a
-    discontinuous halo exchange is removed in this case as we always
-    remove the halo exchange if we write to a discontinuous field to
-    maximum depth. Also check that the halo exchange is not removed
-    for the continuous case as the outer halo stays dirty. The halo
-    should also have an if round it as we do not know how much
-    redundant computation we are doing.'''
-
+def test_rc_max_remove_halo_exchange():
+    ''' Add test to redundantly compute a discontinuous (wtheta) and
+    continuous (w2) field to the maximum halo depth and then check
+    that a discontinuous halo exchange is removed in this case as we
+    always remove the halo exchange if we write to a discontinuous
+    field to maximum depth. Also check that the halo exchange is not
+    removed for the continuous case as the outer halo stays dirty.
+    The halo should also have an if round it as we do not know how
+    much redundant computation we are doing. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -4591,12 +4589,12 @@ def test_rc_continuous_halo_remove():
     assert "IF (f3_proxy%is_dirty(depth=" not in result
 
 
-def test_rc_discontinuous_halo_remove(): #### Add/modify/rename??
-    '''check that we do remove a halo exchange when the field is
+def test_rc_discontinuous_halo_remove():
+    ''' Check that we do remove a halo exchange when the field is
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
-    than the required halo access depth'''
+    than the required halo access depth '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),

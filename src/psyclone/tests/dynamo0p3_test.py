@@ -2129,7 +2129,7 @@ def test_dyninvoke_arg_for_fs():
         in str(excinfo.value)
 
 
-def test_kernel_specific(): #### Effect from w2v changes??
+def test_kernel_specific():
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
@@ -2164,7 +2164,7 @@ def test_kernel_specific(): #### Effect from w2v changes??
     assert output6 not in generated_code
 
 
-def test_multi_kernel_specific(): #### Effect from w2v changes??
+def test_multi_kernel_specific():
     '''Test that a call to enforce boundary conditions is *not* added following
     multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
     must now be explicitly specified as part of the Algorithm. '''
@@ -2412,7 +2412,7 @@ def test_multikernel_invoke_qr():
     assert str(generated_code).count("CALL testkern_qr_code") == 2
 
 
-def test_mkern_invoke_vec_fields(): #### Effect from w2v changes??
+def test_mkern_invoke_vec_fields():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with vector fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2428,7 +2428,7 @@ def test_mkern_invoke_vec_fields(): #### Effect from w2v changes??
     assert str(generated_code).find(output2) == -1
 
 
-def test_multikern_invoke_orient(): #### Effect from w2v changes??
+def test_multikern_invoke_orient():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with orientation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2445,7 +2445,7 @@ def test_multikern_invoke_orient(): #### Effect from w2v changes??
     assert str(generated_code).find(output2) == -1
 
 
-def test_multikern_invoke_oper(): #### Effect from w2v changes??
+def test_multikern_invoke_oper():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with operators '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4072,7 +4072,7 @@ def test_halo_dirty_3():
     assert str(generated_code).count("CALL f1_proxy%set_dirty()") == 2
 
 
-def test_halo_dirty_4(): #### Effect from w2v changes??
+def test_halo_dirty_4():
     ''' check halo_dirty calls with field vectors '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api="dynamo0.3")
@@ -4222,7 +4222,7 @@ def test_halo_exchange_different_spaces():
     assert result.count("halo_exchange") == 9
 
 
-def test_halo_exchange_vectors_1(): #### Effect from w2v changes??
+def test_halo_exchange_vectors_1():
     ''' test that halo exchange produces correct code for vector
     fields. Test a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4242,7 +4242,7 @@ def test_halo_exchange_vectors_1(): #### Effect from w2v changes??
     assert expected in result
 
 
-def test_halo_exchange_vectors(): #### Effect from w2v changes??
+def test_halo_exchange_vectors():
     ''' test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -5890,7 +5890,7 @@ def test_dynloop_load_unexpected_func_space():
     # create a function which always returns the broken field
 
     def broken_func():
-        ''' returns the above field no matter what '''
+        ''' Returns the above field no matter what '''
         return field
     # replace the iteration_space_arg method with our broke
     # function. This is required as iteration_space_arg currently
@@ -6091,12 +6091,12 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w3_w1(): #### Add/modify/rename??
-    ''' Check that generated loop over cells in the psy layer has the correct
-    upper bound when a kernel writes to two fields, the first on a
-    discontinuous space and the second on a continuous space. The resulting
-    loop (when dm=True) must include the L1 halo because of the second
-    field argument which is continuous '''
+def test_itn_space_write_w2v_w1():
+    ''' Check that generated loop over cells in the psy layer has the
+    correct upper bound when a kernel writes to two fields, the first on
+    a discontinuous space (w2v) and the second on a continuous space (w1).
+    The resulting loop (when dm=True) must include the L1 halo because of
+    the second field argument which is continuous '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api="dynamo0.3")
@@ -6118,7 +6118,7 @@ def test_itn_space_write_w3_w1(): #### Add/modify/rename??
             assert output in generated_code
 
 
-def test_itn_space_fld_and_op_writers(): #### Add/modify/rename??
+def test_itn_space_fld_and_op_writers():
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6457,7 +6457,7 @@ def test_multi_anyw2():
             assert output in generated_code
 
 
-def test_anyw2_vectors(): #### Effect from w2v changes???????
+def test_anyw2_vectors():
     '''Check generated code works correctly when we have any_w2 field
     vectors'''
     _, invoke_info = parse(
@@ -6555,7 +6555,7 @@ def test_no_halo_for_discontinous():
     assert "halo_exchange" not in result
 
 
-def test_halo_for_discontinuous(): #### Add/modify/rename??
+def test_halo_for_discontinuous():
     '''Test that we create halo exchange call when our loop iterates over
     owned cells (e.g. it writes to a discontinuous field), we read
     from a continous field, there are no stencil accesses, but we do
@@ -6576,11 +6576,11 @@ def test_halo_for_discontinuous(): #### Add/modify/rename??
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_halo_for_discontinuous_2(): #### Add/modify/rename??
-    '''Test that we create halo exchange call when our loop iterates over
-    owned cells (e.g. it writes to a discontinuous field), we read
-    from a continous field, there are no stencil accesses, and the
-    previous writer iterates over ndofs. We therefore have dirty
+def test_halo_for_discontinuous_2():
+    ''' Test that we create halo exchange call when our loop iterates
+    over owned cells (e.g. it writes to a discontinuous field), we
+    read from a continous field, there are no stencil accesses, and
+    the previous writer iterates over ndofs. We therefore have dirty
     annexed dofs so need to add a halo exchange. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
@@ -6596,11 +6596,20 @@ def test_halo_for_discontinuous_2(): #### Add/modify/rename??
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_arg_discontinous(): ## To add for w2v
+def test_arg_discontinous():
     ''' Test that the discontinuous method in the dynamo argument
     class returns the correct values '''
 
     # 1 discontinuous field returns true
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1_single_invoke_disc_only_vector.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[0].children[0]
+    field = kernel.arguments.args[0]
+    assert field.space == 'w3'
+    assert field.discontinuous
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_disc_only.f90"),
                     api="dynamo0.3")
@@ -6609,9 +6618,6 @@ def test_arg_discontinous(): ## To add for w2v
     kernel = schedule.children[0].children[0]
     field = kernel.arguments.args[0]
     assert field.space == 'wtheta'
-    assert field.discontinuous
-    field = kernel.arguments.args[1]
-    assert field.space == 'w3'
     assert field.discontinuous
 
     # 2 any_space field returns false
@@ -6845,10 +6851,10 @@ def test_HaloReadAccess_discontinuous_field():
 
 
 def test_loop_cont_read_inv_bound(monkeypatch):
-    '''When a continuous argument is read it may access the halo. The
+    ''' When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly'''
+    that this exception is raised correctly '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -6865,7 +6871,7 @@ def test_loop_cont_read_inv_bound(monkeypatch):
             "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
 
 
-def test_new_halo_exch_vect_field(monkeypatch): #### Effect from w2v changes??
+def test_new_halo_exch_vect_field(monkeypatch):
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then it
     must be a vector (as a vector field requiring a halo exchange should
@@ -6894,7 +6900,7 @@ def test_new_halo_exch_vect_field(monkeypatch): #### Effect from w2v changes??
             in str(excinfo.value))
 
 
-def test_new_halo_exch_vect_deps(monkeypatch): #### Effect from w2v changes??
+def test_new_halo_exch_vect_deps(monkeypatch):
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -6925,7 +6931,7 @@ def test_new_halo_exch_vect_deps(monkeypatch): #### Effect from w2v changes??
         "and the vector size is '3'." in str(excinfo.value))
 
 
-def test_new_halo_exch_vect_deps2(monkeypatch): #### Effect from w2v changes??
+def test_new_halo_exch_vect_deps2(monkeypatch):
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -6978,7 +6984,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
 
 def test_no_halo_exchange_annex_dofs(
-        tmpdir, f90, f90flags): #### Add/modify/rename??
+        tmpdir, f90, f90flags):
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
