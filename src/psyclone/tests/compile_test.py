@@ -36,6 +36,7 @@
 ''' This module contains tests for the infrastructure used to test
 the compilation of generated Fortran code '''
 
+from __future__ import absolute_import
 import os
 import pytest
 import utils
