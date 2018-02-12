@@ -213,7 +213,7 @@ def test_field_prolong(tmpdir, f90, f90flags):
                                         "22.0_intergrid_prolong.f90"),
                            api=API)
     for distmem in [True, False]:
-        psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         gen_code = str(psy.gen)
         print gen_code
 
@@ -259,19 +259,20 @@ def test_field_prolong(tmpdir, f90, f90flags):
 
         expected = (
             "      ! halo exchange to depth two on the fine \n"
-            "      if (ff_fp%is_dirty(depth=2)) then\n"
-            "         call ff_fp%halo_exchange(depth=2)\n"
+            "      if (field1_proxy%is_dirty(depth=2)) then\n"
+            "         call field1_proxy%halo_exchange(depth=2)\n"
             "      end if\n"
             "\n"
             "      ! halo exchange to depth one on the coarse\n"
             "      ! to last halo cell(1)\n"
-            "      if (fc_fp%is_dirty(depth=1)) then\n"
-            "         call fc_fp%halo_exchange(depth=1)\n"
+            "      if (field2_proxy%is_dirty(depth=1)) then\n"
+            "         call field2_proxy%halo_exchange(depth=1)\n"
             "      end if\n"
             "\n"
-            "      do cell = 1, ncell_c\n"
-            "         CALL prolong_kernel_code(nlayers, cell_map(:,cell), nc2f, dofmap_f, &\n"
-            "            ncell_f, dofmap_c(:,cell), ndf, undf_c, undf_f, fc_fp%data, ff_fp%data)\n"
+            "      do cell = 1,coarse_mesh_field2%get_last_halo_cell(1)\n"
+            "         CALL prolong_kernel_code(nlayers, "
+            "cell_map_field2(:,cell), ncpc_field1_field2, dofmap_f, "
+            "ncell_fine_field1, dofmap_c(:,cell), ndf, undf_c, undf_f, field2_proxy%data, field1_proxy%data)\n"
             "      end do \n"
             "\n"
             "      call ff_fp%set_dirty()\n")

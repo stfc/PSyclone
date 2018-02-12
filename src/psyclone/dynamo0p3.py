@@ -1751,8 +1751,15 @@ class DynInvokeCMAOperators(object):
 
 
 class DynInterGrid(object):
-    ''' Holds all information required for kernels performing inter-grid
-    operations '''
+    '''
+    Holds all information required for kernels performing inter-grid
+    operations.
+
+    There are two types of inter-grid operation; the first is "prolongation"
+    where a field on a coarse mesh is mapped onto a fine mesh. The second
+    is "restriction" where a field on a fine mesh is mapped onto a coarse
+    mesh.
+    '''
 
     def __init__(self, schedule):
         '''
@@ -3803,9 +3810,14 @@ class DynLoop(Loop):
             entity.view(indent=indent + 1)
 
     def load(self, kern):
-        ''' Load the state of this Loop using the supplied Kernel
+        ''' 
+        Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
-        construct Loop objects for a given kernel call. '''
+        construct Loop objects for a given kernel call.
+
+        :param kern: Kernel object to use to populate state of Loop
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        '''
         self._kern = kern
 
         self._field = kern.arguments.iteration_space_arg()
@@ -3952,6 +3964,17 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
+        if config.DISTRIBUTED_MEMORY:
+            if self._kern.is_intergrid:
+                # We have more than one mesh object to choose from and we
+                # want the coarse one because that determines the iteration
+                # space
+                mesh_name = "coarse_mesh_" + self._field_name
+            else:
+                mesh_name = "mesh"
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name=mesh_name, context="PSyVars", label=mesh_name)
+
         if self._upper_bound_name == "ncolours":
             if config.DISTRIBUTED_MEMORY:
                 # Extract the value in-place rather than extracting to
@@ -3992,8 +4015,6 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "ncells":
             if config.DISTRIBUTED_MEMORY:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 result = mesh_obj_name + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
@@ -4001,8 +4022,6 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "cell_halo":
             if config.DISTRIBUTED_MEMORY:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
                                                             halo_index)
             else:
@@ -4020,8 +4039,6 @@ class DynLoop(Loop):
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if config.DISTRIBUTED_MEMORY:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
                                                              halo_index)
             else:
@@ -6194,11 +6211,18 @@ class DynKernelArguments(Arguments):
         return self._unique_fs_names
 
     def iteration_space_arg(self, mapping=None):
-        '''Returns an argument we can use to dereference the iteration
+        '''
+        Returns an argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
         alternatively a field that is read if one or more scalars
         are modified. If a kernel writes to more than one argument then
-        that requiring the largest iteration space is selected.'''
+        that requiring the largest iteration space is selected.
+
+        :param dict mapping: un-used argument. Retained for consistency
+                             with base class.
+        :return: Kernel argument from which to obtain iteration space
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
 
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
@@ -6208,14 +6232,25 @@ class DynKernelArguments(Arguments):
         if op_args:
             return op_args[0]
 
-        # This kernel does not write to an operator. We now check for
-        # fields that are written to. We check first for any modified
-        # field on a continuous function space, failing that we try
-        # any_space function spaces (because we must assume such a
-        # space is continuous) and finally we try discontinuous
-        # function spaces. We do this because if a quantity on a
-        # continuous FS is modified then our iteration space must be
-        # larger (include L1 halo cells)
+        # Is this an inter-grid kernel? If so, then the iteration space
+        # is determined by the coarse mesh, irrespective of whether
+        # we are prolonging (and thus writing to a field on the fine mesh)
+        # or restricting.
+        if self._parent_call.is_intergrid:
+            fld_args = psyGen.args_filter(self._args,
+                                          arg_types=["gh_field"])
+            for arg in fld_args:
+                if arg.mesh == "gh_coarse":
+                    return arg
+
+        # This is not an inter-grid kernel and it does not write to an
+        # operator. We now check for fields that are written to. We
+        # check first for any modified field on a continuous function
+        # space, failing that we try any_space function spaces
+        # (because we must assume such a space is continuous) and
+        # finally we try discontinuous function spaces. We do this
+        # because if a quantity on a continuous FS is modified then
+        # our iteration space must be larger (include L1 halo cells)
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
                                       arg_accesses=GH_WRITE_ACCESSES)
