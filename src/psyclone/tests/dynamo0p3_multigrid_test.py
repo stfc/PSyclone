@@ -235,18 +235,25 @@ def test_field_prolong(tmpdir, f90, f90flags):
         assert expected in gen_code
 
         expected = (
-            "      TYPE(mesh_map_type), pointer :: mesh_map => null()\n"
-            "      TYPE(mesh_type), pointer :: mesh => null(), mesh_f=>null()\n"
-            "      INTEGER :: ncell_f, ncell_c, nc2f\n"
-            "      INTEGER, pointer :: cell_map(:,:)\n")
+            "      INTEGER ncell_fine_field1, ncell_coarse_field2, "
+            "ncpc_field1_field2\n"
+            "      INTEGER, pointer :: cell_map_field2(:,:) => null()\n"
+            "      TYPE(mesh_map_type), pointer :: "
+            "mmap_field1_field2 => null()\n"
+            "      TYPE(mesh_type), pointer :: fine_mesh_field1 => null()\n"
+            "      TYPE(mesh_type), pointer :: coarse_mesh_field2 => null()\n")
         assert expected in gen_code
 
         expected = (
-            "    INTEGER, pointer :: map_w2(:,:) => null(), map_w2(:,:) => null()\n"
-            "    ! get the proxies \n"
-            "    fc_fp = fc%get_proxy()\n"
-            "    ff_fp = ff%get_proxy()\n"
+            "    INTEGER, pointer :: map_w2(:,:) => null(), "
+            "map_w2(:,:) => null()\n"
+            "    !\n"
+            "    ! Initialise field and/or operator proxies\n"
+            "    !\n"
+            "    field1_proxy = field1%get_proxy()\n"
+            "    field2_proxy = field2%get_proxy()\n"
             "\n"
+            "    ! Look up inter-mesh mapping\n"
             "    mesh => fc%get_mesh()\n"
             "    mesh_f => ff%get_mesh()\n"
             "    mesh_map => mesh%get_mesh_map(mesh_f)\n"
