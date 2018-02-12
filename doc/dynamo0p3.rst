@@ -400,6 +400,8 @@ Rules for Inter-Grid Kernels
 
 5) Fields on different meshes must always live on different function spaces.
 
+6) All fields on a given mesh must be on the same function space.
+
 Metadata
 ++++++++
 
@@ -1139,12 +1141,15 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
 Rules for Inter-Grid Kernels
 ############################
 
-As already specified, inter-grid kernels are only permitted to take fields
-and/or field-vectors as arguments. Fields (and field-vectors) that are on
-different meshes must be on different function spaces.
-(XXX fields on the same mesh may or may not be on the same function space XXX)
+As already specified, inter-grid kernels are only permitted to take
+fields and/or field-vectors as arguments. Fields (and field-vectors)
+that are on different meshes must be on different function
+spaces. Fields on the same mesh must also be on the same function
+space.
 
-The rules for arguments to inter-grid kernels are as follows:
+Argument ordering follows the general pattern used for 'normal'
+kernels with field data being followed by dofmap data. The rules for
+arguments to inter-grid kernels are as follows:
 
     1) Include ``nlayers``, the number of layers in a column. ``nlayers``
        is an integer and has intent ``in``.
@@ -1153,20 +1158,25 @@ The rules for arguments to inter-grid kernels are as follows:
        the mapping from the coarse to the fine mesh.
     3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
        This is an integer and has intent ``in``.
-    4) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
-       is an integer array of rank two with intent ``in``.
-    5) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
+    4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
        This is an integer and has intent ``in``.
-    6) Include ``dofmap_coarse``, the dofmap for the current cell (column)
+    5) For each argument in the ``meta_args`` meta-data array (which must be
+       a field or field-vector):
+
+       1) Pass in field data as done for a regular kernel.
+
+    6) Include ``ndf_fine``, the number of DoFs per cell for the FS of the field
+       on the fine mesh.
+    7) Include ``undf_fine``, the number of unique DoFs per cell for the FS
+       of the field on the fine mesh.
+    8) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
+       is an integer array of rank two with intent ``in``.
+       ***EXTENT OF EACH RANK?***
+    9) Include ``undf_coarse``, the number of unique DoFs
+       for the coarse field. This is an integer with intent ``in``.
+    10) Include ``dofmap_coarse``, the dofmap for the current cell (column)
        in the coarse mesh. This is an integer array of rank one and has
        intent ``in``.
-    7) Include ``ndf_fine``, the number of DoFs per cell for the field
-       on the fine mesh. WHAT HAPPENS WHEN THERE'S MORE THAN ONE SUCH FIELD?
-    8) Include ``undf_coarse`` and ``undf_fine``, the number of unique DoFs
-       for the coarse and fine fields, respectively. These are integers with
-       intent ``in``.
-    9) Finally, include the data arrays for each of the field arguments.
-       These are ``real (kind=r_def)`` arrays of rank one.
 
 .. _dynamo_built-ins:
 

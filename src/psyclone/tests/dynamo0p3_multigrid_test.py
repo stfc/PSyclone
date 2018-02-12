@@ -257,22 +257,29 @@ def test_field_prolong(tmpdir, f90, f90flags):
             "      ncpc_field1_field2 = mmap_field1_field2%get_ntarget_cells_per_source_cell()\n")
         assert expected in gen_code
 
+        if distmem:
+            expected = (
+                "      ! halo exchange to depth two on the fine \n"
+                "      if (field1_proxy%is_dirty(depth=2)) then\n"
+                "         call field1_proxy%halo_exchange(depth=2)\n"
+                "      end if\n"
+                "\n"
+                "      ! halo exchange to depth one on the coarse\n"
+                "      ! to last halo cell(1)\n"
+                "      if (field2_proxy%is_dirty(depth=1)) then\n"
+                "         call field2_proxy%halo_exchange(depth=1)\n"
+                "      end if\n"
+                "\n"
+                "      do cell = 1,coarse_mesh_field2%get_last_halo_cell(1)\n")
+            assert expected in gen_code
+        else:
+            assert "do cell = 1,field2_proxy%vspace%get_ncell()\n" in gen_code
+
         expected = (
-            "      ! halo exchange to depth two on the fine \n"
-            "      if (field1_proxy%is_dirty(depth=2)) then\n"
-            "         call field1_proxy%halo_exchange(depth=2)\n"
-            "      end if\n"
-            "\n"
-            "      ! halo exchange to depth one on the coarse\n"
-            "      ! to last halo cell(1)\n"
-            "      if (field2_proxy%is_dirty(depth=1)) then\n"
-            "         call field2_proxy%halo_exchange(depth=1)\n"
-            "      end if\n"
-            "\n"
-            "      do cell = 1,coarse_mesh_field2%get_last_halo_cell(1)\n"
             "         CALL prolong_kernel_code(nlayers, "
-            "cell_map_field2(:,cell), ncpc_field1_field2, dofmap_f, "
-            "ncell_fine_field1, dofmap_c(:,cell), ndf, undf_c, undf_f, field2_proxy%data, field1_proxy%data)\n"
+            "cell_map_field2(:,cell), ncpc_field1_field2, ncell_fine_field1, "
+            "dofmap_f, "
+            "dofmap_c(:,cell), ndf, undf_c, undf_f, field2_proxy%data, field1_proxy%data)\n"
             "      end do \n"
             "\n"
             "      call ff_fp%set_dirty()\n")

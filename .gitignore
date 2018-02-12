@@ -1,5 +1,7 @@
 *.pyc
 *~
+*_mod.s
+*_mod.xmod
 .cache
 .coverage
 doc/_build

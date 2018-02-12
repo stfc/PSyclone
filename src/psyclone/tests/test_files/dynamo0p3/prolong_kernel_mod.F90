@@ -56,10 +56,12 @@ module prolong_kernel_mod
   end type prolong_kernel_type
 contains
 
-  subroutine prolong_kernel_code(nlayers, cell_map, ncell_f_per_c, &
-                                 dofmap_w1, ncell_f, dofmap_w2,    &
-                                 ndf_w1, undf_w1, undf_w2, fld1, fld2)
-    integer :: nlayers, ncell_f_per_c, ncell_f
+  subroutine prolong_kernel_code(nlayers,                          &
+                                 cell_map, ncell_f_per_c, ncell_f, &
+                                 fld1, fld2,                       &
+                                 ndf_w1, undf_w1, dofmap_w1,       &
+                                 undf_w2, dofmap_w2)
+    integer, intent(in) :: nlayers, ncell_f_per_c, ncell_f
     real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
     integer :: ndf_w1, undf_w1, undf_w2
     integer, dimension(:) :: cell_map, dofmap_w2
