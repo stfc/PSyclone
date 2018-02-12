@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -115,6 +115,10 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
 # perform prolongation/restriction).
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
+# These are loop bound names which identify positions in a fields
+# halo. It is useful to group these together as we often need to
+# determine whether an access to a field or other object includes
+# access to the halo, or not.
 HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo", "colour_halo"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
@@ -2921,7 +2925,8 @@ class DynHaloExchange(HaloExchange):
         if len(depth_info_list) == 1:
             depth_info = depth_info_list[0]
             if depth_info.max_depth:
-                # return the maximum halo depth
+                # return the maximum halo depth (which is returned by
+                # calling get_halo_depth with no depth argument)
                 return "mesh%get_halo_depth()"
             else:  # return the variable and/or literal depth expression
                 return str(depth_info)
@@ -4086,11 +4091,9 @@ class DynLoop(Loop):
                     # about how the supplied field is accessed within
                     # its parent loop
                     hwa = HaloWriteAccess(field)
-                    if hwa.max_depth and not hwa.dirty_outer:
-                        # do not output set dirty as it will all be
-                        # set to clean
-                        pass
-                    else:
+                    if not hwa.max_depth or hwa.dirty_outer:
+                        # output set dirty as some of the halo will
+                        # not be set to clean
                         if field.vector_size > 1:
                             # the range function below returns values from
                             # 1 to the vector size which is what we
