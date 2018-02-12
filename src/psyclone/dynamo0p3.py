@@ -1763,6 +1763,8 @@ class DynInterGrid(object):
         self._name_space_manager = NameSpaceFactory().create()
 
         self._kern_calls = []
+        self._mesh_names = set()
+
         # Loop over all kernel calls in the schedule
         for call in schedule.kern_calls():
             if not call.is_intergrid:
@@ -1782,12 +1784,29 @@ class DynInterGrid(object):
                     raise GenerationError("ARPDBG")
             self._kern_calls.append({"fine": fine_arg,
                                      "coarse": coarse_arg})
+            # Create and store the names of the associated mesh objects
+            self._mesh_names.add(
+                self._name_space_manager.create_name(
+                    root_name="fine_mesh_{0}".format(fine_arg.name),
+                    context="PSyVars",
+                    label="fine_mesh_{0}".format(fine_arg.name)))
+            self._mesh_names.add(
+                self._name_space_manager.create_name(
+                    root_name="coarse_mesh_{0}".format(coarse_arg.name),
+                    context="PSyVars",
+                    label="coarse_mesh_{0}".format(coarse_arg.name)))
 
     def declarations(self, parent):
         '''
         Declare variables specific to inter-grid kernels
+
+        :param parent: the parent node to which to add the declarations
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        pass
+        from psyclone.f2pygen import TypeDeclGen
+        for name in self._mesh_names:
+            parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
+                                   entity_decls=[name + " => null()"]))
 
     def initialise(self, parent):
         '''
@@ -2619,6 +2638,9 @@ class DynInvoke(Invoke):
 
         # Declare any CMA operators and associated parameters
         self.cma_ops.declare_cma_ops(invoke_sub)
+
+        # Declare any mesh objects for inter-grid kernels
+        self.inter_grid.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
