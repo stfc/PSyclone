@@ -3908,14 +3908,14 @@ def test_rc_all_discontinuous_no_depth(): #### Add/modify/rename??
     assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_vector_depth(): #### Add/modify/rename??
-    '''Test that the loop bounds for a discontinuous kernel (iterating
+def test_rc_all_discontinuous_vector_depth():
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with a
-    fixed value for halo depth'''
+    fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only_vector.f90"),
+                                 "1_single_invoke_disc_only_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3937,14 +3937,14 @@ def test_rc_all_discontinuous_vector_depth(): #### Add/modify/rename??
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
 
-def test_rc_all_disc_vector_no_depth(): #### Add/modify/rename??
-    '''Test that the loop bounds for a discontinuous kernel (iterating
+def test_rc_all_discontinuous_vector_no_depth():
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with no
-    halo depth value'''
+    halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only_vector.f90"),
+                                 "1_single_invoke_disc_only_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4023,7 +4023,7 @@ def test_rc_all_disc_prev_depend_no_depth(): #### Add/modify/rename??
     assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
 
 
-def test_rc_all_disc_prev_dep_depth_vector(): #### Add/modify/rename??
+def test_rc_all_disc_prev_dep_depth_vector():
     '''Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -4032,7 +4032,7 @@ def test_rc_all_disc_prev_dep_depth_vector(): #### Add/modify/rename??
     redundant computation transformation with a fixed value for halo
     depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                                 "8.2_multikernel_invokes_disc_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]

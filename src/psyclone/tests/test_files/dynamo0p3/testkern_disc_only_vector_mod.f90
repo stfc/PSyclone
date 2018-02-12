@@ -30,20 +30,24 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_w3_only_vector
+module testkern_disc_only_vector_mod
 
-  ! Description: single function in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
-  use inf,                         only: field_type
-  implicit none
-  type(field_type) :: f1(3), f2(3)
+  type, extends(kernel_type) :: testkern_disc_only_vector_type
+     type(arg_type), dimension(2) :: meta_args =     &
+          (/  arg_type(gh_field*3, gh_write, w3),    &
+              arg_type(gh_field*3, gh_read,  wtheta) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_disc_only_vector_code
+  end type testkern_disc_only_vector_type
 
-  call invoke(                              &
-       testkern_w3_only_vector_type(f1, f2) &
-          )
+contains
 
-end program single_invoke_w3_only_vector
+  subroutine testkern_disc_only_vector_code()
+  end subroutine testkern_disc_only_vector_code
+
+end module testkern_disc_only_vector_mod

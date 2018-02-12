@@ -30,22 +30,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_w3_only_vector
+program single_invoke_disc_only_vector
 
-  ! Description: two functions in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
-  use inf,                         only: field_type
+  ! Description: single function in an invoke iterating over w3 and
+  ! reading from wtheta
+  use testkern_disc_only_vector_mod, only: testkern_disc_only_vector_type
+  use inf,                           only: field_type
   implicit none
-  type(field_type) :: f1(3), f2(3), f3(3)
+  type(field_type) :: f1(3), f2(3)
 
-  call invoke(                               &
-       testkern_w3_only_vector_type(f1, f2), &
-       ! Field f1 write to read dependence but no halo exchange required as w3
-       testkern_w3_only_vector_type(f3, f1)  &
+  call invoke(                                &
+       testkern_disc_only_vector_type(f1, f2) &
           )
 
-end program single_invoke_w3_only_vector
+end program single_invoke_disc_only_vector

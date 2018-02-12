@@ -33,21 +33,20 @@
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-module testkern_w3_only_vector_mod
+program single_invoke_disc_only_vector
 
-  type, extends(kernel_type) :: testkern_w3_only_vector_type
-     type(arg_type), dimension(2) :: meta_args =  &
-          (/  arg_type(gh_field*3, gh_write, w3), &
-              arg_type(gh_field*3, gh_read,  w3)  &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => testkern_w3_only_vector_code
-  end type testkern_w3_only_vector_type
+  ! Description: two functions in an invoke iterating over w3 and
+  ! reading from wtheta
+  use testkern_disc_only_vector_mod, only: testkern_disc_only_vector_type
+  use inf,                           only: field_type
+  implicit none
+  type(field_type) :: f1(3), f2(3), f3(3)
 
-contains
+  call invoke(                                 &
+       testkern_disc_only_vector_type(f1, f2), &
+       ! Field f1 write to read dependence but no halo exchange
+       ! required as w3 is discontinuous
+       testkern_disc_only_vector_type(f3, f1)  &
+          )
 
-  subroutine testkern_w3_only_vector_code()
-  end subroutine testkern_w3_only_vector_code
-
-end module testkern_w3_only_vector_mod
+end program single_invoke_disc_only_vector
