@@ -1856,12 +1856,12 @@ class DynInterGrid(object):
                 DeclGen(parent, pointer=True, datatype="integer",
                         entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
 
-        # Declare the number of cells each mesh has and how many fine cells
-        # there are per coarse cell
-        parent.add(DeclGen(parent, datatype="integer",
-                           entity_decls=[kern["ncell_fine"],
-                                         kern["ncell_coarse"],
-                                         kern["ncperc"]]))
+            # Declare the number of cells each mesh has and how many fine cells
+            # there are per coarse cell
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[kern["ncell_fine"],
+                                             kern["ncell_coarse"],
+                                             kern["ncperc"]]))
 
     def initialise(self, parent):
         '''
@@ -4735,6 +4735,10 @@ class DynKern(Kern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
+        # Check whether this is an inter-grid kernel
+        if self.is_intergrid:
+            pass
+
         # Check whether this kernel reads from an operator
         op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
                                           arg_accesses=["gh_read"])
@@ -4880,6 +4884,12 @@ class ArgOrdering(object):
         if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
             self.mesh_ncell2d()
 
+        if self._kern.is_intergrid:
+            # Inter-grid kernels require special arguments
+            # The cell-map for the current column providing the mapping from
+            # the coarse to the fine mesh.
+            self.cell_map()
+
         # for each argument in the order they are specified in the
         # kernel metadata, call particular methods depending on what
         # type of argument we find (field, field vector, operator or
@@ -4987,6 +4997,11 @@ class ArgOrdering(object):
         raise NotImplementedError(
             "Error: ArgOrdering.cell_position() must be implemented by "
             "subclass")
+
+    def cell_map(self):
+        ''' Add cell-map information (for inter-grid kernels) '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.cell_map() must be implemented by subclass")
 
     def mesh_height(self):
         ''' add height information'''
@@ -5114,6 +5129,13 @@ class KernCallArgList(ArgOrdering):
     def cell_position(self):
         ''' add a cell argument to the argument list'''
         self._arglist.append(self._cell_ref_name)
+
+    def cell_map(self):
+        ''' Add cell-map and related cell counts to the argument list '''
+        cargs = self._kern.parent.args_filter(arg_meshes=["gh_coarse"])
+        base_name = "cell_map_" + cargs[0]
+        map_name = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list'''
