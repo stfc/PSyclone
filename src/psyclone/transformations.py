@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -370,7 +370,16 @@ class OMPLoopTrans(Transformation):
         Transformation.__init__(self)
 
     def _validate(self, node):
-        ''' Perform validation checks before applying the transformation'''
+        '''Perform validation checks before applying the transformation
+
+        :param node: the node we are checking
+        :type node1: :py:class:`psyclone.psyGen.Node`
+        :raises TransformationError: if the node is not a
+        :py:class:`psyclone.psyGen.Loop`
+        :raises TransformationError: if the
+        :py:class:`psyclone.psyGen.Loop` loop iterates over colours
+
+        '''
         # Check that the supplied node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node, Loop):
@@ -1354,9 +1363,10 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "method the loop must iterate over cells, dofs or cells of "
                 "a given colour, but found '{0}'".format(node.loop_type))
 
+        from psyclone.dynamo0p3 import HALO_ACCESS_LOOP_BOUNDS
+        
         if depth is None:
-            if node.upper_bound_name in ["cell_halo", "dof_halo",
-                                         "colour_halo"]:
+            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -1383,8 +1393,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the supplied depth is less than 1")
 
-            if node.upper_bound_name in ["cell_halo", "dof_halo",
-                                         "colour_halo"]:
+            if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 if node.upper_bound_halo_depth:
                     if node.upper_bound_halo_depth >= depth:
                         raise TransformationError(
