@@ -137,26 +137,24 @@ def zero_reduction_variables(red_call_list, parent):
         parent.add(CommentGen(parent, ""))
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None):
-    '''Return all arguments in the supplied list that are of type
+def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
+    '''
+    Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
-    then return all arguments.'''
+    then return all arguments.
+    '''
     arguments = []
-    if arg_types and arg_accesses:
-        for argument in arg_list:
-            if argument.type.lower() in arg_types and \
-               argument.access.lower() in arg_accesses:
-                arguments.append(argument)
-    elif arg_types:
-        for argument in arg_list:
-            if argument.type.lower() in arg_types:
-                arguments.append(argument)
-    elif arg_accesses:
-        for argument in arg_list:
-            if argument.access.lower() in arg_accesses:
-                arguments.append(argument)
-    else:  # no conditions provided so return all args
-        return arg_list
+    for argument in arg_list:
+        if arg_types:
+            if argument.type.lower() not in arg_types:
+                continue
+        if arg_accesses:
+            if argument.access.lower() not in arg_accesses:
+                continue
+        if arg_meshes:
+            if argument.mesh.lower() not in arg_meshes:
+                continue
+        arguments.append(argument)
     return arguments
 
 
