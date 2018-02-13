@@ -5840,3 +5840,5 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
             # If compilation testing has been enabled (--compile flag
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        print "OK for iteration ", idx

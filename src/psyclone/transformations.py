@@ -843,7 +843,7 @@ class KernelModuleInlineTrans(Transformation):
 
 class Dynamo0p3ColourTrans(ColourTrans):
 
-    ''' Split a Dynamo 0.3 loop over cells into colours so that it can be
+    '''Split a Dynamo 0.3 loop over cells into colours so that it can be
     parallelised. For example:
 
     >>> from psyclone.parse import parse
@@ -877,15 +877,10 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     Colouring in the Dynamo 0.3 API is subject to the following rules:
 
-    * Only kernels with an iteration space of CELLS require colouring. Any
-      other loop type will be rejected by this transformation.
-    * Any kernel which has a field with 'INC' access must be coloured UNLESS
-      that field is on w3 (or another discontinuous space)
+    * Only kernels with an iteration space of CELLS and which modify a
+      continuous field require colouring. Any other type of loop will
+      cause this transformation to raise an exception.
     * A kernel may have at most one field with 'INC' access
-    * Attempting to colour a kernel that updates a field on w3 (with INC
-      access) should result in PSyclone issuing a warning
-    * Attempting to colour any kernel that doesn't have a field with INC
-      access should also result in PSyclone issuing a warning.
     * A separate colour map will be required for each field that is coloured
       (if an invoke contains >1 kernel call)
 
@@ -1234,9 +1229,11 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
       reduction and will again raise an exception if this is the case.
 
     * This transformation can only be used to add redundant
-      computation to a loop, not to remove it, however it does allow
-      redundant computation depths to be reduced (if this is ever
-      required).
+      computation to a loop, not to remove it.
+
+    * This transformation allows a loop that is already performing
+      redundant computation to be modified, but only if the depth is
+      increased.
 
     '''
 
@@ -1364,7 +1361,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 "a given colour, but found '{0}'".format(node.loop_type))
 
         from psyclone.dynamo0p3 import HALO_ACCESS_LOOP_BOUNDS
-        
+
         if depth is None:
             if node.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
@@ -1420,7 +1417,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :param loop: the loop that we are transforming
         :type loop: :py:class:`psyclone.psyGen.DynLoop`
         :param depth: the depth of the stencil. Defaults to None if a
-        depth is not provided.
+                      depth is not provided.
         :type depth: int or None
 
         '''
