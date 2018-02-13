@@ -39,7 +39,7 @@ module testkern_fs_mod
      type(arg_type), dimension(8) :: meta_args =   &
           (/ arg_type(gh_field, gh_write, w1),     &
              arg_type(gh_field, gh_read,  w2),     &
-             arg_type(gh_field, gh_read,  w2),     &
+             arg_type(gh_field, gh_read,  w0),     &
              arg_type(gh_field, gh_read,  w3),     &
              arg_type(gh_field, gh_write, wtheta), &
              arg_type(gh_field, gh_read,  w2h),    &

@@ -822,17 +822,18 @@ def test_field_fs():
         "      TYPE(field_type), intent(inout) :: f1, f3\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
         "      INTEGER cell\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
-        "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v, "
-        "ndf_any_w2, undf_any_w2\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
+        "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
+        "ndf_w2v, undf_w2v, ndf_any_w2, undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy, m4_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_wtheta(:,:) => null(), "
+        "map_w3(:,:) => null(), map_w0(:,:) => null(), "
         "map_w1(:,:) => null(), map_any_w2(:,:) => null(), "
-        "map_w2v(:,:) => null(), map_w2h(:,:) => null()\n"
+        "map_wtheta(:,:) => null(), map_w2v(:,:) => null(), "
+        "map_w2h(:,:) => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -857,9 +858,10 @@ def test_field_fs():
         "      !\n"
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w0 => m1_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_w2 => m4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
@@ -872,6 +874,11 @@ def test_field_fs():
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w0\n"
+        "      !\n"
+        "      ndf_w0 = m1_proxy%vspace%get_ndf()\n"
+        "      undf_w0 = m1_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w3\n"
         "      !\n"
@@ -929,8 +936,8 @@ def test_field_fs():
         "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
         "m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, map_w0(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
         "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), "
         "ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_any_w2, undf_any_w2, "
         "map_any_w2(:,cell))\n"
@@ -6601,6 +6608,7 @@ def test_arg_discontinous():
     class returns the correct values '''
 
     # 1 discontinuous field returns true
+    # Check w3
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_disc_only_vector.f90"),
                     api="dynamo0.3")
@@ -6610,6 +6618,7 @@ def test_arg_discontinous():
     field = kernel.arguments.args[0]
     assert field.space == 'w3'
     assert field.discontinuous
+    # Check wtheta
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_disc_only.f90"),
                     api="dynamo0.3")
@@ -6618,6 +6627,16 @@ def test_arg_discontinous():
     kernel = schedule.children[0].children[0]
     field = kernel.arguments.args[0]
     assert field.space == 'wtheta'
+    assert field.discontinuous
+    # Check w2v
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "1.5.1_single_invoke_write_multi_fs.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule.children[5].children[0]
+    field = kernel.arguments.args[6]
+    assert field.space == 'w2v'
     assert field.discontinuous
 
     # 2 any_space field returns false
