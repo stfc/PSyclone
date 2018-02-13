@@ -1777,15 +1777,12 @@ class DynInterGrid(object):
             if not call.is_intergrid:
                 # Skip over any non-inter-grid kernels
                 continue
-            fine_arg = None
-            coarse_arg = None
-            for arg in call.arguments.args:
-                if arg.mesh == "gh_fine":
-                    fine_arg = arg
-                elif arg.mesh == "gh_coarse":
-                    coarse_arg = arg
-                else:
-                    raise GenerationError("ARPDBG")
+            fine_args = psyGen.args_filter(call.arguments.args,
+                                           arg_meshes=["gh_fine"])
+            coarse_args = psyGen.args_filter(call.arguments.args,
+                                             arg_meshes=["gh_coarse"])
+            fine_arg = fine_args[0]
+            coarse_arg = coarse_args[0]
 
             # Generate name for inter-mesh map
             base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
@@ -4735,10 +4732,6 @@ class DynKern(Kern):
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
-        # Check whether this is an inter-grid kernel
-        if self.is_intergrid:
-            pass
-
         # Check whether this kernel reads from an operator
         op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
                                           arg_accesses=["gh_read"])
@@ -4934,7 +4927,10 @@ class ArgOrdering(object):
             # Provide additional arguments if there is a
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
-                self.fs_compulsory_field(unique_fs)
+                if self._kern.is_intergrid:
+                    self.fs_intergrid(unique_fs)
+                else:
+                    self.fs_compulsory_field(unique_fs)
             cma_op = cma_on_space(unique_fs, self._kern.arguments)
             if cma_op:
                 if self._kern.cma_operation == "assembly":
@@ -4962,6 +4958,7 @@ class ArgOrdering(object):
             if self._kern.name.lower() == "enforce_bc_code" and \
                unique_fs.orig_name.lower() == "any_space_1":
                 self.field_bcs_kernel(unique_fs)
+
         # Add boundary dofs array to the operator boundary condition
         # kernel (enforce_operator_bc_kernel) arguments
         if self._kern.name.lower() == "enforce_operator_bc_code":
@@ -5132,10 +5129,27 @@ class KernCallArgList(ArgOrdering):
 
     def cell_map(self):
         ''' Add cell-map and related cell counts to the argument list '''
-        cargs = self._kern.parent.args_filter(arg_meshes=["gh_coarse"])
-        base_name = "cell_map_" + cargs[0]
+        cargs = psyGen.args_filter(self._kern.args,
+                                   arg_meshes=["gh_coarse"])
+        carg = cargs[0]
+        fargs = psyGen.args_filter(self._kern.args,
+                                   arg_meshes=["gh_fine"])
+        farg = fargs[0]
+        base_name = "cell_map_" + carg.name
         map_name = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
+        # Add the cell map to our argument list
+        self._arglist.append(map_name)
+        # No. of fine cells per coarse cell
+        base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
+        ncellpercell = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        self._arglist.append(ncellpercell)
+        # No. of columns in the fine mesh
+        base_name = "ncell_fine_{0}".format(farg.name)
+        ncell_fine = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        self._arglist.append(ncell_fine)
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list'''
@@ -5238,6 +5252,23 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(undf_name)
         map_name = get_fs_map_name(function_space)
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
+
+    def fs_intergrid(self, function_space):
+        ''' Add function-space related arguments for an intergrid kernel '''
+        # Is this FS associated with the coarse or fine mesh? (All fields
+        # on a given mesh must be on the same FS.)
+        arg = self._kern.arguments.get_arg_on_space(function_space)
+        if arg.mesh == "gh_fine":
+            # For the fine mesh, we need undf and the *whole*
+            # dofmap
+            undf_name = get_fs_undf_name(function_space)
+            self._arglist.append(undf_name)
+            map_name = get_fs_map_name(function_space)
+            self._arglist.append(map_name)
+        else:
+            # For the coarse mesh we only need undf and the dofmap for
+            # the current column
+            self.fs_compulsory_field(function_space)
 
     def basis(self, function_space):
         '''
