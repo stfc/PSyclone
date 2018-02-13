@@ -1433,9 +1433,11 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [loop, depth])
 
-        if loop.loop_type == "":  # iteration space is cells
+        if loop.loop_type == "":
+            # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
         elif loop.loop_type == "colour":
+            # Loop is over cells of a single colour
             loop.set_upper_bound("colour_halo", depth)
         elif loop.loop_type == "dofs":
             loop.set_upper_bound("dof_halo", depth)
