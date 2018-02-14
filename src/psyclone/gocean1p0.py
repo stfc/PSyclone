@@ -396,66 +396,66 @@ class GOLoop(Loop):
 
         # Loop bounds for a mesh with NE offset
         self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "-1"},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}-1"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': ""}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "-1"}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}-1"}}
         self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': ""}}
+            {'inner': {'start': "1", 'stop': "{stop}"},
+             'outer': {'start': "1", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
-            {'inner': {'start': "1", 'stop': "-1"},
-             'outer': {'start': "1", 'stop': "-1"}}
+            {'inner': {'start': "1", 'stop': "{stop}-1"},
+             'outer': {'start': "1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
         self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}+1"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "+1"}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': "+1"}}
+            {'inner': {'start': "2", 'stop': "{stop}+1"},
+             'outer': {'start': "2", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
                 self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
-                    {'inner': {'start': "1", 'stop': ""},
-                     'outer': {'start': "1", 'stop': ""}}
+                    {'inner': {'start': "1", 'stop': "{stop}"},
+                     'outer': {'start': "1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
                 self._bounds_lookup[offset]['every'][itspace] = \
-                    {'inner': {'start': "1", 'stop': "+1"},
-                     'outer': {'start': "1", 'stop': "+1"}}
+                    {'inner': {'start': "1", 'stop': "{stop}+1"},
+                     'outer': {'start': "1", 'stop': "{stop}+1"}}
 
     def _upper_bound(self):
         ''' Returns the upper bound of this loop as a string '''
@@ -476,8 +476,9 @@ class GOLoop(Loop):
                 stop = schedule.jloop_stop
 
             if index_offset:
-                stop += (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["stop"])
+                d_bounds = self._bounds_lookup[index_offset][self.field_space] \
+                    [self._iteration_space][self._loop_type]
+                stop = d_bounds["stop"].format(start='', stop=stop)
             else:
                 stop = "not yet set"
         else:
@@ -525,9 +526,14 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if self._loop_type == "inner":
+                stop = schedule.iloop_stop
+            else:
+                stop = schedule.jloop_stop
             if index_offset:
-                start = (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["start"])
+                d_bounds = self._bounds_lookup[index_offset][self.field_space] \
+                         [self._iteration_space][self._loop_type]
+                start = d_bounds["start"].format(start='', stop=stop)
             else:
                 start = "not yet set"
         else:
