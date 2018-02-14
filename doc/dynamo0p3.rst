@@ -58,10 +58,10 @@ objects and their use are discussed in the following sections.
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
 
-Objects in Dynamo0.3 API can be categorised by their functionality
-as data types and information that specifies supported operations on
-a particular data type. The above example introduces four of five data
-types supported by Dynamo0.3 API: field, scalar, operator and column-wise
+Objects in the Dynamo0.3 API can be categorised by their functionality
+as data types and information that specifies supported operations on a
+particular data type. The above example introduces four of five data types
+supported by the Dynamo0.3 API: field, scalar, operator and column-wise
 operator (field vector is the fifth). ``qr`` represents a quadrature
 object which provides information required by a kernel to operate
 on fields (see section :ref:`dynamo0.3-quadrature` for more details).
@@ -71,15 +71,15 @@ on fields (see section :ref:`dynamo0.3-quadrature` for more details).
 Field
 +++++
 
-Dynamo 0.3 API fields, identified with ``GH_FIELD`` metadata, represent
+Dynamo0.3 API fields, identified with ``GH_FIELD`` metadata, represent
 FEM discretisations of various dynamical core prognostic and diagnostic
-variables. In FEM variables are discretised by placing them into a
+variables. In FEM, variables are discretised by placing them into a
 function space (:ref:`dynamo0.3-function-space`) from which they inherit
 a polynomial expansion via the basis functions of that space.
 Field values at points within a cell are evaluated as the sum of a set
 of basis functions multiplied by coefficients which are the data points.
 Points of evaluation are determined by a quadrature object
-(:ref:`dynamo0.3-quadrature`) and are independent of a function space
+(:ref:`dynamo0.3-quadrature`) and are independent of the function space
 the field is on. Placement of field data points, also called degrees of
 freedom ("dof"), is determined by the function space the field is on.
 
@@ -88,7 +88,7 @@ freedom ("dof"), is determined by the function space the field is on.
 Field Vector
 ++++++++++++
 
-Depending on the function space a field lives on the field data at a
+Depending on the function space a field lives on, the field data at a
 point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
 for the list of scalar and vector function spaces). There is an
 additional option which specifies whether the data itself is vector
@@ -704,19 +704,28 @@ onto the underlying topology and, additionally, whether the data at a
 point is a vector.
 
 Function spaces can share dofs between cells in horizontal, vertical
-or both directions. This property is referred to as the **continuity**
-of a function space (horizontal, vertical or full). Alternatively, if
-there are no shared dofs a function space is described as
-**discontinuous** (fully or in a particular direction).
+or all directions. Depending on the function space and FEM order,
+the shared dofs can lie on one or more cell entities (faces, edges
+and vertices) in each direction. This property is referred to as the
+**continuity** of a function space (horizontal, vertical or full).
+Alternatively, if there are no shared dofs a function space is described
+as **discontinuous** (fully or in a particular direction).
 
 The mixed FEM formulation is built on a foundation set of four function
-spaces:
+spaces described below.
 
-* ``w0`` is the space of scalar functions with full continuity;
+* ``w0`` is the space of scalar functions with full continuity. The
+  shared dofs lie on cell vertices in the lowest order FEM and on
+  all three entities in higher order FEM.
 
-* ``w1`` is the space of vector functions with full continuity;
+* ``w1`` is the space of vector functions with full continuity in the
+  tangential direction only. In the lowest order FEM the shared dofs
+  lie on cell edges for each component, whereas in higher order they
+  also lie on cell faces.
 
-* ``w2`` is the space of vector functions with full continuity;
+* ``w2`` is the space of vector functions with full continuity in the
+  normal direction only. The shared dofs lie on cell faces for each
+  component.
 
 * ``w3`` is the space of scalar functions with full discontinuity.
 
@@ -735,8 +744,8 @@ component-wise vector variables are:
   part of ``w2``, continuous in the horizontal and discontinuous
   in the vertical.
 
-Since Dynamo0.3 API operates on columns of data, function spaces are
-categorised as continuous or discontinuous with regard to their
+Since the Dynamo0.3 API operates on columns of data, function spaces
+are categorised as continuous or discontinuous with regard to their
 horizontal continuity.
 
 * **Continuous** function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
