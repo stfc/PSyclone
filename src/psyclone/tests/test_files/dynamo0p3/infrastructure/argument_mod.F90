@@ -44,24 +44,14 @@ module argument_mod
 
   implicit none
 
-! Function-space labels
-  integer, public, parameter :: W0 = 1
-  integer, public, parameter :: W1 = 2
-  integer, public, parameter :: W2 = 3
-  integer, public, parameter :: W3 = 4
-  integer, public, parameter :: Wtheta = 5
-  integer, public, parameter :: W2V = 6
-  integer, public, parameter :: W2H = 7
-  integer, public, parameter :: Wchi = 8
-  integer, public, parameter :: ANY_W2 = 9
+! Argument types
+  integer, public, parameter :: GH_FIELD               = 1
+  integer, public, parameter :: GH_OPERATOR            = 2
+  integer, public, parameter :: GH_COLUMNWISE_OPERATOR = 3
+  integer, public, parameter :: GH_REAL                = 4
+  integer, public, parameter :: GH_INTEGER             = 5
 
-! argument types
-  integer, public, parameter :: GH_FIELD    = 1 
-  integer, public, parameter :: GH_OPERATOR = 2
-  integer, public, parameter :: GH_REAL     = 3
-  integer, public, parameter :: GH_INTEGER  = 4
-
-! access descriptors
+! Access descriptors
   integer, public, parameter :: GH_READ  = 11
   integer, public, parameter :: GH_WRITE = 12
   integer, public, parameter :: GH_RW    = 13
@@ -70,7 +60,17 @@ module argument_mod
   integer, public, parameter :: GH_MIN   = 16
   integer, public, parameter :: GH_MAX   = 17
 
-! distinct any_space id's. Separate id's required as we may have groups of fields
+! Function-space labels
+  integer, public, parameter :: W0      = 100
+  integer, public, parameter :: W1      = 101
+  integer, public, parameter :: W2      = 102
+  integer, public, parameter :: W3      = 103
+  integer, public, parameter :: Wtheta  = 104
+  integer, public, parameter :: W2V     = 105
+  integer, public, parameter :: W2H     = 106
+  integer, public, parameter :: Wchi    = 107
+
+! Distinct any_space id's. Separate id's required as we may have groups of fields
 ! that must be on the same space within a kernel.
   integer, public, parameter :: ANY_SPACE_1  = 201
   integer, public, parameter :: ANY_SPACE_2  = 202
@@ -82,15 +82,16 @@ module argument_mod
   integer, public, parameter :: ANY_SPACE_8  = 208
   integer, public, parameter :: ANY_SPACE_9  = 209
   integer, public, parameter :: ANY_SPACE_10 = 210
+  integer, public, parameter :: ANY_W2       = 211
 
-! function space attributes
+! Function space attributes
   integer, public, parameter :: GH_BASIS       = 301 
   integer, public, parameter :: GH_DIFF_BASIS  = 302
   integer, public, parameter :: GH_ORIENTATION = 303
   integer, public, parameter :: GH_COLUMN_BANDED_DOFMAP = 304
   integer, public, parameter :: GH_COLUMN_INDIRECTION_DOFMAP = 305
 
-! kernel iterator
+! Kernel iterator
   integer, public, parameter :: CELLS     = 401
   integer, public, parameter :: ALL_DOFS  = 402
 
