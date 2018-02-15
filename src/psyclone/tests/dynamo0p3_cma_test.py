@@ -46,6 +46,7 @@ from psyclone.parse import ParseError, parse
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.gen_kernel_stub import generate
+import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -854,7 +855,7 @@ def test_cma_apply():
         assert "cma_op1_proxy%is_dirty(" not in code
 
 
-def test_cma_apply_discontinuous_spaces():
+def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for a kernel that applies
     a CMA operator to fields on discontinuous spaces w3 and w2v '''
     for distmem in [False, True]:
@@ -867,6 +868,11 @@ def test_cma_apply_discontinuous_spaces():
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
+
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
         # Check w3
         assert "INTEGER ncell_2d" in code
         assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
@@ -894,7 +900,7 @@ def test_cma_apply_discontinuous_spaces():
             # The kernel only *reads* from a CMA operator and writes to a
             # field on a discontinuous space - therefore we do not need to
             # loop out into the L1 halo.
-            assert "DO cell=1,mesh%get_last_edge_cell()" in code
+            assert code.count("DO cell=1,mesh%get_last_edge_cell()") == 2
         else:
             assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
             assert "DO cell=1,field_c_proxy%vspace%get_ncell()" in code
