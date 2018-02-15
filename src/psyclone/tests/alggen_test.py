@@ -39,6 +39,7 @@ def test_single_function_named_invoke():
     assert "USE single_invoke_psy, ONLY: invoke_important_invoke" in gen
     assert "CALL invoke_important_invoke(a, f1, f2, m1, m2)" in gen
 
+
 def test_invoke_named_invoke():
     ''' Test that we correctly handle a named invoke call where the
     naming string already begins with "invoke_" '''
@@ -50,6 +51,7 @@ def test_invoke_named_invoke():
     gen = str(alg)
     assert "USE single_invoke_psy, ONLY: invoke_important" in gen
     assert "CALL invoke_important(a, f1, f2, m1, m2)" in gen
+
 
 def test_multi_kernel_named_invoke():
     ''' Test that we correctly handle a named invoke call that contains
@@ -64,6 +66,7 @@ def test_multi_kernel_named_invoke():
     assert (
         "CALL invoke_some_name(a, b, c, istp, rdt, d, ascalar, f, g, e)"
         in gen)
+
 
 def test_multi_position_named_invoke():
     ''' Test that we correctly handle a named invoke call that contains
@@ -86,6 +89,7 @@ def test_multi_position_named_invoke():
     assert "CALL invoke_name_last(a, b, c, istp, rdt, d, ascalar, " \
         "f, g, e)" in gen
 
+
 def test_single_function_invoke_qr():
     ''' single function specified in an invoke call which requires a
     quadrature rule'''
@@ -97,6 +101,7 @@ def test_single_function_invoke_qr():
     assert ("CALL invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
+
 def test_multi_function_invoke():
     ''' two functions specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
@@ -104,6 +109,7 @@ def test_multi_function_invoke():
     gen = str(alg)
     assert "USE multi_invoke_psy, ONLY: invoke_0" in gen
     assert "CALL invoke_0(a, f1, f2, m1, m2, f3)" in gen
+
 
 def test_single_function_multi_invokes():
     ''' three invokes, each containing a single function '''
@@ -116,6 +122,7 @@ def test_single_function_multi_invokes():
     assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
     assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
+
 
 def test_named_multi_invokes():
     ''' Check that we generate correct code when we have more than one
@@ -134,6 +141,7 @@ def test_named_multi_invokes():
     assert "CALL invoke_my_first(a, f1, f2," in gen
     assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
 
+
 def test_multi_function_multi_invokes():
     ''' two invokes, each containing multiple functions '''
     alg, _ = generate(
@@ -146,6 +154,7 @@ def test_multi_function_multi_invokes():
     assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
     assert "CALL invoke_1(f1, f2, m1, a, m2, istp, qr)" in gen
 
+
 def test_multi_function_invoke_qr():
     '''three functions specified in an invoke call, two of which which
     requires a quadrature rule'''
@@ -156,6 +165,7 @@ def test_multi_function_invoke_qr():
     assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
     assert "USE testkern, ONLY: testkern_type" in gen
     assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
+
 
 def test_invoke_argnames():
     ''' invoke call arguments which are arrays '''
@@ -168,6 +178,7 @@ def test_invoke_argnames():
             "f1(index, index2(index3)), iflag(2), a(index1), "
             "iflag(index2(index3)), qr)" in gen)
 
+
 @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
 def test_multiple_qr_per_invoke():
     ''' invoke functions require different quadrature rules '''
@@ -176,6 +187,7 @@ def test_multiple_qr_per_invoke():
     gen = str(alg)
     assert "USE multi_qr_per_invoke_psy, ONLY: invoke_0" in gen
     assert "CALL invoke_0(f1, f2, f3, f4, f0, qr0, qr1)" in gen
+
 
 @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
 def test_qr_argnames():
@@ -186,6 +198,7 @@ def test_qr_argnames():
     assert "USE qr_field_array_psy, ONLY: invoke_0" in gen
     assert ("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), "
             "qr1(i, k(l)))" in gen)
+
 
 def test_deref_derived_type_args():
     ''' Test the case where a kernel argument is specified as both a
@@ -203,6 +216,7 @@ def test_deref_derived_type_args():
         "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
         in gen)
 
+
 def test_multi_deref_derived_type_args():
     ''' Test the case where a given kernel argument is specified using
     different derived types in the same invoke. '''
@@ -218,6 +232,7 @@ def test_multi_deref_derived_type_args():
         "obj_a%obj_b, obj_b%obj_a)"
         in gen)
 
+
 def test_op_and_scalar_and_qr_derived_type_args():
     ''' Test the case where the operator, scalar and qr arguments to a
     kernel are all supplied by de-referencing derived types '''
@@ -232,6 +247,7 @@ def test_op_and_scalar_and_qr_derived_type_args():
         "CALL invoke_0_testkern_operator_nofield_scalar_type("
         "opbox%my_mapping, box%b(1), qr%get_instance(qr3, 9, 3))" in gen)
 
+
 def test_vector_field_arg_deref():
     ''' Test that we generate a correct invoke call when a kernel
     argument representing a field vector is obtained by de-referencing a
@@ -245,6 +261,7 @@ def test_vector_field_arg_deref():
     print gen
     assert "CALL invoke_0_testkern_chi_type(f1, box%chi, f2)" in gen
 
+
 def test_single_stencil():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
@@ -252,6 +269,7 @@ def test_single_stencil():
     output = str(alg)
     assert ("CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
             "f2_extent)" in output)
+
 
 def test_single_stencil_broken():
     '''test we raise an exception when we do not pass a stencil argument
@@ -261,6 +279,7 @@ def test_single_stencil_broken():
         _, _ = generate(path, api="dynamo0.3")
         assert "expected '5' arguments in the algorithm layer but found '4'" \
                in str(excinfo.value)
+
 
 def test_single_stencil_xory1d():
     '''test extent and dimension values are passed correctly from the
@@ -272,6 +291,7 @@ def test_single_stencil_xory1d():
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4, f2_extent, f2_direction)") in output
 
+
 def test_single_stencil_literal():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90")
@@ -279,6 +299,7 @@ def test_single_stencil_literal():
     output = str(alg)
     assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4)" \
            in output
+
 
 def test_single_stencil_xory1d_literal():
     '''test dimension value is recognised and not passed if either
@@ -291,6 +312,7 @@ def test_single_stencil_xory1d_literal():
     assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4)") in output
 
+
 def test_multiple_stencils():
     '''more than one stencil in a kernel'''
     path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
@@ -299,6 +321,7 @@ def test_multiple_stencils():
     print output
     assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, f2_extent, f3_extent, f3_direction)") in output
+
 
 def test_multiple_stencil_same_name_direction():
     ''' more than one stencil in a kernel with the same name for direction
@@ -310,6 +333,7 @@ def test_multiple_stencil_same_name_direction():
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
+
 def test_multiple_kernels_stencils():
     '''more than one kernel with stencils'''
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
@@ -319,6 +343,7 @@ def test_multiple_kernels_stencils():
     assert "USE multiple_stencil_psy, ONLY: invoke_0" in output
     assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
             "f3_direction, direction)") in output
+
 
 def test_multiple_stencil_same_name_case():
     '''more than one stencil in a kernel with the same names but different
@@ -331,6 +356,7 @@ def test_multiple_stencil_same_name_case():
     assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
+
 def test_single_stencil_xory1d_scalar():
     '''test we raise an error if a value is passed for the direction
     argument'''
@@ -339,6 +365,7 @@ def test_single_stencil_xory1d_scalar():
         _, _ = generate(path, api="dynamo0.3")
         assert ("literal is not a valid value for a stencil direction"
                 in str(excinfo.value))
+
 
 def test_multiple_stencil_same_name():
     '''more than one stencil in a kernel with the same name for extent'''

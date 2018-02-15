@@ -58,8 +58,9 @@ module argument_mod
 ! argument types
   integer, public, parameter :: GH_FIELD    = 1 
   integer, public, parameter :: GH_OPERATOR = 2
-  integer, public, parameter :: GH_REAL     = 3
-  integer, public, parameter :: GH_INTEGER  = 4
+  integer, public, parameter :: GH_COLUMNWISE_OPERATOR = 3
+  integer, public, parameter :: GH_REAL     = 4
+  integer, public, parameter :: GH_INTEGER  = 5
 
 ! access descriptors
   integer, public, parameter :: GH_READ  = 11

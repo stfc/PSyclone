@@ -259,6 +259,7 @@ class NamedArg(ExpressionNode):
         ''' Returns True if the RHS of the named argument is a string '''
         return self._quote is not None
 
+
 # Construct a grammar using PyParsing
 
 # A Fortran variable name starts with a letter and continues with
