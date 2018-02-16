@@ -45,7 +45,7 @@ module columnwise_op_app_w3_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
-                                    GH_READ, GH_WRITE,                  &
+                                    GH_READ, GH_WRITE,                &
                                     W3, ANY_SPACE_1,                  &
                                     GH_COLUMN_INDIRECTION_DOFMAP,     &
                                     CELLS 
@@ -113,37 +113,38 @@ contains
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
   !> @param [in] indirection_dofmap_to indirection map for to-space
   !> @param [in] indirection_dofmap_from indirection map for from-space
-  subroutine columnwise_op_app_w3_kernel_code(cell,               &
-                                           ncell_2d,              &
-                                           lhs, x,                & 
-                                           columnwise_matrix,     &
-                                           ndf1, undf1, map1,     &
-                                           ndf2, undf2, map2,     &
-                                           nrow,                  &
-                                           ncol,                  &
-                                           bandwidth,             &
-                                           alpha,                 &
-                                           beta,                  &
-                                           gamma_m,               &
-                                           gamma_p,               &
-                                           indirection_dofmap_to, &
-                                           indirection_dofmap_from)
+!   subroutine columnwise_op_app_w3_kernel_code(cell,                 &
+!                                            ncell_2d,                &
+!                                            lhs, x,                  &
+!                                            columnwise_matrix,       &
+!                                            ndf1, undf1, map1,       &
+!                                            ndf2, undf2, map2,       &
+!                                            nrow,                    &
+!                                            ncol,                    &
+!                                            bandwidth,               &
+!                                            alpha,                   &
+!                                            beta,                    &
+!                                            gamma_m,                 &
+!                                            gamma_p,                 &
+!                                            indirection_dofmap_to,   &
+!                                            indirection_dofmap_from)
+   subroutine columnwise_op_app_w3_kernel_code()
     implicit none
 
-    ! Arguments
-    integer(kind=i_def), intent(in) :: cell,  ncell_2d
-    integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    integer(kind=i_def), intent(in) :: undf1, ndf1
-    integer(kind=i_def), intent(in) :: undf2, ndf2
-    real(kind=r_def), dimension(undf1), intent(inout) :: lhs
-    real(kind=r_def), dimension(undf2), intent(in) :: x
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
-    integer(kind=i_def), dimension(ndf1), intent(in) :: map1
-    integer(kind=i_def), dimension(ndf2), intent(in) :: map2
-
-    integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(nrow), intent(in) :: indirection_dofmap_to
-    integer(kind=i_def), dimension(ncol), intent(in) :: indirection_dofmap_from
+!     ! Arguments
+!     integer(kind=i_def), intent(in) :: cell,  ncell_2d
+!     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
+!     integer(kind=i_def), intent(in) :: undf1, ndf1
+!     integer(kind=i_def), intent(in) :: undf2, ndf2
+!     real(kind=r_def), dimension(undf1), intent(inout) :: lhs
+!     real(kind=r_def), dimension(undf2), intent(in) :: x
+!     real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
+!     integer(kind=i_def), dimension(ndf1), intent(in) :: map1
+!     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
+!
+!     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
+!     integer(kind=i_def), dimension(nrow), intent(in) :: indirection_dofmap_to
+!     integer(kind=i_def), dimension(ncol), intent(in) :: indirection_dofmap_from
 
   end subroutine columnwise_op_app_w3_kernel_code
 

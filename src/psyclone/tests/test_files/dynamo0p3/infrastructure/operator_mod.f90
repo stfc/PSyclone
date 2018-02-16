@@ -119,6 +119,7 @@ module operator_mod
     integer(kind=i_def), public, pointer :: column_banded_dofmap_from( :, : ) 
     integer(kind=i_def), public, pointer :: indirection_dofmap_to( : ) 
     integer(kind=i_def), public, pointer :: indirection_dofmap_from( : )
+
  end type columnwise_operator_proxy_type
 
 contains
@@ -131,8 +132,8 @@ contains
 
     class(operator_type), target, intent(in)  :: self
 
-    get_proxy_op % fs_from                 => null()
-    get_proxy_op % fs_to                   => null()
+    get_proxy_op % fs_from => null()
+    get_proxy_op % fs_to   => null()
 
   end function get_proxy_op
 

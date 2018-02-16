@@ -53,11 +53,17 @@ program single_invokes_cma_discontinuous
   type(field_type)               :: field_a, field_b
   type(field_type)               :: field_c, field_d
   type(columnwise_operator_type) :: cma_op1, cma_op2
+  type(function_space_type), pointer :: fs_w3 => null()
+  type(function_space_type)      :: fs
 
-  field_a = field_type( vector_space = fs%get_instance(W3)          )
-  field_b = field_type( vector_space = fs%get_instance(ANY_SPACE_1) )
-  field_c = field_type( vector_space = fs%get_instance(W2V)         )
-  field_d = field_type( vector_space = fs%get_instance(ANY_SPACE_2) )
+! ! !   field_a = field_type( mesh, vector_space = fs%get_instance(W3)          )
+! ! !   field_b = field_type( mesh, vector_space = fs%get_instance(ANY_SPACE_1) )
+! ! !   field_c = field_type( mesh, vector_space = fs%get_instance(W2V)         )
+! ! !   field_d = field_type( mesh, vector_space = fs%get_instance(ANY_SPACE_2) )
+
+!   fs_w3    => function_space_collection%get_fs(mesh_id,       &
+!                                   element_order, &
+!                                    W2V)
 
   cma_op1 = columnwise_operator_type( fs%get_instance(W3),fs%get_instance(ANY_SPACE_1)  )
   cma_op2 = columnwise_operator_type( fs%get_instance(W2V),fs%get_instance(ANY_SPACE_2) )
