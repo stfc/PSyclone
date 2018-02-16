@@ -3142,9 +3142,8 @@ def test_stub_operator_different_spaces():
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
     assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
 
+
 # orientation : spaces
-
-
 ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
@@ -3264,6 +3263,7 @@ def test_enforce_op_bc_kernel_stub_gen():
         "  END MODULE enforce_operator_bc_mod")
     print generated_code
     assert output in generated_code
+
 
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.

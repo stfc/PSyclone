@@ -1389,6 +1389,7 @@ def test_diff_basis():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
+
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
