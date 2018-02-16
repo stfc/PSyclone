@@ -3885,11 +3885,11 @@ def test_rc_continuous_no_depth():
             "()-1)") in result
 
 
-def test_rc_discontinuous_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with continuous reads are modified appropriately and
-    set_clean() added correctly and halo_exchange modified
-    appropriately after applying the redundant computation
+def test_rc_discontinuous_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with continuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    modified appropriately after applying the redundant computation
     transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -3911,13 +3911,18 @@ def test_rc_discontinuous_depth():
     assert ("      CALL m2_proxy%set_dirty()\n"
             "      CALL m2_proxy%set_clean(3)") in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_rc_discontinuous_no_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with continuous reads are modified appropriately and
-    set_clean() added correctly and halo_exchange added/modified
-    appropriately after applying the redundant computation
-    transformation with no halo depth value'''
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with continuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added/modified appropriately after applying the redundant
+    computation transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -3940,7 +3945,7 @@ def test_rc_discontinuous_no_depth():
     assert "CALL m2_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_depth():
+def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel
     (iterating over cells) with discontinuous reads are modified
     appropriately and set_clean() added correctly and halo_exchange
@@ -3963,6 +3968,11 @@ def test_rc_all_discontinuous_depth():
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_discontinuous_no_depth():
@@ -3991,7 +4001,7 @@ def test_rc_all_discontinuous_no_depth():
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_vector_depth():
+def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
@@ -4018,6 +4028,11 @@ def test_rc_all_discontinuous_vector_depth():
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_discontinuous_vector_no_depth():
@@ -4049,7 +4064,7 @@ def test_rc_all_discontinuous_vector_no_depth():
                 "depth())".format(idx)) in result
 
 
-def test_rc_all_disc_prev_depend_depth():
+def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel
     (iteratingover cells) with discontinuous reads are modified
     appropriately and set_clean() added correctly and halo_exchange
@@ -4076,6 +4091,11 @@ def test_rc_all_disc_prev_depend_depth():
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f3_proxy%set_dirty()" in result
     assert "CALL f3_proxy%set_clean(3)" in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_disc_prev_depend_no_depth():
@@ -4106,7 +4126,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     assert "CALL f3_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_all_disc_prev_dep_depth_vector():
+def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
@@ -4136,6 +4156,11 @@ def test_rc_all_disc_prev_dep_depth_vector():
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect():
@@ -4326,9 +4351,9 @@ def test_continuous_no_set_clean():
 
 
 def test_discontinuous_no_set_clean():
-    '''Test that set_clean is not added for the default iteration space of
-    a discontinuous loop. This is probably covered from tests in
-    dynamo0p3_test.py but it is good to have a specific test'''
+    ''' Test that set_clean is not added for the default iteration
+    space of a discontinuous loop. This is probably covered from tests
+    in dynamo0p3_test.py but it is good to have a specific test '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -4532,9 +4557,9 @@ def test_rc_no_loop_decrease():
             "transformation does nothing") in str(excinfo)
 
 
-def test_rc_remove_halo_exchange():
-    '''Test that a halo exchange is removed if redundant computation means
-    that it is no longer required'''
+def test_rc_remove_halo_exchange(tmpdir, f90, f90flags):
+    ''' Test that a halo exchange is removed if redundant computation means
+    that it is no longer required '''
     _, info = parse(os.path.join(
         BASE_PATH, "14.7_halo_annexed.f90"),
                     api=TEST_API)
@@ -4544,6 +4569,12 @@ def test_rc_remove_halo_exchange():
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     #
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -4566,7 +4597,7 @@ def test_rc_remove_halo_exchange():
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_rc_max_remove_halo_exchange():
+def test_rc_max_remove_halo_exchange(tmpdir, f90, f90flags):
     ''' Add test to redundantly compute a discontinuous (wtheta) and
     continuous (w2) field to the maximum halo depth and then check
     that a discontinuous halo exchange is removed in this case as we
@@ -4611,6 +4642,11 @@ def test_rc_max_remove_halo_exchange():
     # f5. This could be removed by redundant computation but we don't
     # bother as that is not relevant to this test.
     assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_continuous_halo_remove():

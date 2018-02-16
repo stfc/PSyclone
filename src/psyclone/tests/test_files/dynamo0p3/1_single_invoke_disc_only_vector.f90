@@ -37,7 +37,7 @@
 program single_invoke_disc_only_vector
 
   ! Description: single function in an invoke iterating over w3 and
-  ! reading from wtheta
+  ! reading from wtheta field vectors (both discontinuous)
   use testkern_disc_only_vector_mod, only: testkern_disc_only_vector_type
   use inf,                           only: field_type
   implicit none

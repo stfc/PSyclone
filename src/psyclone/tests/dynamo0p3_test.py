@@ -796,12 +796,18 @@ def test_field_deref():
             assert output in generated_code
 
 
-def test_field_fs():
+def test_field_fs(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_fs_psy\n"
@@ -815,8 +821,8 @@ def test_field_fs():
         "m3, m4)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1, f3\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
+        "      TYPE(field_type), intent(inout) :: f1, m3\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2, f3, f4, m4\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
         "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
@@ -915,12 +921,12 @@ def test_field_fs():
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=1)\n"
+        "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m3_proxy%halo_exchange(depth=1)\n"
+        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
         "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
@@ -942,8 +948,8 @@ def test_field_fs():
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_clean(1)\n"
+        "      CALL m3_proxy%set_dirty()\n"
+        "      CALL m3_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
@@ -6094,7 +6100,7 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w2v_w1():
+def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to two fields, the first on
     a discontinuous space (w2v) and the second on a continuous space (w1).
@@ -6119,6 +6125,11 @@ def test_itn_space_write_w2v_w1():
                 "      !\n"
                 "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
             assert output in generated_code
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_fld_and_op_writers():
@@ -6148,9 +6159,9 @@ def test_itn_space_fld_and_op_writers():
             assert output in generated_code
 
 
-def test_itn_space_any_w3():
+def test_itn_space_any_w3(tmpdir, f90, f90flags):
     ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W3 '''
+    a kernel writes to fields on any-space and W3 (discontinuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
         api="dynamo0.3")
@@ -6171,10 +6182,15 @@ def test_itn_space_any_w3():
                 "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_itn_space_any_w1():
     ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W1 '''
+    a kernel writes to fields on any-space and W1 (continuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
         api="dynamo0.3")
@@ -6544,7 +6560,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous():
+def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6557,14 +6573,19 @@ def test_no_halo_for_discontinous():
     print result
     assert "halo_exchange" not in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_halo_for_discontinuous():
-    '''Test that we create halo exchange call when our loop iterates over
-    owned cells (e.g. it writes to a discontinuous field), we read
-    from a continous field, there are no stencil accesses, but we do
-    not know anything about the previous writer. As the previous
-    writer may have been over dofs we could have dirty annexed dofs so
-    need to add a halo exchange.'''
+
+def test_halo_for_discontinuous(tmpdir, f90, f90flags):
+    ''' Test that we create halo exchange call when our loop iterates
+    over owned cells (e.g. it writes to a discontinuous field), we
+    read from a continous field, there are no stencil accesses, but
+    we do not know anything about the previous writer. As the previous
+    writer may have been over dofs we could have dirty annexed dofs
+    so need to add a halo exchange. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
@@ -6578,8 +6599,13 @@ def test_halo_for_discontinuous():
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_halo_for_discontinuous_2():
+
+def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
     read from a continous field, there are no stencil accesses, and
@@ -6597,6 +6623,11 @@ def test_halo_for_discontinuous_2():
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_arg_discontinous():

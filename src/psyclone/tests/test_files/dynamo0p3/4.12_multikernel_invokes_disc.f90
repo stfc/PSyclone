@@ -37,7 +37,7 @@
 program single_invoke_disc_only
 
   ! Description: two functions in an invoke iterating over wtheta and
-  ! reading from w3
+  ! reading from w3 (both discontinuous)
   use testkern_disc_only_mod, only: testkern_disc_only_type
   use inf,                    only: field_type
   implicit none

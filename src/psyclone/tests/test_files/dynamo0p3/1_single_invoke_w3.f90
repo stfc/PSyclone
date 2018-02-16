@@ -36,7 +36,8 @@
 
 program single_invoke_w3
 
-  ! Description: single function iterating over w3 specified in an invoke call
+  ! Description: single function iterating over w3 (discontinuous)
+  ! specified in an invoke call
   use testkern_w3_mod, only: testkern_w3_type
   use inf,             only: field_type
   implicit none

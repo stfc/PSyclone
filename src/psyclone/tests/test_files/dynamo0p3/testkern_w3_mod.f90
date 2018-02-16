@@ -42,6 +42,7 @@ module testkern_w3_mod
 
   implicit none
 
+  ! Description: discontinuous field writer (w3)
   type, extends(kernel_type) :: testkern_w3_type
      type(arg_type), dimension(5) :: meta_args = &
           (/ arg_type(gh_real, gh_read),         &
@@ -65,17 +66,17 @@ contains
 
     implicit none
 
-    integer(kind=i_def), intent(in)  :: nlayers
-    integer(kind=i_def), intent(in)  :: ndf_w1, undf_w1, &
-                                        ndf_w2, undf_w2, &
-                                        ndf_w3, undf_w3
-    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
-    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+    integer, intent(in)  :: nlayers
+    integer, intent(in)  :: ndf_w1, undf_w1, &
+                            ndf_w2, undf_w2, &
+                            ndf_w3, undf_w3
+    integer, dimension(ndf_w1), intent(in) :: map_w1
+    integer, dimension(ndf_w2), intent(in) :: map_w2
+    integer, dimension(ndf_w3), intent(in) :: map_w3
     real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(undf_w1), intent(in) :: fld1
-    real(kind=r_def), dimension(undf_w2), intent(in) :: fld2
-    real(kind=r_def), dimension(undf_w2), intent(in) :: fld3
+    real(kind=r_def), dimension(undf_w1), intent(in)  :: fld1
+    real(kind=r_def), dimension(undf_w2), intent(in)  :: fld2
+    real(kind=r_def), dimension(undf_w2), intent(in)  :: fld3
     real(kind=r_def), dimension(undf_w3), intent(out) :: fld4
 
   end subroutine testkern_w3_code

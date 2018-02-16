@@ -36,8 +36,8 @@
 
 program single_invoke_fs
 
-  ! Description: single function that writes to fields on any-space and
-  ! W3
+  ! Description: single function that writes to fields on any-space (continuous)
+  ! and W3 (discontinuous)
   use testkern_write_any_w3_mod, only: testkern_write_any_w3_type
   use inf,                       only: field_type
   implicit none
