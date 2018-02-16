@@ -36,10 +36,10 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-!
-!> @brief Kernel which applies a columnwise assembled operator to a field
-!!        on W2V (discontinuous)
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
+! Kernel which applies a columnwise assembled operator to a field on W2V (discontinuous)
 module columnwise_op_app_w2v_kernel_mod
 
 use kernel_mod,              only : kernel_type
@@ -90,62 +90,49 @@ contains
     return
   end function columnwise_op_app_w2v_kernel_constructor
 
-  !> @brief The subroutine which is called directly from the PSY layer and
-  !> applies the operator as lhs += A.x
-  !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [inout] lhs Resulting field lhs += A.x
-  !> @param [in] x input field
-  !> @param [in] columnwise_matrix banded matrix to assemble into
-  !> @param [in] ndf1 number of degrees of freedom per cell for the to-space
-  !> @param [in] undf1 unique number of degrees of freedom  for the to-space
-  !> @param [in] map1 dofmap for the to-space
-  !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
-  !> @param [in] undf2 unique number of degrees of freedom for the from-space 
-  !> @param [in] map2 dofmap for the from-space
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] indirection_dofmap_to indirection map for to-space
-  !> @param [in] indirection_dofmap_from indirection map for from-space
-!   subroutine columnwise_op_app_w2v_kernel_code(cell,              &
-!                                            ncell_2d,              &
-!                                            lhs, x,                &
-!                                            columnwise_matrix,     &
-!                                            ndf1, undf1, map1,     &
-!                                            ndf2, undf2, map2,     &
-!                                            nrow,                  &
-!                                            ncol,                  &
-!                                            bandwidth,             &
-!                                            alpha,                 &
-!                                            beta,                  &
-!                                            gamma_m,               &
-!                                            gamma_p,               &
-!                                            indirection_dofmap_to, &
-!                                            indirection_dofmap_from)
-  subroutine columnwise_op_app_w2v_kernel_code()
-    implicit none
+  SUBROUTINE columnwise_op_app_w2v_kernel_code(cell,                        &
+                                               ncell_2d,                    &
+                                               field_1_w2v,                 &
+                                               field_2_any_space_2_field_2, &
+                                               cma_op_3,                    &
+                                               cma_op_3_nrow,               &
+                                               cma_op_3_ncol,               &
+                                               cma_op_3_bandwidth,          &
+                                               cma_op_3_alpha,              &
+                                               cma_op_3_beta,               &
+                                               cma_op_3_gamma_m,            &
+                                               cma_op_3_gamma_p,            &
+                                               ndf_w2v,                     &
+                                               undf_w2v,                    &
+                                               map_w2v,                     &
+                                               cma_indirection_map_w2v,     &
+                                               ndf_any_space_2_field_2,     &
+                                               undf_any_space_2_field_2,    &
+                                               map_any_space_2_field_2,     &
+                                               cma_indirection_map_any_space_2_field_2)
 
-    ! Arguments
-!     integer(kind=i_def), intent(in) :: cell,  ncell_2d
-!     integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-!     integer(kind=i_def), intent(in) :: undf1, ndf1
-!     integer(kind=i_def), intent(in) :: undf2, ndf2
-!     real(kind=r_def), dimension(undf1), intent(inout) :: lhs
-!     real(kind=r_def), dimension(undf2), intent(in) :: x
-!     real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
-!     integer(kind=i_def), dimension(ndf1), intent(in) :: map1
-!     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
-!
-!     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-!     integer(kind=i_def), dimension(nrow), intent(in) :: indirection_dofmap_to
-!     integer(kind=i_def), dimension(ncol), intent(in) :: indirection_dofmap_from
+    USE constants_mod, ONLY: r_def
 
-  end subroutine columnwise_op_app_w2v_kernel_code
+    IMPLICIT NONE
+
+    INTEGER, intent(in) :: cell
+    INTEGER, intent(in) :: ncell_2d
+    INTEGER, intent(in) :: ndf_w2v
+    INTEGER, intent(in) :: undf_w2v
+    INTEGER, intent(in) :: ndf_any_space_2_field_2
+    INTEGER, intent(in) :: undf_any_space_2_field_2
+    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_1_w2v
+    REAL(KIND=r_def), intent(in), dimension(undf_any_space_2_field_2) :: field_2_any_space_2_field_2
+    INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth
+    INTEGER, intent(in) :: cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p
+    REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3
+    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
+    INTEGER, intent(in), dimension(cma_op_3_nrow) :: cma_indirection_map_w2v
+    INTEGER, intent(in), dimension(ndf_any_space_2_field_2) :: map_any_space_2_field_2
+    INTEGER, intent(in), dimension(cma_op_3_ncol) :: cma_indirection_map_any_space_2_field_2
+
+    write (*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"
+
+  END SUBROUTINE columnwise_op_app_w2v_kernel_code
 
 end module columnwise_op_app_w2v_kernel_mod
