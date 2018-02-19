@@ -43,16 +43,16 @@ module testkern_fs_mod
   implicit none
 
   ! Description: all function spaces with one continuous (w1)
-  !              and one discontinuous (w2v) field writer
+  !              and one discontinuous (wtheta) field writer
   type, extends(kernel_type) :: testkern_fs_type
      type(arg_type), dimension(8) :: meta_args =   &
           (/ arg_type(gh_field, gh_write, w1),     &
              arg_type(gh_field, gh_read,  w2),     &
              arg_type(gh_field, gh_read,  w0),     &
              arg_type(gh_field, gh_read,  w3),     &
-             arg_type(gh_field, gh_read,  wtheta), &
+             arg_type(gh_field, gh_write, wtheta), &
              arg_type(gh_field, gh_read,  w2h),    &
-             arg_type(gh_field, gh_write, w2v),    &
+             arg_type(gh_field, gh_read,  w2v),    &
              arg_type(gh_field, gh_read,  any_w2)  &
            /)
      integer :: iterates_over = cells

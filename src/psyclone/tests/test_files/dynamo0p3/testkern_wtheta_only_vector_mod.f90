@@ -31,10 +31,9 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
-module testkern_disc_only_mod
+module testkern_wtheta_only_vector_mod
 
   use argument_mod
   use kernel_mod
@@ -42,37 +41,41 @@ module testkern_disc_only_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (wtheta) and reader (w3)
-  type, extends(kernel_type) :: testkern_disc_only_type
-     type(arg_type), dimension(2) :: meta_args =   &
-          (/ arg_type(gh_field, gh_write, wtheta), &
-             arg_type(gh_field, gh_read,  w3)      &
+  ! Description: discontinuous field vector writer reader (wtheta)
+  type, extends(kernel_type) :: testkern_wtheta_only_vector_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/  arg_type(gh_field*3, gh_write, wtheta), &
+              arg_type(gh_field*3, gh_read,  wtheta)  &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_disc_only_code
-  end type testkern_disc_only_type
+     procedure, nopass :: code => testkern_wtheta_only_vector_code
+  end type testkern_wtheta_only_vector_type
 
 contains
 
-  SUBROUTINE testkern_disc_only_code(nlayers,                             &
-                                     field_1_wtheta,                      &
-                                     field_2_w3,                          &
-                                     ndf_wtheta, undf_wtheta, map_wtheta, &
-                                     ndf_w3, undf_w3, map_w3)
+  SUBROUTINE testkern_wtheta_only_vector_code(nlayers,       &
+                                          field_1_wtheta_v1, &
+                                          field_1_wtheta_v2, &
+                                          field_1_wtheta_v3, &
+                                          field_2_wtheta_v1, &
+                                          field_2_wtheta_v2, &
+                                          field_2_wtheta_v3, &
+                                          ndf_wtheta, undf_wtheta, map_wtheta)
 
     IMPLICIT NONE
 
     INTEGER, intent(in) :: nlayers
     INTEGER, intent(in) :: ndf_wtheta
     INTEGER, intent(in) :: undf_wtheta
-    INTEGER, intent(in) :: ndf_w3
-    INTEGER, intent(in) :: undf_w3
-    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
     INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
-    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta_v1
+    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta_v2
+    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta_v3
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta_v1
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta_v2
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta_v3
 
-  END SUBROUTINE testkern_disc_only_code
+  END SUBROUTINE testkern_wtheta_only_vector_code
 
-end module testkern_disc_only_mod
+end module testkern_wtheta_only_vector_mod

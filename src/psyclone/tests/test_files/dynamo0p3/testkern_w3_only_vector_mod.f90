@@ -31,20 +31,52 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_disc_only_vector
+module testkern_w3_only_vector_mod
 
-  ! Description: single function in an invoke iterating over w3 and
-  ! reading from wtheta field vectors (both discontinuous)
-  use testkern_disc_only_vector_mod, only: testkern_disc_only_vector_type
-  use inf,                           only: field_type
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+
   implicit none
-  type(field_type) :: f1(3), f2(3)
 
-  call invoke(                                &
-       testkern_disc_only_vector_type(f1, f2) &
-          )
+  ! Description: discontinuous field vector writer and reader (w3)
+  type, extends(kernel_type) :: testkern_w3_only_vector_type
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/  arg_type(gh_field*3, gh_write, w3), &
+              arg_type(gh_field*3, gh_read,  w3)  &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_w3_only_vector_code
+  end type testkern_w3_only_vector_type
 
-end program single_invoke_disc_only_vector
+contains
+
+  SUBROUTINE testkern_w3_only_vector_code(nlayers,       &
+                                          field_1_w3_v1, &
+                                          field_1_w3_v2, &
+                                          field_1_w3_v3, &
+                                          field_2_w3_v1, &
+                                          field_2_w3_v2, &
+                                          field_2_w3_v3, &
+                                          ndf_w3, undf_w3, map_w3)
+
+    IMPLICIT NONE
+
+    INTEGER, intent(in) :: nlayers
+    INTEGER, intent(in) :: ndf_w3
+    INTEGER, intent(in) :: undf_w3
+    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3_v1
+    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3_v2
+    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3_v3
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v1
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v2
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v3
+
+  END SUBROUTINE testkern_w3_only_vector_code
+
+end module testkern_w3_only_vector_mod

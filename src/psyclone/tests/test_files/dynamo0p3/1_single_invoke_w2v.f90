@@ -31,20 +31,19 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
-program single_invoke_disc_only
+program single_invoke_w2v_wtheta
 
-  ! Description: single function in an invoke iterating over wtheta and
-  ! reading from w3 (both discontinuous)
-  use testkern_disc_only_mod, only: testkern_disc_only_type
-  use inf,                    only: field_type
+  ! Description: single function in an invoke iterating over w2v and
+  ! reading from wtheta (both discontinuous)
+  use testkern_w2v_mod, only: testkern_w2v_type
+  use inf,              only: field_type
   implicit none
   type(field_type) :: f1, f2
 
-  call invoke(                         &
-       testkern_disc_only_type(f1, f2) &
+  call invoke(                   &
+       testkern_w2v_type(f1, f2) &
           )
 
-end program single_invoke_disc_only
+end program single_invoke_w2v_wtheta

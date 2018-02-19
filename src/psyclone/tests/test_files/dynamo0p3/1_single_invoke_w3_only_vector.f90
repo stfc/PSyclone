@@ -34,20 +34,17 @@
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_disc_only
+program single_invoke_w3_only_vector
 
-  ! Description: two functions in an invoke iterating over wtheta and
-  ! reading from w3 (both discontinuous)
-  use testkern_disc_only_mod, only: testkern_disc_only_type
-  use inf,                    only: field_type
+  ! Description: single function in an invoke iterating over and
+  ! reading from w3 field vectors (discontinuous)
+  use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
+  use inf,                         only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1(3), f2(3)
 
-  call invoke(                          &
-       testkern_disc_only_type(f1, f2), &
-       ! Field f1 write to read dependence but no halo exchange
-       ! required as wtheta is discontinuous
-       testkern_disc_only_type(f3, f1)  &
+  call invoke(                              &
+       testkern_w3_only_vector_type(f1, f2) &
           )
 
-end program single_invoke_disc_only
+end program single_invoke_w3_only_vector

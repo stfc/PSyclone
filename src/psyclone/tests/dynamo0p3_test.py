@@ -798,7 +798,7 @@ def test_field_deref():
 
 def test_field_fs(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields making use of all
-    function spaces and no basis functions produces correct code.'''
+    function spaces and no basis functions produces correct code '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -821,8 +821,8 @@ def test_field_fs(tmpdir, f90, f90flags):
         "m3, m4)\n"
         "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(inout) :: f1, m3\n"
-        "      TYPE(field_type), intent(in) :: f2, m1, m2, f3, f4, m4\n"
+        "      TYPE(field_type), intent(inout) :: f1, f3\n"
+        "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
         "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
@@ -921,12 +921,12 @@ def test_field_fs(tmpdir, f90, f90flags):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f3_proxy%halo_exchange(depth=1)\n"
-        "      END IF \n"
-        "      !\n"
         "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f4_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m3_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
         "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
@@ -948,8 +948,8 @@ def test_field_fs(tmpdir, f90, f90flags):
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL m3_proxy%set_dirty()\n"
-        "      CALL m3_proxy%set_clean(1)\n"
+        "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
@@ -6126,10 +6126,10 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
                 "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_fld_and_op_writers():
@@ -6566,7 +6566,7 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     field), we only read from a discontinous field and there are no
     stencil accesses '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only.f90"),
+                                 "1_single_invoke_w2v.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     result = str(psy.gen)
@@ -6637,17 +6637,17 @@ def test_arg_discontinous():
     # 1 discontinuous field returns true
     # Check w3
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only_vector.f90"),
+                                 "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[0].children[0]
-    field = kernel.arguments.args[0]
+    kernel = schedule.children[3].children[0]
+    field = kernel.arguments.args[4]
     assert field.space == 'w3'
     assert field.discontinuous
     # Check wtheta
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only.f90"),
+                                 "1_single_invoke_wtheta.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6657,12 +6657,12 @@ def test_arg_discontinous():
     assert field.discontinuous
     # Check w2v
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1.5.1_single_invoke_write_multi_fs.f90"),
+                                 "1_single_invoke_w2v.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[5].children[0]
-    field = kernel.arguments.args[6]
+    kernel = schedule.children[0].children[0]
+    field = kernel.arguments.args[0]
     assert field.space == 'w2v'
     assert field.discontinuous
 
@@ -6841,7 +6841,7 @@ def test_HaloReadAccess_field_not_reader():
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1_single_invoke_disc_only.f90"),
+                                        "1_single_invoke_wtheta.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6877,12 +6877,12 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field():
+def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
-    checks that HaloReadAccess works correctly in this situation'''
+    checks that HaloReadAccess works correctly in this situation '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only.f90"),
+                                 "1_single_invoke_wtheta.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6894,6 +6894,11 @@ def test_HaloReadAccess_discontinuous_field():
     assert halo_access.var_depth is None
     assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_loop_cont_read_inv_bound(monkeypatch):

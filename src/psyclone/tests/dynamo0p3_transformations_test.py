@@ -3952,7 +3952,7 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only.f90"),
+                                 "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3975,14 +3975,14 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_rc_all_discontinuous_no_depth():
+def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel
     (iterating over cells) with discontinuous reads are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only.f90"),
+                                 "1_single_invoke_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4000,6 +4000,11 @@ def test_rc_all_discontinuous_no_depth():
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel (iterating
@@ -4008,7 +4013,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     after applying the redundant computation transformation with a
     fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only_vector.f90"),
+                                 "1_single_invoke_w3_only_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4035,14 +4040,14 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_rc_all_discontinuous_vector_no_depth():
+def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with no
     halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_disc_only_vector.f90"),
+                                 "1_single_invoke_wtheta_only_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4063,6 +4068,11 @@ def test_rc_all_discontinuous_vector_no_depth():
         assert ("CALL f1_proxy({0})%set_clean(mesh%get_halo_"
                 "depth())".format(idx)) in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel
@@ -4073,7 +4083,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     redundant computation transformation with a fixed value for halo
     depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_disc.f90"),
+                                 "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4106,7 +4116,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     non-halo dependence after applying the redundant computation
     transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_disc.f90"),
+                                 "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4135,7 +4145,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
     redundant computation transformation with a fixed value for halo
     depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_disc_vector.f90"),
+                                 "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4163,16 +4173,17 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_rc_all_disc_prev_dep_no_depth_vect():
+def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
     the vector field now requiring a halo exchange has a previous non-halo
     dependence after applying the redundant computation transformation
     with no halo depth value '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_disc_vector.f90"),
-                    api=TEST_API)
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "8.2.2_multikernel_invokes_wtheta_vector.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -4191,6 +4202,11 @@ def test_rc_all_disc_prev_dep_no_depth_vect():
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_dofs_depth():
@@ -4492,7 +4508,7 @@ def test_rc_updated_dependence_analysis():
     ''' Test that the dependence analyis updates when new halo exchanges
     are added to the schedule '''
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_disc_only.f90"),
+        BASE_PATH, "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4525,7 +4541,7 @@ def test_rc_no_loop_decrease():
     implementation we might not decrease the size of the relevant halo
     exchange as these can only be increased with the current logic '''
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_disc_only.f90"),
+        BASE_PATH, "1_single_invoke_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4754,7 +4770,7 @@ def test_rc_vector_reader_halo_remove():
     the previous loop still computes deep enough into the halo to
     avoid needing halo exchanges '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_disc_vector.f90"),
+                                 "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
@@ -4868,7 +4884,7 @@ def test_loop_fusion_different_loop_name():
     raises an exception if this is not the case. This test checks that
     the exception is raised correctly. '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_disc.f90"),
+                                 "4.12_multikernel_invokes_w2v.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -5285,7 +5301,7 @@ def test_colour_discontinuous():
     ''' Test that we raise an exception if we try to colour a loop
     containing a kernel that modifies a discontinuous field '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1_single_invoke_disc_only.f90"),
+                                        "1_single_invoke_wtheta.f90"),
                            api=TEST_API)
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]

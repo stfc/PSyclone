@@ -31,35 +31,23 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_builtin_then_kernel
+program single_invoke_w2v_wtheta
 
-  ! Description: single invoke call with a builtin followed by a kernel call
-  use testkern,            only: testkern_type
-  use testkern_wtheta_mod, only: testkern_wtheta_type
-  use testkern_w2_only,    only: testkern_w2_only_type
-  use inf,                 only: field_type
+  ! Description: two functions in an invoke iterating over w2v and
+  ! reading from wtheta (both discontinuous)
+  use testkern_w2v_mod, only: testkern_w2v_type
+  use inf,              only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4
-  real(r_def) :: scalar = 0.0
-  
-  call invoke(                               &
-       setval_c(f5, 0.0),                    &
-       setval_c(f2, 0.0),                    &
-       ! f3 function space w2, write
-       ! f2 function space w2, read
-       testkern_w2_only_type(f3, f2),        &
-       ! f4 function space wtheta, write
-       ! f5 function space w3, read
-       testkern_wtheta_type(f4, f5),         &
-       ! scalar, read
-       ! f1 function space w1, write
-       ! f2 function space w2, read
-       ! f3 function space w2, read
-       ! f4 function space w3, read
-       testkern_type(scalar, f1, f2, f3, f4) &
+  type(field_type) :: f1, f2, f3
+
+  call invoke(                    &
+       testkern_w2v_type(f1, f2), &
+       ! Field f1 write to read dependence but no halo exchange
+       ! required as w2v is discontinuous
+       testkern_w2v_type(f3, f1)  &
           )
 
-end program single_invoke_builtin_then_kernel
+end program single_invoke_w2v_wtheta

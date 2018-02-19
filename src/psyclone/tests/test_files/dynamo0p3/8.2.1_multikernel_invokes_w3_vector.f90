@@ -34,54 +34,20 @@
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-module testkern_w3_mod
+program single_invoke_w3_only_vector
 
-  use argument_mod
-  use kernel_mod
-  use constants_mod
-
+  ! Description: two functions in an invoke iterating over and
+  ! reading from w3 field vectors (discontinuous)
+  use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
+  use inf,                         only: field_type
   implicit none
+  type(field_type) :: f1(3), f2(3), f3(3)
 
-  ! Description: discontinuous field writer (w3)
-  type, extends(kernel_type) :: testkern_w3_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field, gh_read,  w0),   &
-             arg_type(gh_field, gh_read,  w1),   &
-             arg_type(gh_field, gh_read,  w2),   &
-             arg_type(gh_field, gh_write, w3)    &
-           /)
-     integer :: iterates_over = cells
-   contains
-     procedure, nopass :: code => testkern_w3_code
-  end type testkern_w3_type
+  call invoke(                               &
+       testkern_w3_only_vector_type(f1, f2), &
+       ! Field f1 write to read dependence but no halo exchange
+       ! required as w3 is discontinuous
+       testkern_w3_only_vector_type(f3, f1)  &
+          )
 
-contains
-
-  subroutine testkern_w3_code(nlayers, ascalar,        &
-                              fld1, fld2, fld3, fld4,  &
-                              ndf_w0, undf_w0, map_w0, &
-                              ndf_w1, undf_w1, map_w1, &
-                              ndf_w2, undf_w2, map_w2, &
-                              ndf_w3, undf_w3, map_w3)
-
-    implicit none
-
-    integer, intent(in)  :: nlayers
-    integer, intent(in)  :: ndf_w0, undf_w0, &
-                            ndf_w1, undf_w1, &
-                            ndf_w2, undf_w2, &
-                            ndf_w3, undf_w3
-    integer, dimension(ndf_w1), intent(in) :: map_w0
-    integer, dimension(ndf_w1), intent(in) :: map_w1
-    integer, dimension(ndf_w2), intent(in) :: map_w2
-    integer, dimension(ndf_w3), intent(in) :: map_w3
-    real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(undf_w1), intent(in)  :: fld1
-    real(kind=r_def), dimension(undf_w2), intent(in)  :: fld2
-    real(kind=r_def), dimension(undf_w2), intent(in)  :: fld3
-    real(kind=r_def), dimension(undf_w3), intent(out) :: fld4
-
-  end subroutine testkern_w3_code
-
-end module testkern_w3_mod
+end program single_invoke_w3_only_vector

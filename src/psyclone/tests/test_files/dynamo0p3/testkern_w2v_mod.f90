@@ -31,10 +31,9 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
-module testkern_w3_mod
+module testkern_w2v_mod
 
   use argument_mod
   use kernel_mod
@@ -42,46 +41,37 @@ module testkern_w3_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (w3)
-  type, extends(kernel_type) :: testkern_w3_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field, gh_read,  w0),   &
-             arg_type(gh_field, gh_read,  w1),   &
-             arg_type(gh_field, gh_read,  w2),   &
-             arg_type(gh_field, gh_write, w3)    &
+  ! Description: discontinuous field writer (w2v) and reader (wtheta)
+  type, extends(kernel_type) :: testkern_w2v_type
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field, gh_write, w2v),   &
+             arg_type(gh_field, gh_read,  wtheta) &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_w3_code
-  end type testkern_w3_type
+     procedure, nopass :: code => testkern_w2v_code
+  end type testkern_w2v_type
 
 contains
 
-  subroutine testkern_w3_code(nlayers, ascalar,        &
-                              fld1, fld2, fld3, fld4,  &
-                              ndf_w0, undf_w0, map_w0, &
-                              ndf_w1, undf_w1, map_w1, &
-                              ndf_w2, undf_w2, map_w2, &
-                              ndf_w3, undf_w3, map_w3)
+  SUBROUTINE testkern_w2v_code(nlayers,                    &
+                               field_1_w2v,                &
+                               field_2_wtheta,             &
+                               ndf_w2v, undf_w2v, map_w2v, &
+                               ndf_wtheta, undf_wtheta, map_wtheta)
 
-    implicit none
+    IMPLICIT NONE
 
-    integer, intent(in)  :: nlayers
-    integer, intent(in)  :: ndf_w0, undf_w0, &
-                            ndf_w1, undf_w1, &
-                            ndf_w2, undf_w2, &
-                            ndf_w3, undf_w3
-    integer, dimension(ndf_w1), intent(in) :: map_w0
-    integer, dimension(ndf_w1), intent(in) :: map_w1
-    integer, dimension(ndf_w2), intent(in) :: map_w2
-    integer, dimension(ndf_w3), intent(in) :: map_w3
-    real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), dimension(undf_w1), intent(in)  :: fld1
-    real(kind=r_def), dimension(undf_w2), intent(in)  :: fld2
-    real(kind=r_def), dimension(undf_w2), intent(in)  :: fld3
-    real(kind=r_def), dimension(undf_w3), intent(out) :: fld4
+    INTEGER, intent(in) :: nlayers
+    INTEGER, intent(in) :: ndf_w2v
+    INTEGER, intent(in) :: undf_w2v
+    INTEGER, intent(in) :: ndf_wtheta
+    INTEGER, intent(in) :: undf_wtheta
+    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_1_w2v
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta
+    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
+    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
 
-  end subroutine testkern_w3_code
+  END SUBROUTINE testkern_w2v_code
 
-end module testkern_w3_mod
+end module testkern_w2v_mod
