@@ -220,10 +220,10 @@ def test_field_prolong(tmpdir, f90, f90flags):
         if utils.TEST_COMPILE:
             assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
-        expected = "      USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
-        if distmem:
-            expected += "      USE mesh_mod, ONLY: mesh_type\n"
-        expected += (
+        expected = (
+            "      USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
+            "      USE mesh_map_mod, ONLY: mesh_map_type\n"
+            "      USE mesh_mod, ONLY: mesh_type\n"
             "      TYPE(field_type), intent(inout) :: field1\n"
             "      TYPE(field_type), intent(in) :: field2\n"
             "      INTEGER cell\n")
@@ -242,13 +242,19 @@ def test_field_prolong(tmpdir, f90, f90flags):
             "      ! Look-up mesh objects and loop limits for inter-grid "
             "kernels\n"
             "      !\n"
-            "      fine_mesh_field1 => field1_proxy%get_mesh()\n"
-            "      coarse_mesh_field2 => field2_proxy%get_mesh()\n"
+            "      fine_mesh_field1 => field1%get_mesh()\n"
+            "      coarse_mesh_field2 => field2%get_mesh()\n"
             "      mmap_field1_field2 => coarse_mesh_field2%get_mesh_map"
             "(fine_mesh_field1)\n"
-            "      cell_map_field2 => mmap_field1_field2%get_whole_cell_map()\n"
-            "      ncell_fine_field1 = fine_mesh_field1%get_last_halo_cell("
-            "depth=2)\n"
+            "      cell_map_field2 => mmap_field1_field2%get_whole_cell_map()\n")
+        if distmem:
+            expected += (
+                "      ncell_fine_field1 = fine_mesh_field1%get_last_halo_cell("
+                "depth=2)\n")
+        else:
+            expected += \
+                "      ncell_fine_field1 = field1_proxy%vspace%get_ncell()\n"
+        expected += (
             "      ncpc_field1_field2 = mmap_field1_field2%"
             "get_ntarget_cells_per_source_cell()\n")
         assert expected in gen_code

@@ -1839,7 +1839,13 @@ class DynInterGrid(object):
         :param parent: the parent node to which to add the declarations
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import DeclGen, TypeDeclGen
+        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        # We'll need various typedefs from the mesh module
+        if self._kern_calls:
+            parent.add(UseGen(parent, name="mesh_mod", only=True,
+                              funcnames=["mesh_type"]))
+            parent.add(UseGen(parent, name="mesh_map_mod", only=True,
+                              funcnames=["mesh_map_type"]))
         # Declare the mesh objects
         for name in self._mesh_names:
             parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
@@ -1890,11 +1896,11 @@ class DynInterGrid(object):
             parent.add(
                 AssignGen(parent, pointer=True,
                           lhs=fine_mesh,
-                          rhs=kern["fine"].proxy_name + "%get_mesh()"))
+                          rhs=kern["fine"].name + "%get_mesh()"))
             parent.add(
                 AssignGen(parent, pointer=True,
                           lhs=coarse_mesh,
-                          rhs=kern["coarse"].proxy_name + "%get_mesh()"))
+                          rhs=kern["coarse"].name + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             parent.add(
