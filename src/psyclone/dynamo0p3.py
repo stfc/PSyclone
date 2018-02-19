@@ -1914,15 +1914,19 @@ class DynInterGrid(object):
                 AssignGen(parent, pointer=True, lhs=kern["cellmap"],
                           rhs=kern["mmap"]+"%get_whole_cell_map()"))
 
-            # Number of cells in each mesh
-            parent.add(
-                # TODO what should this be when not doing DM?
-                AssignGen(parent, lhs=kern["ncell_fine"],
-                          rhs=fine_mesh+"%get_last_halo_cell(depth=2)"))
-            #parent.add(
-            #    # TODO what should this be when not doing DM?
-            #    AssignGen(parent, lhs=kern["ncell_coarse"],
-            #              rhs=coarse_mesh+"%get_last_halo_cell(depth=1)"))
+            # Number of cells in the fine mesh
+            if config.DISTRIBUTED_MEMORY:
+                # TODO this hardwired depth of 2 will need changing in
+                # order to support redundant computation
+                parent.add(
+                    AssignGen(parent, lhs=kern["ncell_fine"],
+                              rhs=fine_mesh+"%get_last_halo_cell(depth=2)"))
+            else:
+                parent.add(
+                    AssignGen(parent, lhs=kern["ncell_fine"],
+                              rhs="%".join([kern["fine"].proxy_name,
+                                            kern["fine"].ref_name(),
+                                            "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
             parent.add(
