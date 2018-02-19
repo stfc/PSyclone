@@ -3961,7 +3961,11 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        if config.DISTRIBUTED_MEMORY:
+        # If we aren't looping over cells then we don't have a self._kern
+        # but then we don't need a mesh object
+        # TODO tidy this up.
+        if config.DISTRIBUTED_MEMORY and \
+           self._upper_bound_name in ["ncells", "cell_halo"]:
             if self._kern.is_intergrid:
                 # We have more than one mesh object to choose from and we
                 # want the coarse one because that determines the iteration
@@ -6294,10 +6298,9 @@ class DynKernelArguments(Arguments):
         # or restricting.
         if self._parent_call.is_intergrid:
             fld_args = psyGen.args_filter(self._args,
-                                          arg_types=["gh_field"])
-            for arg in fld_args:
-                if arg.mesh == "gh_coarse":
-                    return arg
+                                          arg_types=["gh_field"],
+                                          arg_meshes=["gh_coarse"])
+            return fld_args[0]
 
         # This is not an inter-grid kernel and it does not write to an
         # operator. We now check for fields that are written to. We
@@ -6350,7 +6353,10 @@ class DynKernelArgument(KernelArgument):
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
         self._stencil = None
-        self._mesh = arg_meta_data.mesh
+        if arg_meta_data.mesh:
+            self._mesh = arg_meta_data.mesh.lower()
+        else:
+            self._mesh = None
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the

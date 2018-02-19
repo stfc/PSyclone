@@ -152,7 +152,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
             if argument.access.lower() not in arg_accesses:
                 continue
         if arg_meshes:
-            if argument.mesh.lower() not in arg_meshes:
+            if argument.mesh not in arg_meshes:
                 continue
         arguments.append(argument)
     return arguments
