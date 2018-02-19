@@ -307,46 +307,41 @@ def test_field_restrict(tmpdir, f90, f90flags):
         assert defs in output
 
         defs2 = (
-            "      INTEGER undf_any_space_1_field1, ndf_any_space_2_field2, "
-            "undf_any_space_2_field2\n"
+            "      INTEGER ndf_any_space_1_field1, undf_any_space_1_field1, "
+            "ndf_any_space_2_field2, undf_any_space_2_field2\n"
             "      INTEGER nlayers\n"
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
-            "      INTEGER ncell_fine_field2, ncell_coarse_field1, "
-            "ncpc_field2_field1\n"
+            "      INTEGER ncell_fine_field2, ncpc_field2_field1\n"
+            "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
             "null()\n"
             "      TYPE(mesh_type), pointer :: coarse_mesh_field1 => null()\n"
             "      TYPE(mesh_type), pointer :: fine_mesh_field2 => null()\n"
             "      INTEGER, pointer :: map_any_space_2_field2(:,:) => null(), "
-            "map_any_space1_field1(:,:) => null()\n"
-            "      INTEGER, pointer :: cell_map(:,:) => null()\n")
+            "map_any_space_1_field1(:,:) => null()\n")
         assert defs2 in output
 
         inits = (
-            "    ! get the field proxies\n"
-            "    fc_fp = fc%get_proxy()\n"
-            "    ff_fp = ff%get_proxy()\n"
-            "\n"
-            "    ! get the mesh from the first field argument, this is the\n"
-            "    ! field which is being written too. See Kernel Metadata\n"
-            "    mesh => fc%get_mesh() \n"
-            "    ! get the map from the 1st to the 2nd , i.e. coarse to fine\n"
-            "    mesh_f => ff%get_mesh()\n"
-            "    mesh_map => mesh%get_mesh_map( mesh_f )\n"
-            "    ! could get nlayers from either, but lets be consistent, get it from\n"
-            "    ! the field we are writing too.\n"
-            "    nlayers = fc_fp%vspace%get_nlayers()\n"
-            "    !    ncell_f = mesh_map%get_nsource_cells()\n"
-            "    ! there are multiple routes to this information which we don't want, so \n"
-            "    ! always get the number of cells from the mesh, not the map\n"
-            "    ncell_f = mesh_f%get_last_halo_cell(depth=2)\n"
-            "    ncell_ratio = mesh_map%get_ncell_map_ratio()\n"
-            "\n"
-            "    dofmap_f => ff_fp%vspace%get_whole_dofmap()\n"
-            "    dofmap_c => fc_fp%vspace%get_whole_dofmap()\n"
-            "    ndf = ff_fp%vspace%get_ndf()\n"
-            "    undf_f = ff_fp%vspace%get_undf()\n"
-            "    undf_c = fc_fp%vspace%get_undf()\n")
+            "      ! Look-up dofmaps for each function space\n"
+            "      !\n"
+            "      map_any_space_2_field2 => field2_proxy%vspace%"
+            "get_whole_dofmap()\n"
+            "      map_any_space_1_field1 => field1_proxy%vspace%"
+            "get_whole_dofmap()\n"
+            "      !\n"
+            "      ! Look-up mesh objects and loop limits for inter-grid "
+            "kernels\n"
+            "      !\n"
+            "      fine_mesh_field2 => field2_proxy%get_mesh()\n"
+            "      coarse_mesh_field1 => field1_proxy%get_mesh()\n"
+            "      mmap_field2_field1 => coarse_mesh_field1%get_mesh_map("
+            "fine_mesh_field2)\n"
+            "      cell_map_field1 => mmap_field2_field1%get_whole_cell_map()\n"
+            "      ncell_fine_field2 = fine_mesh_field2%get_last_halo_cell("
+            "depth=2)\n"
+            "      ncpc_field2_field1 = mmap_field2_field1%"
+            "get_ntarget_cells_per_source_cell()\n"
+            "      !\n")
         assert inits in output
 
         halo_exchs = (

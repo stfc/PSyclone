@@ -1793,10 +1793,10 @@ class DynInterGrid(object):
                 label=base_mmap_name)
 
             # Generate names for ncell variables
-            ncell_coarse = self._name_space_manager.create_name(
-                root_name="ncell_coarse_{0}".format(coarse_arg.name),
-                context="PSyVars",
-                label="ncell_coarse_{0}".format(coarse_arg.name))
+            #ncell_coarse = self._name_space_manager.create_name(
+            #    root_name="ncell_coarse_{0}".format(coarse_arg.name),
+            #    context="PSyVars",
+            #    label="ncell_coarse_{0}".format(coarse_arg.name))
             ncell_fine = self._name_space_manager.create_name(
                 root_name="ncell_fine_{0}".format(fine_arg.name),
                 context="PSyVars",
@@ -1815,7 +1815,7 @@ class DynInterGrid(object):
             self._kern_calls.append({"fine": fine_arg,
                                      "ncell_fine": ncell_fine,
                                      "coarse": coarse_arg,
-                                     "ncell_coarse": ncell_coarse,
+                                     #"ncell_coarse": ncell_coarse,
                                      "mmap": mmap,
                                      "ncperc": ncellpercell,
                                      "cellmap": cell_map})
@@ -1857,7 +1857,7 @@ class DynInterGrid(object):
             # there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[kern["ncell_fine"],
-                                             kern["ncell_coarse"],
+                                             #kern["ncell_coarse"],
                                              kern["ncperc"]]))
 
     def initialise(self, parent):
@@ -1913,10 +1913,10 @@ class DynInterGrid(object):
                 # TODO what should this be when not doing DM?
                 AssignGen(parent, lhs=kern["ncell_fine"],
                           rhs=fine_mesh+"%get_last_halo_cell(depth=2)"))
-            parent.add(
-                # TODO what should this be when not doing DM?
-                AssignGen(parent, lhs=kern["ncell_coarse"],
-                          rhs=coarse_mesh+"%get_last_halo_cell(depth=1)"))
+            #parent.add(
+            #    # TODO what should this be when not doing DM?
+            #    AssignGen(parent, lhs=kern["ncell_coarse"],
+            #              rhs=coarse_mesh+"%get_last_halo_cell(depth=1)"))
 
             # Number of fine cells per coarse cell.
             parent.add(
@@ -4920,9 +4920,11 @@ class ArgOrdering(object):
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
-            # Provide arguments common to LMA operators and fields
-            # on a space *unless* this is a CMA matrix-matrix kernel
-            if self._kern.cma_operation not in ["matrix-matrix"]:
+            # Provide arguments common to LMA operators and fields on
+            # a space *unless* this is an inter-grid or CMA
+            # matrix-matrix kernel
+            if self._kern.cma_operation not in ["matrix-matrix"] and \
+               not self._kern.is_intergrid:
                 self.fs_common(unique_fs)
             # Provide additional arguments if there is a
             # field on this space
@@ -5259,8 +5261,9 @@ class KernCallArgList(ArgOrdering):
         # on a given mesh must be on the same FS.)
         arg = self._kern.arguments.get_arg_on_space(function_space)
         if arg.mesh == "gh_fine":
-            # For the fine mesh, we need undf and the *whole*
+            # For the fine mesh, we need ndf, undf and the *whole*
             # dofmap
+            self.fs_common(function_space)
             undf_name = get_fs_undf_name(function_space)
             self._arglist.append(undf_name)
             map_name = get_fs_map_name(function_space)
