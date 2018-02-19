@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@ INFRASTRUCTURE_MODULES = ["constants_mod",
                           "argument_mod",
                           "kernel_mod",
                           "partition_mod",
+                          "mesh_map_mod",
                           "mesh_mod",
                           "stencil_dofmap_mod",
                           "function_space_mod",

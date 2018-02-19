@@ -62,7 +62,7 @@ contains
                                  ndf_w1, undf_w1, dofmap_w1,       &
                                  undf_w2, dofmap_w2)
     integer, intent(in) :: nlayers, ncell_f_per_c, ncell_f
-    real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
+    real(kind=r_def), dimension(:) :: fld1, fld2
     integer :: ndf_w1, undf_w1, undf_w2
     integer, dimension(:) :: cell_map, dofmap_w2
     integer, dimension(:,:) :: dofmap_w1
