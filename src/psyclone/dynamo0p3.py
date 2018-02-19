@@ -5141,7 +5141,7 @@ class KernCallArgList(ArgOrdering):
         map_name = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
         # Add the cell map to our argument list
-        self._arglist.append(map_name)
+        self._arglist.append(map_name+"(:,cell)")
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = self._name_space_manager.create_name(
