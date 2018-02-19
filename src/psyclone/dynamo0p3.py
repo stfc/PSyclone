@@ -3608,6 +3608,11 @@ class HaloWriteAccess(HaloDepth):
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
+        # If this is an inter-grid kernel and we're writing to the
+        # field on the fine mesh then the halo depth is effectively
+        # doubled
+        if call.is_intergrid and field.mesh == "gh_fine":
+            depth *= 2
         # The third argument for set_by_value specifies the name of a
         # variable used to specify the depth. Variables are currently
         # not used when a halo is written to, so we pass None which
@@ -3743,6 +3748,13 @@ class HaloReadAccess(HaloDepth):
                     else:
                         # a variable is specified
                         self._var_depth = field.stencil.extent_arg.varName
+        # If this is an intergrid kernel and the field in question is on
+        # the fine mesh then we must double the halo depth
+        if call.is_intergrid and field.mesh == "gh_fine":
+            if self._literal_depth:
+                self._literal_depth *= 2
+            if self._var_depth:
+                self._var_depth = "2*" + self._var_depth
 
 
 class DynLoop(Loop):
