@@ -1155,7 +1155,8 @@ arguments to inter-grid kernels are as follows:
        is an integer and has intent ``in``.
     2) Include the ``cell_map`` for the current cell (column). This is
        an integer array of rank one and intent ``in`` which provides
-       the mapping from the coarse to the fine mesh.
+       the mapping from the coarse to the fine mesh. It has extent
+       `ncell_f_per_c`.
     3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
        This is an integer and has intent ``in``.
     4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
@@ -1165,18 +1166,28 @@ arguments to inter-grid kernels are as follows:
 
        1) Pass in field data as done for a regular kernel.
 
-    6) Include ``ndf_fine``, the number of DoFs per cell for the FS of the field
-       on the fine mesh.
-    7) Include ``undf_fine``, the number of unique DoFs per cell for the FS
-       of the field on the fine mesh.
-    8) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
-       is an integer array of rank two with intent ``in``.
-       ***EXTENT OF EACH RANK?***
-    9) Include ``undf_coarse``, the number of unique DoFs
-       for the coarse field. This is an integer with intent ``in``.
-    10) Include ``dofmap_coarse``, the dofmap for the current cell (column)
-       in the coarse mesh. This is an integer array of rank one and has
-       intent ``in``.
+    6) For each unique function space in the order in which they are
+       encountered in the ``meta_args`` meta-data array, include dofmap
+       information:
+
+       If the dofmap is associated with an argument on the fine mesh:
+
+       1) Include ``ndf_fine``, the number of DoFs per cell for the FS of
+	  the field on the fine mesh.
+       2) Include ``undf_fine``, the number of unique DoFs per cell for the FS
+	  of the field on the fine mesh.
+       3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
+	  is an integer array of rank two with intent ``in``. The extent of
+	  the first dimension is ``ndf_fine`` and that of the second is
+	  ``ncell_f``.
+
+       else, the dofmap is associated with an argument on the coarse mesh:
+
+       1) Include ``undf_coarse``, the number of unique DoFs
+	  for the coarse field. This is an integer with intent ``in``.
+       2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
+	  in the coarse mesh. This is an integer array of rank one and has
+	  intent ``in``.
 
 .. _dynamo_built-ins:
 

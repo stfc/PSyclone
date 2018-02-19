@@ -63,7 +63,7 @@ end type restrict_kernel_type
 contains
 
   subroutine restrict_kernel_code(nlayers, cell_map, ncell_f_per_c, &
-       dofmap_f, ncell_f, dofmap_c, ndf, undf_f, undf_c, coarse, fine)
+       ncell_f, coarse, fine, undf_c, dofmap_c, ndf, undf_f, dofmap_f)
     integer, intent(in) :: nlayers
     integer, intent(in) :: ncell_f_per_c
     integer, dimension(ncell_f_per_c), intent(in) :: cell_map

@@ -288,7 +288,7 @@ def test_field_prolong(tmpdir, f90, f90flags):
 
 def test_field_restrict(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for an invoke containing a
-    single restriction operation '''
+    single restriction operation (read from find, write to coarse) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=API)
@@ -301,22 +301,26 @@ def test_field_restrict(tmpdir, f90, f90flags):
             assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
         defs = (
-            "    use restrict_kernel_mod, only : restrict_kernel_code\n"
-            "    type(field_type), intent(inout) :: fc, ff\n"
-            "    type(field_proxy_type) :: fc_fp, ff_fp\n"
-            "\n"
-            "    integer(kind=i_def) :: ndofs_c, ndofs_f\n"
-            "    integer(kind=i_def) :: ncell_ratio, ncell_f, ncell_c\n"
-            "    type(mesh_map_type), pointer :: mesh_map => null()\n"
-            "    type(mesh_type), pointer     :: mesh => null()\n"
-            "    type(mesh_type), pointer     :: mesh_f => null()\n"
-            "\n"
-            "    integer(kind=i_def), pointer :: dofmap_f(:,:) => null(), dofmap_c(:,:) => null()\n"
-            "    integer(kind=i_def) :: cell\n"
-            "    integer(kind=i_def) :: nlayers, ndf, undf_f, undf_c\n"
-            "\n"
-            "    integer(kind=i_def), pointer :: cell_map(:,:) => null()\n")
+            "      USE restrict_kernel_mod, ONLY: restrict_kernel_code\n"
+            "      TYPE(field_type), intent(inout) :: field1\n"
+            "      TYPE(field_type), intent(in) :: field2\n")
         assert defs in output
+
+        defs2 = (
+            "      INTEGER undf_any_space_1_field1, ndf_any_space_2_field2, "
+            "undf_any_space_2_field2\n"
+            "      INTEGER nlayers\n"
+            "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
+            "      INTEGER ncell_fine_field2, ncell_coarse_field1, "
+            "ncpc_field2_field1\n"
+            "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
+            "null()\n"
+            "      TYPE(mesh_type), pointer :: coarse_mesh_field1 => null()\n"
+            "      TYPE(mesh_type), pointer :: fine_mesh_field2 => null()\n"
+            "      INTEGER, pointer :: map_any_space_2_field2(:,:) => null(), "
+            "map_any_space1_field1(:,:) => null()\n"
+            "      INTEGER, pointer :: cell_map(:,:) => null()\n")
+        assert defs2 in output
 
         inits = (
             "    ! get the field proxies\n"
@@ -336,7 +340,6 @@ def test_field_restrict(tmpdir, f90, f90flags):
             "    ! there are multiple routes to this information which we don't want, so \n"
             "    ! always get the number of cells from the mesh, not the map\n"
             "    ncell_f = mesh_f%get_last_halo_cell(depth=2)\n"
-            "    ncell_c = mesh%get_last_halo_cell(depth=1)\n"
             "    ncell_ratio = mesh_map%get_ncell_map_ratio()\n"
             "\n"
             "    dofmap_f => ff_fp%vspace%get_whole_dofmap()\n"
@@ -361,14 +364,18 @@ def test_field_restrict(tmpdir, f90, f90flags):
             "    cell_map => mesh_map%get_whole_cell_map()\n")
         assert halo_exchs in output
 
+        # We pass the whole dofmap for the fine mesh (we are reading from).
+        # This is associated with the second kernel argument.
         kern_call = (
-            "    ! if we are using OpenMP, using the coarse grid colouring is still correct\n"
-            "    do cell = 1, ncell_c\n"
+            "    DO cell=1, coarse_mesh_field1%BLAH\n"
             "\n"
-            "       ! pass the whole dofmap for the fine (we are reading from)\n"
-            "       call restrict_kernel_code(nlayers, cell_map(:,cell), ncell_ratio, &\n"
-            "            dofmap_f, ncell_f, dofmap_c(:,cell), ndf, undf_f, undf_c, fc_fp%data, ff_fp%data)\n"
-            "    end do \n"
+            "        CALL restrict_kernel_code(nlayers, "
+            "cell_map_field1(:,cell), ncpc_field2_field1, ncell_fine_field2, "
+            "field1_proxy%data, field2_proxy%data, "
+            "undf_any_space_1_field1, map_any_space_1_field1(:,cell), "
+            "ndf_any_space_2_field2, undf_any_space_2_field2, "
+            "map_any_space_2_field2)\n"
+            "    END DO \n"
             "    \n"
             "    call fc_fp%set_dirty()\n")
         assert kern_call in output
