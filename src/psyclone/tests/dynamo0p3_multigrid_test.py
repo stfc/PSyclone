@@ -13,7 +13,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -230,30 +230,31 @@ def test_field_prolong(tmpdir, f90, f90flags):
         assert expected in gen_code
 
         expected = (
-            "      INTEGER ncell_fine_field1, ncpc_field1_field2\n"
+            "      INTEGER ncell_field1, ncpc_field1_field2\n"
             "      INTEGER, pointer :: cell_map_field2(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: "
             "mmap_field1_field2 => null()\n"
-            "      TYPE(mesh_type), pointer :: fine_mesh_field1 => null()\n"
-            "      TYPE(mesh_type), pointer :: coarse_mesh_field2 => null()\n")
+            "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
+            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n")
         assert expected in gen_code
 
         expected = (
             "      ! Look-up mesh objects and loop limits for inter-grid "
             "kernels\n"
             "      !\n"
-            "      fine_mesh_field1 => field1%get_mesh()\n"
-            "      coarse_mesh_field2 => field2%get_mesh()\n"
-            "      mmap_field1_field2 => coarse_mesh_field2%get_mesh_map"
-            "(fine_mesh_field1)\n"
-            "      cell_map_field2 => mmap_field1_field2%get_whole_cell_map()\n")
+            "      mesh_field1 => field1%get_mesh()\n"
+            "      mesh_field2 => field2%get_mesh()\n"
+            "      mmap_field1_field2 => mesh_field2%get_mesh_map"
+            "(mesh_field1)\n"
+            "      cell_map_field2 => mmap_field1_field2%"
+            "get_whole_cell_map()\n")
         if distmem:
             expected += (
-                "      ncell_fine_field1 = fine_mesh_field1%get_last_halo_cell("
+                "      ncell_field1 = mesh_field1%get_last_halo_cell("
                 "depth=2)\n")
         else:
             expected += \
-                "      ncell_fine_field1 = field1_proxy%vspace%get_ncell()\n"
+                "      ncell_field1 = field1_proxy%vspace%get_ncell()\n"
         expected += (
             "      ncpc_field1_field2 = mmap_field1_field2%"
             "get_ntarget_cells_per_source_cell()\n")
@@ -267,14 +268,14 @@ def test_field_prolong(tmpdir, f90, f90flags):
                 "        CALL field2_proxy%halo_exchange(depth=1)\n"
                 "      END IF \n"
                 "      !\n"
-                "      DO cell=1,coarse_mesh_field2%get_last_halo_cell(1)\n")
+                "      DO cell=1,mesh_field2%get_last_halo_cell(1)\n")
             assert expected in gen_code
         else:
             assert "DO cell=1,field2_proxy%vspace%get_ncell()\n" in gen_code
 
         expected = (
             "        CALL prolong_kernel_code(nlayers, "
-            "cell_map_field2(:,cell), ncpc_field1_field2, ncell_fine_field1, "
+            "cell_map_field2(:,cell), ncpc_field1_field2, ncell_field1, "
             "field1_proxy%data, field2_proxy%data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO \n")
@@ -310,12 +311,12 @@ def test_field_restrict(tmpdir, f90, f90flags):
         defs2 = (
             "      INTEGER nlayers\n"
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
-            "      INTEGER ncell_fine_field2, ncpc_field2_field1\n"
+            "      INTEGER ncell_field2, ncpc_field2_field1\n"
             "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
             "null()\n"
-            "      TYPE(mesh_type), pointer :: coarse_mesh_field1 => null()\n"
-            "      TYPE(mesh_type), pointer :: fine_mesh_field2 => null()\n"
+            "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
+            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n"
             "      INTEGER, pointer :: map_any_space_2_field2(:,:) => null(), "
             "map_any_space_1_field1(:,:) => null()\n")
         assert defs2 in output
@@ -331,17 +332,17 @@ def test_field_restrict(tmpdir, f90, f90flags):
             "      ! Look-up mesh objects and loop limits for inter-grid "
             "kernels\n"
             "      !\n"
-            "      fine_mesh_field2 => field2%get_mesh()\n"
-            "      coarse_mesh_field1 => field1%get_mesh()\n"
-            "      mmap_field2_field1 => coarse_mesh_field1%get_mesh_map("
-            "fine_mesh_field2)\n"
+            "      mesh_field2 => field2%get_mesh()\n"
+            "      mesh_field1 => field1%get_mesh()\n"
+            "      mmap_field2_field1 => mesh_field1%get_mesh_map("
+            "mesh_field2)\n"
             "      cell_map_field1 => mmap_field2_field1%"
             "get_whole_cell_map()\n")
         if distmem:
-            inits += ("      ncell_fine_field2 = fine_mesh_field2%"
+            inits += ("      ncell_field2 = mesh_field2%"
                       "get_last_halo_cell(depth=2)\n")
         else:
-            inits += ("      ncell_fine_field2 = field2_proxy%vspace%"
+            inits += ("      ncell_field2 = field2_proxy%vspace%"
                       "get_ncell()\n")
         inits += (
             "      ncpc_field2_field1 = mmap_field2_field1%"
@@ -365,7 +366,7 @@ def test_field_restrict(tmpdir, f90, f90flags):
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF \n"
                 "      !\n"
-                "      DO cell=1,coarse_mesh_field1%get_last_halo_cell(1)\n")
+                "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
             assert halo_exchs in output
 
         # We pass the whole dofmap for the fine mesh (we are reading from).
@@ -373,7 +374,7 @@ def test_field_restrict(tmpdir, f90, f90flags):
         kern_call = (
             "        !\n"
             "        CALL restrict_kernel_code(nlayers, "
-            "cell_map_field1(:,cell), ncpc_field2_field1, ncell_fine_field2, "
+            "cell_map_field1(:,cell), ncpc_field2_field1, ncell_field2, "
             "field1_proxy%data, field2_proxy%data, "
             "undf_any_space_1_field1, map_any_space_1_field1(:,cell), "
             "ndf_any_space_2_field2, undf_any_space_2_field2, "
@@ -385,3 +386,135 @@ def test_field_restrict(tmpdir, f90, f90flags):
         if distmem:
             set_dirty = "      CALL field1_proxy%set_dirty()\n"
             assert set_dirty in output
+
+
+def test_restrict_prolong_chain(tmpdir, f90, f90flags):
+    ''' Test when we have a single invoke containing a chain of 
+    restrictions and prolongations '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.2_intergrid_3levels.f90"),
+                           api=API)
+    for distmem in [False, True]:
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
+        output = str(psy.gen)
+        print output
+        
+        if utils.TEST_COMPILE:
+            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+
+        expected = (
+            "      ! Look-up mesh objects and loop limits for inter-grid "
+            "kernels\n"
+            "      !\n"
+            "      mesh_fld_m => fld_m%get_mesh()\n"
+            "      mesh_fld_c => fld_c%get_mesh()\n"
+            "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
+            "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n")
+        assert expected in output
+
+        if distmem:
+            expected = (
+                "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
+                "      ncpc_fld_m_fld_c = mmap_fld_m_fld_c%"
+                "get_ntarget_cells_per_source_cell()\n"
+                "      mesh_fld_f => fld_f%get_mesh()\n"
+                "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map"
+                "(mesh_fld_f)\n"
+                "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map"
+                "()\n"
+                "      ncell_fld_f = mesh_fld_f%get_last_halo_cell(depth=2)\n"
+                "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%"
+                "get_ntarget_cells_per_source_cell()\n")
+        else:
+            expected = (
+                "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
+                "      ncpc_fld_m_fld_c = mmap_fld_m_fld_c%"
+                "get_ntarget_cells_per_source_cell()\n"
+                "      mesh_fld_f => fld_f%get_mesh()\n"
+                "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map"
+                "(mesh_fld_f)\n"
+                "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map"
+                "()\n"
+                "      ncell_fld_f = fld_f_proxy%vspace%get_ncell()\n"
+                "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%get_ntarget_cells_"
+                "per_source_cell()\n")
+        assert expected in output
+
+        # Check that we haven't got duplicated output
+        assert output.count("mesh_fld_m => fld_m%get_mesh") == 1
+        assert output.count("ncell_fld_m = ") == 1
+        assert output.count("ncell_fld_f = ") == 1
+
+        if distmem:
+            # Have a potential halo exchange before 1st prolong
+            expected = (
+                "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n")
+            assert expected in output
+            # Since we loop into L1 halo of the coarse mesh, the L1 halo
+            # of the fine(r) mesh will now be clean. Therefore, no halo
+            # swap before the next prolongation
+            expected = (
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL fld_m_proxy%set_dirty()\n"
+                "      !\n"
+                "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
+            assert expected in output
+            # Again the L1 halo for fld_f will now be clean but for restriction
+            # we need the L2 halo to be clean
+            expected = ("      CALL fld_f_proxy%set_dirty()\n"
+                        "      !\n"
+                        "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
+                        "      !\n"
+                        "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n"
+                        "        !\n"
+                        "        CALL restrict_kernel_code")
+            assert expected in output
+            # For the final restriction we need the L2 halo of fld_m to be
+            # clean 
+            expected = ("      CALL fld_m_proxy%set_dirty()\n"
+                        "      !\n"
+                        "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
+                        "      !\n"
+                        "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n"
+                        "        !\n"
+                        "        CALL restrict_kernel_code")
+            assert expected in output
+        else:
+            expected = (
+                "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
+                "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_m_proxy%data, "
+                "fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+                "map_w2(:,cell))\n"
+                "      END DO \n"
+                "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        CALL prolong_kernel_code(nlayers, cell_map_fld_m(:,"
+                "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_f_proxy%data, "
+                "fld_m_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+                "map_w2(:,cell))\n"
+                "      END DO \n"
+                "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,"
+                "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, "
+                "fld_f_proxy%data, undf_any_space_1_fld_m, "
+                "map_any_space_1_fld_m(:,cell), ndf_any_space_2_fld_f, "
+                "undf_any_space_2_fld_f, map_any_space_2_fld_f)\n"
+                "      END DO \n"
+                "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
+                "        !\n"
+                "        CALL restrict_kernel_code(nlayers, cell_map_fld_c(:,"
+                "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, "
+                "fld_m_proxy%data, undf_any_space_1_fld_c, "
+                "map_any_space_1_fld_c(:,cell), ndf_any_space_2_fld_m, "
+                "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
+            
+            assert expected in output

@@ -1792,15 +1792,11 @@ class DynInterGrid(object):
                 context="PSyVars",
                 label=base_mmap_name)
 
-            # Generate names for ncell variables
-            #ncell_coarse = self._name_space_manager.create_name(
-            #    root_name="ncell_coarse_{0}".format(coarse_arg.name),
-            #    context="PSyVars",
-            #    label="ncell_coarse_{0}".format(coarse_arg.name))
+            # Generate name for ncell variables
             ncell_fine = self._name_space_manager.create_name(
-                root_name="ncell_fine_{0}".format(fine_arg.name),
+                root_name="ncell_{0}".format(fine_arg.name),
                 context="PSyVars",
-                label="ncell_fine_{0}".format(fine_arg.name))
+                label="ncell_{0}".format(fine_arg.name))
             ncellpercell = self._name_space_manager.create_name(
                 root_name="ncpc_{0}_{1}".format(fine_arg.name,
                                                 coarse_arg.name),
@@ -1812,10 +1808,10 @@ class DynInterGrid(object):
             cell_map = self._name_space_manager.create_name(
                 root_name=base_name, context="PSyVars", label=base_name)
 
+            # Store this information in our list of dicts
             self._kern_calls.append({"fine": fine_arg,
                                      "ncell_fine": ncell_fine,
                                      "coarse": coarse_arg,
-                                     #"ncell_coarse": ncell_coarse,
                                      "mmap": mmap,
                                      "ncperc": ncellpercell,
                                      "cellmap": cell_map})
@@ -1823,14 +1819,14 @@ class DynInterGrid(object):
             # Create and store the names of the associated mesh objects
             self._mesh_names.add(
                 self._name_space_manager.create_name(
-                    root_name="fine_mesh_{0}".format(fine_arg.name),
+                    root_name="mesh_{0}".format(fine_arg.name),
                     context="PSyVars",
-                    label="fine_mesh_{0}".format(fine_arg.name)))
+                    label="mesh_{0}".format(fine_arg.name)))
             self._mesh_names.add(
                 self._name_space_manager.create_name(
-                    root_name="coarse_mesh_{0}".format(coarse_arg.name),
+                    root_name="mesh_{0}".format(coarse_arg.name),
                     context="PSyVars",
-                    label="coarse_mesh_{0}".format(coarse_arg.name)))
+                    label="mesh_{0}".format(coarse_arg.name)))
 
     def declarations(self, parent):
         '''
@@ -1859,11 +1855,10 @@ class DynInterGrid(object):
                 DeclGen(parent, pointer=True, datatype="integer",
                         entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
 
-            # Declare the number of cells each mesh has and how many fine cells
-            # there are per coarse cell
+            # Declare the number of cells in the fine mesh and how many fine
+            # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[kern["ncell_fine"],
-                                             #kern["ncell_coarse"],
                                              kern["ncperc"]]))
 
     def initialise(self, parent):
@@ -1883,56 +1878,73 @@ class DynInterGrid(object):
             " Look-up mesh objects and loop limits for inter-grid kernels"))
         parent.add(CommentGen(parent, ""))
 
+        # Keep a list of quantities that we've already initialised so
+        # that we don't generate duplicate assignments
+        initialised = []
+        
         for kern in self._kern_calls:
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
-                root_name="fine_mesh_{0}".format(kern["fine"].name),
+                root_name="mesh_{0}".format(kern["fine"].name),
                 context="PSyVars",
-                label="fine_mesh_{0}".format(kern["fine"].name))
+                label="mesh_{0}".format(kern["fine"].name))
             coarse_mesh = self._name_space_manager.create_name(
-                root_name="coarse_mesh_{0}".format(kern["coarse"].name),
+                root_name="mesh_{0}".format(kern["coarse"].name),
                 context="PSyVars",
-                label="coarse_mesh_{0}".format(kern["coarse"].name))
-            parent.add(
-                AssignGen(parent, pointer=True,
-                          lhs=fine_mesh,
-                          rhs=kern["fine"].name + "%get_mesh()"))
-            parent.add(
-                AssignGen(parent, pointer=True,
-                          lhs=coarse_mesh,
-                          rhs=kern["coarse"].name + "%get_mesh()"))
+                label="mesh_{0}".format(kern["coarse"].name))
+            if fine_mesh not in initialised:
+                initialised.append(fine_mesh)
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=fine_mesh,
+                              rhs=kern["fine"].name + "%get_mesh()"))
+            if coarse_mesh not in initialised:
+                initialised.append(coarse_mesh)
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=coarse_mesh,
+                              rhs=kern["coarse"].name + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            parent.add(
-                AssignGen(parent, pointer=True,
-                          lhs=kern["mmap"],
-                          rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
-                                                             fine_mesh)))
+            if kern["mmap"] not in initialised:
+                initialised.append(kern["mmap"])
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=kern["mmap"],
+                              rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
+                                                                 fine_mesh)))
 
             # Cell map. This is obtained from the mesh map.
-            parent.add(
-                AssignGen(parent, pointer=True, lhs=kern["cellmap"],
-                          rhs=kern["mmap"]+"%get_whole_cell_map()"))
+            if kern["cellmap"] not in initialised:
+                initialised.append(kern["cellmap"])
+                parent.add(
+                    AssignGen(parent, pointer=True, lhs=kern["cellmap"],
+                              rhs=kern["mmap"]+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
-            if config.DISTRIBUTED_MEMORY:
-                # TODO this hardwired depth of 2 will need changing in
-                # order to support redundant computation
-                parent.add(
-                    AssignGen(parent, lhs=kern["ncell_fine"],
-                              rhs=fine_mesh+"%get_last_halo_cell(depth=2)"))
-            else:
-                parent.add(
-                    AssignGen(parent, lhs=kern["ncell_fine"],
-                              rhs="%".join([kern["fine"].proxy_name,
-                                            kern["fine"].ref_name(),
-                                            "get_ncell()"])))
+            if kern["ncell_fine"] not in initialised:
+                initialised.append(kern["ncell_fine"])
+                if config.DISTRIBUTED_MEMORY:
+                    # TODO this hardwired depth of 2 will need changing in
+                    # order to support redundant computation
+                    parent.add(
+                        AssignGen(parent, lhs=kern["ncell_fine"],
+                                  rhs=(fine_mesh+"%get_last_halo_cell"
+                                       "(depth=2)")))
+                else:
+                    parent.add(
+                        AssignGen(parent, lhs=kern["ncell_fine"],
+                                  rhs="%".join([kern["fine"].proxy_name,
+                                                kern["fine"].ref_name(),
+                                                "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
-            parent.add(
-                AssignGen(parent, lhs=kern["ncperc"],
-                          rhs=kern["mmap"]+
-                          "%get_ntarget_cells_per_source_cell()"))
+            if kern["ncperc"] not in initialised:
+                initialised.append(kern["ncperc"])
+                parent.add(
+                    AssignGen(parent, lhs=kern["ncperc"],
+                              rhs=kern["mmap"]+
+                              "%get_ntarget_cells_per_source_cell()"))
 
 
 class DynInvokeBasisFns(object):
@@ -3992,7 +4004,7 @@ class DynLoop(Loop):
                 # We have more than one mesh object to choose from and we
                 # want the coarse one because that determines the iteration
                 # space
-                mesh_name = "coarse_mesh_" + self._field_name
+                mesh_name = "mesh_" + self._field_name
             else:
                 mesh_name = "mesh"
             mesh_obj_name = self._name_space_manager.create_name(
@@ -5174,7 +5186,7 @@ class KernCallArgList(ArgOrdering):
             root_name=base_name, context="PSyVars", label=base_name)
         self._arglist.append(ncellpercell)
         # No. of columns in the fine mesh
-        base_name = "ncell_fine_{0}".format(farg.name)
+        base_name = "ncell_{0}".format(farg.name)
         ncell_fine = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
         self._arglist.append(ncell_fine)
