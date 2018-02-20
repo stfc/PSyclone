@@ -5848,26 +5848,46 @@ def test_intergrid_rejected():
     ''' Check that any attempt to apply a transformation that affects
     an inter-grid kernel is rejected. (Obviously this can be removed
     once transformations with inter-grid kernels are supported.) '''
+    
+    expected_err = (
+        "cannot currently be applied to loops containing inter-grid "
+        "kernels and ")
+
+    # Use an example that contains both prolongation and restriction
+    # kernels
     _, invoke_info = parse(os.path.join(
-        BASE_PATH, "22.0_intergrid_prolong.f90"), api="dynamo0.3")
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     
+    # To a prolong kernel
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[1], depth=2)
+    assert expected_err in str(excinfo)
 
-    assert ("blah" in str(excinfo))
-    
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "22.1_intergrid_restrict.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
-    
+    ctrans = Dynamo0p3ColourTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ctrans.apply(schedule.children[4])
+    assert expected_err in str(excinfo)
+
+    # To a restrict kernel
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[1], depth=2)
+        rc_trans.apply(schedule.children[4], depth=2)
+    assert expected_err in str(excinfo)
 
-    assert ("blah" in str(excinfo))
+    omplooptrans = Dynamo0p3OMPLoopTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        omplooptrans.apply(schedule.children[1])
+    assert expected_err in str(excinfo)
+
+    ompparatrans = DynamoOMPParallelLoopTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ompparatrans.apply(schedule.children[1])
+    assert expected_err in str(excinfo)
+
+    lftrans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        lftrans.apply(schedule.children[1], schedule.children[2])
+    assert expected_err in str(excinfo)
