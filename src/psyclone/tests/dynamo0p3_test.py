@@ -4344,15 +4344,15 @@ def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    for fsname in DISCONTINUOUS_FUNCTION_SPACES:
+    for fspace in DISCONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
                             "arg_type(gh_field,gh_inc, "
-                            + fsname + ")", 1)
+                            + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("It does not make sense for a quantity on a discontinuous "
-                "space (" + fsname + ") to have a 'gh_inc' access"
+                "space (" + fspace + ") to have a 'gh_inc' access"
                 in str(excinfo.value))
 
 
@@ -6635,36 +6635,23 @@ def test_arg_discontinous():
     class returns the correct values '''
 
     # 1 discontinuous field returns true
-    # Check w3
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[3].children[0]
-    field = kernel.arguments.args[4]
-    assert field.space == 'w3'
-    assert field.discontinuous
-    # Check wtheta
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_wtheta.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[0].children[0]
-    field = kernel.arguments.args[0]
-    assert field.space == 'wtheta'
-    assert field.discontinuous
-    # Check w2v
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w2v.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[0].children[0]
-    field = kernel.arguments.args[0]
-    assert field.space == 'w2v'
-    assert field.discontinuous
+    # Check w3, wtheta and w2v in turn
+    idchld_list = [3, 0, 0]
+    idarg_list = [4, 0, 0]
+    fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
+                   zip(idchld_list, idarg_list)))
+    for fspace in fs_dict.keys():
+        filename = "1_single_invoke_" + fspace + ".f90"
+        idchld = fs_dict[fspace][0]
+        idarg = fs_dict[fspace][1]
+        _, info = parse(os.path.join(BASE_PATH, filename),
+                        api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        kernel = schedule.children[idchld].children[0]
+        field = kernel.arguments.args[idarg]
+        assert field.space == fspace
+        assert field.discontinuous
 
     # 2 any_space field returns false
     _, info = parse(os.path.join(BASE_PATH,
