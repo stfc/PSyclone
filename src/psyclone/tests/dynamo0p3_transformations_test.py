@@ -5842,3 +5842,32 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print "OK for iteration ", idx
+
+
+def test_intergrid_rejected():
+    ''' Check that any attempt to apply a transformation that affects
+    an inter-grid kernel is rejected. (Obviously this can be removed
+    once transformations with inter-grid kernels are supported.) '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.0_intergrid_prolong.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[1], depth=2)
+
+    assert ("blah" in str(excinfo))
+    
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.1_intergrid_restrict.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[1], depth=2)
+
+    assert ("blah" in str(excinfo))
