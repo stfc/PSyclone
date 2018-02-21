@@ -31,7 +31,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
 program single_invoke_wtheta_only_vector
 

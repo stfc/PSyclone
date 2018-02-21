@@ -51,7 +51,7 @@ module argument_mod
   integer, public, parameter :: GH_REAL                = 4
   integer, public, parameter :: GH_INTEGER             = 5
 
-   ! Access descriptors
+  ! Access descriptors
   integer, public, parameter :: GH_READ  = 11
   integer, public, parameter :: GH_WRITE = 12
   integer, public, parameter :: GH_RW    = 13
