@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2016.
 # However, it has been created with the help of the GungHo Consortium,
@@ -940,6 +940,7 @@ def test_field_fs():
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
@@ -4330,35 +4331,35 @@ def test_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-def test_fs_discontinuous_and_inc_error():  # pylint: disable=invalid-name
+def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    for fsname in DISCONTINUOUS_FUNCTION_SPACES:
+    for fspace in DISCONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
                             "arg_type(gh_field,gh_inc, "
-                            + fsname + ")", 1)
+                            + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("It does not make sense for a quantity on a discontinuous "
-                "space (" + fsname + ") to have a 'gh_inc' access"
+                "space (" + fspace + ") to have a 'gh_inc' access"
                 in str(excinfo.value))
 
 
-def test_fs_continuous_and_readwrite_error():  # pylint: disable=invalid-name
+def test_fs_continuous_and_readwrite_error():
     ''' Test that an error is raised if a continuous function space and
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    for fsname in CONTINUOUS_FUNCTION_SPACES:
+    for fspace in CONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field,gh_read, w2)",
                             "arg_type(gh_field,gh_readwrite, "
-                            + fsname + ")", 1)
+                            + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
         assert ("It does not make sense for a quantity on a continuous "
-                "space (" + fsname + ") to have a 'gh_readwrite' access"
+                "space (" + fspace + ") to have a 'gh_readwrite' access"
                 in str(excinfo.value))
 
 
@@ -5884,7 +5885,7 @@ def test_stencil_args_unique_3():
 
 
 def test_dynloop_load_unexpected_func_space():
-    '''The load function of an instance of the dynloop class raises an
+    ''' The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
     this error as it is unreachable. However, we can sabotage an
@@ -5915,7 +5916,7 @@ def test_dynloop_load_unexpected_func_space():
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v', "
+            "one of ['w3', 'wtheta', 'w2v', 'w0', 'w1', 'w2', 'w2h', "
             "'any_w2'] but found 'broken'" in str(err))
 
 
