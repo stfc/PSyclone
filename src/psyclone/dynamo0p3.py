@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -116,8 +116,14 @@ STENCIL_MAPPING = {"x1d": "STENCIL_1DX", "y1d": "STENCIL_1DY",
 # perform prolongation/restriction).
 VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 
-VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "cell_halo", "ncolour",
-                           "ncolours", "ncells", "ndofs", "dof_halo"]
+# These are loop bound names which identify positions in a fields
+# halo. It is useful to group these together as we often need to
+# determine whether an access to a field or other object includes
+# access to the halo, or not.
+HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo", "colour_halo"]
+
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
+                           "ndofs"] + HALO_ACCESS_LOOP_BOUNDS
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -2714,15 +2720,24 @@ class DynInvoke(Invoke):
         self.evaluators.initialise_basis_fns(invoke_sub)
 
         if self.is_coloured():
-            # Add declarations of the colour map and array holding the
-            # no. of cells of each colour
-            invoke_sub.add(DeclGen(parent, datatype="integer",
+            # Declare the colour map
+            declns = ["cmap(:,:)"]
+            if not config.DISTRIBUTED_MEMORY:
+                # Declare the array holding the no. of cells of each
+                # colour. For distributed memory this variable is not
+                # used, as a function is called to determine the upper
+                # bound in a loop
+                declns.append("ncp_colour(:)")
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    pointer=True,
-                                   entity_decls=["cmap(:,:)",
-                                                 "ncp_colour(:)"]))
-            # Declaration of variable to hold the number of colours
-            invoke_sub.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=["ncolour"]))
+                                   entity_decls=declns))
+            if not config.DISTRIBUTED_MEMORY:
+                # Declaration of variable to hold the number of
+                # colours. For distributed memory this variable is not
+                # used, as a function is called to determine loop
+                # colour information
+                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                       entity_decls=["ncolour"]))
 
         # add calls to compute the values of any basis arrays
         self.evaluators.compute_basis_fns(invoke_sub)
@@ -2915,8 +2930,9 @@ class DynHaloExchange(HaloExchange):
         if len(depth_info_list) == 1:
             depth_info = depth_info_list[0]
             if depth_info.max_depth:
-                # return the maximum halo depth
-                return "mesh%get_last_halo_depth()"
+                # return the maximum halo depth (which is returned by
+                # calling get_halo_depth with no depth argument)
+                return "mesh%get_halo_depth()"
             else:  # return the variable and/or literal depth expression
                 return str(depth_info)
         else:
@@ -3381,11 +3397,13 @@ class HaloWriteAccess(HaloDepth):
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells
-        self._dirty_outer = (not field.discontinuous and
-                             loop.upper_bound_name == "cell_halo")
+        self._dirty_outer = (
+            not field.discontinuous and
+            loop.iteration_space == "cells" and
+            loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS)
         depth = 0
         max_depth = False
-        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+        if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
             # loop does redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
@@ -3453,7 +3471,7 @@ class HaloReadAccess(HaloDepth):
         loop = call.parent
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
-        if loop.upper_bound_name in ["cell_halo", "dof_halo"]:
+        if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
             # this loop performs redundant computation
             if loop.upper_bound_halo_depth:
                 # loop redundant computation is to a fixed literal depth
@@ -3641,7 +3659,7 @@ class DynLoop(Loop):
         if name not in VALID_LOOP_BOUNDS_NAMES:
             raise GenerationError(
                 "The specified lower bound loop name is invalid")
-        if name in ["inner", "cell_halo"] and index < 1:
+        if name in ["inner"] + HALO_ACCESS_LOOP_BOUNDS and index < 1:
             raise GenerationError(
                 "The specified index '{0}' for this lower loop bound is "
                 "invalid".format(str(index)))
@@ -3663,7 +3681,12 @@ class DynLoop(Loop):
                 "of {0} but found '{1}'".format(VALID_LOOP_BOUNDS_NAMES, name))
         if name == "start":
             raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "cell_halo", "dof_halo"] and index is not None:
+        # Only halo bounds and inner may have an index. We could just
+        # test for index here and assume that index is None for other
+        # types of bounds, but checking the type of bound as well is a
+        # safer option.
+        if name in (["inner"] + HALO_ACCESS_LOOP_BOUNDS) and \
+           index is not None:
             if index < 1:
                 raise GenerationError(
                     "The specified index '{0}' for this upper loop bound is "
@@ -3679,7 +3702,7 @@ class DynLoop(Loop):
     @property
     def upper_bound_halo_depth(self):
         '''Returns the index of the upper loop bound. This is None if the upper
-        bound name is not "cell_halo" or "dof_halo"
+        bound name is not in HALO_ACCESS_LOOP_BOUNDS
 
         :return: the depth of the halo for a loops upper bound. If it
         is None then a depth has not been provided. The depth value is only
@@ -3737,9 +3760,36 @@ class DynLoop(Loop):
             halo_index = str(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
-            return "ncolour"
+            if config.DISTRIBUTED_MEMORY:
+                # Extract the value in-place rather than extracting to
+                # a variable first. This is the way the manual
+                # reference examples were implemented so I copied these
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                return "{0}%get_ncolours()".format(mesh_obj_name)
+            else:
+                return "ncolour"
         elif self._upper_bound_name == "ncolour":
             return "ncp_colour(colour)"
+        elif self._upper_bound_name == "colour_halo":
+            # the LFRic API used here allows for colouring with
+            # redundant computation. This API is now used when
+            # ditributed memory is switched on (the default for
+            # LFRic). THe original API (see previous elif) is now only
+            # used when distributed memory is switched off.
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            append = ""
+            if halo_index:
+                # The colouring API support an additional optional
+                # argument which specifies the depth of the halo to
+                # which the coloured loop computes. If no argument is
+                # supplied it is assumed that the coloured loop
+                # computes to the full depth of the halo (whatever that
+                # may be).
+                append = ","+halo_index
+            return ("{0}%get_last_halo_cell_per_colour(colour"
+                    "{1})".format(mesh_obj_name, append))
         elif self._upper_bound_name == "ndofs":
             if config.DISTRIBUTED_MEMORY:
                 result = self.field.proxy_name_indexed + "%" + \
@@ -3843,12 +3893,12 @@ class DynLoop(Loop):
                 ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
-            return self._upper_bound_name in ["cell_halo", "dof_halo"]
+            return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
         elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness
-            if self._upper_bound_name in ["cell_halo", "dof_halo"]:
+            if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 # we read in the halo
                 return True
             elif self._upper_bound_name == "ncells":
@@ -4020,9 +4070,11 @@ class DynLoop(Loop):
         Loop.gen_code(self, parent)
 
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+
             # Set halo clean/dirty for all fields that are modified
             from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
             fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
+
             if fields:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
@@ -4041,14 +4093,13 @@ class DynLoop(Loop):
                 # first set all of the halo dirty unless we are
                 # subsequently going to set all of the halo clean
                 for field in fields:
-                    if not self._upper_bound_halo_depth and \
-                       (self._upper_bound_name == "dof_halo" or
-                        (self._upper_bound_name == "cell_halo" and
-                         field.discontinuous)):
-                        # do not output set dirty as it will all be
-                        # set to clean
-                        pass
-                    else:
+                    # The HaloWriteAccess class provides information
+                    # about how the supplied field is accessed within
+                    # its parent loop
+                    hwa = HaloWriteAccess(field)
+                    if not hwa.max_depth or hwa.dirty_outer:
+                        # output set dirty as some of the halo will
+                        # not be set to clean
                         if field.vector_size > 1:
                             # the range function below returns values from
                             # 1 to the vector size which is what we
@@ -4063,62 +4114,63 @@ class DynLoop(Loop):
                                                "%set_dirty()"))
                 # now set appropriate parts of the halo clean where
                 # redundant computation has been performed
-                if self._upper_bound_name in ["cell_halo", "dof_halo"]:
-                    for field in fields:
-                        if self._upper_bound_halo_depth:
-                            # halo exchange(s) is/are to a fixed depth
-                            halo_depth = self._upper_bound_halo_depth
-                            if not field.discontinuous and \
-                               self._upper_bound_name == "cell_halo":
-                                halo_depth -= 1
-                            if halo_depth > 0:
-                                if field.vector_size > 1:
-                                    # the range function below returns
-                                    # values from 1 to the vector size
-                                    # which is what we require in our
-                                    # Fortran code
-                                    for index in range(1, field.vector_size+1):
-                                        parent.add(
-                                            CallGen(parent,
-                                                    name="{0}({1})%set_clean"
-                                                    "({2})".format(
-                                                        field.proxy_name,
-                                                        str(index),
-                                                        halo_depth)))
-                                else:
-                                    parent.add(
-                                        CallGen(parent,
-                                                name="{0}%set_clean({1})".
-                                                format(field.proxy_name,
-                                                       halo_depth)))
-                        else:
-                            # halo exchange(s) is/are to the full halo
-                            # depth (-1 if continuous)
-                            halo_depth = "mesh%get_last_halo_depth()"
-                            if self._upper_bound_name == "cell_halo" and not \
-                               field.discontinuous:
-                                # a continuous field iterating over
-                                # cells leaves the outermost halo
-                                # dirty
-                                halo_depth += "-1"
+                for field in fields:
+                    # The HaloWriteAccess class provides information
+                    # about how the supplied field is accessed within
+                    # its parent loop
+                    hwa = HaloWriteAccess(field)
+                    if hwa.literal_depth:
+                        # halo access(es) is/are to a fixed depth
+                        halo_depth = hwa.literal_depth
+                        if hwa.dirty_outer:
+                            halo_depth -= 1
+                        if halo_depth > 0:
                             if field.vector_size > 1:
                                 # the range function below returns
                                 # values from 1 to the vector size
                                 # which is what we require in our
                                 # Fortran code
                                 for index in range(1, field.vector_size+1):
-                                    call = CallGen(parent,
-                                                   name="{0}({1})%set_clean("
-                                                   "{2})".format(
-                                                       field.proxy_name,
-                                                       str(index),
-                                                       halo_depth))
-                                    parent.add(call)
+                                    parent.add(
+                                        CallGen(parent,
+                                                name="{0}({1})%set_clean"
+                                                "({2})".format(
+                                                    field.proxy_name,
+                                                    str(index),
+                                                    halo_depth)))
                             else:
-                                call = CallGen(parent, name="{0}%set_clean("
-                                               "{1})".format(field.proxy_name,
-                                                             halo_depth))
+                                parent.add(
+                                    CallGen(parent,
+                                            name="{0}%set_clean({1})".
+                                            format(field.proxy_name,
+                                                   halo_depth)))
+                    elif hwa.max_depth:
+                        # halo accesses(s) is/are to the full halo
+                        # depth (-1 if continuous)
+                        halo_depth = "mesh%get_halo_depth()"
+                        if hwa.dirty_outer:
+                            # a continuous field iterating over
+                            # cells leaves the outermost halo
+                            # dirty
+                            halo_depth += "-1"
+                        if field.vector_size > 1:
+                            # the range function below returns
+                            # values from 1 to the vector size
+                            # which is what we require in our
+                            # Fortran code
+                            for index in range(1, field.vector_size+1):
+                                call = CallGen(parent,
+                                               name="{0}({1})%set_clean("
+                                               "{2})".format(
+                                                   field.proxy_name,
+                                                   str(index),
+                                                   halo_depth))
                                 parent.add(call)
+                        else:
+                            call = CallGen(parent, name="{0}%set_clean("
+                                           "{1})".format(field.proxy_name,
+                                                         halo_depth))
+                            parent.add(call)
 
                 if use_omp_master:
                     # I am within an OpenMP Do directive so protect
@@ -4495,12 +4547,25 @@ class DynKern(Kern):
                            position=["before", position])
             new_parent.add(CommentGen(new_parent, ""),
                            position=["before", position])
-            name = arg.proxy_name_indexed + \
-                "%" + arg.ref_name() + "%get_colours"
-            new_parent.add(CallGen(new_parent,
-                                   name=name,
-                                   args=["ncolour", "ncp_colour", "cmap"]),
-                           position=["before", position])
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            if config.DISTRIBUTED_MEMORY:
+                # the LFRic colouring API for ditributed memory
+                # differs from the API without distributed
+                # memory. This is to support and control redundant
+                # computation with coloured loops.
+                new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
+                                         rhs=mesh_obj_name +
+                                         "%get_colour_map()"),
+                               position=["before", position])
+            else:
+                name = arg.proxy_name_indexed + \
+                       "%" + arg.ref_name() + "%get_colours"
+                new_parent.add(CallGen(new_parent,
+                                       name=name,
+                                       args=["ncolour", "ncp_colour", "cmap"]),
+                               position=["before", position])
+
             new_parent.add(CommentGen(new_parent, ""),
                            position=["before", position])
 

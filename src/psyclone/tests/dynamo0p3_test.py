@@ -3260,6 +3260,7 @@ def test_enforce_op_bc_kernel_stub_gen():
     print generated_code
     assert output in generated_code
 
+
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
 # fields : intent

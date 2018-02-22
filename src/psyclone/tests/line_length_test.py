@@ -67,6 +67,7 @@ def test_unchanged():
     print "("+output_file+")"
     assert input_file == output_file, "input should remain unchanged"
 
+
 INPUT_FILE = (
     "    INTEGER    stuff blah blah blah\n"
     "    REAL       stuff blah blah blah\n"

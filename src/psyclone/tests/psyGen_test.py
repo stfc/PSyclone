@@ -1755,6 +1755,7 @@ def test_omp_dag_names():
     directive = super(OMPDirective, omp_par_node)
     assert directive.dag_name == "directive_1"
 
+
 EXPECTED = (
     "digraph {\n"
     "	schedule_start\n"
@@ -1796,6 +1797,7 @@ def test_node_dag_no_graphviz(tmpdir):
     assert not os.path.exists(my_file.strpath)
     if keep:
         sys.modules['graphviz'] = keep
+
 
 # Use a regex to allow for whitespace differences between graphviz
 # versions. Need a raw-string (r"") to get new-lines handled nicely.

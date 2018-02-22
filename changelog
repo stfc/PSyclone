@@ -20,6 +20,9 @@
 	7) #117 and PR #125 - bug fix for passing kernel arguments by value
 	in the GOcean API.
 
+	8) #105 and PR #115 - add support for coloured loops when
+	performing redundant computation.
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not
