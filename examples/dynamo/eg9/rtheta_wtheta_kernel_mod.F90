@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ type, public, extends(kernel_type) :: rtheta_wtheta_kernel_type
   type(arg_type) :: meta_args(3) = (/                                  &
 ! PSyclone placeholder: Wtheta should really be GH_READWRITE. The support for
 ! this case will be introduced in #25. For now Wtheta is changed to GH_WRITE 
-!       arg_type(GH_FIELD,   GH_INC,  Wtheta),                          &
+!!       arg_type(GH_FIELD,   GH_INC,  Wtheta),                          &
        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
        arg_type(GH_FIELD,   GH_READ, Wtheta),                          &
        arg_type(GH_FIELD,   GH_READ, W2)                               &
@@ -85,7 +85,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface rtheta_wtheta_kernel_type
    module procedure rtheta_wtheta_kernel_constructor
 end interface
@@ -127,7 +127,7 @@ subroutine rtheta_wtheta_code(nlayers,                                          
                        nqp_h, nqp_v, wqp_h, wqp_v )
 
 
-  !Arguments
+  ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_w2, ndf_wtheta, undf_w2, undf_wtheta
 
@@ -146,7 +146,7 @@ subroutine rtheta_wtheta_code(nlayers,                                          
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)               :: df, k
   integer(kind=i_def)               :: qp1, qp2
 
@@ -157,7 +157,7 @@ subroutine rtheta_wtheta_code(nlayers,                                          
   real(kind=r_def) :: gamma_wtheta, grad_gamma_wtheta(3)
 
   do k = 0, nlayers-1
-  ! Extract element arrays of chi
+    ! Extract element arrays of chi
     do df = 1, ndf_wtheta
       rtheta_e(df) = 0.0_r_def
       theta_e(df)  = theta(  map_wtheta(df) + k )
@@ -166,7 +166,7 @@ subroutine rtheta_wtheta_code(nlayers,                                          
       u_e(df) = u( map_w2(df) + k )
     end do
 
-  ! compute the RHS integrated over one cell
+    ! Compute the RHS integrated over one cell
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
         u_at_quad(:) = 0.0_r_def
@@ -204,6 +204,7 @@ subroutine rtheta_wtheta_code(nlayers,                                          
       r_theta( map_wtheta(df) + k ) =  r_theta( map_wtheta(df) + k ) - rtheta_e(df)
     end do
   end do
+
 end subroutine rtheta_wtheta_code
 
 end module rtheta_wtheta_kernel_mod

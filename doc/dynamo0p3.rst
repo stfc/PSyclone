@@ -671,6 +671,10 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
           currently support integer reductions, integer scalar arguments
           are restricted to having read-only access.*
 
+.. note:: The ``GH_READWRITE`` access will be introduced to denote updating
+          discontinuous quantitites (operators and fields over relevant
+          function spaces) which do not share dofs.
+
 There is no restriction on the number and function-spaces of other
 quantities that a general-purpose kernel can modify other than that it
 must modify at least one. The rules for kernels involving CMA operators,
@@ -765,6 +769,17 @@ sections above are:
 
 As mentioned previously, both ``ANY_SPACE`` and ``ANY_W2`` function
 space types are treated as continuous.
+
+Horizontally discontinuous function spaces and fields over them will not
+need colouring so PSyclone does not perform it. If such attempt is made,
+PSyclone will raise a ``Generation Error`` in **Dynamo0p3ColourTrans**
+transformation (see :ref:`dynamo0.3-api-transformations` for more details
+on transformations). An example of field writer over a discontinuous
+function space ``wtheta`` is given in ``examples/dynamo/eg9``. This
+example also demonstrates that Psyclone does not attempt to colour a
+loop over a discontinuous space when transformations are applied.
+Additionally, it will also serve as an example of ``GH_READWRITE`` access
+for discontinuous quantities when it is introduced.
 
 Optional Field Metadata
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -1809,6 +1824,8 @@ does not affect PSyclone.
 Finally, the ``procedure`` metadata (located within the kernel
 metadata) usually has ``nopass`` specified but again this is ignored
 by PSyclone.
+
+.. _dynamo0.3-api-transformations:
 
 Transformations
 ---------------

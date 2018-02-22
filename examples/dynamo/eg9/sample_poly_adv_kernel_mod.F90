@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -471,7 +471,7 @@ subroutine sample_poly_adv_init(order, nlayers)
   ! x0 then depends upon the number of upwind cells used
   x0 = floor(real(np,r_def)/2.0_r_def)
 
-  ! compute derivative of x0^p
+  ! Compute derivative of x0^p
   allocate( dx0(np-1) )
   do p = 1,np-1
     dx0(p) = real(p,r_def)*x0**(p-1)

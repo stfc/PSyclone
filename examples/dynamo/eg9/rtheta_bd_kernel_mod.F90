@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ module rtheta_bd_kernel_mod
         type(arg_type) :: meta_args(3) = (/                             &
 ! PSyclone placeholder: Wtheta should really be GH_READWRITE. The support for
 ! this case will be introduced in #25. For now Wtheta is changed to GH_WRITE 
-!            arg_type(GH_FIELD,   GH_INC,   Wtheta),                      &
+!!            arg_type(GH_FIELD,   GH_INC,   Wtheta),                      &
             arg_type(GH_FIELD,   GH_WRITE, Wtheta),                      &
             arg_type(GH_FIELD,   GH_READ,  Wtheta),                      &
             arg_type(GH_FIELD,   GH_READ,  W2)                           &
