@@ -104,6 +104,13 @@ class LoopFuseTrans(Transformation):
         # Check that the supplied Node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
+            ### IK: Auxiliary print statements for experimenting with RW access
+            print "LoopFuseTrans, node 1"
+            print type(node1)
+            print dir(node1)
+            print "LoopFuseTrans, node 2"
+            print type(node2)
+            print dir(node2)
             raise TransformationError("Error in LoopFuse transformation. "
                                       "At least one of the nodes is not "
                                       "a loop")

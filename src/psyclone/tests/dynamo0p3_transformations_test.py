@@ -4466,6 +4466,8 @@ def test_rc_no_halo_decrease():
 def test_rc_updated_dependence_analysis():
     '''Test that the dependence analyis updates when new halo exchanges
     are added to the schedule'''
+    ### IK: Dependence analysis for single discontinuous invoke which
+    ###     generates halo exchange.
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3_only.f90"),
                     api=TEST_API)
@@ -4499,6 +4501,9 @@ def test_rc_no_loop_decrease():
     not allowed partly for simplicity but also because, in the current
     implementation we might not decrease the size of the relevant halo
     exchange as these can only be increased with the current logic'''
+    ### IK: When the possibility of halo exchange is added for RW access,
+    ###     the combination of w3 GH_RW and GH_R created a DynHaloExchange
+    ###     object instead of a DynLoop.
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3_only.f90"),
                     api=TEST_API)
@@ -4506,12 +4511,30 @@ def test_rc_no_loop_decrease():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
+    ### IK: Auxiliary print statements for experimenting with RW access
+    print "schedule"
+    print type(schedule)
+    print dir(schedule)
+    print "rc_trans"
+    print type(rc_trans)
+    print dir(rc_trans)
     # first set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[0]
     schedule, _ = rc_trans.apply(loop, depth=2)
     invoke.schedule = schedule
+    ### IK: Auxiliary print statements for experimenting with RW access
+    print "loop 1"
+    print type(loop)
+    print dir(loop)
+    print "schedule"
+    print type(schedule)
+    print dir(schedule)
     # now try to reduce the redundant computation to the level 1 halo
     loop = schedule.children[1]
+    ### IK: Auxiliary print statements for experimenting with RW access
+    print "loop 1"
+    print type(loop)
+    print dir(loop)
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, depth=1)
     assert ("supplied depth (1) must be greater than the existing halo depth "
@@ -4653,6 +4676,12 @@ def test_rc_discontinuous_halo_remove():
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
     than the required halo access depth'''
+    ### IK: Halo exchange is not removed here when the possibility of
+    ###     halo exchange is added for RW access in dynamo0p3.py, and
+    ###     the combination of w3 GH_W and GH_R in testkern_w3_only.f90
+    ###     changes to GH_RW and GH_R.
+    ###     DynHaloExchange object is created and not removed, so
+    ###     "CALL f4_proxy%halo_exchange(depth=3)" appears in result.
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -4674,6 +4703,8 @@ def test_rc_discontinuous_halo_remove():
     #
     rc_trans.apply(f4_write_loop, depth=3)
     result = str(psy.gen)
+    ### IK: Auxiliary print statemet for experimenting with RW access
+    print result
     assert "CALL f4_proxy%halo_exchange(depth=" not in result
     assert "IF (f4_proxy%is_dirty(depth=" not in result
 
@@ -4834,14 +4865,32 @@ def test_loop_fusion_different_loop_name():
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
     the exception is raised correctly.'''
+    ### IK: When the possibility of halo exchange is added for RW access
+    ###     in dynamo0p3.py, the combination of w3 GH_RW and GH_R changes
+    ###     W -> R w3 to RW -> R w3 dependence and a DynHaloExchange
+    ###     object is created instead of a DynLoop. Since this RW -> R
+    ###     dependence is on discontionuous field only it should behave
+    ###     as W -> R, that is the DynHaloExchange should be removed.
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w3.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
+    ### IK: Auxiliary print statements for experimenting with RW access
+    print "schedule"
+    print type(schedule)
+    print dir(schedule)
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], depth=3)
+    ### IK: Auxiliary print statements for experimenting with RW access
+    print "schedule"
+    print type(rc_trans)
+    print dir(rc_trans)
     f_trans = DynamoLoopFuseTrans()
+    ### IK: Auxiliary print statements for experimenting with RW access
+    print "f_trans"
+    print type(f_trans)
+    print dir(f_trans)
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "

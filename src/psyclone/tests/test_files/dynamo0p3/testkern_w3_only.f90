@@ -35,7 +35,10 @@
 module testkern_w3_only
   type, extends(kernel_type) :: testkern_w3_only_type
      type(arg_type), dimension(2) :: meta_args =  (/  &
-             arg_type(gh_field,gh_write,w3), &
+! !              arg_type(gh_field,gh_write,w3), &
+! !              arg_type(gh_field,gh_read, w3)  &
+! IK: Experimenting with RW access
+             arg_type(gh_field,gh_readwrite,w3), &
              arg_type(gh_field,gh_read, w3)  &
            /)
      integer, parameter :: iterates_over = cells

@@ -3000,6 +3000,7 @@ class DynHaloExchange(HaloExchange):
         return HaloWriteAccess(write_dependencies[0])
 
     def required(self):
+        ### IK: Look here for a required Halo Exchange!
         '''Determines whether this halo exchange is definitely required (True,
         True), might be required (True, False) or is definitely not required
         (False, *). The first return argument is used to decide whether a halo
@@ -3888,6 +3889,10 @@ class DynLoop(Loop):
         elif arg.is_operator:
             # operators do not have halos
             return False
+        ### IK: Error in transformations tests (DynHaloExchange instead of
+        ###     DynLoop) stems from added "gh_readwrite" here!
+        ###     However, RW should bring a possibility for halo exchange
+        ###     if there is information read
         elif arg.discontinuous and arg.access.lower() in \
                 ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
