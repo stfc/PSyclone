@@ -1079,7 +1079,9 @@ def test_globalsum_arg():
     assert glob_sum_arg.access == "gh_inc"
     assert glob_sum_arg.call == glob_sum
 
-
+###     The test returns "gh_inc" when class HaloExchange(Node): has "gh_inc"
+###     or "gh_inc" when self._field.access = MAPPING_ACCESSES["gh_readwrite"]
+###@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_haloexchange_arg():
     '''Check that the haloexchange argument is defined as gh_readwrite and
     points to the haloexchange node'''

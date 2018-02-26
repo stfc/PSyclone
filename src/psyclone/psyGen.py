@@ -1762,8 +1762,8 @@ class HaloExchange(Node):
             ### IK: Potential halo exchange needed for RW (discontinuous)
             ###     fields when they are treated as readers. Also, it
             ###     should have "inc" for all discontinuous fields as well
-            #### self._field.access = MAPPING_ACCESSES["readwrite"]
-            self._field.access = MAPPING_ACCESSES["inc"]
+            self._field.access = MAPPING_ACCESSES["readwrite"]
+            ####self._field.access = MAPPING_ACCESSES["inc"]
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None

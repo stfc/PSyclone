@@ -42,7 +42,7 @@ module testkern_w3
              arg_type(gh_field,gh_read,w1), &
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_write, w3)  &
+             arg_type(gh_field,gh_readwrite, w3)  &
            /)
      integer :: iterates_over = cells
    contains

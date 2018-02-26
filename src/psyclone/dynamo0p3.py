@@ -2993,6 +2993,7 @@ class DynHaloExchange(HaloExchange):
             # no write dependence information
             return None
         if len(write_dependencies) > 1:
+        ### IK: What about two GH_RW discontinuous fields in one kernel?
             raise GenerationError(
                 "Internal logic error. There should be at most one write "
                 "dependence for a halo exchange. Found "
