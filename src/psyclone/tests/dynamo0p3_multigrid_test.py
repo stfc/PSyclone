@@ -462,12 +462,17 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags):
                 "above loop\n"
                 "      !\n"
                 "      CALL fld_m_proxy%set_dirty()\n"
+                "      CALL fld_m_proxy%set_clean(1)\n"
                 "      !\n"
                 "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
             assert expected in output
             # Again the L1 halo for fld_f will now be clean but for restriction
-            # we need the L2 halo to be clean
+            # we need the L2 halo to be clean. There's a set_clean(1) for
+            # fld_f because the above loop over the coarser fld_m will go
+            # into the L2 halo of fld_f. However, it is a continuous field
+            # so only the L1 halo will actually be clean.
             expected = ("      CALL fld_f_proxy%set_dirty()\n"
+                        "      CALL fld_f_proxy%set_clean(1)\n"
                         "      !\n"
                         "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
                         "      !\n"
@@ -476,7 +481,9 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags):
                         "        CALL restrict_kernel_code")
             assert expected in output
             # For the final restriction we need the L2 halo of fld_m to be
-            # clean 
+            # clean. There's no set_clean() call on fld_m because it is
+            # only updated out to the L1 halo and it is a continuous field
+            # so the shared dofs in the L1 halo will still be dirty.
             expected = ("      CALL fld_m_proxy%set_dirty()\n"
                         "      !\n"
                         "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
