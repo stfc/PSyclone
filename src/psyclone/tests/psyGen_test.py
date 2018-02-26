@@ -1065,9 +1065,10 @@ def test_argument_find_read_arguments():
         assert result[idx] == loop.children[0].arguments.args[3]
 
 
+### IK: "gh_inc" changed to "gh_readwrite" in class GlobalSum
 def test_globalsum_arg():
-    '''Check that the globalsum argument is defined as gh_inc and
-    points to the globalsum node'''
+    ''' Check that the globalsum argument is defined as gh_readwrite and
+    points to the GlobalSum node '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1076,15 +1077,15 @@ def test_globalsum_arg():
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
     glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == "gh_inc"
+    assert glob_sum_arg.access == "gh_readwrite"
     assert glob_sum_arg.call == glob_sum
 
-###     The test returns "gh_inc" when class HaloExchange(Node): has "gh_inc"
-###     or "gh_inc" when self._field.access = MAPPING_ACCESSES["gh_readwrite"]
-###@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
+
+### IK: "gh_readwrite" introduced in class HaloExchange so
+###     the test no longer xfails
 def test_haloexchange_arg():
-    '''Check that the haloexchange argument is defined as gh_readwrite and
-    points to the haloexchange node'''
+    '''Check that the HaloExchange argument is defined as gh_readwrite and
+    points to the HaloExchange node'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),

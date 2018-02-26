@@ -54,6 +54,9 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
 # first section : Parser specialisations and classes
 
 # constants
+### IK: Changed "wtheta", "w2v" to discontinuous spaces here to facilitate
+###     work. The full test suite will be introduced/updated after
+###     I #84/PR #128 is merged
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
 # space any_w2 can be w2, w2h or w2v
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2",  "w2h", "any_w2"]
@@ -3001,7 +3004,8 @@ class DynHaloExchange(HaloExchange):
         return HaloWriteAccess(write_dependencies[0])
 
     def required(self):
-        ### IK: Look here for a required Halo Exchange!
+        ### IK: Look here whether a Halo Exchange is removed - this
+        ###     determines whether it can be removed in class DynLoop
         '''Determines whether this halo exchange is definitely required (True,
         True), might be required (True, False) or is definitely not required
         (False, *). The first return argument is used to decide whether a halo
@@ -3893,13 +3897,17 @@ class DynLoop(Loop):
         ### IK: Error in transformations tests (DynHaloExchange instead of
         ###     DynLoop) stems from added "gh_readwrite" here!
         ###     However, RW should bring a possibility for halo exchange
-        ###     if there is information read
+        ###     if there is information read in RW field. Does it means
+        ###     that DynHaloExchange needs to later be removed for
+        ###     RW -> R dependence for discontinuous field, similar to
+        ###     current W -> R dependence?
         elif arg.discontinuous and arg.access.lower() in \
                 ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        elif arg.access.lower() in ["gh_read", "gh_inc"]:
+        ### IK: Changed to include "gh_readwrite" (all readers)
+        elif arg.access.lower() in GH_READ_ACCESSES:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness

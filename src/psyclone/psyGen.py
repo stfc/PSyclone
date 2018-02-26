@@ -609,14 +609,15 @@ class Invoke(object):
         # Rationalise our lists so that any fields that have inc
         # or readwrite access do not appear in the list of those
         # that are only written to
-        ### IK: To look at further for RW
+        ### IK: readwrite is not a "pure writer", the same as inc
         for arg in write_args[:]:
             if arg in inc_args or arg in readwrite_args:
                 write_args.remove(arg)
         # Fields that are only ever read by any kernel that
         # accesses them
+        ### IK: These are "pure readers" so readwrite should also be removed
         for arg in read_args[:]:
-            if arg in write_args or arg in inc_args:
+            if arg in (write_args + inc_args + readwrite_args):
                 read_args.remove(arg)
 
         # We will return a dictionary containing as many lists
@@ -652,7 +653,8 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
-        for name in readwrite_args: ### IK: Should it behave as inc?
+        ### IK: Should it behave as inc instead of write?
+        for name in readwrite_args:
             # For every readwrite argument identify the type of the first
             # access - if it is read before it is written then it must have
             # intent(inout), otherwise it is intent(out).
@@ -1688,9 +1690,9 @@ class GlobalSum(Node):
         self._scalar = copy.copy(scalar)
         if scalar:
             # Update scalar values appropriately
-            ### IK: If global sum is on a discontinuouos field than it
-            ###     should have "readwrite" access?
-            self._scalar.access = MAPPING_ACCESSES["inc"]
+            ### IK: "readwrite" denotes how the class GlobalSum accesses
+            ###     a field rather than the field's continuity
+            self._scalar.access = MAPPING_ACCESSES["readwrite"]
             self._scalar.call = self
 
     @property
@@ -1759,11 +1761,9 @@ class HaloExchange(Node):
         self._field = copy.copy(field)
         if field:
             # Update fields values appropriately
-            ### IK: Potential halo exchange needed for RW (discontinuous)
-            ###     fields when they are treated as readers. Also, it
-            ###     should have "inc" for all discontinuous fields as well
+            ### IK: "readwrite" denotes how the class HaloExchange accesses
+            ###     a field rather than the field's continuity
             self._field.access = MAPPING_ACCESSES["readwrite"]
-            ####self._field.access = MAPPING_ACCESSES["inc"]
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None
