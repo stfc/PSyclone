@@ -525,3 +525,27 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags):
                 "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
             
             assert expected in output
+
+
+def test_fine_halo_read(tmpdir, f90, f90flags):
+    ''' Check that the halo exchange has double the depth if it is
+    for a field on the fine mesh with a read dependence '''
+    from psyclone.dynamo0p3 import DynHaloExchange, HaloReadAccess
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.2_intergrid_3levels.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    hexch = schedule.children[3]
+    assert isinstance(hexch, DynHaloExchange)
+    assert hexch.depth == 2
+    call = schedule.children[4]
+    field = call.args[1]
+    hra = HaloReadAccess(field)
+    assert hra._var_depth is None
+    # Change the internal state of the HaloReadAccess to mimic the case
+    # where the field in question has a stencil access with a variable depth
+    hra._var_depth = "my_depth"
+    hra._compute_from_field(field)
+    assert hra._var_depth == "2*my_depth"
+

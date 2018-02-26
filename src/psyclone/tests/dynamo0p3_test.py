@@ -6241,7 +6241,8 @@ def test_argordering_exceptions():
         kernel = loop.children[0]
         from psyclone.dynamo0p3 import ArgOrdering
         create_arg_list = ArgOrdering(kernel)
-        for method in [create_arg_list.cell_position,
+        for method in [create_arg_list.cell_map,
+                       create_arg_list.cell_position,
                        create_arg_list.mesh_height,
                        create_arg_list.mesh_ncell2d,
                        create_arg_list.quad_rule]:
