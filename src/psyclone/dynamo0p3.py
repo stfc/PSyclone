@@ -1750,27 +1750,45 @@ class DynInvokeCMAOperators(object):
                                entity_decls=param_names))
 
 
-class DynInterGrid(object):
+class DynMeshes(object):
     '''
-    Holds all information required for kernels performing inter-grid
-    operations.
+    Holds all mesh-related information. If there are no inter-grid
+    kernels then there is only one mesh object required (when doing
+    distributed memory). However, kernels performing inter-grid
+    operations require multiple mesh objects as well as mesh maps and
+    other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
+
     '''
 
-    def __init__(self, schedule):
+    def __init__(self, schedule, unique_psy_vars):
         '''
         :param schedule: the schedule of the Invoke for which to extract
                          information on all required inter-grid operations
         :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+        :param unique_psy_vars: list of arguments to the PSy-layer routine
+        :type unique_psy_vars: list of
+                   :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
         '''
         self._name_space_manager = NameSpaceFactory().create()
 
         self._kern_calls = []
-        self._mesh_names = set()
+        self._mesh_names = []
+        # Set used to generate a list of the unique mesh objects
+        _name_set = set()
+
+        # Find the first non-scalar argument to this PSy layer routine. We
+        # will use this to look-up the mesh if there are no inter-grid
+        # kernels in this invoke.
+        self._first_var = None
+        for var in unique_psy_vars:
+            if var.type not in VALID_SCALAR_NAMES:
+                self._first_var = var
+                break
 
         # Loop over all kernel calls in the schedule
         for call in schedule.kern_calls():
@@ -1817,16 +1835,27 @@ class DynInterGrid(object):
                                      "cellmap": cell_map})
 
             # Create and store the names of the associated mesh objects
-            self._mesh_names.add(
+            _name_set.add(
                 self._name_space_manager.create_name(
                     root_name="mesh_{0}".format(fine_arg.name),
                     context="PSyVars",
                     label="mesh_{0}".format(fine_arg.name)))
-            self._mesh_names.add(
+            _name_set.add(
                 self._name_space_manager.create_name(
                     root_name="mesh_{0}".format(coarse_arg.name),
                     context="PSyVars",
                     label="mesh_{0}".format(coarse_arg.name)))
+
+        # If we didn't have any inter-grid kernels but distributed memory
+        # is enabled then we will still need a mesh object
+        if not _name_set and config.DISTRIBUTED_MEMORY:
+            mesh_name = "mesh"
+            _name_set.add(
+                self._name_space_manager.create_name(
+                    root_name=mesh_name, context="PSyVars", label=mesh_name))
+
+        # Convert the set of mesh names to a list and store
+        self._mesh_names = list(_name_set)
 
     def declarations(self, parent):
         '''
@@ -1837,12 +1866,13 @@ class DynInterGrid(object):
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
         # We'll need various typedefs from the mesh module
-        if self._kern_calls:
+        if self._mesh_names:
             parent.add(UseGen(parent, name="mesh_mod", only=True,
                               funcnames=["mesh_type"]))
+        if self._kern_calls:
             parent.add(UseGen(parent, name="mesh_map_mod", only=True,
                               funcnames=["mesh_map_type"]))
-        # Declare the mesh objects
+        # Declare the mesh object(s)
         for name in self._mesh_names:
             parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
                                    entity_decls=[name + " => null()"]))
@@ -1867,12 +1897,21 @@ class DynInterGrid(object):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen
 
-        # If we haven't got any inter-grid kernels in this invoke then we
+        # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
-        if len(self._kern_calls) == 0:
+        if len(self._kern_calls) == 0 and len(self._mesh_names) == 0:
             return
 
         parent.add(CommentGen(parent, ""))
+
+        if len(self._mesh_names) == 1:
+            parent.add(CommentGen(parent, " Create a mesh object"))
+            parent.add(CommentGen(parent, ""))
+            rhs = self._first_var.name_indexed + "%get_mesh()"
+            parent.add(AssignGen(parent, pointer=True,
+                                 lhs=self._mesh_names[0], rhs=rhs))
+            return
+
         parent.add(CommentGen(
             parent,
             " Look-up mesh objects and loop limits for inter-grid kernels"))
@@ -2542,7 +2581,7 @@ class DynInvoke(Invoke):
 
         # Initialise the object holding all information related to
         # inter-grid operations
-        self.inter_grid = DynInterGrid(self.schedule)
+        self.meshes = DynMeshes(self.schedule, self.psy_unique_vars)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -2693,14 +2732,14 @@ class DynInvoke(Invoke):
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
 
+        # Declare any mesh objects for inter-grid kernels
+        self.meshes.declarations(invoke_sub)
+
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
 
         # Declare any CMA operators and associated parameters
         self.cma_ops.declare_cma_ops(invoke_sub)
-
-        # Declare any mesh objects for inter-grid kernels
-        self.inter_grid.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
@@ -2834,6 +2873,10 @@ class DynInvoke(Invoke):
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
 
+        # Initialise mesh object(s) and all related quantities for any
+        # inter-grid kernels (number of fine cells per coarse cell etc.)
+        self.meshes.initialise(invoke_sub)
+
         # If we have one or more CMA operators then we will need the number
         # of columns in the mesh
         if cma_op:
@@ -2848,24 +2891,6 @@ class DynInvoke(Invoke):
                           rhs=cma_op.proxy_name_indexed + "%ncell_2d"))
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[ncol_name]))
-
-        # declare and initialise a mesh object if required
-        if config.DISTRIBUTED_MEMORY:
-            from psyclone.f2pygen import UseGen
-            # we will need a mesh object for any loop bounds
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
-                                  funcnames=["mesh_type"]))
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub, datatype="mesh_type", pointer=True,
-                            entity_decls=[mesh_obj_name+" => null()"]))
-            rhs = first_var.name_indexed + "%get_mesh()"
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, pointer=True,
-                                     lhs=mesh_obj_name, rhs=rhs))
 
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
@@ -2894,10 +2919,6 @@ class DynInvoke(Invoke):
 
         # Initialise CMA operators and associated parameters
         self.cma_ops.initialise_cma_ops(invoke_sub)
-
-        # Initialise quantities for inter-grid kernels (pointers to meshes,
-        # number of fine cells per coarse cell etc.)
-        self.inter_grid.initialise(invoke_sub)
 
         var_list = []
         # loop over all unique function spaces used by the kernels in this
@@ -3151,6 +3172,7 @@ class DynHaloExchange(HaloExchange):
             if depth_info.max_depth:
                 # return the maximum halo depth (which is returned by
                 # calling get_halo_depth with no depth argument)
+                # TODO fix hard-wired mesh name here
                 return "mesh%get_halo_depth()"
             else:  # return the variable and/or literal depth expression
                 return str(depth_info)
@@ -3995,9 +4017,8 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        # If we aren't looping over cells then we don't have a self._kern
-        # but then we don't need a mesh object
-        # TODO tidy this up.
+        # We only require a mesh object if distributed memory is enabled
+        # and the loop is over cells
         if config.DISTRIBUTED_MEMORY and \
            self._upper_bound_name in ["ncells", "cell_halo"]:
             if self._kern.is_intergrid:
@@ -4006,6 +4027,7 @@ class DynLoop(Loop):
                 # space
                 mesh_name = "mesh_" + self._field_name
             else:
+                # It's not an inter-grid kernel so there's only one mesh
                 mesh_name = "mesh"
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name=mesh_name, context="PSyVars", label=mesh_name)
