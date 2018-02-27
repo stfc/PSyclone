@@ -1,3 +1,5 @@
+.. _line-length:
+
 Line length
 ===========
 
