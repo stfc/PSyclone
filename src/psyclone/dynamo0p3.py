@@ -1790,11 +1790,17 @@ class DynMeshes(object):
                 self._first_var = var
                 break
 
-        # Loop over all kernel calls in the schedule
+        # Loop over all kernel calls in the schedule. Keep a list of
+        # any non-intergrid kernels so that we can generate a verbose error
+        # message if necessary.
+        non_intergrid_kernels = []
         for call in schedule.kern_calls():
+
             if not call.is_intergrid:
+                non_intergrid_kernels.append(call)
                 # Skip over any non-inter-grid kernels
                 continue
+
             fine_args = psyGen.args_filter(call.arguments.args,
                                            arg_meshes=["gh_fine"])
             coarse_args = psyGen.args_filter(call.arguments.args,
@@ -1845,6 +1851,16 @@ class DynMeshes(object):
                     root_name="mesh_{0}".format(coarse_arg.name),
                     context="PSyVars",
                     label="mesh_{0}".format(coarse_arg.name)))
+
+        # If we found a mixture of both inter-grid and non-inter-grid kernels
+        # then we reject the invoke()
+        if non_intergrid_kernels and self._kern_calls:
+            raise GenerationError(
+                "An invoke containing inter-grid kernels must contain no "
+                "other kernel types but kernels '{0}' in invoke '{1}' are "
+                "not inter-grid kernels.".format(
+                    ", ".join([call.name for call in non_intergrid_kernels]),
+                    schedule.invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object
@@ -2579,8 +2595,8 @@ class DynInvoke(Invoke):
         # and/or evaluators required by this invoke
         self.evaluators = DynInvokeBasisFns(self.schedule)
 
-        # Initialise the object holding all information related to
-        # inter-grid operations
+        # Initialise the object holding all information related to meshes
+        # and inter-grid operations
         self.meshes = DynMeshes(self.schedule, self.psy_unique_vars)
 
         # extend arg list
@@ -2732,7 +2748,7 @@ class DynInvoke(Invoke):
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
 
-        # Declare any mesh objects for inter-grid kernels
+        # Declare any mesh objects (including those for inter-grid kernels)
         self.meshes.declarations(invoke_sub)
 
         # Declare any dofmaps

@@ -311,23 +311,17 @@ def test_field_restrict(tmpdir, f90, f90flags):
         defs2 = (
             "      INTEGER nlayers\n"
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
+            "      INTEGER, pointer :: map_any_space_2_field2(:,:) => null(), "
+            "map_any_space_1_field1(:,:) => null()\n"
             "      INTEGER ncell_field2, ncpc_field2_field1\n"
             "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
             "null()\n"
             "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
-            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n"
-            "      INTEGER, pointer :: map_any_space_2_field2(:,:) => null(), "
-            "map_any_space_1_field1(:,:) => null()\n")
+            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n")
         assert defs2 in output
 
         inits = (
-            "      ! Look-up dofmaps for each function space\n"
-            "      !\n"
-            "      map_any_space_2_field2 => field2_proxy%vspace%"
-            "get_whole_dofmap()\n"
-            "      map_any_space_1_field1 => field1_proxy%vspace%"
-            "get_whole_dofmap()\n"
             "      !\n"
             "      ! Look-up mesh objects and loop limits for inter-grid "
             "kernels\n"
@@ -347,7 +341,13 @@ def test_field_restrict(tmpdir, f90, f90flags):
         inits += (
             "      ncpc_field2_field1 = mmap_field2_field1%"
             "get_ntarget_cells_per_source_cell()\n"
-            "      !\n")
+            "      !\n"
+            "      ! Look-up dofmaps for each function space\n"
+            "      !\n"
+            "      map_any_space_2_field2 => field2_proxy%vspace%"
+            "get_whole_dofmap()\n"
+            "      map_any_space_1_field1 => field1_proxy%vspace%"
+            "get_whole_dofmap()\n")
         assert inits in output
 
         if distmem:
@@ -549,3 +549,15 @@ def test_fine_halo_read(tmpdir, f90, f90flags):
     hra._compute_from_field(field)
     assert hra._var_depth == "2*my_depth"
 
+
+def test_prolong_with_gp_error(tmpdir, f90, f90flags):
+    ''' Check that we reject an invoke that contains both
+    an inter-grid and a general-purpose kernel '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.3_intergrid_plus_general.f90"),
+                           api=API)
+    from psyclone.psyGen import GenerationError
+    with pytest.raises(GenerationError) as err:
+        _ = PSyFactory(API).create(invoke_info)
+    assert ("no other kernel types but kernels 'testkern_code_w2_only' in "
+            "invoke 'invoke_0' are not inter-grid" in str(err))
