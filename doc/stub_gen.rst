@@ -110,7 +110,7 @@ print statement results in the output being printed to the terminal.
 
 The ``-l``, or ``--limit`` option utilises the PSyclone support for
 wrapping of lines within the 132 character limit (please see the
-:ref:`line-length` chapter for more details).
+:ref:`Line Length <line-length>` chapter for more details).
 
 .. _stub-generation-kernels:
 
@@ -122,7 +122,7 @@ Example Kernels can be found in the ``examples/dynamo`` repository or,
 for more simple cases, in the ``tests/test_files/dynamo0p3`` directory.
 These directories are located in the ``<PSYCLONEHOME>/src/psyclone``
 directory where ``<PSYCLONEHOME>`` refers to the location where you
-download or clone PSyclone (:ref:`getting-going`).
+download or clone PSyclone (:ref:`Getting Going <getting-going>`).
 
 In the ``tests/test_files/dynamo0p3`` directory the majority of examples
 start with ``testkern``. The exceptions are: ``simple.f90``,
