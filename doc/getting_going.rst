@@ -294,7 +294,9 @@ during the testing process. To enable compilation testing run:
    > py.test --compile --f90="<compiler_name>" --f90flags="<compiler_flags_list>"
 
 ``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
-Their default values are ``"gfortran"`` and `` ``.
+The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
+no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
+is on the user to provide correct values for these options.
 
 .. _getting-going-run:
 
