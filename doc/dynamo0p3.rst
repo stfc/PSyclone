@@ -385,22 +385,26 @@ operation. In this case:
 Rules for Inter-Grid Kernels
 ++++++++++++++++++++++++++++
 
-1) An inter-grid kernel is identified by the presence of a field argument with
-   the optional `mesh_arg` meta-data element (see
+1) An inter-grid kernel is identified by the presence of a field or
+   field-vector argument with the optional `mesh_arg` meta-data element (see
    :ref:`dynamo0.3-intergrid-mdata`).
 
-2) An inter-grid kernel is only permitted to have field or field-vector
+2) An invoke that contains one or more inter-grid kernels must not contain
+   any other kernel types.
+
+3) An inter-grid kernel is only permitted to have field or field-vector
    arguments.
 
-3) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
+4) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
 
-4) An inter-grid kernel (and meta-data) must have at least one field on
+5) An inter-grid kernel (and meta-data) must have at least one field on
    each of the fine and coarse meshes. Specifying all fields as coarse or
    fine is forbidden.
 
-5) Fields on different meshes must always live on different function spaces.
+6) Fields on different meshes must always live on different function spaces.
 
-6) All fields on a given mesh must be on the same function space.
+7) All fields on a given mesh must be on the same function space.
+
 
 Metadata
 ++++++++
