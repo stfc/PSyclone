@@ -286,6 +286,16 @@ If everything is working as expected then you should see output similar to:
 
    =================== 160 passed, 15 xfailed in 13.59 seconds ====================
 
+Most of the tests use Fortran source files in the
+``<PSYCLONEHOME>/src/psyclone/tests`` directory and many of them can be compiled
+during the testing process. To enable compilation testing run:
+::
+
+   > py.test --compile --f90="<compiler_name>" --f90flags="<compiler_flags_list>"
+
+``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
+Their default values are ``"gfortran"`` and `` ``.
+
 .. _getting-going-run:
 
 Run
