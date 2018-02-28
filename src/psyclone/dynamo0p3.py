@@ -1915,12 +1915,14 @@ class DynMeshes(object):
 
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
-        if len(self._kern_calls) == 0 and len(self._mesh_names) == 0:
+        if len(self._mesh_names) == 0:
             return
 
         parent.add(CommentGen(parent, ""))
 
         if len(self._mesh_names) == 1:
+            # We only require one mesh object which means that this invoke
+            # contains no inter-grid kernels
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = self._first_var.name_indexed + "%get_mesh()"
@@ -1952,13 +1954,13 @@ class DynMeshes(object):
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=kern["fine"].name + "%get_mesh()"))
+                              rhs=kern["fine"].name_indexed + "%get_mesh()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=kern["coarse"].name + "%get_mesh()"))
+                              rhs=kern["coarse"].name_indexed + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if kern["mmap"] not in initialised:

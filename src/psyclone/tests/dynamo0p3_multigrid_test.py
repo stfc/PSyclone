@@ -550,7 +550,7 @@ def test_fine_halo_read(tmpdir, f90, f90flags):
     assert hra._var_depth == "2*my_depth"
 
 
-def test_prolong_with_gp_error(tmpdir, f90, f90flags):
+def test_prolong_with_gp_error():
     ''' Check that we reject an invoke that contains both
     an inter-grid and a general-purpose kernel '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -561,3 +561,35 @@ def test_prolong_with_gp_error(tmpdir, f90, f90flags):
         _ = PSyFactory(API).create(invoke_info)
     assert ("no other kernel types but kernels 'testkern_code_w2_only' in "
             "invoke 'invoke_0' are not inter-grid" in str(err))
+
+
+def test_prolong_vector(tmpdir, f90, f90flags):
+    ''' Check that we generate correct code when an inter-grid kernel
+    takes a field vector as argument '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.4_intergrid_prolong_vec.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    output = str(psy.gen)
+    print output
+
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+
+    assert "TYPE(field_type), intent(inout) :: field1(3)" in output
+    assert "TYPE(field_proxy_type) field1_proxy(3)" in output
+    # Make sure we always index into the field arrays
+    assert " field1%" not in output
+    assert " field2%" not in output
+    assert ("ncpc_field1_field2, ncell_field1, field1_proxy(1)%data, "
+            "field1_proxy(2)%data, field1_proxy(3)%data, field2_proxy(1)%data,"
+            " field2_proxy(2)%data, field2_proxy(3)%data, ndf_w1" in output)
+    for idx in [1, 2, 3]:
+        assert (
+            "      IF (field2_proxy({0})%is_dirty(depth=1)) THEN\n"
+            "        CALL field2_proxy({0})%halo_exchange(depth=1)\n"
+            "      END IF \n".format(idx) in output)
+        assert ("field1_proxy({0}) = field1({0})%get_proxy()".format(idx) in
+                output)
+        assert "CALL field1_proxy({0})%set_dirty()".format(idx) in output
+        assert "CALL field1_proxy({0})%set_clean(1)".format(idx) in output
