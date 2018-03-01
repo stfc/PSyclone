@@ -959,6 +959,19 @@ def test_goloop_unmatched_offsets():
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
 
+
+def test_goschedule_dag(tmpdir):
+    ''' Test that the GOSchedule::dag() method works as expected '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "nemolite2d_alg_mod.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    invoke.schedule.dag()
+
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API
 # -----------------------------------
