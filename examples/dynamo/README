@@ -147,8 +147,8 @@ The ninth example illustrates the behaviour of discontinuous field writers
     cd eg9/
     python ../../../src/generator.py advective_inc_alg_mod.x90
 
-It also demonstrates that PSyclone does not attempt to colour loops over
-discontinuous spaces when using a transformation script:
+This example also demonstrates how to write a PSyclone transformation
+script that only colours loops over continuous spaces:
 
     cd eg9/
     python ../../../src/generator.py -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90

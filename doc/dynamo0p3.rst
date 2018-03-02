@@ -74,8 +74,8 @@ Field
 Dynamo0.3 API fields, identified with ``GH_FIELD`` metadata, represent
 FEM discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
-function space (:ref:`dynamo0.3-function-space`) from which they inherit
-a polynomial expansion via the basis functions of that space.
+function space (see :ref:`dynamo0.3-function-space`) from which they
+inherit a polynomial expansion via the basis functions of that space.
 Field values at points within a cell are evaluated as the sum of a set
 of basis functions multiplied by coefficients which are the data points.
 Points of evaluation are determined by a quadrature object
@@ -319,7 +319,8 @@ types.
     over that space.
 
  2) The continuity of the iteration space of the Kernel is determined
-    from the function space of the modified argument (:ref:`dynamo0.3-function-space`).
+    from the function space of the modified argument
+    (see :ref:`dynamo0.3-function-space`).
     If more than one argument is modified then the iteration space is taken
     to be the largest required by any of those arguments. e.g. if a Kernel
     writes to two fields, the first on W3 (discontinuous) and the
@@ -628,7 +629,7 @@ need not be on the same space.
 .. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` as its
           access pattern must be a discontinuous function in the
           horizontal. That means it must belong to ``w3``, ``wtheta``
-          or ``w2v`` function spaces (:ref:`dynamo0.3-function-space`).
+          or ``w2v`` function spaces (see :ref:`dynamo0.3-function-space`).
           A ``GH_FIELD`` that specifies ``GH_INC`` as its access
           pattern may be continuous in the vertical (and discontinuous
           in the horizontal), continuous in the horizontal (and
@@ -700,18 +701,18 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
-.. _dynamo0.3-function-spaces:
+.. _dynamo0.3-function-space:
 
 Supported Function Spaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned in :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
+As mentioned in the :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
 point is a vector.
 
-Function spaces can share dofs between cells in horizontal, vertical
-or all directions. Depending on the function space and FEM order,
+Function spaces can share dofs between cells in the horizontal, vertical
+or both directions. Depending on the function space and FEM order,
 the shared dofs can lie on one or more cell entities (faces, edges
 and vertices) in each direction. This property is referred to as the
 **continuity** of a function space (horizontal, vertical or full).
@@ -735,6 +736,8 @@ spaces described below.
   component.
 
 * ``w3`` is the space of scalar functions with full discontinuity.
+  All dofs lie within the cell volume and are not shared across the
+  cell boundaries.
 
 Additional function spaces required for representation of scalar or
 component-wise vector variables are:
@@ -762,22 +765,23 @@ horizontal continuity.
 Two additonal function space metadata descriptors as mentioned in
 sections above are:
 
-* ``ANY_SPACE`` for when the function spaces of the modified argument(s)
-  cannot be determined;
+* ``ANY_W2`` for any type of ``w2`` function spaces;
 
-* ``ANY_W2`` for any type of ``w2`` function spaces.
+* ``ANY_SPACE`` for when the function space of the modified argument(s)
+  cannot be determined and/or for when a Kernel has been written so that
+  it works with fields on any of the available spaces.
 
-As mentioned previously, both ``ANY_SPACE`` and ``ANY_W2`` function
+As mentioned previously, both ``ANY_W2`` and ``ANY_SPACE`` function
 space types are treated as continuous.
 
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
-PSyclone will raise a ``Generation Error`` in **Dynamo0p3ColourTrans**
+PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
 transformation (see :ref:`dynamo0.3-api-transformations` for more details
-on transformations). An example of field writer over a discontinuous
+on transformations). An example of field writing over a discontinuous
 function space ``wtheta`` is given in ``examples/dynamo/eg9``. This
-example also demonstrates that Psyclone does not attempt to colour a
-loop over a discontinuous space when transformations are applied.
+example also demonstrates how to only colour loops over continuous
+function spaces when transformations are applied.
 Additionally, it will also serve as an example of ``GH_READWRITE`` access
 for discontinuous quantities when it is introduced.
 

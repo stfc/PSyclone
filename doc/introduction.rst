@@ -54,6 +54,6 @@ system can help a user to optimise the code for a particular architecture
 or alternatively, generate the PSy layer automatically.
 
 PSyclone is also being extended to support an API being developed in
-the `GOcean project https://puma.nerc.ac.uk/trac/GOcean>`_ for two finite
+the `GOcean project <https://puma.nerc.ac.uk/trac/GOcean>`_ for two finite
 difference ocean model benchmarks, one of which is based on the
 `NEMO <https://www.nemo-ocean.eu/>`_ ocean model.
