@@ -149,6 +149,6 @@ The ninth example illustrates the behaviour of discontinuous field writers
 
 This example also demonstrates how to write a PSyclone transformation
 script that only colours loops over continuous spaces:
-
+::
     cd eg9/
     python ../../../src/generator.py -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
