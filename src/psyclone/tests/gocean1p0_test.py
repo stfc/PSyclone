@@ -970,7 +970,9 @@ def test_goschedule_dag(tmpdir):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
+    _ = tmpdir.chdir()
     invoke.schedule.dag()
+    assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
 
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API

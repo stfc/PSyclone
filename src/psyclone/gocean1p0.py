@@ -795,7 +795,7 @@ class GOKernelArgument(KernelArgument):
         return self._arg.function_space
 
 
-class GOKernelGridArgument(object):
+class GOKernelGridArgument(KernelArgument):
     ''' Describes arguments that supply grid properties to a kernel.
         These arguments are provided by the PSy layer rather than in
         the Algorithm layer. '''
@@ -831,6 +831,16 @@ class GOKernelGridArgument(object):
         ''' The raw text used to pass data from the algorithm layer
             for this argument. Grid properties are not passed from the
             algorithm layer so None is returned.'''
+        return None
+
+    def forward_dependence(self):
+        ''' A grid-property argument is read-only and supplied by the
+        PSy layer so has no dependencies '''
+        return None
+
+    def backward_dependence(self):
+        ''' A grid-property argument is read-only and supplied by the
+        PSy layer so has no dependencies '''
         return None
 
 
