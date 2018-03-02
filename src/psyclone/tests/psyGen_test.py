@@ -1694,9 +1694,9 @@ def test_dag_names():
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
-    assert schedule.children[3].dag_name == "loop_3"
+    assert schedule.children[3].dag_name == "loop_4"
     schedule.children[3].loop_type = "colour"
-    assert schedule.children[3].dag_name == "loop_[colour]_3"
+    assert schedule.children[3].dag_name == "loop_[colour]_4"
     schedule.children[3].loop_type = ""
     assert (schedule.children[3].children[0].dag_name ==
             "kernel_testkern_code_5")
@@ -1811,20 +1811,20 @@ EXPECTED2 = re.compile(
     r"digraph {\n"
     "\s*schedule_start\n"
     "\s*schedule_end\n"
-    "\s*loop_0_start\n"
-    "\s*loop_0_end\n"
-    "\s*loop_0_end -> loop_1_start \[color=green\]\n"
-    "\s*schedule_start -> loop_0_start \[color=blue\]\n"
-    "\s*kernel_testkern_qr_code_2\n"
-    "\s*kernel_testkern_qr_code_2 -> loop_0_end \[color=blue\]\n"
-    "\s*loop_0_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
     "\s*loop_1_start\n"
     "\s*loop_1_end\n"
-    "\s*loop_1_end -> schedule_end \[color=blue\]\n"
-    "\s*loop_0_end -> loop_1_start \[color=red\]\n"
+    "\s*loop_1_end -> loop_3_start \[color=green\]\n"
+    "\s*schedule_start -> loop_1_start \[color=blue\]\n"
+    "\s*kernel_testkern_qr_code_2\n"
+    "\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
+    "\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
+    "\s*loop_3_start\n"
+    "\s*loop_3_end\n"
+    "\s*loop_3_end -> schedule_end \[color=blue\]\n"
+    "\s*loop_1_end -> loop_3_start \[color=red\]\n"
     "\s*kernel_testkern_qr_code_4\n"
-    "\s*kernel_testkern_qr_code_4 -> loop_1_end \[color=blue\]\n"
-    "\s*loop_1_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    "\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
+    "\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
     "}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -1854,8 +1854,8 @@ def test_node_dag(tmpdir):
     result = my_file.read()
     for name in ["<title>schedule_start</title>",
                  "<title>schedule_end</title>",
-                 "<title>loop_0_start</title>",
-                 "<title>loop_0_end</title>",
+                 "<title>loop_1_start</title>",
+                 "<title>loop_1_end</title>",
                  "<title>kernel_testkern_qr_code_2</title>",
                  "<title>kernel_testkern_qr_code_4</title>",
                  "<svg", "</svg>", ]:
