@@ -270,6 +270,7 @@ standards, use::
     From release 1.7.1 ``pep8``  returns a runtime user warning to
     install and use ``pycodestyle`` instead.
 
+
 Verifying the pylint standards is done with::
 
    > pylint code.py
