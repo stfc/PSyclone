@@ -35,6 +35,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 The dynamo examples in the eg1 and eg2 directories below the one
@@ -139,3 +140,15 @@ remove and/or change the location and depth of halo exchanges:
 ::
     cd eg8/
     psyclone helmholtz_solver_alg_mod.x90 -s ./redundant_script.py
+
+The ninth example illustrates the behaviour of discontinuous field writers
+(and readwriters after the support is introduced):
+::
+    cd eg9/
+    python ../../../src/generator.py advective_inc_alg_mod.x90
+
+This example also demonstrates how to write a PSyclone transformation
+script that only colours loops over continuous spaces:
+::
+    cd eg9/
+    python ../../../src/generator.py -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90

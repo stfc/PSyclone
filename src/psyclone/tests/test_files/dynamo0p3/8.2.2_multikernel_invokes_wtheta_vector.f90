@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,21 +31,22 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Author I. Kavcic Met Office
 
-program single_invoke_w3_only
+program single_invoke_wtheta_only_vector
 
-  ! Description: two functions in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only, only: testkern_w3_only_type
-  use inf,      only: field_type
+  ! Description: two functions in an invoke iterating over and
+  ! reading from wtheta field vectors (discontinuous)
+  use testkern_wtheta_only_vector_mod, only: testkern_wtheta_only_vector_type
+  use inf,                             only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1(3), f2(3), f3(3)
 
-  call invoke(                        &
-       testkern_w3_only_type(f1,f2),  &
-       !field f1 write to read dependence but no halo exchange required as w3
-       testkern_w3_only_type(f3,f1)   &
+  call invoke(                                   &
+       testkern_wtheta_only_vector_type(f1, f2), &
+       ! Field f1 write to read dependence but no halo exchange
+       ! required as wtheta is discontinuous
+       testkern_wtheta_only_vector_type(f3, f1)  &
           )
 
-end program single_invoke_w3_only
+end program single_invoke_wtheta_only_vector

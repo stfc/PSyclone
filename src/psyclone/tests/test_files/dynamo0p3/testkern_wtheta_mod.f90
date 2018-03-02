@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,21 +31,48 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program single_invoke_w3_only_vector
+module testkern_wtheta_mod
 
-  ! Description: two functions in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only_vector, only: testkern_w3_only_vector_type
-  use inf,      only: field_type
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+
   implicit none
-  type(field_type) :: f1(3), f2(3), f3(3)
 
-  call invoke(                        &
-       testkern_w3_only_vector_type(f1,f2),  &
-       !field f1 write to read dependence but no halo exchange required as w3
-       testkern_w3_only_vector_type(f3,f1)   &
-          )
+  ! Description: discontinuous field writer (wtheta) and reader (w3)
+  type, extends(kernel_type) :: testkern_wtheta_type
+     type(arg_type), dimension(2) :: meta_args =   &
+          (/ arg_type(gh_field, gh_write, wtheta), &
+             arg_type(gh_field, gh_read,  w3)      &
+           /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_wtheta_code
+  end type testkern_wtheta_type
 
-end program single_invoke_w3_only_vector
+contains
+
+  SUBROUTINE testkern_wtheta_code(nlayers,                             &
+                                  field_1_wtheta,                      &
+                                  field_2_w3,                          &
+                                  ndf_wtheta, undf_wtheta, map_wtheta, &
+                                  ndf_w3, undf_w3, map_w3)
+
+    IMPLICIT NONE
+
+    INTEGER, intent(in) :: nlayers
+    INTEGER, intent(in) :: ndf_wtheta
+    INTEGER, intent(in) :: undf_wtheta
+    INTEGER, intent(in) :: ndf_w3
+    INTEGER, intent(in) :: undf_w3
+    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
+    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
+    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+
+  END SUBROUTINE testkern_wtheta_code
+
+end module testkern_wtheta_mod

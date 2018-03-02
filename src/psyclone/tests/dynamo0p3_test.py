@@ -1,11 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +42,10 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop, \
-    FunctionSpace, VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
-    DynGlobalSum, HaloReadAccess
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
+    DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
+    VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
+    DISCONTINUOUS_FUNCTION_SPACES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 import fparser
@@ -799,12 +796,18 @@ def test_field_deref():
             assert output in generated_code
 
 
-def test_field_fs():
+def test_field_fs(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields making use of all
-    function spaces and no basis functions produces correct code.'''
+    function spaces and no basis functions produces correct code '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_fs_psy\n"
@@ -816,22 +819,23 @@ def test_field_fs():
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
         "m3, m4)\n"
-        "      USE testkern_fs, ONLY: testkern_code\n"
+        "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f3\n"
         "      TYPE(field_type), intent(in) :: f2, m1, m2, f4, m3, m4\n"
         "      INTEGER cell\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
-        "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v, "
-        "ndf_any_w2, undf_any_w2\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
+        "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
+        "ndf_w2v, undf_w2v, ndf_any_w2, undf_any_w2\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy, m4_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_wtheta(:,:) => null(), "
+        "map_w3(:,:) => null(), map_w0(:,:) => null(), "
         "map_w1(:,:) => null(), map_any_w2(:,:) => null(), "
-        "map_w2v(:,:) => null(), map_w2h(:,:) => null()\n"
+        "map_wtheta(:,:) => null(), map_w2v(:,:) => null(), "
+        "map_w2h(:,:) => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -856,9 +860,10 @@ def test_field_fs():
         "      !\n"
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w0 => m1_proxy%vspace%get_whole_dofmap()\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_w2 => m4_proxy%vspace%get_whole_dofmap()\n"
+        "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
@@ -871,6 +876,11 @@ def test_field_fs():
         "      !\n"
         "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
         "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise number of DoFs for w0\n"
+        "      !\n"
+        "      ndf_w0 = m1_proxy%vspace%get_ndf()\n"
+        "      undf_w0 = m1_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w3\n"
         "      !\n"
@@ -925,11 +935,11 @@ def test_field_fs():
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
         "m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, map_w0(:,cell), "
+        "ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
         "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), "
         "ndf_w2v, undf_w2v, map_w2v(:,cell), ndf_any_w2, undf_any_w2, "
         "map_any_w2(:,cell))\n"
@@ -939,6 +949,7 @@ def test_field_fs():
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
@@ -4329,18 +4340,20 @@ def test_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-def test_w3_and_inc_error():
-    '''test that an error is raised if w3 and gh_inc are provided for the
-    same field in the metadata '''
+def test_fs_discontinuous_and_inc_error():
+    ''' Test that an error is raised if a discontinuous function space
+    and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field,gh_read, w3)",
-                        "arg_type(gh_field,gh_inc, w3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="testkern_qr_type")
-    assert (
-        "It does not make sense for a quantity on a discontinuous space "
-        "(w3) to have a 'gh_inc' access" in str(excinfo.value))
+    for fspace in DISCONTINUOUS_FUNCTION_SPACES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w3)",
+                            "arg_type(gh_field,gh_inc, "
+                            + fspace + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("It does not make sense for a quantity on a discontinuous "
+                "space (" + fspace + ") to have a 'gh_inc' access"
+                in str(excinfo.value))
 
 
 def test_halo_exchange_view(capsys):
@@ -5886,7 +5899,7 @@ def test_dynloop_load_unexpected_func_space():
     # create a function which always returns the broken field
 
     def broken_func():
-        ''' returns the above field no matter what '''
+        ''' Returns the above field no matter what '''
         return field
     # replace the iteration_space_arg method with our broke
     # function. This is required as iteration_space_arg currently
@@ -5896,7 +5909,7 @@ def test_dynloop_load_unexpected_func_space():
     with pytest.raises(GenerationError) as err:
         loop.load(kernel)
     assert ("Generation Error: Unexpected function space found. Expecting "
-            "one of ['w3', 'w0', 'w1', 'w2', 'wtheta', 'w2h', 'w2v', "
+            "one of ['w3', 'wtheta', 'w2v', 'w0', 'w1', 'w2', 'w2h', "
             "'any_w2'] but found 'broken'" in str(err))
 
 
@@ -6087,12 +6100,12 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w3_w1():
-    ''' Check that generated loop over cells in the psy layer has the correct
-    upper bound when a kernel writes to two fields, the first on a
-    discontinuous space and the second on a continuous space. The resulting
-    loop (when dm=True) must include the L1 halo because of the second
-    field argument which is continuous '''
+def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
+    ''' Check that generated loop over cells in the psy layer has the
+    correct upper bound when a kernel writes to two fields, the first on
+    a discontinuous space (w2v) and the second on a continuous space (w1).
+    The resulting loop (when dm=True) must include the L1 halo because of
+    the second field argument which is continuous '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
         api="dynamo0.3")
@@ -6112,6 +6125,11 @@ def test_itn_space_write_w3_w1():
                 "      !\n"
                 "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
             assert output in generated_code
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_fld_and_op_writers():
@@ -6141,9 +6159,9 @@ def test_itn_space_fld_and_op_writers():
             assert output in generated_code
 
 
-def test_itn_space_any_w3():
+def test_itn_space_any_w3(tmpdir, f90, f90flags):
     ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W3 '''
+    a kernel writes to fields on any-space and W3 (discontinuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
         api="dynamo0.3")
@@ -6164,10 +6182,15 @@ def test_itn_space_any_w3():
                 "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_itn_space_any_w1():
     ''' Check generated loop over cells has correct upper bound when
-    a kernel writes to fields on any-space and W1 '''
+    a kernel writes to fields on any-space and W1 (continuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
         api="dynamo0.3")
@@ -6537,27 +6560,32 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous():
-    '''Test that we do not create halo exchange calls when our loop only
-    iterates over owned cells (e.g. it writes to a discontinuous
+def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
+    ''' Test that we do not create halo exchange calls when our loop
+    only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
-    stencil accesses'''
+    stencil accesses '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_w2v.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     result = str(psy.gen)
     print result
     assert "halo_exchange" not in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_halo_for_discontinuous():
-    '''Test that we create halo exchange call when our loop iterates over
-    owned cells (e.g. it writes to a discontinuous field), we read
-    from a continous field, there are no stencil accesses, but we do
-    not know anything about the previous writer. As the previous
-    writer may have been over dofs we could have dirty annexed dofs so
-    need to add a halo exchange.'''
+
+def test_halo_for_discontinuous(tmpdir, f90, f90flags):
+    ''' Test that we create halo exchange call when our loop iterates
+    over owned cells (e.g. it writes to a discontinuous field), we
+    read from a continous field, there are no stencil accesses, but
+    we do not know anything about the previous writer. As the previous
+    writer may have been over dofs we could have dirty annexed dofs
+    so need to add a halo exchange. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
@@ -6571,12 +6599,17 @@ def test_halo_for_discontinuous():
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_halo_for_discontinuous_2():
-    '''Test that we create halo exchange call when our loop iterates over
-    owned cells (e.g. it writes to a discontinuous field), we read
-    from a continous field, there are no stencil accesses, and the
-    previous writer iterates over ndofs. We therefore have dirty
+
+def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
+    ''' Test that we create halo exchange call when our loop iterates
+    over owned cells (e.g. it writes to a discontinuous field), we
+    read from a continous field, there are no stencil accesses, and
+    the previous writer iterates over ndofs. We therefore have dirty
     annexed dofs so need to add a halo exchange. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
@@ -6591,21 +6624,34 @@ def test_halo_for_discontinuous_2():
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_arg_discontinous():
-    '''test that the discontinuous method in the dynamo argument class
-    returns the correct values '''
+    ''' Test that the discontinuous method in the dynamo argument
+    class returns the correct values '''
 
     # 1 discontinuous field returns true
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[0].children[0]
-    field = kernel.arguments.args[0]
-    assert field.space == 'w3'
-    assert field.discontinuous
+    # Check w3, wtheta and w2v in turn
+    idchld_list = [3, 0, 0]
+    idarg_list = [4, 0, 0]
+    fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
+                   zip(idchld_list, idarg_list)))
+    for fspace in fs_dict.keys():
+        filename = "1_single_invoke_" + fspace + ".f90"
+        idchld = fs_dict[fspace][0]
+        idarg = fs_dict[fspace][1]
+        _, info = parse(os.path.join(BASE_PATH, filename),
+                        api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(info)
+        schedule = psy.invokes.invoke_list[0].schedule
+        kernel = schedule.children[idchld].children[0]
+        field = kernel.arguments.args[idarg]
+        assert field.space == fspace
+        assert field.discontinuous
 
     # 2 any_space field returns false
     _, info = parse(os.path.join(BASE_PATH,
@@ -6776,13 +6822,13 @@ def test_HaloReadAccess_field_in_call():
 
 
 def test_HaloReadAccess_field_not_reader():
-    '''The field passed to HaloReadAccess should be read within its associated
-    kernel or builtin. If it is not then an exception is raised. This
-    test checks that this exception is raised correctly
+    ''' The field passed to HaloReadAccess should be read within its
+    associated kernel or builtin. If it is not then an exception is raised.
+    This test checks that this exception is raised correctly
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1_single_invoke_w3_only.f90"),
+                                        "1_single_invoke_wtheta.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6818,12 +6864,12 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field():
-    '''When a discontinuous argument is read in a loop with an iteration
+def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
+    ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
-    checks that HaloReadAccess works correctly in this situation'''
+    checks that HaloReadAccess works correctly in this situation '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_wtheta.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6836,12 +6882,17 @@ def test_HaloReadAccess_discontinuous_field():
     assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_loop_cont_read_inv_bound(monkeypatch):
-    '''When a continuous argument is read it may access the halo. The
+    ''' When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly'''
+    that this exception is raised correctly '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
