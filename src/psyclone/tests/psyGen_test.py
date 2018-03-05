@@ -1772,21 +1772,12 @@ EXPECTED = (
     "}")
 
 
-def test_node_dag_no_graphviz(tmpdir):
+def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     '''test that dag generation does nothing if graphviz is not
-    installed. If graphviz is installed on this system we need to make
-    the test think that it is not. We do this by messing with
-    sys.modules. '''
+    installed. We monkeypatch sys.modules to ensure that it always
+    appears that graphviz is not installed on this system. '''
     import sys
-    keep = None
-    try:
-        # pylint: disable=unused-variable
-        import graphviz
-        # pylint: enable=unused-variable
-        keep = sys.modules['graphviz']
-        sys.modules['graphviz'] = None
-    except ImportError:
-        pass
+    monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
@@ -1797,8 +1788,6 @@ def test_node_dag_no_graphviz(tmpdir):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     assert not os.path.exists(my_file.strpath)
-    if keep:
-        sys.modules['graphviz'] = keep
 
 
 # Use a regex to allow for whitespace differences between graphviz
@@ -1829,14 +1818,10 @@ EXPECTED2 = re.compile(
 # pylint: enable=anomalous-backslash-in-string
 
 
-def test_node_dag(tmpdir):
+def test_node_dag(tmpdir, have_graphviz):
     '''test that dag generation works correctly. Skip the test if
     graphviz is not installed'''
-    try:
-        # pylint: disable=unused-variable
-        import graphviz
-        # pylint: enable=unused-variable
-    except ImportError:
+    if not have_graphviz:
         return
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
