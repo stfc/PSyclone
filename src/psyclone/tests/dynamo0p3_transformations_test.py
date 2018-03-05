@@ -4471,6 +4471,7 @@ def test_rc_updated_dependence_analysis():
     ###     halo exchange is added for RW access in dynamo0p3.py, and
     ###     the combination of w3 GH_W and GH_R in testkern_w3_only.f90
     ###     changes to GH_RW and GH_R.
+    ###     Calls 1_single_invoke_w3_only.f90
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3_only.f90"),
                     api=TEST_API)
@@ -4512,6 +4513,7 @@ def test_rc_no_loop_decrease():
     ###     in dynamo0p3.py and the combination w3 GH_W and GH_R
     ###     in testkern_w3_only.f90 changes to GH_RW and GH_R then
     ###     a DynHaloExchange object is created instead of DynLoop.
+    ###     Calls  1_single_invoke_w3_only.f90
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3_only.f90"),
                     api=TEST_API)
@@ -4690,6 +4692,7 @@ def test_rc_discontinuous_halo_remove():
     ###     changes to GH_RW and GH_R.
     ###     DynHaloExchange object is created and not removed, so
     ###     "CALL f4_proxy%halo_exchange(depth=3)" appears in result.
+    ###     Calls 15.1.2_builtin_and_normal_kernel_invoke.f90
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -4883,6 +4886,7 @@ def test_loop_fusion_different_loop_name():
     ###     object is created instead of a DynLoop. Since this RW -> R
     ###     dependence is on discontionuous field only it should behave
     ###     as W -> R, that is the DynHaloExchange should be removed.
+    ###     Calls 4.12_multikernel_invokes_w3.f90 
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w3.f90"),
                     api="dynamo0.3")

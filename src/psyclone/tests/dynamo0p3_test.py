@@ -6804,6 +6804,7 @@ def test_HaloReadAccess_field_not_reader():
     ### IK: When the combination of w3 GH_W and GH_R in testkern_w3_only.f90
     ###     changes to GH_RW and GH_R the field is a reader so this test
     ###     (correctly) does not raise GenerationError
+    ###     Calls 1_single_invoke_w3_only.f90
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke_w3_only.f90"),
                            api="dynamo0.3")
