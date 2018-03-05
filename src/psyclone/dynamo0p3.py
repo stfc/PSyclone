@@ -41,7 +41,7 @@
     required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
-# imports
+# Imports
 import os
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
@@ -51,15 +51,15 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 
-# first section : Parser specialisations and classes
+# First section : Parser specialisations and classes
 
-# constants
-### IK: Changed "wtheta", "w2v" to discontinuous spaces here to facilitate
-###     work. The full test suite will be introduced/updated after
-###     I #84/PR #128 is merged
+# Function spaces (FS)
+# Continuous FS
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
-# space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2",  "w2h", "any_w2"]
+# Discontinuous FS
+# Space any_w2 can be w2, w2h or w2v
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -69,9 +69,13 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
+# Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
+
+# Meta functions
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
+# Evaluators: quadrature
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 # Dictionary allowing us to look-up the name of the Fortran module, type
@@ -81,11 +85,13 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
+# Datatypes (scalars, fields, operators)
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
     VALID_SCALAR_NAMES
 
+# Access types
 VALID_REDUCTION_NAMES = ["gh_sum"]
 # List of all access types that involve writing to an argument
 # in some form
@@ -99,7 +105,7 @@ GH_READ_ONLY_ACCESS = ["gh_read"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ONLY_ACCESS + GH_WRITE_ACCESSES
 
-
+# Stencils
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
 # file as it causes failures with py.test 2.8.7. Therefore some parts
@@ -132,7 +138,7 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "inc": "gh_inc", "readwrite": "gh_readwrite"}
 
-# Valid Dynamo loop types. The default is "" which is over cells (in the
+# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
@@ -6273,7 +6279,7 @@ class DynKernelArgument(KernelArgument):
         '''
         Returns the Fortran intent of this argument.
 
-        :return: the expected fortran intent for this argument as specified
+        :return: the expected Fortran intent for this argument as specified
                  by the kernel argument metadata
         :rtype: str
         '''

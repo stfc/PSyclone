@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,20 +31,47 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author I. Kavcic Met Office
 
-module testkern_w3_only_vector
-  type, extends(kernel_type) :: testkern_w3_only_vector_type
-     type(arg_type), dimension(2) :: meta_args =  (/  &
-             arg_type(gh_field*3,gh_write,w3), &
-             arg_type(gh_field*3,gh_read, w3)  &
+module testkern_w2v_mod
+
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+
+  implicit none
+
+  ! Description: discontinuous field writer (w2v) and reader (wtheta)
+  type, extends(kernel_type) :: testkern_w2v_type
+     type(arg_type), dimension(2) :: meta_args =  &
+          (/ arg_type(gh_field, gh_write, w2v),   &
+             arg_type(gh_field, gh_read,  wtheta) &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
-  end type testkern_w3_only_vector_type
+     procedure, nopass :: code => testkern_w2v_code
+  end type testkern_w2v_type
+
 contains
 
-  subroutine testkern_code()
-  end subroutine testkern_code
-end module testkern_w3_only_vector
+  SUBROUTINE testkern_w2v_code(nlayers,                    &
+                               field_1_w2v,                &
+                               field_2_wtheta,             &
+                               ndf_w2v, undf_w2v, map_w2v, &
+                               ndf_wtheta, undf_wtheta, map_wtheta)
+
+    IMPLICIT NONE
+
+    INTEGER, intent(in) :: nlayers
+    INTEGER, intent(in) :: ndf_w2v
+    INTEGER, intent(in) :: undf_w2v
+    INTEGER, intent(in) :: ndf_wtheta
+    INTEGER, intent(in) :: undf_wtheta
+    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_1_w2v
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta
+    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
+    INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
+
+  END SUBROUTINE testkern_w2v_code
+
+end module testkern_w2v_mod

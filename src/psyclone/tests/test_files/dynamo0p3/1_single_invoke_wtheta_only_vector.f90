@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,23 +31,19 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Author I. Kavcic Met Office
 
-module testkern_w3_only
-  type, extends(kernel_type) :: testkern_w3_only_type
-     type(arg_type), dimension(2) :: meta_args =  (/  &
-! !              arg_type(gh_field,gh_write,w3), &
-! !              arg_type(gh_field,gh_read, w3)  &
-! IK: Experimenting with RW access
-             arg_type(gh_field,gh_readwrite,w3), &
-             arg_type(gh_field,gh_read, w3)  &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => testkern_code
-  end type testkern_w3_only_type
-contains
+program single_invoke_wtheta_only_vector
 
-  subroutine testkern_code()
-  end subroutine testkern_code
-end module testkern_w3_only
+  ! Description: single function in an invoke iterating over and
+  ! reading from wtheta field vectors (discontinuous)
+  use testkern_wtheta_only_vector_mod, only: testkern_wtheta_only_vector_type
+  use inf,                             only: field_type
+  implicit none
+  type(field_type) :: f1(3), f2(3)
+
+  call invoke(                                  &
+       testkern_wtheta_only_vector_type(f1, f2) &
+          )
+
+end program single_invoke_wtheta_only_vector

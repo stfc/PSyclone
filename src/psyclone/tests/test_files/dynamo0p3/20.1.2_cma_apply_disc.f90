@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,21 +31,29 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program single_invoke_w3_only_vector
+program single_invokes_cma_discontinuous
 
-  ! Description: two functions in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only_vector, only: testkern_w3_only_vector_type
-  use inf,      only: field_type
+  ! Description: two single invokes containing multiple CMA-related kernels
+  ! on discontinuous spaces W3 and W2V
+
+  use inf,                              only: field_type
+  use columnwise_op_app_w3_kernel_mod,  only: &
+                            columnwise_op_app_w3_kernel_type
+  use columnwise_op_app_w2v_kernel_mod, only: &
+                            columnwise_op_app_w2v_kernel_type
+
   implicit none
-  type(field_type) :: f1(3), f2(3), f3(3)
 
-  call invoke(                        &
-       testkern_w3_only_vector_type(f1,f2),  &
-       !field f1 write to read dependence but no halo exchange required as w3
-       testkern_w3_only_vector_type(f3,f1)   &
-          )
+  type(field_type)               :: field_a, field_b
+  type(field_type)               :: field_c, field_d
+  type(columnwise_operator_type) :: cma_op1, cma_op2
 
-end program single_invoke_w3_only_vector
+  call invoke( &
+         columnwise_op_app_w3_kernel_type(field_a, field_b, cma_op1) )
+  call invoke( &
+         columnwise_op_app_w2v_kernel_type(field_c, field_d, cma_op2) )
+
+end program single_invokes_cma_discontinuous
