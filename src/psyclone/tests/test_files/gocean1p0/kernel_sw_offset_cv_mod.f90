@@ -16,8 +16,8 @@ module kernel_sw_offset_cv_mod
 
   type, extends(kernel_type) :: compute_v
      type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CU, POINTWISE),        &
-             arg(READ,  CV, POINTWISE),        &
+          (/ arg(WRITE, CV, POINTWISE),        &
+             arg(READ,  CU, POINTWISE),        &
              arg(READ,  CT, POINTWISE)         &
            /)
      !> This kernel writes only to internal points of the
