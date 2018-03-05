@@ -960,7 +960,7 @@ def test_goloop_unmatched_offsets():
         goiloop.gen_code(None)
 
 
-def test_goschedule_dag(tmpdir):
+def test_dag(tmpdir, have_graphviz):
     ''' Test that the GOSchedule::dag() method works as expected '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -972,7 +972,48 @@ def test_goschedule_dag(tmpdir):
     invoke = psy.invokes.invoke_list[0]
     _ = tmpdir.chdir()
     invoke.schedule.dag()
-    assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
+    if have_graphviz:
+        assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
+        dot_file = os.path.join(str(tmpdir), "dag")
+        assert os.path.isfile(dot_file)
+        with open(dot_file, "r") as dfile:
+            dot = dfile.read()
+        # The two kernels in this example are independent so we should
+        # have no forwards/backwards dependencies
+        for col in ["red", "#ff0000", "green", "#00ff00"]:
+            assert '[color={0}]'.format(col) not in dot
+
+
+def test_writetoread_dag(tmpdir, have_graphviz):
+    ''' Test that the GOSchedule::dag() method works as expected when we
+    have two kernels with a write -> read dependency '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_write_to_read.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    _ = tmpdir.chdir()
+    invoke.schedule.dag()
+    if have_graphviz:
+        dot_file = os.path.join(str(tmpdir), "dag")
+        assert os.path.isfile(dot_file)
+        with open(dot_file, "r") as dfile:
+            dot = dfile.read()
+        assert dot.startswith("digraph")
+        # write -> read means that the second loop can only begin once the
+        # first loop is complete. Check that we have the correct forwards
+        # dependence (green) and backwards dependence (red).
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=red]'
+                in dot or
+                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '[color=#ff0000]' in dot)
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=green]'
+                in dot or
+                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '[color=#00ff00]' in dot)
 
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API
