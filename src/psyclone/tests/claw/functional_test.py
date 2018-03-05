@@ -85,13 +85,12 @@ def test_loop_reorder(tmpdir, monkeypatch):
 @utils.CLAW
 def test_oacc_routine(tmpdir):
     ''' Test that we can add the '!$acc routine' directive to a subroutine '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "gocean1p0",
-                                        "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).create(invoke_info)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "dynamo0p3",
+                                        "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    invoke.schedule.view()
-    kern = invoke.schedule.children[0].children[0].children[0]
+    kern = invoke.schedule.children[0].children[0]
     orig_name = kern.name[:]
     script_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "claw_acc_routine_trans.py")
@@ -101,5 +100,9 @@ def test_oacc_routine(tmpdir):
 
     # Perform the kernel transformation
     new_names = claw.trans([kern], script_file)
-    print new_names
-    assert 0
+    kernel_file = os.path.join(str(tmpdir), "testkern_claw0_mod.f90")
+    assert os.path.isfile(kernel_file)
+    with open(kernel_file, "r") as ffile:
+        kernel_code = ffile.read()
+        print kernel_code
+        assert "!$acc routine\n" in kernel_code
