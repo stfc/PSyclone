@@ -39,6 +39,9 @@
 import os
 import pytest
 import utils
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
+from psyclone import claw
 from psyclone.transformations import TransformationError
 
 # constants
@@ -48,9 +51,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 @utils.CLAW
 def test_loop_reorder(tmpdir, monkeypatch):
     ''' Tests that we can use CLAW to perform a loop reordering '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-    from psyclone import claw
     _, invoke_info = parse(os.path.join(BASE_PATH, "dynamo0p3",
                                         "1_single_invoke.f90"),
                            api="dynamo0.3")
@@ -80,3 +80,26 @@ def test_loop_reorder(tmpdir, monkeypatch):
     print psy_code
     assert "USE testkern_claw0_mod, ONLY: testkern_claw0_code" in psy_code
     assert "CALL testkern_claw0_code(" in psy_code
+
+
+@utils.CLAW
+def test_oacc_routine(tmpdir):
+    ''' Test that we can add the '!$acc routine' directive to a subroutine '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "gocean1p0",
+                                        "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    invoke.schedule.view()
+    kern = invoke.schedule.children[0].children[0].children[0]
+    orig_name = kern.name[:]
+    script_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "claw_acc_routine_trans.py")
+    # Change to the pytest-supplied tmp dir so that we don't mess up our
+    # space with generated files
+    _ = tmpdir.chdir()
+
+    # Perform the kernel transformation
+    new_names = claw.trans([kern], script_file)
+    print new_names
+    assert 0
