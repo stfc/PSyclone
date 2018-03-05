@@ -195,6 +195,7 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     '''
     from subprocess import check_call, CalledProcessError
     from . import claw_config
+    import tempfile
 
     xmod_paths = ["-M{0}".format(path) for path in xmod_search_path]
 
@@ -206,7 +207,10 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
     # Ensure the Claw Python module is on the JYTHONPATH
     my_env = os.environ.copy()
     my_env["JYTHONPATH"] = claw_config.CLAW_PYTHON_PATH
-    
+
+    # Temporary file for stderr
+    err_file = tempfile.TemporaryFile()
+
     try:
         check_call([claw_config.JAVA_BINARY,
                     "-Xmx200m", "-Xms200m",
@@ -223,11 +227,15 @@ def _run_claw(xmod_search_path, xml_file, output_file, script_file):
                     "-o", intermediate_xml_file,
                     "-script", script_file,
                     xml_file],
+                   stderr=err_file,
                    env=my_env)
 
     except CalledProcessError as err:
-        raise TransformationError("Execution of CLAW failed: {0}".
-                                  format(str(err)))
+        err_file.seek(0)
+        error = err_file.read()
+        raise TransformationError("Execution of CLAW failed: {0}\n"
+                                  "Error was: {1}".
+                                  format(str(err), error))
 
 
 def _rename_kernel(xml_file, kernel_name, mode):

@@ -46,7 +46,9 @@ from psyclone.transformations import TransformationError
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "test_files")
 
-def _fake_check_call(args, env=None):  # pylint:disable=unused-argument
+def _fake_check_call(args,
+                     stderr=None,
+                     env=None):  # pylint:disable=unused-argument
     '''
     Function to be used to monkeypatch the check_call() function of
     the subprocess module.
@@ -200,7 +202,7 @@ def test_run_claw_broken_classpath(monkeypatch):
     ''' Check that we raise the expected error if the classpath provided
     in the configuration file is not correct '''
     from psyclone.claw import _run_claw
-    from psyclone import claw_config
+    from psyclone import claw_config, claw
     monkeypatch.setattr(claw_config, "CLASS_PATH", "broken")
     monkeypatch.setattr(claw, "_validate_omni_setup", lambda: None)
     monkeypatch.setattr(claw, "_validate_claw_setup", lambda: None)
