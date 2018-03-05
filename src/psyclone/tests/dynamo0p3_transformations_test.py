@@ -4507,6 +4507,36 @@ def test_rc_no_halo_decrease():
 def test_rc_updated_dependence_analysis():
     ''' Test that the dependence analyis updates when new halo exchanges
     are added to the schedule '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_wtheta.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    loop = schedule.children[0]
+    kernel = loop.children[0]
+    f2_field = kernel.args[1]
+    assert not f2_field.backward_dependence()
+    # set our loop to redundantly compute to the level 2 halo. This
+    # introduces a new halo exchange
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    previous_field = f2_field.backward_dependence()
+    previous_node = previous_field.call
+    from psyclone.dynamo0p3 import DynHaloExchange
+    # check f2_field has a backward dependence with the new halo
+    # exchange field
+    assert isinstance(previous_node, DynHaloExchange)
+    # check the new halo exchange field has a forward dependence with
+    # the kernel f2_field
+    assert previous_field.forward_dependence() == f2_field
+
+
+def test_rc_updated_dependence_analysis_readwrite():
+    ''' Test that the dependence analyis updates when new halo exchanges
+    are added to the schedule '''
     ### IK: Dependence analysis for single discontinuous invoke which
     ###     generates halo exchange. Does not fail when the possibility of
     ###     halo exchange is added for RW access in dynamo0p3.py, and
@@ -4545,6 +4575,45 @@ def test_rc_updated_dependence_analysis():
 
 
 def test_rc_no_loop_decrease():
+    ''' Test that we raise an exception if we try to reduce the size of a
+    loop halo when using the redundant computation transformation. This is
+    not allowed partly for simplicity but also because, in the current
+    implementation we might not decrease the size of the relevant halo
+    exchange as these can only be increased with the current logic '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w2v.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # first set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[0]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to the level 1 halo
+    loop = schedule.children[1]
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=1)
+    assert ("supplied depth (1) must be greater than the existing halo depth "
+            "(2)") in str(excinfo)
+    # second set our loop to redundantly compute to the maximum halo depth
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to a fixed value
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=2)
+    assert ("loop is already set to the maximum halo depth so can't be "
+            "set to a fixed value") in str(excinfo)
+    # now try to set the redundant computation to the same (max) value
+    # it is now
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop)
+    assert ("loop is already set to the maximum halo depth so this "
+            "transformation does nothing") in str(excinfo)
+
+
+def test_rc_no_loop_decrease_readwrite():
     ''' Test that we raise an exception if we try to reduce the size of a
     loop halo when using the redundant computation transformation. This is
     not allowed partly for simplicity but also because, in the current
@@ -4738,6 +4807,37 @@ def test_rc_discontinuous_halo_remove():
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
     than the required halo access depth '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15.1.2_builtin_and_normal_kernel_"
+                                 "invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    f4_write_loop = schedule.children[4]
+    f4_read_loop = schedule.children[7]
+    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
+    assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
+    rc_trans.apply(f4_read_loop, depth=3)
+    rc_trans.apply(f4_write_loop, depth=2)
+    result = str(psy.gen)
+    assert "CALL f4_proxy%halo_exchange(depth=3)" in result
+    assert "IF (f4_proxy%is_dirty(depth=3)) THEN" not in result
+    #
+    rc_trans.apply(f4_write_loop, depth=3)
+    result = str(psy.gen)
+    assert "CALL f4_proxy%halo_exchange(depth=" not in result
+    assert "IF (f4_proxy%is_dirty(depth=" not in result
+
+
+def test_rc_discontinuous_halo_remove_readwrite():
+    ''' Check that we do remove a halo exchange when the field is
+    discontinuous and the redundant computation depth equals the
+    required halo access depth. Also check that we do not remove the
+    halo exchange when the redundant computation depth is one less
+    than the required halo access depth '''
     ### IK: Halo exchange is not removed here when the possibility of
     ###     halo exchange is added for RW access in dynamo0p3.py, and
     ###     the combination of w3 GH_W and GH_R in testkern_w3_only.f90
@@ -4926,6 +5026,26 @@ def test_loop_fusion_different_loop_depth():
 
 
 def test_loop_fusion_different_loop_name():
+    ''' We can only loop fuse if two loops iterate over the same entities
+    and iterate over the same depth. The loop fusion transformation
+    raises an exception if this is not the case. This test checks that
+    the exception is raised correctly. '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "4.12_multikernel_invokes_w2v.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[0], depth=3)
+    f_trans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        f_trans.apply(schedule.children[1], schedule.children[2])
+    assert ("Error in DynamoLoopFuse transformation. The upper bound names "
+            "are not the same. Found 'cell_halo' and 'ncells'"
+            in str(excinfo.value))
+
+
+def test_loop_fusion_different_loop_name_readwrite():
     ''' We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
