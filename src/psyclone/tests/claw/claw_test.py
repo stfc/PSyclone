@@ -330,7 +330,7 @@ def test_trans(tmpdir, monkeypatch):
         # Monkeypatch subprocess.check_call() so that it does
         # nothing. This means that we don't actually run Omni or Claw.
         monkeypatch.setattr(subprocess, "check_call",
-                            lambda args, env=None: None)
+                            lambda args, env=None, stderr=None: None)
         # We must also monkeypatch our validation routines
         monkeypatch.setattr(claw, "_validate_omni_setup", lambda: None)
         monkeypatch.setattr(claw, "_validate_claw_setup", lambda: None)
