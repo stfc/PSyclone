@@ -64,12 +64,9 @@ implicit none
 type, public, extends(kernel_type) :: rtheta_wtheta_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                  &
-! PSyclone placeholder: Wtheta should really be GH_READWRITE. The support for
-! this case will be introduced in #25. For now Wtheta is changed to GH_WRITE 
-!!       arg_type(GH_FIELD,   GH_INC,  Wtheta),                          &
-       arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ, Wtheta),                          &
-       arg_type(GH_FIELD,   GH_READ, W2)                               &
+       arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                     &
+       arg_type(GH_FIELD,   GH_READ,      Wtheta),                     &
+       arg_type(GH_FIELD,   GH_READ,      W2)                          &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS),                     &

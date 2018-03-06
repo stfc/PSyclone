@@ -142,7 +142,7 @@ remove and/or change the location and depth of halo exchanges:
     psyclone helmholtz_solver_alg_mod.x90 -s ./redundant_script.py
 
 The ninth example illustrates the behaviour of discontinuous field writers
-(and readwriters after the support is introduced):
+and readwriters:
 ::
     cd eg9/
     python ../../../src/generator.py advective_inc_alg_mod.x90
