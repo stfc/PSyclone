@@ -4642,7 +4642,7 @@ def test_rc_no_loop_decrease_readwrite():
     print "2 nd invoke, after rc_trans"
     print schedule.view()
     # now try to reduce the redundant computation to the level 1 halo
-    loop = schedule.children[1]
+    loop = schedule.children[2]
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, depth=1)
         ### IK: Auxiliary print statements for experimenting with RW access
@@ -5077,7 +5077,7 @@ def test_loop_fusion_different_loop_name_readwrite():
     print type(f_trans)
     print dir(f_trans)
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[1], schedule.children[2])
+        f_trans.apply(schedule.children[2], schedule.children[3])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))

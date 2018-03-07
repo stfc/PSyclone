@@ -590,8 +590,9 @@ class Invoke(object):
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
 
         # Get the lists of all kernel arguments that are accessed as
-        # inc (shared update), write, read and readwrite. A single argument
-        # may be accessed in different ways by different kernels.
+        # inc (shared update), write, read and readwrite (not shared
+        # update). A single argument may be accessed in different ways
+        # by different kernels.
         inc_args = self.unique_declarations(datatype,
                                             access=MAPPING_ACCESSES["inc"])
         write_args = self.unique_declarations(datatype,
@@ -607,16 +608,17 @@ class Invoke(object):
         write_args += sum_args + readwrite_args
         # readwrite_args can also behave as read_args
         read_args += readwrite_args
-        # Rationalise our lists so that any fields that have inc
-        # or readwrite access do not appear in the list of those
-        # that are only written to
+        # Rationalise our lists so that any fields that are updated
+        # (have inc or readwrite access) do not appear in the list
+        # of those that are only written to
+        update_args = inc_args + readwrite_args
         for arg in write_args[:]:
-            if arg in (inc_args + readwrite_args):
+            if arg in update_args:
                 write_args.remove(arg)
         # Fields that are only ever read by any kernel that
         # accesses them
         for arg in read_args[:]:
-            if arg in (write_args + inc_args + readwrite_args):
+            if arg in (write_args + update_args):
                 read_args.remove(arg)
 
         # We will return a dictionary containing as many lists
@@ -664,8 +666,8 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
-        # Anything we have left must be declared as intent(in)
         for name in read_args:
+            # Anything we have left must be declared as intent(in)
             if name not in declns["in"]:
                 declns["in"].append(name)
 

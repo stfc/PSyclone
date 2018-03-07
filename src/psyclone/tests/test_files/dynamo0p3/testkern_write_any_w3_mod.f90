@@ -53,7 +53,8 @@ module testkern_write_any_w3_mod
           (/ arg_type(gh_field, gh_write, any_space_1), &
              arg_type(gh_field, gh_read,  w2),          &
              arg_type(gh_field, gh_read,  w2),          &
-             arg_type(gh_field, gh_write, w3),          &
+! ! !              arg_type(gh_field, gh_write, w3),          &
+             arg_type(gh_field, gh_readwrite, w3),          &
              arg_type(gh_field, gh_read,  wtheta),      &
              arg_type(gh_field, gh_read,  w2h),         &
              arg_type(gh_field, gh_read,  w2v)          &

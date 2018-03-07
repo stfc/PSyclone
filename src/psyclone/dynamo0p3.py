@@ -497,15 +497,17 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
-        # we require at least 2 args
+
+        # We require at least 2 args
         if len(arg_type.args) < 2:
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
                 "2 args, but found '{0}'".format(len(arg_type.args)))
-        # the first arg is the type of field, possibly with a *n appended
+
+        # The first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
-            # we expect 'field_type * n' to have been specified
+            # We expect 'field_type * n' to have been specified
             self._type = arg_type.args[0].toks[0].name
             operator = arg_type.args[0].toks[1]
             try:
@@ -542,7 +544,7 @@ class DynArgDescriptor03(Descriptor):
                                                       arg_type))
 
         elif isinstance(arg_type.args[0], expr.FunctionVar):
-            # we expect 'field_type' to have been specified
+            # We expect 'field_type' to have been specified
             if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a "
@@ -555,6 +557,7 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (1) should "
                 "not get to here")
+
         # The 2nd arg is an access descriptor
         if arg_type.args[1].name not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise ParseError(
@@ -570,18 +573,11 @@ class DynArgDescriptor03(Descriptor):
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
-        # Scalars can only be read_only or reductions
-        if self._type in VALID_SCALAR_NAMES:
-            if self._access_descriptor.name not in ["gh_read"] + \
-               VALID_REDUCTION_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) or a reduction ({0}) but found "
-                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
-                                            self._access_descriptor.name,
-                                            arg_type))
+
+        # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
         stencil = None
         mesh = None
+        # Fields
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
                 raise ParseError(
@@ -604,7 +600,6 @@ class DynArgDescriptor03(Descriptor):
                     "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
                                   arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
-
             # The optional 4th argument is either a stencil specification
             # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
@@ -629,19 +624,20 @@ class DynArgDescriptor03(Descriptor):
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
-                    "It does not make sense for a quantity on a discontinuous "
+                    "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_readwrite":
                 raise ParseError(
-                    "It does not make sense for a quantity on a continuous "
+                    "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
             if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
 
+        # Operators
         elif self._type in VALID_OPERATOR_NAMES:
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
@@ -667,15 +663,33 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
+            # Test allowed accesses for operators
+            if self._access_descriptor.name.lower() == "gh_inc":
+                raise ParseError(
+                    "In the dynamo0.3 API operators cannot have a 'gh_inc' "
+                    "access because they behave as discontinuous quantities")
+
+        # Scalars
         elif self._type in VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
                     "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # Test allowed accesses for scalars (read_only or reduction)
+            if self._access_descriptor.name not in ["gh_read"] + \
+               VALID_REDUCTION_NAMES:
+                raise ParseError(
+                    "In the dynamo0.3 API scalar arguments must be "
+                    "read-only (gh_read) or a reduction ({0}) but found "
+                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
+                                            self._access_descriptor.name,
+                                            arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
-        else:  # we should never get to here
+
+        # We should never get to here
+        else:
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")

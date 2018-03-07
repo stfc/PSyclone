@@ -45,7 +45,8 @@ module testkern_wtheta_mod
   ! Description: discontinuous field writer (wtheta) and reader (w3)
   type, extends(kernel_type) :: testkern_wtheta_type
      type(arg_type), dimension(2) :: meta_args =   &
-          (/ arg_type(gh_field, gh_write, wtheta), &
+! ! !           (/ arg_type(gh_field, gh_write, wtheta), &
+          (/ arg_type(gh_field, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_read,  w3)      &
            /)
      integer :: iterates_over = cells

@@ -304,6 +304,19 @@ def test_ad_op_type_1st_arg_not_space():
         str(excinfo.value)
 
 
+def test_ad_op_type_wrong_access():
+    ''' Test that an error is raised if an operator has gh_inc access. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_inc, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the dynamo0.3 API operators cannot have a 'gh_inc' access"
+            in str(excinfo.value))
+
+
 def test_ad_invalid_type():
     ''' Tests that an error is raised when an invalid descriptor type
     name is provided as the first argument. '''
@@ -4351,7 +4364,7 @@ def test_fs_discontinuous_and_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("It does not make sense for a quantity on a discontinuous "
+        assert ("It does not make sense for a field on a discontinuous "
                 "space (" + fspace + ") to have a 'gh_inc' access"
                 in str(excinfo.value))
 
@@ -4367,7 +4380,7 @@ def test_fs_continuous_and_readwrite_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("It does not make sense for a quantity on a continuous "
+        assert ("It does not make sense for a field on a continuous "
                 "space (" + fspace + ") to have a 'gh_readwrite' access"
                 in str(excinfo.value))
 
@@ -6116,7 +6129,7 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
+def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):  # IK: Modify for RW
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to two fields, the first on
     a discontinuous space (w2v) and the second on a continuous space (w1).
@@ -6148,7 +6161,7 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_itn_space_fld_and_op_writers():
+def test_itn_space_fld_and_op_writers():  # IK: Modify for RW
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6576,7 +6589,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
+def test_no_halo_for_discontinous(tmpdir, f90, f90flags):  # IK: Modify for RW
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6595,10 +6608,10 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous(tmpdir, f90, f90flags):
+def test_halo_for_discontinuous(tmpdir, f90, f90flags):  # IK: Modify for RW
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continous field, there are no stencil accesses, but
+    read from a continuous field, there are no stencil accesses, but
     we do not know anything about the previous writer. As the previous
     writer may have been over dofs we could have dirty annexed dofs
     so need to add a halo exchange. '''
@@ -6621,10 +6634,10 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
+def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):  # IK: Modify for RW
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continous field, there are no stencil accesses, and
+    read from a continuous field, there are no stencil accesses, and
     the previous writer iterates over ndofs. We therefore have dirty
     annexed dofs so need to add a halo exchange. '''
     _, info = parse(os.path.join(BASE_PATH,
@@ -6881,7 +6894,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
+def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):  # IK: Modify for RW
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation '''
@@ -7039,7 +7052,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
 
 def test_no_halo_exchange_annex_dofs(
-        tmpdir, f90, f90flags):
+        tmpdir, f90, f90flags):  # IK: Modify for RW
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
