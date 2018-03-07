@@ -4076,7 +4076,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
 
 def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     ''' Test that the loop bounds for a discontinuous kernel
-    (iteratingover cells) with discontinuous reads are modified
+    (iterating over cells) with discontinuous reads are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately in the case where the field requiring a halo
     exchange has a previous non-halo dependence, after applying the

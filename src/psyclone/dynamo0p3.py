@@ -3912,8 +3912,7 @@ class DynLoop(Loop):
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        ### IK: Changed to include "gh_readwrite" (all readers)
-        elif arg.access.lower() in GH_READ_ACCESSES:
+        elif arg.access.lower() in ["gh_read", "gh_inc"]:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness

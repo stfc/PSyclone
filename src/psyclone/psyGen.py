@@ -581,6 +581,7 @@ class Invoke(object):
         :rtype: dict
         :raises GenerationError: if the kernel argument is not a valid
                                  datatype for the particular API.
+
         '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
@@ -609,13 +610,11 @@ class Invoke(object):
         # Rationalise our lists so that any fields that have inc
         # or readwrite access do not appear in the list of those
         # that are only written to
-        ### IK: readwrite is not a "pure writer", the same as inc
         for arg in write_args[:]:
-            if arg in inc_args or arg in readwrite_args:
+            if arg in (inc_args + readwrite_args):
                 write_args.remove(arg)
         # Fields that are only ever read by any kernel that
         # accesses them
-        ### IK: These are "pure readers" so readwrite should also be removed
         for arg in read_args[:]:
             if arg in (write_args + inc_args + readwrite_args):
                 read_args.remove(arg)
@@ -653,11 +652,10 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
-        ### IK: Should it behave as inc instead of write?
         for name in readwrite_args:
             # For every readwrite argument identify the type of the first
-            # access - if it is read before it is written then it must have
-            # intent(inout), otherwise it is intent(out).
+            # access - if it is read before it is written then it must
+            # have intent(inout), otherwise it is intent(out).
             first_arg = self.first_access(name)
             if first_arg.access == MAPPING_ACCESSES["read"]:
                 if name not in declns["inout"]:
@@ -1676,22 +1674,24 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 
 class GlobalSum(Node):
-    ''' Generic Global Sum class which can be added to and manipulated
-    in, a schedule. '''
+    '''
+    Generic Global Sum class which can be added to and manipulated
+    in, a schedule.
+
+    :param scalar: the scalar that the global sum is stored into
+    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
     def __init__(self, scalar, parent=None):
-        '''
-        :param scalar: the scalar that the global sum is stored into
-        :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param parent: optional parent (default None) of this object
-        :type parent: :py:class:`psyclone.psyGen.node`
-        '''
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
         if scalar:
             # Update scalar values appropriately
-            ### IK: "readwrite" denotes how the class GlobalSum accesses
-            ###     a field rather than the field's continuity
+            # Here "readwrite" denotes how the class GlobalSum
+            # accesses/updates a scalar
             self._scalar.access = MAPPING_ACCESSES["readwrite"]
             self._scalar.call = self
 
@@ -1736,8 +1736,8 @@ class GlobalSum(Node):
 
 
 class HaloExchange(Node):
-
-    '''Generic Halo Exchange class which can be added to and
+    '''
+    Generic Halo Exchange class which can be added to and
     manipulated in, a schedule.
 
     :param field: the field that this halo exchange will act on
@@ -1761,8 +1761,8 @@ class HaloExchange(Node):
         self._field = copy.copy(field)
         if field:
             # Update fields values appropriately
-            ### IK: "readwrite" denotes how the class HaloExchange accesses
-            ###     a field rather than the field's continuity
+            # Here "readwrite" denotes how the class HaloExchange
+            # accesses a field rather than the field's continuity
             self._field.access = MAPPING_ACCESSES["readwrite"]
             self._field.call = self
         self._halo_type = None
@@ -2468,8 +2468,8 @@ class Kern(Call):
 
     def written_arg(self, mapping={}):
         '''
-        Returns the argument that can be written to (has WRITE or READWRITE
-        access).
+        Returns an argument that can be written to (has WRITE or
+        READWRITE access).
 
         :param mapping: dictionary of access types associated with arguments
                         with their metadata strings as keys
@@ -2477,6 +2477,7 @@ class Kern(Call):
         :return: a Fortran argument name
         :rtype: string
         :raises FieldNotFoundError: if none is found.
+
         '''
         assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
             "mapping must be provided"
@@ -2546,6 +2547,18 @@ class Arguments(object):
         return self._args
 
     def iteration_space_arg(self, mapping={}):
+        '''
+        Returns an argument that can be iterated over, i.e. modified
+        (has WRITE, READWRITE or INC access).
+
+        :param mapping: dictionary of access types associated with arguments
+                        with their metadata strings as keys
+        :type mapping: dict
+        :return: a Fortran argument name
+        :rtype: string
+        :raises GenerationError: if none such argument is found.
+
+        '''
         assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error "
         "a mapping needs to be provided"
         for arg in self._args:
