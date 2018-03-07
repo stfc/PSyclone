@@ -105,4 +105,6 @@ def test_oacc_routine(tmpdir):
     with open(kernel_file, "r") as ffile:
         kernel_code = ffile.read()
         print kernel_code
-        assert "!$acc routine\n" in kernel_code
+        assert ("INTEGER :: jj\n"
+                "\n"
+                "!$acc routine seq\n" in kernel_code)

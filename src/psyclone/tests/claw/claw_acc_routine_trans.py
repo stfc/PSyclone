@@ -35,8 +35,8 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 
 '''
-Module containing an example Claw transformation script for use
-with tests
+Module containing an example Claw transformation script which
+adds an OpenACC 'routine' directive
 '''
 
 def claw_trans(xast):
@@ -44,15 +44,15 @@ def claw_trans(xast):
     This is the function called by CLAW. It is passed the AST of the
     kernel to be transformed.
     '''
-    from claw.tatsu.primitive import Loop
-    from claw.tatsu.xcodeml.abstraction import NestedDoStatement
-    from claw.tatsu.xcodeml.xnode.common import Xcode
-    node = xast.firstChild()
-    do_loops = xast.matchAll(Xcode.F_DO_STATEMENT)
-
-    # Perform a simple loop interchange (inner becomes outer)
-    # using Claw primitives
-    nested_loop = NestedDoStatement(do_loops[0])
-    Loop.reorder(nested_loop, ["jj", "ji"])
-
+    from claw.tatsu.common import Context
+    from claw.tatsu.directive.common import Directive
+    from claw.tatsu.xcodeml.xnode.common import Xcode, XfunctionDefinition
+    for child in xast.children():
+        print child.toString()
+    funcs = xast.matchAll(Xcode.F_FUNCTION_DEFINITION)
+    xfct = XfunctionDefinition(funcs[0])
+    #Directive.generateRoutineDirectives(xast, xfct)
+    Directive.addPragmasBefore(xast,
+            Context.get().getGenerator().getRoutineDirective(True),
+            xfct.body().child(0))
     return xast
