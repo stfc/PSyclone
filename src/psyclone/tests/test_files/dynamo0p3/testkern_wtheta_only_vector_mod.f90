@@ -44,7 +44,8 @@ module testkern_wtheta_only_vector_mod
   ! Description: discontinuous field vector writer reader (wtheta)
   type, extends(kernel_type) :: testkern_wtheta_only_vector_type
      type(arg_type), dimension(2) :: meta_args =      &
-          (/  arg_type(gh_field*3, gh_write, wtheta), &
+! ! !           (/  arg_type(gh_field*3, gh_write, wtheta), &
+          (/  arg_type(gh_field*3, gh_readwrite, wtheta), &
               arg_type(gh_field*3, gh_read,  wtheta)  &
            /)
      integer :: iterates_over = cells

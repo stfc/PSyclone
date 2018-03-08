@@ -45,7 +45,8 @@ module testkern_w3_only_vector_mod
   ! Description: discontinuous field vector writer and reader (w3)
   type, extends(kernel_type) :: testkern_w3_only_vector_type
      type(arg_type), dimension(2) :: meta_args =  &
-          (/  arg_type(gh_field*3, gh_write, w3), &
+! ! !           (/  arg_type(gh_field*3, gh_write, w3), &
+          (/  arg_type(gh_field*3, gh_readwrite, w3), &
               arg_type(gh_field*3, gh_read,  w3)  &
            /)
      integer :: iterates_over = cells

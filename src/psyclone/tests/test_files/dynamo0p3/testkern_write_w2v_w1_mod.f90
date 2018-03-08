@@ -53,8 +53,7 @@ module testkern_write_w2v_w1_mod
              arg_type(gh_field, gh_write, w1),     &
              arg_type(gh_field, gh_read,  wtheta), &
              arg_type(gh_field, gh_read,  w2h),    &
-! ! !              arg_type(gh_field, gh_write, w2v)     &
-             arg_type(gh_field, gh_readwrite, w2v)     &
+             arg_type(gh_field, gh_write, w2v)     &
            /)
      integer :: iterates_over = cells
    contains

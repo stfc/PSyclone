@@ -2249,7 +2249,7 @@ def test_multi_kernel_specific():
 
 
 def test_field_bc_kernel():
-    '''tests that a kernel with a particular name is recognised as a
+    ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
     know about boundary conditions but this kernel requires them. This
@@ -2272,8 +2272,8 @@ def test_field_bc_kernel():
 
 
 def test_bc_kernel_field_only(monkeypatch):
-    '''tests that the recognised boundary-condition kernel is rejected
-    if it has an operator as argument instead of a field.'''
+    ''' Tests that the recognised boundary-condition kernel is rejected
+    if it has an operator as argument instead of a field. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api="dynamo0.3")
@@ -2326,7 +2326,7 @@ def test_operator_bc_kernel():
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch):
-    ''' test that we reject the recognised operator boundary conditions
+    ''' Test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
@@ -2349,7 +2349,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
 
 
 def test_operator_bc_kernel_multi_args_err():
-    ''' test that we reject the recognised operator boundary conditions
+    ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
     import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2379,7 +2379,7 @@ def test_operator_bc_kernel_multi_args_err():
 
 
 def test_operator_bc_kernel_wrong_access_err():
-    ''' test that we reject the recognised operator boundary conditions
+    ''' Test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
@@ -3219,7 +3219,7 @@ def test_orientation_stubs():
 
 def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
-    is handled correctly for kernel stubs'''
+    is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3253,7 +3253,7 @@ def test_enforce_bc_kernel_stub_gen():
 
 def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
-    modification is handled correctly for kernel stubs'''
+    modification is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
@@ -6129,7 +6129,7 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):  # IK: Modify for RW
+def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to two fields, the first on
     a discontinuous space (w2v) and the second on a continuous space (w1).
@@ -6161,7 +6161,7 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):  # IK: Modify for RW
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_itn_space_fld_and_op_writers():  # IK: Modify for RW
+def test_itn_space_fld_and_op_writers():  # IK: OK, Modify for RW?
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6589,7 +6589,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous(tmpdir, f90, f90flags):  # IK: Modify for RW
+def test_no_halo_for_discontinous(tmpdir, f90, f90flags):  # IK: OK, Modify for RW
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6608,7 +6608,7 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):  # IK: Modify for RW
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous(tmpdir, f90, f90flags):  # IK: Modify for RW
+def test_halo_for_discontinuous(tmpdir, f90, f90flags):
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
     read from a continuous field, there are no stencil accesses, but
@@ -6634,7 +6634,7 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags):  # IK: Modify for RW
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):  # IK: Modify for RW
+def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
     read from a continuous field, there are no stencil accesses, and
@@ -6850,7 +6850,7 @@ def test_HaloReadAccess_field_in_call():
             in str(excinfo.value))
 
 
-def test_HaloReadAccess_field_not_reader():
+def test_HaloReadAccess_field_not_reader(): # IK: Make sure to not call disc RW
     ''' The field passed to HaloReadAccess should be read within its
     associated kernel or builtin. If it is not then an exception is raised.
     This test checks that this exception is raised correctly
@@ -6894,7 +6894,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):  # IK: Modify for RW
+def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):  # IK: OK, Modify for RW??
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation '''
@@ -7051,10 +7051,9 @@ def test_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annex_dofs(
-        tmpdir, f90, f90flags):  # IK: Modify for RW
-    '''If a kernel writes to a discontinuous field and also reads from a
-    continuous field then that fields annexed dofs are read (but not
+def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags):
+    ''' If a kernel writes to a discontinuous field and also reads from
+    a continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
     continuous field makes the annexed dofs valid then no halo
     exchange is required. This is the case when the previous loop

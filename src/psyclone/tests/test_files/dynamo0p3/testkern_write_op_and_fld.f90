@@ -13,7 +13,8 @@ module testkern_write_op_and_fld
 ! ! !           (/ arg_type(gh_field*3,gh_write,w3),      &
           (/ arg_type(gh_field*3,gh_readwrite,w3),      &
              arg_type(gh_integer,gh_read),          &
-             arg_type(gh_operator,gh_write,w0,w0)   &
+! ! !              arg_type(gh_operator,gh_write,w0,w0)   &
+             arg_type(gh_operator,gh_readwrite,w0,w0)   &
           /)
      integer, parameter :: iterates_over = cells
    contains

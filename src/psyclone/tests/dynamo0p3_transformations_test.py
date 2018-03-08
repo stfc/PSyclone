@@ -4505,7 +4505,7 @@ def test_rc_no_halo_decrease():
 
 
 def test_rc_updated_dependence_analysis():
-    ''' Test that the dependence analyis updates when new halo exchanges
+    ''' Test that the dependence analysis updates when new halo exchanges
     are added to the schedule '''
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_wtheta.f90"),
@@ -4535,7 +4535,7 @@ def test_rc_updated_dependence_analysis():
 
 
 def test_rc_updated_dependence_analysis_readwrite():
-    ''' Test that the dependence analyis updates when new halo exchanges
+    ''' Test that the dependence analysis updates when new halo exchanges
     are added to the schedule '''
     ### IK: Dependence analysis for single discontinuous invoke which
     ###     generates halo exchange. Does not fail when the possibility of
@@ -4857,7 +4857,7 @@ def test_rc_discontinuous_halo_remove_readwrite():
     print schedule.view()
     rc_trans = Dynamo0p3RedundantComputationTrans()
     ### IK: Ought to be children[5] instead of children[4], check schedule print
-    f4_write_loop = schedule.children[4]
+    f4_write_loop = schedule.children[5]
     f4_read_loop = schedule.children[7]
     assert "CALL f4_proxy%halo_exchange(depth=1)" in result
     assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
