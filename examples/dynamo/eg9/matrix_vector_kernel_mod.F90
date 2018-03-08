@@ -5,7 +5,7 @@
 !-------------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-! -----------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Modifications copyright (c) 2018, Science and Technology Facilities Council
@@ -35,14 +35,11 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Modified by I Kavcic, Met Office
 !
-!-------------------------------------------------------------------------------
-
 !> @brief Matrix vector multiplication of LMA form of an operator
 !>        by a vector
-
 module matrix_vector_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
