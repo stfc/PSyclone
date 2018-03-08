@@ -1,8 +1,8 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ contains
 !! @param[in] mm operator type, the mass matrix
 !! @param[in] mesh The id of mesh object the model for fields
 !! @param[in] n_iter The number of Jacobi iterations to perform
-  subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
+subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
 
   use mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
   implicit none
@@ -143,9 +143,9 @@ contains
                   inc_X_divideby_Y(res, diagonal),      &
                   inc_aX_plus_Y(MU, lhs, res) )
 
-! Ready for next iteration
+  ! Ready for next iteration
   end do
 
-  end subroutine jacobi_solver_algorithm
+end subroutine jacobi_solver_algorithm
 
 end module solver_mod

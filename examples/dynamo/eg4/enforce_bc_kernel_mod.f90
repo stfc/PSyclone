@@ -1,16 +1,14 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
-
-! Modified by A. Porter, STFC.
-
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +37,8 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-!-------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! Modified by A. Porter, STFC.
 
 !> @brief Kernel which applies boundary conditions to a field
 !> @detail Wrapper code for applying boundary conditions to a field
@@ -73,7 +72,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default stenforce_bccture constenforce_bcctor for function space
+! Overload the default stenforce_bccture constenforce_bcctor for function space
 interface enforce_bc_kernel_type
    module procedure enforce_bc_kernel_constructor
 end interface
@@ -102,7 +101,7 @@ subroutine enforce_bc_code(nlayers,                        &
                            ndf, undf, map, boundary_value  &
                           )
  
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers
   integer, intent(in) :: ndf
   integer, intent(in) :: undf

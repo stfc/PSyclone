@@ -45,7 +45,7 @@ The Dynamo0.3 API requires Kernels to conform to a set of rules which
 determine the required arguments and types for a particular
 Kernel. These rules are required as the generated PSy layer needs to
 know exactly how to call a Kernel. These rules are outlined in Section
-:ref:`Rules <stub-generation-rules>`.
+:ref:`Rules <dynamo0.3-stub-generation-rules>`.
 
 Therefore PSyclone has been coded with the Dynamo0.3 API rules which
 are then applied when reading the Kernel metadata to produce the
@@ -286,7 +286,7 @@ we obtain the following output:
 
 The above example demonstrates that the argument list can get quite
 complex. Rather than going through an explanation of each argument you
-are referred to Section :ref:`Rules <stub-generation-rules>` for more details
+are referred to Section :ref:`Rules <dynamo0.3-stub-generation-rules>` for more details
 on the rules for argument types and argument ordering. Regarding
 naming conventions for arguments you can see that the arrays
 associated with the fields are labelled as 1-6 depending on their

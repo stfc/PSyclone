@@ -1,11 +1,11 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-! ------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Modifications copyright (c) 2017, Science and Technology Facilities Council
@@ -35,7 +35,7 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 !
 !> @brief Kernel which assembles a locally assembled matrix (LMA) into a
 !>        columnwise assembled matrix (CMA)
@@ -72,7 +72,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface columnwise_op_asm_kernel_type
    module procedure columnwise_constructor
 end interface

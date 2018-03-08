@@ -1,11 +1,11 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
-! ------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Modifications copyright (c) 2017, Science and Technology Facilities Council
@@ -35,7 +35,7 @@
 ! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-! ------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 !
 !> @brief Kernel which (incrementally) applies a columnwise assembled operator
 !>        to a field
@@ -127,6 +127,7 @@ contains
                                            indirection_dofmap_to, &
                                            ndf2, undf2, map2,     &
                                            indirection_dofmap_from)
+
     implicit none
     
     ! Arguments
