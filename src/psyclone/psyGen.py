@@ -2,10 +2,6 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2108, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -618,7 +614,7 @@ class Invoke(object):
         # Fields that are only ever read by any kernel that
         # accesses them
         for arg in read_args[:]:
-            if arg in (write_args + update_args):
+            if arg in write_args + update_args:
                 read_args.remove(arg)
 
         # We will return a dictionary containing as many lists

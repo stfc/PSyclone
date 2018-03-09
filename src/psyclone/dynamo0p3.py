@@ -627,12 +627,20 @@ class DynArgDescriptor03(Descriptor):
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
+            # TODO: extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_readwrite":
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
+            # TODO: extend for "gh_write"
+            if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
+               and self._access_descriptor.name.lower() == "gh_readwrite":
+                raise ParseError(
+                    "In the dynamo0.3 API a field on any_space cannot "
+                    "have 'gh_readwrite' access because it is treated "
+                    "as continuous")
             if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
@@ -3016,7 +3024,6 @@ class DynHaloExchange(HaloExchange):
             # no write dependence information
             return None
         if len(write_dependencies) > 1:
-        ### IK: What about two GH_RW discontinuous fields in one kernel?
             raise GenerationError(
                 "Internal logic error. There should be at most one write "
                 "dependence for a halo exchange. Found "
@@ -3024,8 +3031,6 @@ class DynHaloExchange(HaloExchange):
         return HaloWriteAccess(write_dependencies[0])
 
     def required(self):
-        ### IK: Look here whether a Halo Exchange is removed - this
-        ###     determines whether it can be removed in class DynLoop
         '''Determines whether this halo exchange is definitely required (True,
         True), might be required (True, False) or is definitely not required
         (False, *). The first return argument is used to decide whether a halo
@@ -3914,13 +3919,6 @@ class DynLoop(Loop):
         elif arg.is_operator:
             # operators do not have halos
             return False
-        ### IK: Error in transformations tests (DynHaloExchange instead of
-        ###     DynLoop) stems from added "gh_readwrite" here!
-        ###     However, RW should bring a possibility for halo exchange
-        ###     if there is information read in RW field. Does it means
-        ###     that DynHaloExchange needs to later be removed for
-        ###     RW -> R dependence for discontinuous field, similar to
-        ###     current W -> R dependence?
         elif arg.discontinuous and arg.access.lower() in \
                 ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
