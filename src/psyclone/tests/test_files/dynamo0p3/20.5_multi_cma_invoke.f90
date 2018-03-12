@@ -37,7 +37,9 @@
 program multi_invoke_cma
 
   ! Description: invoke containing multiple CMA-related kernels
-  use inf,                                only: field_type
+  use inf,                                only: field_type,    &
+                                                operator_type, &
+                                                columnwise_operator_type
   use columnwise_op_asm_field_kernel_mod, only: columnwise_op_asm_field_kernel_type
   use columnwise_op_app_kernel_mod,       only: columnwise_op_app_kernel_type
   use columnwise_op_mul_kernel_mod,       only: columnwise_op_mul_kernel_type

@@ -38,7 +38,8 @@ program single_invoke_cma
 
   ! Description: single CMA-apply kernel specified in an invoke call
 
-  use inf,                          only: field_type
+  use inf,                          only: field_type, &
+                                          columnwise_operator_type
   use columnwise_op_app_kernel_mod, only: columnwise_op_app_kernel_type
 
   implicit none

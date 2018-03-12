@@ -38,6 +38,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
+! Modified by A. Porter, STFC.
+! Modified by I. Kavcic, Met Office.
 
 !> @brief Kernel which applies boundary conditions to a field
 !> @details Wrapper code for applying boundary conditions to a field
@@ -45,9 +47,9 @@
 !>          boundary dofs this can be removed
 module enforce_bc_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_INC,                        &
-                                    ANY_SPACE_1,                             &
+use argument_mod,            only : arg_type, func_type,               &
+                                    GH_FIELD, GH_INC,                  &
+                                    ANY_SPACE_1,                       &
                                     CELLS
 use constants_mod,           only : r_def
 
@@ -88,17 +90,18 @@ end function enforce_bc_kernel_constructor
 
 !> @brief The subroutine which is called directly by the Psy layer
 !! @param[in] nlayers Integer the number of layers
+!! @param[inout] field Real array the data
 !! @param[in] ndf The number of degrees of freedom per cell
 !! @param[in] undf The number unique of degrees of freedom
 !! @param[in] map Integer array holding the dofmap for the cell at the base of the column
 !! @param[in] boundary_value array of flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
-!! @param[inout] field Real array the data
-
 subroutine enforce_bc_code(nlayers,                        &
                            field,                          &
                            ndf, undf, map, boundary_value  &
                           )
+
+  implicit none
  
   ! Arguments
   integer, intent(in) :: nlayers

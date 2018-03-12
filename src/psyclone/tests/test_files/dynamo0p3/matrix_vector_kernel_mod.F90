@@ -31,18 +31,52 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program enforce_bc_kernel_example
+module matrix_vector_kernel_mod
 
-  ! This boundary condition kernel has been created as a temporary measure
-  ! as boundary layer information is not currently described
-  ! in the API. Therefore, for the moment, users can add this kernel
-  ! when they want to enforce boundary conditions
 
-  use enforce_bc_kernel_mod, only : enforce_bc_kernel_type
+use kernel_mod,              only : kernel_type
+use argument_mod,            only : arg_type, func_type,               &
+                                    GH_FIELD, GH_OPERATOR,             &
+                                    GH_READ, GH_INC,                   &
+                                    ANY_SPACE_1, CELLS
 
-  call invoke(enforce_bc_kernel_type(a))
+use constants_mod,           only : r_def, i_def
 
-end program enforce_bc_kernel_example
+type, public, extends(kernel_type) :: matrix_vector_kernel_type
+  private
+  type(arg_type) :: meta_args(3) = (/                                  &
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
+       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+       /)
+  integer :: iterates_over = CELLS
+contains
+  procedure, nopass ::matrix_vector_code
+end type
+
+contains
+
+  SUBROUTINE matrix_vector_code(cell, nlayers, &
+                               field1, field2, &
+                               ncell_3d, op_3, &
+                               ndf1, undf1, map1)
+
+    IMPLICIT NONE
+
+    INTEGER, intent(in) :: cell
+    INTEGER, intent(in) :: nlayers
+    INTEGER, intent(in) :: ndf1
+    INTEGER, intent(in) :: undf1
+    REAL(KIND=r_def), intent(inout), dimension(undf1) :: field1
+    REAL(KIND=r_def), intent(in), dimension(undf1) :: field2
+    INTEGER, intent(in) :: ncell_3d
+    REAL(KIND=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d) :: op_3
+    INTEGER, intent(in), dimension(ndf1) :: map1
+
+  END SUBROUTINE matrix_vector_code
+
+end module matrix_vector_kernel_mod
+

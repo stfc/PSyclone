@@ -45,9 +45,9 @@
 !> @details Wrapper code for applying boundary conditions to a operator
 module enforce_operator_bc_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_OPERATOR, GH_READWRITE,               &
-                                    ANY_SPACE_1, ANY_SPACE_2,                &
+use argument_mod,            only : arg_type, func_type,               &
+                                    GH_OPERATOR, GH_READWRITE,         &
+                                    ANY_SPACE_1, ANY_SPACE_2,          &
                                     CELLS
 use constants_mod,           only : r_def
 
@@ -59,8 +59,8 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: enforce_operator_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                &
-       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(1) = (/                                  &
+       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2)   &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -96,10 +96,12 @@ end function enforce_operator_bc_kernel_constructor
 !! @param[in] boundary_value Flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
 subroutine enforce_operator_bc_code(cell, nlayers,                   &
-                                    op, ncell_3d,                    &
+                                    ncell_3d, op,                    &
                                     ndf1, ndf2, boundary_value       &
                                    )
-  
+
+  implicit none
+
   ! Arguments
   integer, intent(in) :: nlayers, cell, ncell_3d
   integer, intent(in) :: ndf1, ndf2

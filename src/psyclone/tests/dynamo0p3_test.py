@@ -2152,7 +2152,7 @@ def test_dyninvoke_arg_for_fs():
         in str(excinfo.value)
 
 
-def test_kernel_specific(): # IK: Add compile?
+def test_kernel_specific(tmpdir, f90, f90flags):
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
@@ -2186,8 +2186,13 @@ def test_kernel_specific(): # IK: Add compile?
         "boundary_dofs)")
     assert output6 not in generated_code
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_multi_kernel_specific(): # IK: Add compile?
+
+def test_multi_kernel_specific(tmpdir, f90, f90flags):
     '''Test that a call to enforce boundary conditions is *not* added following
     multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
     must now be explicitly specified as part of the Algorithm. '''
@@ -2248,8 +2253,13 @@ def test_multi_kernel_specific(): # IK: Add compile?
         "boundary_dofs_1)")
     assert output10 not in generated_code
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_field_bc_kernel():  # IK: Add compile?
+
+def test_field_bc_kernel(tmpdir, f90, f90flags):
     ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
@@ -2271,8 +2281,13 @@ def test_field_bc_kernel():  # IK: Add compile?
         "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_bc_kernel_field_only(monkeypatch):  # IK: Add compile?
+
+def test_bc_kernel_field_only(monkeypatch):
     ''' Tests that the recognised boundary-condition kernel is rejected
     if it has an operator as argument instead of a field. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2305,7 +2320,7 @@ def test_bc_kernel_field_only(monkeypatch):  # IK: Add compile?
                 in str(excinfo))
 
 
-def test_operator_bc_kernel(): # IK: Add compile?
+def test_operator_bc_kernel(tmpdir, f90, f90flags):
     ''' Tests that a kernel with a particular name is recognised as a
     kernel that applies boundary conditions to operators and that
     appropriate code is added to support this. '''
@@ -2325,8 +2340,13 @@ def test_operator_bc_kernel(): # IK: Add compile?
         "ndf_any_space_2_op_a, boundary_dofs)")
     assert output3 in generated_code
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_operator_bc_kernel_fld_err(monkeypatch): # IK: Add compile?
+
+def test_operator_bc_kernel_fld_err(monkeypatch):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2349,7 +2369,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch): # IK: Add compile?
             in str(excinfo)
 
 
-def test_operator_bc_kernel_multi_args_err(): # IK: Add compile?
+def test_operator_bc_kernel_multi_args_err():
     ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
     import copy
@@ -2379,7 +2399,7 @@ def test_operator_bc_kernel_multi_args_err(): # IK: Add compile?
                 "should only have 1 (an LMA operator)") in str(excinfo)
 
 
-def test_operator_bc_kernel_wrong_access_err(): # IK: Add compile?
+def test_operator_bc_kernel_wrong_access_err():
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -3218,7 +3238,7 @@ def test_orientation_stubs():
     assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
 
 
-def test_enforce_bc_kernel_stub_gen(): # IK: Add compile?
+def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
@@ -3252,7 +3272,7 @@ def test_enforce_bc_kernel_stub_gen(): # IK: Add compile?
     assert str(generated_code).find(output) != -1
 
 
-def test_enforce_op_bc_kernel_stub_gen(): # IK: Add compile?
+def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
     modification is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
