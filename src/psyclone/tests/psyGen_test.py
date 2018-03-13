@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1065,7 +1065,6 @@ def test_argument_find_read_arguments():
         assert result[idx] == loop.children[0].arguments.args[3]
 
 
-### IK: "gh_inc" changed to "gh_readwrite" in class GlobalSum
 def test_globalsum_arg():
     ''' Check that the globalsum argument is defined as gh_readwrite and
     points to the GlobalSum node '''
@@ -1081,8 +1080,6 @@ def test_globalsum_arg():
     assert glob_sum_arg.call == glob_sum
 
 
-### IK: "gh_readwrite" introduced in class HaloExchange so
-###     the test no longer xfails
 def test_haloexchange_arg():
     '''Check that the HaloExchange argument is defined as gh_readwrite and
     points to the HaloExchange node'''

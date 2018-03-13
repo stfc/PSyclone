@@ -163,7 +163,7 @@ contains
     real(kind=r_def),    intent(in) :: alpha, beta
     real(kind=r_def), dimension(bandwidth_A,nrow_A,ncell_2d), intent(in) :: columnwise_matrix_A
     real(kind=r_def), dimension(bandwidth_B,nrow_B,ncell_2d), intent(in) :: columnwise_matrix_B
-    real(kind=r_def), dimension(bandwidth_C,nrow_C,ncell_2d), intent(out) :: columnwise_matrix_C
+    real(kind=r_def), dimension(bandwidth_C,nrow_C,ncell_2d), intent(inout) :: columnwise_matrix_C
 
     integer(kind=i_def), intent(in) :: alpha_A, beta_A, gamma_m_A, gamma_p_A
     integer(kind=i_def), intent(in) :: alpha_B, beta_B, gamma_m_B, gamma_p_B
