@@ -596,7 +596,7 @@ class Invoke(object):
         read_args = self.unique_declarations(datatype,
                                              access=MAPPING_ACCESSES["read"])
         readwrite_args = self.unique_declarations(
-                              datatype, access=MAPPING_ACCESSES["readwrite"])
+            datatype, access=MAPPING_ACCESSES["readwrite"])
         sum_args = self.unique_declarations(datatype,
                                             access=MAPPING_REDUCTIONS["sum"])
         # sum_args and readwrite_args behave as if they are write_args from

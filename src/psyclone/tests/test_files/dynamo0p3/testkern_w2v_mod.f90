@@ -41,12 +41,11 @@ module testkern_w2v_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (w2v) and reader (wtheta)
+  ! Description: discontinuous field readwriter (w2v) and reader (wtheta)
   type, extends(kernel_type) :: testkern_w2v_type
-     type(arg_type), dimension(2) :: meta_args =  &
-! ! !           (/ arg_type(gh_field, gh_write, w2v),   &
+     type(arg_type), dimension(2) :: meta_args =      &
           (/ arg_type(gh_field, gh_readwrite, w2v),   &
-             arg_type(gh_field, gh_read,  wtheta) &
+             arg_type(gh_field, gh_read,      wtheta) &
            /)
      integer :: iterates_over = cells
    contains
@@ -56,8 +55,8 @@ module testkern_w2v_mod
 contains
 
   SUBROUTINE testkern_w2v_code(nlayers,                    &
-                               field_1_w2v,                &
-                               field_2_wtheta,             &
+                               field1_w2v,                 &
+                               field2_wtheta,              &
                                ndf_w2v, undf_w2v, map_w2v, &
                                ndf_wtheta, undf_wtheta, map_wtheta)
 
@@ -68,8 +67,8 @@ contains
     INTEGER, intent(in) :: undf_w2v
     INTEGER, intent(in) :: ndf_wtheta
     INTEGER, intent(in) :: undf_wtheta
-    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_1_w2v
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta
+    REAL(KIND=r_def), intent(inout), dimension(undf_w2v) :: field1_w2v
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_wtheta
     INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
     INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
 

@@ -492,6 +492,10 @@ class DynArgDescriptor03(Descriptor):
     descriptor.'''
 
     def __init__(self, arg_type):
+        '''
+        :param arg_type: dynamo0.3 argument type (scalar, field or operator)
+        :type arg_type: string
+        '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
             raise ParseError(

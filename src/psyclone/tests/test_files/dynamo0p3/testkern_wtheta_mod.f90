@@ -44,11 +44,10 @@ module testkern_wtheta_mod
 
   ! Description: discontinuous field writer (wtheta) and reader (w3)
   type, extends(kernel_type) :: testkern_wtheta_type
-     type(arg_type), dimension(2) :: meta_args =   &
-! ! !           (/ arg_type(gh_field, gh_write, wtheta), &
-          (/ arg_type(gh_field, gh_readwrite, wtheta), &
-             arg_type(gh_field, gh_read,  w3)      &
-           /)
+     type(arg_type), dimension(2) :: meta_args =     &
+            (/ arg_type(gh_field, gh_write, wtheta), &
+               arg_type(gh_field, gh_read,  w3)      &
+             /)
      integer :: iterates_over = cells
    contains
      procedure, nopass :: code => testkern_wtheta_code
@@ -57,8 +56,8 @@ module testkern_wtheta_mod
 contains
 
   SUBROUTINE testkern_wtheta_code(nlayers,                             &
-                                  field_1_wtheta,                      &
-                                  field_2_w3,                          &
+                                  field1_wtheta,                       &
+                                  field2_w3,                           &
                                   ndf_wtheta, undf_wtheta, map_wtheta, &
                                   ndf_w3, undf_w3, map_w3)
 
@@ -69,8 +68,8 @@ contains
     INTEGER, intent(in) :: undf_wtheta
     INTEGER, intent(in) :: ndf_w3
     INTEGER, intent(in) :: undf_w3
-    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
+    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field1_wtheta
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_w3
     INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
     INTEGER, intent(in), dimension(ndf_w3) :: map_w3
 

@@ -4182,7 +4182,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
     with no halo depth value '''
     _, info = parse(
         os.path.join(BASE_PATH,
-                     "8.2.2_multikernel_invokes_wtheta_vector.f90"),
+                     "8.2.1_multikernel_invokes_w3_vector.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4194,6 +4194,48 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
     result = str(psy.gen)
     print result
     assert "is_dirty" not in result
+    for idx in range(1, 4):
+        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
+                "depth())".format(idx)) in result
+    assert "DO cell=1,mesh%get_last_halo_cell()" in result
+    for idx in range(1, 4):
+        assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
+        assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
+                format(idx)) in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
+    over cells) are modified appropriately and set_clean() added
+    correctly and halo_exchange added appropriately in the case where
+    the vector field now requiring a halo exchange has a previous halo
+    dependence (readwrite access) after applying the redundant computation
+    transformation with no halo depth value '''
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "8.2.2_multikernel_invokes_wtheta_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[1]
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    print result
+    # f3 has readwrite access so need to check the halos
+    for idx in range(1, 4):
+        assert ("IF (f3_proxy({0})%is_dirty(depth=mesh%get_halo_"
+                "depth()))".format(idx)) in result
+        assert ("CALL f3_proxy({0})%halo_exchange(depth=mesh%get_halo_"
+                "depth())".format(idx)) in result
+    # f1 has RW to W dependency
     for idx in range(1, 4):
         assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
                 "depth())".format(idx)) in result
@@ -4534,46 +4576,6 @@ def test_rc_updated_dependence_analysis():
     assert previous_field.forward_dependence() == f2_field
 
 
-def test_rc_updated_dependence_analysis_readwrite():
-    ''' Test that the dependence analysis updates when new halo exchanges
-    are added to the schedule '''
-    ### IK: Dependence analysis for single discontinuous invoke which
-    ###     generates halo exchange. Does not fail when the possibility of
-    ###     halo exchange is added for RW access in dynamo0p3.py, and
-    ###     the combination of w3 GH_W and GH_R in testkern_w3_only.f90
-    ###     changes to GH_RW and GH_R.
-    ### Called 1_single_invoke_w3_only.f90
-    _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_wtheta.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print schedule.view()
-    loop = schedule.children[0]
-    kernel = loop.children[0]
-    f2_field = kernel.args[1]
-    assert not f2_field.backward_dependence()
-    # set our loop to redundantly compute to the level 2 halo. This
-    # introduces a new halo exchange
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[0]
-    schedule, _ = rc_trans.apply(loop, depth=2)
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print schedule.view()
-    invoke.schedule = schedule
-    previous_field = f2_field.backward_dependence()
-    previous_node = previous_field.call
-    from psyclone.dynamo0p3 import DynHaloExchange
-    # check f2_field has a backward dependence with the new halo
-    # exchange field
-    assert isinstance(previous_node, DynHaloExchange)
-    # check the new halo exchange field has a forward dependence with
-    # the kernel f2_field
-    assert previous_field.forward_dependence() == f2_field
-
-
 def test_rc_no_loop_decrease():
     ''' Test that we raise an exception if we try to reduce the size of a
     loop halo when using the redundant computation transformation. This is
@@ -4592,85 +4594,25 @@ def test_rc_no_loop_decrease():
     schedule, _ = rc_trans.apply(loop, depth=2)
     invoke.schedule = schedule
     # now try to reduce the redundant computation to the level 1 halo
-    loop = schedule.children[1]
-    with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = rc_trans.apply(loop, depth=1)
-    assert ("supplied depth (1) must be greater than the existing halo depth "
-            "(2)") in str(excinfo)
-    # second set our loop to redundantly compute to the maximum halo depth
-    schedule, _ = rc_trans.apply(loop)
-    invoke.schedule = schedule
-    # now try to reduce the redundant computation to a fixed value
-    with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = rc_trans.apply(loop, depth=2)
-    assert ("loop is already set to the maximum halo depth so can't be "
-            "set to a fixed value") in str(excinfo)
-    # now try to set the redundant computation to the same (max) value
-    # it is now
-    with pytest.raises(TransformationError) as excinfo:
-        schedule, _ = rc_trans.apply(loop)
-    assert ("loop is already set to the maximum halo depth so this "
-            "transformation does nothing") in str(excinfo)
-
-
-def test_rc_no_loop_decrease_readwrite():
-    ''' Test that we raise an exception if we try to reduce the size of a
-    loop halo when using the redundant computation transformation. This is
-    not allowed partly for simplicity but also because, in the current
-    implementation we might not decrease the size of the relevant halo
-    exchange as these can only be increased with the current logic '''
-    ### IK: When the possibility of halo exchange is added for RW access
-    ###     in dynamo0p3.py and the combination w3 GH_W and GH_R
-    ###     in testkern_w3_only.f90 changes to GH_RW and GH_R then
-    ###     a DynHaloExchange object is created instead of DynLoop.
-    ### Called 1_single_invoke_w3_only.f90
-    _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w2v.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "1 st invoke"
-    print schedule.view()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    # first set our loop to redundantly compute to the level 2 halo
-    loop = schedule.children[0]
-    schedule, _ = rc_trans.apply(loop, depth=2)
-    invoke.schedule = schedule
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "2 nd invoke, after rc_trans"
-    print schedule.view()
-    # now try to reduce the redundant computation to the level 1 halo
+    # f1 and f2 have read accesses (readwrite and read) so there
+    # is one halo exchange for each before the loop
     loop = schedule.children[2]
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, depth=1)
-        ### IK: Auxiliary print statements for experimenting with RW access
-        print "TransformationError, reduce rc to level 1 halo"
-        print schedule.view()
     assert ("supplied depth (1) must be greater than the existing halo depth "
             "(2)") in str(excinfo)
     # second set our loop to redundantly compute to the maximum halo depth
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "Apply rc_trans to loop (maximum halo depth)"
-    print schedule.view()
     # now try to reduce the redundant computation to a fixed value
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop, depth=2)
-        ### IK: Auxiliary print statements for experimenting with RW access
-        print "TransformationError, reduce rc to a fixed value"
-        print schedule.view()
     assert ("loop is already set to the maximum halo depth so can't be "
             "set to a fixed value") in str(excinfo)
     # now try to set the redundant computation to the same (max) value
     # it is now
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(loop)
-        ### IK: Auxiliary print statements for experimenting with RW access
-        print "TransformationError, reduce rc to same (max) value"
-        print schedule.view()
     assert ("loop is already set to the maximum halo depth so this "
             "transformation does nothing") in str(excinfo)
 
@@ -4782,8 +4724,6 @@ def test_rc_continuous_halo_remove():
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    print "1st invoke before rc_trans"
-    print schedule.view()
     rc_trans = Dynamo0p3RedundantComputationTrans()
     f3_write_loop = schedule.children[3]
     f3_read_loop = schedule.children[7]
@@ -4801,7 +4741,7 @@ def test_rc_continuous_halo_remove():
     assert "IF (f3_proxy%is_dirty(depth=" not in result
 
 
-def test_rc_discontinuous_halo_remove():
+def test_rc_discontinuous_halo_remove(monkeypatch):
     ''' Check that we do remove a halo exchange when the field is
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
@@ -4825,54 +4765,22 @@ def test_rc_discontinuous_halo_remove():
     result = str(psy.gen)
     assert "CALL f4_proxy%halo_exchange(depth=3)" in result
     assert "IF (f4_proxy%is_dirty(depth=3)) THEN" not in result
-    #
+    # Increase RC depth to 3 and check that halo exchange is removed
+    # when a discontinuous field has write access
     rc_trans.apply(f4_write_loop, depth=3)
     result = str(psy.gen)
     assert "CALL f4_proxy%halo_exchange(depth=" not in result
     assert "IF (f4_proxy%is_dirty(depth=" not in result
-
-
-def test_rc_discontinuous_halo_remove_readwrite():
-    ''' Check that we do remove a halo exchange when the field is
-    discontinuous and the redundant computation depth equals the
-    required halo access depth. Also check that we do not remove the
-    halo exchange when the redundant computation depth is one less
-    than the required halo access depth '''
-    ### IK: Halo exchange is not removed here when the possibility of
-    ###     halo exchange is added for RW access in dynamo0p3.py, and
-    ###     the combination of w3 GH_W and GH_R in testkern_w3_only.f90
-    ###     changes to GH_RW and GH_R.
-    ###     DynHaloExchange object is created and not removed, so
-    ###     "CALL f4_proxy%halo_exchange(depth=3)" appears in result.
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "15.1.2_builtin_and_normal_kernel_"
-                                 "invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    result = str(psy.gen)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "1st invoke before rc_trans"
-    print schedule.view()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    ### IK: Ought to be children[5] instead of children[4], check schedule print
-    f4_write_loop = schedule.children[5]
-    f4_read_loop = schedule.children[7]
-    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
-    rc_trans.apply(f4_read_loop, depth=3)
-    rc_trans.apply(f4_write_loop, depth=2)
-    result = str(psy.gen)
-    assert "CALL f4_proxy%halo_exchange(depth=3)" in result
-    assert "IF (f4_proxy%is_dirty(depth=3)) THEN" not in result
-    #
+    # Increase RC depth to 3 and check that halo exchange is not removed
+    # when a discontinuous field has readwrite access
+    call = f4_write_loop.children[0]
+    f4_arg = call.arguments.args[0]
+    monkeypatch.setattr(f4_arg, "_access", value="gh_readwrite")
+    monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
     rc_trans.apply(f4_write_loop, depth=3)
     result = str(psy.gen)
-    #### IK: Auxiliary print statement for experimenting with RW access
-    #print result
-    assert "CALL f4_proxy%halo_exchange(depth=" not in result
-    assert "IF (f4_proxy%is_dirty(depth=" not in result
+    assert "CALL f4_proxy%halo_exchange(depth=" in result
+    assert "IF (f4_proxy%is_dirty(depth=" in result
 
 
 def test_rc_reader_halo_remove():
@@ -4929,14 +4837,14 @@ def test_rc_vector_reader_halo_remove():
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
-    # redundant computation for first loop
+    # Redundant computation for first loop
     schedule, _ = rc_trans.apply(schedule.children[0], depth=1)
     invoke.schedule = schedule
     result = str(psy.gen)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
 
-    # redundant computation in reader loop should not
+    # Redundant computation in reader loop should not
     # cause a new halo exchange as it is still covered by depth=1 in
     # the writer loop
     schedule, _ = rc_trans.apply(schedule.children[4], depth=1)
@@ -4944,6 +4852,40 @@ def test_rc_vector_reader_halo_remove():
     result = str(psy.gen)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
+
+
+def test_rc_vector_reader_halo_readwrite():
+    ''' When we increase the depth of halo that a loop computes but the
+    previous loop still computes deep enough into the halo the added
+    halo exchanges stem from the vector readwrite access '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.2.2_multikernel_invokes_wtheta_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    assert "is_dirty" not in result
+    assert "halo_exchange" not in result
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # Redundant computation for first loop: both fields have
+    # read dependencies for all three components
+    schedule, _ = rc_trans.apply(schedule.children[0], depth=1)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("is_dirty") == 6
+    assert result.count("halo_exchange") == 6
+
+    # Redundant computation in reader loop causes new halo exchanges
+    # due to readwrite dependency in f3
+    schedule, _ = rc_trans.apply(schedule.children[7], depth=1)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    assert result.count("is_dirty") == 9
+    assert result.count("halo_exchange") == 9
 
 
 def test_stencil_rc_max_depth_1(monkeypatch):
@@ -5025,7 +4967,7 @@ def test_loop_fusion_different_loop_depth():
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
 
 
-def test_loop_fusion_different_loop_name():
+def test_loop_fusion_different_loop_name(monkeypatch):
     ''' We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
@@ -5033,51 +4975,30 @@ def test_loop_fusion_different_loop_name():
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
                     api="dynamo0.3")
+    # First test for f1 readwrite to read dependency
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], depth=3)
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[1], schedule.children[2])
+        # f1 and f2 have read accesses (readwrite and read) so there
+        # is one halo exchange for each before the loops
+        f_trans.apply(schedule.children[2], schedule.children[3])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
-
-
-def test_loop_fusion_different_loop_name_readwrite():
-    ''' We can only loop fuse if two loops iterate over the same entities
-    and iterate over the same depth. The loop fusion transformation
-    raises an exception if this is not the case. This test checks that
-    the exception is raised correctly. '''
-    ### IK: When the possibility of halo exchange is added for RW access
-    ###     in dynamo0p3.py, the combination of w3 GH_RW and GH_R changes
-    ###     W -> R w3 to RW -> R w3 dependence and a DynHaloExchange
-    ###     object is created instead of a DynLoop. Since this RW -> R
-    ###     dependence is on discontionuous field only it should behave
-    ###     as W -> R, that is the DynHaloExchange should be removed.
-    ### Called 4.12_multikernel_invokes_w3.f90
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w2v.f90"),
-                    api="dynamo0.3")
+    # Now test for f1 write to read dependency
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "1st invoke before rc_trans"
-    print schedule.view()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    call = schedule.children[0].children[0]
+    f1_arg = call.arguments.args[0]
+    monkeypatch.setattr(f1_arg, "_access", value="gh_write")
     rc_trans.apply(schedule.children[0], depth=3)
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "rc_trans"
-    print type(rc_trans)
-    print dir(rc_trans)
-    f_trans = DynamoLoopFuseTrans()
-    ### IK: Auxiliary print statements for experimenting with RW access
-    print "f_trans"
-    print type(f_trans)
-    print dir(f_trans)
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[2], schedule.children[3])
+        # f2 has read access so there is just one halo exchange
+        # before the loops
+        f_trans.apply(schedule.children[1], schedule.children[2])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))

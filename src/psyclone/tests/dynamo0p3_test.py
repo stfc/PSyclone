@@ -2412,8 +2412,6 @@ def test_operator_bc_kernel_wrong_access_err():
         loop = schedule.children[0]
         call = loop.children[0]
         arg = call.arguments.args[0]
-        print dir(arg)
-        print type(arg)
         arg._access = "gh_read"
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
@@ -6197,7 +6195,7 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_itn_space_fld_and_op_writers():  # IK: OK, Modify for RW?
+def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6222,6 +6220,11 @@ def test_itn_space_fld_and_op_writers():  # IK: OK, Modify for RW?
                 "      !\n"
                 "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
             assert output in generated_code
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_any_w3(tmpdir, f90, f90flags):
@@ -6625,7 +6628,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous(tmpdir, f90, f90flags):  # IK: OK, Modify for RW
+def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6704,7 +6707,7 @@ def test_arg_discontinous():
     idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
-                   zip(idchld_list, idarg_list)))
+                       zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"
         idchld = fs_dict[fspace][0]
@@ -6886,7 +6889,7 @@ def test_HaloReadAccess_field_in_call():
             in str(excinfo.value))
 
 
-def test_HaloReadAccess_field_not_reader(): # IK: Make sure to not call disc RW
+def test_HaloReadAccess_field_not_reader():
     ''' The field passed to HaloReadAccess should be read within its
     associated kernel or builtin. If it is not then an exception is raised.
     This test checks that this exception is raised correctly
@@ -6930,7 +6933,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):  # IK: OK, Modify for RW??
+def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation '''
