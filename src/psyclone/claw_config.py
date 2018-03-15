@@ -44,9 +44,10 @@ CLAW_PYTHON_PATH = os.path.join(CLAW_INSTALL_ROOT, "lib")
 OMNI_JARS = ["om-exc-tools.jar",
              "om-f-back.jar",
              "om-c-back.jar"]
-CLAW_JARS = ["om-cx2x-claw.jar",
+CLAW_JARS = ["claw-x2t-shenron.jar",
+             "claw-x2t-tatsu.jar",
+             "claw-x2t-wani.jar",
              "commons-cli.jar",
-             "om-cx2x-xcodeml.jar",
              "antlr4.jar",
              "antlr4-runtime.jar"]
 
