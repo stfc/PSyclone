@@ -1,18 +1,48 @@
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
 !-------------------------------------------------------------------------------
-
-!> @brief Kernel which assembles a locally assembled matrix (LMA) into a
-!! columnwise assembled matrix (CMA). Takes a read-only field as argument too.
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications Copyright (c) 2017, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 module columnwise_op_asm_field_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                    &
+use argument_mod,            only : arg_type, func_type, GH_FIELD,          &
                                     GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
                                     GH_READ, GH_WRITE,                      &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
@@ -44,7 +74,7 @@ end type
 !-------------------------------------------------------------------------------
 
 ! overload the default structure constructor for function space
-interface columnwise_op_asm_kernel_type
+interface columnwise_op_asm_field_kernel_type
    module procedure columnwise_constructor
 end interface
 
@@ -54,68 +84,41 @@ end interface
 public columnwise_op_asm_field_kernel_code
 contains
   
-  type(columnwise_op_asm_kernel_type) function columnwise_constructor() result(self)
+  type(columnwise_op_asm_field_kernel_type) function columnwise_constructor() result(self)
     implicit none
     return
   end function columnwise_constructor
 
-  !> @brief The subroutine which is called directly from the PSY layer and
-  !> assembles the LMA into a CMA
-  !> @detail Given an LMA representation of the operator mapping between two
-  !> horizontally discontinuous spaces, assemble the columnwise matrix
-  !> representation of the operator.
-  !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] nlayers number of vertical layers
-  !> @param [in] ncell_3d total number of cells
-  !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [in] field example field argument
-  !> @param [in] local_stencil locally assembled matrix
-  !> @param [out] columnwise_matrix banded matrix to assemble into
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] ndf No. of dofs per cell for the F-S that the field is on
-  !> @param [in] dofmap_field Dofmap for the field
-  !> @param [in] ndf_lma_from number of degrees of freedom per cell for the from-sp
-  !> @param [in] column_banded_dofmap_to list of offsets for to-space
-  !> @param [in] column_banded_dofmap_from list of offsets for from-space
-  subroutine columnwise_op_asm_field_kernel_code(cell,              &
-                                            nlayers,           &
-                                            ncell_2d,          &
-                                            ncell_3d,          &
-                                            field,             &
-                                            local_stencil,     &
-                                            columnwise_matrix, &
-                                            nrow,              &
-                                            ncol,              &
-                                            bandwidth,         &
-                                            alpha,             &
-                                            beta,              &
-                                            gamma_m,           &
-                                            gamma_p,           &
-                                            undf, ndf,         & ! any_space_1
-                                            dofmap_field,      &
-                                            ndf_lma_from,      & ! any_space_2
-                                            column_banded_dofmap_to, &
-                                            column_banded_dofmap_from)
-
-    implicit none
-    
-    ! Arguments
-    integer(kind=i_def), intent(in) :: cell,  nlayers, ncell_3d, ncell_2d
-    integer(kind=i_def), intent(in) :: ndf_lma_to, ndf_lma_from
-    integer(kind=i_def), intent(in) :: ndf_to, ndf_from
-    real(kind=r_def), dimension(ndf_lma_to,ndf_lma_from,ncell_3d), intent(in) :: local_stencil
-    integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
-    integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to
-    integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
+  SUBROUTINE columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, &
+       field_1_any_space_1_field_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, &
+       cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, &
+       cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_any_space_1_field_1, &
+       undf_any_space_1_field_1, map_any_space_1_field_1, &
+       cbanded_map_any_space_1_field_1, ndf_any_space_2_op_2, &
+       cbanded_map_any_space_2_op_2)
+      USE constants_mod, ONLY: r_def
+      IMPLICIT NONE
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: ncell_2d
+      INTEGER, intent(in) :: ndf_any_space_1_field_1
+      INTEGER, intent(in) :: undf_any_space_1_field_1
+      INTEGER, intent(in) :: ndf_any_space_2_op_2
+      REAL(KIND=r_def), intent(in), &
+           dimension(undf_any_space_1_field_1) :: field_1_any_space_1_field_1
+      INTEGER, intent(in) :: op_2_ncell_3d
+      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_field_1, &
+           ndf_any_space_2_op_2,op_2_ncell_3d) :: op_2
+      INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, &
+           cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p
+      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth, &
+           cma_op_3_nrow,ncell_2d) :: cma_op_3
+      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: &
+           map_any_space_1_field_1
+      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,nlayers) :: &
+           cbanded_map_any_space_1_field_1
+      INTEGER, intent(in), dimension(ndf_any_space_2_op_2,nlayers) :: &
+           cbanded_map_any_space_2_op_2
 
     write (*,*) "Hello CMA World"
 

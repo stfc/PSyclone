@@ -1,8 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
-! All rights reserved.
+! Copyright (c) 2017, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,20 +30,19 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford STFC Daresbury Lab
 
-program single_invoke_fs
+program orientation
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
+  ! Description: Orientation example updating a continuous field
+  use testkern_orientation2, only: testkern_orientation2_type
+  use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
+  type(field_type) :: f1, f2, m1
+  type(quadrature_rule) :: qr
 
-  call invoke(                                          &
-       testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4) &
+  call invoke(                   &
+       testkern_orientation2_type(f1,f2,m1,qr)   &
           )
 
-end program single_invoke_fs
+end program orientation

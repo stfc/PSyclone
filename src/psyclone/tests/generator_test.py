@@ -298,6 +298,7 @@ def test_script_trans():
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
 
+
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
 

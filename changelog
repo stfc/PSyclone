@@ -17,6 +17,15 @@
 	to disable some warnings that we don't care about (for testing
 	code).
 
+	7) #117 and PR #125 - bug fix for passing kernel arguments by value
+	in the GOcean API.
+
+	8) #105 and PR #115 - add support for coloured loops when
+	performing redundant computation.
+
+        9) #84 and PR #128 - make w2v and wtheta discontinuous function
+        spaces
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not

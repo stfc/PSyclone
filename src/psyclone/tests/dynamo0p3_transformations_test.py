@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
+import utils
 
 
 # The version of the API that the tests in this file
@@ -59,7 +60,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_colour_trans_declarations():
+def test_colour_trans_declarations(tmpdir, f90, f90flags):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
     is both off and on '''
@@ -94,12 +95,20 @@ def test_colour_trans_declarations():
 
         # Check that we've declared the loop-related variables
         # and colour-map pointers
-        assert "integer ncolour" in gen
+        if dist_mem:
+            assert "integer, pointer :: cmap(:,:)" in gen
+        else:
+            assert "integer ncolour" in gen
+            assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
         assert "integer colour" in gen
-        assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans():
+def test_colour_trans(tmpdir, f90, f90flags):
     '''test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -130,17 +139,22 @@ def test_colour_trans():
         gen = gen.lower()
         print gen
         # Check that we're calling the API to get the no. of colours
-        assert "f1_proxy%vspace%get_colours(" in gen
-
-        col_loop_idx = -1
-        cell_loop_idx = -1
-        for idx, line in enumerate(gen.split('\n')):
-            if "do colour=1,ncolour" in line:
-                col_loop_idx = idx
-            if "do cell=1,ncp_colour(colour)" in line:
-                cell_loop_idx = idx
-
-        assert cell_loop_idx - col_loop_idx == 1
+        # and the generated loop bounds are correct
+        if dist_mem:
+            output = (
+                "      cmap => mesh%get_colour_map()\n"
+                "      !\n"
+                "      do colour=1,mesh%get_ncolours()\n"
+                "        do cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n")
+        else:  # not dist_mem
+            output = (
+                "      call f1_proxy%vspace%get_colours(ncolour, ncp_colour, "
+                "cmap)\n"
+                "      !\n"
+                "      do colour=1,ncolour\n"
+                "        do cell=1,ncp_colour(colour)\n")
+        assert output in gen
 
         # Check that we're using the colour map when getting the cell dof maps
         assert (
@@ -163,8 +177,13 @@ def test_colour_trans():
             assert dirty_str in gen
             assert gen.count("set_dirty()") == 1
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_colour_trans_operator():
+
+def test_colour_trans_operator(tmpdir, f90, f90flags):
     '''test of the colouring transformation of a single loop with an
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -195,8 +214,13 @@ def test_colour_trans_operator():
         # check the first argument is a colourmap lookup
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_colour_trans_cma_operator():
+
+def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
     '''test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -210,7 +234,6 @@ def test_colour_trans_cma_operator():
         invoke = psy.invokes.get(
             'invoke_0_columnwise_op_asm_field_kernel_type')
         schedule = invoke.schedule
-        schedule.view()
         ctrans = Dynamo0p3ColourTrans()
 
         if dist_mem:
@@ -226,10 +249,23 @@ def test_colour_trans_cma_operator():
         gen = str(psy.gen)
         print gen
 
+        if dist_mem:
+            assert (
+                "      DO colour=1,mesh%get_ncolours()\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n"
+                "          !\n"
+                "          CALL columnwise_op_asm_field_kernel_code("
+                "cmap(colour, ") in gen
+        else:
+            assert (
+                "      DO colour=1,ncolour\n"
+                "        DO cell=1,ncp_colour(colour)\n"
+                "          !\n"
+                "          CALL columnwise_op_asm_field_kernel_code(cmap"
+                "(colour, ") in gen
+
         assert (
-            "      DO colour=1,ncolour\n"
-            "        DO cell=1,ncp_colour(colour)\n"
-            "          !\n"
             "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
             "cell), nlayers, ncell_2d, afield_proxy%data, "
             "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
@@ -241,6 +277,11 @@ def test_colour_trans_cma_operator():
             "cbanded_map_any_space_2_lma_op1)\n"
             "        END DO \n"
             "      END DO \n") in gen
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_stencil():
@@ -357,8 +398,9 @@ def test_omp_not_a_loop():
         # the loop
         with pytest.raises(TransformationError) as excinfo:
             _, _ = otrans.apply(schedule)
-        assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
-        assert "The node is not a loop" in str(excinfo.value)
+
+        assert "Cannot apply an OpenMP Loop directive" in str(excinfo.value)
+        assert "to something that is not a loop" in str(excinfo.value)
 
 
 def test_omp_parallel_not_a_loop():
@@ -397,7 +439,7 @@ def test_colour_str():
     assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
 
 
-def test_omp_colour_trans():
+def test_omp_colour_trans(tmpdir, f90, f90flags):
     '''Test the OpenMP transformation applied to a coloured loop. We test
     when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -427,22 +469,31 @@ def test_omp_colour_trans():
         code = str(psy.gen)
         print code
 
-        col_loop_idx = -1
-        omp_idx = -1
-        cell_loop_idx = -1
-        for idx, line in enumerate(code.split('\n')):
-            if "DO colour=1,ncolour" in line:
-                col_loop_idx = idx
-            if "DO cell=1,ncp_colour(colour)" in line:
-                cell_loop_idx = idx
-            if "!$omp parallel do" in line:
-                omp_idx = idx
+        if dist_mem:
+            output = (
+                "      cmap => mesh%get_colour_map()\n"
+                "      !\n"
+                "      DO colour=1,mesh%get_ncolours()\n"
+                "        !$omp parallel do default(shared), private(cell), "
+                "schedule(static)\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n")
+        else:
+            output = (
+                "      CALL f1_proxy%vspace%get_colours(ncolour, "
+                "ncp_colour, cmap)\n"
+                "      !\n"
+                "      DO colour=1,ncolour\n"
+                "        !$omp parallel do default(shared), private(cell), "
+                "schedule(static)\n"
+                "        DO cell=1,ncp_colour(colour)\n")
 
-        assert cell_loop_idx - omp_idx == 1
-        assert omp_idx - col_loop_idx == 1
+        assert output in code
 
-        # Check that the list of private variables is correct
-        assert "private(cell)" in code
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_colour_orient_trans():
@@ -451,18 +502,18 @@ def test_omp_colour_orient_trans():
     memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "9.1_orientation2.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
         if dist_mem:
-            index = 4
+            index = 5
         else:
             index = 0
 
@@ -542,14 +593,14 @@ def test_check_seq_colours_omp_parallel_do():
     off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "9.1_orientation2.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
         if dist_mem:
-            index = 4
+            index = 5
         else:
             index = 0
 
@@ -568,20 +619,20 @@ def test_check_seq_colours_omp_parallel_do():
         assert "must be computed serially" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_do():
+def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
     be sequential). We test when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "9.1_orientation2.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
         if dist_mem:
-            index = 4
+            index = 5
         else:
             index = 0
 
@@ -595,32 +646,36 @@ def test_check_seq_colours_omp_do():
         # colours
         with pytest.raises(TransformationError) as excinfo:
             schedule, _ = otrans.apply(cschedule.children[index])
+
         assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
         assert "target loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test) This test checks the code without OpenMP as
+            # this transformation fails
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colouring_after_openmp():
     '''Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
     distributed memory is on or off '''
-    # For this test we must use a kernel that doesn't actually require
-    # colouring as otherwise PSyclone won't let us apply the OpenMP
-    # transformation first!
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "9_orientation.f90"),
+                                 "1_single_invoke.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
         if dist_mem:
-            index = 4
+            index = 3
         else:
             index = 0
 
@@ -671,9 +726,12 @@ def test_colouring_multi_kernel():
         print gen
 
         # Check that we're calling the API to get the no. of colours
-        assert "a_proxy%vspace%get_colours(" in gen
-        assert "f_proxy%vspace%get_colours(" in gen
-        assert gen.count("_proxy%vspace%get_colours(") == 2
+        if dist_mem:
+            assert gen.count("cmap => mesh%get_colour_map()") == 2
+        else:
+            assert "a_proxy%vspace%get_colours(" in gen
+            assert "f_proxy%vspace%get_colours(" in gen
+            assert gen.count("_proxy%vspace%get_colours(") == 2
         assert "private(cell)" in gen
         assert gen.count("private(cell)") == 2
 
@@ -1043,11 +1101,10 @@ def test_loop_fuse_omp():
         assert omp_endpara_idx - cell_enddo_idx == 1
 
 
-def test_fuse_colour_loops():
+def test_fuse_colour_loops(tmpdir, f90, f90flags):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
     both sequential and distributed-memory code '''
-    # pylint: disable=too-many-branches,too-many-statements
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1089,54 +1146,75 @@ def test_fuse_colour_loops():
         code = str(psy.gen)
         print code
 
-        # Test that the generated code is as expected
-        omp_para_idx = -1
-        omp_do_idx1 = -1
-        omp_do_idx2 = -1
-        cell_loop_idx1 = -1
-        cell_loop_idx2 = -1
-        end_loop_idx1 = -1
-        end_loop_idx2 = -1
-        end_loop_idx3 = -1
-        call_idx1 = -1
-        call_idx2 = -1
-        for idx, line in enumerate(code.split('\n')):
-            if "END DO" in line:
-                if end_loop_idx1 == -1:
-                    end_loop_idx1 = idx
-                elif end_loop_idx2 == -1:
-                    end_loop_idx2 = idx
-                else:
-                    end_loop_idx3 = idx
-            if "DO cell=1,ncp_colour(colour)" in line:
-                if cell_loop_idx1 == -1:
-                    cell_loop_idx1 = idx
-                else:
-                    cell_loop_idx2 = idx
-            if "DO colour=1,ncolour" in line:
-                col_loop_idx = idx
-            if "CALL ru_code(nlayers," in line:
-                if call_idx1 == -1:
-                    call_idx1 = idx
-                else:
-                    call_idx2 = idx
-            if "!$omp parallel default(shared), " +\
-               "private(cell)" in line:
-                omp_para_idx = idx
-            if "!$omp do schedule(static)" in line:
-                if omp_do_idx1 == -1:
-                    omp_do_idx1 = idx
-                else:
-                    omp_do_idx2 = idx
+        if dist_mem:
+            output = (
+                "      cmap => mesh%get_colour_map()\n"
+                "      !\n"
+                "      DO colour=1,mesh%get_ncolours()\n"
+                "        !$omp parallel default(shared), private(cell)\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
+                "colour,1)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,mesh%get_last_halo_cell_per_colour"
+                "(colour,1)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp end parallel\n"
+                "      END DO \n")
+        else:
+            output = (
+                "      CALL f_proxy%vspace%get_colours(ncolour, ncp_colour, "
+                "cmap)\n"
+                "      !\n"
+                "      DO colour=1,ncolour\n"
+                "        !$omp parallel default(shared), private(cell)\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,ncp_colour(colour)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp do schedule(static)\n"
+                "        DO cell=1,ncp_colour(colour)\n"
+                "          !\n"
+                "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+                "        END DO \n"
+                "        !$omp end do\n"
+                "        !$omp end parallel\n"
+                "      END DO \n")
 
-        assert (omp_para_idx - col_loop_idx) == 1
-        assert (omp_do_idx1 - omp_para_idx) == 1
-        assert (cell_loop_idx1 - omp_do_idx1) == 1
-        assert (cell_loop_idx2 - omp_do_idx2) == 1
-        assert (end_loop_idx3 - end_loop_idx2) == 3
-        assert call_idx2 > call_idx1
-        assert call_idx1 < end_loop_idx1
-        assert call_idx2 < end_loop_idx2
+        assert output in code
 
         if dist_mem:
             set_dirty_str = (
@@ -1147,6 +1225,11 @@ def test_fuse_colour_loops():
                 "      CALL f_proxy%set_dirty()\n")
             assert set_dirty_str in code
             assert code.count("set_dirty()") == 2
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_loop_fuse_cma():
@@ -1264,7 +1347,7 @@ def test_module_inline():
         schedule, _ = inline_trans.apply(kern_call)
         gen = str(psy.gen)
         # check that the subroutine has been inlined
-        assert 'SUBROUTINE ru_code()' in gen
+        assert 'SUBROUTINE ru_code(' in gen
         # check that the associated psy "use" does not exist
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
 
@@ -3689,8 +3772,8 @@ def test_rc_invalid_loop(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop)
     assert ("In the Dynamo0p3RedundantComputation transformation apply "
-            "method the loop must iterate over cells or dofs, but "
-            "found 'colours'") in str(excinfo)
+            "method the loop must iterate over cells, dofs or cells of a "
+            "given colour, but found 'colours'") in str(excinfo)
 
 
 def test_rc_nodm():
@@ -3741,8 +3824,8 @@ def test_rc_invalid_depth_continuous():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth=1)
     assert ("In the Dynamo0p3RedundantComputation transformation apply method "
-            "the supplied depth must be greater than 1 as this loop modifies "
-            "a continuous field") in str(excinfo)
+            "the supplied depth (1) must be greater than the existing halo "
+            "depth (1)") in str(excinfo)
 
 
 def test_rc_continuous_depth():
@@ -3792,21 +3875,21 @@ def test_rc_continuous_no_depth():
     result = str(psy.gen)
     print result
     for field_name in ["f2", "m1", "m2"]:
-        assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_"
+        assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_halo_"
                 "depth())) THEN\n"
                 "        CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_last_halo_depth())".format(field_name)) in result
+                "get_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(mesh%get_last_halo_depth"
+            "      CALL f1_proxy%set_clean(mesh%get_halo_depth"
             "()-1)") in result
 
 
-def test_rc_discontinuous_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with continuous reads are modified appropriately and
-    set_clean() added correctly and halo_exchange modified
-    appropriately after applying the redundant computation
+def test_rc_discontinuous_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with continuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    modified appropriately after applying the redundant computation
     transformation with a fixed value for halo depth'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -3828,13 +3911,18 @@ def test_rc_discontinuous_depth():
     assert ("      CALL m2_proxy%set_dirty()\n"
             "      CALL m2_proxy%set_clean(3)") in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_rc_discontinuous_no_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with continuous reads are modified appropriately and
-    set_clean() added correctly and halo_exchange added/modified
-    appropriately after applying the redundant computation
-    transformation with no halo depth value'''
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with continuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added/modified appropriately after applying the redundant
+    computation transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -3848,23 +3936,23 @@ def test_rc_discontinuous_no_depth():
     result = str(psy.gen)
     print result
     for field_name in ["f1", "f2", "m1"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_last_halo_depth())".format(field_name)) in result
+                "get_halo_depth())".format(field_name)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL m2_proxy%set_dirty()" not in result
-    assert "CALL m2_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL m2_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_all_discontinuous_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with discontinuous reads are modified appropriately
-    and set_clean() added correctly and halo_exchange added
-    appropriately after applying the redundant computation
-    transformation with a fixed value for halo depth'''
+def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with discontinuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with a fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3881,15 +3969,20 @@ def test_rc_all_discontinuous_depth():
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_rc_all_discontinuous_no_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with discontinuous reads are modified appropriately
-    and set_clean() added correctly and halo_exchange added
-    appropriately after applying the redundant computation
-    transformation with no halo depth value'''
+
+def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) with discontinuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately after applying the redundant computation
+    transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only.f90"),
+                                 "1_single_invoke_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3900,20 +3993,25 @@ def test_rc_all_discontinuous_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
-    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_last_halo_dep"
+    assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_dep"
             "th())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_rc_all_discontinuous_vector_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
+def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with a
-    fixed value for halo depth'''
+    fixed value for halo depth '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3_only_vector.f90"),
                     api=TEST_API)
@@ -3936,15 +4034,20 @@ def test_rc_all_discontinuous_vector_depth():
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_rc_all_disc_vector_no_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
+
+def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with no
-    halo depth value'''
+    halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only_vector.f90"),
+                                 "1_single_invoke_wtheta_only_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3956,26 +4059,31 @@ def test_rc_all_disc_vector_no_depth():
     result = str(psy.gen)
     print result
     for idx in range(1, 4):
-        assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_last_halo_depth"
+        assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_halo_depth"
                 "())) THEN".format(idx)) in result
-        assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_last_halo"
+        assert ("CALL f2_proxy({0})%halo_exchange(depth=mesh%get_halo"
                 "_depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for idx in range(1, 4):
-        assert ("CALL f1_proxy({0})%set_clean(mesh%get_last_halo_"
+        assert ("CALL f1_proxy({0})%set_clean(mesh%get_halo_"
                 "depth())".format(idx)) in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_rc_all_disc_prev_depend_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) with discontinuous reads are modified appropriately
-    and set_clean() added correctly and halo_exchange added
-    appropriately in the case where the field requiring a halo
+
+def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iteratingover cells) with discontinuous reads are modified
+    appropriately and set_clean() added correctly and halo_exchange
+    added appropriately in the case where the field requiring a halo
     exchange has a previous non-halo dependence, after applying the
     redundant computation transformation with a fixed value for halo
     depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w3.f90"),
+                                 "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -3994,16 +4102,21 @@ def test_rc_all_disc_prev_depend_depth():
     assert "CALL f3_proxy%set_dirty()" in result
     assert "CALL f3_proxy%set_clean(3)" in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_rc_all_disc_prev_depend_no_depth():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
-    over cells) are modified appropriately and set_clean() added
-    correctly and halo_exchange added appropriately in the case where
-    the field now requiring a halo exchange has a previous non-halo
-    dependence after applying the redundant computation transformation
-    with no halo depth value '''
+    ''' Test that the loop bounds for a discontinuous kernel
+    (iterating over cells) are modified appropriately and set_clean()
+    added correctly and halo_exchange added appropriately in the case
+    where the field now requiring a halo exchange has a previous
+    non-halo dependence after applying the redundant computation
+    transformation with no halo depth value '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w3.f90"),
+                                 "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4015,16 +4128,16 @@ def test_rc_all_disc_prev_depend_no_depth():
     result = str(psy.gen)
     print result
     assert "CALL f1_proxy%set_dirty()" in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") not in result
-    assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_last_halo_dept"
+    assert ("CALL f1_proxy%halo_exchange(depth=mesh%get_halo_dept"
             "h())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
-    assert "CALL f3_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f3_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_all_disc_prev_dep_depth_vector():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
+def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) with discontinuous reads are modified appropriately
     and set_clean() added correctly and halo_exchange added
     appropriately in the case where the vector field requiring a halo
@@ -4032,7 +4145,7 @@ def test_rc_all_disc_prev_dep_depth_vector():
     redundant computation transformation with a fixed value for halo
     depth '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                                 "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4054,17 +4167,23 @@ def test_rc_all_disc_prev_dep_depth_vector():
         assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_rc_all_disc_prev_dep_no_depth_vect():
-    '''Test that the loop bounds for a discontinuous kernel (iterating
+
+def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
+    ''' Test that the loop bounds for a discontinuous kernel (iterating
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately in the case where
     the vector field now requiring a halo exchange has a previous non-halo
     dependence after applying the redundant computation transformation
     with no halo depth value '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_w3_vector.f90"),
-                    api=TEST_API)
+    _, info = parse(
+        os.path.join(BASE_PATH,
+                     "8.2.2_multikernel_invokes_wtheta_vector.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -4076,13 +4195,18 @@ def test_rc_all_disc_prev_dep_no_depth_vect():
     print result
     assert "is_dirty" not in result
     for idx in range(1, 4):
-        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_last_halo_"
+        assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
                 "depth())".format(idx)) in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for idx in range(1, 4):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
-        assert ("CALL f3_proxy({0})%set_clean(mesh%get_last_halo_depth())".
+        assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_dofs_depth():
@@ -4132,13 +4256,13 @@ def test_rc_dofs_no_depth():
     result = str(psy.gen)
     print result
     for field_name in ["f1", "f2"]:
-        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+        assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
         assert ("CALL {0}_proxy%halo_exchange(depth=mesh%"
-                "get_last_halo_depth())".format(field_name)) in result
+                "get_halo_depth())".format(field_name)) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" not in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_rc_dofs_depth_prev_dep():
@@ -4210,11 +4334,11 @@ def test_rc_dofs_no_depth_prev_dep():
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
-        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_last_halo_depth()"
+        assert ("CALL {0}_proxy%halo_exchange(depth=mesh%get_halo_depth()"
                 ")".format(field_name)) in result
-    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") not in result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     # check the existing m1 and m2 halo exchanges remain unchanged
     for field_name in ["m1", "m2"]:
@@ -4224,7 +4348,7 @@ def test_rc_dofs_no_depth_prev_dep():
                 ")".format(field_name)) in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_halo()" in result
     assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(mesh%get_last_halo_depth())" in result
+    assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
 def test_continuous_no_set_clean():
@@ -4243,9 +4367,9 @@ def test_continuous_no_set_clean():
 
 
 def test_discontinuous_no_set_clean():
-    '''Test that set_clean is not added for the default iteration space of
-    a discontinuous loop. This is probably covered from tests in
-    dynamo0p3_test.py but it is good to have a specific test'''
+    ''' Test that set_clean is not added for the default iteration
+    space of a discontinuous loop. This is probably covered from tests
+    in dynamo0p3_test.py but it is good to have a specific test '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -4316,15 +4440,15 @@ def test_rc_vector_no_depth():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
-            "get_last_halo_depth())") in result
+            "get_halo_depth())") in result
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     for index in range(1, 4):
         assert "CALL chi_proxy({0})%set_dirty()".format(index) in result
     for index in range(1, 4):
-        assert ("CALL chi_proxy({0})%set_clean(mesh%get_last_halo_depth()"
+        assert ("CALL chi_proxy({0})%set_clean(mesh%get_halo_depth()"
                 "-1)".format(index) in result)
 
 
@@ -4363,7 +4487,7 @@ def test_rc_no_halo_decrease():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
@@ -4374,17 +4498,17 @@ def test_rc_no_halo_decrease():
     invoke.schedule = schedule
     result = str(psy.gen)
     print result
-    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_last_halo_depth())) "
+    assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
     assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
 
 
 def test_rc_updated_dependence_analysis():
-    '''Test that the dependence analyis updates when new halo exchanges
-    are added to the schedule'''
+    ''' Test that the dependence analyis updates when new halo exchanges
+    are added to the schedule '''
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
+        BASE_PATH, "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4411,13 +4535,13 @@ def test_rc_updated_dependence_analysis():
 
 
 def test_rc_no_loop_decrease():
-    '''Test that we raise an exception if we try to reduce the size of a
+    ''' Test that we raise an exception if we try to reduce the size of a
     loop halo when using the redundant computation transformation. This is
     not allowed partly for simplicity but also because, in the current
     implementation we might not decrease the size of the relevant halo
-    exchange as these can only be increased with the current logic'''
+    exchange as these can only be increased with the current logic '''
     _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
+        BASE_PATH, "1_single_invoke_w2v.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.invoke_list[0]
@@ -4449,36 +4573,9 @@ def test_rc_no_loop_decrease():
             "transformation does nothing") in str(excinfo)
 
 
-def test_rc_no_directive():
-    '''Test that we raise an exception if we try to use the redundant
-    computation transformation after adding parallel directives (or in
-    general anything that becomes a parent of the loop). This is a
-    limitation that could be fixed and is down to the way we place new
-    halos (we put them before the loop and don't check whether there are
-    any parent directives). However this is not an unreasonable constraint
-    as we would expect to perform loop optimisations before adding
-    directives.'''
-
-    _, info = parse(os.path.join(
-        BASE_PATH, "1_single_invoke_w3_only.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
-    loop = schedule.children[0]
-    schedule, _ = otrans.apply(loop)
-    invoke.schedule = schedule
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[0].children[0]
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(loop)
-    assert "the parent must be the Schedule" in str(excinfo)
-
-
-def test_rc_remove_halo_exchange():
-    '''Test that a halo exchange is removed if redundant computation means
-    that it is no longer required'''
+def test_rc_remove_halo_exchange(tmpdir, f90, f90flags):
+    ''' Test that a halo exchange is removed if redundant computation means
+    that it is no longer required '''
     _, info = parse(os.path.join(
         BASE_PATH, "14.7_halo_annexed.f90"),
                     api=TEST_API)
@@ -4488,6 +4585,12 @@ def test_rc_remove_halo_exchange():
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
     #
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -4510,17 +4613,15 @@ def test_rc_remove_halo_exchange():
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
 
-def test_rc_max_remove_halo_exchange():
-
-    '''add test to redundantly compute a w3 (discontinuous) and w2
-    (continuous) field to the maximum halo depth and then check that a
-    discontinuous halo exchange is removed in this case as we always
-    remove the halo exchange if we write to a discontinuous field to
-    maximum depth. Also check that the halo exchange is not removed
-    for the continuous case as the outer halo stays dirty. The halo
-    should also have an if round it as we do not know how much
-    redundant computation we are doing.'''
-
+def test_rc_max_remove_halo_exchange(tmpdir, f90, f90flags):
+    ''' Add test to redundantly compute a discontinuous (wtheta) and
+    continuous (w2) field to the maximum halo depth and then check
+    that a discontinuous halo exchange is removed in this case as we
+    always remove the halo exchange if we write to a discontinuous
+    field to maximum depth. Also check that the halo exchange is not
+    removed for the continuous case as the outer halo stays dirty.
+    The halo should also have an if round it as we do not know how
+    much redundant computation we are doing. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -4558,6 +4659,11 @@ def test_rc_max_remove_halo_exchange():
     # bother as that is not relevant to this test.
     assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_rc_continuous_halo_remove():
     '''check that we do not remove a halo exchange when the field is
@@ -4592,11 +4698,11 @@ def test_rc_continuous_halo_remove():
 
 
 def test_rc_discontinuous_halo_remove():
-    '''check that we do remove a halo exchange when the field is
+    ''' Check that we do remove a halo exchange when the field is
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
-    than the required halo access depth'''
+    than the required halo access depth '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -4659,13 +4765,12 @@ def test_rc_reader_halo_remove():
 
 
 def test_rc_vector_reader_halo_remove():
-    '''check that we do not add unnecessary halo exchanges for a vector
+    ''' Check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
     the previous loop still computes deep enough into the halo to
-    avoid needing halo exchanges.'''
-
+    avoid needing halo exchanges '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "8.2_multikernel_invokes_w3_vector.f90"),
+                                 "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
@@ -4774,12 +4879,12 @@ def test_loop_fusion_different_loop_depth():
 
 
 def test_loop_fusion_different_loop_name():
-    '''We can only loop fuse if two loops iterate over the same entities
+    ''' We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
-    the exception is raised correctly.'''
+    the exception is raised correctly. '''
     _, info = parse(os.path.join(BASE_PATH,
-                                 "4.12_multikernel_invokes_w3.f90"),
+                                 "4.12_multikernel_invokes_w2v.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -4816,8 +4921,8 @@ def test_rc_max_w_to_r_continuous_known_halo():
     w_to_r_halo_exchange = schedule.children[4]
 
     # sanity check that the halo exchange goes to the full halo depth
-    assert ("w_to_r_halo_exchange._compute_halo_depth() == "
-            "mesh%get_last_halo_depth()")
+    assert (w_to_r_halo_exchange._compute_halo_depth() ==
+            "mesh%get_halo_depth()")
 
     # the halo exchange should be both required to be added and known
     # to be needed
@@ -4885,3 +4990,902 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     required, known = w_to_r_halo_exchange.required()
     assert required
     assert known
+
+
+def test_rc_no_directive():
+    '''When the redundant computation transformation is given a Loop whose
+    parent is a directive an exception is raised as this is not
+    supported (redundant computation transformations must be applied
+    before directives are added). This test checks that this exception
+    is raised correctly.'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create a colouring transformation and apply this to the loop
+    ctrans = Dynamo0p3ColourTrans()
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    # create an openmp transformation and apply this to the loop
+    otrans = DynamoOMPParallelLoopTrans()
+    schedule, _ = otrans.apply(schedule.children[3].children[0])
+
+    # create a redundant computation transformation and apply this to the loop
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(
+            schedule.children[3].children[0].children[0], depth=1)
+    assert ("Redundant computation must be applied before directives are added"
+            in str(excinfo.value))
+
+
+def test_rc_wrong_parent(monkeypatch):
+    '''When the redundant computation transformation is given a Loop which
+    has the wrong parent, and that parent is not a Directive (which is
+    handled in a separate case) an exception is raised. This test
+    checks that this exception is raised correctly.'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # make the parent of the loop a halo exchange
+    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(schedule.children[3], depth=1)
+    assert ("the parent of the supplied loop must be the Schedule, or a Loop"
+            in str(excinfo.value))
+
+
+def test_rc_parent_loop_colour(monkeypatch):
+    '''If the parent of the loop supplied to the redundant computation
+    transformation is a loop then
+
+    1) the parent loop's parent should be a schedule. If this is not
+    the case then an exception is raised.
+
+    2) the parent loop should iterate over 'colours'. If this is not
+    the case then an exception is raised.
+
+    3) the supplied loop should iterate over cells of a given
+    colour. If this is not the case then an exception is raised.
+
+    This test checks that the appropriate exceptions are correctly
+    raised for these three situations
+
+    '''
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # apply colouring
+    # create colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    # make the parent of the outermost loop something other than
+    # Schedule (we use halo exchange in this case)
+    monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "parent's parent must be the Schedule" in str(excinfo.value))
+
+    # make the outermost loop iterate over cells (it should be
+    # colours). We can ignore the previous monkeypatch as this
+    # exception is ecountered before the previous one.
+    monkeypatch.setattr(schedule.children[3], "_loop_type", "cells")
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "parent must iterate over 'colours'" in str(excinfo.value))
+
+    # make the innermost loop iterate over cells (it should be
+    # colour). We can ignore the previous monkeypatches as this
+    # exception is encountered before the previous ones.
+    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+                        "cells")
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "supplied Loop must iterate over 'colour'" in str(excinfo.value))
+
+
+def test_rc_unsupported_loop_type(monkeypatch):
+    '''When an unsupported loop type is provided to the redundant
+    computation apply method an exception is raised. It is not
+    possible to get to this exception in normal circumstances due to
+    the validation tests so we monkey patch it. This test checks that
+    the exception is raised correctly.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # apply colouring
+    # create colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    # make the loop type invalid
+    monkeypatch.setattr(schedule.children[3].children[0], "_loop_type",
+                        "invalid")
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # switch off validation
+    monkeypatch.setattr(rc_trans, "_validate",
+                        lambda loop, depth: None)
+
+    # apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
+    assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
+
+
+def test_rc_colour_no_loop_decrease():
+    '''Test that we raise an exception if we try to reduce the size of a
+    loop halo depth when using the redundant computation
+    transformation. This is not allowed partly for simplicity but also
+    because, in the current implementation we might not decrease the
+    size of the relevant halo exchange as these can only be increased
+    with the current logic
+
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # first set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[3].children[0]
+    schedule, _ = rc_trans.apply(loop, depth=2)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to the level 1 halo
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=1)
+    assert ("supplied depth (1) must be greater than the existing halo depth "
+            "(2)") in str(excinfo)
+    # second set our loop to redundantly compute to the maximum halo depth
+    schedule, _ = rc_trans.apply(loop)
+    invoke.schedule = schedule
+    # now try to reduce the redundant computation to a fixed value
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop, depth=2)
+    assert ("loop is already set to the maximum halo depth so can't be "
+            "set to a fixed value") in str(excinfo)
+    # now try to set the redundant computation to the same (max) value
+    # it is now
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rc_trans.apply(loop)
+    assert ("loop is already set to the maximum halo depth so this "
+            "transformation does nothing") in str(excinfo)
+
+
+def test_rc_colour(tmpdir, f90, f90flags):
+    '''Test that we can redundantly compute over a colour in a coloured loop'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the colour loop
+    rc_trans.apply(cschedule.children[3].children[0], depth=2)
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=2)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=2)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=2)\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,2)\n"
+        in result)
+
+    # We've requested redundant computation out to the level 2 halo
+    # but f1 is continuous and so the outermost halo depth (2) remains
+    # dirty. This means that all of the halo is dirty apart from level
+    # 1.
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_rc_max_colour(tmpdir, f90, f90flags):
+    '''Test that we can redundantly compute over a colour to the maximum
+    depth in a coloured loop'''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[3])
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    # apply redundant computation to the colour loop out to the full
+    # halo depth
+    rc_trans.apply(cschedule.children[3].children[0])
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_colour_discontinuous():
+    ''' Test that we raise an exception if we try to colour a loop
+    containing a kernel that modifies a discontinuous field '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke_wtheta.f90"),
+                           api=TEST_API)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    with pytest.raises(TransformationError) as excinfo:
+        # Colour the loop
+        _, _ = ctrans.apply(schedule.children[0])
+    assert ("Loops iterating over a discontinuous function space are not "
+            "currently supported") in str(excinfo)
+
+
+def test_rc_then_colour(tmpdir, f90, f90flags):
+    '''Test that we generate correct code when we first perform redundant
+    computation to a fixed depth then colour the loop
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # apply redundant computation to the loop, out to the level-3 halo
+    schedule, _ = rc_trans.apply(schedule.children[3], 3)
+
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    psy.invokes.invoke_list[0].schedule = schedule
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=3)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=3)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=3)\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,3)\n"
+        "          !\n"
+        "          CALL testkern_code(nlayers, a, f1_proxy%data,"
+        " f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour, cell)))\n" in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(2)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_rc_then_colour2(tmpdir, f90, f90flags):
+    '''Test that we generate correct code when we first perform redundant
+    computation to the full depth then colour the loop
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # apply redundant computation to the loop to the full halo depth
+    schedule, _ = rc_trans.apply(schedule.children[3])
+
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    psy.invokes.invoke_list[0].schedule = schedule
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
+    '''Test that we are able to fuse two loops together, perform
+    redundant computation and then colour'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    # fuse the loops
+    schedule, _ = ftrans.apply(schedule.children[3],
+                               schedule.children[4])
+
+    # create our redundant computation transformation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # apply redundant computation to the loop
+    schedule, _ = rc_trans.apply(schedule.children[3])
+
+    # create our colour transformation
+    ctrans = Dynamo0p3ColourTrans()
+
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[3])
+
+    psy.invokes.invoke_list[0].schedule = schedule
+
+    result = str(psy.gen)
+
+    assert (
+        "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
+        "      END IF \n" in result)
+    assert (
+        "      cmap => mesh%get_colour_map()\n"
+        "      !\n"
+        "      DO colour=1,mesh%get_ncolours()\n"
+        "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
+        in result)
+
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
+
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_haloex_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between
+    loops works when we colour the loops'''
+
+    def check_halo_exchange(halo_exchange):
+        '''internal function to check the validity of a halo exchange for
+        field f1 which is guaranteed (has no runtime logic to
+        determine whether it is needed or not) and is of depth 1
+
+        '''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange.required() == (True, True)
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert not write_access.max_depth
+        assert write_access.literal_depth == 1
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert depth_info.literal_depth == 1
+        assert not depth_info.max_depth
+        assert not depth_info.var_depth
+
+    w_loop_idx = 2
+    r_loop_idx = 5
+    ctrans = Dynamo0p3ColourTrans()
+
+    # Begin with a loop which modifies the continuous field f1
+    # followed by a loop which modifies the continuous field f3 and
+    # reads field f1. This will produce a guaranteed halo exchange of
+    # depth 1 for field f1. Next, check that loop colouring the first
+    # loop makes no difference to the halo exchange.  Next, check that
+    # loop colouring the first and second loops makes no difference to
+    # the halo exchange.  Finally, check that loop colouring just the
+    # second loop makes no difference to the halo exchange.
+    for idx, cloop_idxs in enumerate([[], [r_loop_idx],
+                                      [r_loop_idx, w_loop_idx], [w_loop_idx]]):
+
+        _, invoke_info = parse(os.path.join(
+            BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        for cloop_idx in cloop_idxs:
+            schedule, _ = ctrans.apply(schedule.children[cloop_idx])
+
+        invoke.schedule = schedule
+        halo_exchange = schedule.children[4]
+        check_halo_exchange(halo_exchange)
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        print "OK for iteration ", idx
+
+
+def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    the maximum depth for the reader. We first check the halo exchange
+    properties are correct with no colouring then apply colouring to
+    the first loop, then the second and finally both. In each case we
+    check that the halo exchange properties do not change. We expect
+    to see a definite (no runtime check) halo exchange to the maximum
+    halo depth.'''
+
+    def check_halo_exchange(halo_exchange):
+        '''Internal method to check the validity of a halo exchange for field
+        f1 which is guaranteed (has no runtime logic to determine
+        whether it is needed or not) and is to the full depth of the
+        halo
+
+        '''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "mesh%get_halo_depth()"
+        assert halo_exchange.required
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert not write_access.max_depth
+        assert write_access.literal_depth == 1
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert not depth_info.literal_depth
+        assert depth_info.max_depth
+        assert not depth_info.var_depth
+
+    w_loop_idx = 2
+    r_loop_idx = 5
+    ctrans = Dynamo0p3ColourTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # Begin with a loop which modifies the continuous field f1
+    # followed by a loop which modifies the continuous field f3 to the
+    # maximum depth and reads field f1. This will produce a guaranteed
+    # halo exchange of maximum depth for field f1. Next, check that
+    # loop colouring the first loop makes no difference to the halo
+    # exchange. Next, check that loop colouring the first and second
+    # loops makes no difference to the halo exchange. Finally, check
+    # that loop colouring just the second loop makes no difference to
+    # the halo exchange.
+    for idx, cloop_idxs in enumerate([[], [r_loop_idx],
+                                      [r_loop_idx, w_loop_idx], [w_loop_idx]]):
+
+        _, invoke_info = parse(os.path.join(
+            BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        schedule, _ = rc_trans.apply(schedule.children[r_loop_idx])
+
+        for cloop_idx in cloop_idxs:
+            schedule, _ = ctrans.apply(schedule.children[cloop_idx])
+
+        invoke.schedule = schedule
+        halo_exchange = schedule.children[4]
+        check_halo_exchange(halo_exchange)
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        print "OK for iteration ", idx
+
+
+def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    the maximum depth for the writer. We first check the halo exchange
+    properties are correct with no colouring then apply colouring to
+    the first loop, then the second and finally both. In each case we
+    check that the halo exchange properties do not change. We expect
+    to see a potential (runtime check) halo exchange of depth 1. This
+    is because we do not know the depth of the halo and the writer
+    ends up with its outermost halo-depth dirty. So, if the maximum
+    depth of the halo is 1 then we need a halo exchange but if it is 2
+    or more we do not.
+
+    '''
+
+    def check_halo_exchange(halo_exchange):
+        '''Internal method to check the validity of a potential (has a runtime
+        check) halo exchange for field f1 of depth 1
+
+        '''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange.required() == (True, False)
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert write_access.max_depth
+        assert not write_access.literal_depth
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert depth_info.literal_depth == 1
+        assert not depth_info.max_depth
+        assert not depth_info.var_depth
+
+    w_loop_idx = 2
+    r_loop_idx = 5
+    ctrans = Dynamo0p3ColourTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # Begin with a loop which modifies the continuous field f1 to the
+    # maximum depth followed by a loop which modifies the continuous
+    # field f3 and reads field f1. This will produce a potential
+    # (runtime check) halo exchange of depth 1 for field f1. Next,
+    # check that loop colouring the first loop makes no difference to
+    # the halo exchange. Next, check that loop colouring the first and
+    # second loops makes no difference to the halo exchange. Finally,
+    # check that loop colouring just the second loop makes no
+    # difference to the halo exchange.
+    for idx, cloops in enumerate([[], [r_loop_idx], [r_loop_idx, w_loop_idx],
+                                  [w_loop_idx]]):
+
+        _, invoke_info = parse(os.path.join(
+            BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        schedule, _ = rc_trans.apply(schedule.children[w_loop_idx])
+
+        for cloop in cloops:
+            schedule, _ = ctrans.apply(schedule.children[cloop])
+
+        invoke.schedule = schedule
+        halo_exchange = schedule.children[4]
+        check_halo_exchange(halo_exchange)
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        print "OK for iteration ", idx
+
+
+def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    the maximum depth for the writer and the reader. We first check
+    the halo exchange properties are correct with no colouring then
+    apply colouring to the first loop, then the second and finally
+    both. In each case we check that the halo exchange properties do
+    not change. We expect to see a definite (no runtime check) halo
+    exchange to the maximum halo depth. We could halo exchange only
+    the outermost halo depth but the LFRic API does not currently
+    support this option.'''
+
+    def check_halo_exchange(halo_exchange):
+        '''internal method to check the validity of a halo exchange for field
+        f1 which is guaranteed (has no runtime logic to determine
+        whether it is needed or not) and is to the full depth of the
+        halo
+
+        '''
+        # check halo exchange has the expected values
+        assert halo_exchange.field.name == "f1"
+        assert halo_exchange._compute_stencil_type() == "region"
+        assert halo_exchange._compute_halo_depth() == "mesh%get_halo_depth()"
+        assert halo_exchange.required() == (True, True)
+        # check that the write_access information (information based on
+        # the previous writer) has been computed correctly
+        write_access = halo_exchange._compute_halo_write_info()
+        assert write_access.set_by_value
+        assert not write_access.var_depth
+        assert write_access.max_depth
+        assert not write_access.literal_depth
+        assert write_access.dirty_outer
+        assert not write_access.annexed_only
+        # check that the read_access information is correct
+        depth_info_list = halo_exchange._compute_halo_read_depth_info()
+        assert len(depth_info_list) == 1
+        depth_info = depth_info_list[0]
+        assert not depth_info.annexed_only
+        assert not depth_info.literal_depth
+        assert depth_info.max_depth
+        assert not depth_info.var_depth
+
+    w_loop_idx = 2
+    r_loop_idx = 5
+    ctrans = Dynamo0p3ColourTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # Begin with a loop which modifies the continuous field f1 to the
+    # maximum depth followed by a loop which modifies the continuous
+    # field f3 to the maximum depth and reads field f1. This will
+    # produce a guaranteed halo exchange of maximum depth for field
+    # f1. Next, check that loop colouring the first loop makes no
+    # difference to the halo exchange. Next, check that loop colouring
+    # the first and second loops makes no difference to the halo
+    # exchange. Finally, check that loop colouring just the second
+    # loop makes no difference to the halo exchange.
+    for idx, cloop_idxs in enumerate([[], [r_loop_idx],
+                                      [r_loop_idx, w_loop_idx], [w_loop_idx]]):
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        schedule, _ = rc_trans.apply(schedule.children[w_loop_idx])
+        schedule, _ = rc_trans.apply(schedule.children[r_loop_idx])
+
+        for cloop_idx in cloop_idxs:
+            schedule, _ = ctrans.apply(schedule.children[cloop_idx])
+
+        invoke.schedule = schedule
+        halo_exchange = schedule.children[4]
+        check_halo_exchange(halo_exchange)
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        print "OK for iteration ", idx
+
+
+def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops and apply redundant computation to
+    depth 2 for the writer. We first check a halo exchange is not
+    generated. We then apply colouring to the first loop, then the
+    second and finally both. In each case we check that a halo
+    exchange is not generated.'''
+
+    # At the start we have two halo exchange calls for field f1, one
+    # before the first loop and one between the two loops
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    from psyclone.dynamo0p3 import DynHaloExchange
+    assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
+    assert isinstance(schedule.children[0], DynHaloExchange)
+    assert schedule.children[0].field.name == "f1"
+    assert isinstance(schedule.children[4], DynHaloExchange)
+    assert schedule.children[4].field.name == "f1"
+
+    w_loop_idx = 2
+    r_loop_idx = 4
+    ctrans = Dynamo0p3ColourTrans()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    # We then apply redundant computation so that the loop which
+    # modifies the continuous field f1 does so to depth=2. The code
+    # will no longer produce a halo exchange between the two loops for
+    # field f1. We will therefore only have one halo exchange for
+    # field f1 (before the first loop). Next, check that loop
+    # colouring the first loop makes no difference to the halo
+    # exchange. Next, check that loop colouring the first and second
+    # loops makes no difference to the halo exchange. Finally, check
+    # that loop colouring just the second loop makes no difference to
+    # the halo exchange.
+    for idx, cloop_idxs in enumerate([[], [r_loop_idx],
+                                      [r_loop_idx, w_loop_idx], [w_loop_idx]]):
+
+        _, invoke_info = parse(os.path.join(
+            BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        result = str(psy.gen)
+
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+
+        schedule, _ = rc_trans.apply(schedule.children[w_loop_idx], depth=2)
+
+        for cloop_idx in cloop_idxs:
+            schedule, _ = ctrans.apply(schedule.children[cloop_idx])
+
+        invoke.schedule = schedule
+        result = str(psy.gen)
+
+        # the redundant computation code has one halo exchange for field f1
+        assert result.count("f1_proxy%halo_exchange(depth=2)") == 1
+        assert isinstance(schedule.children[0], DynHaloExchange)
+        assert schedule.children[0].field.name == "f1"
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+        print "OK for iteration ", idx

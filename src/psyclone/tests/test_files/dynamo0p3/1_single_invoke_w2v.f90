@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,19 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
-program single_invoke_fs
+program single_invoke_w2v_wtheta
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
+  ! Description: single function in an invoke iterating over w2v and
+  ! reading from wtheta (both discontinuous)
+  use testkern_w2v_mod, only: testkern_w2v_type
+  use inf,              only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
+  type(field_type) :: f1, f2
 
-  call invoke(                                          &
-       testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4) &
+  call invoke(                   &
+       testkern_w2v_type(f1, f2) &
           )
 
-end program single_invoke_fs
+end program single_invoke_w2v_wtheta
