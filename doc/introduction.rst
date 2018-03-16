@@ -1,26 +1,35 @@
+.. Modified I. Kavcic Met Office
+.. _introduction:
+
 Introduction
 ============
 
 PSyclone, the PSy code generator, is being developed for use in finite
-element, finite volume and finite difference codes. PSyclone is being
-developed to support the emerging API in the GungHo project for a
-finite element dynamical core.
+element, finite volume and finite difference codes. PSyclone development
+started with the aim to support the emerging API in the GungHo project
+for a finite element dynamical core.
 
 The `GungHo project
-<http://www.metoffice.gov.uk/media/pdf/g/p/MOSAC_16.10.pdf>`_ is
-designing and building the heart of the Met Office's next generation
-software (known as the dynamical core) using algorithms that will
-scale to millions of cores. The project is a collaboration between the
-Met Office, NERC (via NERC funded academics) and STFC, and the
-resultant software is expected to be operational in 2022.
+<https://www.metoffice.gov.uk/binaries/content/assets/mohippo/pdf/g/p/mosac_16.10.pdf>`_
+was initiated in 2011 to address challenges of weather and climate
+prediction on the next generation of supercomputers. The project ran for
+5 years as a collaboration between the Met Office, NERC (via NERC funded
+academics) and STFC. It laid a foundation for redesign of the heart of
+the Met Office's Unified Model, known as the dynamical core, from the
+choices of numerical methods and model grids to the implementation of
+parallel algorithms that will scale to millions of cores.
 
-The associated GungHo software infrastructure is being developed to
-support multiple meshes and element types thus allowing for future
-model development. GungHo is also proposing a novel separation of
-concerns for the software implementation of the dynamical core. This
-approach distinguishes between three layers: the Algorithm layer, the
-Kernel layer and the Parallelisation System (PSy) layer. Together this
-separation is termed PSyKAl.
+The software infrastructure based on the GungHo project recommendations
+is now being developed in the
+`LFRic project <https://www.metoffice.gov.uk/research/modelling-systems/lfric>`_
+and is expected to be operational in 2022. Its development is led by the
+requirements to support multiple meshes and element types, thus allowing
+for future model development.
+
+GungHo also proposed a novel separation of concerns for the software
+implementation of the dynamical core. This approach distinguishes between
+three layers: the Algorithm layer, the Kernel layer and the Parallelisation
+System (PSy) layer. Together this separation is termed PSyKAl.
 
 The Algorithm layer specifies the algorithm that the scientist would
 like to run (in terms of calls to kernel routines and built-in operations)
@@ -39,12 +48,12 @@ combination thereof with no change to the algorithm or kernel layer
 code. This approach therefore offers the potential for portable
 performance.
 
-Rather than writing the PSy layer manually, the GungHo project is
-developing the PSyclone code generation system which can help a user to
-optimise the code for a particular architecture (by providing
-optimisations such as blocking, loop merging, inlining etc), or
-alternatively, generate the PSy layer automatically.
+Rather than writing the PSy layer manually, the PSyclone code generation
+system can help a user to optimise the code for a particular architecture
+(by providing optimisations such as blocking, loop merging, inlining etc),
+or alternatively, generate the PSy layer automatically.
 
 PSyclone is also being extended to support an API being developed in
-the GOcean project for two finite difference ocean model benchmarks,
-one of which is based on the NEMO ocean model.
+the `GOcean project <https://puma.nerc.ac.uk/trac/GOcean>`_ for two finite
+difference ocean model benchmarks, one of which is based on the
+`NEMO <https://www.nemo-ocean.eu/>`_ ocean model.

@@ -54,10 +54,9 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
 # first section : Parser specialisations and classes
 
 # constants
-DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
 # space any_w2 can be w2, w2h or w2v
-CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v",
-                              "any_w2"]
+CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 

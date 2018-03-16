@@ -1,17 +1,25 @@
 .. Modified I. Kavcic Met Office
 .. _dynamo0.3-api:
 
-dynamo0.3 API
+Dynamo0.3 API
 =============
 
-This section describes the dynamo0.3 application programming interface
+This section describes the Dynamo0.3 application programming interface
 (API). This API explains what a user needs to write in order to make
-use of the dynamo0.3 API in PSyclone.
+use of the Dynamo0.3 API in PSyclone.
 
-As with all PSyclone API's the dynamo0.3 API specifies how a user
+As with all PSyclone API's the Dynamo0.3 API specifies how a user
 needs to write the algorithm layer and the kernel layer to allow
 PSyclone to generate the PSy layer. These algorithm and kernel API's
 are discussed separately in the following sections.
+
+The Dynamo0.3 API supports the Met Office's finite element (hereafter FEM)
+based GungHo dynamical core (see :ref:`introduction`). The Met Office
+Collaboration Wiki (login required) provides more detailed information
+about the dynamical core's `formulation
+<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_formulation.pdf>`_
+and `data model
+<http://collab.metoffice.gov.uk/twiki/bin/viewfile/Static/LFRic/lfric-gungho-meto-spice/documentation/design/dynamo_datamodel.pdf>`_.
 
 .. _dynamo0.3-api-algorithm:
 
@@ -20,14 +28,14 @@ Algorithm
 
 The general requirements for the structure of an Algorithm are explained
 in the :ref:`algorithm-layer` section. This section explains the
-dynamo0.3-specific specialisations and extensions.
+Dynamo0.3-specific specialisations and extensions.
 
 .. _dynamo0.3-example:
 
 Example
 +++++++
 
-An example dynamo0.3 API invoke call is given below with various
+An example Dynamo0.3 API invoke call is given below with various
 different types of objects supported by the API. These different
 objects and their use are discussed in the following sections.
 
@@ -50,15 +58,45 @@ objects and their use are discussed in the following sections.
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
 
+Objects in the Dynamo0.3 API can be categorised by their functionality
+as data types and information that specifies supported operations on a
+particular data type. The above example introduces four of five data types
+supported by the Dynamo0.3 API: field, scalar, operator and column-wise
+operator (field vector is the fifth). ``qr`` represents a quadrature
+object which provides information required by a kernel to operate
+on fields (see section :ref:`dynamo0.3-quadrature` for more details).
+
+.. _dynamo0.3-field:
+
 Field
 +++++
 
-.. note:: To be written.
+Dynamo0.3 API fields, identified with ``GH_FIELD`` metadata, represent
+FEM discretisations of various dynamical core prognostic and diagnostic
+variables. In FEM, variables are discretised by placing them into a
+function space (see :ref:`dynamo0.3-function-space`) from which they
+inherit a polynomial expansion via the basis functions of that space.
+Field values at points within a cell are evaluated as the sum of a set
+of basis functions multiplied by coefficients which are the data points.
+Points of evaluation are determined by a quadrature object
+(:ref:`dynamo0.3-quadrature`) and are independent of the function space
+the field is on. Placement of field data points, also called degrees of
+freedom ("dof"), is determined by the function space the field is on.
+
+.. _dynamo0.3-field-vector:
 
 Field Vector
 ++++++++++++
 
-.. note:: To be written.
+Depending on the function space a field lives on, the field data at a
+point can be a scalar or a vector (see :ref:`dynamo0.3-function-space`
+for the list of scalar and vector function spaces). There is an
+additional option which specifies whether the data itself is vector
+valued and it usually refers to bundles of scalar valued fields.
+Field vectors are represented as ``GH_FIELD*N`` where ``N`` is the
+size of the vector. The 3D coordinate field, for example, has
+``(x, y, z)`` scalar values at the nodes and therefore has a
+vector size of 3.
 
 Scalar
 ++++++
@@ -71,15 +109,17 @@ Operator
 ++++++++
 
 Represents a matrix constructed on a per-cell basis using Local
-Matrix Assembly (LMA).
+Matrix Assembly (LMA) and is identified with ``GH_OPERATOR``
+metadata.
 
 Column-Wise Operator
 ++++++++++++++++++++
 
 The Dynamo 0.3 API has support for the construction and use of
-column-wise/Column Matrix Assembly (CMA) operators. As the name
-suggests, these are operators constructed for a whole column of the
-mesh. These are themselves constructed from the Local Matrix Assembly
+column-wise/Column Matrix Assembly (CMA) operators whose metadata
+identifier is ``GH_COLUMNWISE_OPERATOR``. As the name suggests,
+these are operators constructed for a whole column of the mesh.
+These are themselves constructed from the Local Matrix Assembly
 (LMA) operators of each cell in the column. The rules governing
 Kernels that have CMA operators as arguments are given in the
 :ref:`dynamo0.3-kernel` section below.
@@ -120,7 +160,10 @@ meta-data (see :ref:`cma_meta_data_rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
-.. _quadrature:
+A full example of CMA operator construction is available in
+``examples/dynamo/eg7``.
+
+.. _dynamo0.3-quadrature:
 
 Quadrature
 ++++++++++
@@ -157,7 +200,7 @@ stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
 If a stencil operation is specified by the Kernel metadata the
 algorithm layer must provide the ``extent`` of the stencil (the
 maximum distance from the central cell that the stencil extends). The
-dynamo0.3 API expects this information to be added as an additional
+Dynamo0.3 API expects this information to be added as an additional
 ``integer`` argument immediately after the relevant field when specifying
 the Kernel via an ``invoke``.
 
@@ -181,7 +224,7 @@ stencil access.
 If the Kernel metadata specifies that the stencil is of type
 ``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
 must specify whether the stencil is ``X1D`` or ``Y1D`` for that
-particular kernel call. The dynamo0.3 API expects this information to
+particular kernel call. The Dynamo0.3 API expects this information to
 be added as an additional argument immediately after the relevant
 stencil extent argument. The argument should be an ``integer`` with
 valid values being ``x_direction`` or ``y_direction``, both being
@@ -217,7 +260,7 @@ In the above example ``field2`` and ``field3`` in ``kernel1`` and
 ``field3`` in ``kernel1`` and ``field4`` in ``kernel2`` will have the
 same ``direction`` value.
 
-An example of the use of stencils is available in ``examples/dynamo0p3/eg5``.
+An example of the use of stencils is available in ``examples/dynamo/eg5``.
 
 There is currently no attempt to perform type checking in PSyclone so
 any errors in the type and/or position of arguments will not be picked
@@ -225,7 +268,7 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the dynamo0.3 api test suite gives::
+For example, running test 19.2 from the Dynamo0.3 API test suite gives::
 
   cd <PSYCLONEHOME>/src/tests
   python ../../src/generator.py test_files/dynamo0p3/19.2_single_stencil_broken.f90 
@@ -276,19 +319,20 @@ types.
     over that space.
 
  2) The continuity of the iteration space of the Kernel is determined
-    from the function space of the modified argument. If more than one
-    argument is modified then the iteration space is taken to be the
-    largest required by any of those arguments. e.g. if a Kernel
+    from the function space of the modified argument
+    (see :ref:`dynamo0.3-function-space`).
+    If more than one argument is modified then the iteration space is taken
+    to be the largest required by any of those arguments. e.g. if a Kernel
     writes to two fields, the first on W3 (discontinuous) and the
     second on W1 (continuous), then the iteration space of that Kernel
     will be determined by the field on the continuous space.
 
  3) If the function space of the modified argument(s) cannot be
     determined then they are assumed to be continuous. This is
-    the case if any of the modified arguments are declared as ANY_SPACE and
-    their actual space cannot be determined statically. This assumption is
-    always safe but leads to additional computation if the quantities being
-    updated are actually on discontinuous function spaces.
+    the case if any of the modified arguments are declared as ``ANY_SPACE``
+    and their actual space cannot be determined statically. This assumption
+    is always safe but leads to additional computation if the quantities
+    being updated are actually on discontinuous function spaces.
 
  4) Operators do not have halo operations operating on them as they
     are either cell- (LMA) or column-based (CMA) and therefore act
@@ -409,7 +453,7 @@ Rules for Inter-Grid Kernels
 Metadata
 ++++++++
 
-The code below outlines the elements of the dynamo0.3 API kernel
+The code below outlines the elements of the Dynamo0.3 API kernel
 metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
 'iterates_over' and 5) 'procedure'.
 
@@ -466,9 +510,8 @@ being passed is for a real scalar (``GH_REAL``), an integer scalar
 information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
-fields (see the :ref:`dynamo0.3-api-algorithm` section for more
-details). If so, the size of the vector is specified using the
-notation ``GH_FIELD*N``, where ``N`` is the size of the vector.
+fields (see the :ref:`dynamo0.3-field-vector` section for more
+details).
 
 As an example, the following ``meta_args`` metadata describes 4
 entries, the first is a real scalar, the next two are fields and the
@@ -533,8 +576,8 @@ field or an operator is being described.
 In the case of an operator, the 3rd and 4th arguments describe the
 ``to`` and ``from`` function spaces respectively. In the case of a
 field the 3rd argument specifies the function space that the field
-lives on. Supported function spaces are ``w0``, ``w1``, ``w2``, ``w3``,
-``wtheta``, ``w2h`` and ``w2v``.
+lives on. More details about the supported function spaces are in
+subsection :ref:`dynamo0.3-function-space`.
 
 For example, the meta-data for a kernel that applies a Column-wise
 operator to a field might look like:
@@ -574,10 +617,10 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
 
 ::
 
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1 ),                       &
-       arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2 ),                   &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
+  type(arg_type) :: meta_args(3) = (/                           &
+       arg_type(GH_FIELD, GH_INC, ANY_SPACE_1),                 &
+       arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2),             &
+       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
        /)
 
 Note also that the scope of this naming of any-space function spaces is
@@ -589,11 +632,11 @@ contained two calls of a kernel with arguments described by the above
 meta-data then the first field argument passed to each kernel call
 need not be on the same space.
 
-.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
-          pattern must be a discontinuous function in the
-          horizontal. At the moment that means it must be ``w3`` but
-          in the future there will be more discontinuous function
-          spaces. A GH_FIELD that specifies GH_INC as its access
+.. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` as its
+          access pattern must be a discontinuous function in the
+          horizontal. That means it must belong to ``w3``, ``wtheta``
+          or ``w2v`` function spaces (see :ref:`dynamo0.3-function-space`).
+          A ``GH_FIELD`` that specifies ``GH_INC`` as its access
           pattern may be continuous in the vertical (and discontinuous
           in the horizontal), continuous in the horizontal (and
           discontinuous in the vertical), or continuous in both. In
@@ -624,8 +667,8 @@ Argument Type     	Function space                  Access type
 ======================	============================    =========================
 *GH_INTEGER*        	*n/a*                           *GH_SUM (Built-ins only)*
 GH_REAL           	n/a                             GH_SUM (Built-ins only)
-GH_FIELD                Discontinuous (w3)              GH_WRITE
-GH_FIELD                Continuous (not w3)             GH_INC
+GH_FIELD                Discontinuous                   GH_WRITE
+GH_FIELD                Continuous                      GH_INC
 GH_OPERATOR             Any for both 'to' and 'from'    GH_WRITE
 GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
 ======================  ============================    =========================
@@ -634,6 +677,10 @@ GH_COLUMNWISE_OPERATOR  Any for both 'to' and 'from'    GH_WRITE
           scalar arguments. *Since the LFRic infrastructure does not
           currently support integer reductions, integer scalar arguments
           are restricted to having read-only access.*
+
+.. note:: The ``GH_READWRITE`` access will be introduced to denote updating
+          discontinuous quantitites (operators and fields over relevant
+          function spaces) which do not share dofs.
 
 There is no restriction on the number and function-spaces of other
 quantities that a general-purpose kernel can modify other than that it
@@ -659,6 +706,90 @@ discontinuous function spaces. In conjunction with this, PSyclone also
 checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
+
+.. _dynamo0.3-function-space:
+
+Supported Function Spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As mentioned in the :ref:`dynamo0.3-field` and :ref:`dynamo0.3-field-vector`
+sections, the function space of an argument specifies how it maps
+onto the underlying topology and, additionally, whether the data at a
+point is a vector.
+
+Function spaces can share dofs between cells in the horizontal, vertical
+or both directions. Depending on the function space and FEM order,
+the shared dofs can lie on one or more cell entities (faces, edges
+and vertices) in each direction. This property is referred to as the
+**continuity** of a function space (horizontal, vertical or full).
+Alternatively, if there are no shared dofs a function space is described
+as **discontinuous** (fully or in a particular direction).
+
+The mixed FEM formulation is built on a foundation set of four function
+spaces described below.
+
+* ``w0`` is the space of scalar functions with full continuity. The
+  shared dofs lie on cell vertices in the lowest order FEM and on
+  all three entities in higher order FEM.
+
+* ``w1`` is the space of vector functions with full continuity in the
+  tangential direction only. In the lowest order FEM the shared dofs
+  lie on cell edges for each component, whereas in higher order they
+  also lie on cell faces.
+
+* ``w2`` is the space of vector functions with full continuity in the
+  normal direction only. The shared dofs lie on cell faces for each
+  component.
+
+* ``w3`` is the space of scalar functions with full discontinuity.
+  All dofs lie within the cell volume and are not shared across the
+  cell boundaries.
+
+Additional function spaces required for representation of scalar or
+component-wise vector variables are:
+
+* ``wtheta`` is the space of scalar functions based on the vertical
+  part of ``w2``, discontinuous in the horizontal and continuous
+  in the vertical;
+
+* ``w2v`` is the space of vector functions based on the vertical
+  part of ``w2``, discontinuous in the horizontal and continuous
+  in the vertical;
+
+* ``w2h`` is the space of vector functions based on the horizontal
+  part of ``w2``, continuous in the horizontal and discontinuous
+  in the vertical.
+
+Since the Dynamo0.3 API operates on columns of data, function spaces
+are categorised as continuous or discontinuous with regard to their
+horizontal continuity.
+
+* **Continuous** function spaces are ``w0``, ``w1``, ``w2`` and ``w2h``;
+
+* **Discontinuous** function spaces are ``w3``, ``wtheta`` and ``w2v``.
+
+Two additonal function space metadata descriptors as mentioned in
+sections above are:
+
+* ``ANY_W2`` for any type of ``w2`` function spaces;
+
+* ``ANY_SPACE`` for when the function space of the modified argument(s)
+  cannot be determined and/or for when a Kernel has been written so that
+  it works with fields on any of the available spaces.
+
+As mentioned previously, both ``ANY_W2`` and ``ANY_SPACE`` function
+space types are treated as continuous.
+
+Horizontally discontinuous function spaces and fields over them will not
+need colouring so PSyclone does not perform it. If such attempt is made,
+PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
+transformation (see :ref:`dynamo0.3-api-transformations` for more details
+on transformations). An example of field writing over a discontinuous
+function space ``wtheta`` is given in ``examples/dynamo/eg9``. This
+example also demonstrates how to only colour loops over continuous
+function spaces when transformations are applied.
+Additionally, it will also serve as an example of ``GH_READWRITE`` access
+for discontinuous quantities when it is introduced.
 
 Optional Field Metadata
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -740,7 +871,7 @@ Below is an example of stencil information within the full kernel metadata.
        /)
 
 There is a full example of this distributed with PSyclone. It may
-be found in ``examples/dynamo0p3/eg5``.
+be found in ``examples/dynamo/eg5``.
 
 .. _dynamo0.3-intergrid-mdata:
 
@@ -872,7 +1003,7 @@ associated kernel is updating. All necessary data is extracted in the
 PSy layer and passed to the kernel(s) as required - nothing is
 required from the Algorithm layer. If a kernel requires quadrature on
 the other hand, the Algorithm writer must supply a ``quadrature_type``
-object as the last argument to the kernel (see Section :ref:`quadrature`).
+object as the last argument to the kernel (see Section :ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are
@@ -909,7 +1040,7 @@ Rules for General-Purpose Kernels
 
 The arguments to general-purpose kernels (those that do not involve
 either CMA operators or prolongation/restriction operations) follow a
-set of rules which have been specified for the dynamo0.3 API. These
+set of rules which have been specified for the Dynamo0.3 API. These
 rules are encoded in the ``generate()`` method within the
 ``ArgOrdering`` abstract class in the ``dynamo0p3.py`` file. The
 rules, along with PSyclone's naming conventions, are:
@@ -1721,7 +1852,7 @@ where:
 Boundary Conditions
 -------------------
 
-In the dynamo0.3 API, boundary conditions for a field or LMA operator can
+In the Dynamo0.3 API, boundary conditions for a field or LMA operator can
 be enforced by the algorithm developer by calling the Kernels
 ``enforce_bc_type`` or ``enforce_operator_bc_type``,
 respectively. These kernels take a field or operator as input and apply
@@ -1758,7 +1889,7 @@ example.
 Conventions
 -----------
 
-There is a convention in the dynamo0.3 API kernel code that if the
+There is a convention in the Dynamo0.3 API kernel code that if the
 name of the operation being performed is ``<name>`` then a kernel file
 is ``<name>_mod.[fF90]``, the name of the module inside the kernel
 file is ``<name>_mod``, the name of the kernel metadata in the module
@@ -1771,6 +1902,8 @@ does not affect PSyclone.
 Finally, the ``procedure`` metadata (located within the kernel
 metadata) usually has ``nopass`` specified but again this is ignored
 by PSyclone.
+
+.. _dynamo0.3-api-transformations:
 
 Transformations
 ---------------
@@ -1801,6 +1934,7 @@ has no effect and the transformation will always raise an exception.
 The **Dynamo0p3RedundantComputationTrans** transformation is only valid
 for the "Dynamo0p3" API. This is because this API is currently the
 only one that supports distributed memory.
+An example of redundant computation can be found in ``examples/dynamo/eg8``.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
