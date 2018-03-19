@@ -1546,7 +1546,8 @@ class GOLoopSwapTrans(Transformation):
         from psyclone.gocean1p0 import GOLoop
         if not isinstance(node_outer, GOLoop):
             raise TransformationError("Error in GOLoopSwap transformation. "
-                                      "Given node '{0}' is not a GOLoop, but an instance of '{1}."
+                                      "Given node '{0}' is not a GOLoop, but "
+                                      "an instance of '{1}."
                                       .format(node_outer, type(node_outer)))
 
         if len(node_outer.children) == 0:
@@ -1580,8 +1581,8 @@ class GOLoopSwapTrans(Transformation):
                                               node_outer.children[1]))
 
     def apply(self, outer):  # pylint: disable=arguments-differ
-        '''The argument :py:obj:`outer` must be a loop which has exactly one inner loop.
-        This transform then swaps the outer and inner loop.
+        '''The argument :py:obj:`outer` must be a loop which has exactly
+        one inner loop. This transform then swaps the outer and inner loop.
 
         :param outer: The node representing the outer loop.
         :type outer: :py:class:`psyclone.psyGen.Loop`
