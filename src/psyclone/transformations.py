@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#        J. Henrichs, Bureau of Meteorology
 
 ''' This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
@@ -80,7 +81,7 @@ class LoopFuseTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "LoopFuse"
 
     def _validate(self, node1, node2):
@@ -101,6 +102,7 @@ class LoopFuseTrans(Transformation):
         iteration space
 
         '''
+
         # Check that the supplied Node is a Loop
         from psyclone.psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
@@ -123,8 +125,8 @@ class LoopFuseTrans(Transformation):
                                       "iteration space")
 
     def apply(self, node1, node2):
-        ''' Fuse the loops represented by :py:obj:`node1` and
-        :py:obj:`node2` '''
+        '''Fuse the loops represented by :py:obj:`node1` and
+        :py:obj:`node2`.'''
 
         self._validate(node1, node2)
 
@@ -159,12 +161,21 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "GOceanLoopFuse"
 
     def apply(self, node1, node2):
-        ''' Fuse the two GOcean loops represented by :py:obj:`node1` and
-        :py:obj:`node2` '''
+        '''Fuse the two GOcean loops represented by :py:obj:`node1` and
+        :py:obj:`node2`.
+
+        :param node1: A node representing a GOLoop.
+        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
+        :param node2: A node representing a GOLoop.
+        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
+        :raises TransformationError: if the supplied node2 can not be fused,
+            e.g. not all nodes are loops, don't have the same parent, are not
+            next to each other or have different iteration spaces.
+        '''
 
         LoopFuseTrans._validate(self, node1, node2)
 
@@ -197,7 +208,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "DynamoLoopFuse"
 
     def apply(self, node1, node2, same_space=False):
@@ -326,13 +337,13 @@ class OMPLoopTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "OMPLoopTrans"
 
     @property
     def omp_schedule(self):
         ''' Returns the OpenMP schedule that will be specified by
-            this transformation. The default schedule is 'static' '''
+            this transformation. The default schedule is 'static'.'''
         return self._omp_schedule
 
     @omp_schedule.setter
@@ -489,7 +500,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "OMPParallelLoopTrans"
 
     def __str__(self):
@@ -565,7 +576,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "DynamoOMPParallelLoopTrans"
 
     def __str__(self):
@@ -596,22 +607,31 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
     '''GOcean specific OpenMP Do loop transformation. Adds GOcean
        specific validity checks (that supplied Loop is an inner or outer
        loop). Actual transformation is done by
-       :py:class:`base class <OMPParallelLoopTrans>`.  '''
+       :py:class:`base class <OMPParallelLoopTrans>`.
+
+       :param omp_schedule: The omp schedule to be created. Must be one of
+           'runtime', 'static', 'dynamic', 'guided' or 'auto'.
+       '''
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "GOceanOMPParallelLoopTrans"
 
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
     def apply(self, node):
-
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
 
+        :param node: A Loop node from an AST.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+        :raises TransformationError: if the supplied node is not an inner or
+            outer loop.
+
         '''
+
         OMPParallelLoopTrans._validate(self, node)
 
         # Check we are either an inner or outer loop
@@ -633,7 +653,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "Dynamo0p3OMPLoopTrans"
 
     def __str__(self):
@@ -666,20 +686,27 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
         specific validity checks (that the node is either an inner or outer
         Loop). Actual transformation is done by
-        :py:class:`base class <OMPLoopTrans>`. '''
+        :py:class:`base class <OMPLoopTrans>`.
+
+        :param omp_schedule: The omp schedule to be created. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'.
+
+        '''
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "GOceanOMPLoopTrans"
 
     def __str__(self):
         return "Add an OpenMP DO directive to a GOcean loop"
 
     def apply(self, node):
-
         '''Perform GOcean specific loop validity checks then call
-            `:py:meth:`OMPLoopTrans.apply`.
+        :py:meth:`OMPLoopTrans.apply`.
+
+        :param node: The loop to parallelise using OMP Do.
+        :type node: :py:class:`psyclone.psyGen.Loop`.
 
         '''
         # check node is a loop. Although this is not GOcean specific
@@ -721,7 +748,7 @@ class ColourTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "LoopColourTrans"
 
     def apply(self, node):
@@ -809,7 +836,7 @@ class KernelModuleInlineTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "KernelModuleInline"
 
     def apply(self, node, inline=True):
@@ -891,7 +918,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "Dynamo0p3LoopColourTrans"
 
     def apply(self, node):
@@ -980,7 +1007,7 @@ class OMPParallelTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "OMPParallelTrans"
 
     def apply(self, nodes):
@@ -1122,10 +1149,20 @@ class GOConstLoopBoundsTrans(Transformation):
 
     @property
     def name(self):
-        ''' Return the name of the Transformation as a string '''
+        ''' Return the name of the Transformation as a string.'''
         return "GOConstLoopBoundsTrans"
 
     def apply(self, node, const_bounds=True):
+        '''Switches constant loop bounds on or off for all loops in the
+        schedule :py:obj:`node`. Default is 'on'.
+
+        :param node: The schedule of which all loops will get the constant
+            loop bounds switched on or off.
+        :type node: :py:class:`psyclone.gocean1p0.GOSchedule`
+        :param const_bounds: If the constant loop should be used (True)
+            or not (False). Default is True.
+        :type const_bounds: bool
+        '''
 
         # Check node is a Schedule
         from psyclone.gocean1p0 import GOSchedule
@@ -1168,9 +1205,10 @@ class MoveTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "Move"
 
+    # pylint: disable=no-self-use
     def _validate(self, node, location, position):
         ''' validity checks for input arguments '''
 
@@ -1187,19 +1225,21 @@ class MoveTrans(Transformation):
             raise TransformationError(
                 "In the Move transformation apply method, data dependencies "
                 "forbid the move to the new location")
+        # pylint: enable=no-self-use
 
     def apply(self, node, location, position="before"):
         '''Move the node represented by :py:obj:`node` before location
         :py:obj:`location` (which is also a node) by default and after
         if the optional `position` argument is set to 'after'. An
-        exception is raised if the move is invalid '''
+        exception is raised if the move is invalid.'''
+        # pylint:disable=arguments-differ
 
         self._validate(node, location, position)
 
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
+        from .undoredo import Memento
         keep = Memento(schedule, self, [node, location])
 
         parent = node.parent
@@ -1242,7 +1282,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string.'''
         return "RedundantComputation"
 
     def _validate(self, node, depth):
@@ -1405,7 +1445,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
-    def apply(self, loop, depth=None):
+    def apply(self, loop, depth=None):  # pylint:disable=arguments-differ
         '''Apply the redundant computation tranformation to the loop
         :py:obj:`loop`. This transformation can be applied to loops iterating
         over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
@@ -1445,5 +1485,137 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # Add/remove halo exchanges as required due to the redundant
         # computation
         loop.update_halo_exchanges()
+
+        return schedule, keep
+
+
+class GOLoopSwapTrans(Transformation):
+    ''' Provides a loop-swap transformation, e.g.:
+    ::
+
+      DO j=1, m
+         DO i=1, n
+
+    becomes:
+    ::
+
+      DO i=1, n
+         DO j=1, m
+
+    This transform is used as follows:
+
+     >>> from parse import parse
+     >>> from psyGen import PSyFactory
+     >>> ast,invokeInfo=parse("shallow_alg.f90")
+     >>> psy=PSyFactory("gocean1.0").create(invokeInfo)
+     >>> schedule=psy.invokes.get('invoke_0').schedule
+     >>> schedule.view()
+     >>>
+     >>> from transformations import GOLoopSwapTrans
+     >>> swap=GOLoopSwapTrans()
+     >>> new_schedule,memento=swap.apply(schedule.children[0])
+     >>> new_schedule.view()
+    '''
+
+    def __str__(self):
+        return "Exchange the order of two nested loops: inner becomes " + \
+               "outer and vice versa"
+
+    @property
+    def name(self):
+        '''Returns the name of this transformation as a string.'''
+        return "GOLoopSwap"
+
+    def _validate(self, node_outer):  # pylint: disable=no-self-use
+        '''Checks if the given nodes contains a valid Fortran structure
+           to allow swapping loops. This means the node must represent
+           a loop, and it must have exactly one child that is also a loop.
+
+           :param node_outer: A node from an AST.
+           :type node_outer: py:class:`psyclone.psyGen.Node`
+           :raises TransformationError: if the supplied node does not
+                                        allow a loop swap to be done.
+         '''
+
+        from psyclone.psyGen import Loop
+        if not isinstance(node_outer, Loop):
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Given node '{0}' is not a loop."
+                                      .format(node_outer))
+
+        from psyclone.gocean1p0 import GOLoop
+        if not isinstance(node_outer, GOLoop):
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Given node '{0}' is not a GOLoop, but an instance of '{1}."
+                                      .format(node_outer, type(node_outer)))
+
+        if len(node_outer.children) == 0:
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Supplied node '{0}' must be the outer "
+                                      "loop of a loop nest and must have one "
+                                      "inner loop, but this node does not "
+                                      "have any statements inside."
+                                      .format(node_outer))
+
+        node_inner = node_outer.children[0]
+        # Check that the supplied Node is a Loop
+        if not isinstance(node_inner, Loop):
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Supplied node '{0}' must be the outer "
+                                      "loop of a loop nest but the first "
+                                      "inner statement is not a loop, got "
+                                      "'{1}'."
+                                      .format(node_outer, node_inner))
+
+        if len(node_outer.children) > 1:
+            raise TransformationError("Error in GOLoopSwap transformation. "
+                                      "Supplied node '{0}' must be the outer "
+                                      "loop of a loop nest and must have "
+                                      "exactly one inner loop, but this node "
+                                      "has {1} inner statements, the first "
+                                      "two being '{2}' and '{3}'"
+                                      .format(node_outer,
+                                              len(node_outer.children),
+                                              node_outer.children[0],
+                                              node_outer.children[1]))
+
+    def apply(self, outer):  # pylint: disable=arguments-differ
+        '''The argument :py:obj:`outer` must be a loop which has exactly one inner loop.
+        This transform then swaps the outer and inner loop.
+
+        :param outer: The node representing the outer loop.
+        :type outer: :py:class:`psyclone.psyGen.Loop`
+        :return: A tuple consistent of the new schedule, and a Memento.
+        :raises TransformationError: if the supplied node does not
+                                        allow a loop swap to be done.'''
+        self._validate(outer)
+
+        schedule = outer.root
+        inner = outer.children[0]
+        parent = outer.parent
+
+        # create a memento of the schedule and the proposed transformation
+        from .undoredo import Memento
+        keep = Memento(schedule, self, [inner, outer])
+
+        # Remove outer from parent:
+        index = parent.children.index(outer)
+        del parent.children[index]
+        outer.parent = None
+
+        # Move inner to parent:
+        inner.parent = parent
+        parent.children.insert(index, inner)
+        outer.children.remove(inner)
+
+        # Move inner's children to outer:
+        for child in inner.children:
+            inner.children.remove(child)
+            outer.children.append(child)
+            child.parent = outer
+
+        # Move outer under inner:
+        inner.children.append(outer)
+        outer.parent = inner
 
         return schedule, keep
