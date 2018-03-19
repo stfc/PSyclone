@@ -9,6 +9,7 @@
 ''' This module tests the line_limit module using pytest. '''
 
 # imports
+from __future__ import absolute_import
 import os
 import pytest
 from psyclone.line_length import FortLineLength
@@ -65,6 +66,7 @@ def test_unchanged():
     print "("+input_file+")"
     print "("+output_file+")"
     assert input_file == output_file, "input should remain unchanged"
+
 
 INPUT_FILE = (
     "    INTEGER    stuff blah blah blah\n"

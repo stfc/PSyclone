@@ -9,6 +9,23 @@
         arguments to built-in kernels. Add new inc_X_powint_n Built-in
         that raises a field to an integer power.
 
+        4) #67 Bug fix - printing Invoke object caused crash.
+
+        5) #112 and PR #113 - add travis support for codecov coverage tool
+
+	6) #118 and PR #122 - add .pylintrc file in tests directory
+	to disable some warnings that we don't care about (for testing
+	code).
+
+	7) #117 and PR #125 - bug fix for passing kernel arguments by value
+	in the GOcean API.
+
+	8) #105 and PR #115 - add support for coloured loops when
+	performing redundant computation.
+
+        9) #84 and PR #128 - make w2v and wtheta discontinuous function
+        spaces
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not

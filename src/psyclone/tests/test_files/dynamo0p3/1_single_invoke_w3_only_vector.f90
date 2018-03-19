@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,18 +32,19 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_w3_only_vector
 
-  ! Description: single function in an invoke iterating over w3 and
-  ! reading from w3
-  use testkern_w3_only_vector, only: testkern_w3_only_vector_type
-  use inf,      only: field_type
+  ! Description: single function in an invoke iterating over and
+  ! reading from w3 field vectors (discontinuous)
+  use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
+  use inf,                         only: field_type
   implicit none
   type(field_type) :: f1(3), f2(3)
 
-  call invoke(                        &
-       testkern_w3_only_vector_type(f1,f2)   &
+  call invoke(                              &
+       testkern_w3_only_vector_type(f1, f2) &
           )
 
 end program single_invoke_w3_only_vector

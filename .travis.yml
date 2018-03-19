@@ -46,6 +46,7 @@ env:
 before_install:
   - ./bin/install_optional.sh
   - pip install coveralls
+  - pip install codecov
 install:
   - "pip install ."
 script:
@@ -53,6 +54,7 @@ script:
   - coverage report -m
 after_success:
   - coveralls
+  - codecov
 # Configure travis to deploy to the pypi server when a new
 # version is tagged on master
 deploy:

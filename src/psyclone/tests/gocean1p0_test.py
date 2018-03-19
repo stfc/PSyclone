@@ -5,15 +5,18 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
+from __future__ import absolute_import
+import os
+import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
-import pytest
-import os
 from psyclone.generator import GenerationError, ParseError
+
 
 API = "gocean1.0"
 
@@ -972,6 +975,23 @@ def test00p1_kernel_wrong_meta_arg_count():
               api="gocean1.0")
 
 
+def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
+    '''Check that using a const scalar as parameter works.'''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test00.1_invoke_kernel_using_const_scalar.f90")
+    _, invoke_info = parse(filename, api="gocean1.0")
+    out = str(PSyFactory(API).create(invoke_info).gen)
+    # Old versions of PSyclone tried to declare '0' as a variable:
+    # REAL(KIND=wp), intent(inout) :: 0
+    # INTEGER, intent(inout) :: 0
+    # Make sure this is not happening anymor
+    import re
+    assert re.search(r"\s*real.*:: *0", out, re.I) is None
+    assert re.search(r"\s*integer.*:: *0", out, re.I) is None
+    assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
+
+
 def test00p2_kernel_invalid_meta_args():
     ''' Check that we raise an error if one of the meta-args in
     a kernel's meta-data is not 'arg' '''
@@ -1152,4 +1172,4 @@ def test14_no_builtins():
     from psyclone.gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
-    assert ("Built-ins are not supported for the GOcean" in str(excinfo.value))
+    assert "Built-ins are not supported for the GOcean" in str(excinfo.value)

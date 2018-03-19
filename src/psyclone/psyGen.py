@@ -415,10 +415,28 @@ class Invoke(object):
     ''' Manage an individual invoke call '''
 
     def __str__(self):
-        return self._name+"("+str(self.unique_args)+")"
+        return self._name+"("+", ".join([str(arg) for arg in
+                                         self._alg_unique_args])+")"
 
     def __init__(self, alg_invocation, idx, schedule_class,
                  reserved_names=None):
+        '''Constructs an invoke object. Parameters:
+
+        :param alg_invocation:
+        :type alg_invocation:
+        :param idx: Position/index of this invoke call in the subroutine.
+            If not None, this number is added to the name ("invoke_").
+        :type idx: Integer.
+        :param schedule_class: The schedule class to create for this invoke.
+        :type schedule_class: Schedule class.
+        :param reserved_names: Optional argument: list of reserved names,
+               i.e. names that should not be used e.g. as psyclone created
+               variable name.
+        :type reserved_names: List of strings.
+        '''
+
+        self._name = "invoke"
+        self._alg_unique_args = []
 
         if alg_invocation is None and idx is None:
             return

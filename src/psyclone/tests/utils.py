@@ -35,6 +35,7 @@
 
 ''' test utilities '''
 
+from __future__ import absolute_import
 import os
 import pytest
 
@@ -43,7 +44,9 @@ FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 # Whether or not we run tests requiring code compilation is picked-up
 # from a command-line flag. (This is set-up in conftest.py.)
+# pylint: disable=no-member
 TEST_COMPILE = pytest.config.getoption("--compile")
+# pylint: enable=no-member
 # The following allows us to mark a test with @utils.COMPILE if it is
 # only to be run when the --compile option is passed to py.test
 COMPILE = pytest.mark.skipif(not TEST_COMPILE,
@@ -62,6 +65,7 @@ class CompileError(Exception):
     ''' Exception raised when compilation of a Fortran source file
     fails '''
     def __init__(self, value):
+        # pylint: disable=super-init-not-called
         self.value = "Compile error: " + value
 
     def __str__(self):

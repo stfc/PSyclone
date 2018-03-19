@@ -36,6 +36,7 @@
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
 
+from __future__ import absolute_import
 import os
 import pytest
 import fparser
@@ -867,8 +868,8 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     assert expected_code in gen_code
 
 
-def test_two_eval_same_var_same_space(  # pylint: disable=invalid-name
-        tmpdir, f90, f90flags):  # pylint: disable=invalid-name
+def test_two_eval_same_var_same_space(
+        tmpdir, f90, f90flags):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
     same space '''
@@ -1387,6 +1388,7 @@ def test_diff_basis():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
 
 DIFF_BASIS_EVAL = '''
 module dummy_mod

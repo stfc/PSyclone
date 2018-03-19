@@ -33,6 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 # This is a simple bash script that executes all of the examples that
 # are distributed with PSyclone. Note that PSyclone must be installed
@@ -95,6 +96,12 @@ echo "Running example dynamo/eg8"
 cd dynamo/eg8
 ${PSYCLONE} helmholtz_solver_alg_mod.x90
 ${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
+cd -
+
+echo "Running example dynamo/eg9"
+cd dynamo/eg9
+${PSYCLONE} advective_inc_alg_mod.x90
+${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 cd -
 
 echo "Running gocean examples"
