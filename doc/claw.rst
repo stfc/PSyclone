@@ -25,10 +25,20 @@ Installation/Configuration
 Omni Compiler
 ^^^^^^^^^^^^^
 
-The Omni Fortran compiler is available from http://omni-compiler.org/.
+The Omni Fortran compiler is distributed as a sub-module within the
+CLAW git repository. See the INSTALL.md file that comes with CLAW for
+instructions on building and installing that version.
+
+Alternatively (e.g. if you haven't git-cloned the CLAW repository),
+the Omni Fortran compiler is available from http://omni-compiler.org/.
 PSyclone has been tested with version 1.2.2 but should work with any
-version that is more recent than this. In order to build it you will
-first need to install yacc, flex and the Java development kit.
+version that is more recent than this.
+
+In order to build Omni you will first need to install yacc, byacc,
+libxml2-dev, flex and the Java development kit (we have tested with
+version 7). You will also need an MPI-wrapper for your C compiler. For
+gcc this is provided by e.g. OpenMPI or MPICH. See README.md in the Omni
+root directory for information on configuring and building.
 
 Once Omni has been built and installed it will need to be available
 on your PATH so that PSyclone can find it.
@@ -52,15 +62,17 @@ CLAW
 
 The version of the CLAW compiler used by PSyclone is available from
 https://github.com/stfc/claw-compiler.  See the INSTALL.md file for
-installation instructions.  Once it is installed, you will need to
-manually copy the Python interface module into the `lib` directory of
-the Claw installation:
+installation instructions.  Note that you will need to ensure that it
+is built with Jython support by using the
+"-DJYTHON_DIR=/path/to/jython" option to CMake. Once it is installed,
+you will need to manually copy the Python interface module into the
+`lib` directory of the Claw installation:
 
 ::
 
-    cp claw-compiler/omni-cx2x/src/claw/python/ClawTransform.py <claw-install-root>/lib
+    cp claw-compiler/cx2t/src/claw/python/ClawTransform.py <claw-install-root>/lib
 
-.. note:: The need to manually copy the `ClawTransform.py` file will be removed in a future release.
+.. note:: The need to manually copy the `ClawTransform.py` file will be removed in a future release of the CLAW compiler.
 
 
 Configure PSyclone
