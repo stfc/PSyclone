@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -39,14 +39,14 @@
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-! Kernel which applies a columnwise assembled operator to a field on W3 (discontinuous)
-module columnwise_op_app_w3_kernel_mod
+! Kernel which applies a columnwise assembled operator to a field on W2V (discontinuous)
+module columnwise_op_app_w2v_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,              &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR, &
                                     GH_READ, GH_WRITE,                &
-                                    W3, ANY_SPACE_1,                  &
+                                    W2V, ANY_SPACE_2,                 &
                                     GH_COLUMN_INDIRECTION_DOFMAP,     &
                                     CELLS 
 
@@ -58,57 +58,58 @@ implicit none
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, extends(kernel_type) :: columnwise_op_app_w3_kernel_type
+type, public, extends(kernel_type) :: columnwise_op_app_w2v_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                              &
-       arg_type(GH_FIELD,               GH_WRITE, W3),             &  
-       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_1),    &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  W3, ANY_SPACE_1) &
+  type(arg_type) :: meta_args(3) = (/                               &
+       arg_type(GH_FIELD,               GH_WRITE, W2V),             &  
+       arg_type(GH_FIELD,               GH_READ,  ANY_SPACE_2),     &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ,  W2V, ANY_SPACE_2) &
        /)
   integer :: iterates_over = CELLS
 contains
-  procedure, nopass :: columnwise_op_app_w3_kernel_code
-end type columnwise_op_app_w3_kernel_type
+  procedure, nopass :: columnwise_op_app_w2v_kernel_code
+end type columnwise_op_app_w2v_kernel_type
 
 !-------------------------------------------------------------------------------
 ! Constructors
 !-------------------------------------------------------------------------------
 
 ! Overload the default structure constructor for function space
-interface columnwise_op_app_w3_kernel_type
-   module procedure columnwise_op_app_w3_kernel_constructor
+interface columnwise_op_app_w2v_kernel_type
+   module procedure columnwise_op_app_w2v_kernel_constructor
 end interface
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_app_w3_kernel_code
-
+public columnwise_op_app_w2v_kernel_code
 contains
   
-  type(columnwise_op_app_w3_kernel_type) function columnwise_op_app_w3_kernel_constructor() result(self)
+  type(columnwise_op_app_w2v_kernel_type) function columnwise_op_app_w2v_kernel_constructor() result(self)
     implicit none
     return
-  end function columnwise_op_app_w3_kernel_constructor
+  end function columnwise_op_app_w2v_kernel_constructor
 
-  SUBROUTINE columnwise_op_app_w3_kernel_code(cell,                        &
-                                              ncell_2d,                    &
-                                              field_1_w3,                  &
-                                              field_2_any_space_1_field_2, &
-                                              cma_op_3,                    &
-                                              cma_op_3_nrow,               &
-                                              cma_op_3_ncol,               &
-                                              cma_op_3_bandwidth,          &
-                                              cma_op_3_alpha,              &
-                                              cma_op_3_beta,               &
-                                              cma_op_3_gamma_m,            &
-                                              cma_op_3_gamma_p,            &
-                                              ndf_w3, undf_w3, map_w3,     &
-                                              cma_indirection_map_w3,      &
-                                              ndf_any_space_1_field_2,     &
-                                              undf_any_space_1_field_2,    &
-                                              map_any_space_1_field_2,     &
-                                              cma_indirection_map_any_space_1_field_2)
+  SUBROUTINE columnwise_op_app_w2v_kernel_code(cell,                        &
+                                               ncell_2d,                    &
+                                               field_1_w2v,                 &
+                                               field_2_any_space_2_field_2, &
+                                               cma_op_3,                    &
+                                               cma_op_3_nrow,               &
+                                               cma_op_3_ncol,               &
+                                               cma_op_3_bandwidth,          &
+                                               cma_op_3_alpha,              &
+                                               cma_op_3_beta,               &
+                                               cma_op_3_gamma_m,            &
+                                               cma_op_3_gamma_p,            &
+                                               ndf_w2v,                     &
+                                               undf_w2v,                    &
+                                               map_w2v,                     &
+                                               cma_indirection_map_w2v,     &
+                                               ndf_any_space_2_field_2,     &
+                                               undf_any_space_2_field_2,    &
+                                               map_any_space_2_field_2,     &
+                                               cma_indirection_map_any_space_2_field_2)
 
     USE constants_mod, ONLY: r_def
 
@@ -116,22 +117,22 @@ contains
 
     INTEGER, intent(in) :: cell
     INTEGER, intent(in) :: ncell_2d
-    INTEGER, intent(in) :: ndf_w3
-    INTEGER, intent(in) :: undf_w3
-    INTEGER, intent(in) :: ndf_any_space_1_field_2
-    INTEGER, intent(in) :: undf_any_space_1_field_2
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3
-    REAL(KIND=r_def), intent(in), dimension(undf_any_space_1_field_2) :: field_2_any_space_1_field_2
+    INTEGER, intent(in) :: ndf_w2v
+    INTEGER, intent(in) :: undf_w2v
+    INTEGER, intent(in) :: ndf_any_space_2_field_2
+    INTEGER, intent(in) :: undf_any_space_2_field_2
+    REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: field_1_w2v
+    REAL(KIND=r_def), intent(in), dimension(undf_any_space_2_field_2) :: field_2_any_space_2_field_2
     INTEGER, intent(in) :: cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth
     INTEGER, intent(in) :: cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p
     REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d) :: cma_op_3
-    INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-    INTEGER, intent(in), dimension(cma_op_3_nrow) :: cma_indirection_map_w3
-    INTEGER, intent(in), dimension(ndf_any_space_1_field_2) :: map_any_space_1_field_2
-    INTEGER, intent(in), dimension(cma_op_3_ncol) :: cma_indirection_map_any_space_1_field_2
+    INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v
+    INTEGER, intent(in), dimension(cma_op_3_nrow) :: cma_indirection_map_w2v
+    INTEGER, intent(in), dimension(ndf_any_space_2_field_2) :: map_any_space_2_field_2
+    INTEGER, intent(in), dimension(cma_op_3_ncol) :: cma_indirection_map_any_space_2_field_2
 
-    write (*,*) "A kernel that applies CMA operator to a field on discontinuous space W3"
+    write (*,*) "A kernel that applies CMA operator to a field on discontinuous space W2V"
 
-  END SUBROUTINE columnwise_op_app_w3_kernel_code
+  END SUBROUTINE columnwise_op_app_w2v_kernel_code
 
-end module columnwise_op_app_w3_kernel_mod
+end module columnwise_op_app_w2v_kernel_mod

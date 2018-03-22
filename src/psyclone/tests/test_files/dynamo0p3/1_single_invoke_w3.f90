@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,18 +32,20 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_w3
 
-  ! Description: single function iterating over w3 specified in an invoke call
-  use testkern_w3, only: testkern_w3_type
-  use inf,      only: field_type
+  ! Description: single function iterating over w3 (discontinuous)
+  ! specified in an invoke call
+  use testkern_w3_mod, only: testkern_w3_type
+  use inf,             only: field_type
   implicit none
   type(field_type) :: f1, f2, m1, m2
   real(r_def) :: a
 
-  call invoke(                      &
-       testkern_w3_type(a,f1,f2,m1,m2)   &
+  call invoke(                             &
+       testkern_w3_type(a, f1, f2, m1, m2) &
           )
 
 end program single_invoke_w3
