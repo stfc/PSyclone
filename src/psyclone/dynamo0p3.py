@@ -768,6 +768,10 @@ class DynKernMetadata(KernelType):
     the subroutine for the Dynamo 0.3 API. '''
 
     def __init__(self, ast, name=None):
+        '''
+        :param ast: the fparser AST for the kernel module
+        :type ast: :py:class:`fparser.TBD`
+        '''
         KernelType.__init__(self, ast, name=name)
 
         # The type of CMA operation this kernel performs (or None if

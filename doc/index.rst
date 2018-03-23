@@ -20,6 +20,7 @@
    stub_gen
    line_length
    api
+   claw
    system_specific_setup
 ..   developers
 ..   tutorial

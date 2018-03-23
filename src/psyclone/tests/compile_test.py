@@ -57,7 +57,7 @@ def test_compiler_works(tmpdir, f90, f90flags):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-            success = utils.compile_file("hello_world.f90", f90, f90flags)
+        success = utils.compile_file("hello_world.f90", f90, f90flags)
     finally:
         os.chdir(str(old_pwd))
     assert success

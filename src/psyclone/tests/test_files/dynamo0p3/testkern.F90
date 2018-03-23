@@ -52,11 +52,20 @@ contains
   subroutine testkern_code(nlayers, ascalar, fld1, fld2, fld3, fld4, &
                            ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, &
                            ndf_w3, undf_w3, map_w3)
+    implicit none
     integer :: nlayers
     real(kind=r_def) :: ascalar
     real(kind=r_def), dimension(:) :: fld1, fld2, fld3, fld4
     integer :: ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3
     integer, dimension(:) :: map_w1, map_w2, map_w3
+    integer :: ji, jj
+
+    ! Fake kernel code
+    do ji = 1, ndf_w1
+       do jj = 1, ndf_w2
+          fld1(ji) = fld2(jj)
+       end do
+    end do
 
   end subroutine testkern_code
 end module testkern

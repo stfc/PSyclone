@@ -111,11 +111,6 @@ python runme_openmp.py
 python runme_loop_fuse.py
 cd -
 
-echo "Running transformation examples"
-cd transformations/inline
-python module_inline_example.py
-cd -
-
 echo "Running line-length examples"
 cd line_length
 python runme.py
@@ -125,3 +120,26 @@ echo "Running stub generation examples"
 cd stub_generation
 ${KSTUBGEN} testkern_stencil_multi_mod.f90
 cd -
+
+echo "Running transformation examples"
+cd transformations/inline
+python module_inline_example.py
+cd -
+
+if hash F_Front 2>/dev/null; then
+  echo "Running CLAW examples - will fail if CLAW not installed"
+  cd transformations/claw
+  # Since CLAW is not a pre-requisite we have to allow for the fact that
+  # it might not be installed. We therefore use the bash idiom of 
+  # "<cmd> || :" to ensure that each of the following lines returns true,
+  # irrespective of whether <cmd> succeeds. This avoids triggering the
+  # 'bail on error' that would otherwise happen because we do "set -e" at
+  # the beginning of this script.
+  python claw_trans_gocean.py || :
+  python claw_trans_dynamo.py || :
+  cd -
+else
+  echo "Omni Frontend not found - skipping CLAW examples"
+fi
+
+echo "All examples ran OK."

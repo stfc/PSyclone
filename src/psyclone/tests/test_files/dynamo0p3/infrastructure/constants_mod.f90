@@ -51,15 +51,15 @@ module constants_mod
   real,             private :: r_val
   double precision, private :: dp_val
 
-  integer, parameter :: r_def     = real64
-  integer, parameter :: r_single  = real32
-  integer, parameter :: r_double  = real64
+  integer, parameter :: r_def     = kind(1.0d0) !real64
+  integer, parameter :: r_single  = kind(1.0) !real32
+  integer, parameter :: r_double  = kind(1.0d0) !real64
 
   integer, parameter :: r_native  = kind(r_val)
   integer, parameter :: dp_native = kind(dp_val)
 
   integer, private   :: i_val
-  integer, parameter :: i_def     = int32
+  integer, parameter :: i_def     = kind(1) !int32
   integer, parameter :: i_native  = kind(i_val)
 
   logical, private   :: l_val

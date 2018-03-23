@@ -1,7 +1,8 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
+#
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,39 +32,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
+'''
+Module containing an example Claw transformation script for use
+with tests
+'''
 
-''' Module which performs pytest set-up so that we can specify
-    command-line options '''
-
-from __future__ import absolute_import
-import pytest
-
-
-def pytest_addoption(parser):
+def claw_trans(xast):
     '''
-    Adds command-line options to py.test
-
-    :param parser: the command-line parser object to add options to
+    This is the function called by CLAW. It is passed the AST of the
+    kernel to be transformed.
     '''
-    parser.addoption("--f90", action="store", default="gfortran",
-                     help="The Fortran compiler to use")
-    parser.addoption("--f90flags", action="store", default="",
-                     help="Flags to pass to the Fortran compiler")
-    parser.addoption("--compile", action="store_true", default=False,
-                     help="run tests for code compilation")
-    parser.addoption("--with-claw", action="store_true", default=False,
-                     help="run tests that exercise the Claw compiler")
+    from claw.tatsu.primitive import Loop
+    from claw.tatsu.xcodeml.abstraction import NestedDoStatement
+    from claw.tatsu.xcodeml.xnode.common import Xcode
+    node = xast.firstChild()
+    do_loops = xast.matchAll(Xcode.F_DO_STATEMENT)
 
+    # Perform a simple loop interchange (inner becomes outer)
+    # using Claw primitives
+    nested_loop = NestedDoStatement(do_loops[0])
+    Loop.reorder(nested_loop, ["jj", "ji"])
 
-@pytest.fixture
-def f90(request):
-    ''' Gets the value of the f90 command-line option '''
-    return request.config.getoption("--f90")
-
-
-@pytest.fixture
-def f90flags(request):
-    ''' Gets the value of the f90flags command-line option '''
-    return request.config.getoption("--f90flags")
+    return xast

@@ -1,0 +1,1181 @@
+<XcodeProgram source="testkern.F90"
+              language="Fortran"
+              time="2018-01-05 16:27:10"
+              compiler-info="XcodeML/Fortran-FrontEnd"
+              version="1.0">
+  <typeTable>
+    <FfunctionType type="F11bc9b0" return_type="Fvoid">
+      <params>
+        <name type="Fint">nlayers</name>
+        <name type="R11c0ca0">ascalar</name>
+        <name type="A11c1fb0">fld1</name>
+        <name type="A11c2210">fld2</name>
+        <name type="A11c2470">fld3</name>
+        <name type="A11c26d0">fld4</name>
+        <name type="Fint">ndf_w1</name>
+        <name type="Fint">undf_w1</name>
+        <name type="A11c4b20">map_w1</name>
+        <name type="Fint">ndf_w2</name>
+        <name type="Fint">undf_w2</name>
+        <name type="A11c4d80">map_w2</name>
+        <name type="Fint">ndf_w3</name>
+        <name type="Fint">undf_w3</name>
+        <name type="A11c4fe0">map_w3</name>
+      </params>
+    </FfunctionType>
+    <FbasicType type="R11c0b70" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">4</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R11c0ca0" ref="R11c0b70"/>
+    <FbasicType type="R11c1d50" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">4</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R11c1e80" ref="R11c1d50"/>
+    <FbasicType type="A11c1fb0" ref="R11c1e80">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="R11c20e0" ref="R11c1d50"/>
+    <FbasicType type="A11c2210" ref="R11c20e0">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="R11c2340" ref="R11c1d50"/>
+    <FbasicType type="A11c2470" ref="R11c2340">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="R11c25a0" ref="R11c1d50"/>
+    <FbasicType type="A11c26d0" ref="R11c25a0">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="A11c4b20" ref="Fint">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="A11c4d80" ref="Fint">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="A11c4fe0" ref="Fint">
+      <indexRange is_assumed_shape="true">
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="I1164600" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1164820" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1164a40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1164cc0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1164f40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11651c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1165440" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11656c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1165940" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1165bc0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1165e40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115bd80" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115c020" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115c2c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115c560" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115c800" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115caa0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115cd40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115cfe0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115d280" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115d520" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115d7c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115da60" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115e4e0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115e780" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115ea20" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115ecc0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115ef60" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115f200" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115f4a0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115f740" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115f9e0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115fc80" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I115ff20" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11601c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1160460" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1160700" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11609a0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1160c40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1160ee0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1161180" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1161420" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11616c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1161960" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1161c00" is_parameter="true" ref="Fint"/>
+    <FstructType type="S1161ea0">
+      <symbols>
+        <id type="Fint">
+          <name>arg_type</name>
+        </id>
+        <id type="Fint">
+          <name>arg_intent</name>
+        </id>
+        <id type="Fint">
+          <name>wspace</name>
+          <value>
+            <unaryMinusExpr type="Fint">
+              <FintConstant type="Fint">1</FintConstant>
+            </unaryMinusExpr>
+          </value>
+        </id>
+        <id type="Fint">
+          <name>from_wspace</name>
+          <value>
+            <unaryMinusExpr type="Fint">
+              <FintConstant type="Fint">1</FintConstant>
+            </unaryMinusExpr>
+          </value>
+        </id>
+      </symbols>
+    </FstructType>
+    <FstructType type="S1162140">
+      <symbols>
+        <id type="Fint">
+          <name>wspace</name>
+        </id>
+        <id type="Fint">
+          <name>wproperties1</name>
+        </id>
+        <id type="Fint">
+          <name>wproperties2</name>
+          <value>
+            <unaryMinusExpr type="Fint">
+              <FintConstant type="Fint">1</FintConstant>
+            </unaryMinusExpr>
+          </value>
+        </id>
+        <id type="Fint">
+          <name>wproperties3</name>
+          <value>
+            <unaryMinusExpr type="Fint">
+              <FintConstant type="Fint">1</FintConstant>
+            </unaryMinusExpr>
+          </value>
+        </id>
+      </symbols>
+    </FstructType>
+    <FstructType type="S1191900" is_internal_private="true" is_abstract="true">
+      <symbols>
+      </symbols>
+    </FstructType>
+    <FbasicType type="I1199000" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1199220" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1199440" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11996c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="R11a0300" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="I1199940" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1199bc0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="R11a1060" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="I1199e40" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I119a0c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="R11a1ee0" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="I119a340" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I119a5c0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I119a840" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I11892f0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1189590" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1189830" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1189ad0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I1189d70" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I118a010" is_parameter="true" ref="Fint"/>
+    <FbasicType type="I118a2b0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="R118d080" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R118a550" is_parameter="true" ref="R118d080"/>
+    <FbasicType type="R11a54c0" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R11a5330" ref="R11a54c0"/>
+    <FbasicType type="I118a7f0" is_parameter="true" ref="Fint"/>
+    <FbasicType type="R118d320" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R118aa90" is_parameter="true" ref="R118d320"/>
+    <FbasicType type="R11a6440" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R118d470" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R118ad30" is_parameter="true" ref="R118d470"/>
+    <FbasicType type="R11a6f30" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R118d5c0" ref="Freal">
+      <kind>
+        <functionCall type="Fint" is_intrinsic="true">
+          <name>kind</name>
+          <arguments>
+            <FrealConstant type="R11a0300" kind="8">1.0d0</FrealConstant>
+          </arguments>
+        </functionCall>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R118afd0" is_parameter="true" ref="R118d5c0"/>
+    <FbasicType type="R11a8230" ref="Freal">
+      <kind>
+        <FintConstant type="Fint">8</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="R11a80a0" ref="R11a8230"/>
+    <FbasicType type="I118d710" ref="Fint">
+      <kind>
+        <functionCall type="Fint" is_intrinsic="true">
+          <name>kind</name>
+          <arguments>
+            <FintConstant type="Fint">1</FintConstant>
+          </arguments>
+        </functionCall>
+      </kind>
+    </FbasicType>
+    <FbasicType type="I118b730" is_parameter="true" ref="I118d710"/>
+    <FbasicType type="I11a9680" ref="Fint">
+      <kind>
+        <FintConstant type="Fint">4</FintConstant>
+      </kind>
+    </FbasicType>
+    <FbasicType type="I11a94f0" ref="I11a9680"/>
+    <FstructType type="S118dcb0" extends="S1191900">
+      <symbols>
+        <id type="A118fc30">
+          <name>meta_args</name>
+          <value>
+            <FarrayConstructor type="A11b9d10">
+              <FstructConstructor type="S1190640">
+                <FintConstant type="Fint">3</FintConstant>
+                <FintConstant type="Fint">11</FintConstant>
+              </FstructConstructor>
+              <FstructConstructor type="S1190e30">
+                <FintConstant type="Fint">1</FintConstant>
+                <FintConstant type="Fint">12</FintConstant>
+                <FintConstant type="Fint">2</FintConstant>
+              </FstructConstructor>
+              <FstructConstructor type="S1191620">
+                <FintConstant type="Fint">1</FintConstant>
+                <FintConstant type="Fint">11</FintConstant>
+                <FintConstant type="Fint">3</FintConstant>
+              </FstructConstructor>
+              <FstructConstructor type="S11b9210">
+                <FintConstant type="Fint">1</FintConstant>
+                <FintConstant type="Fint">11</FintConstant>
+                <FintConstant type="Fint">3</FintConstant>
+              </FstructConstructor>
+              <FstructConstructor type="S11b9a00">
+                <FintConstant type="Fint">1</FintConstant>
+                <FintConstant type="Fint">11</FintConstant>
+                <FintConstant type="Fint">4</FintConstant>
+              </FstructConstructor>
+            </FarrayConstructor>
+          </value>
+        </id>
+        <id type="Fint">
+          <name>iterates_over</name>
+          <value>
+            <FintConstant type="Fint">401</FintConstant>
+          </value>
+        </id>
+      </symbols>
+      <typeBoundProcedures>
+        <typeBoundProcedure type="F11bb0c0" pass="nopass">
+          <name>code</name>
+          <binding>
+            <name>testkern_code</name>
+          </binding>
+        </typeBoundProcedure>
+      </typeBoundProcedures>
+    </FstructType>
+    <FbasicType type="S118f8e0" ref="S1161ea0"/>
+    <FbasicType type="S118fb00" ref="S118f8e0"/>
+    <FbasicType type="A118fc30" ref="S118fb00">
+      <indexRange>
+        <lowerBound>
+          <FintConstant type="Fint">1</FintConstant>
+        </lowerBound>
+        <upperBound>
+          <FintConstant type="Fint">5</FintConstant>
+        </upperBound>
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="S11b9a00" ref="S1161ea0"/>
+    <FbasicType type="A11b9d10" ref="S11b9a00">
+      <indexRange>
+        <lowerBound>
+          <FintConstant type="Fint">1</FintConstant>
+        </lowerBound>
+        <upperBound>
+          <FintConstant type="Fint">5</FintConstant>
+        </upperBound>
+      </indexRange>
+    </FbasicType>
+    <FbasicType type="S1190640" ref="S1161ea0"/>
+    <FbasicType type="S1190e30" ref="S1161ea0"/>
+    <FbasicType type="S1191620" ref="S1161ea0"/>
+    <FbasicType type="S11b9210" ref="S1161ea0"/>
+    <FbasicType type="F11bb0c0" ref="F11bc9b0"/>
+    <FbasicType type="V11baf90" ref="FnumericAll"/>
+  </typeTable>
+  <globalSymbols>
+    <id sclass="ffunc">
+      <name>testkern</name>
+    </id>
+  </globalSymbols>
+  <globalDeclarations>
+    <FmoduleDefinition name="testkern" lineno="34" file="testkern.F90">
+      <symbols>
+        <id type="I1164600" sclass="flocal" declared_in="argument_mod">
+          <name>w0</name>
+        </id>
+        <id type="I1164820" sclass="flocal" declared_in="argument_mod">
+          <name>w1</name>
+        </id>
+        <id type="I1164a40" sclass="flocal" declared_in="argument_mod">
+          <name>w2</name>
+        </id>
+        <id type="I1164cc0" sclass="flocal" declared_in="argument_mod">
+          <name>w3</name>
+        </id>
+        <id type="I1164f40" sclass="flocal" declared_in="argument_mod">
+          <name>wtheta</name>
+        </id>
+        <id type="I11651c0" sclass="flocal" declared_in="argument_mod">
+          <name>w2v</name>
+        </id>
+        <id type="I1165440" sclass="flocal" declared_in="argument_mod">
+          <name>w2h</name>
+        </id>
+        <id type="I11656c0" sclass="flocal" declared_in="argument_mod">
+          <name>wchi</name>
+        </id>
+        <id type="I1165940" sclass="flocal" declared_in="argument_mod">
+          <name>any_w2</name>
+        </id>
+        <id type="I1165bc0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_field</name>
+        </id>
+        <id type="I1165e40" sclass="flocal" declared_in="argument_mod">
+          <name>gh_operator</name>
+        </id>
+        <id type="I115bd80" sclass="flocal" declared_in="argument_mod">
+          <name>gh_real</name>
+        </id>
+        <id type="I115c020" sclass="flocal" declared_in="argument_mod">
+          <name>gh_integer</name>
+        </id>
+        <id type="I115c2c0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_read</name>
+        </id>
+        <id type="I115c560" sclass="flocal" declared_in="argument_mod">
+          <name>gh_write</name>
+        </id>
+        <id type="I115c800" sclass="flocal" declared_in="argument_mod">
+          <name>gh_rw</name>
+        </id>
+        <id type="I115caa0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_inc</name>
+        </id>
+        <id type="I115cd40" sclass="flocal" declared_in="argument_mod">
+          <name>gh_sum</name>
+        </id>
+        <id type="I115cfe0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_min</name>
+        </id>
+        <id type="I115d280" sclass="flocal" declared_in="argument_mod">
+          <name>gh_max</name>
+        </id>
+        <id type="I115d520" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_1</name>
+        </id>
+        <id type="I115d7c0" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_2</name>
+        </id>
+        <id type="I115da60" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_3</name>
+        </id>
+        <id type="I115e4e0" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_4</name>
+        </id>
+        <id type="I115e780" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_5</name>
+        </id>
+        <id type="I115ea20" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_6</name>
+        </id>
+        <id type="I115ecc0" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_7</name>
+        </id>
+        <id type="I115ef60" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_8</name>
+        </id>
+        <id type="I115f200" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_9</name>
+        </id>
+        <id type="I115f4a0" sclass="flocal" declared_in="argument_mod">
+          <name>any_space_10</name>
+        </id>
+        <id type="I115f740" sclass="flocal" declared_in="argument_mod">
+          <name>gh_basis</name>
+        </id>
+        <id type="I115f9e0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_diff_basis</name>
+        </id>
+        <id type="I115fc80" sclass="flocal" declared_in="argument_mod">
+          <name>gh_orientation</name>
+        </id>
+        <id type="I115ff20" sclass="flocal" declared_in="argument_mod">
+          <name>gh_column_banded_dofmap</name>
+        </id>
+        <id type="I11601c0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_column_indirection_dofmap</name>
+        </id>
+        <id type="I1160460" sclass="flocal" declared_in="argument_mod">
+          <name>cells</name>
+        </id>
+        <id type="I1160700" sclass="flocal" declared_in="argument_mod">
+          <name>all_dofs</name>
+        </id>
+        <id type="I11609a0" sclass="flocal" declared_in="argument_mod">
+          <name>quadrature_xyz</name>
+        </id>
+        <id type="I1160c40" sclass="flocal" declared_in="argument_mod">
+          <name>quadrature_xyoz</name>
+        </id>
+        <id type="I1160ee0" sclass="flocal" declared_in="argument_mod">
+          <name>quadrature_xoyoz</name>
+        </id>
+        <id type="I1161180" sclass="flocal" declared_in="argument_mod">
+          <name>gh_quadrature_xyz</name>
+        </id>
+        <id type="I1161420" sclass="flocal" declared_in="argument_mod">
+          <name>gh_quadrature_xyoz</name>
+        </id>
+        <id type="I11616c0" sclass="flocal" declared_in="argument_mod">
+          <name>gh_quadrature_xoyoz</name>
+        </id>
+        <id type="I1161960" sclass="flocal" declared_in="argument_mod">
+          <name>evaluator</name>
+        </id>
+        <id type="I1161c00" sclass="flocal" declared_in="argument_mod">
+          <name>gh_evaluator</name>
+        </id>
+        <id type="S1161ea0" sclass="ftype_name" declared_in="argument_mod">
+          <name>arg_type</name>
+        </id>
+        <id type="S1162140" sclass="ftype_name" declared_in="argument_mod">
+          <name>func_type</name>
+        </id>
+        <id type="S1191900" sclass="ftype_name" declared_in="kernel_mod">
+          <name>kernel_type</name>
+        </id>
+        <id type="I1199000" sclass="flocal" declared_in="iso_fortran_env">
+          <name>int32</name>
+        </id>
+        <id type="I1199220" sclass="flocal" declared_in="iso_fortran_env">
+          <name>real32</name>
+        </id>
+        <id type="I1199440" sclass="flocal" declared_in="iso_fortran_env">
+          <name>real64</name>
+        </id>
+        <id type="I11996c0" sclass="flocal" declared_in="constants_mod">
+          <name>r_def</name>
+        </id>
+        <id type="I1199940" sclass="flocal" declared_in="constants_mod">
+          <name>r_single</name>
+        </id>
+        <id type="I1199bc0" sclass="flocal" declared_in="constants_mod">
+          <name>r_double</name>
+        </id>
+        <id type="I1199e40" sclass="flocal" declared_in="constants_mod">
+          <name>r_native</name>
+        </id>
+        <id type="I119a0c0" sclass="flocal" declared_in="constants_mod">
+          <name>dp_native</name>
+        </id>
+        <id type="I119a340" sclass="flocal" declared_in="constants_mod">
+          <name>i_def</name>
+        </id>
+        <id type="I119a5c0" sclass="flocal" declared_in="constants_mod">
+          <name>i_native</name>
+        </id>
+        <id type="I119a840" sclass="flocal" declared_in="constants_mod">
+          <name>l_def</name>
+        </id>
+        <id type="I11892f0" sclass="flocal" declared_in="constants_mod">
+          <name>l_native</name>
+        </id>
+        <id type="I1189590" sclass="flocal" declared_in="constants_mod">
+          <name>c_def</name>
+        </id>
+        <id type="I1189830" sclass="flocal" declared_in="constants_mod">
+          <name>c_native</name>
+        </id>
+        <id type="I1189ad0" sclass="flocal" declared_in="constants_mod">
+          <name>str_short</name>
+        </id>
+        <id type="I1189d70" sclass="flocal" declared_in="constants_mod">
+          <name>str_def</name>
+        </id>
+        <id type="I118a010" sclass="flocal" declared_in="constants_mod">
+          <name>str_long</name>
+        </id>
+        <id type="I118a2b0" sclass="flocal" declared_in="constants_mod">
+          <name>str_max_filename</name>
+        </id>
+        <id type="R118a550" sclass="flocal" declared_in="constants_mod">
+          <name>large_real</name>
+        </id>
+        <id type="I118a7f0" sclass="flocal" declared_in="constants_mod">
+          <name>cache_block</name>
+        </id>
+        <id type="R118aa90" sclass="flocal" declared_in="constants_mod">
+          <name>eps</name>
+        </id>
+        <id type="R118ad30" sclass="flocal" declared_in="constants_mod">
+          <name>pi</name>
+        </id>
+        <id type="R118afd0" sclass="flocal" declared_in="constants_mod">
+          <name>rmdi</name>
+        </id>
+        <id type="I118b730" sclass="flocal" declared_in="constants_mod">
+          <name>imdi</name>
+        </id>
+        <id type="S118dcb0" sclass="ftype_name" declared_in="testkern">
+          <name>testkern_type</name>
+        </id>
+        <id type="F11bc9b0" sclass="ffunc">
+          <name>testkern_code</name>
+        </id>
+      </symbols>
+      <declarations>
+        <FuseDecl name="argument_mod" lineno="35" file="testkern.F90">
+        </FuseDecl>
+        <FuseDecl name="kernel_mod" lineno="36" file="testkern.F90">
+        </FuseDecl>
+        <FuseDecl name="constants_mod" lineno="37" file="testkern.F90">
+        </FuseDecl>
+        <FstructDecl lineno="38" file="testkern.F90">
+          <name type="S118dcb0">testkern_type</name>
+        </FstructDecl>
+        <varDecl>
+          <name type="I1164600">w0</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1164820">w1</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1164a40">w2</name>
+          <value>
+            <FintConstant type="Fint">3</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1164cc0">w3</name>
+          <value>
+            <FintConstant type="Fint">4</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1164f40">wtheta</name>
+          <value>
+            <FintConstant type="Fint">5</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I11651c0">w2v</name>
+          <value>
+            <FintConstant type="Fint">6</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1165440">w2h</name>
+          <value>
+            <FintConstant type="Fint">7</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I11656c0">wchi</name>
+          <value>
+            <FintConstant type="Fint">8</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1165940">any_w2</name>
+          <value>
+            <FintConstant type="Fint">9</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1165bc0">gh_field</name>
+          <value>
+            <FintConstant type="Fint">1</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1165e40">gh_operator</name>
+          <value>
+            <FintConstant type="Fint">2</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115bd80">gh_real</name>
+          <value>
+            <FintConstant type="Fint">3</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115c020">gh_integer</name>
+          <value>
+            <FintConstant type="Fint">4</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115c2c0">gh_read</name>
+          <value>
+            <FintConstant type="Fint">11</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115c560">gh_write</name>
+          <value>
+            <FintConstant type="Fint">12</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115c800">gh_rw</name>
+          <value>
+            <FintConstant type="Fint">13</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115caa0">gh_inc</name>
+          <value>
+            <FintConstant type="Fint">14</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115cd40">gh_sum</name>
+          <value>
+            <FintConstant type="Fint">15</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115cfe0">gh_min</name>
+          <value>
+            <FintConstant type="Fint">16</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115d280">gh_max</name>
+          <value>
+            <FintConstant type="Fint">17</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115d520">any_space_1</name>
+          <value>
+            <FintConstant type="Fint">201</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115d7c0">any_space_2</name>
+          <value>
+            <FintConstant type="Fint">202</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115da60">any_space_3</name>
+          <value>
+            <FintConstant type="Fint">203</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115e4e0">any_space_4</name>
+          <value>
+            <FintConstant type="Fint">204</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115e780">any_space_5</name>
+          <value>
+            <FintConstant type="Fint">205</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115ea20">any_space_6</name>
+          <value>
+            <FintConstant type="Fint">206</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115ecc0">any_space_7</name>
+          <value>
+            <FintConstant type="Fint">207</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115ef60">any_space_8</name>
+          <value>
+            <FintConstant type="Fint">208</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115f200">any_space_9</name>
+          <value>
+            <FintConstant type="Fint">209</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115f4a0">any_space_10</name>
+          <value>
+            <FintConstant type="Fint">210</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115f740">gh_basis</name>
+          <value>
+            <FintConstant type="Fint">301</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115f9e0">gh_diff_basis</name>
+          <value>
+            <FintConstant type="Fint">302</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115fc80">gh_orientation</name>
+          <value>
+            <FintConstant type="Fint">303</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I115ff20">gh_column_banded_dofmap</name>
+          <value>
+            <FintConstant type="Fint">304</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I11601c0">gh_column_indirection_dofmap</name>
+          <value>
+            <FintConstant type="Fint">305</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1160460">cells</name>
+          <value>
+            <FintConstant type="Fint">401</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1160700">all_dofs</name>
+          <value>
+            <FintConstant type="Fint">402</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I11609a0">quadrature_xyz</name>
+          <value>
+            <FintConstant type="Fint">501</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1160c40">quadrature_xyoz</name>
+          <value>
+            <FintConstant type="Fint">502</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1160ee0">quadrature_xoyoz</name>
+          <value>
+            <FintConstant type="Fint">503</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1161180">gh_quadrature_xyz</name>
+          <value>
+            <FintConstant type="Fint">504</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1161420">gh_quadrature_xyoz</name>
+          <value>
+            <FintConstant type="Fint">505</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I11616c0">gh_quadrature_xoyoz</name>
+          <value>
+            <FintConstant type="Fint">506</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1161960">evaluator</name>
+          <value>
+            <FintConstant type="Fint">507</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1161c00">gh_evaluator</name>
+          <value>
+            <FintConstant type="Fint">508</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1199000">int32</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1199220">real32</name>
+        </varDecl>
+        <varDecl>
+          <name type="I1199440">real64</name>
+        </varDecl>
+        <varDecl>
+          <name type="I11996c0">r_def</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <FrealConstant type="R11a0300" kind="8">1.0d0</FrealConstant>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1199940">r_single</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <FrealConstant type="Freal">1.0</FrealConstant>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1199bc0">r_double</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <FrealConstant type="R11a1060" kind="8">1.0d0</FrealConstant>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1199e40">r_native</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="Freal" scope="local">r_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I119a0c0">dp_native</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="R11a1ee0" scope="local">dp_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I119a340">i_def</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <FintConstant type="Fint">1</FintConstant>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I119a5c0">i_native</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="Fint" scope="local">i_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I119a840">l_def</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="Flogical" scope="local">l_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I11892f0">l_native</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="Flogical" scope="local">l_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1189590">c_def</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="Fcharacter" scope="local">c_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1189830">c_native</name>
+          <value>
+            <functionCall type="Fint" is_intrinsic="true">
+              <name>kind</name>
+              <arguments>
+                <Var type="Fcharacter" scope="local">c_val</Var>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1189ad0">str_short</name>
+          <value>
+            <FintConstant type="Fint">16</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I1189d70">str_def</name>
+          <value>
+            <FintConstant type="Fint">128</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I118a010">str_long</name>
+          <value>
+            <FintConstant type="Fint">255</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I118a2b0">str_max_filename</name>
+          <value>
+            <FintConstant type="Fint">255</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="R118a550">large_real</name>
+          <value>
+            <functionCall type="R11a5330" is_intrinsic="true">
+              <name>huge</name>
+              <arguments>
+                <FrealConstant type="R11a5330">0.0</FrealConstant>
+              </arguments>
+            </functionCall>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I118a7f0">cache_block</name>
+          <value>
+            <FintConstant type="Fint">256</FintConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="R118aa90">eps</name>
+          <value>
+            <FrealConstant type="R11a6440" kind="8">3.0e-15</FrealConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="R118ad30">pi</name>
+          <value>
+            <FrealConstant type="R11a6f30" kind="8">3.141592654</FrealConstant>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="R118afd0">rmdi</name>
+          <value>
+            <unaryMinusExpr type="R11a80a0">
+              <functionCall type="R11a80a0" is_intrinsic="true">
+                <name>huge</name>
+                <arguments>
+                  <FrealConstant type="R11a80a0">0.0</FrealConstant>
+                </arguments>
+              </functionCall>
+            </unaryMinusExpr>
+          </value>
+        </varDecl>
+        <varDecl>
+          <name type="I118b730">imdi</name>
+          <value>
+            <unaryMinusExpr type="I11a94f0">
+              <functionCall type="I11a94f0" is_intrinsic="true">
+                <name>huge</name>
+                <arguments>
+                  <FintConstant type="I11a94f0">0</FintConstant>
+                </arguments>
+              </functionCall>
+            </unaryMinusExpr>
+          </value>
+        </varDecl>
+      </declarations>
+      <FcontainsStatement lineno="50" file="testkern.F90">
+        <FfunctionDefinition lineno="52" file="testkern.F90">
+          <name type="F11bc9b0">testkern_code</name>
+          <symbols>
+            <id type="F11bc9b0" sclass="ffunc">
+              <name>testkern_code</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>nlayers</name>
+            </id>
+            <id type="R11c0ca0" sclass="fparam">
+              <name>ascalar</name>
+            </id>
+            <id type="A11c1fb0" sclass="fparam">
+              <name>fld1</name>
+            </id>
+            <id type="A11c2210" sclass="fparam">
+              <name>fld2</name>
+            </id>
+            <id type="A11c2470" sclass="fparam">
+              <name>fld3</name>
+            </id>
+            <id type="A11c26d0" sclass="fparam">
+              <name>fld4</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>ndf_w1</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>undf_w1</name>
+            </id>
+            <id type="A11c4b20" sclass="fparam">
+              <name>map_w1</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>ndf_w2</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>undf_w2</name>
+            </id>
+            <id type="A11c4d80" sclass="fparam">
+              <name>map_w2</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>ndf_w3</name>
+            </id>
+            <id type="Fint" sclass="fparam">
+              <name>undf_w3</name>
+            </id>
+            <id type="A11c4fe0" sclass="fparam">
+              <name>map_w3</name>
+            </id>
+          </symbols>
+          <declarations>
+            <varDecl lineno="52" file="testkern.F90">
+              <name type="F11bc9b0">testkern_code</name>
+            </varDecl>
+            <varDecl lineno="55" file="testkern.F90">
+              <name type="Fint">nlayers</name>
+            </varDecl>
+            <varDecl lineno="56" file="testkern.F90">
+              <name type="R11c0ca0">ascalar</name>
+            </varDecl>
+            <varDecl lineno="57" file="testkern.F90">
+              <name type="A11c1fb0">fld1</name>
+            </varDecl>
+            <varDecl lineno="57" file="testkern.F90">
+              <name type="A11c2210">fld2</name>
+            </varDecl>
+            <varDecl lineno="57" file="testkern.F90">
+              <name type="A11c2470">fld3</name>
+            </varDecl>
+            <varDecl lineno="57" file="testkern.F90">
+              <name type="A11c26d0">fld4</name>
+            </varDecl>
+            <varDecl lineno="58" file="testkern.F90">
+              <name type="Fint">ndf_w1</name>
+            </varDecl>
+            <varDecl lineno="58" file="testkern.F90">
+              <name type="Fint">undf_w1</name>
+            </varDecl>
+            <varDecl lineno="58" file="testkern.F90">
+              <name type="Fint">ndf_w2</name>
+            </varDecl>
+            <varDecl lineno="58" file="testkern.F90">
+              <name type="Fint">undf_w2</name>
+            </varDecl>
+            <varDecl lineno="58" file="testkern.F90">
+              <name type="Fint">ndf_w3</name>
+            </varDecl>
+            <varDecl lineno="58" file="testkern.F90">
+              <name type="Fint">undf_w3</name>
+            </varDecl>
+            <varDecl lineno="59" file="testkern.F90">
+              <name type="A11c4b20">map_w1</name>
+            </varDecl>
+            <varDecl lineno="59" file="testkern.F90">
+              <name type="A11c4d80">map_w2</name>
+            </varDecl>
+            <varDecl lineno="59" file="testkern.F90">
+              <name type="A11c4fe0">map_w3</name>
+            </varDecl>
+          </declarations>
+          <body>
+          </body>
+        </FfunctionDefinition>
+      </FcontainsStatement>
+    </FmoduleDefinition>
+  </globalDeclarations>
+</XcodeProgram>
