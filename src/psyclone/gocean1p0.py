@@ -860,13 +860,23 @@ class GOKernelGridArgument(KernelArgument):
         return None
 
     def forward_dependence(self):
-        ''' A grid-property argument is read-only and supplied by the
-        PSy layer so has no dependencies '''
+        '''
+        A grid-property argument is read-only and supplied by the
+        PSy layer so has no dependencies
+
+        :returns: None to indicate no dependencies
+        :rtype: NoneType
+        '''
         return None
 
     def backward_dependence(self):
-        ''' A grid-property argument is read-only and supplied by the
-        PSy layer so has no dependencies '''
+        '''
+        A grid-property argument is read-only and supplied by the
+        PSy layer so has no dependencies
+
+        :returns: None to indicate no dependencies
+        :rtype: NoneType
+        '''
         return None
 
 
