@@ -45,7 +45,7 @@
 
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, KernelArgument, GenerationError
+    Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -821,7 +821,7 @@ class GOKernelArgument(KernelArgument):
         return self._arg.function_space
 
 
-class GOKernelGridArgument(KernelArgument):
+class GOKernelGridArgument(Argument):
     ''' Describes arguments that supply grid properties to a kernel.
         These arguments are provided by the PSy layer rather than in
         the Algorithm layer. '''
