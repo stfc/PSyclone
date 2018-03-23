@@ -21,11 +21,12 @@ import argparse
 import sys
 import os
 import traceback
-from parse import parse, ParseError
-from psyGen import PSyFactory, GenerationError
-from algGen import NoInvokesError
-from config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
-from line_length import FortLineLength
+from psyclone.parse import parse, ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.algGen import NoInvokesError
+from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
+from psyclone.line_length import FortLineLength
+from psyclone.version import __VERSION__
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
@@ -84,7 +85,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from algGen import Alg
+        from psyclone.algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
@@ -159,7 +160,7 @@ def main(args):
     function if all is well, catches any errors and outputs the
     results
     '''
-
+    # pylint: disable=too-many-statements
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
@@ -185,12 +186,21 @@ def main(args):
         help='do not generate distributed memory code')
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
+    parser.add_argument(
+        '-v', '--version', dest='version', action="store_true",
+        help='Display version information ({0})'.format(__VERSION__))
+
     args = parser.parse_args(args)
 
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
             "{1}.".format(args.api, SUPPORTEDAPIS)
         exit(1)
+
+    if args.version:
+        print "PSyclone version: {0}".format(__VERSION__)
+
+    # pylint: disable=broad-except
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,
