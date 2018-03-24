@@ -102,6 +102,7 @@ def test_similar_kernel_name():
 
 
 def test_recurse_correct_kernel_path():
+    # pylint: disable=invalid-name
     '''checks that the generator succeeds when the location of the kernel
        source code is *not* the same as that of the algorithm code and
        recursion through subdirectories is required'''
@@ -123,6 +124,7 @@ def test_script_file_not_found():
 
 
 def test_script_file_not_found_relative():
+    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a script
         file is supplied that can't be found in the Python path. In
         this case the script path is not supplied so must be found via the
@@ -156,6 +158,7 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
+    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file does not have the '.py' extension'''
     with pytest.raises(GenerationError):
@@ -178,6 +181,7 @@ def test_script_invalid_content():
 
 
 def test_script_invalid_content_runtime():
+    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file contains valid python syntactically but produces a
         runtime exception. '''
@@ -315,6 +319,7 @@ def test_alg_lines_too_long_tested():
 
 
 def test_alg_lines_too_long_not_tested():
+    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when the algorithm file has lines longer than 132 characters. We
@@ -336,6 +341,7 @@ def test_kern_lines_too_long_tested():
 
 
 def test_kern_lines_too_long_not_tested():
+    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when a kernel file has lines longer than 132 characters. We
@@ -352,6 +358,24 @@ def test_continuators():
                                  "test_files", "dynamo0p3",
                                  "1.1.0_single_invoke_xyoz_qr.f90"),
                     api="dynamo0.3", line_length=True)
+
+
+def test_main_version(capsys):
+    '''Tests that the version info is printed correctly.'''
+    # First test if -h includes the right version info:
+    with pytest.raises(SystemExit):
+        main(["-h"])
+    output, _ = capsys.readouterr()
+    from psyclone.version import __VERSION__
+    assert "Display version information ({0})".format(__VERSION__) in output
+
+    # Now test -v, but it needs a filename for argparse to work. Just use
+    # some invalid parameters - "-v" prints its output before that.
+    with pytest.raises(SystemExit) as _:
+        main(["-v", "does-not-exist"])
+    output, _ = capsys.readouterr()
+
+    assert "PSyclone version: {0}".format(__VERSION__) in output
 
 
 def test_main_invalid_api(capsys):
@@ -391,6 +415,7 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
+    # pylint: disable=invalid-name
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function.'''
