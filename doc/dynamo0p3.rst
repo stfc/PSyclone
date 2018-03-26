@@ -542,10 +542,13 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
   synchronisation (or colouring) to run in parallel.
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
-  update quantitites which do not share dofs, such as operators
-  and fields over relevant function spaces. Consequently, there is
-  no need for synchronisation (or colouring) when running these
-  Kernels in parallel.
+  update quantitites which do not share dofs, such as operators and
+  fields over discontinuous function spaces. If a Kernel modifies
+  only discontinuous fields and/or operators there is no need for
+  synchronisation or colouring when running such Kernels in parallel.
+  However, modifying another field with a ``GH_INC`` access in a
+  Kernel means that synchronisation or colouring are required for
+  parallel runs.
 
 * ``GH_SUM`` is an example of a reduction and is the only reduction
   currently supported in PSyclone. This metadata indicates that values
@@ -1817,12 +1820,12 @@ code that is added by PSyclone. See the ``README`` in the
 example.
 
 An example of applying boundary conditions to an operator is the kernel
-``enforce_operator_bc_kernel_mod.F90`` in
+``enforce_operator_bc_kernel_mod.F90`` in the
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3`` directory.
-Since operators are discontinuous quantities, updating their values can be
-safely performed in parallel so ``GH_READWRITE`` access is used for this
-purpose (see Section :ref:`dynamo0.3-kernel` and subsection
-:ref:`dynamo0.3-valid-access` for more details).
+Since operators are discontinuous quantities, updating their values can
+be safely performed in parallel (see Section :ref:`dynamo0.3-kernel`).
+The ``GH_READWRITE`` access is used for updating discontinuous operators
+(see subsection :ref:`dynamo0.3-valid-access` for more details).
 
 Conventions
 -----------

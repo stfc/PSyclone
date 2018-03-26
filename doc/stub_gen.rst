@@ -65,10 +65,10 @@ have not already done so, please follow the instructions for setting
 up PSyclone in Section :ref:`Getting Going <getting-going>`.
 
 PSyclone will be installed in a particular location on your machine,
-which will be referred to as ``<PSYCLONEINSTALL>`` directory. The stub
-generator script ``genkernelstub`` comes with the PSyclone installation.
-A quick check ``which genkernelstub`` should return the location of
-``<PSYCLONEINSTALL>/bin`` directory.
+which will be referred to as the ``<PSYCLONEINSTALL>`` directory. The
+stub generator script ``genkernelstub`` comes with the PSyclone
+installation. A quick check ``> which genkernelstub`` should return
+the location of the ``<PSYCLONEINSTALL>/bin`` directory.
 
 The easiest way to use the stub generator is to run the supplied
 ``genkernelstub`` script.
@@ -347,7 +347,7 @@ should fail with appropriate warnings because of that. For example:
 
 As noted above, if the Dynamo0.3 naming convention for module and type
 names is not followed, the stub generator will return with an error
-an error message. For example:
+message. For example:
 ::
 
     > genkernelstub tests/test_files/dynamo0p3/testkern.F90
