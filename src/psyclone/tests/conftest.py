@@ -64,7 +64,7 @@ def f90flags(request):
 
 
 @pytest.fixture
-def have_graphviz(request):
+def have_graphviz():
     ''' Whether or not the system has graphviz installed. Note that this
     only checks for the Python bindings. The underlying library must
     also have been installed for dag generation to work correctly. '''
