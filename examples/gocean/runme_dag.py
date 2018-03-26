@@ -75,6 +75,7 @@ PSY = PSyFactory(API).create(INVOKEINFO)
 # Print the Schedule of the first Invoke
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
+print("\n")
 
 # Generate a DAG for it. If graphviz is not available this call just
 # returns without doing anything.
@@ -82,9 +83,9 @@ dag_name = "invoke_0_dag"
 SCHEDULE.dag(file_name=dag_name, file_format="png")
 dag_name += ".png"
 if os.path.isfile(os.path.join(os.getcwd(), dag_name)):
-    print "Wrote DAG to file: {0}".format(dag_name)
+    print("Wrote DAG to file: {0}".format(dag_name))
 else:
-    print ("Failed to generate DAG image. Do you have the graphviz library "
-           "and Python bindings installed?")
+    print("Failed to generate DAG image. Do you have the graphviz library "
+          "and Python\nbindings installed?")
 
 
