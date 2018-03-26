@@ -667,15 +667,27 @@ the GOcean 1.0 API. For an overview of transformations in general see
    :members:
    :noindex:
 
+####
+
 .. autoclass:: psyclone.transformations.GOceanOMPParallelLoopTrans
    :members:
    :noindex:
+
+####
 
 .. autoclass:: psyclone.transformations.GOceanOMPLoopTrans
    :members:
    :noindex:
 
+####
+
 .. autoclass:: psyclone.transformations.GOConstLoopBoundsTrans
+   :members:
+   :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.GOLoopSwapTrans
    :members:
    :noindex:
 
