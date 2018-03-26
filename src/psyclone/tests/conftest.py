@@ -61,3 +61,12 @@ def f90(request):
 def f90flags(request):
     ''' Gets the value of the f90flags command-line option '''
     return request.config.getoption("--f90flags")
+
+
+@pytest.fixture
+def have_graphviz():
+    ''' Whether or not the system has graphviz installed. Note that this
+    only checks for the Python bindings. The underlying library must
+    also have been installed for dag generation to work correctly. '''
+    import sys
+    return "graphviz" in sys.modules
