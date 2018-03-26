@@ -30,7 +30,7 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''
@@ -75,17 +75,15 @@ PSY = PSyFactory(API).create(INVOKEINFO)
 # Print the Schedule of the first Invoke
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
-print("\n")
+print "\n"
 
 # Generate a DAG for it. If graphviz is not available this call just
 # returns without doing anything.
-dag_name = "invoke_0_dag"
-SCHEDULE.dag(file_name=dag_name, file_format="png")
-dag_name += ".png"
-if os.path.isfile(os.path.join(os.getcwd(), dag_name)):
-    print("Wrote DAG to file: {0}".format(dag_name))
+DAG_NAME = "invoke_0_dag"
+SCHEDULE.dag(file_name=DAG_NAME, file_format="png")
+DAG_NAME += ".png"
+if os.path.isfile(os.path.join(os.getcwd(), DAG_NAME)):
+    print "Wrote DAG to file: {0}".format(DAG_NAME)
 else:
     print("Failed to generate DAG image. Do you have the graphviz library "
           "and Python\nbindings installed?")
-
-
