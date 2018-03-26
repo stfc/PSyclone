@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications Copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic, Met Office
 
 module columnwise_op_asm_field_kernel_mod
 

@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
-! Modified by A. Porter, STFC.
+! Modified by A. Porter, STFC
+! Modified by I. Kavcic, Met Office
 
 !> @brief Kernel which applies boundary conditions to a field
 !> @detail Wrapper code for applying boundary conditions to a field

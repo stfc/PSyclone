@@ -36,7 +36,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office
+! Modified by I. Kavcic, Met Office
 !
 !> @brief Kernel which calculates the product of two columnwise operators
 !> @details Calculates op_C = op_C + op_A * op_B
