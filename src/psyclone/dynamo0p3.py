@@ -54,9 +54,9 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
 # First section : Parser specialisations and classes
 
 # Function spaces (FS)
-# Continuous FS
-DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
 # Discontinuous FS
+DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
+# Continuous FS
 # Space any_w2 can be w2, w2h or w2v
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
 # Valid FS and FS names
@@ -494,7 +494,7 @@ class DynArgDescriptor03(Descriptor):
     def __init__(self, arg_type):
         '''
         :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: string
+        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
