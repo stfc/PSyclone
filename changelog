@@ -29,7 +29,10 @@
 	10) PR #93 - add support for a swap-loop transform for the GOcean
 	API.
 
-	11) PR #143 - bug fix for DAG generation in the GOcean API.
+        11) PR #152 - add pylintrc so that pylint's line-length limit
+        matches that of pep8.
+
+	12) PR #143 - bug fix for DAG generation in the GOcean API.
 
 release 1.5.1 3rd December 2017
 
