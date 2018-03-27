@@ -32,6 +32,8 @@
         11) PR #152 - add pylintrc so that pylint's line-length limit
         matches that of pep8.
 
+	12) PR #143 - bug fix for DAG generation in the GOcean API.
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not

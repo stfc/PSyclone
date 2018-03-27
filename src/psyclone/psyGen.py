@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-18, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1883,11 +1883,17 @@ class Loop(Node):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        ''' Return the name to use in a dag for this node
+
+        :return: Return the dag name for this loop
+        :rtype: string
+
+        '''
         if self.loop_type:
-            name = "loop_[{0}]_".format(self.loop_type) + str(self.position)
+            name = "loop_[{0}]_".format(self.loop_type) + \
+                   str(self.abs_position)
         else:
-            name = "loop_" + str(self.position)
+            name = "loop_" + str(self.abs_position)
         return name
 
     @property
