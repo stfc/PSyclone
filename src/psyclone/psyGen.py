@@ -586,7 +586,7 @@ class Invoke(object):
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
 
         # Get the lists of all kernel arguments that are accessed as
-        # inc (shared update), write, read and readwrite (not shared
+        # inc (shared update), write, read and readwrite (independent
         # update). A single argument may be accessed in different ways
         # by different kernels.
         inc_args = self.unique_declarations(datatype,
@@ -599,22 +599,22 @@ class Invoke(object):
             datatype, access=MAPPING_ACCESSES["readwrite"])
         sum_args = self.unique_declarations(datatype,
                                             access=MAPPING_REDUCTIONS["sum"])
-        # sum_args and readwrite_args behave as if they are write_args from
+        # sum_args behave as if they are write_args from
         # the PSy-layer's perspective.
-        write_args += sum_args + readwrite_args
-        # readwrite_args can also behave as read_args
-        read_args += readwrite_args
+        write_args += sum_args
+        # readwrite_args behave in the same way as inc_args
+        # from the perspective of first access and intents
+        inc_args += readwrite_args
         # Rationalise our lists so that any fields that are updated
         # (have inc or readwrite access) do not appear in the list
         # of those that are only written to
-        update_args = inc_args + readwrite_args
         for arg in write_args[:]:
-            if arg in update_args:
+            if arg in inc_args:
                 write_args.remove(arg)
         # Fields that are only ever read by any kernel that
         # accesses them
         for arg in read_args[:]:
-            if arg in write_args + update_args:
+            if arg in write_args or arg in inc_args:
                 read_args.remove(arg)
 
         # We will return a dictionary containing as many lists
@@ -624,10 +624,10 @@ class Invoke(object):
             declns[intent] = []
 
         for name in inc_args:
-            # For every arg that is 'inc'd' by at least one kernel,
-            # identify the type of the first access. If it is 'write'
-            # then the arg is only intent(out) otherwise it is
-            # intent(inout)
+            # For every arg that is updated ('inc'd' or readwritten)
+            # by at least one kernel, identify the type of the first
+            # access. If it is 'write' then the arg is only
+            # intent(out), otherwise it is intent(inout)
             first_arg = self.first_access(name)
             if first_arg.access != MAPPING_ACCESSES["write"]:
                 if name not in declns["inout"]:
@@ -642,18 +642,6 @@ class Invoke(object):
             # or inc'd before it is written then it must have intent(inout).
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
-            first_arg = self.first_access(name)
-            if first_arg.access == MAPPING_ACCESSES["read"]:
-                if name not in declns["inout"]:
-                    declns["inout"].append(name)
-            else:
-                if name not in declns["out"]:
-                    declns["out"].append(name)
-
-        for name in readwrite_args:
-            # For every readwrite argument identify the type of the first
-            # access - if it is read before it is written then it must
-            # have intent(inout), otherwise it is intent(out).
             first_arg = self.first_access(name)
             if first_arg.access == MAPPING_ACCESSES["read"]:
                 if name not in declns["inout"]:
@@ -2466,8 +2454,8 @@ class Kern(Call):
 
     def written_arg(self, mapping={}):
         '''
-        Returns an argument that can be written to (has WRITE or
-        READWRITE access).
+        Returns an argument that has WRITE or READWRITE access. Raises a
+        FieldNotFoundError if none is found.
 
         :param mapping: dictionary of access types associated with arguments
                         with their metadata strings as keys
