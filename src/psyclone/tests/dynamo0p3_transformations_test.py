@@ -5897,8 +5897,8 @@ def test_intergrid_rejected():
     once transformations with inter-grid kernels are supported.) '''
     
     expected_err = (
-        "cannot currently be applied to loops containing inter-grid "
-        "kernels and ")
+        "cannot currently be applied to nodes which have inter-grid "
+        "kernels as children and ")
 
     # Use an example that contains both prolongation and restriction
     # kernels

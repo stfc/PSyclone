@@ -67,11 +67,13 @@ def check_intergrid(node):
     transformations to loops containing inter-grid kernels. (This restriction
     will be lifted in Issue #134 and this routine can then be removed.)
 
-    :param node: the Loop in the Schedule to check
-    :type node: :py:class:`psyGen.Loop`
+    # TODO remove this routine once #134 is complete.
 
-    :raises TransformationError: if the supplied loop contains an inter-grid
-                                 kernel
+    :param node: the Node in the Schedule to check
+    :type node: :py:class:`psyGen.Node`
+
+    :raises TransformationError: if the supplied node has an inter-grid
+                                 kernel as a child
     '''
     if not node.children:
         return
@@ -80,8 +82,8 @@ def check_intergrid(node):
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
-                "Transformations cannot currently be applied to loops "
-                "containing inter-grid kernels and {0} is such a "
+                "Transformations cannot currently be applied to nodes which "
+                "have inter-grid kernels as children and {0} is such a "
                 "kernel.".format(kern.name))
 
 
