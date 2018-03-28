@@ -4054,7 +4054,10 @@ class DynLoop(Loop):
             if self._kern.is_intergrid:
                 # We have more than one mesh object to choose from and we
                 # want the coarse one because that determines the iteration
-                # space
+                # space. _field_name holds the name of the argument that
+                # determines the iteration space of this kernel and that
+                # is set-up to be the one on the coarse mesh (in
+                # DynKerelArguments.iteration_space_arg()).
                 mesh_name = "mesh_" + self._field_name
             else:
                 # It's not an inter-grid kernel so there's only one mesh
