@@ -958,6 +958,16 @@ class DynKernMetadata(KernelType):
             # this is not an inter-grid kernel
             return
 
+        if len(VALID_MESH_TYPES) != 2:
+            # Sanity check that nobody has messed with the number of
+            # grid types that we recognise. This is here because the
+            # implementation assumes that there are just two grids
+            # (coarse and fine).
+            raise ParseError(
+                "The implementation of inter-grid support in the Dynamo "
+                "0.3 API assumes there are exactly two mesh types but "
+                "dynamo0p3.VALID_MESH_TYPES contains {0}: {1}".
+                format(len(VALID_MESH_TYPES), VALID_MESH_TYPES))
         if len(mesh_list) != len(VALID_MESH_TYPES):
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "

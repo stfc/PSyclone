@@ -206,6 +206,21 @@ def test_field_vector():
     assert dkm.arg_descriptors[1].vector_size == 1
 
 
+def test_two_grid_types(monkeypatch):
+    ''' Check that PSyclone raises an error if the number of grid types
+    supported for inter-grid kernels is not two '''
+    from psyclone import dynamo0p3
+    # Change VALID_MESH_TYPES so that it contains three values
+    monkeypatch.setattr(dynamo0p3, "VALID_MESH_TYPES",
+                        value=["gh_coarse", "gh_fine", "gh_medium"])
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
+    name = "restrict_kernel_type"
+    with pytest.raises(ParseError) as err:
+        _ = DynKernMetadata(ast, name=name)
+    assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err)
+
+    
 def test_field_prolong(tmpdir, f90, f90flags):
     ''' Check that we generate correct psy-layer code for an invoke
     containing a kernel that performs a prolongation operation '''
