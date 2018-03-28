@@ -44,6 +44,7 @@ objects and their use are discussed in the following sections.
   real(kind=r_def)      	 :: scalar1
   integer(kind=i_def)   	 :: stencil_extent
   type(field_type)      	 :: field1, field2, field3
+  type(field_type)      	 :: field5(3), field6(3)
   type(quadrature_type) 	 :: qr
   type(operator_type)   	 :: operator1
   type(columnwise_operator_type) :: cma_op1
@@ -52,8 +53,11 @@ objects and their use are discussed in the following sections.
                builtin1(scalar1, field2, field3),                &
                kernel2(field1, stencil_extent, field3, scalar1), &
 	       assembly_kernel(cma_op1, operator1),              &
-               name="some calculation"                           &
+               name="some_calculation"                           &
              )
+  call invoke( prolong_kernel_type(field1, field4)               &
+               restrict_kernel_type(field5, field6)
+	     )
 
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
@@ -275,6 +279,17 @@ For example, running test 19.2 from the Dynamo0.3 API test suite gives::
   "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
   Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
 
+Inter-grid
+++++++++++
+
+From the Algorithm layer, an Invoke for inter-grid kernels (those that
+map fields between grids of different resolution) looks much like an
+Invoke containing general-purpose kernels. The only restrictions to be
+aware of are that inter-grid kernels accept only field or field-vectors
+as arguments and that an Invoke may not mix inter-grid kernels with
+any other kernel type. (Hence the second, separate Invoke in the
+example Algorith code given at the beginning of this Section.)
+
 PSy-layer
 ---------
 
@@ -302,7 +317,7 @@ Kernel
 The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. In the Dynamo API there are four
 different Kernel types; general purpose, CMA, inter-grid and
-:ref:`dynamo_built-ins`. For the latter type, PSyclone generates the
+:ref:`dynamo_built-ins`. In the case of built-ins, PSyclone generates the
 source of the kernels.  This section explains the rules for the other
 three, user-supplied kernel types and then goes on to describe their
 metadata and subroutine arguments.
@@ -434,7 +449,8 @@ Rules for Inter-Grid Kernels
    :ref:`dynamo0.3-intergrid-mdata`).
 
 2) An invoke that contains one or more inter-grid kernels must not contain
-   any other kernel types.
+   any other kernel types. (This restriction is an implementation decision
+   and could be lifted in future if there is a need.)
 
 3) An inter-grid kernel is only permitted to have field or field-vector
    arguments.
@@ -448,6 +464,9 @@ Rules for Inter-Grid Kernels
 6) Fields on different meshes must always live on different function spaces.
 
 7) All fields on a given mesh must be on the same function space.
+
+The logical conclusion of Rules 5-7 is that an inter-grid kernel will
+only involve two function spaces.
 
 
 Metadata
@@ -905,8 +924,9 @@ metadata for such a kernel is given below:
       /)
 
 Note that an inter-grid kernel must have at least one field (or field-
-vector) argument on each mesh type and that fields that are on different
-meshes cannot be on the same function space.
+vector) argument on each mesh type. Fields that are on different
+meshes cannot be on the same function space while those on the same
+mesh must also be on the same function space.
 
 
 Column-wise Operators (CMA)
