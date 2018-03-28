@@ -4887,6 +4887,26 @@ def test_rc_vector_reader_halo_readwrite():
     assert result.count("is_dirty") == 9
     assert result.count("halo_exchange") == 9
 
+    # Now increase RC depth of the reader loop to 2 to check for
+    # additional halo exchanges (3 more due to readwrite to read
+    # dependency in f1)
+    schedule, _ = rc_trans.apply(schedule.children[10], depth=2)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    # Check for additional halo exchanges
+    assert result.count("halo_exchange") == 12
+    # Check that additional halo exchanges for all three f1
+    # vector field components are of depth 2 and that they
+    # do not have if tests around them
+    for idvct in range(1, 4):
+        idx = str(idvct)
+        assert (
+            "CALL f1_proxy(" + idx + ")%halo_exchange(depth=2)") in result
+        assert (
+            "      IF (f1_proxy(" + idx + ")%is_dirty(depth=2)) THEN\n"
+            "         CALL f1_proxy(" + idx + ")%halo_exchange(depth=2)\n"
+            "      END IF\n") not in result
+
 
 def test_stencil_rc_max_depth_1(monkeypatch):
     '''If a loop contains a kernel with a stencil access and the loop
@@ -4982,8 +5002,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     rc_trans.apply(schedule.children[0], depth=3)
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        # f1 and f2 have read accesses (readwrite and read) so there
-        # is one halo exchange for each before the loops
+        # Indices of loops to fuse in the schedule
         f_trans.apply(schedule.children[2], schedule.children[3])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
@@ -4996,8 +5015,6 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     monkeypatch.setattr(f1_arg, "_access", value="gh_write")
     rc_trans.apply(schedule.children[0], depth=3)
     with pytest.raises(TransformationError) as excinfo:
-        # f2 has read access so there is just one halo exchange
-        # before the loops
         f_trans.apply(schedule.children[1], schedule.children[2])
     assert ("Error in DynamoLoopFuse transformation. The upper bound names "
             "are not the same. Found 'cell_halo' and 'ncells'"
