@@ -5349,7 +5349,12 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
 
     def fs_intergrid(self, function_space):
-        ''' Add function-space related arguments for an intergrid kernel '''
+        ''' 
+        Add function-space related arguments for an intergrid kernel
+
+        :param function_space: the function space for which to add arguments
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
         # Is this FS associated with the coarse or fine mesh? (All fields
         # on a given mesh must be on the same FS.)
         arg = self._kern.arguments.get_arg_on_space(function_space)
@@ -6309,7 +6314,7 @@ class DynKernelArguments(Arguments):
         function space is used for comparison.
 
         :param func_space: The function space for which to find an argument.
-        :type func_space: :py:class:`dynamo0p3.xxxxxxx`
+        :type func_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :return: the first kernel argument that is on the supplied function
                  space
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
