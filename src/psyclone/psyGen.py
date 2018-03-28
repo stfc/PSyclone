@@ -142,6 +142,18 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
     then return all arguments.
+
+    :param arg_list: List of kernel arguments to filter
+    :type arg_list: list of :py:class:`psyclone.parse.Descriptor`
+    :param arg_types: List of argument types (e.g. "GH_FIELD")
+    :type arg_types: list of str
+    :param arg_accesses: List of access types that arguments must have
+    :type arg_accesses: list of str
+    :param arg_meshes: List of meshes that arguments must be on
+    :type arg_meshes: list of str
+
+    :returns: list of kernel arguments matching the requirements
+    :rtype: list of :py:class:`psyclone.parse.Descriptor`
     '''
     arguments = []
     for argument in arg_list:
