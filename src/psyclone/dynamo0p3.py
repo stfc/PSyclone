@@ -1887,7 +1887,7 @@ class DynMeshes(object):
         Declare variables specific to inter-grid kernels
 
         :param parent: the parent node to which to add the declarations
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
         # We'll need various typedefs from the mesh module
@@ -1919,6 +1919,9 @@ class DynMeshes(object):
     def initialise(self, parent):
         '''
         Initialise parameters specific to inter-grid kernels
+
+        :param parent: the parent node to which to add the initialisations
+        :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import CommentGen, AssignGen
 
