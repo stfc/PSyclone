@@ -202,7 +202,12 @@ class DynBuiltIn(BuiltIn):
 
     @property
     def is_intergrid(self):
-        ''' We don't have any inter-grid Built-ins '''
+        '''
+        We don't have any inter-grid Built-ins
+
+        :returns: False
+        :rtype: bool
+        '''
         return False
 
 # ------------------------------------------------------------------- #
