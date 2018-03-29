@@ -32,13 +32,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
 
 # This is a simple bash script that executes all of the examples that
 # are distributed with PSyclone. Note that PSyclone must be installed
-# for this script to work, this is best done using pip. See the
-# user manual for more details.
+# for this script to work (see ../README.md).
 
 # abort if a command fails
 set -e
@@ -114,6 +113,7 @@ cd gocean
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
+python runme_dag.py
 cd -
 
 echo "Running transformation examples"
