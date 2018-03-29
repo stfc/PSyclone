@@ -7,6 +7,8 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -36,6 +38,12 @@ def handle_script(script_name, psy):
     :type script_name: string
     :param psy: The psy layer to which the script is applied.
     :type psy: :py:class:`psyclone.psyGen.PSy`
+    :raises IOError: If the file is not found.
+    :raises GenerationError: if the file does not have .py extension
+        or can not be imported.
+    :raises GenerationError: if trans() can not be called.
+    :raises GenerationError: if any exception is raised when trans()
+        was called.
     '''
     sys_path_appended = False
     try:

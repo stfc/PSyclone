@@ -5,6 +5,8 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''
 A module to perform pytest unit and functional tests on the code in
