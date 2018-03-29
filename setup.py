@@ -111,5 +111,5 @@ if __name__ == '__main__':
         install_requires=['pyparsing', 'fparser>=0.0.7', 'six'],
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
-        data_files=[(CONFIG_INSTALL_PATH, ['src/psyclone/psyclone.cfg'])]
+        data_files=[(CONFIG_INSTALL_PATH, ['config/psyclone.cfg'])]
     )
