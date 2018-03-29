@@ -76,13 +76,13 @@ CLASSIFIERS = [
     'Operating System :: Unix',
     'Operating System :: MacOS']
 
-# We read the version number from version.py in the src/psyclone directory.
-# Rather than importing it (which would require that PSyclone already be
-# installed), we read it using execfile().
+# We read the version number ('__VERSION__') from version.py in the
+# src/psyclone directory. Rather than importing it (which would require
+# that PSyclone already be installed), we read it using execfile():
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
     exec(f.read())
-VERSION = __VERSION__
+VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 # Where to install the psyclone.cfg configuration file
 # Do we have write access to /etc/ ?
