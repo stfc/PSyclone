@@ -52,12 +52,13 @@ from psyclone import config
 
 def check_api(api):
     ''' Check that the supplied API is valid '''
-    from psyclone.config import SUPPORTEDAPIS
-    if api not in SUPPORTEDAPIS:
+    _config = config.ConfigFactory().create()
+
+    if api not in _config.supported_apis:
         raise ParseError(
             "check_api: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
-                                              SUPPORTEDAPIS))
+                                              _config.supported_apis))
 
 
 def get_builtin_defs(api):
@@ -424,8 +425,8 @@ class KernelTypeFactory(object):
 
     def __init__(self, api=""):
         if api == "":
-            from psyclone.config import DEFAULTAPI
-            self._type = DEFAULTAPI
+            _config = config.ConfigFactory().create()
+            self._type = _config.default_api
         else:
             check_api(api)
             self._type = api
@@ -847,7 +848,7 @@ class FileInfo(object):
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
           kernel_path="", line_length=False,
-          distributed_memory=config.DISTRIBUTED_MEMORY):
+          distributed_memory=None):
     '''Takes a GungHo algorithm specification as input and outputs an AST of
     this specification and an object containing information about the
     invocation calls in the algorithm specification and any associated kernel
@@ -879,15 +880,21 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> ast,info=parse("argspec.F90")
 
     '''
+    _config = config.ConfigFactory().create()
 
-    if distributed_memory not in [True, False]:
+    if distributed_memory is None:
+        _dist_mem = _config.distributed_memory
+    else:
+        _dist_mem = distributed_memory
+
+    if _dist_mem not in [True, False]:
         raise ParseError(
             "The distributed_memory flag in parse() must be set to"
             " 'True' or 'False'")
-    config.DISTRIBUTED_MEMORY = distributed_memory
+    _config.distributed_memory = _dist_mem
+
     if api == "":
-        from psyclone.config import DEFAULTAPI
-        api = DEFAULTAPI
+        api = _config.default_api
     else:
         check_api(api)
 

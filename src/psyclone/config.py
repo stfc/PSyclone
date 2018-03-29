@@ -31,22 +31,145 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyclone configuration file where system wide properties and
-defaults are set.'''
-
-SUPPORTEDAPIS = ["gunghoproto", "dynamo0.1", "dynamo0.3", "gocean0.1",
-                 "gocean1.0"]
-DEFAULTAPI = "dynamo0.3"
-SUPPORTEDSTUBAPIS = ["dynamo0.3"]
-DEFAULTSTUBAPI = "dynamo0.3"
-DISTRIBUTED_MEMORY = True
-REPRODUCIBLE_REDUCTIONS = False
-# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is True
-REPROD_PAD_SIZE = 8
 # Specify whether we compute annexed dofs when a kernel is written so
 # that it iterates over dofs. This is currently only the case for
 # builtins. If annexed dofs are computed then in certain cases we
 # remove the need for a halo exchange call.
 COMPUTE_ANNEXED_DOFS = False
+
+
+'''
+PSyclone configuration management module.
+
+Deals with reading the config file and storing default settings.
+'''
+
+import os
+
+class ConfigFactory(object):
+    '''
+    Creates a singleton instance of our Config object.
+    '''
+    _instance = None  # Our single Config object
+
+    def __init__(self, config_file=None):
+        '''
+        Create our singleton Config object. If config_name is specified
+        then we throw-away the old Config and create a new one.
+
+        :param str config_file: Specific configuration file to use when
+                                creating Config object
+        '''
+        if not ConfigFactory._instance or config_file:
+            # Create a Config object if we've not already got one or if the
+            # caller has specified a particular file
+            ConfigFactory._instance = Config(config_file)
+
+    def create(self):
+        '''
+        :returns: the singleton Config instance
+        :rtype: :py:class:`psyclone.config.Config`
+        '''
+        return ConfigFactory._instance
+
+
+class Config(object):
+    '''
+    Handles all configuration management.
+    '''
+
+    def __init__(self, config_file=None):
+        '''
+        Config constructor.
+
+        :param str config_file: Override default configuration file to read
+        '''
+        import configparser
+        if config_file:
+            # Caller has explicitly provided the full path to the config
+            # file to read
+            if not os.path.isfile(config_file):
+                raise FileNotFoundError("File {0} does not exist".
+                                        format(config_file))
+            self._config_file = config_file[:]
+        else:
+            # Search for the config file in various default locations
+            self._config_file = Config.find_file()
+            
+        self._config = configparser.ConfigParser()
+        self._config.read(self._config_file)
+
+        # The call to the 'read' method above populates a dictionary.
+        # All of the entries in that dict are strings so here we pull
+        # out the values we want and deal with any type conversion.
+        self._distributed_mem =  self._config['DEFAULT'].getboolean(
+            'DISTRIBUTED_MEMORY')
+        self._default_api = self._config['DEFAULT']['DEFAULTAPI']
+        self._supported_api_list = self._config['DEFAULT']['SUPPORTEDAPIS'].\
+                                   split(",")
+        self._reproducible_reductions = self._config['DEFAULT'].getboolean(
+            'REPRODUCIBLE_REDUCTIONS')
+        self._reprod_pad_size = self._config['DEFAULT'].getint(
+            'REPROD_PAD_SIZE')
+
+    @staticmethod
+    def find_file(name=None):
+        '''
+        Static method that searches various locations for a configuration
+        file. The locations that are searched, in order, are:
+        ${PWD}/.psyclone/
+        ${HOME}/.psyclone/
+        /etc/psyclone/
+
+        :param str name: override default name of config file to search for
+        :returns: the fully-qualified path to the configuration file
+        :rtype: str
+        '''
+        # Name of the config file we search for
+        if name is not None:
+            _name = name[:]
+        else:
+            _name = "psyclone.cfg"
+
+        # Set up list of locations to search
+        _file_paths = [os.path.join(os.getcwd(), ".psyclone", _name),
+                       os.path.join(os.path.expanduser("~"), ".psyclone",
+                                    _name),
+                       os.path.join(os.path.abspath("/etc"), "psyclone",
+                                    _name)]
+        for cfile in _file_paths:
+            if os.path.isfile(cfile):
+                return cfile
+        # If we get to here then we have failed to find a config file
+        raise FileNotFoundError("{0} not found in any of {1}".
+                                format(_name, file_paths))
+
+    @property
+    def distributed_memory():
+        return self._distributed_mem
+
+    @distributed_memory.setter
+    def distributed_memory(dist_mem):
+        self._distributed_mem = dist_mem
+
+    @property
+    def default_api():
+        return self._default_api
+
+    @property
+    def supported_apis():
+        return self._supported_apis
+
+    @property
+    def reproducible_reductions():
+        return self._reproducible_reproductions
+
+    @property
+    def reprod_pad_size():
+        return self._reprod_pad_size
+
+    @property
+    def filename():
+        return self._config_file

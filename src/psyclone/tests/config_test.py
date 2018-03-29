@@ -31,23 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-# This is the PSyclone configuration file.
+'''
+Module containing tests relating to PSyclone configuration handling.
+'''
 
-[DEFAULT]
-# Settings common to all APIs
-SUPPORTEDAPIS = gunghoproto, dynamo0.1, dynamo0.3, gocean0.1, gocean1.0
-DEFAULTAPI = dynamo0.3
-SUPPORTEDSTUBAPIS = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
-DISTRIBUTED_MEMORY = true
-REPRODUCIBLE_REDUCTIONS = false
-# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true
-REPROD_PAD_SIZE = 8
+import os
+from psyclone import config
 
-[dynamo0.3]
-OMNI_MODULE_PATH = /some/directory
+# constants
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files")
 
-[gocean1.0]
-OMNI_MODULE_PATH = /some/directory
+def test_create():
+    '''
+    Check that we can create a Config object
+    '''
+    _config = config.ConfigFactory().create()
+    assert isinstance(_config, config.Config)
+    # Check that we are creating a singleton instance
+    _config2 = config.ConfigFactory().create()
+    assert _config is _config2
+    # Check that specifying which config file to use results
+    # in a new instance
+    _config2 = config.ConfigFactory(
+        config_file=os.path.join(BASE_PATH,
+                                 "dummy_config.cfg")).create()
+    assert _config2 is not _config

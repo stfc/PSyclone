@@ -112,16 +112,15 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
     the supplied API is valid. '''
+    _config = config.ConfigFactory().create()
     if api == "":
-        from psyclone.config import DEFAULTAPI
-        api = DEFAULTAPI
+        api = _config.default_api
     else:
-        from psyclone.config import SUPPORTEDAPIS as supported_types
-        if api not in supported_types:
+        if api not in _config.supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                supported_types))
+                                                _config.supported_apis))
     return api
 
 
@@ -195,23 +194,29 @@ class FieldNotFoundError(Exception):
 
 class PSyFactory(object):
     '''Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the config.py
+        provided then the default api, as specified in the psyclone.cfg
         file, is chosen. Note, for pytest to work we need to set
         distributed_memory to the same default as the value found in
         config.DISTRIBUTED_MEMORY. If we set it to None and then test
         the value, it then fails. I've no idea why. '''
 
-    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
+    def __init__(self, api="", distributed_memory=None):
         '''Initialises a factory which can create API specific PSY objects.
         :param api: Name of the API to use.
-        :param distributed_memory: True if distributed memory should be
-                                   supported.
+        :param bool distributed_memory: True if distributed memory should be \
+                                        supported.
         '''
-        if distributed_memory not in [True, False]:
+        _config = config.ConfigFactory().create()
+        if distributed_memory is None:
+            _distributed_memory = _config.distributed_memory
+        else:
+            _distributed_memory = distributed_memory
+
+        if _distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        config.DISTRIBUTED_MEMORY = distributed_memory
+        _config.distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
@@ -1036,6 +1041,9 @@ class Node(object):
         else:
             self._children = children
         self._parent = parent
+        # Get a pointer to the singleton Config object which
+        # stores all PSyclone configuration
+        self._config = config.ConfigFactory().create()
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -1531,7 +1539,8 @@ class OMPDoDirective(OMPDirective):
         if children is None:
             children = []
         if reprod is None:
-            reprod = config.REPRODUCIBLE_REDUCTIONS
+            # Look-up the value read from the config file
+            reprod = self._config.reproducible_reductions
 
         self._omp_schedule = omp_schedule
         self._reprod = reprod
@@ -2300,12 +2309,13 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if config.REPROD_PAD_SIZE < 1:
+            if self._config.reprod_pad_size < 1:
                 raise GenerationError(
-                    "REPROD_PAD_SIZE in config.py should be a positive "
-                    "integer, but it is set to '{0}'.".format(
-                        config.REPROD_PAD_SIZE))
-            pad_size = str(config.REPROD_PAD_SIZE)
+                    "REPROD_PAD_SIZE in {0} should be a positive "
+                    "integer, but it is set to '{1}'.".format(
+                        self._config.filename,
+                        self._config.reprod_pad_size))
+            pad_size = str(self._config.reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
@@ -2315,6 +2325,8 @@ class Call(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
+        # TODO we should initialise self._name_space_manager in the
+        # constructor!
         self._name_space_manager = NameSpaceFactory().create()
         thread_idx = self._name_space_manager.create_name(
             root_name="th_idx", context="PSyVars", label="thread_index")

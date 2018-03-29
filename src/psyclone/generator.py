@@ -27,7 +27,7 @@ import traceback
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
-from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
+from psyclone.config import ConfigFactory
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
@@ -107,7 +107,7 @@ def handle_script(script_name, psy):
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=DISTRIBUTED_MEMORY):
+             distributed_memory=None):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -148,6 +148,10 @@ def generate(filename, api="", kernel_path="", script_name=None,
     >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
+    _config = ConfigFactory().create()
+
+    if distributed_memory is None:
+        distributed_memory = _config.distributed_memory
 
     # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
@@ -186,14 +190,17 @@ def main(args):
     results
     '''
     # pylint: disable=too-many-statements,too-many-branches
+    _config = ConfigFactory().create()
+
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
     parser.add_argument(
-        '-api', default=DEFAULTAPI, help='choose a particular api from {0}, '
-        'default {1}'.format(str(SUPPORTEDAPIS), DEFAULTAPI))
+        '-api', default=_config.default_api,
+        help='choose a particular api from {0}, '
+        'default {1}'.format(str(_config.supported_apis), _config.default_api))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -217,7 +224,7 @@ def main(args):
         choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
              "transformation script is used. Use at your own risk.")
-    parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
+    parser.set_defaults(dist_mem=_config.distributed_memory)
 
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
@@ -225,9 +232,9 @@ def main(args):
 
     args = parser.parse_args(args)
 
-    if args.api not in SUPPORTEDAPIS:
-        print("Unsupported API '{0}' specified. Supported API's are "
-              "{1}.".format(args.api, SUPPORTEDAPIS))
+    if args.api not in _config.supported_apis:
+        print "Unsupported API '{0}' specified. Supported API's are "\
+            "{1}.".format(args.api, _config.supported_apis)
         exit(1)
 
     if args.version:
