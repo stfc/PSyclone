@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,8 @@
 
 # This is a simple bash script that executes all of the examples that
 # are distributed with PSyclone. Note that PSyclone must be installed
-# for this script to work - i.e. the 'psyclone' directory must be on
-# your PYTHONPATH.
+# for this script to work, this is best done using pip. See the
+# user manual for more details.
 
 # abort if a command fails
 set -e
@@ -102,6 +102,11 @@ echo "Running example dynamo/eg9"
 cd dynamo/eg9
 ${PSYCLONE} advective_inc_alg_mod.x90
 ${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
+cd -
+
+echo "Running example dynamo/eg10"
+cd dynamo/eg10
+${PSYCLONE} intergrid_3levels.x90
 cd -
 
 echo "Running gocean examples"

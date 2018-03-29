@@ -1,9 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,19 +36,22 @@
 # Modified by I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
+Examples 1 and 2 - Dynamo 0.1 API
+---------------------------------
+
 The dynamo examples in the eg1 and eg2 directories below the one
-containing this README use the Dynamo 0.1 API. Those in eg3 - eg7 use
+containing this README use the Dynamo 0.1 API. Those in eg3 - eg10 use
 version 0.3 of the Dynamo API. They are primarily provided to
 illustrate the use of the PSyclone code-generation system. No guarantee
 is made as to their functional correctness or usefulness (i.e. the
 calculations that they perform may often be nonsensical - it is the use
 of PSyclone that is being illustrated).
 
-In order to use PSyclone you must first add it to your PYTHONPATH. The
-simplest way to do this is to change to the top-level directory of your
-PSyclone installation and do:
-::
-    export PYTHONPATH=`pwd`/src:${PYTHONPATH}
+These examples assume that you have PSyclone installed. The easiest
+way to do this is via pip, e.g. `pip install psyclone`. See the user
+manual for more details (../../psyclone.pdf or
+http://psyclone.readthedocs.io/en/stable/). After doing this `psyclone`
+should be on your PATH.
 
 PSyclone can be run for the first two examples by entering the directory and 
 executing, e.g.
@@ -59,24 +60,30 @@ executing, e.g.
 
 Examine the runme*.py scripts themselves for further details.
 
-The third example can be used to demonstrate PSyclone
+Example 3
+---------
+
+The third example can be used to demonstrate PSyclone:
 
 1) generating distributed memory parallel code
 ::
     cd eg3/
-    python ../../../src/generator.py solver_mod.x90
+    psyclone solver_mod.x90
     # look for %set_dirty and %halo_exchange in the generated code
 
 2) using a transformation script to perform loop colouring and OpenMP
 parallelisation, either with distributed memory parallel code:
 ::
     cd eg3/
-    python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
+    psyclone -s ./colouring_and_omp.py solver_mod.x90
 
 or without distributed memory parallel code:
 ::
     cd eg3/
-    python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90
+    psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
+
+Example 4
+---------
 
 The fourth example illustrates the use of (multiple) calls to built-in
 operations within an invoke as well as the use of the name="..." argument.
@@ -84,14 +91,20 @@ It also includes the use of the enforce_bc_kernel_type kernel to apply
 boundary conditions.
 ::
     cd eg4/
-    python ../../../src/generator.py solver_mod.x90
+    psyclone solver_mod.x90
+
+Example 5
+---------
 
 The fifth example illustrates the use of stencils in kernels and the associated
 passing of extent and direction information (where appropriate) from the
 algorithm layer.
 ::
     cd eg5/
-    python ../../../src/generator.py alg.f90
+    psyclone alg.f90
+
+Example 6
+---------
 
 The sixth example illustrates the use and implementation of
 reductions. It also demonstrates the generation of a schedule's
@@ -101,22 +114,22 @@ generated and the dag method will silently return. The example may be
 run sequentially:
 ::
     cd eg6/ python
-    python ../../../src/generator.py -nodm alg.x90
+    psyclone -nodm alg.x90
 
 code parallelised with MPI:
 ::
     cd eg6/
-    python ../../../src/generator.py alg.x90
+    psyclone alg.x90
 
 code parallelised with OpenMP (and loop fused)
 ::
     cd eg6/
-    python ../../../src/generator.py -nodm -s ./omp_script.py alg.x90
+    psyclone -nodm -s ./omp_script.py alg.x90
 
 or code parallelised with both MPI and OpenMP (and loop fused)
 ::
     cd eg6/
-    python ../../../src/generator.py -s ./omp_script.py alg.x90
+    psyclone -s ./omp_script.py alg.x90
 
 By default the OpenMP implementations make use of the OpenMP reduction
 support. OpenMP reductions do not guarantee the same results from one
@@ -127,13 +140,19 @@ the same results from one run to the next when using the same number
 of threads
 ::
     cd eg6/
-    python ../../../src/generator.py -s ./omp_reprod_script.py alg.x90
+    psyclone -s ./omp_reprod_script.py alg.x90
+
+Example 7: Column-Matrix Assembly Operators
+-------------------------------------------
 
 The seventh example illustrates the use of PSyclone with kernels that
 perform operations with column-wise (Column-Matrix Assembly) operators:
 ::
     cd eg7/
-    python ../../../src/generator.py alg.x90
+    psyclone alg.x90
+
+Example 8: Redundant Computation
+--------------------------------
 
 The eighth example illustrates the use of redundant computation to
 remove and/or change the location and depth of halo exchanges:
@@ -141,14 +160,29 @@ remove and/or change the location and depth of halo exchanges:
     cd eg8/
     psyclone helmholtz_solver_alg_mod.x90 -s ./redundant_script.py
 
+Example 9: Writing to Discontinuous Fields
+------------------------------------------
+
 The ninth example illustrates the behaviour of discontinuous field writers
 (and readwriters after the support is introduced):
 ::
     cd eg9/
-    python ../../../src/generator.py advective_inc_alg_mod.x90
+    psyclone advective_inc_alg_mod.x90
 
 This example also demonstrates how to write a PSyclone transformation
 script that only colours loops over continuous spaces:
 ::
     cd eg9/
-    python ../../../src/generator.py -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
+    psyclone -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
+
+Example 10: Inter-grid Kernels
+------------------------------
+
+PSyclone supports so-called 'inter-grid' kernels that map a field (or field
+vector) from a coarse mesh onto a fine mesh (prolongation) or from a fine
+mesh onto a coarse mesh (restriction). eg10 contains an example algorithm
+that takes a field on a coarse mesh and prolongs it twice before undoing
+that by restricting it twice:
+::
+    cd eg10/
+    psyclone intergrid_3levels.x90
