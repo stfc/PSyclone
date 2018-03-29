@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,22 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author I. Kavcic Met Office
 
-program single_invoke_w2v_wtheta
+program multikernel_invokes_w3
 
-  ! Description: two functions in an invoke iterating over w2v and
-  ! reading from wtheta (both discontinuous)
-  use testkern_w2v_mod, only: testkern_w2v_type
-  use inf,              only: field_type
+  ! Description: multiple kernel calls within an invoke iterating
+  ! over w3 (discontinuous with readwrite access) and reading from
+  ! continuous fields
+  use testkern_w3_mod, only: testkern_w3_type
+  use inf,             only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3
+  type(field_type) :: f1, f2, m1, m2
+  real(r_def) :: a
 
-  call invoke(                    &
-       testkern_w2v_type(f1, f2), &
-       ! Field f1 has readwrite to read dependence but no halo
-       ! exchange is required as w2v is discontinuous
-       testkern_w2v_type(f3, f1)  &
+  call invoke(                              &
+       testkern_w3_type(a, f1, f2, m1, m2), &
+       testkern_w3_type(a, f1, f2, m1, m2)  &
           )
 
-end program single_invoke_w2v_wtheta
+end program multikernel_invokes_w3

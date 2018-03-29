@@ -2448,7 +2448,16 @@ class Kern(Call):
 
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
-        FieldNotFoundError if none is found. '''
+        FieldNotFoundError if none is found.
+
+        :param mapping: dictionary of access types (here INC) associated
+                        with arguments with their metadata strings as keys
+        :type mapping: dict
+        :return: a Fortran argument name
+        :rtype: string
+        :raises FieldNotFoundError: if none is found.
+
+        '''
         assert mapping != {}, "psyGen:Kern:incremented_arg: Error - a "\
             "mapping must be provided"
         for arg in self.arguments.args:
@@ -2463,8 +2472,9 @@ class Kern(Call):
         Returns an argument that has WRITE or READWRITE access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types associated with arguments
-                        with their metadata strings as keys
+        :param mapping: dictionary of access types (here WRITE or
+                        READWRITE) associated with arguments with their
+                        metadata strings as keys
         :type mapping: dict
         :return: a Fortran argument name
         :rtype: string

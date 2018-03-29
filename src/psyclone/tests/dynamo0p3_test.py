@@ -3770,7 +3770,7 @@ def test_arg_ref_name_method_error2():
 def test_arg_intent_error():
     ''' Tests that an internal error is raised in DynKernelArgument
     when intent() is called and the argument access property is not one of
-    gh_{read,write,inc} '''
+    gh_{read,write,inc,readwrite} '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)

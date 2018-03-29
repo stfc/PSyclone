@@ -520,8 +520,10 @@ def test_derived_type_deref_naming():
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w1) &
+     type(arg_type), meta_args(3) =                    &
+          (/ arg_type(gh_field, gh_write,     w3),     &
+             arg_type(gh_field, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_inc,       w1)      &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -554,7 +556,7 @@ def test_sched_view(capsys):
 
 
 def test_kern_class_view(capsys):
-    ''' tests the view method in the Kern class. The simplest way to
+    ''' Tests the view method in the Kern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
@@ -565,12 +567,12 @@ def test_kern_class_view(capsys):
     out, _ = capsys.readouterr()
     expected_output = (
         colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) +
-        " dummy_code(field_1) [module_inline=False]")
+        " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
 
 def test_kern_coloured_text():
-    '''Check that the coloured_text method of Kern returns what we expect '''
+    ''' Check that the coloured_text method of Kern returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -605,10 +607,35 @@ def test_call_local_vars():
     assert "Call.local_vars should be implemented" in str(excinfo.value)
 
 
+def test_incremented_arg():
+    ''' Check that we raise the expected exception when
+    Kern.incremented_arg() is called for a kernel that does not have
+    an argument that is incremented '''
+    from psyclone.psyGen import Kern
+    # Change the kernel metadata so that the the incremented kernel
+    # argument has read access
+    import fparser
+    fparser.logging.disable('CRITICAL')
+    # If we change the meta-data then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the meta-data
+    # instead
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    for descriptor in metadata.arg_descriptors:
+        if descriptor.access == "gh_inc":
+            descriptor._access = "gh_read"
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        Kern.incremented_arg(my_kern, mapping={"inc": "gh_inc"})
+    assert ("does not have an argument with gh_inc access"
+            in str(excinfo.value))
+
+
 def test_written_arg():
-    ''' Check that we raise the expected exception when Kern.written_arg()
-    is called for a kernel that doesn't have an argument that is written
-    to '''
+    ''' Check that we raise the expected exception when
+    Kern.written_arg() is called for a kernel that does not have
+    an argument that is written or readwritten to '''
     from psyclone.psyGen import Kern
     # Change the kernel metadata so that the only kernel argument has
     # read access
@@ -620,15 +647,16 @@ def test_written_arg():
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
-        if descriptor.access == "gh_write":
+        if descriptor.access in ["gh_write", "gh_readwrite"]:
             descriptor._access = "gh_read"
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
         Kern.written_arg(my_kern,
-                         mapping={"write": "gh_write", "readwrite": "gh_inc"})
-    assert "does not have an argument with gh_write or gh_inc access" in \
-        str(excinfo.value)
+                         mapping={"write": "gh_write",
+                                  "readwrite": "gh_readwrite"})
+    assert ("does not have an argument with gh_write or "
+            "gh_readwrite access" in str(excinfo.value))
 
 
 def test_ompdo_directive_class_view(capsys):

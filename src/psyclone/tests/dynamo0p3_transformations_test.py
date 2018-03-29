@@ -797,6 +797,68 @@ def test_omp_region_omp_do():
         assert (omp_enddo_idx - cell_end_loop_idx) == 1
 
 
+def test_omp_region_omp_do_rwdisc():
+    ''' Test that we correctly generate code for the case of a single
+    OMP DO within an OMP PARALLEL region without colouring when a
+    discontinuous field has readwrite access. We test when distributed
+    memory is on or off '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_w3_type')
+        schedule = invoke.schedule
+        olooptrans = Dynamo0p3OMPLoopTrans()
+        ptrans = OMPParallelTrans()
+
+        if dist_mem:
+            index = 3
+        else:
+            index = 0
+
+        # Put an OMP PARALLEL around this loop
+        child = schedule.children[index]
+        oschedule, _ = ptrans.apply(child)
+
+        # Put an OMP DO around this loop
+        schedule, _ = olooptrans.apply(oschedule.children[index].children[0])
+
+        # Replace the original loop schedule with the transformed one
+        invoke.schedule = schedule
+
+        # Store the results of applying this code transformation as
+        # a string
+        code = str(psy.gen)
+
+        print code
+
+        omp_do_idx = -1
+        omp_para_idx = -1
+        cell_loop_idx = -1
+        omp_enddo_idx = -1
+        if dist_mem:
+            loop_str = "cell=1,mesh%get_last_edge_cell()"
+        else:
+            loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        for idx, line in enumerate(code.split('\n')):
+            if loop_str in line:
+                cell_loop_idx = idx
+            if "!$omp do" in line:
+                omp_do_idx = idx
+            if "!$omp parallel default" in line:
+                omp_para_idx = idx
+            if "!$omp end do" in line:
+                omp_enddo_idx = idx
+            if "END DO" in line:
+                cell_end_loop_idx = idx
+
+        assert (omp_do_idx - omp_para_idx) == 1
+        assert (cell_loop_idx - omp_do_idx) == 1
+        assert (omp_enddo_idx - cell_end_loop_idx) == 1
+
+
 def test_multi_kernel_single_omp_region():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
@@ -1099,6 +1161,75 @@ def test_loop_fuse_omp():
         assert call2_idx > call1_idx
         assert cell_enddo_idx > call2_idx
         assert omp_endpara_idx - cell_enddo_idx == 1
+
+
+def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags):
+    ''' Test that we can loop-fuse two loop nests and enclose them in
+    an OpenMP parallel region for a kernel with a discontinuous field
+    has readwrite access. We test when distributed memory is on or off '''
+    # pylint: disable=too-many-branches
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.13_multikernel_invokes_w3.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
+
+        if dist_mem:
+            index = 3
+        else:
+            index = 0
+
+        ftrans = DynamoLoopFuseTrans()
+        otrans = DynamoOMPParallelLoopTrans()
+
+        schedule, _ = ftrans.apply(schedule.children[index],
+                                   schedule.children[index+1])
+
+        schedule, _ = otrans.apply(schedule.children[index])
+
+        code = str(psy.gen)
+        print code
+
+        # Check generated code
+        omp_para_idx = -1
+        omp_endpara_idx = -1
+        cell_do_idx = -1
+        cell_enddo_idx = -1
+        call1_idx = -1
+        call2_idx = -1
+        if dist_mem:
+            loop_str = "DO cell=1,mesh%get_last_edge_cell()"
+        else:
+            loop_str = "DO cell=1,m2_proxy%vspace%get_ncell()"
+        for idx, line in enumerate(code.split('\n')):
+            if loop_str in line:
+                cell_do_idx = idx
+            if "!$omp parallel do default(shared), " +\
+               "private(cell), schedule(static)" in line:
+                omp_para_idx = idx
+            if "CALL testkern_w3_code" in line:
+                if call1_idx == -1:
+                    call1_idx = idx
+                else:
+                    call2_idx = idx
+            if "END DO" in line:
+                cell_enddo_idx = idx
+            if "!$omp end parallel do" in line:
+                omp_endpara_idx = idx
+
+        assert cell_do_idx - omp_para_idx == 1
+        assert call1_idx > cell_do_idx
+        assert call2_idx > call1_idx
+        assert cell_enddo_idx > call2_idx
+        assert omp_endpara_idx - cell_enddo_idx == 1
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_fuse_colour_loops(tmpdir, f90, f90flags):
@@ -5422,22 +5553,26 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
 
 def test_colour_discontinuous():
     ''' Test that we raise an exception if we try to colour a loop
-    containing a kernel that modifies a discontinuous field '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1_single_invoke_wtheta.f90"),
-                           api=TEST_API)
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    containing a kernel that modifies a discontinuous field.
+    The test is performed twice: first for a discontinuous wtheta writer
+    and then for a discontinuous w2v readwriter. '''
+    fsnames = ["wtheta", "w2v"]
+    for name in fsnames:
+        filename = "1_single_invoke_" + name + ".f90"
+        _, invoke_info = parse(os.path.join(BASE_PATH, filename),
+                               api=TEST_API)
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
 
-    # create our colour transformation
-    ctrans = Dynamo0p3ColourTrans()
+        # Create our colour transformation
+        ctrans = Dynamo0p3ColourTrans()
 
-    with pytest.raises(TransformationError) as excinfo:
-        # Colour the loop
-        _, _ = ctrans.apply(schedule.children[0])
-    assert ("Loops iterating over a discontinuous function space are not "
-            "currently supported") in str(excinfo)
+        with pytest.raises(TransformationError) as excinfo:
+            # Colour the loop
+            _, _ = ctrans.apply(schedule.children[0])
+        assert ("Loops iterating over a discontinuous function space are "
+                "not currently supported") in str(excinfo)
 
 
 def test_rc_then_colour(tmpdir, f90, f90flags):
