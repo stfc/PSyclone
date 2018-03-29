@@ -43,6 +43,8 @@ from psyclone import config
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
+
 
 def test_create():
     '''
@@ -55,7 +57,38 @@ def test_create():
     assert _config is _config2
     # Check that specifying which config file to use results
     # in a new instance
-    _config2 = config.ConfigFactory(
-        config_file=os.path.join(BASE_PATH,
-                                 "dummy_config.cfg")).create()
+    _config2 = config.ConfigFactory(config_file=TEST_CONFIG).create()
     assert _config2 is not _config
+
+
+def test_read_values():
+    '''
+    Check that we get the expected values from the test config file
+    '''
+    _config = config.ConfigFactory(config_file=TEST_CONFIG).create()
+    # Whether distributed memory is enabled
+    dist_mem = _config.distributed_memory
+    assert isinstance(dist_mem, bool)
+    assert dist_mem == True
+    # Check the setter method
+    _config.distributed_memory = False
+    assert _config.distributed_memory == False
+    # The default API
+    api = _config.default_api
+    assert isinstance(api, unicode)
+    assert api == "dynamo0.3"
+    # The list of supported APIs
+    api_list = _config.supported_apis
+    assert api_list == [u'gunghoproto', u'dynamo0.1', u'dynamo0.3',
+                        u'gocean0.1', u'gocean1.0']
+    # Whether reproducible reductions are enabled
+    reprod = _config.reproducible_reductions
+    assert isinstance(reprod, bool)
+    assert reprod == False
+    # How much to pad arrays by when doing reproducible reductions
+    pad = _config.reprod_pad_size
+    assert isinstance(pad, int)
+    assert pad == 8
+    # The filename of the config file which was parsed to produce
+    # the Config object
+    assert _config.filename == str(TEST_CONFIG)

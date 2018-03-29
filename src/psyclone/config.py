@@ -107,8 +107,9 @@ class Config(object):
         self._distributed_mem =  self._config['DEFAULT'].getboolean(
             'DISTRIBUTED_MEMORY')
         self._default_api = self._config['DEFAULT']['DEFAULTAPI']
-        self._supported_api_list = self._config['DEFAULT']['SUPPORTEDAPIS'].\
-                                   split(",")
+        self._supported_api_list = [
+            item.strip() for item in
+            self._config['DEFAULT']['SUPPORTEDAPIS'].split(",")]
         self._reproducible_reductions = self._config['DEFAULT'].getboolean(
             'REPRODUCIBLE_REDUCTIONS')
         self._reprod_pad_size = self._config['DEFAULT'].getint(
@@ -147,29 +148,29 @@ class Config(object):
                                 format(_name, file_paths))
 
     @property
-    def distributed_memory():
+    def distributed_memory(self):
         return self._distributed_mem
 
     @distributed_memory.setter
-    def distributed_memory(dist_mem):
+    def distributed_memory(self, dist_mem):
         self._distributed_mem = dist_mem
 
     @property
-    def default_api():
+    def default_api(self):
         return self._default_api
 
     @property
-    def supported_apis():
-        return self._supported_apis
+    def supported_apis(self):
+        return self._supported_api_list
 
     @property
-    def reproducible_reductions():
-        return self._reproducible_reproductions
+    def reproducible_reductions(self):
+        return self._reproducible_reductions
 
     @property
-    def reprod_pad_size():
+    def reprod_pad_size(self):
         return self._reprod_pad_size
 
     @property
-    def filename():
+    def filename(self):
         return self._config_file
