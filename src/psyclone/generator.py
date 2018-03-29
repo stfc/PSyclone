@@ -7,6 +7,8 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -21,16 +23,90 @@ import argparse
 import sys
 import os
 import traceback
-from parse import parse, ParseError
-from psyGen import PSyFactory, GenerationError
-from algGen import NoInvokesError
-from config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
-from line_length import FortLineLength
+from psyclone.parse import parse, ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.algGen import NoInvokesError
+from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
+from psyclone.line_length import FortLineLength
+from psyclone.version import __VERSION__
+
+
+def handle_script(script_name, psy):
+    '''Loads and applies the specified script to the given psy layer.
+    The 'trans' function of the script is called with psy as parameter.
+    :param script_name: Name of the script to load.
+    :type script_name: string
+    :param psy: The psy layer to which the script is applied.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :raises IOError: If the file is not found.
+    :raises GenerationError: if the file does not have .py extension
+        or can not be imported.
+    :raises GenerationError: if trans() can not be called.
+    :raises GenerationError: if any exception is raised when trans()
+        was called.
+    '''
+    sys_path_appended = False
+    try:
+        # a script has been provided
+        filepath, filename = os.path.split(script_name)
+        if filepath:
+            # a path to a file has been provided
+            # we need to check the file exists
+            if not os.path.isfile(script_name):
+                raise IOError("script file '{0}' not found".
+                              format(script_name))
+            # it exists so we need to add the path to the python
+            # search path
+            sys_path_appended = True
+            sys.path.append(filepath)
+        filename, fileext = os.path.splitext(filename)
+        if fileext != '.py':
+            raise GenerationError(
+                "generator: expected the script file '{0}' to have "
+                "the '.py' extension".format(filename))
+        try:
+            transmod = __import__(filename)
+        except ImportError:
+            raise GenerationError(
+                "generator: attempted to import '{0}' but script file "
+                "'{1}' has not been found".
+                format(filename, script_name))
+        except SyntaxError:
+            raise GenerationError(
+                "generator: attempted to import '{0}' but script file "
+                "'{1}' is not valid python".
+                format(filename, script_name))
+        if callable(getattr(transmod, 'trans', None)):
+            try:
+                psy = transmod.trans(psy)
+            except Exception:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                lines = traceback.format_exception(exc_type, exc_value,
+                                                   exc_traceback)
+                e_str = '{\n' +\
+                    ''.join('    ' + line for line in lines[2:]) + '}'
+                raise GenerationError(
+                    "Generator: script file '{0}'\nraised the "
+                    "following exception during execution "
+                    "...\n{1}\nPlease check your script".format(
+                        script_name, e_str))
+        else:
+            raise GenerationError(
+                "generator: attempted to import '{0}' but script file "
+                "'{1}' does not contain a 'trans()' function".
+                format(filename, script_name))
+    except Exception as msg:
+        if sys_path_appended:
+            os.sys.path.pop()
+        raise msg
+    if sys_path_appended:
+        os.sys.path.pop()
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
              distributed_memory=DISTRIBUTED_MEMORY):
+    # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
@@ -84,69 +160,14 @@ def generate(filename, api="", kernel_path="", script_name=None,
     if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from algGen import Alg
+        from psyclone.algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
         psy = PSyFactory(api, distributed_memory=distributed_memory).\
             create(invoke_info)
         if script_name is not None:
-            sys_path_appended = False
-            try:
-                # a script has been provided
-                filepath, filename = os.path.split(script_name)
-                if filepath:
-                    # a path to a file has been provided
-                    # we need to check the file exists
-                    if not os.path.isfile(script_name):
-                        raise IOError("script file '{0}' not found".
-                                      format(script_name))
-                    # it exists so we need to add the path to the python
-                    # search path
-                    sys_path_appended = True
-                    sys.path.append(filepath)
-                filename, fileext = os.path.splitext(filename)
-                if fileext != '.py':
-                    raise GenerationError(
-                        "generator: expected the script file '{0}' to have "
-                        "the '.py' extension".format(filename))
-                try:
-                    transmod = __import__(filename)
-                except ImportError:
-                    raise GenerationError(
-                        "generator: attempted to import '{0}' but script file "
-                        "'{1}' has not been found".
-                        format(filename, script_name))
-                except SyntaxError:
-                    raise GenerationError(
-                        "generator: attempted to import '{0}' but script file "
-                        "'{1}' is not valid python".
-                        format(filename, script_name))
-                if callable(getattr(transmod, 'trans', None)):
-                    try:
-                        psy = transmod.trans(psy)
-                    except Exception:
-                        exc_type, exc_value, exc_traceback = sys.exc_info()
-                        lines = traceback.format_exception(exc_type, exc_value,
-                                                           exc_traceback)
-                        e_str = '{\n' +\
-                            ''.join('    ' + line for line in lines[2:]) + '}'
-                        raise GenerationError(
-                            "Generator: script file '{0}'\nraised the "
-                            "following exception during execution "
-                            "...\n{1}\nPlease check your script".format(
-                                script_name, e_str))
-                else:
-                    raise GenerationError(
-                        "generator: attempted to import '{0}' but script file "
-                        "'{1}' does not contain a 'trans()' function".
-                        format(filename, script_name))
-            except Exception as msg:
-                if sys_path_appended:
-                    os.sys.path.pop()
-                raise msg
-            if sys_path_appended:
-                os.sys.path.pop()
+            handle_script(script_name, psy)
         alg = Alg(ast, psy)
     except Exception:
         raise
@@ -159,7 +180,7 @@ def main(args):
     function if all is well, catches any errors and outputs the
     results
     '''
-
+    # pylint: disable=too-many-statements
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
@@ -185,12 +206,21 @@ def main(args):
         help='do not generate distributed memory code')
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
+    parser.add_argument(
+        '-v', '--version', dest='version', action="store_true",
+        help='Display version information ({0})'.format(__VERSION__))
+
     args = parser.parse_args(args)
 
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
             "{1}.".format(args.api, SUPPORTEDAPIS)
         exit(1)
+
+    if args.version:
+        print "PSyclone version: {0}".format(__VERSION__)
+
+    # pylint: disable=broad-except
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,
