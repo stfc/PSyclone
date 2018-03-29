@@ -4070,8 +4070,9 @@ def test_dynkern_arg_for_fs():
 
 def test_dist_memory_true():
     ''' test that the distributed memory flag is on by default '''
-    import psyclone.config
-    assert psyclone.config.DISTRIBUTED_MEMORY
+    from psyclone import config
+    _config = config.ConfigFactory().create()
+    assert _config.distributed_memory
 
 
 def test_halo_dirty_1():

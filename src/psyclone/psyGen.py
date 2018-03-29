@@ -66,6 +66,10 @@ except ImportError:
         '''
         return text
 
+# Get our one-and-only Config object - this holds the global configuration
+# options read from the psyclone.cfg file.
+_CONFIG = config.ConfigFactory().create()
+
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
@@ -112,15 +116,14 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
     the supplied API is valid. '''
-    _config = config.ConfigFactory().create()
     if api == "":
-        api = _config.default_api
+        api = _CONFIG.default_api
     else:
-        if api not in _config.supported_apis:
+        if api not in _CONFIG.supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                _config.supported_apis))
+                                                _CONFIG.supported_apis))
     return api
 
 
@@ -193,13 +196,11 @@ class FieldNotFoundError(Exception):
 
 
 class PSyFactory(object):
-    '''Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the psyclone.cfg
-        file, is chosen. Note, for pytest to work we need to set
-        distributed_memory to the same default as the value found in
-        config.DISTRIBUTED_MEMORY. If we set it to None and then test
-        the value, it then fails. I've no idea why. '''
-
+    '''
+    Creates a specific version of the PSy. If a particular api is not
+    provided then the default api, as specified in the psyclone.cfg
+    file, is chosen.
+    '''
     def __init__(self, api="", distributed_memory=None):
         '''Initialises a factory which can create API specific PSY objects.
         :param api: Name of the API to use.
@@ -1041,9 +1042,6 @@ class Node(object):
         else:
             self._children = children
         self._parent = parent
-        # Get a pointer to the singleton Config object which
-        # stores all PSyclone configuration
-        self._config = config.ConfigFactory().create()
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -1540,7 +1538,7 @@ class OMPDoDirective(OMPDirective):
             children = []
         if reprod is None:
             # Look-up the value read from the config file
-            reprod = self._config.reproducible_reductions
+            reprod = _CONFIG.reproducible_reductions
 
         self._omp_schedule = omp_schedule
         self._reprod = reprod
@@ -2309,13 +2307,12 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if self._config.reprod_pad_size < 1:
+            if _CONFIG.reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
                     "integer, but it is set to '{1}'.".format(
-                        self._config.filename,
-                        self._config.reprod_pad_size))
-            pad_size = str(self._config.reprod_pad_size)
+                        _CONFIG.filename, _CONFIG.reprod_pad_size))
+            pad_size = str(_CONFIG.reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,

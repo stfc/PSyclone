@@ -79,8 +79,15 @@ def test_read_values():
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == [u'gunghoproto', u'dynamo0.1', u'dynamo0.3',
-                        u'gocean0.1', u'gocean1.0']
+    assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
+                        'gocean0.1', 'gocean1.0']
+    # The default API for kernel stub generation
+    api = _config.default_stub_api
+    assert isinstance(api, unicode)
+    assert api == "dynamo0.3"
+    # The list of supported APIs for kernel stub generation
+    api_list = _config.supported_stub_apis
+    assert api_list == ['dynamo0.3']
     # Whether reproducible reductions are enabled
     reprod = _config.reproducible_reductions
     assert isinstance(reprod, bool)

@@ -53,6 +53,10 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 from collections import OrderedDict
 
+# Get our one-and-only Config object - this holds the global configuration
+# options read from the psyclone.cfg file.
+_CONFIG = config.ConfigFactory().create()
+
 # First section : Parser specialisations and classes
 
 # Function spaces (FS)
@@ -2713,7 +2717,7 @@ class DynInvoke(Invoke):
         # since operators are assembled in place and scalars don't
         # have halos. We only need to add global sum calls for scalars
         # which have a gh_sum access.
-        if config.DISTRIBUTED_MEMORY:
+        if _CONFIG.distributed_memory:
             # halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
@@ -2998,6 +3002,24 @@ class DynInvoke(Invoke):
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[ncol_name]))
 
+        # declare and initialise a mesh object if required
+        if _CONFIG.distributed_memory:
+            from psyclone.f2pygen import UseGen
+            # we will need a mesh object for any loop bounds
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
+                                  funcnames=["mesh_type"]))
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub, datatype="mesh_type", pointer=True,
+                            entity_decls=[mesh_obj_name+" => null()"]))
+            rhs = first_var.name_indexed + "%get_mesh()"
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, pointer=True,
+                                     lhs=mesh_obj_name, rhs=rhs))
+
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
@@ -3068,7 +3090,7 @@ class DynInvoke(Invoke):
         if self.is_coloured():
             # Declare the colour map
             declns = ["cmap(:,:)"]
-            if not config.DISTRIBUTED_MEMORY:
+            if not _CONFIG.distributed_memory:
                 # Declare the array holding the no. of cells of each
                 # colour. For distributed memory this variable is not
                 # used, as a function is called to determine the upper
@@ -3077,7 +3099,7 @@ class DynInvoke(Invoke):
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    pointer=True,
                                    entity_decls=declns))
-            if not config.DISTRIBUTED_MEMORY:
+            if not _CONFIG.distributed_memory:
                 # Declaration of variable to hold the number of
                 # colours. For distributed memory this variable is not
                 # used, as a function is called to determine loop
@@ -3089,7 +3111,7 @@ class DynInvoke(Invoke):
         self.evaluators.compute_basis_fns(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        if config.DISTRIBUTED_MEMORY:
+        if _CONFIG.distributed_memory:
             invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
                                       "communication routines"))
         else:
@@ -3121,8 +3143,8 @@ class DynSchedule(Schedule):
         '''a method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
         method to include distributed memory information '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]")
+        print self.indent(indent) + self.coloured_text + "[invoke='" + \
+            self.invoke.name + "' dm="+str(_CONFIG.distributed_memory)+"]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -3131,7 +3153,7 @@ class DynGlobalSum(GlobalSum):
     ''' Dynamo specific global sum class which can be added to and
     manipulated in, a schedule '''
     def __init__(self, scalar, parent=None):
-        if not config.DISTRIBUTED_MEMORY:
+        if not _CONFIG.distributed_memory:
             raise GenerationError("It makes no sense to create a DynGlobalSum "
                                   "object when dm=False")
         # a list of scalar types that this class supports
@@ -4010,7 +4032,7 @@ class DynLoop(Loop):
             else:
                 self.set_upper_bound("ndofs")
         else:
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
                 if self._field.type in VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
@@ -4096,7 +4118,8 @@ class DynLoop(Loop):
 
     def _lower_bound_fortran(self):
         ''' Create the associated fortran code for the type of lower bound '''
-        if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
+        if not _CONFIG.distributed_memory and \
+           self._lower_bound_name != "start":
             raise GenerationError(
                 "The lower bound must be 'start' if we are sequential but "
                 "found '{0}'".format(self._upper_bound_name))
@@ -4159,7 +4182,7 @@ class DynLoop(Loop):
                 root_name=mesh_name, context="PSyVars", label=mesh_name)
 
         if self._upper_bound_name == "ncolours":
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
                 # Extract the value in-place rather than extracting to
                 # a variable first. This is the way the manual
                 # reference examples were implemented so I copied these
@@ -4190,7 +4213,7 @@ class DynLoop(Loop):
             return ("{0}%get_last_halo_cell_per_colour(colour"
                     "{1})".format(mesh_obj_name, append))
         elif self._upper_bound_name in ["ndofs", "nannexed"]:
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
                 if self._upper_bound_name == "ndofs":
                     result = self.field.proxy_name_indexed + "%" + \
                              self.field.ref_name() + "%get_last_dof_owned()"
@@ -4201,14 +4224,18 @@ class DynLoop(Loop):
                 result = self._kern.undf_name
             return result
         elif self._upper_bound_name == "ncells":
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
                 result = mesh_obj_name + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         elif self._upper_bound_name == "cell_halo":
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
                                                             halo_index)
             else:
@@ -4216,7 +4243,7 @@ class DynLoop(Loop):
                     "'cell_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
                     halo_index)
@@ -4225,7 +4252,9 @@ class DynLoop(Loop):
                     "'dof_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
                                                              halo_index)
             else:
@@ -4468,7 +4497,7 @@ class DynLoop(Loop):
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
 
-        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+        if _CONFIG.distributed_memory and self._loop_type != "colour":
 
             # Set halo clean/dirty for all fields that are modified
             from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
@@ -4962,7 +4991,7 @@ class DynKern(Kern):
                            position=["before", position])
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
-            if config.DISTRIBUTED_MEMORY:
+            if _CONFIG.distributed_memory:
                 # the LFRic colouring API for ditributed memory
                 # differs from the API without distributed
                 # memory. This is to support and control redundant

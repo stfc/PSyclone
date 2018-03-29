@@ -102,14 +102,19 @@ class Config(object):
         self._config.read(self._config_file)
 
         # The call to the 'read' method above populates a dictionary.
-        # All of the entries in that dict are strings so here we pull
-        # out the values we want and deal with any type conversion.
+        # All of the entries in that dict are unicode strings so here
+        # we pull out the values we want and deal with any type
+        # conversion.
         self._distributed_mem =  self._config['DEFAULT'].getboolean(
             'DISTRIBUTED_MEMORY')
         self._default_api = self._config['DEFAULT']['DEFAULTAPI']
         self._supported_api_list = [
-            item.strip() for item in
+            str(item.strip()) for item in
             self._config['DEFAULT']['SUPPORTEDAPIS'].split(",")]
+        self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
+        self._supported_stub_api_list = [
+            str(item.strip()) for item in
+            self._config['DEFAULT']['SUPPORTEDSTUBAPIS'].split(",")]
         self._reproducible_reductions = self._config['DEFAULT'].getboolean(
             'REPRODUCIBLE_REDUCTIONS')
         self._reprod_pad_size = self._config['DEFAULT'].getint(
@@ -162,6 +167,14 @@ class Config(object):
     @property
     def supported_apis(self):
         return self._supported_api_list
+
+    @property
+    def default_stub_api(self):
+        return self._default_stub_api
+
+    @property
+    def supported_stub_apis(self):
+        return self._supported_stub_api_list
 
     @property
     def reproducible_reductions(self):

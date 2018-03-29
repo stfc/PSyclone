@@ -104,6 +104,9 @@ def handle_script(script_name, psy):
     if sys_path_appended:
         os.sys.path.pop()
 
+# Get our one-and-only Config object
+_CONFIG = ConfigFactory().create()
+
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
@@ -148,19 +151,18 @@ def generate(filename, api="", kernel_path="", script_name=None,
     >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
-    _config = ConfigFactory().create()
 
     if distributed_memory is None:
-        distributed_memory = _config.distributed_memory
+        distributed_memory = _CONFIG.distributed_memory
 
     # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
-        api = DEFAULTAPI
+        api = _CONFIG.default_api
     else:
-        if api not in SUPPORTEDAPIS:
+        if api not in _CONFIG.supported_apis:
             raise GenerationError(
                 "generate: Unsupported API '{0}' specified. Supported "
-                "types are {1}.".format(api, SUPPORTEDAPIS))
+                "types are {1}.".format(api, _CONFIG.supported_apis))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
@@ -232,9 +234,9 @@ def main(args):
 
     args = parser.parse_args(args)
 
-    if args.api not in _config.supported_apis:
+    if args.api not in _CONFIG.supported_apis:
         print "Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, _config.supported_apis)
+            "{1}.".format(args.api, _CONFIG.supported_apis)
         exit(1)
 
     if args.version:

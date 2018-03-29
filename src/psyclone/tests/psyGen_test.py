@@ -78,8 +78,9 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.config import SUPPORTEDAPIS
-    apis = SUPPORTEDAPIS
+    from psyclone.config import ConfigFactory
+    _config = ConfigFactory().create()
+    apis = _config.supported_apis[:]
     apis.insert(0, "")
     for api in apis:
         psy_factory = PSyFactory(api=api)
@@ -934,12 +935,12 @@ def test_named_invoke_name_clash():
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
 
-def test_invalid_reprod_pad_size():
-    '''Check that we raise an exception if the pad size in config.py is
+def test_invalid_reprod_pad_size(monkeypatch):
+    '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
     from psyclone import config
-    keep = config.REPROD_PAD_SIZE
-    config.REPROD_PAD_SIZE = 0
+    _config = config.ConfigFactory().create()
+    monkeypatch.setattr(_config, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -962,9 +963,8 @@ def test_invalid_reprod_pad_size():
         with pytest.raises(GenerationError) as excinfo:
             _ = str(psy.gen)
         assert (
-            "REPROD_PAD_SIZE in config.py should be a positive "
-            "integer") in str(excinfo.value)
-    config.REPROD_PAD_SIZE = keep
+            "REPROD_PAD_SIZE in {0} should be a positive "
+            "integer".format(_config.filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():
