@@ -84,6 +84,16 @@ with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
     exec(f.read())
 VERSION = __VERSION__
 
+# Where to install the psyclone.cfg configuration file
+# Do we have write access to /etc/ ?
+_ETC_PATH = os.path.abspath("/etc")
+if os.access(_ETC_PATH, os.W_OK):
+    # We do - we'll install the config file to /etc/psyclone/
+    CONFIG_INSTALL_PATH = os.path.join(_ETC_PATH, 'psyclone')
+else:
+    # We don't - install to ~/.psyclone/
+    CONFIG_INSTALL_PATH = os.path.join(os.path.expanduser("~"), ".psyclone")
+
 if __name__ == '__main__':
 
     setup(
@@ -100,4 +110,6 @@ if __name__ == '__main__':
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.0.7', 'six'],
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/genkernelstub'])
+        scripts=['bin/psyclone', 'bin/genkernelstub'],
+        data_files=[(CONFIG_INSTALL_PATH, ['src/psyclone/psyclone.cfg'])]
+    )
