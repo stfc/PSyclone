@@ -34,6 +34,9 @@
 
 	12) PR #143 - bug fix for DAG generation in the GOcean API.
 
+        13) PR #153 - added -v option to the psyclone script to show the
+	version
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not
