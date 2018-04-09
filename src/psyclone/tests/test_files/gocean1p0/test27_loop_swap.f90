@@ -2,7 +2,6 @@
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017-2018, Science and Technology Facilities Council
-! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,20 +30,24 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author: J. Henrichs, Bureau of Meteorology
 
-program single_invoke_fs
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
+SUBROUTINE test27_loop_swap()
+
+  use field_mod
+  use boundary_conditions_ne_offset_mod, only : bc_ssh, bc_solid_u, bc_solid_v
   implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
 
-  call invoke(                                          &
-       testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4) &
-          )
+  type(r2d_field) :: t, u, v
+  ! Those three functions all create different i/j loop boundaries
+  ! which simplifies testing.
+  call invoke( name="loop1",  &
+       bc_ssh(1, t),          &
+       bc_solid_u(u),         &
+       bc_solid_v(v)            )
 
-end program single_invoke_fs
+  call invoke( name="loop2",  &
+       bc_ssh(1, t),          &
+       bc_ssh(1, t)             )
+END SUBROUTINE test27_loop_swap

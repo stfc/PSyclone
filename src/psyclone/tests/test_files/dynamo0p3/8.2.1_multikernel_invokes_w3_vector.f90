@@ -31,20 +31,23 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_fs
+program single_invoke_w3_only_vector
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
+  ! Description: two functions in an invoke iterating over and
+  ! reading from w3 field vectors (discontinuous)
+  use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
+  use inf,                         only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
+  type(field_type) :: f1(3), f2(3), f3(3)
 
-  call invoke(                                          &
-       testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4) &
+  call invoke(                               &
+       testkern_w3_only_vector_type(f1, f2), &
+       ! Field f1 write to read dependence but no halo exchange
+       ! required as w3 is discontinuous
+       testkern_w3_only_vector_type(f3, f1)  &
           )
 
-end program single_invoke_fs
+end program single_invoke_w3_only_vector

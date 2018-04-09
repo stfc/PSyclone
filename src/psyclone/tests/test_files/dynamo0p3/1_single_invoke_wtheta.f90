@@ -1,11 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,20 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program single_invoke_cma
+program single_invoke_wtheta_w3
 
-  ! Description: single function specified in an invoke call
-  use columnwise_op_app_w3_kernel_mod, only: &
-                            columnwise_op_app_w3_kernel_type
-  use inf,      only: field_type
+  ! Description: single function in an invoke iterating over wtheta and
+  ! reading from w3 (both discontinuous)
+  use testkern_wtheta_mod, only: testkern_wtheta_type
+  use inf,                 only: field_type
   implicit none
-  type(field_type) :: field_a, field_b
-  type(columnwise_operator_type) :: cma_op1
+  type(field_type) :: f1, f2
 
   call invoke(                      &
-          columnwise_op_app_w3_kernel_type(field_a, field_b, cma_op1) &
+       testkern_wtheta_type(f1, f2) &
           )
 
-end program single_invoke_cma
+end program single_invoke_wtheta_w3

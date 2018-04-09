@@ -31,20 +31,23 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic Met Office
 
-program single_invoke_fs
+program single_invoke_w2v_wtheta
 
-  ! Description: single function specified in an invoke call using all
-  ! function spaces
-  use testkern_fs_mod, only: testkern_fs_type
-  use inf,             only: field_type
+  ! Description: two functions in an invoke iterating over w2v and
+  ! reading from wtheta (both discontinuous)
+  use testkern_w2v_mod, only: testkern_w2v_type
+  use inf,              only: field_type
   implicit none
-  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
+  type(field_type) :: f1, f2, f3
 
-  call invoke(                                          &
-       testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4) &
+  call invoke(                    &
+       testkern_w2v_type(f1, f2), &
+       ! Field f1 write to read dependence but no halo exchange
+       ! required as w2v is discontinuous
+       testkern_w2v_type(f3, f1)  &
           )
 
-end program single_invoke_fs
+end program single_invoke_w2v_wtheta
