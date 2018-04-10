@@ -6579,55 +6579,87 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous(tmpdir, f90, f90flags):
-    ''' Test that we create halo exchange call when our loop iterates
-    over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continous field, there are no stencil accesses, but
-    we do not know anything about the previous writer. As the previous
-    writer may have been over dofs we could have dirty annexed dofs
-    so need to add a halo exchange. '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    result = str(psy.gen)
-    print result
-    assert "IF (f1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f2_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch):
+    '''This test checks the case when our loop iterates over owned cells
+    (e.g. it writes to a discontinuous field), we read from a
+    continuous field, there are no stencil accesses, but we do not
+    know anything about the previous writer.
 
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    As we don't know anything about the previous writer we have to
+    assume that it may have been over dofs. If so, we could have dirty
+    annexed dofs so need to add a halo exchange (for the three
+    continuous fields being read (f1, f2 and m1). This is the case
+    when psyclone.config.COMPUTE_ANNEXED_DOFS is False.
+
+    If we always iterate over annexed dofs by default our annexed dofs
+    will always be clean. Therefore we do not need to add a halo
+    exchange. This is the cae when
+    psyclone.config.COMPUTE_ANNEXED_DOFS is True.
+
+    '''
+    for annexed in [False, True]:
+        import psyclone.config
+        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "1_single_invoke_w3.f90"),
+                        api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(info)
+        result = str(psy.gen)
+        print result
+        if annexed:
+            assert "halo_exchange" not in result
+        else:
+            assert "IF (f1_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+            assert "IF (f2_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+            assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
-    ''' Test that we create halo exchange call when our loop iterates
-    over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continous field, there are no stencil accesses, and
-    the previous writer iterates over ndofs. We therefore have dirty
-    annexed dofs so need to add a halo exchange. '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "14.7_halo_annexed.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    result = str(psy.gen)
-    print result
-    assert "IF (f1_proxy%is_dirty(depth=1)) THEN" not in result
-    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f2_proxy%is_dirty(depth=1)) THEN" not in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch):
+    '''This test checks the case when our loop iterates over owned cells
+    (e.g. it writes to a discontinuous field), we read from a
+    continuous field, there are no stencil accesses, and the previous
+    writer iterates over ndofs or nannexed.
 
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    When the previous writer iterates over ndofs we have dirty annexed
+    dofs so need to add a halo exchange. This is the case when
+    psyclone.config.COMPUTE_ANNEXED_DOFS is False.
+
+    When the previous writer iterates over nannexed we have clean
+    annexed dofs so do not need to add a halo exchange. This is the
+    case when psyclone.config.COMPUTE_ANNEXED_DOFS is True
+
+    '''
+    for annexed in [False, True]:
+        import psyclone.config
+        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+        _, info = parse(os.path.join(BASE_PATH,
+                                     "14.7_halo_annexed.f90"),
+                        api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(info)
+        result = str(psy.gen)
+        print result
+        if annexed:
+            assert "halo_exchange" not in result
+        else:
+            assert "IF (f1_proxy%is_dirty(depth=1)) THEN" not in result
+            assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+            assert "IF (f2_proxy%is_dirty(depth=1)) THEN" not in result
+            assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+            assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+            assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_arg_discontinous():
@@ -6636,7 +6668,7 @@ def test_arg_discontinous():
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    idchld_list = [3, 0, 0]
+    idchld_list = [0, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
                    zip(idchld_list, idarg_list)))
@@ -6897,7 +6929,7 @@ def test_loop_cont_read_inv_bound(monkeypatch):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    loop = schedule.children[0]
     kernel = loop.children[0]
     f1_arg = kernel.arguments.args[1]
     #
@@ -7022,7 +7054,7 @@ def test_halo_req_no_read_deps(monkeypatch):
 
 
 def test_no_halo_exchange_annex_dofs(
-        tmpdir, f90, f90flags):
+        tmpdir, f90, f90flags, monkeypatch):
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
@@ -7033,18 +7065,29 @@ def test_no_halo_exchange_annex_dofs(
     subsequent reading (whilst the rest of the l1 halo ends up being
     dirty).
 
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    result = str(psy.gen)
-    print result
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-    assert "CALL f1_proxy%halo_exchange" in result
-    assert "CALL f2_proxy%halo_exchange" not in result
+    We test that this is True both when annexed dofs are computed by
+    default and when they are not. In the former case we also get one
+    fewer halo exchange call generated.
 
+    '''
+    for annexed in [False, True]:
+        import psyclone.config
+        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+        _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
+                               api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        result = str(psy.gen)
+        print result
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled (--compile flag to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        if annexed:
+            assert "CALL f1_proxy%halo_exchange" not in result
+        else:
+            assert "CALL f1_proxy%halo_exchange" in result
+        assert "CALL f2_proxy%halo_exchange" not in result
+
+# test that config.COMPUTE_ANNEXED_DOFS is True by default
 # test that if config.COMPUTE_ANNEXED_DOFS is False then builtin upper bounds are ndofs
 # test that if config.COMPUTE_ANNEXED_DOFS is True then builtin upper bounds are nannexed
 # test that if config.COMPUTE_ANNEXED_DOFS is TRUE and config.DIST_MEM is False then builtin upper bounds are ndofs
