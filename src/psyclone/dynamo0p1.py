@@ -59,13 +59,15 @@ class DynInvoke(Invoke):
         if False:
             self._schedule = DynSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+        from psyclone.profiler import Profiler
+        Profiler.add_profile_nodes(self.schedule, DynLoop)
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, TypeDeclGen
+        from psyclone.f2pygen import SubroutineGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_var_names)

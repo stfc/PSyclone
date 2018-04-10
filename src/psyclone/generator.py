@@ -28,6 +28,7 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
 from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
 from psyclone.line_length import FortLineLength
+from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
 
 
@@ -147,6 +148,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     '''
 
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
         api = DEFAULTAPI
     else:
@@ -164,13 +166,15 @@ def generate(filename, api="", kernel_path="", script_name=None,
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory).\
-            create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
         if script_name is not None:
             handle_script(script_name, psy)
         alg = Alg(ast, psy)
     except Exception:
         raise
+
     return alg.gen, psy.gen
 
 
@@ -204,6 +208,9 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
+    parser.add_argument(
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profilig hooks for either 'kernels' or 'invokes'")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     parser.add_argument(
@@ -211,6 +218,8 @@ def main(args):
         help='Display version information ({0})'.format(__VERSION__))
 
     args = parser.parse_args(args)
+
+    Profiler.set_options(args.profile)
 
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
@@ -220,6 +229,7 @@ def main(args):
     if args.version:
         print "PSyclone version: {0}".format(__VERSION__)
 
+    # Only needed for except Exception
     # pylint: disable=broad-except
     try:
         alg, psy = generate(args.filename, api=args.api,
@@ -242,7 +252,7 @@ def main(args):
         _, exc_value, _ = sys.exc_info()
         print exc_value
         exit(1)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         print "Error, unexpected exception, please report to the authors:"
         exc_type, exc_value, exc_tb = sys.exc_info()
         print "Description ..."

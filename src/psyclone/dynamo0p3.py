@@ -2368,6 +2368,9 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
+        from psyclone.profiler import Profiler
+        Profiler.add_profile_nodes(self.schedule, DynLoop)
+
     def unique_proxy_declarations(self, datatype, access=None):
         ''' Returns a list of all required proxy declarations for the
         specified datatype.  If access is supplied (e.g. "gh_write")
@@ -2751,6 +2754,7 @@ class DynInvoke(Invoke):
         self.evaluators.deallocate(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
+
         # finally, add me to my parent
         parent.add(invoke_sub)
 

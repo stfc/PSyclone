@@ -187,6 +187,11 @@ class PSyFactory(object):
         the value, it then fails. I've no idea why. '''
 
     def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
+        '''Initialises a factory which can create API specific PSY objects.
+        :param api: Name of the API to use.
+        :param distributed_memory: True if distributed memory should be
+                                   supported.
+        '''
         if distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
@@ -195,7 +200,7 @@ class PSyFactory(object):
         self._type = get_api(api)
 
     def create(self, invoke_info):
-        ''' Return the specified version of PSy. '''
+        ''' Return the API specific PSy instance. '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
@@ -241,6 +246,7 @@ class PSy(object):
 
     '''
     def __init__(self, invoke_info):
+        # pylint:disable=dangerous-default-value
 
         self._name = invoke_info.name
         self._invokes = None

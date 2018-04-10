@@ -8,6 +8,9 @@
 
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.profiler import Profiler
+
+Profiler.set_options([Profiler.KERNELS])
 
 # This example uses version 0.1 of the Dynamo API
 api="dynamo0.1"
