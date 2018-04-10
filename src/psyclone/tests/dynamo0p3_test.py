@@ -7044,3 +7044,12 @@ def test_no_halo_exchange_annex_dofs(
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
     assert "CALL f1_proxy%halo_exchange" in result
     assert "CALL f2_proxy%halo_exchange" not in result
+
+# test that if config.COMPUTE_ANNEXED_DOFS is False then builtin upper bounds are ndofs
+# test that if config.COMPUTE_ANNEXED_DOFS is True then builtin upper bounds are nannexed
+# test that if config.COMPUTE_ANNEXED_DOFS is TRUE and config.DIST_MEM is False then builtin upper bounds are ndofs
+# test that of config.COMPUTE_ANNEXED_DOFS is TRUE then _halo_read_access returns false appropriately
+
+# test that of config.COMPUTE_ANNEXED_DOFS is TRUE and DIST_MEM then _upper_bound_fortran(self) returns nannexed
+# test that of config.COMPUTE_ANNEXED_DOFS is TRUE and DIST_MEM is False then _upper_bound_fortran(self) returns ndofs
+# test that code generation produces nannexed if config.COMPUTE_ANNEXED_DOFS is TRUE and ndofs is not

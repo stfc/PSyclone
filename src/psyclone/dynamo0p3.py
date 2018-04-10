@@ -121,7 +121,7 @@ VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo", "colour_halo"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
-                           "ndofs"] + HALO_ACCESS_LOOP_BOUNDS
+                           "ndofs", "nannexed"] + HALO_ACCESS_LOOP_BOUNDS
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -3621,7 +3621,10 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            self.set_upper_bound("ndofs")
+            if config.COMPUTE_ANNEXED_DOFS and config.DISTRIBUTED_MEMORY:
+                self.set_upper_bound("nannexed")
+            else:
+                self.set_upper_bound("ndofs")
         else:
             if config.DISTRIBUTED_MEMORY:
                 if self._field.type in VALID_OPERATOR_NAMES:
@@ -3784,10 +3787,14 @@ class DynLoop(Loop):
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
                     "{1})".format(mesh_obj_name, append))
-        elif self._upper_bound_name == "ndofs":
+        elif self._upper_bound_name in ["ndofs", "nannexed"]:
             if config.DISTRIBUTED_MEMORY:
-                result = self.field.proxy_name_indexed + "%" + \
-                    self.field.ref_name() + "%get_last_dof_owned()"
+                if self._upper_bound_name == "ndofs":
+                    result = self.field.proxy_name_indexed + "%" + \
+                             self.field.ref_name() + "%get_last_dof_owned()"
+                else: # nannexed
+                    result = self.field.proxy_name_indexed + "%" + \
+                             self.field.ref_name() + "%get_last_dof_annexed()"
             else:
                 result = self._kern.undf_name
             return result
@@ -3894,10 +3901,12 @@ class DynLoop(Loop):
             if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 # we read in the halo
                 return True
-            elif self._upper_bound_name == "ncells":
-                # we read annexed dofs
-                return True
-            elif self._upper_bound_name == "ndofs":
+            elif self._upper_bound_name in ["ncells", "nannexed"]:
+                # we read annexed dofs. Return False if we always
+                # compute annexed dofs and True if we don't (as
+                # annexed dofs are part of the level 1 halo).
+                return not config.COMPUTE_ANNEXED_DOFS
+            elif self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False
             else:
