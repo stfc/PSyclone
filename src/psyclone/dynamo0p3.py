@@ -3477,7 +3477,7 @@ class HaloReadAccess(HaloDepth):
             # currenty coloured loops are always transformed from
             # cell_halo depth 1 loops
             self._literal_depth = 1
-        elif loop.upper_bound_name == "ncells":
+        elif loop.upper_bound_name in ["ncells","nannexed"]:
             if field.descriptor.stencil:
                 # no need to worry about annexed dofs (if they exist)
                 # as the stencil will cover these (this is currently
