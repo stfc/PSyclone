@@ -2938,8 +2938,8 @@ class DynHaloExchange(HaloExchange):
             return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
-        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and create
-        an equivalent list of `psyclone.dynamo0p3.HaloDepth`
+        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
+        create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
@@ -3039,18 +3039,17 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        import psyclone.config
-        if psyclone.config.COMPUTE_ANNEXED_DOFS and \
+        if config.COMPUTE_ANNEXED_DOFS and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
-                # We definitely don't need the halo exchange as we
-                # only read annexed dofs and these are always clean as
-                # they are computed by default when iterating over
-                # dofs and kept up-to-date by redundant computation
-                # when iterating over cells.
-                required = False
-                known = True  # redundant information as it is always known
-                return required, known
+            # We definitely don't need the halo exchange as we
+            # only read annexed dofs and these are always clean as
+            # they are computed by default when iterating over
+            # dofs and kept up-to-date by redundant computation
+            # when iterating over cells.
+            required = False
+            known = True  # redundant information as it is always known
+            return required, known
 
         if not clean_info:
             # this halo exchange has no previous write dependencies so
@@ -3490,7 +3489,7 @@ class HaloReadAccess(HaloDepth):
             # currenty coloured loops are always transformed from
             # cell_halo depth 1 loops
             self._literal_depth = 1
-        elif loop.upper_bound_name in ["ncells","nannexed"]:
+        elif loop.upper_bound_name in ["ncells", "nannexed"]:
             if field.descriptor.stencil:
                 # no need to worry about annexed dofs (if they exist)
                 # as the stencil will cover these (this is currently
@@ -3805,7 +3804,7 @@ class DynLoop(Loop):
                 if self._upper_bound_name == "ndofs":
                     result = self.field.proxy_name_indexed + "%" + \
                              self.field.ref_name() + "%get_last_dof_owned()"
-                else: # nannexed
+                else:  # nannexed
                     result = self.field.proxy_name_indexed + "%" + \
                              self.field.ref_name() + "%get_last_dof_annexed()"
             else:

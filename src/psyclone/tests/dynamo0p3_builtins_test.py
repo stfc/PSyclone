@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified R. W. Ford, STFC Daresbury Lab
 
 ''' This module tests the support for built-in operations in the Dynamo 0.3 API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -417,13 +418,15 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
                     "      !\n")
                 if not annexed:
                     # Only compute owned dofs if COMPUTE_ANNEXED_DOFS is False
-                    output_dm_2 = output_dm_2.replace("annexed","owned")
+                    output_dm_2 = output_dm_2.replace("annexed", "owned")
                 print output_dm_2
                 assert output_dm_2 in code
 
             if utils.TEST_COMPILE:
-                # If compilation testing has been enabled (--compile flag to py.test)
-                assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+                # If compilation testing has been enabled (--compile
+                # flag to py.test)
+                assert utils.code_compiles("dynamo0.3", psy, tmpdir,
+                                           f90, f90flags)
 
 
 def test_inc_X_plus_Y():

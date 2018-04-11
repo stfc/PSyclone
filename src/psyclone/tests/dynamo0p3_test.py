@@ -6671,7 +6671,7 @@ def test_arg_discontinous():
     idchld_list = [0, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
-                   zip(idchld_list, idarg_list)))
+                       zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"
         idchld = fs_dict[fspace][0]
@@ -7073,14 +7073,17 @@ def test_no_halo_exchange_annex_dofs(
     for annexed in [False, True]:
         import psyclone.config
         monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
-        _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "14.7.1_halo_annexed.f90"),
                                api="dynamo0.3")
         psy = PSyFactory("dynamo0.3").create(invoke_info)
         result = str(psy.gen)
         print result
         if utils.TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            # If compilation testing has been enabled (--compile flag
+            # to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir,
+                                       f90, f90flags)
         if annexed:
             assert "CALL f1_proxy%halo_exchange" not in result
         else:
@@ -7117,8 +7120,9 @@ def test_haloex_not_required(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     for index in range(3):
-        hex=schedule.children[index]
-        assert hex.required() == (True, False)
+        haloex = schedule.children[index]
+        assert haloex.required() == (True, False)
     monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", True)
     for index in range(3):
-        assert hex.required() == (False, True)
+        haloex = schedule.children[index]
+        assert haloex.required() == (False, True)
