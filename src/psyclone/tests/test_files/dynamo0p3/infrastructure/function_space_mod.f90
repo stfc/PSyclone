@@ -9,7 +9,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,7 @@ contains
   procedure, public :: get_element_order
   procedure, public :: get_fs_order
   procedure get_last_dof_owned
+  procedure get_last_dof_annexed
   procedure get_last_dof_halo
   procedure, public   :: get_stencil_dofmap
   procedure, public  :: get_colours
@@ -375,6 +376,16 @@ function get_last_dof_owned(self) result (last_dof_owned)
   last_dof_owned = 0
   return
 end function get_last_dof_owned
+
+function get_last_dof_annexed(self) result (last_dof_annexed)
+
+  implicit none
+  class(function_space_type) :: self
+  integer(i_def) :: last_dof_annexed
+
+  last_dof_annexed = 0
+  return
+end function get_last_dof_annexed
 
 function get_last_dof_halo(self) result (last_dof_halo)
 

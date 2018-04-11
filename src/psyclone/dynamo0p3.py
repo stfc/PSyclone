@@ -3039,6 +3039,19 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
+        import psyclone.config
+        if psyclone.config.COMPUTE_ANNEXED_DOFS and \
+           len(required_clean_info) == 1 and \
+           required_clean_info[0].annexed_only:
+                # We definitely don't need the halo exchange as we
+                # only read annexed dofs and these are always clean as
+                # they are computed by default when iterating over
+                # dofs and kept up-to-date by redundant computation
+                # when iterating over cells.
+                required = False
+                known = True  # redundant information as it is always known
+                return required, known
+
         if not clean_info:
             # this halo exchange has no previous write dependencies so
             # we do not know the initial state of the halo. This means

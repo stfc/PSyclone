@@ -353,63 +353,77 @@ def test_dynbuiltfactory_str():
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y():
-    ''' Test that 1) the str method of DynXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    Z = X + Y where X and Y are fields '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.1_X_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        # Test string method
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Add fields"
-        # Test code generation
-        code = str(psy.gen)
-        print code
-        if not distmem:
-            output = (
-                "      f3_proxy = f3%get_proxy()\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise number of DoFs for any_space_1_f3\n"
-                "      !\n"
-                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f3\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        else:
-            mesh_code_present("f3", code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print output_dm_2
-            assert output_dm_2 in code
+def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
+    '''Test that 1) the str method of DynXPlusYKern returns the expected
+    string and 2) we generate correct code for the built-in Z = X + Y
+    where X and Y are fields. Also check that we generate correct
+    bounds when config.COMPUTE_ANNEXED_DOFS is False and True
+
+    '''
+    import psyclone.config
+    for annexed in [False, True]:
+        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "15.1.1_X_plus_Y_builtin.f90"),
+                               api="dynamo0.3")
+        for distmem in [False, True]:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=distmem).create(invoke_info)
+            # Test string method
+            first_invoke = psy.invokes.invoke_list[0]
+            kern = first_invoke.schedule.children[0].children[0]
+            assert str(kern) == "Built-in: Add fields"
+            # Test code generation
+            code = str(psy.gen)
+            print code
+            if not distmem:
+                # The value of COMPUTE_ANNEXED_DOFS should make no difference
+                output = (
+                    "      f3_proxy = f3%get_proxy()\n"
+                    "      f1_proxy = f1%get_proxy()\n"
+                    "      f2_proxy = f2%get_proxy()\n"
+                    "      !\n"
+                    "      ! Initialise number of layers\n"
+                    "      !\n"
+                    "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                    "      !\n"
+                    "      ! Initialise number of DoFs for any_space_1_f3\n"
+                    "      !\n"
+                    "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                    "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                    "      !\n"
+                    "      ! Call our kernels\n"
+                    "      !\n"
+                    "      DO df=1,undf_any_space_1_f3\n"
+                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                    "f2_proxy%data(df)\n"
+                    "      END DO")
+                assert output in code
+            else:
+                mesh_code_present("f3", code)
+                output_dm_2 = (
+                    "      !\n"
+                    "      ! Call kernels and communication routines\n"
+                    "      !\n"
+                    "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                    "f2_proxy%data(df)\n"
+                    "      END DO \n"
+                    "      !\n"
+                    "      ! Set halos dirty/clean for fields modified in the "
+                    "above loop\n"
+                    "      !\n"
+                    "      CALL f3_proxy%set_dirty()\n"
+                    "      !\n")
+                if not annexed:
+                    # Only compute owned dofs if COMPUTE_ANNEXED_DOFS is False
+                    output_dm_2 = output_dm_2.replace("annexed","owned")
+                print output_dm_2
+                assert output_dm_2 in code
+
+            if utils.TEST_COMPILE:
+                # If compilation testing has been enabled (--compile flag to py.test)
+                assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_inc_X_plus_Y():

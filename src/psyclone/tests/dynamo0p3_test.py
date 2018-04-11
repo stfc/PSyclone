@@ -6591,9 +6591,9 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch):
     continuous fields being read (f1, f2 and m1). This is the case
     when psyclone.config.COMPUTE_ANNEXED_DOFS is False.
 
-    If we always iterate over annexed dofs by default our annexed dofs
-    will always be clean. Therefore we do not need to add a halo
-    exchange. This is the cae when
+    If we always iterate over annexed dofs by default, our annexed
+    dofs will always be clean. Therefore we do not need to add a halo
+    exchange. This is the case when
     psyclone.config.COMPUTE_ANNEXED_DOFS is True.
 
     '''
@@ -7087,12 +7087,38 @@ def test_no_halo_exchange_annex_dofs(
             assert "CALL f1_proxy%halo_exchange" in result
         assert "CALL f2_proxy%halo_exchange" not in result
 
-# test that config.COMPUTE_ANNEXED_DOFS is True by default
-# test that if config.COMPUTE_ANNEXED_DOFS is False then builtin upper bounds are ndofs
-# test that if config.COMPUTE_ANNEXED_DOFS is True then builtin upper bounds are nannexed
-# test that if config.COMPUTE_ANNEXED_DOFS is TRUE and config.DIST_MEM is False then builtin upper bounds are ndofs
-# test that of config.COMPUTE_ANNEXED_DOFS is TRUE then _halo_read_access returns false appropriately
 
-# test that of config.COMPUTE_ANNEXED_DOFS is TRUE and DIST_MEM then _upper_bound_fortran(self) returns nannexed
-# test that of config.COMPUTE_ANNEXED_DOFS is TRUE and DIST_MEM is False then _upper_bound_fortran(self) returns ndofs
-# test that code generation produces nannexed if config.COMPUTE_ANNEXED_DOFS is TRUE and ndofs is not
+def test_annexed_default():
+    ''' test that we compute annexed dofs by default '''
+    import psyclone.config
+    assert psyclone.config.COMPUTE_ANNEXED_DOFS
+
+
+def test_haloex_not_required(monkeypatch):
+    '''The dynamic halo exchange required() logic should always return
+    False if read dependencies are to annexed dofs and
+    config.COMPUTE_ANNEXED_DOFS is True, as they are computed by
+    default when iterating over dofs and kept up-to-date by redundant
+    computation when iterating over cells. However, it should return
+    True if there are no previous write dependencies and
+    config.COMPUTE_ANNEXED_DOFS is False, as a previous writer may have
+    iterated over dofs and only written to its own dofs, leaving the
+    annexed dofs dirty. This test checks these two cases. Note the
+    former case should currently never happen in real code as a halo
+    exchange would not be added in the first place.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w3.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for index in range(3):
+        hex=schedule.children[index]
+        assert hex.required() == (True, False)
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", True)
+    for index in range(3):
+        assert hex.required() == (False, True)
