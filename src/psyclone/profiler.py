@@ -114,6 +114,11 @@ class ProfileNode(Node):
     # -------------------------------------------------------------------------
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
+        '''Creates the profile start and end calls, surrounding the children
+        of this node.
+        :param parent: The parent of this node.
+        :type parent: :py:class:`psyclone.psyGen.Node`.'''
+
         # Find the first kernel and use its name. In plain PSyclone there
         # should be only one kernel, but if Profile is invoked after e.g.
         # a loop merge more kernels might be there
