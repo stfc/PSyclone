@@ -380,6 +380,49 @@ def test_main_version(capsys):
     assert "PSyclone version: {0}".format(__VERSION__) in output
 
 
+def test_main_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--profile", "kernels",
+                  '--profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--profile", filename])
+    _, outerr = capsys.readouterr()
+    assert "invalid choice" in outerr
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+    assert "invalid choice" in outerr
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
 def test_main_invalid_api(capsys):
     '''Tests that we get the expected output and the code exits
     with an error if the supplied API is not known'''
