@@ -427,15 +427,15 @@ class OMPLoopTrans(Transformation):
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
 
-        :param node: the supplied node to which we will apply the
+        :param node: the supplied node to which we will apply the\
         OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: optional argument to determine whether to
-        generate reproducible OpenMP reductions (True) or not
-        (False). The default value is None which will cause PSyclone
+        :param reprod: optional argument to determine whether to\
+        generate reproducible OpenMP reductions (True) or not\
+        (False). The default value is None which will cause PSyclone\
         to look up a default value
         :type reprod: Boolean, or None
-        :return: (:py:class:`psyclone.psyGen.Schedule`,
+        :return: (:py:class:`psyclone.psyGen.Schedule`,\
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -1663,7 +1663,7 @@ class ProfileRegionTrans(Transformation):
         schedule within a single profiler region.
 
         :param nodes: Can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Nodes` or list of
+        :type nodes: :py:obj:`psyclone.psygen.Nodes` or list of\
         :py:obj:`psyclone.psygen.Node`.
         '''
 
