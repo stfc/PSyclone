@@ -49,6 +49,10 @@ API-specific sections).
     :members:
     :noindex:
 
+.. autoclass:: psyclone.transformations.ProfileRegionTrans
+    :members:
+    :noindex:
+
 .. autoclass:: psyclone.transformations.ColourTrans
     :members:
     :noindex:
