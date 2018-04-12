@@ -21,7 +21,7 @@
    line_length
    api
    system_specific_setup
-..   developers
+   developers
 ..   tutorial
 ..   examples
 ..   FAQS
