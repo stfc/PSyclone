@@ -1950,7 +1950,7 @@ class DynMeshes(object):
         # Keep a list of quantities that we've already initialised so
         # that we don't generate duplicate assignments
         initialised = []
-        
+
         for kern in self._kern_calls:
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
@@ -2012,7 +2012,7 @@ class DynMeshes(object):
                 initialised.append(kern["ncperc"])
                 parent.add(
                     AssignGen(parent, lhs=kern["ncperc"],
-                              rhs=kern["mmap"]+
+                              rhs=kern["mmap"] +
                               "%get_ntarget_cells_per_source_cell()"))
 
 
@@ -3215,8 +3215,8 @@ class DynHaloExchange(HaloExchange):
             return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
-        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and create
-        an equivalent list of `psyclone.dynamo0p3.HaloDepth`
+        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
+        create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
@@ -3893,7 +3893,7 @@ class DynLoop(Loop):
             entity.view(indent=indent + 1)
 
     def load(self, kern):
-        ''' 
+        '''
         Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
         construct Loop objects for a given kernel call.
@@ -4503,6 +4503,7 @@ class DynKern(Kern):
         self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
+        self._is_intergrid = False  # Whether this is an inter-grid kernel
 
     def load(self, call, parent=None):
         '''
@@ -5349,7 +5350,7 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
 
     def fs_intergrid(self, function_space):
-        ''' 
+        '''
         Add function-space related arguments for an intergrid kernel
 
         :param function_space: the function space for which to add arguments

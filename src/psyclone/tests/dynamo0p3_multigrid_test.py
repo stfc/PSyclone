@@ -45,8 +45,8 @@ from __future__ import absolute_import
 import os
 import pytest
 import fparser
-import utils
 from fparser import api as fpapi
+import utils
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse import ParseError, parse
 from psyclone.psyGen import PSyFactory
@@ -220,7 +220,7 @@ def test_two_grid_types(monkeypatch):
         _ = DynKernMetadata(ast, name=name)
     assert "but dynamo0p3.VALID_MESH_TYPES contains 3: [" in str(err)
 
-    
+
 def test_field_prolong(tmpdir, f90, f90flags):
     ''' Check that we generate correct psy-layer code for an invoke
     containing a kernel that performs a prolongation operation '''
@@ -230,7 +230,6 @@ def test_field_prolong(tmpdir, f90, f90flags):
     for distmem in [False, True]:
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         gen_code = str(psy.gen)
-        print gen_code
 
         if utils.TEST_COMPILE:
             assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
@@ -404,7 +403,7 @@ def test_field_restrict(tmpdir, f90, f90flags):
 
 
 def test_restrict_prolong_chain(tmpdir, f90, f90flags):
-    ''' Test when we have a single invoke containing a chain of 
+    ''' Test when we have a single invoke containing a chain of
     restrictions and prolongations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2_intergrid_3levels.f90"),
@@ -412,8 +411,7 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags):
     for distmem in [False, True]:
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         output = str(psy.gen)
-        print output
-        
+
         if utils.TEST_COMPILE:
             assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
@@ -538,11 +536,10 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags):
                 "fld_m_proxy%data, undf_any_space_1_fld_c, "
                 "map_any_space_1_fld_c(:,cell), ndf_any_space_2_fld_m, "
                 "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
-            
             assert expected in output
 
 
-def test_fine_halo_read(tmpdir, f90, f90flags):
+def test_fine_halo_read():
     ''' Check that the halo exchange has double the depth if it is
     for a field on the fine mesh with a read dependence '''
     from psyclone.dynamo0p3 import DynHaloExchange, HaloReadAccess

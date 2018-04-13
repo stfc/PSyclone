@@ -5895,7 +5895,7 @@ def test_intergrid_rejected():
     ''' Check that any attempt to apply a transformation that affects
     an inter-grid kernel is rejected. (Obviously this can be removed
     once transformations with inter-grid kernels are supported.) '''
-    
+
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")
@@ -5906,7 +5906,7 @@ def test_intergrid_rejected():
         BASE_PATH, "22.2_intergrid_3levels.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    
+
     # To a prolong kernel
     rc_trans = Dynamo0p3RedundantComputationTrans()
     with pytest.raises(TransformationError) as excinfo:
