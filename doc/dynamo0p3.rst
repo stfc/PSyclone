@@ -55,7 +55,7 @@ objects and their use are discussed in the following sections.
 	       assembly_kernel(cma_op1, operator1),              &
                name="some_calculation"                           &
              )
-  call invoke( prolong_kernel_type(field1, field4)               &
+  call invoke( prolong_kernel_type(field1, field4),              &
                restrict_kernel_type(field5, field6)
 	     )
 
@@ -288,7 +288,7 @@ Invoke containing general-purpose kernels. The only restrictions to be
 aware of are that inter-grid kernels accept only field or field-vectors
 as arguments and that an Invoke may not mix inter-grid kernels with
 any other kernel type. (Hence the second, separate Invoke in the
-example Algorith code given at the beginning of this Section.)
+example Algorithm code given at the beginning of this Section.)
 
 PSy-layer
 ---------
@@ -465,7 +465,7 @@ Rules for Inter-Grid Kernels
 
 7) All fields on a given mesh must be on the same function space.
 
-The logical conclusion of Rules 5-7 is that an inter-grid kernel will
+A consequence of Rules 5-7 is that an inter-grid kernel will
 only involve two function spaces.
 
 
@@ -1321,9 +1321,9 @@ arguments to inter-grid kernels are as follows:
 
        1) Pass in field data as done for a regular kernel.
 
-    6) For each unique function space in the order in which they are
-       encountered in the ``meta_args`` meta-data array, include dofmap
-       information:
+    6) For each unique function space (of which there will currently be two)
+       in the order in which they are encountered in the ``meta_args``
+       meta-data array, include dofmap information:
 
        If the dofmap is associated with an argument on the fine mesh:
 
