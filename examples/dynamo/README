@@ -181,8 +181,8 @@ Example 10: Inter-grid Kernels
 PSyclone supports so-called 'inter-grid' kernels that map a field (or field
 vector) from a coarse mesh onto a fine mesh (prolongation) or from a fine
 mesh onto a coarse mesh (restriction). eg10 contains an example algorithm
-that takes a field on a coarse mesh and prolongs it twice before undoing
-that by restricting it twice:
+that takes a field on a fine mesh and restricts it twice before undoing
+that by prolonging it twice:
 ::
     cd eg10/
     psyclone intergrid_3levels.x90
