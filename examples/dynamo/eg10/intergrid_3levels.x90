@@ -43,9 +43,9 @@ program restrict_prolong
   type(field_type) :: fld_f, fld_m, fld_c
 
   call invoke(                                     &
-              prolong_kernel_type(fld_m, fld_c),   & ! coarse -> medium
-              prolong_kernel_type(fld_f, fld_m),   & ! medium -> fine
               restrict_kernel_type(fld_m, fld_f),  & ! fine -> medium
-              restrict_kernel_type(fld_c, fld_m) )   ! medium -> coarse
+              restrict_kernel_type(fld_c, fld_m),  & ! medium -> coarse
+              prolong_kernel_type(fld_m, fld_c),   & ! coarse -> medium
+              prolong_kernel_type(fld_f, fld_m) )    ! medium -> fine
 
 end program restrict_prolong
