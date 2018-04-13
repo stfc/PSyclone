@@ -5492,8 +5492,23 @@ class KernStubArgList(ArgOrdering):
     required arguments for a kernel subroutine.  The ordering and type
     of the arguments is captured by the base class '''
     def __init__(self, kern, parent):
+        '''
+        :param kern: Kernel for which to create argument list
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :param parent: Parent subroutine which calls the kernel
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises NotImplementedError: if kernel is inter-grid
+        '''
         from psyclone.f2pygen import UseGen
+
+        # We don't yet support inter-grid kernels (Issue #162)
+        if kern.is_intergrid:
+            raise NotImplementedError(
+                "Kernel {0} is an inter-grid kernel and stub generation "
+                "is not yet supported for inter-grid kernels".
+                format(kern.name))
+
         parent.add(UseGen(parent, name="constants_mod", only=True,
                           funcnames=["r_def"]))
         self._first_arg = True
