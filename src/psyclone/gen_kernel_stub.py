@@ -48,7 +48,7 @@ import fparser
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.psyGen import GenerationError
 from psyclone.parse import ParseError
-from psyclone.config import ConfigFactory
+from psyclone.configuration import ConfigFactory
 from psyclone.line_length import FortLineLength
 
 # Get our one and only Configuration object

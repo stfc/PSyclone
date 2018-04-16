@@ -1,7 +1,8 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Modifications copyright (c) 2017, Science and Technology Facilities Council
+# Modifications copyright (c) 2017-2018, Science and Technology
+# Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,12 +48,12 @@ from fparser import one as fparser1
 from fparser import api as fpapi
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
-from psyclone import config
+from psyclone import configuration
 
 
 def check_api(api):
     ''' Check that the supplied API is valid '''
-    _config = config.ConfigFactory().create()
+    _config = configuration.ConfigFactory().create()
 
     if api not in _config.supported_apis:
         raise ParseError(
@@ -425,7 +426,7 @@ class KernelTypeFactory(object):
 
     def __init__(self, api=""):
         if api == "":
-            _config = config.ConfigFactory().create()
+            _config = configuration.ConfigFactory().create()
             self._type = _config.default_api
         else:
             check_api(api)
@@ -880,7 +881,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> ast,info=parse("argspec.F90")
 
     '''
-    _config = config.ConfigFactory().create()
+    _config = configuration.ConfigFactory().create()
 
     if distributed_memory is None:
         _dist_mem = _config.distributed_memory

@@ -39,7 +39,7 @@ Module containing tests relating to PSyclone configuration handling.
 
 import os
 import pytest
-from psyclone.config import ConfigurationError, ConfigFactory, Config
+from psyclone.configuration import ConfigurationError, ConfigFactory, Config
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

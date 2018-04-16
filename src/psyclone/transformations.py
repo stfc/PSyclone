@@ -43,11 +43,11 @@
     transformation. '''
 
 from psyclone.psyGen import OMPDoDirective, Transformation
-import psyclone.config
+import psyclone.configuration
 
 # Our one-and-only configuration object, populated by reading the
 # psyclone.cfg file
-_CONFIG = psyclone.config.ConfigFactory().create()
+_CONFIG = psyclone.configuration.ConfigFactory().create()
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
