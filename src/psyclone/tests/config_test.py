@@ -39,7 +39,7 @@ Module containing tests relating to PSyclone configuration handling.
 
 import os
 import pytest
-from psyclone.configuration import ConfigurationError, ConfigFactory, Config
+from psyclone.configuration import ConfigurationError, Config
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -57,10 +57,11 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 '''
 
-def test_create():
+def test_factory_create():
     '''
     Check that we can create a Config object
     '''
+    from psyclone.configuration import ConfigFactory
     _config = ConfigFactory().create()
     assert isinstance(_config, Config)
     # Check that we are creating a singleton instance
@@ -75,9 +76,10 @@ def test_create():
 def test_missing_file(tmpdir):
     ''' Check that we get the expected error when the specified
     config file cannot be found '''
-    with pytest.raises(IOError) as err:
-        _ = ConfigFactory(config_file=os.path.join(str(tmpdir),
-                                                   "not_a_file.cfg")).create()
+    from psyclone.configuration import Config
+    with pytest.raises(ConfigurationError) as err:
+        _ = Config(config_file=os.path.join(str(tmpdir),
+                                            "not_a_file.cfg")).create()
     assert "not_a_file.cfg does not exist" in str(err)
 
 
@@ -85,6 +87,7 @@ def test_read_values():
     '''
     Check that we get the expected values from the test config file
     '''
+    from psyclone.configuration import ConfigFactory
     _config = ConfigFactory(config_file=TEST_CONFIG).create()
     # Whether distributed memory is enabled
     dist_mem = _config.distributed_memory
@@ -125,18 +128,19 @@ def test_list_no_commas():
     ''' Check that we parse a space-delimited list OK. '''
     import re
     import tempfile
+    from psyclone.configuration import Config
     # Remove the commas from the list of supported APIs
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
-                     "SUPPORTEDAPIS = dynamo0.3 gocean1.0",
+                     "SUPPORTEDAPIS = dynamo0.3  gocean1.0",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    new_cfg = tempfile.NamedTemporaryFile(delete=False)
-    new_name = new_cfg.name
-    new_cfg.write(content)
-    new_cfg.close()
+    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
 
-    _config = ConfigFactory(config_file=new_name).create()
-    assert _config.supported_apis == ["dynamo0.3", "gocean1.0"]
+        _config = Config(config_file=new_name)
+        assert _config.supported_apis == ["dynamo0.3", "gocean1.0"]
 
 
 def test_default_not_in_list():
@@ -144,6 +148,7 @@ def test_default_not_in_list():
     the list of supported APIs '''
     import re
     import tempfile
+    from psyclone.configuration import ConfigFactory
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
                      "SUPPORTEDAPIS = gocean1.0",
                      _CONFIG_CONTENT,
