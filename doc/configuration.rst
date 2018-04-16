@@ -3,9 +3,14 @@
 Configuration
 =============
 
-At execution time, PSyclone reads various configuration options from the
-``psyclone.cfg`` file. It searches for this file in the following locations,
-in order:
+PSyclone reads various run-time configuration options from
+the ``psyclone.cfg`` file. As described in
+:ref:`getting-going-configuration`, the default ``psyclone.cfg``
+configuration file is installed in either ``/etc/`` or
+``${HOME}/.psyclone/`` during the installation process.
+
+At execution-time, PSyclone searches for the configuration file in the
+following locations, in order:
 
 1. ``${PWD}/.psyclone/``
 2. ``${HOME}/.psyclone/``

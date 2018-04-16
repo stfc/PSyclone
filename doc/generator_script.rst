@@ -91,8 +91,8 @@ API. The default API, along with the supported API's can be seen by
 running the generator.py script with the -h option.
 
 If you use a particular API frequently and it is not the default then
-you can change the default by editing the config.py file in the
-<PSYCLONEHOME>/src directory.
+you can change the default by editing the ``psyclone.cfg`` file.
+See :ref:`configuration` for more details.
 
 If your code uses an API that is different to the default then you can
 specify this as an argument to the generator.py script.
@@ -225,11 +225,11 @@ Distributed memory
 
 By default the generator.py script will generate distributed
 memory (DM) code (i.e. parallelised using MPI). As with the choice of
-API, this default may be configured by editing
-<PSYCLONEHOME>/src/config.py.  Alternatively, whether or not to
-generate DM code can be specified as an argument to the generator.py
-script using the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem``
-flags, respectively.
+API, this default may be configured by editing ``psyclone.cfg`` - see
+:ref:`configuration`.  Alternatively, whether or not to generate DM
+code can be specified as an argument to the generator.py script using
+the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem`` flags,
+respectively.
 
 For details of PSyclone's support for generating DM code see
 :ref:`distributed_memory`.

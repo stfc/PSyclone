@@ -305,6 +305,8 @@ The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
 no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
 is on the user to provide correct values for these options.
 
+.. _getting-going-configuration:
+
 Configuration
 -------------
 
