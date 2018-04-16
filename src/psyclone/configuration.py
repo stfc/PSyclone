@@ -53,15 +53,16 @@ class ConfigurationError(Exception):
     '''
     Class for all configuration-related errors.
     '''
-    def __init__(self, value, filename=None):
+    def __init__(self, value, config=None):
         '''
         :param str value: error message
-        :param str filename: the name of the configuration file
+        :param config: the Config object associated with the error
+        :type :py:class:`psyclone.configuration.Config`
         '''
         Exception.__init__(self, value)
         self.value = "PSyclone configuration error"
-        if filename:
-            self.value += " (file={0})".format(filename)
+        if config:
+            self.value += " (file={0})".format(config.filename)
         self.value += ": "+value
 
     def __str__(self):
@@ -105,13 +106,17 @@ class Config(object):
         Config constructor.
 
         :param str config_file: Override default configuration file to read
+
+        :raises ConfigurationError: if there are inconsistencies in the
+                                    specified config file
         '''
         import configparser
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
             if not os.path.isfile(config_file):
-                raise IOError("File {0} does not exist".format(config_file))
+                raise ConfigurationError(
+                    "File {0} does not exist".format(config_file))
             self._config_file = config_file[:]
         else:
             # Search for the config file in various default locations
@@ -133,17 +138,21 @@ class Config(object):
         if "," in api_list:
             # Comma delimited
             self._supported_api_list = [
-                str(item.strip()) for item in api_list.split(",")]
+                str(item.strip()) for item in api_list.split(",")
+                if item.strip() != '']
         else:
             # Space delimited
             self._supported_api_list = [
-                str(item.strip()) for item in api_list.split(" ")]
+                str(item.strip()) for item in api_list.split(" ")
+                if item.strip() != '']
+
         # Sanity check
         if self._default_api not in self._supported_api_list:
             raise ConfigurationError(
                 "The default API ({0}) is not in the list of supported "
                 "APIs ({1}).".format(self._default_api,
-                                     self._supported_api_list))
+                                     self._supported_api_list),
+                config=self)
 
         self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
@@ -161,7 +170,8 @@ class Config(object):
             raise ConfigurationError(
                 "The default stub API ({0}) is not in the list of supported "
                 "stub APIs ({1}).".format(self._default_stub_api,
-                                          self._supported_stub_api_list))
+                                          self._supported_stub_api_list),
+                config=self)
 
         self._reproducible_reductions = self._config['DEFAULT'].getboolean(
             'REPRODUCIBLE_REDUCTIONS')
@@ -180,6 +190,8 @@ class Config(object):
         :param str name: override default name of config file to search for
         :returns: the fully-qualified path to the configuration file
         :rtype: str
+
+        :raises ConfigurationError: if no config file is found
         '''
         # Name of the config file we search for
         if name is not None:
@@ -197,8 +209,8 @@ class Config(object):
             if os.path.isfile(cfile):
                 return cfile
         # If we get to here then we have failed to find a config file
-        raise IOError("{0} not found in any of {1}".
-                      format(_name, file_paths))
+        raise ConfigurationError("{0} not found in any of {1}".
+                                 format(_name, file_paths))
 
     @property
     def distributed_memory(self):
