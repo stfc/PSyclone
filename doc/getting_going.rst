@@ -305,6 +305,19 @@ The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
 no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
 is on the user to provide correct values for these options.
 
+Configuration
+-------------
+
+Various aspects of PSyclone are configured through a config file,
+``psyclone.cfg``. The default version of this file is installed during
+the installation process. If user performing the installation has
+write access to ``/etc`` then the config file is installed to
+``/etc/psyclone.cfg``, otherwise it is installed to
+``$HOME/.psyclone/psyclone.cfg``.
+
+See :ref:`configuration` for details of the settings contained within
+the config file.
+
 .. _getting-going-run:
 
 Run
