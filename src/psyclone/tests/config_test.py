@@ -38,34 +38,54 @@ Module containing tests relating to PSyclone configuration handling.
 '''
 
 import os
-from psyclone import config
+import pytest
+from psyclone.config import ConfigurationError, ConfigFactory, Config
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 
+_CONFIG_CONTENT = '''\
+[DEFAULT]
+SUPPORTEDAPIS = gunghoproto, dynamo0.1, dynamo0.3, gocean0.1, gocean1.0
+DEFAULTAPI = dynamo0.3
+SUPPORTEDSTUBAPIS = dynamo0.3
+DEFAULTSTUBAPI = dynamo0.3
+DISTRIBUTED_MEMORY = true
+REPRODUCIBLE_REDUCTIONS = false
+REPROD_PAD_SIZE = 8
+'''
 
 def test_create():
     '''
     Check that we can create a Config object
     '''
-    _config = config.ConfigFactory().create()
-    assert isinstance(_config, config.Config)
+    _config = ConfigFactory().create()
+    assert isinstance(_config, Config)
     # Check that we are creating a singleton instance
-    _config2 = config.ConfigFactory().create()
+    _config2 = ConfigFactory().create()
     assert _config is _config2
     # Check that specifying which config file to use results
     # in a new instance
-    _config2 = config.ConfigFactory(config_file=TEST_CONFIG).create()
+    _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
     assert _config2 is not _config
+
+
+def test_missing_file(tmpdir):
+    ''' Check that we get the expected error when the specified
+    config file cannot be found '''
+    with pytest.raises(IOError) as err:
+        _ = ConfigFactory(config_file=os.path.join(str(tmpdir),
+                                                   "not_a_file.cfg")).create()
+    assert "not_a_file.cfg does not exist" in str(err)
 
 
 def test_read_values():
     '''
     Check that we get the expected values from the test config file
     '''
-    _config = config.ConfigFactory(config_file=TEST_CONFIG).create()
+    _config = ConfigFactory(config_file=TEST_CONFIG).create()
     # Whether distributed memory is enabled
     dist_mem = _config.distributed_memory
     assert isinstance(dist_mem, bool)
@@ -99,3 +119,42 @@ def test_read_values():
     # The filename of the config file which was parsed to produce
     # the Config object
     assert _config.filename == str(TEST_CONFIG)
+
+
+def test_list_no_commas():
+    ''' Check that we parse a space-delimited list OK. '''
+    import re
+    import tempfile
+    # Remove the commas from the list of supported APIs
+    content = re.sub(r"^SUPPORTEDAPIS = .*$",
+                     "SUPPORTEDAPIS = dynamo0.3 gocean1.0",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    new_cfg = tempfile.NamedTemporaryFile(delete=False)
+    new_name = new_cfg.name
+    new_cfg.write(content)
+    new_cfg.close()
+
+    _config = ConfigFactory(config_file=new_name).create()
+    assert _config.supported_apis == ["dynamo0.3", "gocean1.0"]
+
+
+def test_default_not_in_list():
+    ''' Check that we raise an error if the default API is not in
+    the list of supported APIs '''
+    import re
+    import tempfile
+    content = re.sub(r"^SUPPORTEDAPIS = .*$",
+                     "SUPPORTEDAPIS = gocean1.0",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    new_cfg = tempfile.NamedTemporaryFile(delete=False)
+    new_name = new_cfg.name
+    new_cfg.write(content)
+    new_cfg.close()
+
+    with pytest.raises(ConfigurationError) as err:
+        _ = ConfigFactory(config_file=new_name).create()
+
+    assert ("The default API (dynamo0.3) is not in the list of supported "
+            "APIs" in str(err))
