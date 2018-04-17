@@ -768,6 +768,14 @@ class DynKernMetadata(KernelType):
     the subroutine for the Dynamo 0.3 API. '''
 
     def __init__(self, ast, name=None):
+        '''
+        :param ast: fparser1 AST for the kernel
+        :type ast: :py:class:`fparser.block_statements.BeginSource`
+        :param str name: The name of this kernel
+
+        :raises ParseError: if the meta-data does not conform to the
+                            rules for the Dynamo 0.3 API
+        '''
         KernelType.__init__(self, ast, name=name)
 
         # The type of CMA operation this kernel performs (or None if
@@ -4950,9 +4958,14 @@ class ArgOrdering(object):
         self._kern = kern
 
     def generate(self):
-        '''specifies which arguments appear in an argument list, their type
+        '''
+        Specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
-        that can be specialised by a child class for its particular need'''
+        that can be specialised by a child class for its particular need.
+
+        :raises GenerationError: if the kernel arguments break the
+                                 rules for the Dynamo 0.3 API.
+        '''
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
@@ -5086,125 +5099,213 @@ class ArgOrdering(object):
             self.quad_rule()
 
     def cell_position(self):
-        ''' add cell position information'''
+        '''
+        Add cell position information
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.cell_position() must be implemented by "
             "subclass")
 
     def cell_map(self):
-        ''' Add cell-map information (for inter-grid kernels) '''
+        '''
+        Add cell-map information (for inter-grid kernels)
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.cell_map() must be implemented by subclass")
 
     def mesh_height(self):
-        ''' add height information'''
+        '''
+        Add height information (i.e. no. of layers)
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.mesh_height() must be implemented by subclass")
 
     def mesh_ncell2d(self):
-        ''' Add the number of columns in the mesh '''
+        ''' 
+        Add the number of columns in the mesh
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
             "subclass")
 
     def cma_operator(self, arg):
-        ''' Add information on the CMA operator '''
+        '''
+        Add information on the CMA operator
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
                                   "be implemented by subclass")
 
     def field_vector(self, arg):
-        ''' add field-vector information for this field-vector argument '''
+        '''
+        Add field-vector information for this field-vector argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.field_vector() must be implemented by "
             "subclass")
 
     def field(self, arg):
-        ''' add field information for this field argument '''
+        '''
+        Add field information for this field argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.field() must be implemented by subclass")
 
     def stencil_unknown_extent(self, arg):
-        ''' add stencil extent information for this stencil argument '''
+        '''
+        Add stencil extent information for this stencil argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.stencil_unknown_extent() must be implemented "
             "by subclass")
 
     def stencil_unknown_direction(self, arg):
-        ''' add stencil direction information for this stencil argument '''
+        '''
+        Add stencil direction information for this stencil argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.stencil_unknown_direction() must be "
             "implemented by subclass")
 
     def stencil(self, arg):
-        ''' add stencil information for this stencil argument '''
+        '''
+        Add stencil information for this stencil argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.stencil() must be implemented by subclass")
 
     def operator(self, arg):
-        ''' add operator information for this operator argument '''
+        '''
+        Add operator information for this operator argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.operator() must be implemented by subclass")
 
     def scalar(self, arg):
-        ''' add scalar information for this scalar argument '''
+        '''
+        Add scalar information for this scalar argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.scalar() must be implemented by subclass")
 
     def fs_common(self, function_space):
-        '''add information common to LMA operators and fields for this
-        function space'''
+        '''
+        Add information common to LMA operators and fields for this
+        function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.fs_common() must be implemented by "
             "subclass")
 
     def fs_compulsory_field(self, function_space):
-        '''add compulsory information for this function space'''
+        '''
+        Add compulsory information for this function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.fs_compulsory_field() must be implemented "
             "by subclass")
 
     def basis(self, function_space):
-        '''add basis function information for this function space '''
+        '''
+        Add basis function information for this function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.basis() must be implemented by subclass")
 
     def diff_basis(self, function_space):
-        '''add differential basis function information for this function
-        space'''
+        '''
+        Add differential basis function information for this function
+        space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.diff_basis() must be implemented by subclass")
 
     def orientation(self, function_space):
-        '''add orientation information for this function space'''
+        '''
+        Add orientation information for this function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.orientation() must be implemented by subclass")
 
     def field_bcs_kernel(self, function_space):
-        '''add boundary condition information for a field on this function
-        space'''
+        '''
+        Add boundary condition information for a field on this function
+        space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
             "subclass")
 
     def operator_bcs_kernel(self, function_space):
-        '''add boundary condition information for an operator on this function
-        space'''
+        '''
+        Add boundary condition information for an operator on this function
+        space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
 
     def quad_rule(self):
-        '''add qr information'''
+        '''
+        Add qr information
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.quad_rule() must be implemented by subclass")
 
     def banded_dofmap(self, function_space):
-        ''' Add banded dofmap (required for CMA operator assembly) '''
+        '''
+        Add banded dofmap (required for CMA operator assembly)
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
                                   " be implemented by subclass")
 
     def indirection_dofmap(self, arg, operator=None):
-        ''' Add indirection dofmap required when applying a CMA operator '''
+        '''
+        Add indirection dofmap required when applying a CMA operator
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
                                   "must be implemented by subclass")
 
@@ -6455,6 +6556,19 @@ class DynKernelArgument(KernelArgument):
     arguments as specified by the kernel argument metadata. '''
 
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
+        '''
+        :param kernel_args: Object encapsulating all arguments to the
+                            kernel call
+        :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :param arg_meta_data: Information obtained from the meta-data for
+                              this kernel argument
+        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
+        :param arg_info: Information on how this argument is specified in the
+                         Algorithm layer
+        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :param call: The kernel object with which this argument is associated
+        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+        '''
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
