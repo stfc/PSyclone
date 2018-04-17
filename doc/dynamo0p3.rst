@@ -44,6 +44,7 @@ objects and their use are discussed in the following sections.
   real(kind=r_def)      	 :: scalar1
   integer(kind=i_def)   	 :: stencil_extent
   type(field_type)      	 :: field1, field2, field3
+  type(field_type)      	 :: field5(3), field6(3)
   type(quadrature_type) 	 :: qr
   type(operator_type)   	 :: operator1
   type(columnwise_operator_type) :: cma_op1
@@ -52,8 +53,11 @@ objects and their use are discussed in the following sections.
                builtin1(scalar1, field2, field3),                &
                kernel2(field1, stencil_extent, field3, scalar1), &
 	       assembly_kernel(cma_op1, operator1),              &
-               name="some calculation"                           &
+               name="some_calculation"                           &
              )
+  call invoke( prolong_kernel_type(field1, field4),              &
+               restrict_kernel_type(field5, field6)
+	     )
 
 Please see the :ref:`algorithm-layer` section for a description of the
 ``name`` argument.
@@ -275,6 +279,17 @@ For example, running test 19.2 from the Dynamo0.3 API test suite gives::
   "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
   Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
 
+Inter-grid
+++++++++++
+
+From the Algorithm layer, an Invoke for inter-grid kernels (those that
+map fields between grids of different resolution) looks much like an
+Invoke containing general-purpose kernels. The only restrictions to be
+aware of are that inter-grid kernels accept only field or field-vectors
+as arguments and that an Invoke may not mix inter-grid kernels with
+any other kernel type. (Hence the second, separate Invoke in the
+example Algorithm code given at the beginning of this Section.)
+
 PSy-layer
 ---------
 
@@ -302,7 +317,7 @@ Kernel
 The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. In the Dynamo API there are four
 different Kernel types; general purpose, CMA, inter-grid and
-:ref:`dynamo_built-ins`. For the latter type, PSyclone generates the
+:ref:`dynamo_built-ins`. In the case of built-ins, PSyclone generates the
 source of the kernels.  This section explains the rules for the other
 three, user-supplied kernel types and then goes on to describe their
 metadata and subroutine arguments.
@@ -429,20 +444,30 @@ operation. In this case:
 Rules for Inter-Grid Kernels
 ++++++++++++++++++++++++++++
 
-1) An inter-grid kernel is identified by the presence of a field argument with
-   the optional `mesh_arg` meta-data element (see
+1) An inter-grid kernel is identified by the presence of a field or
+   field-vector argument with the optional `mesh_arg` meta-data element (see
    :ref:`dynamo0.3-intergrid-mdata`).
 
-2) An inter-grid kernel is only permitted to have field or field-vector
+2) An invoke that contains one or more inter-grid kernels must not contain
+   any other kernel types. (This restriction is an implementation decision
+   and could be lifted in future if there is a need.)
+
+3) An inter-grid kernel is only permitted to have field or field-vector
    arguments.
 
-3) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
+4) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
 
-4) An inter-grid kernel (and metadata) must have at least one field on
+5) An inter-grid kernel (and meta-data) must have at least one field on
    each of the fine and coarse meshes. Specifying all fields as coarse or
    fine is forbidden.
 
-5) Fields on different meshes must always live on different function spaces.
+6) Fields on different meshes must always live on different function spaces.
+
+7) All fields on a given mesh must be on the same function space.
+
+A consequence of Rules 5-7 is that an inter-grid kernel will
+only involve two function spaces.
+
 
 Metadata
 ++++++++
@@ -889,7 +914,7 @@ where ``type`` may be one of ``GH_COARSE`` or ``GH_FINE``. Any kernel
 having a field argument with this meta-data is assumed to be an
 inter-grid kernel and, as such, all of its other arguments (which
 must also be fields) must have it specified too. An example of the
-metadata for such a kernel is give below:
+metadata for such a kernel is given below:
 
 ::
 
@@ -899,8 +924,9 @@ metadata for such a kernel is give below:
       /)
 
 Note that an inter-grid kernel must have at least one field (or field-
-vector) argument on each mesh type and that fields that are on different
-meshes cannot be on the same function space.
+vector) argument on each mesh type. Fields that are on different
+meshes cannot be on the same function space while those on the same
+mesh must also be on the same function space.
 
 
 Column-wise Operators (CMA)
@@ -1033,11 +1059,11 @@ Rules for General-Purpose Kernels
 #################################
 
 The arguments to general-purpose kernels (those that do not involve
-CMA operators) follow a set of rules which have been specified for
-the Dynamo0.3 API. These rules are encoded in the ``generate()``
-method within the ``ArgOrdering`` abstract class in the
-``dynamo0p3.py`` file. The rules, along with PSyclone's naming
-conventions, are:
+either CMA operators or prolongation/restriction operations) follow a
+set of rules which have been specified for the Dynamo0.3 API. These
+rules are encoded in the ``generate()`` method within the
+``ArgOrdering`` abstract class in the ``dynamo0p3.py`` file. The
+rules, along with PSyclone's naming conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an integer and has intent ``in``.
@@ -1057,11 +1083,28 @@ conventions, are:
        This value is passed in separately. Again, the intent is determined
        from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
-       1) If the field entry has a stencil access then add an integer stencil-size argument with intent ``in``. This will supply the number of cells in the stencil.
-       2) If the field entry stencil access is of type ``XORY1D`` then add an integer direction argument with intent ``in``.
+       1) If the field entry has a stencil access then add an integer
+          stencil-size argument with intent ``in``. This will supply
+          the number of cells in the stencil.
+       2) If the field entry stencil access is of type ``XORY1D`` then
+          add an integer direction argument with intent ``in``.
 
-    3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
-    4) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+    3) if the current entry is a field vector then for each dimension
+       of the vector, include a field array. The field array name is
+       specified as being using
+       ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A
+       field array in a field vector is declared in the same way as a
+       field array (described in the previous step).
+    4) if the current entry is an operator then first include a
+       dimension size. This is an integer. The name of this size is
+       ``<operator_name>"_ncell_3d"``. Next include the operator. This
+       is a real array of type ``r_def`` and is 3 dimensional. The
+       first two dimensions are the local degrees of freedom for the
+       ``to`` and ``from`` function spaces respectively. The third
+       dimension is the dimension size mentioned before. The name of
+       the operator is ``"op_"<argument_position>``. Again the intent
+       is determined from the metadata (see
+       :ref:`dynamo0.3-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
@@ -1249,6 +1292,57 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
 
        2) If it is a scalar argument include the corresponding Fortran
 	  variable in the argument list with intent ``in``.
+
+Rules for Inter-Grid Kernels
+############################
+
+As already specified, inter-grid kernels are only permitted to take
+fields and/or field-vectors as arguments. Fields (and field-vectors)
+that are on different meshes must be on different function
+spaces. Fields on the same mesh must also be on the same function
+space.
+
+Argument ordering follows the general pattern used for 'normal'
+kernels with field data being followed by dofmap data. The rules for
+arguments to inter-grid kernels are as follows:
+
+    1) Include ``nlayers``, the number of layers in a column. ``nlayers``
+       is an integer and has intent ``in``.
+    2) Include the ``cell_map`` for the current cell (column). This is
+       an integer array of rank one and intent ``in`` which provides
+       the mapping from the coarse to the fine mesh. It has extent
+       `ncell_f_per_c`.
+    3) Include ``ncell_f_per_c``, the number of fine cells per coarse cell.
+       This is an integer and has intent ``in``.
+    4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
+       This is an integer and has intent ``in``.
+    5) For each argument in the ``meta_args`` meta-data array (which must be
+       a field or field-vector):
+
+       1) Pass in field data as done for a regular kernel.
+
+    6) For each unique function space (of which there will currently be two)
+       in the order in which they are encountered in the ``meta_args``
+       meta-data array, include dofmap information:
+
+       If the dofmap is associated with an argument on the fine mesh:
+
+       1) Include ``ndf_fine``, the number of DoFs per cell for the FS of
+	  the field on the fine mesh.
+       2) Include ``undf_fine``, the number of unique DoFs per cell for the FS
+	  of the field on the fine mesh.
+       3) Include ``dofmap_fine``, the *whole* dofmap for the fine mesh. This
+	  is an integer array of rank two with intent ``in``. The extent of
+	  the first dimension is ``ndf_fine`` and that of the second is
+	  ``ncell_f``.
+
+       else, the dofmap is associated with an argument on the coarse mesh:
+
+       1) Include ``undf_coarse``, the number of unique DoFs
+	  for the coarse field. This is an integer with intent ``in``.
+       2) Include ``dofmap_coarse``, the dofmap for the current cell (column)
+	  in the coarse mesh. This is an integer array of rank one and has
+	  intent ``in``.
 
 .. _dynamo_built-ins:
 
