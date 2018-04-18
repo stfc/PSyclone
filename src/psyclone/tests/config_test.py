@@ -76,7 +76,6 @@ def test_factory_create():
 def test_missing_file(tmpdir):
     ''' Check that we get the expected error when the specified
     config file cannot be found '''
-    from psyclone.configuration import Config
     with pytest.raises(ConfigurationError) as err:
         _ = Config(config_file=os.path.join(str(tmpdir),
                                             "not_a_file.cfg")).create()
@@ -128,7 +127,6 @@ def test_list_no_commas():
     ''' Check that we parse a space-delimited list OK. '''
     import re
     import tempfile
-    from psyclone.configuration import Config
     # Remove the commas from the list of supported APIs
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
                      "SUPPORTEDAPIS = dynamo0.3  gocean1.0",
@@ -143,23 +141,43 @@ def test_list_no_commas():
         assert _config.supported_apis == ["dynamo0.3", "gocean1.0"]
 
 
-def test_default_not_in_list():
+def test_default_api_not_in_list():
     ''' Check that we raise an error if the default API is not in
     the list of supported APIs '''
     import re
     import tempfile
-    from psyclone.configuration import ConfigFactory
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
                      "SUPPORTEDAPIS = gocean1.0",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    new_cfg = tempfile.NamedTemporaryFile(delete=False)
-    new_name = new_cfg.name
-    new_cfg.write(content)
-    new_cfg.close()
+    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
 
-    with pytest.raises(ConfigurationError) as err:
-        _ = ConfigFactory(config_file=new_name).create()
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
 
-    assert ("The default API (dynamo0.3) is not in the list of supported "
-            "APIs" in str(err))
+        assert ("The default API (dynamo0.3) is not in the list of "
+                "supported APIs" in str(err))
+
+
+def test_default_stubapi_not_in_list():
+    ''' Check that we raise an error if the default stub API is not in
+    the list of supported stub APIs '''
+    import re
+    import tempfile
+    content = re.sub(r"^SUPPORTEDSTUBAPIS = .*$",
+                     "SUPPORTEDSTUBAPIS = gocean1.0",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
+
+        assert ("The default stub API (dynamo0.3) is not in the list of "
+                "supported stub APIs" in str(err))

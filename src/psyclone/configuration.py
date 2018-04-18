@@ -160,11 +160,14 @@ class Config(object):
         if "," in api_list:
             # Comma delimited
             self._supported_stub_api_list = [
-                str(item.strip()) for item in api_list.split(",")]
+                str(item.strip()) for item in api_list.split(",")
+                if item.strip() != '']
         else:
             # Space delimited
             self._supported_stub_api_list = [
-                str(item.strip()) for item in api_list.split(" ")]
+                str(item.strip()) for item in api_list.split(" ")
+                if item.strip() != '']
+
         # Sanity check
         if self._default_stub_api not in self._supported_stub_api_list:
             raise ConfigurationError(
