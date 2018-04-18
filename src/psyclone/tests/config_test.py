@@ -38,6 +38,7 @@ Module containing tests relating to PSyclone configuration handling.
 '''
 
 import os
+import re
 import pytest
 from psyclone.configuration import ConfigurationError, Config
 
@@ -125,7 +126,6 @@ def test_read_values():
 
 def test_list_no_commas():
     ''' Check that we parse a space-delimited list OK. '''
-    import re
     import tempfile
     # Remove the commas from the list of supported APIs
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
@@ -144,7 +144,6 @@ def test_list_no_commas():
 def test_default_api_not_in_list():
     ''' Check that we raise an error if the default API is not in
     the list of supported APIs '''
-    import re
     import tempfile
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
                      "SUPPORTEDAPIS = gocean1.0",
@@ -165,7 +164,6 @@ def test_default_api_not_in_list():
 def test_default_stubapi_not_in_list():
     ''' Check that we raise an error if the default stub API is not in
     the list of supported stub APIs '''
-    import re
     import tempfile
     content = re.sub(r"^SUPPORTEDSTUBAPIS = .*$",
                      "SUPPORTEDSTUBAPIS = gocean1.0",
@@ -181,3 +179,23 @@ def test_default_stubapi_not_in_list():
 
         assert ("The default stub API (dynamo0.3) is not in the list of "
                 "supported stub APIs" in str(err))
+
+
+def test_dm_not_bool():
+    ''' Check that we catch cases where we expect a boolean in the config
+    file but don't get one '''
+    import tempfile
+    content = re.sub(r"^DISTRIBUTED_MEMORY = .*$",
+                     "DISTRIBUTED_MEMORY = wrong",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
+
+        assert "configuration error (file=" in str(err)
+        assert ": error while parsing file: Not a boolean: wrong" in str(err)
