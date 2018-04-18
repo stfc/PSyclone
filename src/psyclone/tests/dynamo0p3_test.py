@@ -712,17 +712,17 @@ def test_field_deref():
             "      TYPE(field_type), intent(in) :: est_f2, m1, est_m2\n"
             "      INTEGER cell\n"
             "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, "
-            "undf_w3\n")
+            "undf_w3\n"
+            "      INTEGER nlayers\n"
+            "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
+            "est_m2_proxy\n"
+            "      INTEGER, pointer :: map_w2(:,:) => null(), "
+            "map_w3(:,:) => null(), map_w1(:,:) => null()\n")
         assert output in generated_code
         if dist_mem:
             output = "      TYPE(mesh_type), pointer :: mesh => null()\n"
             assert output in generated_code
         output = (
-            "      INTEGER nlayers\n"
-            "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
-            "est_m2_proxy\n"
-            "      INTEGER, pointer :: map_w2(:,:) => null(), "
-            "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
@@ -750,7 +750,9 @@ def test_field_deref():
             "      map_w2 => est_f2_proxy%vspace%get_whole_dofmap()\n"
             "      map_w3 => est_m2_proxy%vspace%get_whole_dofmap()\n"
             "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
-            "      !\n"
+            "      !\n")
+        assert output in generated_code
+        output = (
             "      ! Initialise number of DoFs for w1\n"
             "      !\n"
             "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
@@ -841,7 +843,6 @@ def test_field_fs(tmpdir, f90, f90flags):
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, undf_w0, "
         "ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, "
         "ndf_w2v, undf_w2v, ndf_any_w2, undf_any_w2\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy, m4_proxy\n"
@@ -850,6 +851,7 @@ def test_field_fs(tmpdir, f90, f90flags):
         "map_w1(:,:) => null(), map_any_w2(:,:) => null(), "
         "map_wtheta(:,:) => null(), map_w2v(:,:) => null(), "
         "map_w2h(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -991,11 +993,11 @@ def test_real_scalar():
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -1074,11 +1076,11 @@ def test_int_scalar():
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -1158,11 +1160,11 @@ def test_two_real_scalars():
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -1241,11 +1243,11 @@ def test_two_int_scalars():
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -1332,11 +1334,11 @@ def test_two_scalars():
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
         "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      !\n"
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
@@ -1531,12 +1533,12 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
         "weights_z_qr(:) => null()\n"
         "      INTEGER np_xy_qr, np_z_qr\n"
         "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w0(:,:) => null()\n")
+        "      INTEGER, pointer :: map_w0(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert decl_output in generated_code
     output = (
         "      !\n"
@@ -6332,7 +6334,8 @@ def test_argordering_exceptions():
         kernel = loop.children[0]
         from psyclone.dynamo0p3 import ArgOrdering
         create_arg_list = ArgOrdering(kernel)
-        for method in [create_arg_list.cell_position,
+        for method in [create_arg_list.cell_map,
+                       create_arg_list.cell_position,
                        create_arg_list.mesh_height,
                        create_arg_list.mesh_ncell2d,
                        create_arg_list.quad_rule]:

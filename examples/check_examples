@@ -103,6 +103,11 @@ ${PSYCLONE} advective_inc_alg_mod.x90
 ${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 cd -
 
+echo "Running example dynamo/eg10"
+cd dynamo/eg10
+${PSYCLONE} intergrid_3levels.x90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py

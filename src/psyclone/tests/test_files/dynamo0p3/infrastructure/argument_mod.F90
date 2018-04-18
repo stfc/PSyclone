@@ -9,7 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology
+! Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -108,11 +109,16 @@ module argument_mod
   integer, public, parameter :: EVALUATOR           = 507
   integer, public, parameter :: GH_EVALUATOR        = 508
 
+  ! For inter-grid kernels
+  integer, public, parameter :: GH_FINE = 701
+  integer, public, parameter :: GH_COARSE = 702
+
   type, public :: arg_type
      integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
      integer :: arg_intent       ! {GH_READ, GH_WRITE, GH_READWRITE, GH_INC, GH_SUM, GH_MIN, GH_MAX}
      integer :: wspace      = -1 ! {W0, W1, W2, W3, ANY_SPACE_[0-9]+}
      integer :: from_wspace = -1 ! { " } only required for gh_operator
+     integer :: mesh_arg    = -1 ! {GH_COARSE, GH_FINE} only for inter-grid kernels
   end type arg_type
 
   type, public :: func_type
@@ -123,4 +129,3 @@ module argument_mod
   end type func_type
 
 end module argument_mod
-
