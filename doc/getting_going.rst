@@ -312,7 +312,7 @@ Configuration
 
 Various aspects of PSyclone are configured through a config file,
 ``psyclone.cfg``. The default version of this file is installed during
-the installation process. If user performing the installation has
+the installation process. If the user performing the installation has
 write access to ``/etc`` then the config file is installed to
 ``/etc/psyclone.cfg``, otherwise it is installed to
 ``$HOME/.psyclone/psyclone.cfg``.
