@@ -128,68 +128,78 @@ class Config(object):
         # The call to the 'read' method above populates a dictionary.
         # All of the entries in that dict are unicode strings so here
         # we pull out the values we want and deal with any type
-        # conversion. We protect this with a try block so as to catch
-        # any conversion errors due to incorrect entries in the config
-        # file.
+        # conversion. We protect each of these with a try block so as
+        # to catch any conversion errors due to incorrect entries in
+        # the config file.
         try:
             self._distributed_mem =  self._config['DEFAULT'].getboolean(
                 'DISTRIBUTED_MEMORY')
+        except ValueError as err:
+            raise ConfigurationError(
+                "error while parsing DISTRIBUTED_MEMORY: {0}".
+                format(err.message), config=self)
 
-            self._default_api = self._config['DEFAULT']['DEFAULTAPI']
+        self._default_api = self._config['DEFAULT']['DEFAULTAPI']
 
-            api_list = self._config['DEFAULT']['SUPPORTEDAPIS']
-            if "," in api_list:
-                # Comma delimited
-                self._supported_api_list = [
-                    str(item.strip()) for item in api_list.split(",")
-                    if item.strip() != '']
-            else:
-                # Space delimited
-                self._supported_api_list = [
-                    str(item.strip()) for item in api_list.split(" ")
-                    if item.strip() != '']
+        api_list = self._config['DEFAULT']['SUPPORTEDAPIS']
+        if "," in api_list:
+            # Comma delimited
+            self._supported_api_list = [
+                str(item.strip()) for item in api_list.split(",")
+                if item.strip() != '']
+        else:
+            # Space delimited
+            self._supported_api_list = [
+                str(item.strip()) for item in api_list.split(" ")
+                if item.strip() != '']
 
-            # Sanity check
-            if self._default_api not in self._supported_api_list:
-                raise ConfigurationError(
-                    "The default API ({0}) is not in the list of supported "
-                    "APIs ({1}).".format(self._default_api,
-                                         self._supported_api_list),
-                    config=self)
+        # Sanity check
+        if self._default_api not in self._supported_api_list:
+            raise ConfigurationError(
+                "The default API ({0}) is not in the list of supported "
+                "APIs ({1}).".format(self._default_api,
+                                     self._supported_api_list),
+                config=self)
 
-            self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
+        self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
-            api_list = self._config['DEFAULT']['SUPPORTEDSTUBAPIS']
-            if "," in api_list:
-                # Comma delimited
-                self._supported_stub_api_list = [
-                    str(item.strip()) for item in api_list.split(",")
-                    if item.strip() != '']
-            else:
-                # Space delimited
-                self._supported_stub_api_list = [
-                    str(item.strip()) for item in api_list.split(" ")
-                    if item.strip() != '']
+        api_list = self._config['DEFAULT']['SUPPORTEDSTUBAPIS']
+        if "," in api_list:
+            # Comma delimited
+            self._supported_stub_api_list = [
+                str(item.strip()) for item in api_list.split(",")
+                if item.strip() != '']
+        else:
+            # Space delimited
+            self._supported_stub_api_list = [
+                str(item.strip()) for item in api_list.split(" ")
+                if item.strip() != '']
 
-            # Sanity check
-            if self._default_stub_api not in self._supported_stub_api_list:
-                raise ConfigurationError(
-                    "The default stub API ({0}) is not in the list of "
-                    "supported stub APIs ({1}).".format(
-                        self._default_stub_api,
-                        self._supported_stub_api_list),
-                    config=self)
+        # Sanity check
+        if self._default_stub_api not in self._supported_stub_api_list:
+            raise ConfigurationError(
+                "The default stub API ({0}) is not in the list of "
+                "supported stub APIs ({1}).".format(
+                    self._default_stub_api,
+                    self._supported_stub_api_list),
+                config=self)
 
+        try:
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
+        except ValueError as err:
+            raise ConfigurationError(
+                "error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
+                format(err.message), config=self)
+
+        try:
             self._reprod_pad_size = self._config['DEFAULT'].getint(
                 'REPROD_PAD_SIZE')
-
         except ValueError as err:
-            # There's a problem with the contents of the provided file
             raise ConfigurationError(
-                "error while parsing file: {0}".format(err.message),
+                "error while parsing REPROD_PAD_SIZE: {0}".format(err.message),
                 config=self)
+
 
     @staticmethod
     def find_file(name=None):

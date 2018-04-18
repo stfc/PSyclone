@@ -39,6 +39,7 @@ Module containing tests relating to PSyclone configuration handling.
 
 import os
 import re
+import tempfile
 import pytest
 from psyclone.configuration import ConfigurationError, Config
 
@@ -47,6 +48,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 
+# Valid configuration file content that we will manipulate for
+# different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
 SUPPORTEDAPIS = gunghoproto, dynamo0.1, dynamo0.3, gocean0.1, gocean1.0
@@ -57,6 +60,22 @@ DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 '''
+
+# Parameterised fixture that will cause a test that has it as an
+# argument to be run for each boolean member of the configuration file
+@pytest.fixture(scope="module",
+                params=["DISTRIBUTED_MEMORY",
+                        "REPRODUCIBLE_REDUCTIONS"])
+def bool_entry(request):
+    return request.param
+
+
+# Fixture for integer members of the configuration file
+@pytest.fixture(scope="module",
+                params=["REPROD_PAD_SIZE"])
+def int_entry(request):
+    return request.param
+
 
 def test_factory_create():
     '''
@@ -126,7 +145,6 @@ def test_read_values():
 
 def test_list_no_commas():
     ''' Check that we parse a space-delimited list OK. '''
-    import tempfile
     # Remove the commas from the list of supported APIs
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
                      "SUPPORTEDAPIS = dynamo0.3  gocean1.0",
@@ -144,7 +162,6 @@ def test_list_no_commas():
 def test_default_api_not_in_list():
     ''' Check that we raise an error if the default API is not in
     the list of supported APIs '''
-    import tempfile
     content = re.sub(r"^SUPPORTEDAPIS = .*$",
                      "SUPPORTEDAPIS = gocean1.0",
                      _CONFIG_CONTENT,
@@ -164,7 +181,6 @@ def test_default_api_not_in_list():
 def test_default_stubapi_not_in_list():
     ''' Check that we raise an error if the default stub API is not in
     the list of supported stub APIs '''
-    import tempfile
     content = re.sub(r"^SUPPORTEDSTUBAPIS = .*$",
                      "SUPPORTEDSTUBAPIS = gocean1.0",
                      _CONFIG_CONTENT,
@@ -181,12 +197,11 @@ def test_default_stubapi_not_in_list():
                 "supported stub APIs" in str(err))
 
 
-def test_dm_not_bool():
+def test_not_bool(bool_entry):
     ''' Check that we catch cases where we expect a boolean in the config
-    file but don't get one '''
-    import tempfile
-    content = re.sub(r"^DISTRIBUTED_MEMORY = .*$",
-                     "DISTRIBUTED_MEMORY = wrong",
+    file but don't get one. '''
+    content = re.sub(r"^{0} = .*$".format(bool_entry),
+                     "{0} = wrong".format(bool_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
@@ -198,4 +213,25 @@ def test_dm_not_bool():
             _ = Config(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
-        assert ": error while parsing file: Not a boolean: wrong" in str(err)
+        assert (": error while parsing {0}: Not a boolean: "
+                "wrong".format(bool_entry) in str(err))
+
+
+def test_not_int(int_entry):
+    ''' Check that we catch cases where we expect an integer in the config
+    file but don't get one. '''
+    content = re.sub(r"^{0} = .*$".format(int_entry),
+                     "{0} = wrong".format(int_entry),
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
+
+        assert "configuration error (file=" in str(err)
+        assert (": error while parsing {0}: invalid literal".format(int_entry)
+                in str(err))
