@@ -5889,3 +5889,52 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print "OK for iteration ", idx
+
+
+def test_intergrid_rejected():
+    ''' Check that any attempt to apply a transformation that affects
+    an inter-grid kernel is rejected. (Obviously this can be removed
+    once transformations with inter-grid kernels are supported.) '''
+
+    expected_err = (
+        "cannot currently be applied to nodes which have inter-grid "
+        "kernels as children and ")
+
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # To a prolong kernel
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[1], depth=2)
+    assert expected_err in str(excinfo)
+
+    ctrans = Dynamo0p3ColourTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ctrans.apply(schedule.children[4])
+    assert expected_err in str(excinfo)
+
+    # To a restrict kernel
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[4], depth=2)
+    assert expected_err in str(excinfo)
+
+    omplooptrans = Dynamo0p3OMPLoopTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        omplooptrans.apply(schedule.children[1])
+    assert expected_err in str(excinfo)
+
+    ompparatrans = DynamoOMPParallelLoopTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ompparatrans.apply(schedule.children[1])
+    assert expected_err in str(excinfo)
+
+    lftrans = DynamoLoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        lftrans.apply(schedule.children[1], schedule.children[2])
+    assert expected_err in str(excinfo)
