@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -97,6 +98,7 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
 SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
                        "Loop": "white",
+                       "Extract": "brown",
                        "GlobalSum": "cyan",
                        "Directive": "green",
                        "HaloExchange": "blue",
@@ -2080,6 +2082,48 @@ class Loop(Node):
             my_decl = DeclGen(parent, datatype="integer",
                               entity_decls=[self._variable_name])
             parent.add(my_decl)
+
+
+class Extract(Node):
+
+    def __str__(self):
+        return self._name
+
+    def __init__(self, alg_i):
+        '''
+        Constructs an extract object
+        '''
+        self._name = "extract"
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this Extract node to stdout.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print self.indent(indent) + self.coloured_text
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns a string containing the name of this node along with
+        control characters for colouring in terminals that support it.
+
+        :return: The name of this node, possibly with control codes for
+                 colouring
+        :rtype: string
+        '''
+        return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
+
+    @property
+    def dag_name(self):
+        ''' Return the base dag name for this Extract node '''
+        return "extract_" + str(self.abs_position)
 
 
 class Call(Node):

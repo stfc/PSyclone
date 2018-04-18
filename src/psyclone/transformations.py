@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 ''' This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
@@ -1253,6 +1254,135 @@ class MoveTrans(Transformation):
             schedule.children.insert(location_index+1, my_node)
 
         return schedule, keep
+
+
+class ExtractTrans(Transformation):
+    ''' Provides a transformation to extract code contained within one
+    or more nodes in the tree.
+
+    Nodes to extract can be individual constructs within an invoke
+    (e.g. a loop) or entire invokes. For now, this functionality
+    does not include distributed memory (HaloExchange).
+
+    '''
+
+    def __str__(self):
+        return "Extract code within one or more nodes in the tree."
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string.'''
+        return "Extract"
+
+    def _validate(self, node_list):
+        '''Perform validation checks before applying the transformation
+
+        :param node: the node we are checking
+        :type node: list of :py:class:`psyclone.psyGen.Node`
+        :raises TransformationError: if distributed memory is configured
+        :raises TransformationError: if the node is a
+        :py:class:`psyclone.psyGen.HaloExchange`
+
+        '''
+
+        # Check that we do not extract parallel code
+        if psyclone.config.DISTRIBUTED_MEMORY:
+            raise TransformationError("Extract transformation does not "
+                                      "currently support distributed memory")
+
+        # Check that the supplied node is not a HaloExchange
+        from psyclone.psyGen import HaloExchange
+        for node in node_list:
+            if isinstance(node, HaloExchange):
+                raise TransformationError(
+                    "Extract transformation does not "
+                    "currently support HaloExchange ")
+
+
+    def apply(self, nodes):
+        ''' Extract the nodes represented by :py:obj:`node`. Exceptions
+        are raised if distributed memory is enabled or tranformation
+        tries to extract HaloExchange'''
+
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
+        # list containing just that node.
+        from psyclone.psyGen import Node
+        if isinstance(nodes, list) and isinstance(nodes[0], Node):
+            node_list = nodes
+        elif isinstance(nodes, Node):
+            node_list = [nodes]
+        else:
+            arg_type = str(type(nodes))
+            raise TransformationError("Error in Extract transformation. "
+                                      "Argument must be a single Node in a "
+                                      "schedule or a list of Nodes in a "
+                                      "schedule but have been passed an "
+                                      "object of type: {0}".
+                                      format(arg_type))
+
+        # Validate tranformation
+        self._validate(node_list)
+
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within an extract region. Also keep the index of
+        # the first and the last child to be enclosed
+        first_node = node_list[0]
+        node_parent = first_node.parent
+        first_node_position = first_node.position
+        last_node = node_list[-1]
+        last_node_position = last_node.position
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        schedule = first_node.root
+
+        # Create a memento of the schedule and the proposed
+        # transformation
+        from .undoredo import Memento
+        keep = Memento(schedule, self, [node, location])
+
+        # keep a reference to the node's original parent and its index
+        parent = node.parent
+        node_position = node.position
+
+        my_node = parent.children.pop(node.position)
+
+        location_index = location.position
+        # Insert Extract transformation before
+            schedule.children.insert(location_index, my_node)
+        else:
+            schedule.children.insert(location_index+1, my_node)
+
+        return schedule, keep
+
+
+    ###def apply(self, node, location, position="before"):
+        ###'''Move the node represented by :py:obj:`node` before location
+        ###:py:obj:`location` (which is also a node) by default and after
+        ###if the optional `position` argument is set to 'after'. An
+        ###exception is raised if the move is invalid.'''
+        #### pylint:disable=arguments-differ
+
+        ###self._validate(node, location, position)
+
+        ###schedule = node.root
+
+        #### create a memento of the schedule and the proposed transformation
+        ###from .undoredo import Memento
+        ###keep = Memento(schedule, self, [node, location])
+
+        ###parent = node.parent
+
+        ###my_node = parent.children.pop(node.position)
+
+        ###location_index = location.position
+        ###if position == "before":
+            ###schedule.children.insert(location_index, my_node)
+        ###else:
+            ###schedule.children.insert(location_index+1, my_node)
+
+        ###return schedule, keep
 
 
 class Dynamo0p3RedundantComputationTrans(Transformation):
