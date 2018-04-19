@@ -1,5 +1,10 @@
-Developers guide
+Developers' guide
 ****************
+
+New API's
+#########
+
+TBD
 
 .. Generating API-specific code
 .. ============================
@@ -142,13 +147,16 @@ Developers guide
 .. return this position. Therefore supports an arbitrary number of loops
 .. and directives.
 
-Dynamo0p3
+Existing API's
+##############
+
+Dynamo0.3
 =========
 
 Mesh
 ----
 
-The dynamo0.3 api support meshes that are unstructured in the
+The Dynamo0.3 API supports meshes that are unstructured in the
 horizontal and structured in the vertical. This is often thought of as
 a horizontal 2D unstructured mesh which is extruded into the
 vertical. The LFRic infrastructure represents this mesh as a list of
@@ -159,14 +167,13 @@ Cells
 -----
 
 The dynamo0.3 api currently assumes that all kernels which support
-iterating over cells work internally on a column of
-cells. This means that PSyclone need only be concerned with iterating
-over cell-columns in the horizontal. As a result the LFRic
-infrastructure presents the mesh information to PSyclone as if the
-mesh were 2-dimensional. From now on this 2D view will be assumed
-i.e. a cell will actually be a column on cells. The LFRic
-infrastracture provides a global 2D cell number from 1 to the number
-of cells.
+iterating over cells work internally on a column of cells. This means
+that PSyclone need only be concerned with iterating over cell-columns
+in the horizontal. As a result the LFRic infrastructure presents the
+mesh information to PSyclone as if the mesh were 2-dimensional. From
+now on this 2D view will be assumed i.e. a cell will actually be a
+column of cells. The LFRic infrastracture provides a global 2D cell
+number from 1 to the number of cells.
 
 For example, a simple quadrilateral element mesh with 4 cells might be
 numbered in the following way.
@@ -184,9 +191,9 @@ partition, including any halo cells.
 
 An example for a depth-1 halo implementation with the earlier mesh
 split into 2 partitions is given below, with the halo cells being
-coloured red for clarity. An example local numbering is also provided
-below the cells. Notice the local numbering ensures that owned cells
-have lower numbers than halo cells.
+coloured red for clarity. An example local numbering scheme is also
+provided below the cells. Notice the local numbering is set-up such
+that owned cells have lower numbers than halo cells.
 
 .. image:: cells_distributed.png
 	   :width: 200
@@ -194,52 +201,52 @@ have lower numbers than halo cells.
 Dofs
 ----
 
-The LFRic infrastracture provides a global degrees-of-freedom (dof)
-number from 1 to the number of dofs. The infrastructure also numbers
-dofs so that the values in a column are contiguous and their values
-increase in the vertical.  Thus, given the dof numbers for the
-"bottom" cell, the rest of the dof numbers can be determined for the
-column. This set of dof numbers for the bottom cell is called a
+In the LFRic infrastracture provides the degrees-of-freedom (dofs) are
+indexed from 1 to the total number of dofs. The infrastructure also
+indexes dofs so that the values in a column are contiguous and their
+values increase in the vertical. Thus, given the dof indices for the
+"bottom" cell, the rest of the dof indices can be determined for the
+column. This set of dof indices for the bottom cell is called a
 dofmap.
 
-Dofs represent fields in the mesh. Fields can either be continuous or
-discontinuous. Continuous fields have values that are coordinated
-between neighbouring cells (there are no discontinuities across cell
-boundaries). Dofs that represent continuous fields a shared between
-neighbouring cells. Discontinuous fields have values that are not
-necessarily related between neighbouring cells (there can be
-discontinuities between across cell boundaries). Dofs that represent
-discontinuous fields are local to a cell.
+Dofs represent a fields values in the mesh. Fields can either be
+continuous or discontinuous. Continuous fields are so named because
+their values are continuous across cell boundaries. Dofs that
+represent continuous fields are shared between neighbouring
+cells. Discontinuous fields have values that are not necessarily
+related between neighbouring cells (there can be discontinuities
+between across cell boundaries). Dofs that represent discontinuous
+fields are local to a cell.
 
 Discontinuous Dofs
 ------------------
 
-A simple discontinuous dof example is given below. In this case each
-cell contains 1 dof and there are 10 cells in a column. We only show
-the bottom cells and their corresponding dof values. As explained
-earlier the dof numbers increase up the column contigiously, so the
-dof numbered 1 has a dof in the cell above it with value 2, the cell
-above that has a dof with value 3 etc.
+A simple example of discontinuous dofs is given below. In this case
+each cell contains 1 dof and there are 10 cells in a column. We only
+show the bottom cells and their corresponding dof indices. As
+explained earlier, the dof indices increase contiguously up the
+column, so the cell above the cell containing dof index 1 contains dof
+index 2 and the cell above that contains dof index 3 etc.
 
 .. image:: dofs_disc_global.png
 	   :width: 120
 
 As discussed in the previous section, when the distributed memory
-option is switched on in the dynamo0.3 api (see the
+option is switched on in the Dynamo0.3 API (see the
 :ref:`distributed_memory` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
 results in the dofs being replicated in the halo cells, resulting in a
 dof halo. As for cells, the LFRic infrastructure maintains the global
-dof number and adds a unique local dof number from 1 to the number of
-cells in each partition, including any halo dofs.
+dof indexing scheme and adds a local dof indexing scheme from 1 to the
+number of dofs in each partition, including any halo dofs.
 
 An example for a depth-1 halo implementation with the earlier mesh
-split into 2 partitions is given below, with the halo cells being
-drawn in grey and halo dofs being coloured red for clarity. An example
-local partition numbering is also provided below the dofs. As with
-cells, notice the local numbering ensures that owned dofs have lower
-numbers than halo dofs.
+split into 2 partitions is given below, with the halo cells drawn in
+grey and halo dofs coloured red. An example local partition indexing
+scheme is also provided below the dofs. As with cells, notice the
+local indexing scheme ensures that owned dofs have lower indices than
+halo dofs.
 
 .. image:: dofs_disc_distributed.png
 	   :width: 200
@@ -250,21 +257,20 @@ Continuous Dofs
 A simple continuous dof example is given below for the same mesh as
 before. In this case dofs are on cell edges in the horizontal and
 there are 10 cells in a column. Again we only show the bottom cells
-and their corresponding dof values. As explained earlier the dof
-numbers increase up the column contigiously, so the dof numbered 1 has
-a dof in the cell above it with value 2, the cell above that has a dof
-with value 3 etc.
+and their corresponding dof indices. As explained earlier, the dof
+indices increase contiguously up the column, so the cell above the
+cell containing dof index 1 contains dof index 2 and the cell above
+that contains dof index 3 etc.
 
 .. image:: dofs_cont_global.png
 	   :width: 140
 
-As already explained, when the distributed memory
-option is switched on in the dynamo0.3 api (see the
-:ref:`distributed_memory` Section) the cells in the model are
-partitioned amongst processors and halo cells are added at the
-boundaries to a depth determined by the LFRic infrastructure.
+As already explained, when the distributed memory option is switched
+on in the dynamo0.3 api (see the :ref:`distributed_memory` Section)
+the cells in the model are partitioned amongst processors and halo
+cells are added at the boundaries.
 
-In the example below we ignore the adding of halo cells and just look
+In the example below we ignore the additional halo cells and just look
 at the partitioning of cells amongst processors (with the same mesh
 and 2 partitions as shown earlier). It can be seen that the dofs
 shared between cells which are on different partitions now need to be
@@ -275,27 +281,31 @@ partitioned has meant that continuous dofs on the edge of the
 partition are replicated. The convention used in dynamo0.3 is that the
 cell with the lowest global id determines which partition owns the
 dofs and which has a copy. Dofs which are copies are called
-annexed. Annexed dofs are denoted by blue in the example.
+annexed. Annexed dofs are coloured blue in the example:
 
 .. image:: dofs_cont_annexed.png
 	   :width: 160
 
-An example for a depth-1 halo implementation with the earlier mesh
-split into 2 partitions is given below, with the halo cells being
-drawn in grey and halo dofs being coloured red for clarity. An example
-local partition numbering is also provided below the dofs. Notice the
-local numbering ensures that owned dofs have lower numbers than annexed
-dofs, which in turn have lower numbers than halo dofs.
+If we now extend the above example to include the halo cells (coloured
+grey) then we get:
 
 .. image:: dofs_cont_halos.png
 	   :width: 230
+		   
+An example for a depth-1 halo implementation with the earlier mesh
+split into 2 partitions is given below, with the halo cells drawn in
+grey and halo dofs coloured red. An example local indexing scheme is
+also provided below the dofs. Notice the local indexing scheme ensures
+that owned dofs have lower indices than annexed dofs, which in turn
+have lower indices than halo dofs.
+
 
 Cell and Dof Ordering
 ---------------------
 
 Cells in a partition are sequentially numbered by the LFRic
 infrastructure, starting at 1, so that local cells occur first, then
-level1 halo cells, then level2 halo cells etc. A benefit of this
+level-1 halo cells, then level-2 halo cells etc. A benefit of this
 layout is that it makes it easy for PSyclone to specify the required
 iteration space for cells as a single range, allowing a single fortran
 do loop (or other language construct if required) to be generated. The
@@ -306,8 +316,8 @@ generation.
 
 Dofs on a processor are also sequentially numbered by the LFRic
 infrastructure, starting at 1, so that local dofs occur first, then
-annexed dofs (if the field is continuous), then level1 halo dofs, then
-level2 halo dofs etc. Again, a benefit of this layout makes it easy
+annexed dofs (if the field is continuous), then level-1 halo dofs, then
+level-2 halo dofs etc. Again, a benefit of this layout makes it easy
 for PSyclone to specify the required iteration space for dofs as a
 single range. As before the LFRic infrastructure provides an API that
 returns the number of the last owned dof, the number of the last
@@ -373,9 +383,9 @@ Cell iterators: Continuous
 
 When a kernel is written to iterate over cells and modify a continuous
 field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level 1 halo. Users can apply a redundant
+computes dofs in the level-1 halo. Users can apply a redundant
 computation transformation to increase the halo depth for additional
-redundant computation but it must always at least computed the level 1
+redundant computation but it must always at least computed the level-1
 halo. The reason for this is to ensure that the shared dofs on cells
 on the edge of the partition (both owned and annexed) are always
 correctly computed. Note that the outermost halo dofs are not
@@ -390,8 +400,8 @@ shared between processors in a communication pattern similar to halo
 exchanges, but a decision was made to always perform redundant
 computation.
 
-A downside of performing redundant computation in the level 1 halo is
-that any fields being read by the kernel must have their level 1 halo
+A downside of performing redundant computation in the level-1 halo is
+that any fields being read by the kernel must have their level-1 halo
 clean, which can result in halo exchanges. Note that this is not the
 case for the modified field, it does not need its halo to be clean,
 however, at the moment a halo exchange is added in this case. This
@@ -433,10 +443,10 @@ a previous invoke) then we have to assume that the annexed dofs might
 be dirty and therefore have to be updated.
 
 Currently, the only way to update annexed dofs is to perform a depth 1
-halo exchange. This halo exchange will update both level 1 halo dofs
+halo exchange. This halo exchange will update both level-1 halo dofs
 and annexed dofs. We therefore update more than we need to.
 
-Of course, if the continuous field with unknown status has its level 1
+Of course, if the continuous field with unknown status has its level-1
 halo clean due to previous redundant computation then no halo exchange
 will be performed. However, if the previous halo exchange has its
 annexed dofs clean but the halo dofs dirty then a halo exchange will
@@ -496,8 +506,8 @@ It is simple to determine where halo exchanges should be added for the
 initial schedule. There are two cases:
 
 1) loops that iterate over cells and modify a continuous field will
-access the level 1 halo. This means that any field that is read within
-such a loop must have its level 1 halo clean and therefore requires a
+access the level-1 halo. This means that any field that is read within
+such a loop must have its level-1 halo clean and therefore requires a
 halo exchange. Note, at the moment PSyclone adds a halo exchange for
 the modified field (as it is specified as GH_INC which requires a read
 before a write), however this is definitely not required if there is
@@ -606,11 +616,11 @@ loop) or add existing halo exchanges after a loop (as an increase in
 depth will only make it more likely that a halo exchange is no longer
 required after the loop).
 
-.. gocean
-.. ------
-.. 
-.. TBD
-.. 
+GOcean1.0
+=========
+
+TBD
+
 .. OpenMP Support
 .. --------------
 .. 
