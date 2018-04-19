@@ -73,12 +73,12 @@ def generate(filename, api=""):
         raise IOError("file '{0}' not found".format(filename))
 
     # drop cache
-    fparser.parsefortran.FortranParser.cache.clear()
+    fparser.one.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable('CRITICAL')
     try:
         ast = fparser.api.parse(filename, ignore_comments=False)
 
-    except (fparser.utils.AnalyzeError, AttributeError) as error:
+    except (fparser.common.utils.AnalyzeError, AttributeError) as error:
         raise ParseError("Code appears to be invalid Fortran: " +
                          str(error))
 
