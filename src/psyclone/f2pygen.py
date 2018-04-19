@@ -37,11 +37,17 @@
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 
-from fparser.statements import Comment
-from fparser.readfortran import FortranStringReader
-from fparser.sourceinfo import FortranFormat
-from fparser.block_statements import SelectCase, SelectType
-from fparser.statements import Case
+import fparser
+import fparser.one
+from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
+from fparser.one.statements import Comment
+from fparser.one.block_statements import SelectCase, SelectType, EndSelect
+from fparser.one.statements import Case
+# This alis is useful to refer to parts of fparser.one later but
+# cannot be used for imports (as that involves looking for the
+# specified name in sys.modules).
+from fparser import one as fparser1
 
 # Module-wide utility methods
 
@@ -184,7 +190,7 @@ class BaseGen(object):
     def previous_loop(self):
         ''' Returns the *last* occurence of a loop in the list of
         siblings of this node '''
-        from fparser.block_statements import Do
+        from fparser.one.block_statements import Do
         for sibling in reversed(self.root.content):
             if isinstance(sibling, Do):
                 return sibling
@@ -195,7 +201,7 @@ class BaseGen(object):
             siblings of this node
 
         '''
-        from fparser.typedecl_statements import TypeDeclarationStatement
+        from fparser.one.typedecl_statements import TypeDeclarationStatement
         for sibling in reversed(self.root.content):
             if isinstance(sibling, TypeDeclarationStatement):
                 return sibling
@@ -205,7 +211,7 @@ class BaseGen(object):
     def start_parent_loop(self, debug=False):
         ''' Searches for the outer-most loop containing this object. Returns
         the index of that line in the content of the parent. '''
-        from fparser.block_statements import Do
+        from fparser.one.block_statements import Do
         if debug:
             print "Entered before_parent_loop"
             print "The type of the current node is {0}".format(
@@ -318,7 +324,6 @@ class ProgUnitGen(BaseGen):
             # its parent to be this object
             content.root.parent = self.root
 
-        import fparser
         if position[0] != "auto":
             # position[0] is not 'auto' so the baseclass can deal with it
             BaseGen.add(self, content, position)
@@ -384,7 +389,7 @@ class ProgUnitGen(BaseGen):
                                 break
                 except AttributeError:
                     pass
-            elif isinstance(content.root, fparser.statements.Use):
+            elif isinstance(content.root, fparser1.statements.Use):
                 # have I already been declared?
                 for child in self._children:
                     if isinstance(child, UseGen):
@@ -430,29 +435,27 @@ class ProgUnitGen(BaseGen):
 
     def _skip_use_and_comments(self, index):
         ''' skip over any use statements and comments in the ast '''
-        import fparser
         while isinstance(self.root.content[index],
-                         fparser.statements.Use) or\
+                         fparser1.statements.Use) or\
             isinstance(self.root.content[index],
-                       fparser.statements.Comment):
+                       fparser1.statements.Comment):
             index += 1
         # now roll back to previous Use
         while isinstance(self.root.content[index-1],
-                         fparser.statements.Comment):
+                         fparser1.statements.Comment):
             index -= 1
         return index
 
     def _skip_imp_none_and_comments(self, index):
         ''' skip over an implicit none statement if it exists and any
         comments before it '''
-        import fparser
         end_index = index
         while isinstance(self.root.content[index],
-                         fparser.typedecl_statements.Implicit) or\
+                         fparser1.typedecl_statements.Implicit) or\
             isinstance(self.root.content[index],
-                       fparser.statements.Comment):
+                       fparser1.statements.Comment):
             if isinstance(self.root.content[index],
-                          fparser.typedecl_statements.Implicit):
+                          fparser1.typedecl_statements.Implicit):
                 end_index = index + 1
                 break
             else:
@@ -578,7 +581,7 @@ class ImplicitNoneGen(BaseGen):
         reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
 
-        from fparser.typedecl_statements import Implicit
+        from fparser.one.typedecl_statements import Implicit
         my_imp_none = Implicit(parent.root, subline)
 
         BaseGen.__init__(self, parent, my_imp_none)
@@ -602,7 +605,7 @@ class SubroutineGen(ProgUnitGen):
         subline = reader.next()
         endsubline = reader.next()
 
-        from fparser.block_statements import Subroutine, EndSubroutine
+        from fparser.one.block_statements import Subroutine, EndSubroutine
         self._sub = Subroutine(parent.root, subline)
         self._sub.name = name
         if args is None:
@@ -638,7 +641,7 @@ class CallGen(BaseGen):
         reader.set_format(FortranFormat(True, True))  # free form, strict
         myline = reader.next()
 
-        from fparser.block_statements import Call
+        from fparser.one.block_statements import Call
         self._call = Call(parent.root, myline)
         self._call.designator = name
         if args is None:
@@ -662,7 +665,7 @@ class UseGen(BaseGen):
         reader.set_format(FortranFormat(True, True))  # free form, strict
         myline = reader.next()
         root = parent.root
-        from fparser.block_statements import Use
+        from fparser.one.block_statements import Use
         use = Use(root, myline)
         use.name = name
         use.isonly = only
@@ -683,25 +686,23 @@ def adduse(name, parent, only=False, funcnames=None):
 
     :param str name: name of module to USE
     :param parent: node in fparser1 AST to which to add this USE as a child
-    :type parent: :py:class:`fparser.block_statements.*`
+    :type parent: :py:class:`fparser.one.block_statements.*`
     :param bool only: whether this USE has an "ONLY" clause
     :param list funcnames: list of quantities to follow the "ONLY" clause
 
     :returns: an fparser1 Use object
-    :rtype: :py:class:`fparser.block_statements.Use`
+    :rtype: :py:class:`fparser.one.block_statements.Use`
     '''
     reader = FortranStringReader("use kern,only : func1_kern=>func1")
     reader.set_format(FortranFormat(True, True))  # free form, strict
     myline = reader.next()
 
-    from fparser.block_statements import Use
     # find an appropriate place to add in our use statement
-    import fparser
-    while not (isinstance(parent, fparser.block_statements.Program) or
-               isinstance(parent, fparser.block_statements.Module) or
-               isinstance(parent, fparser.block_statements.Subroutine)):
+    while not (isinstance(parent, fparser1.block_statements.Program) or
+               isinstance(parent, fparser1.block_statements.Module) or
+               isinstance(parent, fparser1.block_statements.Subroutine)):
         parent = parent.parent
-    use = Use(parent, myline)
+    use = fparser1.block_statements.Use(parent, myline)
     use.name = name
     use.isonly = only
     if funcnames is None:
@@ -724,11 +725,10 @@ class AllocateGen(BaseGen):
 
         :raises RuntimeError: if `content` is not of correct type
         '''
-        from fparser.statements import Allocate
         reader = FortranStringReader("allocate(dummy)")
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
-        self._decl = Allocate(parent.root, myline)
+        self._decl = fparser1.statements.Allocate(parent.root, myline)
         if isinstance(content, str):
             self._decl.items = [content]
         elif isinstance(content, list):
@@ -751,11 +751,10 @@ class DeallocateGen(BaseGen):
 
         :raises RuntimeError: if `content` is not of correct type
         '''
-        from fparser.statements import Deallocate
         reader = FortranStringReader("deallocate(dummy)")
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
-        self._decl = Deallocate(parent.root, myline)
+        self._decl = fparser1.statements.Deallocate(parent.root, myline)
         if isinstance(content, str):
             self._decl.items = [content]
         elif isinstance(content, list):
@@ -793,17 +792,16 @@ class DeclGen(BaseGen):
                 "name(s) of the variable(s)")
         fort_fmt = FortranFormat(True, False)  # free form, strict
         if datatype.lower() == "integer":
-            from fparser.typedecl_statements import Integer
             reader = FortranStringReader("integer :: vanilla")
             reader.set_format(fort_fmt)
             myline = reader.next()
-            self._decl = Integer(parent.root, myline)
+            self._decl = fparser1.typedecl_statements.Integer(parent.root,
+                                                              myline)
         elif datatype.lower() == "real":
-            from fparser.typedecl_statements import Real
             reader = FortranStringReader("real :: vanilla")
             reader.set_format(fort_fmt)
             myline = reader.next()
-            self._decl = Real(parent.root, myline)
+            self._decl = fparser1.typedecl_statements.Real(parent.root, myline)
         else:
             raise RuntimeError(
                 "f2pygen:DeclGen:init: Only integer and real are currently"
@@ -860,8 +858,7 @@ class TypeDeclGen(BaseGen):
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
 
-        from fparser.typedecl_statements import Type
-        self._typedecl = Type(parent.root, myline)
+        self._typedecl = fparser1.typedecl_statements.Type(parent.root, myline)
         self._typedecl.selector = ('', datatype)
         self._typedecl.attrspec = my_attrspec
         self._typedecl.entity_decls = local_entity_decls
@@ -910,7 +907,6 @@ class SelectionGen(BaseGen):
         :param bool typeselect: whether or not this is a SELECT TYPE rather
                                 than a SELECT CASE
         '''
-        from fparser.block_statements import EndSelect
         self._typeselect = typeselect
         reader = FortranStringReader(
             "SELECT CASE (x)\nCASE (1)\nCASE DEFAULT\nEND SELECT")
@@ -967,12 +963,11 @@ class DoGen(BaseGen):
         reader.set_format(FortranFormat(True, True))  # free form, strict
         doline = reader.next()
         enddoline = reader.next()
-        from fparser.block_statements import Do, EndDo
-        dogen = Do(parent.root, doline)
+        dogen = fparser1.block_statements.Do(parent.root, doline)
         dogen.loopcontrol = variable_name + "=" + start + "," + end
         if step is not None:
             dogen.loopcontrol = dogen.loopcontrol + "," + step
-        enddo = EndDo(dogen, enddoline)
+        enddo = fparser1.block_statements.EndDo(dogen, enddoline)
         dogen.content.append(enddo)
 
         BaseGen.__init__(self, parent, dogen)
@@ -1017,10 +1012,9 @@ class IfThenGen(BaseGen):
         ifthenline = reader.next()
         endifline = reader.next()
 
-        from fparser.block_statements import IfThen, EndIfThen
-        my_if = IfThen(parent.root, ifthenline)
+        my_if = fparser1.block_statements.IfThen(parent.root, ifthenline)
         my_if.expr = clause
-        my_endif = EndIfThen(my_if, endifline)
+        my_endif = fparser1.block_statements.EndIfThen(my_if, endifline)
         my_if.content.append(my_endif)
 
         BaseGen.__init__(self, parent, my_if)
@@ -1062,11 +1056,10 @@ class AssignGen(BaseGen):
         reader.set_format(FortranFormat(True, True))  # free form, strict
         myline = reader.next()
         if pointer:
-            from fparser.statements import PointerAssignment
-            self._assign = PointerAssignment(parent.root, myline)
+            self._assign = fparser1.statements.PointerAssignment(parent.root,
+                                                                 myline)
         else:
-            from fparser.statements import Assignment
-            self._assign = Assignment(parent.root, myline)
+            self._assign = fparser1.statements.Assignment(parent.root, myline)
         self._assign.expr = rhs
         self._assign.variable = lhs
         BaseGen.__init__(self, parent, self._assign)

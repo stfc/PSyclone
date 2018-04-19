@@ -786,7 +786,7 @@ class DynKernMetadata(KernelType):
         # parse the func_type metadata if it exists
         found = False
         for line in self._ktype.content:
-            if isinstance(line, fparser.typedecl_statements.Type):
+            if isinstance(line, fparser.one.typedecl_statements.Type):
                 for entry in line.selector:
                     if entry == "func_type":
                         if line.entity_decls[0].split()[0].split("(")[0] == \
