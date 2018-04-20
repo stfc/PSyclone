@@ -4581,9 +4581,8 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     '''Test that a halo exchange is removed if redundant computation means
     that it is no longer required. Halo exchanges are not required in
     this example when we compute annexed dofs by default. Therefore we
-    revert to computing over dofs by default (via monkeypatch) to
-    perform the test.
-
+    revert to computing over owned dofs by default (via monkeypatch)
+    to perform the test.
     '''
     import psyclone.config
     monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
@@ -4591,8 +4590,6 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
         BASE_PATH, "14.7_halo_annexed.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
     result = str(psy.gen)
     assert "CALL f1_proxy%halo_exchange(depth=1)" in result
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result

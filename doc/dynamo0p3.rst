@@ -1872,28 +1872,26 @@ Configuration
 Annexed DoFs
 ++++++++++++
 
-[reference the developers section for more info]
-
 When a kernel iterates over dofs (rather than cells) for a continuous
 field using distributed memory (see the :ref:`distributed_memory`
-Section), the dynamo0.3 need only ensure that dofs owned by a
+Section), then PSyclone need only ensure that dofs owned by a
 processor are computed. However, for continuous fields, shared dofs at
 the boundary between processors must be replicated (as different cells
 share the same dof). Only one processor can own a dof, therefore
 processors will have continuous fields which contain dofs that the
-processor does not own. These unowned dofs are called `annexed` dof in
-the dynamo0.3 api and are a separate, but related, concept to field
-halos.
+processor does not own. These unowned dofs are called `annexed` in the
+dynamo0.3 api and are a separate, but related, concept to field halos.
 
 When a kernel that iterates over cells needs to read a continuous
 field then the annexed dofs must be up-to-date on all processors. If
 they are not then a halo exchange must be added. In an attempt to
 reduce the number of halo exchanges in an application (at the expense
-of redundantly computing annexed dofs) PSyclone defaults to iterating
-over both owned dofs and annexed dofs. This default can be changed (to
-only iterate over owned dofs) by changing the `COMPUTE_ANNEXED_DOFS`
-flag in the PSyclone `config.py` configuration file from `True` to
-`False`.
+of redundantly computing annexed dofs) PSyclone defaults, for kernels
+which iterate over dofs, to iterating over both owned dofs and annexed
+dofs. This default can be changed (to only iterate over owned dofs) by
+changing the `COMPUTE_ANNEXED_DOFS` flag in the PSyclone `config.py`
+configuration file from `True` to `False`. For more details please
+refer to the :ref:`dynamo0.3-developers` developers section.
 
 .. _dynamo0.3-api-transformations:
 

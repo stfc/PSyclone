@@ -150,6 +150,8 @@ TBD
 Existing API's
 ##############
 
+.. _dynamo0.3-developers:
+
 Dynamo0.3
 =========
 
@@ -166,34 +168,34 @@ vertical "column".
 Cells
 -----
 
-The dynamo0.3 api currently assumes that all kernels which support
+The Dynamo0.3 API currently assumes that all kernels which support
 iterating over cells work internally on a column of cells. This means
 that PSyclone need only be concerned with iterating over cell-columns
 in the horizontal. As a result the LFRic infrastructure presents the
 mesh information to PSyclone as if the mesh were 2-dimensional. From
 now on this 2D view will be assumed i.e. a cell will actually be a
 column of cells. The LFRic infrastracture provides a global 2D cell
-number from 1 to the number of cells.
+index from 1 to the number of cells.
 
 For example, a simple quadrilateral element mesh with 4 cells might be
-numbered in the following way.
+indexed in the following way.
 
 .. image:: cells_global.png
 	   :width: 120
 
-When the distributed memory option is switched on in the dynamo0.3 api
+When the distributed memory option is switched on in the Dynamo0.3 API
 (see the :ref:`distributed_memory` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. In this
-case the LFRic infrastructure maintains the global cell number and
-adds a unique local cell number from 1 to the number of cells in each
+case the LFRic infrastructure maintains the global cell index and
+adds a unique local cell index from 1 to the number of cells in each
 partition, including any halo cells.
 
 An example for a depth-1 halo implementation with the earlier mesh
 split into 2 partitions is given below, with the halo cells being
-coloured red for clarity. An example local numbering scheme is also
-provided below the cells. Notice the local numbering is set-up such
-that owned cells have lower numbers than halo cells.
+coloured red. An example local indexing scheme is also provided below
+the cells. Notice the local indexing scheme emsures that owned cells
+have lower indicess than halo cells.
 
 .. image:: cells_distributed.png
 	   :width: 200
@@ -201,15 +203,15 @@ that owned cells have lower numbers than halo cells.
 Dofs
 ----
 
-In the LFRic infrastracture provides the degrees-of-freedom (dofs) are
-indexed from 1 to the total number of dofs. The infrastructure also
-indexes dofs so that the values in a column are contiguous and their
-values increase in the vertical. Thus, given the dof indices for the
-"bottom" cell, the rest of the dof indices can be determined for the
+In the LFRic infrastracture the degrees-of-freedom (dofs) are indexed
+from 1 to the total number of dofs. The infrastructure also indexes
+dofs so that the values in a column are contiguous and their values
+increase in the vertical. Thus, given the dof indices for the "bottom"
+cell, the rest of the dof indices can be determined for the
 column. This set of dof indices for the bottom cell is called a
 dofmap.
 
-Dofs represent a fields values in the mesh. Fields can either be
+Dofs represent a field's values in the mesh. Fields can either be
 continuous or discontinuous. Continuous fields are so named because
 their values are continuous across cell boundaries. Dofs that
 represent continuous fields are shared between neighbouring
@@ -236,7 +238,7 @@ option is switched on in the Dynamo0.3 API (see the
 :ref:`distributed_memory` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
-results in the dofs being replicated in the halo cells, resulting in a
+results in the dofs being replicated in the halo cells, leading to a
 dof halo. As for cells, the LFRic infrastructure maintains the global
 dof indexing scheme and adds a local dof indexing scheme from 1 to the
 number of dofs in each partition, including any halo dofs.
@@ -266,7 +268,7 @@ that contains dof index 3 etc.
 	   :width: 140
 
 As already explained, when the distributed memory option is switched
-on in the dynamo0.3 api (see the :ref:`distributed_memory` Section)
+on in the Dynamo0.3 API (see the :ref:`distributed_memory` Section)
 the cells in the model are partitioned amongst processors and halo
 cells are added at the boundaries.
 
@@ -278,10 +280,10 @@ replicated if fields on continuous dofs are going to be able to be
 computed locally on each partition. This concept is different to halos
 as there are no halo cells here, the fact that the cells are
 partitioned has meant that continuous dofs on the edge of the
-partition are replicated. The convention used in dynamo0.3 is that the
-cell with the lowest global id determines which partition owns the
-dofs and which has a copy. Dofs which are copies are called
-annexed. Annexed dofs are coloured blue in the example:
+partition are replicated. The convention used in Dynamo0.3 is that the
+cell with the lowest global id determines which partition owns a
+dof and which has the copy. Dofs which are copies are called
+`annexed`. Annexed dofs are coloured blue in the example:
 
 .. image:: dofs_cont_annexed.png
 	   :width: 160
@@ -303,67 +305,104 @@ have lower indices than halo dofs.
 Cell and Dof Ordering
 ---------------------
 
-Cells in a partition are sequentially numbered by the LFRic
+Cells in a partition are sequentially indexed by the LFRic
 infrastructure, starting at 1, so that local cells occur first, then
 level-1 halo cells, then level-2 halo cells etc. A benefit of this
 layout is that it makes it easy for PSyclone to specify the required
-iteration space for cells as a single range, allowing a single fortran
-do loop (or other language construct if required) to be generated. The
-LFRic infrastructure provides an API that returns the number of the
-last owned cell, the number of the last halo cell at a particular
-depth and the number of the last halo cell, to support PSyclone code
+iteration space for cells as a single range, allowing a single Fortran
+do loop (or other language construct as required) to be generated. The
+LFRic infrastructure provides an API that returns the index of the
+last owned cell, the index of the last halo cell at a particular depth
+and the index of the last halo cell, to support PSyclone code
 generation.
 
-Dofs on a processor are also sequentially numbered by the LFRic
+Dofs on a partition are also sequentially indexed by the LFRic
 infrastructure, starting at 1, so that local dofs occur first, then
-annexed dofs (if the field is continuous), then level-1 halo dofs, then
-level-2 halo dofs etc. Again, a benefit of this layout makes it easy
-for PSyclone to specify the required iteration space for dofs as a
-single range. As before the LFRic infrastructure provides an API that
-returns the number of the last owned dof, the number of the last
-annexed dof, the number of the last halo dof at a particular depth and
-the number of the last halo dof, to support PSyclone code generation.
+annexed dofs (if the field is continuous), then level-1 halo dofs,
+then level-2 halo dofs etc. Again, this layout makes it easy for
+PSyclone to specify the required iteration space for dofs as a single
+range. As before, the LFRic infrastructure provides an API that
+returns the index of the last owned dof, the index of the last annexed
+dof, the index of the last halo dof at a particular depth and the
+index of the last halo dof, to support PSyclone code generation.
 
 
 Loop iterators
 --------------
 
-In the current implementation of the dynamo0.3 API it is possible to
-iterate (loop) either over cells or over dofs. At the moment all coded
+In the current implementation of the Dynamo0.3 API it is possible to
+iterate (loop) either over cells or dofs. At the moment all coded
 kernels are written to iterate over cells and all builtin kernels are
-written to iterate over dofs, but that does not have to be the
-case.
+written to iterate over dofs, but that does not have to be the case.
 
 The loop iteration information is specified in the kernel metadata. In
-the case if builtin's there is kernel metadata but it is part of
+the case of builtin's there is kernel metadata but it is part of
 PSyclone and is specified in
 `src/psyclone/dynamo0p3_builtins_mod.f90`.
+
+Cell iterators: Continuous
+--------------------------
+
+When a kernel is written to iterate over cells and modify a continuous
+field, PSyclone always computes dofs on owned cells and redundantly
+computes dofs in the level-1 halo. Users can apply a redundant
+computation transformation to increase the halo depth for additional
+redundant computation but it must always at least compute the level-1
+halo. The reason for this is to ensure that the shared dofs on cells
+on the edge of the partition (both owned and annexed) are always
+correctly computed. Note that the outermost halo dofs are not
+correctly computed and therefore the outermost halo of the modified
+field is dirty after redundant computation. Also note that if we do
+not know whether a modified field is discontinuous or continuous then
+we must assume it is continuous.
+
+An alternative solution could have been adopted in Dynamo0.3 whereby
+no redundant computation is performed and partial-sum results are
+shared between processors in a communication pattern similar to halo
+exchanges. However, a decision was made to always perform redundant
+computation.
+
+A downside of performing redundant computation in the level-1 halo is
+that any fields being read by the kernel must have their level-1 halo
+clean (up-to-date), which can result in halo exchanges. Note that this
+is not the case for the modified field, it does not need its halo to
+be clean, however, at the moment a halo exchange is added in this
+case. This unecessary halo exchange will be removed in a future
+release of PSyclone.
+
+Cell iterators: Discontinuous
+-----------------------------
+
+When a kernel is written to iterate over cells and modify a
+discontinuous field, PSyclone only needs to compute dofs on owned
+cells. Users can apply a redundant computation transformation to
+redundantly compute into the halo but this is not done by default.
 
 Dof iterators
 -------------
 
-When a kernel, that is written to iterate over dofs, modifies a field,
-it is PSyclone's role to ensure that all dofs in that field are
-updated. If the distributed memory flag is set to `False` then
-PSyclone must iterate over all dofs. PSyclone simply needs to create a
-loop that iterates from 1 to the total number of dofs. The latter
-value is provided by the LFRic API.
+When a kernel that is written to iterate over dofs modifies a field,
+PSyclone's must ensure that all dofs in that field are updated. If the
+distributed memory flag is set to `False` then PSyclone must iterate
+over all dofs. PSyclone simply needs to create a loop that iterates
+from 1 to the total number of dofs. The latter value is provided by
+the LFRic API.
 
 If the distributed memory flag is set to `True` then PSyclone must
-ensure that each partition iterates over owned dofs. Again PSyclone
-just needs to create a loop that iterates from 1 to total number of
-owned dofs on that partition. The latter value is provided by the
+ensure that each partition only iterates over owned dofs. Again PSyclone
+just needs to create a loop that iterates from 1 to the total number
+of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to True an aditional
-configuration option can be set which makes PSyclone always iterate
-over both owned and annexed dofs. Whilst this is not necessary for
-correctness, it can improve performance by reducing the number of halo
-exchanges required (at the expense of computing annexed dofs
-redundantly). The only change for PSyclone is that it calls a
-different LFRic routine which returns the id of the last annexed
-dof. This iteration space will necessarily also include all owned dofs due
-to the ordering of dof id's discussed earlier.
+When the distributed memory flag is set to `True` an aditional
+configuration option can be set which makes PSyclone always create
+loops which iterate over both owned and annexed dofs. Whilst this is
+not necessary for correctness, it can improve performance by reducing
+the number of halo exchanges required (at the expense of computing
+annexed dofs redundantly). The only change for PSyclone is that it
+calls a different LFRic routine which returns the index of the last
+annexed dof. This iteration space will necessarily also include all
+owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
 found in the the `config.py` configuration file. If it is `True` then
@@ -376,88 +415,65 @@ transformation optimisation. The reason for using a configuration
 switch is that it is then guaranteed that annexed dofs are always
 computed for loops that iterate over dofs which then allows us to
 always remove certain halo exchanges without needing to add any new
-ones. This is discussed later.
+ones.
 
-Cell iterators: Continuous
---------------------------
+If we first take the situation where annexed dofs are not computed for
+loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is `False`),
+then a field's annexed dofs will be dirty (out-of-date) after the loop
+has completed. If a following kernel needs to read the field's
+annexed dofs, then PSyclone will need to add a halo exchange to make
+them clean.
 
-When a kernel is written to iterate over cells and modify a continuous
-field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level-1 halo. Users can apply a redundant
-computation transformation to increase the halo depth for additional
-redundant computation but it must always at least computed the level-1
-halo. The reason for this is to ensure that the shared dofs on cells
-on the edge of the partition (both owned and annexed) are always
-correctly computed. Note that the outermost halo dofs are not
-correctly computed and therefore the outermost halo of the modified
-field is dirty after redundant computation. Also note that if we do
-not know whether a modified field is discontinuous or continuous then
-must assume it is continuous.
+There are 3 cases to consider 1) the field is read in a loop that
+iterates over dofs, 2) the field is read in a loop that iterates
+over owned cells and level-1 halo cells, 3) the field is read in a
+loop that iterates over owned cells
 
-An alternative solution could have been adopted in dynamo0.3 where no
-redundant computation is performed and partial-sum results
-shared between processors in a communication pattern similar to halo
-exchanges, but a decision was made to always perform redundant
-computation.
+In case 1) the annexed dofs will not be read as the loop only iterates
+over owned dofs so a halo exchange is not required. In case 2) the
+full level-1 halo will be read (including annexed dofs) so a halo
+exchange is required. In case 3) the annexed dofs will be read so a
+halo exchange will be required.
 
-A downside of performing redundant computation in the level-1 halo is
-that any fields being read by the kernel must have their level-1 halo
-clean, which can result in halo exchanges. Note that this is not the
-case for the modified field, it does not need its halo to be clean,
-however, at the moment a halo exchange is added in this case. This
-unecessary halo exchange will be removed in a future release.
+If we now take the case where annexed dofs are computed for loops that
+iterate over dofs (`COMPUTE_ANNEXED_DOFS` is `True`) then a field's
+annexed dofs will be clean after the loop has completed. If a
+following kernel needs to read the field's annexed dofs, then
+PSyclone will no longer need a halo exchange.
 
-As it is guaranteed that annexed dofs are correctly computed for
-kernels that are written to iterate over cells, and modify a
-continuous field, it therefore means that when we also always
-redundantly compute annexed dofs (via the configuration switch
-described earlier) then we know that annexed dofs are always kept up
-to date. If annexed dofs are always kept up to date that we never need
-a halo exhange when annexed dofs are computed. Therefore redundantly
-computing annexed dofs when iterating over dofs does not result in any
-additional halo exchanges. This is one of the reasons for using a
-switch rather than supporting a redundant computation transformation
-for annexed dofs.
+We can now guarantee that annexed dofs will always be clean after a
+continuous field has been modified by a kernel. The reason for this is
+that both, loops that iterate over dofs and loops that iterate over
+cells, now compute annexed dofs and there are no other ways for a
+continuous field to be updated.
 
-Cell iterators: Discontinuous
------------------------------
+We now consider the same three cases. In case 1) the annexed dofs will
+now be read, but annexed dofs are guaranteed to be clean, so no halo
+exchange is required. In case 2) the full level-1 halo is read so a
+halo exchange is still required. Note, as part of this halo exchange
+we will update annexed dofs that are already clean. In case 3) the
+annexed dofs will be read but a halo exchange is not required as the
+annexed dofs are guaranteed to be clean.
 
-When a kernel is written to iterate over cells and modify a
-discontinuous field, PSyclone only needs to compute dofs on owned
-cells. Users can apply a redundant computation transformation to
-redundantly compute into the halo but this is not done by default.
+Therefore no additional halo exchanges are required when
+`COMPUTE_ANNEXED_DOFS` is changed from `False` to `True` i.e. case 1)
+does not require a halo exchange in either situation and case 2)
+requires a halo exchange in both situations. We also remove halo
+exchanges for case 3) so the number of halo exchanges may be reduced.
 
-When a loop iterates over owned cells then any fields that are read by
-that loop also only need to access values from owned cells (ignoring
-stencil accesses). If, however, one of the fields that is read is
-continuous then its annexed dofs must be correct before the kernel is
-called.
+If a switch were not used and it were possible to use a transformation
+to selectively perform computation over annexed dofs for loops that
+iterate over dofs, then we would no longer be able to guarantee that
+annexed dofs would always be clean. In this situation, if the dofs
+were known to be dirty then PSyclone would need to add a halo exchange
+and if it were unknown whether the dofs were dirty or not, then a halo
+exchange would need to be added that uses the run-time flags to
+determine whether a halo exchange is required. As run-time flags are
+based on whether the halo is dirty or not (not annexed dofs) then a
+halo exchange would be performed if the halo were dirty, even if the
+annexed dofs were clean, potentially resulting in more halo exchanges
+than are necessary.
 
-Whilst loops that iterate over cells always ensure that annexed dofs are
-correct, loops that iterate over dofs do not if the
-`COMPUTE_ANNEXED_DOFS` configuration flag is set to `False`. In this
-case, if the previous update to the continuous field is known to be
-from a loop over dofs, then the annexed dofs must be updated. Also, if
-the previous update to the continuous field is unknown (as it is from
-a previous invoke) then we have to assume that the annexed dofs might
-be dirty and therefore have to be updated.
-
-Currently, the only way to update annexed dofs is to perform a depth 1
-halo exchange. This halo exchange will update both level-1 halo dofs
-and annexed dofs. We therefore update more than we need to.
-
-Of course, if the continuous field with unknown status has its level-1
-halo clean due to previous redundant computation then no halo exchange
-will be performed. However, if the previous halo exchange has its
-annexed dofs clean but the halo dofs dirty then a halo exchange will
-be performed despite it not being required for correctness as the run
-time dirty flags only maintain information for cell halos.
-
-In contrast, if the `COMPUTE_ANNEXED_DOFS` configuration flag is set
-to `True` then the annexed dofs are guaranteed to be up-to-date and
-therefore halo exchanges are not required in the cases described
-above. This is another reason for using a configuration switch rather
-than selective transformations.
 
 Halo Exchange Logic
 -------------------
@@ -474,19 +490,19 @@ operators. If a loop iterates over halos to a given depth and the loop
 includes a kernel that reads from an operator then the operator must
 have valid values in the halos to that depth. In the current
 implementation of PSyclone all loops which write to, or update an
-operator are computed redundantly in the halo up to depth 1 (see the
-load() method in the DynLoop class). This implementation therefore
+operator are computed redundantly in the halo up to depth-1 (see the
+`load()` method in the `DynLoop` class). This implementation therefore
 requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
-depth 1. PSyclone will raise an exception if an optimisation attempts
-to increase the iteration space beyond this (see the gen_code() method
-in the DynKern class).
+depth-1. PSyclone will raise an exception if an optimisation attempts
+to increase the iteration space beyond this (see the `gen_code()`
+method in the `DynKern` class).
 
 To alleviate the above restriction one could add a configurable depth with
 which to compute operators e.g. operators are always computed up to
-depth 2, or perhaps up to the maximum halo depth. An alternative would
+depth-2, or perhaps up to the maximum halo depth. An alternative would
 be to halo exchange operators as required in the same way that halo
-exchanges are used for field.
+exchanges are used for fields.
 
 First Creation
 ++++++++++++++
@@ -495,74 +511,88 @@ When first run, PSyclone creates a separate schedule for each of the
 invokes found in the algorithm layer. A schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
-created then (if the DISTRIBUTED_MEMORY flag is set to True) PSyclone
+created then (if the `DISTRIBUTED_MEMORY` flag is set to `True`) PSyclone
 adds any required halo exchanges and global sums. This work is all
-performed in the DynInvoke constructor (__init__) method.
+performed in the `DynInvoke` constructor (`__init__`) method.
 
 In PSyclone we apply a lazy halo exchange approach (as opposed to an
-eager one) adding a halo exchange just before it is required.
+eager one), adding a halo exchange just before it is required.
 
 It is simple to determine where halo exchanges should be added for the
-initial schedule. There are two cases:
+initial schedule. There are three cases:
 
 1) loops that iterate over cells and modify a continuous field will
-access the level-1 halo. This means that any field that is read within
-such a loop must have its level-1 halo clean and therefore requires a
-halo exchange. Note, at the moment PSyclone adds a halo exchange for
-the modified field (as it is specified as GH_INC which requires a read
-before a write), however this is definitely not required if there is
-only one field updated in the kernel.
+   access the level-1 halo. This means that any field that is read
+   within such a loop must have its level-1 halo clean and therefore
+   requires a halo exchange. Note, at the moment PSyclone adds a halo
+   exchange for the modified field (as it is specified as `GH_INC`
+   which requires a read before a write), however this is not required
+   if there is only one field updated in the kernel. This is because
+   we only care about updating owned and annexed dofs, therefore it
+   does not matter what the values of any halo dofs are.
 
-2) fields that have a stencil access will access the halo and need halo
-   exchange calls added.
+2) continuous fields that are read from within loops that iterate over
+   cells and modify a discontinuous field must have their annexed dofs
+   clean. Currently the only way to make annexed dofs clean is to
+   perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
+   configuration variable is set to `True` then no halo exchange is
+   required as annexed dofs will always be clean. If the
+   `COMPUTE_ANNEXED_DOFS` configuration variable is set to `False`
+   then a halo exchange must be added if the previous modification of
+   the field is known to be from within a loop over dofs, or if the
+   previous modification of the field is unknown (i.e. outside the
+   invoke) as the previous modification may have been from within a
+   loop over dofs.
 
-Halo exchanges are created separately (for fields that read their
-halo) for each loop by calling the create_halo_exchanges() method
-within the DynLoop class.
+3) fields that have a stencil access will access the halo and need
+   halo exchange calls added.
 
-In the situation where a field reads from its halo in more than one
-kernel in different loops we do not want to add too many halo
-exchanges, one will be enough as long as it is placed correctly. To
-avoid this problem we add halo exchange calls for loops in schedule
-order (first loop to last). A halo exchange will be added before the
+Halo exchanges are created separately (for fields with halo reads) for
+each loop by calling the `create_halo_exchanges()` method within the
+`DynLoop` class.
+
+In the situation where a field's halo is read in more than one kernel
+in different loops, we do not want to add too many halo exchanges -
+one will be enough as long as it is placed correctly. To avoid this
+problem we add halo exchange calls for loops in the order in which
+they occur in the schedule. A halo exchange will be added before the
 first loop for a field but the same field in the second loop will find
 that there is a dependence on the previously inserted halo exchange so
 no additional halo exchange will be added.
 
-The algorithm iterates over loops in schedule order. The
-create_halo_exchanges() method then iterates over each field that
-reads from its halo (determined by the unique_fields_with_halo_reads()
-method in the DynLoop class).
+The algorithm for adding the necessary halo exchanges is as follows:
+For each loop in the schedule, the `create_halo_exchanges()` method
+iterates over each field that reads from its halo (determined by the
+`unique_fields_with_halo_reads()` method in the `DynLoop` class).
 
 For each field we then look for its previous dependencies (the
 previous writer(s) to that field) using PSyclone's dependence
-analysis. Three cases can occur, 1: there is no dependence, 2: there
-are multiple dependencies and 3: there is one dependence.
+analysis. Three cases can occur: 1) there is no dependence, 2) there
+are multiple dependencies and 3) there is one dependence.
 
 1) If no previous dependence is found then we add a halo exchange call
    before the loop (using the internal helper method
-   _add_halo_exchange()). If the field is a vector field then a halo
-   exchange is added for each vector. The internal helper method
-   _add_halo_exchange itself uses the internal helper method
-   _add_halo_exchange_code(). This method creates an instance of the
-   DynHaloExchange class for the field in question and adds it to the
-   schedule before the loop. You might notice that this method then
-   checks that the halo exchange is actually required and removes it
-   again if not. In our current situation the halo exchange will
+   `_add_halo_exchange()`). If the field is a vector field then a halo
+   exchange is added for each component. The internal helper method
+   `_add_halo_exchange` itself uses the internal helper method
+   `_add_halo_exchange_code()`. This method creates an instance of the
+   `DynHaloExchange` class for the field in question and adds it to
+   the schedule before the loop. You might notice that this method
+   then checks that the halo exchange is actually required and removes
+   it again if not. In our current situation the halo exchange will
    always be needed so this check is not required but in more complex
    situations after transformations have been applied to the schedule
-   this may not be the case. This case is found later.
+   this may not be the case. We discuss this type of situation later.
 
 2) If multiple previous dependencies are found then the field must be
    a vector field as this is the only case where this can occur. We
    then choose the closest one and treat it as a single previous
-   dependency (see 3)
+   dependency (see 3).
 
 3) If a single previous dependency is found and it is a halo exchange
-   then we do nothing, as it is already covered. In our case this will
-   only happen when more than one reader depends on a writer, as
-   discussed earlier. If the dependence is not a halo exchange then we
-   add one.
+   then we do nothing, as it is already covered. This will only happen
+   when more than one reader depends on a writer, as discussed
+   earlier. If the dependence is not a halo exchange then we add one.
 
 After completing the above we have all the halo exchanges required for
 correct execution.
@@ -590,31 +620,34 @@ that loop is called - see the `apply()` method in
 
 The first thing that the `update_halo_exchanges()` method does is call
 the `create_halo_exchanges()` method to add in any new halo exchanges
-that are required before this loop, due to any fields that now read
-their halo when they did not previously. For example a loop might
-previously have iterated up to `ncells` but now iterates up to halo
-depth 1. However, a field reading into its halo no longer guarantees
-that a halo exchange is required as the previous dependence may now
-compute redundantly to depth 2, for example. The solution employed in
+that are required before this loop, due to any fields that now have a
+read access to their halo when they previously did not. For example, a
+loop containing a kernel that writes to a certain field might
+previously have iterated up to the number of owned cells in a
+partition (`ncells`) but now iterates up to halo depth 1.
+
+However, a field that has its halo read no longer guarantees that a
+halo exchange is required, as the previous dependence may now compute
+redundantly to halo depth 2, for example. The solution employed in
 `create_halo_exchanges()` is to add a halo exchange speculatively and
 then remove it if it is not required. The halo exchange itself
-determines whether it is required or not via `required()` method. The
-removal code is found in the `_add_halo_exchange_code()` method in the
-`DynLoop()` class.
+determines whether it is required or not via the `required()` method. The
+removal code is found at the end of the `_add_halo_exchange_code()`
+method in the `DynLoop()` class.
 
 The second thing that the `update_halo_exchanges()` method does is check
 that any halo exchanges after this loop are still required. It finds
 all relevant halo exchanges, asks them if they are required and if
 they are not it removes them.
 
-We only need to look at adding halo exchanges before the loop and
-removing halo exchanges after the loop as redundant computation can
-only increase the depth of halo to which a loop computes so can not
-remove existing halo exchanges before a loop (as an increase in depth
-will only increase the depth of an existing halo exchange before the
-loop) or add existing halo exchanges after a loop (as an increase in
-depth will only make it more likely that a halo exchange is no longer
-required after the loop).
+We only need to consider adding halo exchanges before the loop and
+removing halo exchanges after the loop. This is because redundant
+computation can only increase the depth of halo to which a loop
+computes so can not remove existing halo exchanges before a loop (as
+an increase in depth will only increase the depth of an existing halo
+exchange before the loop) or add existing halo exchanges after a loop
+(as an increase in depth will only make it more likely that a halo
+exchange is no longer required after the loop).
 
 GOcean1.0
 =========

@@ -376,7 +376,6 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
             assert str(kern) == "Built-in: Add fields"
             # Test code generation
             code = str(psy.gen)
-            print code
             if not distmem:
                 # The value of COMPUTE_ANNEXED_DOFS should make no difference
                 output = (
@@ -419,7 +418,6 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
                 if not annexed:
                     # Only compute owned dofs if COMPUTE_ANNEXED_DOFS is False
                     output_dm_2 = output_dm_2.replace("annexed", "owned")
-                print output_dm_2
                 assert output_dm_2 in code
 
             if utils.TEST_COMPILE:

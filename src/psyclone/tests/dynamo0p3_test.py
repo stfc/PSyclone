@@ -7104,12 +7104,11 @@ def test_haloex_not_required(monkeypatch):
     default when iterating over dofs and kept up-to-date by redundant
     computation when iterating over cells. However, it should return
     True if there are no previous write dependencies and
-    config.COMPUTE_ANNEXED_DOFS is False, as a previous writer may have
-    iterated over dofs and only written to its own dofs, leaving the
-    annexed dofs dirty. This test checks these two cases. Note the
+    config.COMPUTE_ANNEXED_DOFS is False, as a previous writer may
+    have iterated over dofs and only written to its own dofs, leaving
+    the annexed dofs dirty. This test checks these two cases. Note the
     former case should currently never happen in real code as a halo
     exchange would not be added in the first place.
-
     '''
     import psyclone.config
     monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
