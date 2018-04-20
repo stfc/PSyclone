@@ -47,10 +47,15 @@ def get_invoke(api, algfile, idx):
     ''' Utility method to get the idx'th invoke from the algorithm
     specified in file '''
 
+    if api == "gocean1.0":
+        dir_name = "gocean1p0"
+    elif api == "dynamo0.3":
+        dir_name = "dynamo0p3"
+    else:
+        assert False
     _, info = parse(os.path.
                     join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "gocean1p0",
-                         algfile),
+                         "test_files", dir_name, algfile),
                     api=api)
     psy = PSyFactory(api).create(info)
     invokes = psy.invokes
@@ -61,6 +66,7 @@ def get_invoke(api, algfile, idx):
     return psy, invoke
 
 
+# -----------------------------------------------------------------------------
 def test_profile_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
@@ -103,3 +109,131 @@ def test_profile_invokes_gocean1p0():
                   "end.*"
                   "call profile_end")
     assert re.search(correct_re, code, re.I) is not None
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_kernels_gocean1p0():
+    '''Check that all kernels are instrumented correctly
+    '''
+    Profiler.set_options([Profiler.KERNELS])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+    code = str(invoke.gen()).replace("\n", "")
+
+    correct_re = ("subroutine invoke.*"
+                  "call profile_start.*"
+                  "do j.*"
+                  "do i.*"
+                  "call.*"
+                  "end.*"
+                  "end.*"
+                  "call profile_end")
+    assert re.search(correct_re, code, re.I) is not None
+
+    _, invoke = get_invoke("gocean1.0", "single_invoke_"
+                           "two_kernels.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+    code = str(invoke.gen()).replace("\n", "")
+
+    correct_re = ("subroutine invoke.*"
+                  r"call profile_start\(.*, (?P<profile1>\w*)\).*"
+                  "do j.*"
+                  "do i.*"
+                  "call.*"
+                  "end.*"
+                  "end.*"
+                  r"call profile_end\((?P=profile1)\).*"
+                  r"call profile_start\(.*, (?P<profile2>\w*)\).*"
+                  "do j.*"
+                  "do i.*"
+                  "call.*"
+                  "end.*"
+                  "end.*"
+                  r"call profile_end\((?P=profile2)\)")
+    assert re.search(correct_re, code, re.I) is not None
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_invokes_dynamo0p3():
+    '''Check that an invoke is instrumented correctly
+    '''
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("dynamo0.3", "1_single_invoke.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+    code = str(invoke.gen()).replace("\n", "")
+
+    correct_re = ("subroutine invoke.*"
+                  "call profile_start.*"
+                  "do cell.*"
+                  "call.*"
+                  "end.*"
+                  "call profile_end")
+    assert re.search(correct_re, code, re.I) is not None
+
+    _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+    code = str(invoke.gen()).replace("\n", "")
+
+    correct_re = ("subroutine invoke.*"
+                  "call profile_start.*"
+                  "do cell.*"
+                  "call.*"
+                  "end.*"
+                  "do cell.*"
+                  "call.*"
+                  "end.*"
+                  "call profile_end")
+    assert re.search(correct_re, code, re.I) is not None
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_kernels_dynamo0p3():
+    '''Check that all kernels are instrumented correctly
+    '''
+    Profiler.set_options([Profiler.KERNELS])
+    _, invoke = get_invoke("dynamo0.3", "1_single_invoke.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+    code = str(invoke.gen()).replace("\n", "")
+
+    correct_re = ("subroutine invoke.*"
+                  "call profile_start.*"
+                  "do cell.*"
+                  "call.*"
+                  "end.*"
+                  "call profile_end")
+    assert re.search(correct_re, code, re.I) is not None
+
+    _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+    code = str(invoke.gen()).replace("\n", "")
+
+    correct_re = ("subroutine invoke.*"
+                  r"call profile_start\(.*, (?P<profile1>\w*)\).*"
+                  "do cell.*"
+                  "call.*"
+                  "end.*"
+                  r"call profile_end\((?P=profile1)\).*"
+                  r"call profile_start\(.*, (?P<profile2>\w*)\).*"
+                  "do cell.*"
+                  "call.*"
+                  "end.*"
+                  r"call profile_end\((?P=profile2)\).*")
+    #    "call profile_end\((?P=profile1)\)"
+    assert re.search(correct_re, code, re.I) is not None
+    Profiler.set_options(None)
