@@ -5168,7 +5168,7 @@ class ArgOrdering(object):
             "Error: ArgOrdering.mesh_height() must be implemented by subclass")
 
     def mesh_ncell2d(self):
-        ''' 
+        '''
         Add the number of columns in the mesh
 
         :raises NotImplementedError: because this is an abstract method

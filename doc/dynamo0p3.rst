@@ -568,11 +568,11 @@ later in this section (see :ref:`dynamo0.3-valid-access`).
 
 * ``GH_READWRITE`` indicates that different iterations of a Kernel
   update quantitites which do not share dofs, such as operators and
-  fields over discontinuous function spaces. If a Kernel modifies
-  only discontinuous fields and/or operators there is no need for
+  fields over discontinuous function spaces. If a Kernel modifies only
+  discontinuous fields and/or operators there is no need for
   synchronisation or colouring when running such Kernels in parallel.
   However, modifying another field with a ``GH_INC`` access in a
-  Kernel means that synchronisation or colouring are required for
+  Kernel means that synchronisation or colouring is required for
   parallel runs.
 
 * ``GH_SUM`` is an example of a reduction and is the only reduction
@@ -813,7 +813,7 @@ need colouring so PSyclone does not perform it. If such attempt is made,
 PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
 transformation (see :ref:`dynamo0.3-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
-function space ``wtheta`` is given in ``examples/dynamo/eg9``, with
+function space ``wtheta`` is given in ``examples/dynamo/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
