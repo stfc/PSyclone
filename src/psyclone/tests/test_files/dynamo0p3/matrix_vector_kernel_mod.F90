@@ -31,22 +31,52 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program single_invoke_wtheta_only_vector
+module matrix_vector_kernel_mod
 
-  ! Description: two functions in an invoke iterating over and
-  ! reading from wtheta field vectors (discontinuous)
-  use testkern_wtheta_only_vector_mod, only: testkern_wtheta_only_vector_type
-  use inf,                             only: field_type
-  implicit none
-  type(field_type) :: f1(3), f2(3), f3(3)
 
-  call invoke(                                   &
-       testkern_wtheta_only_vector_type(f1, f2), &
-       ! Field f1 readwrite to read dependence but no halo exchange
-       ! required as wtheta is discontinuous
-       testkern_wtheta_only_vector_type(f3, f1)  &
-          )
+use kernel_mod,              only : kernel_type
+use argument_mod,            only : arg_type, func_type,               &
+                                    GH_FIELD, GH_OPERATOR,             &
+                                    GH_READ, GH_INC,                   &
+                                    ANY_SPACE_1, CELLS
 
-end program single_invoke_wtheta_only_vector
+use constants_mod,           only : r_def, i_def
+
+type, public, extends(kernel_type) :: matrix_vector_kernel_type
+  private
+  type(arg_type) :: meta_args(3) = (/                                  &
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
+       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+       /)
+  integer :: iterates_over = CELLS
+contains
+  procedure, nopass ::matrix_vector_code
+end type
+
+contains
+
+  SUBROUTINE matrix_vector_code(cell, nlayers, &
+                               field1, field2, &
+                               ncell_3d, op_3, &
+                               ndf1, undf1, map1)
+
+    IMPLICIT NONE
+
+    INTEGER, intent(in) :: cell
+    INTEGER, intent(in) :: nlayers
+    INTEGER, intent(in) :: ndf1
+    INTEGER, intent(in) :: undf1
+    REAL(KIND=r_def), intent(inout), dimension(undf1) :: field1
+    REAL(KIND=r_def), intent(in), dimension(undf1) :: field2
+    INTEGER, intent(in) :: ncell_3d
+    REAL(KIND=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d) :: op_3
+    INTEGER, intent(in), dimension(ndf1) :: map1
+
+  END SUBROUTINE matrix_vector_code
+
+end module matrix_vector_kernel_mod
+

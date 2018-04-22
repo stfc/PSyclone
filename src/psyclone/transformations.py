@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
 ''' This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
@@ -626,9 +627,10 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         check_intergrid(node)
 
         # If the loop is not already coloured then check whether or not
-        # it should be. If the field space is W3 then we don't need
-        # to worry about colouring.
-        if node.field_space.orig_name != "w3":
+        # it should be. If the field space is discontinuous then we don't
+        # need to worry about colouring.
+        from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+        if node.field_space.orig_name not in DISCONTINUOUS_FUNCTION_SPACES:
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "

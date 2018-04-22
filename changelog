@@ -40,6 +40,9 @@
 	14) PR #136 - add support for intergrid kernels (required for
 	multigrid)
 
+	15) PR #149 - add support for GH_READWRITE access for
+	discontinuous fields
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not

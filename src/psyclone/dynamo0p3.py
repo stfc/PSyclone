@@ -41,7 +41,7 @@
     required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
-# imports
+# Imports
 import os
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
@@ -51,12 +51,15 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 
-# first section : Parser specialisations and classes
+# First section : Parser specialisations and classes
 
-# constants
+# Function spaces (FS)
+# Discontinuous FS
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
-# space any_w2 can be w2, w2h or w2v
+# Continuous FS
+# Space any_w2 can be w2, w2h or w2v
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -66,9 +69,13 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
+# Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
+
+# Meta functions
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
+# Evaluators: quadrature
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 # Dictionary allowing us to look-up the name of the Fortran module, type
@@ -78,24 +85,27 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
+# Datatypes (scalars, fields, operators)
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
     VALID_SCALAR_NAMES
 
+# Access types
 VALID_REDUCTION_NAMES = ["gh_sum"]
 # List of all access types that involve writing to an argument
 # in some form
-GH_WRITE_ACCESSES = ["gh_write", "gh_inc"] + VALID_REDUCTION_NAMES
+GH_WRITE_ACCESSES = ["gh_write", "gh_readwrite", "gh_inc"] + \
+                     VALID_REDUCTION_NAMES
 # List of all access types that involve reading an argument in some
 # form
-GH_READ_ACCESSES = ["gh_read", "gh_inc"]
+GH_READ_ACCESSES = ["gh_read", "gh_readwrite", "gh_inc"]
 # Access type that is only a read, as a list for convenience
 GH_READ_ONLY_ACCESS = ["gh_read"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ONLY_ACCESS + GH_WRITE_ACCESSES
 
-
+# Stencils
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
 # file as it causes failures with py.test 2.8.7. Therefore some parts
@@ -125,12 +135,10 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
-# Note that readwrite is not currently supported and so its associated
-# entry is left blank.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "inc": "gh_inc", "readwrite": ""}
+                    "inc": "gh_inc", "readwrite": "gh_readwrite"}
 
-# Valid Dynamo loop types. The default is "" which is over cells (in the
+# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
@@ -484,20 +492,26 @@ class DynArgDescriptor03(Descriptor):
     descriptor.'''
 
     def __init__(self, arg_type):
+        '''
+        :param arg_type: dynamo0.3 argument type (scalar, field or operator)
+        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
-        # we require at least 2 args
+
+        # We require at least 2 args
         if len(arg_type.args) < 2:
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
                 "2 args, but found '{0}'".format(len(arg_type.args)))
-        # the first arg is the type of field, possibly with a *n appended
+
+        # The first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
-            # we expect 'field_type * n' to have been specified
+            # We expect 'field_type * n' to have been specified
             self._type = arg_type.args[0].toks[0].name
             operator = arg_type.args[0].toks[1]
             try:
@@ -534,7 +548,7 @@ class DynArgDescriptor03(Descriptor):
                                                       arg_type))
 
         elif isinstance(arg_type.args[0], expr.FunctionVar):
-            # we expect 'field_type' to have been specified
+            # We expect 'field_type' to have been specified
             if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a "
@@ -547,6 +561,7 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (1) should "
                 "not get to here")
+
         # The 2nd arg is an access descriptor
         if arg_type.args[1].name not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise ParseError(
@@ -562,18 +577,11 @@ class DynArgDescriptor03(Descriptor):
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
-        # Scalars can only be read_only or reductions
-        if self._type in VALID_SCALAR_NAMES:
-            if self._access_descriptor.name not in ["gh_read"] + \
-               VALID_REDUCTION_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) or a reduction ({0}) but found "
-                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
-                                            self._access_descriptor.name,
-                                            arg_type))
+
+        # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
         stencil = None
         mesh = None
+        # Fields
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
                 raise ParseError(
@@ -617,17 +625,32 @@ class DynArgDescriptor03(Descriptor):
                         "grid kernels). However, "
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
-
+            # Test allowed accesses for fields
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
-                    "It does not make sense for a quantity on a discontinuous "
+                    "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
+            # TODO: extend for "gh_write"
+            if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor.name.lower() == "gh_readwrite":
+                raise ParseError(
+                    "It does not make sense for a field on a continuous "
+                    "space ({0}) to have a 'gh_readwrite' access".
+                    format(self._function_space1.lower()))
+            # TODO: extend for "gh_write"
+            if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
+               and self._access_descriptor.name.lower() == "gh_readwrite":
+                raise ParseError(
+                    "In the dynamo0.3 API a field on any_space cannot "
+                    "have 'gh_readwrite' access because it is treated "
+                    "as continuous")
             if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
 
+        # Operators
         elif self._type in VALID_OPERATOR_NAMES:
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
@@ -653,15 +676,33 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
+            # Test allowed accesses for operators
+            if self._access_descriptor.name.lower() == "gh_inc":
+                raise ParseError(
+                    "In the dynamo0.3 API operators cannot have a 'gh_inc' "
+                    "access because they behave as discontinuous quantities")
+
+        # Scalars
         elif self._type in VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
                     "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # Test allowed accesses for scalars (read_only or reduction)
+            if self._access_descriptor.name not in ["gh_read"] + \
+               VALID_REDUCTION_NAMES:
+                raise ParseError(
+                    "In the dynamo0.3 API scalar arguments must be "
+                    "read-only (gh_read) or a reduction ({0}) but found "
+                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
+                                            self._access_descriptor.name,
+                                            arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
-        else:  # we should never get to here
+
+        # We should never get to here
+        else:
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
@@ -2795,7 +2836,7 @@ class DynInvoke(Invoke):
                                            intent=fort_intent))
 
         # Add the subroutine argument declarations for operators that
-        # are read or written (operators are always on discontinous spaces
+        # are read or written (operators are always on discontinuous spaces
         # and therefore are never 'inc')
         op_declarations_dict = self.unique_declns_by_intent("gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
@@ -4197,7 +4238,8 @@ class DynLoop(Loop):
         elif arg.is_operator:
             # operators do not have halos
             return False
-        elif arg.discontinuous and arg.access.lower() == "gh_read":
+        elif arg.discontinuous and arg.access.lower() in \
+                ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
@@ -4836,7 +4878,8 @@ class DynKern(Kern):
 
         # Check whether this kernel reads from an operator
         op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
-                                          arg_accesses=["gh_read"])
+                                          arg_accesses=["gh_read",
+                                                        "gh_readwrite"])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
@@ -5084,13 +5127,11 @@ class ArgOrdering(object):
                     "Expected a LMA operator from which to look-up boundary "
                     "dofs but kernel {0} has argument {1}.".
                     format(self._kern.name, op_arg.type))
-            # TODO this access should really be "gh_readwrite". Support for
-            # this will be added under #25.
-            if op_arg.access != "gh_inc":
+            if op_arg.access != "gh_readwrite":
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "
-                    "boundary conditions to an operator. However its "
-                    "operator argument has access {1} rather than gh_inc.".
+                    "boundary conditions to an operator. However its operator "
+                    "argument has access {1} rather than gh_readwrite.".
                     format(self._kern.name, op_arg.access))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
@@ -5127,7 +5168,7 @@ class ArgOrdering(object):
             "Error: ArgOrdering.mesh_height() must be implemented by subclass")
 
     def mesh_ncell2d(self):
-        ''' 
+        '''
         Add the number of columns in the mesh
 
         :raises NotImplementedError: because this is an abstract method
@@ -6783,17 +6824,25 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def intent(self):
-        ''' Returns the fortran intent of this argument. '''
+        '''
+        Returns the Fortran intent of this argument.
+
+        :return: the expected Fortran intent for this argument as specified
+                 by the kernel argument metadata
+        :rtype: str
+        '''
         if self.access == "gh_read":
             return "in"
         elif self.access == "gh_write":
             return "out"
+        elif self.access == "gh_readwrite":
+            return "inout"
         elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
             return "inout"
         else:
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc' or one of {0}, but found '{1}'".
+                "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
                 format(str(VALID_REDUCTION_NAMES), self.access))
 
     @property

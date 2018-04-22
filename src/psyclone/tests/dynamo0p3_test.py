@@ -45,7 +45,8 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
-    DISCONTINUOUS_FUNCTION_SPACES
+    DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
+    VALID_ANY_SPACE_NAMES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 import fparser
@@ -302,6 +303,19 @@ def test_ad_op_type_1st_arg_not_space():
         _ = DynKernMetadata(ast, name=name)
     assert 'meta_arg entry must be a valid function space' in \
         str(excinfo.value)
+
+
+def test_ad_op_type_wrong_access():
+    ''' Test that an error is raised if an operator has gh_inc access. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_inc, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert ("In the dynamo0.3 API operators cannot have a 'gh_inc' access"
+            in str(excinfo.value))
 
 
 def test_ad_invalid_type():
@@ -2140,7 +2154,7 @@ def test_dyninvoke_arg_for_fs():
         in str(excinfo.value)
 
 
-def test_kernel_specific():
+def test_kernel_specific(tmpdir, f90, f90flags):
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
@@ -2174,8 +2188,13 @@ def test_kernel_specific():
         "boundary_dofs)")
     assert output6 not in generated_code
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_multi_kernel_specific():
+
+def test_multi_kernel_specific(tmpdir, f90, f90flags):
     '''Test that a call to enforce boundary conditions is *not* added following
     multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
     must now be explicitly specified as part of the Algorithm. '''
@@ -2236,9 +2255,14 @@ def test_multi_kernel_specific():
         "boundary_dofs_1)")
     assert output10 not in generated_code
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_field_bc_kernel():
-    '''tests that a kernel with a particular name is recognised as a
+
+def test_field_bc_kernel(tmpdir, f90, f90flags):
+    ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
     know about boundary conditions but this kernel requires them. This
@@ -2259,10 +2283,15 @@ def test_field_bc_kernel():
         "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_bc_kernel_field_only(monkeypatch):
-    '''tests that the recognised boundary-condition kernel is rejected
-    if it has an operator as argument instead of a field.'''
+    ''' Tests that the recognised boundary-condition kernel is rejected
+    if it has an operator as argument instead of a field. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api="dynamo0.3")
@@ -2293,7 +2322,7 @@ def test_bc_kernel_field_only(monkeypatch):
                 in str(excinfo))
 
 
-def test_operator_bc_kernel():
+def test_operator_bc_kernel(tmpdir, f90, f90flags):
     ''' Tests that a kernel with a particular name is recognised as a
     kernel that applies boundary conditions to operators and that
     appropriate code is added to support this. '''
@@ -2313,9 +2342,14 @@ def test_operator_bc_kernel():
         "ndf_any_space_2_op_a, boundary_dofs)")
     assert output3 in generated_code
 
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_operator_bc_kernel_fld_err(monkeypatch):
-    ''' test that we reject the recognised operator boundary conditions
+    ''' Test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
@@ -2338,7 +2372,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
 
 
 def test_operator_bc_kernel_multi_args_err():
-    ''' test that we reject the recognised operator boundary conditions
+    ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
     import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2368,7 +2402,7 @@ def test_operator_bc_kernel_multi_args_err():
 
 
 def test_operator_bc_kernel_wrong_access_err():
-    ''' test that we reject the recognised operator boundary conditions
+    ''' Test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
@@ -2380,14 +2414,12 @@ def test_operator_bc_kernel_wrong_access_err():
         loop = schedule.children[0]
         call = loop.children[0]
         arg = call.arguments.args[0]
-        print dir(arg)
-        print type(arg)
         arg._access = "gh_read"
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
-        assert (
-            "applies boundary conditions to an operator. However its operator "
-            "argument has access gh_read rather than gh_inc") in str(excinfo)
+        assert ("applies boundary conditions to an operator. However its "
+                "operator argument has access gh_read rather than "
+                "gh_readwrite") in str(excinfo)
 
 
 def test_multikernel_invoke_1():
@@ -3039,12 +3071,12 @@ def test_arg_descriptor_vec_str():
 OPERATORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(5) =    &
-          (/ arg_type(gh_operator,gh_write, w0, w0), &
-             arg_type(gh_operator,gh_inc,   w1, w1), &
-             arg_type(gh_operator,gh_read,  w2, w2), &
-             arg_type(gh_operator,gh_write, w3, w3), &
-             arg_type(gh_operator,gh_read, any_space_1, any_space_1)  &
+     type(arg_type), meta_args(5) =                                        &
+          (/ arg_type(gh_operator, gh_write,     w0, w0),                  &
+             arg_type(gh_operator, gh_readwrite, w1, w1),                  &
+             arg_type(gh_operator, gh_read,      w2, w2),                  &
+             arg_type(gh_operator, gh_write,     w3, w3),                  &
+             arg_type(gh_operator, gh_read,      any_space_1, any_space_1) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -3208,7 +3240,7 @@ def test_orientation_stubs():
 
 def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
-    is handled correctly for kernel stubs'''
+    is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3242,7 +3274,7 @@ def test_enforce_bc_kernel_stub_gen():
 
 def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
-    modification is handled correctly for kernel stubs'''
+    modification is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
@@ -3740,7 +3772,7 @@ def test_arg_ref_name_method_error2():
 def test_arg_intent_error():
     ''' Tests that an internal error is raised in DynKernelArgument
     when intent() is called and the argument access property is not one of
-    gh_{read,write,inc} '''
+    gh_{read,write,inc,readwrite} '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -3752,8 +3784,8 @@ def test_arg_intent_error():
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.intent()
     assert ("Expecting argument access to be one of 'gh_read, gh_write, "
-            "gh_inc' or one of ['gh_sum'], but found 'gh_not_an_intent'" in
-            str(excinfo))
+            "gh_inc', 'gh_readwrite' or one of ['gh_sum'], but found "
+            "'gh_not_an_intent'" in str(excinfo))
 
 
 def test_no_arg_on_space(monkeypatch):
@@ -4353,8 +4385,39 @@ def test_fs_discontinuous_and_inc_error():
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
-        assert ("It does not make sense for a quantity on a discontinuous "
+        assert ("It does not make sense for a field on a discontinuous "
                 "space (" + fspace + ") to have a 'gh_inc' access"
+                in str(excinfo.value))
+
+
+def test_fs_continuous_and_readwrite_error():
+    ''' Test that an error is raised if a continuous function space and
+    gh_readwrite are provided for the same field in the metadata '''
+    fparser.logging.disable('CRITICAL')
+    for fspace in CONTINUOUS_FUNCTION_SPACES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                            "arg_type(gh_field,gh_readwrite, "
+                            + fspace + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("It does not make sense for a field on a continuous "
+                "space (" + fspace + ") to have a 'gh_readwrite' access"
+                in str(excinfo.value))
+
+
+def test_fs_anyspace_and_readwrite_error():
+    ''' Test that an error is raised if any_space and
+    gh_readwrite are provided for the same field in the metadata '''
+    fparser.logging.disable('CRITICAL')
+    for fspace in VALID_ANY_SPACE_NAMES:
+        code = CODE.replace("arg_type(gh_field,gh_read, w2)",
+                            "arg_type(gh_field,gh_readwrite, "
+                            + fspace + ")", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name="testkern_qr_type")
+        assert ("field on any_space cannot have 'gh_readwrite' access"
                 in str(excinfo.value))
 
 
@@ -5880,7 +5943,7 @@ def test_stencil_args_unique_3():
 
 
 def test_dynloop_load_unexpected_func_space():
-    '''The load function of an instance of the dynloop class raises an
+    ''' The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
     this error as it is unreachable. However, we can sabotage an
@@ -6134,7 +6197,7 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_itn_space_fld_and_op_writers():
+def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6159,6 +6222,11 @@ def test_itn_space_fld_and_op_writers():
                 "      !\n"
                 "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
             assert output in generated_code
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_any_w3(tmpdir, f90, f90flags):
@@ -6585,7 +6653,7 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
 def test_halo_for_discontinuous(tmpdir, f90, f90flags):
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continous field, there are no stencil accesses, but
+    read from a continuous field, there are no stencil accesses, but
     we do not know anything about the previous writer. As the previous
     writer may have been over dofs we could have dirty annexed dofs
     so need to add a halo exchange. '''
@@ -6611,7 +6679,7 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags):
 def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
     ''' Test that we create halo exchange call when our loop iterates
     over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continous field, there are no stencil accesses, and
+    read from a continuous field, there are no stencil accesses, and
     the previous writer iterates over ndofs. We therefore have dirty
     annexed dofs so need to add a halo exchange. '''
     _, info = parse(os.path.join(BASE_PATH,
@@ -6642,7 +6710,7 @@ def test_arg_discontinous():
     idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
-                   zip(idchld_list, idarg_list)))
+                       zip(idchld_list, idarg_list)))
     for fspace in fs_dict.keys():
         filename = "1_single_invoke_" + fspace + ".f90"
         idchld = fs_dict[fspace][0]
@@ -6842,7 +6910,8 @@ def test_HaloReadAccess_field_not_reader():
         _ = HaloReadAccess(argument)
     assert (
         "In HaloInfo class, field 'f1' should be one of ['gh_read', "
-        "'gh_inc'], but found 'gh_write'" in str(excinfo.value))
+        "'gh_readwrite', 'gh_inc'], but found 'gh_write'"
+        in str(excinfo.value))
 
 
 def test_HaloRead_inv_loop_upper(monkeypatch):
@@ -7024,10 +7093,9 @@ def test_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annex_dofs(
-        tmpdir, f90, f90flags):
-    '''If a kernel writes to a discontinuous field and also reads from a
-    continuous field then that fields annexed dofs are read (but not
+def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags):
+    ''' If a kernel writes to a discontinuous field and also reads from
+    a continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
     continuous field makes the annexed dofs valid then no halo
     exchange is required. This is the case when the previous loop

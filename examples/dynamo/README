@@ -164,7 +164,7 @@ Example 9: Writing to Discontinuous Fields
 ------------------------------------------
 
 The ninth example illustrates the behaviour of discontinuous field writers
-(and readwriters after the support is introduced):
+and readwriters:
 ::
     cd eg9/
     psyclone advective_inc_alg_mod.x90
