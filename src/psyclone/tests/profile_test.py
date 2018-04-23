@@ -79,6 +79,8 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   "call profile_start.*"
                   "do j.*"
                   "do i.*"
@@ -96,6 +98,8 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   "call profile_start.*"
                   "do j.*"
                   "do i.*"
@@ -125,6 +129,8 @@ def test_profile_kernels_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   "call profile_start.*"
                   "do j.*"
                   "do i.*"
@@ -142,6 +148,9 @@ def test_profile_kernels_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   r"call profile_start\(.*, (?P<profile1>\w*)\).*"
                   "do j.*"
                   "do i.*"
@@ -156,7 +165,11 @@ def test_profile_kernels_gocean1p0():
                   "end.*"
                   "end.*"
                   r"call profile_end\((?P=profile2)\)")
-    assert re.search(correct_re, code, re.I) is not None
+    groups = re.search(correct_re, code, re.I)
+    assert groups is not None
+    # Check that the variables are different
+    assert groups.group(1) != groups.group(2)
+
     Profiler.set_options(None)
 
 
@@ -172,6 +185,8 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   "call profile_start.*"
                   "do cell.*"
                   "call.*"
@@ -186,6 +201,8 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   "call profile_start.*"
                   "do cell.*"
                   "call.*"
@@ -210,6 +227,8 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   "call profile_start.*"
                   "do cell.*"
                   "call.*"
@@ -224,6 +243,9 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
+                  "use profiler_mod, only: ProfilerData.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  r"TYPE\(ProfilerData\), save :: profile.*"
                   r"call profile_start\(.*, (?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
@@ -234,6 +256,8 @@ def test_profile_kernels_dynamo0p3():
                   "call.*"
                   "end.*"
                   r"call profile_end\((?P=profile2)\).*")
-    #    "call profile_end\((?P=profile1)\)"
-    assert re.search(correct_re, code, re.I) is not None
+    groups = re.search(correct_re, code, re.I)
+    assert groups is not None
+    # Check that the variables are different
+    assert groups.group(1) != groups.group(2)
     Profiler.set_options(None)
