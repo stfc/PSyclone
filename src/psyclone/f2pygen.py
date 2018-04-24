@@ -41,9 +41,8 @@ import fparser
 import fparser.one
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
-from fparser.one.statements import Comment
+from fparser.one.statements import Comment, Case
 from fparser.one.block_statements import SelectCase, SelectType, EndSelect
-from fparser.one.statements import Case
 # This alis is useful to refer to parts of fparser.one later but
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
