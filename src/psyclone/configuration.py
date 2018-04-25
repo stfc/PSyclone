@@ -47,6 +47,7 @@ Deals with reading the config file and storing default settings.
 '''
 
 import os
+from configparser import ConfigParser
 
 
 class ConfigurationError(Exception):
@@ -67,6 +68,42 @@ class ConfigurationError(Exception):
 
     def __str__(self):
         return repr(self.value)
+
+
+
+class PsyConfigParser(ConfigParser):
+    '''
+    Sub-class the ConfigParser class so that we can add a convertor for
+    handling lists.
+    '''
+    def getlist(self, section, option, raw=False, vars=None, fallback=None):
+        '''
+        Convertor for configuration values that are lists. Supports both
+        comma and white-space delimited lists. Conforms to the
+        :py:class:`ConfigParser.get()` interface.
+
+        :param unicode section: the name of the section of the input file
+                                from which to obtain `option`
+        :param str option: the name of the option for which to obtain the
+                           corresponding entry
+        :param raw: unused argument - for compatibility with get()
+        :param vars: unused argument - for compatibility with get()
+        :param fallback: unused argument - for compatibility with get()
+
+        :returns: list of strings
+        :rtype: list
+        '''
+        value = self.get(section, option)
+        if "," in value:
+            # Comma delimited
+            return [
+                str(item.strip()) for item in value.split(",")
+                if item.strip() != '']
+        else:
+            # Space delimited
+            return [
+                str(item.strip()) for item in value.split(" ")
+                if item.strip() != '']
 
 
 class ConfigFactory(object):
@@ -110,7 +147,6 @@ class Config(object):
         :raises ConfigurationError: if there are errors or inconsistencies in
                                     the specified config file
         '''
-        import configparser
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
@@ -122,7 +158,7 @@ class Config(object):
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
             
-        self._config = configparser.ConfigParser()
+        self._config = PsyConfigParser()
         self._config.read(self._config_file)
 
         # The call to the 'read' method above populates a dictionary.
@@ -132,7 +168,7 @@ class Config(object):
         # to catch any conversion errors due to incorrect entries in
         # the config file.
         try:
-            self._distributed_mem =  self._config['DEFAULT'].getboolean(
+            self._distributed_mem = self._config['DEFAULT'].getboolean(
                 'DISTRIBUTED_MEMORY')
         except ValueError as err:
             raise ConfigurationError(
@@ -141,17 +177,12 @@ class Config(object):
 
         self._default_api = self._config['DEFAULT']['DEFAULTAPI']
 
-        api_list = self._config['DEFAULT']['SUPPORTEDAPIS']
-        if "," in api_list:
-            # Comma delimited
-            self._supported_api_list = [
-                str(item.strip()) for item in api_list.split(",")
-                if item.strip() != '']
-        else:
-            # Space delimited
-            self._supported_api_list = [
-                str(item.strip()) for item in api_list.split(" ")
-                if item.strip() != '']
+        try:
+            self._supported_api_list = self._config['DEFAULT'].getlist(
+                'SUPPORTEDAPIS')
+        except ValueError as err:
+            raise ConfigurationError("error while parsing SUPPORTEDAPIS: {0}".
+                                     format(err.message), config=self)
 
         # Sanity check
         if self._default_api not in self._supported_api_list:
@@ -163,17 +194,12 @@ class Config(object):
 
         self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
-        api_list = self._config['DEFAULT']['SUPPORTEDSTUBAPIS']
-        if "," in api_list:
-            # Comma delimited
-            self._supported_stub_api_list = [
-                str(item.strip()) for item in api_list.split(",")
-                if item.strip() != '']
-        else:
-            # Space delimited
-            self._supported_stub_api_list = [
-                str(item.strip()) for item in api_list.split(" ")
-                if item.strip() != '']
+        try:
+            self._supported_stub_api_list = self._config['DEFAULT'].getlist(
+                'SUPPORTEDSTUBAPIS')
+        except ValueError as err:
+            raise ConfigurationError("error while parsing SUPPORTEDSTUBAPIS: "
+                                     "{0}".format(err.message), config=self)
 
         # Sanity check
         if self._default_stub_api not in self._supported_stub_api_list:
@@ -233,7 +259,7 @@ class Config(object):
                 return cfile
         # If we get to here then we have failed to find a config file
         raise ConfigurationError("{0} not found in any of {1}".
-                                 format(_name, file_paths))
+                                 format(_name, _file_paths))
 
     @property
     def distributed_memory(self):
