@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
@@ -87,12 +88,12 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "weights_z_qr(:) => null()\n"
         "      INTEGER np_xy_qr, np_z_qr\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_w1(:,:) => null()\n")
+        "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert output_decls in generated_code
     init_output = (
         "      !\n"
@@ -314,14 +315,14 @@ def test_dynkern_setup(monkeypatch):
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3),  &
-             arg_type(gh_field,   gh_write, wtheta), &
-             arg_type(gh_operator,gh_inc, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                         &
+          (/ arg_type(gh_field,    gh_write,     w0),       &
+             arg_type(gh_operator, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_read,      w2),       &
+             arg_type(gh_operator, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_read,      w2v)       &
            /)
      type(func_type), meta_funcs(7) =     &
           (/ func_type(w0, gh_basis),     &

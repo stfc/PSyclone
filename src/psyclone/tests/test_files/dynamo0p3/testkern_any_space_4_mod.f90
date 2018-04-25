@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,34 +30,36 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and  R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 module testkern_any_space_4_mod
+
   use argument_mod
   use kernel_mod
   use constants_mod
-! test for any_space producing correct code with different
-! permutations of whether ANY_SPACE is used by another operator/field
-! or not and whether it has a basis function or not
 
-type, public, extends(kernel_type) :: testkern_any_space_4_type
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_FIELD, GH_READ, ANY_SPACE_5),                       &
-       arg_type(GH_OPERATOR, GH_INC, ANY_SPACE_1, ANY_SPACE_2),        &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_3, ANY_SPACE_2),       &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_4, ANY_SPACE_4),       &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_3, ANY_SPACE_5),       &
-       arg_type(GH_FIELD, GH_READ, ANY_SPACE_4)                        &
-       /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(ANY_SPACE_1, GH_BASIS),                               &
-       func_type(ANY_SPACE_4, GH_BASIS, GH_DIFF_BASIS)                 &
-       /)
-  integer :: iterates_over = CELLS
-  integer :: gh_shape = gh_quadrature_XYoZ
-contains
-  procedure, public, nopass :: testkern_any_space_4_code
-end type testkern_any_space_4_type
-!
+  ! Test for any_space producing correct code with different
+  ! permutations of whether ANY_SPACE is used by another operator/field
+  ! or not and whether it has a basis function or not
+  type, public, extends(kernel_type) :: testkern_any_space_4_type
+    type(arg_type) :: meta_args(6) = (/                                 &
+         arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_5),              &
+         arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_SPACE_3, ANY_SPACE_2), &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_SPACE_4, ANY_SPACE_4), &
+         arg_type(GH_OPERATOR, GH_READ,      ANY_SPACE_3, ANY_SPACE_5), &
+         arg_type(GH_FIELD,    GH_READ,      ANY_SPACE_4)               &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                               &
+         func_type(ANY_SPACE_1, GH_BASIS),                              &
+         func_type(ANY_SPACE_4, GH_BASIS, GH_DIFF_BASIS)                &
+         /)
+    integer :: iterates_over = CELLS
+    integer :: gh_shape = gh_quadrature_XYoZ
+  contains
+    procedure, public, nopass :: testkern_any_space_4_code
+  end type testkern_any_space_4_type
+
 contains
   
   subroutine testkern_any_space_4_code(cell, nlayers, adata,                &
@@ -68,7 +70,9 @@ contains
        undf_any_space_4_d, map_any_space_4_d,                               &
        basis_any_space_4_d_qr, diff_basis_any_space_4_d_qr,                 &
        np_xy, np_z, weights_xy, weights_z)
+
     implicit none
+
     integer :: cell, nlayers, ncell_3d_b, ncell_3d_c, ncell_3d_d, ncell_3d_e
     integer :: ndf_any_space_5_a, undf_any_space_5_a, ndf_any_space_1_b, &
          ndf_any_space_2_b, ndf_any_space_3_c, ndf_any_space_4_d,        &
@@ -79,6 +83,7 @@ contains
          basis_any_space_4_d_qr, diff_basis_any_space_4_d_qr
     real(kind=r_def), dimension(:,:,:) :: b_stencil, c_stencil, d_stencil, &
          e_stencil
+
   end subroutine testkern_any_space_4_code
-!
+
 end module testkern_any_space_4_mod

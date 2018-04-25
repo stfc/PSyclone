@@ -1,11 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,19 +32,26 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_cma
 
   ! Description: single function specified in an invoke call performing
   ! a matrix-matrix calculation with CMA operators and scalars.
-  use columnwise_op_mul_2scalars_kernel, only: columnwise_op_mul_kernel_type
-  use operator_mod, only: columnwise_operator_type
+
+  use constants_mod,             only: r_def
+  use operator_mod,              only: columnwise_operator_type
+  use columnwise_op_mul_2scalars_kernel_mod, &
+                                 only: columnwise_op_mul_2scalars_kernel_type
+
   implicit none
+
   type(columnwise_operator_type) :: cma_opa, cma_opb, cma_opc
   real(kind=r_def) :: alpha, beta
 
-  call invoke(                      &
-       columnwise_op_mul_kernel_type(cma_opa, alpha, cma_opb, beta, cma_opc) &
+  call invoke(                                               &
+       columnwise_op_mul_2scalars_kernel_type(               &
+                     cma_opa, alpha, cma_opb, beta, cma_opc) &
           )
 
 end program single_invoke_cma

@@ -55,13 +55,13 @@ module testkern_w3_only_vector_mod
 
 contains
 
-  SUBROUTINE testkern_w3_only_vector_code(nlayers,       &
-                                          field_1_w3_v1, &
-                                          field_1_w3_v2, &
-                                          field_1_w3_v3, &
-                                          field_2_w3_v1, &
-                                          field_2_w3_v2, &
-                                          field_2_w3_v3, &
+  SUBROUTINE testkern_w3_only_vector_code(nlayers,   &
+                                          field1_v1, &
+                                          field1_v2, &
+                                          field1_v3, &
+                                          field2_v1, &
+                                          field2_v2, &
+                                          field2_v3, &
                                           ndf_w3, undf_w3, map_w3)
 
     IMPLICIT NONE
@@ -70,12 +70,12 @@ contains
     INTEGER, intent(in) :: ndf_w3
     INTEGER, intent(in) :: undf_w3
     INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3_v1
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3_v2
-    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_1_w3_v3
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v1
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v2
-    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v3
+    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v1
+    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v2
+    REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v3
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_v1
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_v2
+    REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field2_v3
 
   END SUBROUTINE testkern_w3_only_vector_code
 

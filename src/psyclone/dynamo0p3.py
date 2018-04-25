@@ -41,7 +41,7 @@
     required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
-# imports
+# Imports
 import os
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
@@ -51,12 +51,15 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
 
-# first section : Parser specialisations and classes
+# First section : Parser specialisations and classes
 
-# constants
+# Function spaces (FS)
+# Discontinuous FS
 DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v"]
-# space any_w2 can be w2, w2h or w2v
+# Continuous FS
+# Space any_w2 can be w2, w2h or w2v
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "w2h", "any_w2"]
+# Valid FS and FS names
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
     CONTINUOUS_FUNCTION_SPACES
 
@@ -66,9 +69,13 @@ VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
 
 VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
+# Evaluators: basis and differential basis
 VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
+
+# Meta functions
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
+# Evaluators: quadrature
 VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 # Dictionary allowing us to look-up the name of the Fortran module, type
@@ -78,24 +85,27 @@ QUADRATURE_TYPE_MAP = {
                            "type": "quadrature_xyoz_type",
                            "proxy_type": "quadrature_xyoz_proxy_type"}}
 
+# Datatypes (scalars, fields, operators)
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
 VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 VALID_ARG_TYPE_NAMES = ["gh_field"] + VALID_OPERATOR_NAMES + \
     VALID_SCALAR_NAMES
 
+# Access types
 VALID_REDUCTION_NAMES = ["gh_sum"]
 # List of all access types that involve writing to an argument
 # in some form
-GH_WRITE_ACCESSES = ["gh_write", "gh_inc"] + VALID_REDUCTION_NAMES
+GH_WRITE_ACCESSES = ["gh_write", "gh_readwrite", "gh_inc"] + \
+                     VALID_REDUCTION_NAMES
 # List of all access types that involve reading an argument in some
 # form
-GH_READ_ACCESSES = ["gh_read", "gh_inc"]
+GH_READ_ACCESSES = ["gh_read", "gh_readwrite", "gh_inc"]
 # Access type that is only a read, as a list for convenience
 GH_READ_ONLY_ACCESS = ["gh_read"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ONLY_ACCESS + GH_WRITE_ACCESSES
 
-
+# Stencils
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
 # file as it causes failures with py.test 2.8.7. Therefore some parts
@@ -125,12 +135,10 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
-# Note that readwrite is not currently supported and so its associated
-# entry is left blank.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "inc": "gh_inc", "readwrite": ""}
+                    "inc": "gh_inc", "readwrite": "gh_readwrite"}
 
-# Valid Dynamo loop types. The default is "" which is over cells (in the
+# Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
@@ -484,20 +492,26 @@ class DynArgDescriptor03(Descriptor):
     descriptor.'''
 
     def __init__(self, arg_type):
+        '''
+        :param arg_type: dynamo0.3 argument type (scalar, field or operator)
+        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
-        # we require at least 2 args
+
+        # We require at least 2 args
         if len(arg_type.args) < 2:
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
                 "2 args, but found '{0}'".format(len(arg_type.args)))
-        # the first arg is the type of field, possibly with a *n appended
+
+        # The first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
-            # we expect 'field_type * n' to have been specified
+            # We expect 'field_type * n' to have been specified
             self._type = arg_type.args[0].toks[0].name
             operator = arg_type.args[0].toks[1]
             try:
@@ -534,7 +548,7 @@ class DynArgDescriptor03(Descriptor):
                                                       arg_type))
 
         elif isinstance(arg_type.args[0], expr.FunctionVar):
-            # we expect 'field_type' to have been specified
+            # We expect 'field_type' to have been specified
             if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a "
@@ -547,6 +561,7 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (1) should "
                 "not get to here")
+
         # The 2nd arg is an access descriptor
         if arg_type.args[1].name not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise ParseError(
@@ -562,18 +577,11 @@ class DynArgDescriptor03(Descriptor):
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
-        # Scalars can only be read_only or reductions
-        if self._type in VALID_SCALAR_NAMES:
-            if self._access_descriptor.name not in ["gh_read"] + \
-               VALID_REDUCTION_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) or a reduction ({0}) but found "
-                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
-                                            self._access_descriptor.name,
-                                            arg_type))
+
+        # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
         stencil = None
         mesh = None
+        # Fields
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
                 raise ParseError(
@@ -617,17 +625,32 @@ class DynArgDescriptor03(Descriptor):
                         "grid kernels). However, "
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
-
+            # Test allowed accesses for fields
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
                and self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
-                    "It does not make sense for a quantity on a discontinuous "
+                    "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
+            # TODO: extend for "gh_write"
+            if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor.name.lower() == "gh_readwrite":
+                raise ParseError(
+                    "It does not make sense for a field on a continuous "
+                    "space ({0}) to have a 'gh_readwrite' access".
+                    format(self._function_space1.lower()))
+            # TODO: extend for "gh_write"
+            if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
+               and self._access_descriptor.name.lower() == "gh_readwrite":
+                raise ParseError(
+                    "In the dynamo0.3 API a field on any_space cannot "
+                    "have 'gh_readwrite' access because it is treated "
+                    "as continuous")
             if stencil and self._access_descriptor.name.lower() != "gh_read":
                 raise ParseError("a stencil must be read only so its access"
                                  "should be gh_read")
 
+        # Operators
         elif self._type in VALID_OPERATOR_NAMES:
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
@@ -653,15 +676,33 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
+            # Test allowed accesses for operators
+            if self._access_descriptor.name.lower() == "gh_inc":
+                raise ParseError(
+                    "In the dynamo0.3 API operators cannot have a 'gh_inc' "
+                    "access because they behave as discontinuous quantities")
+
+        # Scalars
         elif self._type in VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
                     "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # Test allowed accesses for scalars (read_only or reduction)
+            if self._access_descriptor.name not in ["gh_read"] + \
+               VALID_REDUCTION_NAMES:
+                raise ParseError(
+                    "In the dynamo0.3 API scalar arguments must be "
+                    "read-only (gh_read) or a reduction ({0}) but found "
+                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
+                                            self._access_descriptor.name,
+                                            arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
-        else:  # we should never get to here
+
+        # We should never get to here
+        else:
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
@@ -768,6 +809,14 @@ class DynKernMetadata(KernelType):
     the subroutine for the Dynamo 0.3 API. '''
 
     def __init__(self, ast, name=None):
+        '''
+        :param ast: fparser1 AST for the kernel
+        :type ast: :py:class:`fparser.block_statements.BeginSource`
+        :param str name: The name of this kernel
+
+        :raises ParseError: if the meta-data does not conform to the
+                            rules for the Dynamo 0.3 API
+        '''
         KernelType.__init__(self, ast, name=name)
 
         # The type of CMA operation this kernel performs (or None if
@@ -778,6 +827,11 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
+
+        # Whether or not this is an inter-grid kernel (i.e. has a mesh
+        # specified for each [field] argument). This property is
+        # set to True if all the checks in _validate_inter_grid() pass.
+        self._is_intergrid = False
 
         # parse the arg_type metadata
         self._arg_descriptors = []
@@ -953,6 +1007,16 @@ class DynKernMetadata(KernelType):
             # this is not an inter-grid kernel
             return
 
+        if len(VALID_MESH_TYPES) != 2:
+            # Sanity check that nobody has messed with the number of
+            # grid types that we recognise. This is here because the
+            # implementation assumes that there are just two grids
+            # (coarse and fine).
+            raise ParseError(
+                "The implementation of inter-grid support in the Dynamo "
+                "0.3 API assumes there are exactly two mesh types but "
+                "dynamo0p3.VALID_MESH_TYPES contains {0}: {1}".
+                format(len(VALID_MESH_TYPES), VALID_MESH_TYPES))
         if len(mesh_list) != len(VALID_MESH_TYPES):
             raise ParseError(
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
@@ -989,6 +1053,8 @@ class DynKernMetadata(KernelType):
                 "on different meshes. However kernel {0} has a field on "
                 "function space(s) {1} on each of the mesh types {2}.".
                 format(self.name, list(fs_common), mesh_list))
+        # Finally, record that this is a valid inter-grid kernel
+        self._is_intergrid = True
 
     def _identify_cma_op(self, cwise_ops):
         '''Identify and return the type of CMA-operator-related operation
@@ -1154,6 +1220,15 @@ class DynKernMetadata(KernelType):
             return self._eval_shape
         else:
             return ""
+
+    @property
+    def is_intergrid(self):
+        '''
+        Returns whether or not this is an inter-grid kernel
+        :return: True if kernel is an inter-grid kernel, False otherwise
+        :rtype: bool
+        '''
+        return self._is_intergrid
 
 # Second section : PSy specialisations
 
@@ -1731,6 +1806,263 @@ class DynInvokeCMAOperators(object):
                     label=op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=param_names))
+
+
+class DynMeshes(object):
+    '''
+    Holds all mesh-related information. If there are no inter-grid
+    kernels then there is only one mesh object required (when doing
+    distributed memory). However, kernels performing inter-grid
+    operations require multiple mesh objects as well as mesh maps and
+    other quantities.
+
+    There are two types of inter-grid operation; the first is "prolongation"
+    where a field on a coarse mesh is mapped onto a fine mesh. The second
+    is "restriction" where a field on a fine mesh is mapped onto a coarse
+    mesh.
+
+    '''
+
+    def __init__(self, schedule, unique_psy_vars):
+        '''
+        :param schedule: the schedule of the Invoke for which to extract
+                         information on all required inter-grid operations
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+        :param unique_psy_vars: list of arguments to the PSy-layer routine
+        :type unique_psy_vars: list of
+                   :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
+        '''
+        self._name_space_manager = NameSpaceFactory().create()
+
+        self._kern_calls = []
+        self._mesh_names = []
+        # Set used to generate a list of the unique mesh objects
+        _name_set = set()
+
+        # Find the first non-scalar argument to this PSy layer routine. We
+        # will use this to look-up the mesh if there are no inter-grid
+        # kernels in this invoke.
+        self._first_var = None
+        for var in unique_psy_vars:
+            if var.type not in VALID_SCALAR_NAMES:
+                self._first_var = var
+                break
+
+        # Loop over all kernel calls in the schedule. Keep a list of
+        # any non-intergrid kernels so that we can generate a verbose error
+        # message if necessary.
+        non_intergrid_kernels = []
+        for call in schedule.kern_calls():
+
+            if not call.is_intergrid:
+                non_intergrid_kernels.append(call)
+                # Skip over any non-inter-grid kernels
+                continue
+
+            fine_args = psyGen.args_filter(call.arguments.args,
+                                           arg_meshes=["gh_fine"])
+            coarse_args = psyGen.args_filter(call.arguments.args,
+                                             arg_meshes=["gh_coarse"])
+            fine_arg = fine_args[0]
+            coarse_arg = coarse_args[0]
+
+            # Generate name for inter-mesh map
+            base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
+                                                   coarse_arg.name)
+            mmap = self._name_space_manager.create_name(
+                root_name=base_mmap_name,
+                context="PSyVars",
+                label=base_mmap_name)
+
+            # Generate name for ncell variables
+            ncell_fine = self._name_space_manager.create_name(
+                root_name="ncell_{0}".format(fine_arg.name),
+                context="PSyVars",
+                label="ncell_{0}".format(fine_arg.name))
+            ncellpercell = self._name_space_manager.create_name(
+                root_name="ncpc_{0}_{1}".format(fine_arg.name,
+                                                coarse_arg.name),
+                context="PSyVars",
+                label="ncpc_{0}_{1}".format(fine_arg.name,
+                                            coarse_arg.name))
+            # Name for cell map
+            base_name = "cell_map_" + coarse_arg.name
+            cell_map = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+
+            # Store this information in our list of dicts
+            self._kern_calls.append({"fine": fine_arg,
+                                     "ncell_fine": ncell_fine,
+                                     "coarse": coarse_arg,
+                                     "mmap": mmap,
+                                     "ncperc": ncellpercell,
+                                     "cellmap": cell_map})
+
+            # Create and store the names of the associated mesh objects
+            _name_set.add(
+                self._name_space_manager.create_name(
+                    root_name="mesh_{0}".format(fine_arg.name),
+                    context="PSyVars",
+                    label="mesh_{0}".format(fine_arg.name)))
+            _name_set.add(
+                self._name_space_manager.create_name(
+                    root_name="mesh_{0}".format(coarse_arg.name),
+                    context="PSyVars",
+                    label="mesh_{0}".format(coarse_arg.name)))
+
+        # If we found a mixture of both inter-grid and non-inter-grid kernels
+        # then we reject the invoke()
+        if non_intergrid_kernels and self._kern_calls:
+            raise GenerationError(
+                "An invoke containing inter-grid kernels must contain no "
+                "other kernel types but kernels '{0}' in invoke '{1}' are "
+                "not inter-grid kernels.".format(
+                    ", ".join([call.name for call in non_intergrid_kernels]),
+                    schedule.invoke.name))
+
+        # If we didn't have any inter-grid kernels but distributed memory
+        # is enabled then we will still need a mesh object
+        if not _name_set and config.DISTRIBUTED_MEMORY:
+            mesh_name = "mesh"
+            _name_set.add(
+                self._name_space_manager.create_name(
+                    root_name=mesh_name, context="PSyVars", label=mesh_name))
+
+        # Convert the set of mesh names to a list and store
+        self._mesh_names = list(_name_set)
+
+    def declarations(self, parent):
+        '''
+        Declare variables specific to inter-grid kernels
+
+        :param parent: the parent node to which to add the declarations
+        :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+        # We'll need various typedefs from the mesh module
+        if self._mesh_names:
+            parent.add(UseGen(parent, name="mesh_mod", only=True,
+                              funcnames=["mesh_type"]))
+        if self._kern_calls:
+            parent.add(UseGen(parent, name="mesh_map_mod", only=True,
+                              funcnames=["mesh_map_type"]))
+        # Declare the mesh object(s)
+        for name in self._mesh_names:
+            parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
+                                   entity_decls=[name + " => null()"]))
+        # Declare the inter-mesh map(s) and cell map(s)
+        for kern in self._kern_calls:
+            parent.add(TypeDeclGen(parent, pointer=True,
+                                   datatype="mesh_map_type",
+                                   entity_decls=[kern["mmap"] + " => null()"]))
+            parent.add(
+                DeclGen(parent, pointer=True, datatype="integer",
+                        entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
+
+            # Declare the number of cells in the fine mesh and how many fine
+            # cells there are per coarse cell
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[kern["ncell_fine"],
+                                             kern["ncperc"]]))
+
+    def initialise(self, parent):
+        '''
+        Initialise parameters specific to inter-grid kernels
+
+        :param parent: the parent node to which to add the initialisations
+        :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+
+        # If we haven't got any need for a mesh in this invoke then we
+        # don't do anything
+        if len(self._mesh_names) == 0:
+            return
+
+        parent.add(CommentGen(parent, ""))
+
+        if len(self._mesh_names) == 1:
+            # We only require one mesh object which means that this invoke
+            # contains no inter-grid kernels
+            parent.add(CommentGen(parent, " Create a mesh object"))
+            parent.add(CommentGen(parent, ""))
+            rhs = self._first_var.name_indexed + "%get_mesh()"
+            parent.add(AssignGen(parent, pointer=True,
+                                 lhs=self._mesh_names[0], rhs=rhs))
+            return
+
+        parent.add(CommentGen(
+            parent,
+            " Look-up mesh objects and loop limits for inter-grid kernels"))
+        parent.add(CommentGen(parent, ""))
+
+        # Keep a list of quantities that we've already initialised so
+        # that we don't generate duplicate assignments
+        initialised = []
+
+        for kern in self._kern_calls:
+            # We need pointers to both the coarse and the fine mesh
+            fine_mesh = self._name_space_manager.create_name(
+                root_name="mesh_{0}".format(kern["fine"].name),
+                context="PSyVars",
+                label="mesh_{0}".format(kern["fine"].name))
+            coarse_mesh = self._name_space_manager.create_name(
+                root_name="mesh_{0}".format(kern["coarse"].name),
+                context="PSyVars",
+                label="mesh_{0}".format(kern["coarse"].name))
+            if fine_mesh not in initialised:
+                initialised.append(fine_mesh)
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=fine_mesh,
+                              rhs=kern["fine"].name_indexed + "%get_mesh()"))
+            if coarse_mesh not in initialised:
+                initialised.append(coarse_mesh)
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=coarse_mesh,
+                              rhs=kern["coarse"].name_indexed + "%get_mesh()"))
+            # We also need a pointer to the mesh map which we get from
+            # the coarse mesh
+            if kern["mmap"] not in initialised:
+                initialised.append(kern["mmap"])
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=kern["mmap"],
+                              rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
+                                                                 fine_mesh)))
+
+            # Cell map. This is obtained from the mesh map.
+            if kern["cellmap"] not in initialised:
+                initialised.append(kern["cellmap"])
+                parent.add(
+                    AssignGen(parent, pointer=True, lhs=kern["cellmap"],
+                              rhs=kern["mmap"]+"%get_whole_cell_map()"))
+
+            # Number of cells in the fine mesh
+            if kern["ncell_fine"] not in initialised:
+                initialised.append(kern["ncell_fine"])
+                if config.DISTRIBUTED_MEMORY:
+                    # TODO this hardwired depth of 2 will need changing in
+                    # order to support redundant computation
+                    parent.add(
+                        AssignGen(parent, lhs=kern["ncell_fine"],
+                                  rhs=(fine_mesh+"%get_last_halo_cell"
+                                       "(depth=2)")))
+                else:
+                    parent.add(
+                        AssignGen(parent, lhs=kern["ncell_fine"],
+                                  rhs="%".join([kern["fine"].proxy_name,
+                                                kern["fine"].ref_name(),
+                                                "get_ncell()"])))
+
+            # Number of fine cells per coarse cell.
+            if kern["ncperc"] not in initialised:
+                initialised.append(kern["ncperc"])
+                parent.add(
+                    AssignGen(parent, lhs=kern["ncperc"],
+                              rhs=kern["mmap"] +
+                              "%get_ntarget_cells_per_source_cell()"))
 
 
 class DynInvokeBasisFns(object):
@@ -2326,6 +2658,10 @@ class DynInvoke(Invoke):
         # and/or evaluators required by this invoke
         self.evaluators = DynInvokeBasisFns(self.schedule)
 
+        # Initialise the object holding all information related to meshes
+        # and inter-grid operations
+        self.meshes = DynMeshes(self.schedule, self.psy_unique_vars)
+
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -2475,6 +2811,9 @@ class DynInvoke(Invoke):
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
 
+        # Declare any mesh objects (including those for inter-grid kernels)
+        self.meshes.declarations(invoke_sub)
+
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
 
@@ -2497,7 +2836,7 @@ class DynInvoke(Invoke):
                                            intent=fort_intent))
 
         # Add the subroutine argument declarations for operators that
-        # are read or written (operators are always on discontinous spaces
+        # are read or written (operators are always on discontinuous spaces
         # and therefore are never 'inc')
         op_declarations_dict = self.unique_declns_by_intent("gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
@@ -2613,6 +2952,10 @@ class DynInvoke(Invoke):
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
 
+        # Initialise mesh object(s) and all related quantities for any
+        # inter-grid kernels (number of fine cells per coarse cell etc.)
+        self.meshes.initialise(invoke_sub)
+
         # If we have one or more CMA operators then we will need the number
         # of columns in the mesh
         if cma_op:
@@ -2627,24 +2970,6 @@ class DynInvoke(Invoke):
                           rhs=cma_op.proxy_name_indexed + "%ncell_2d"))
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[ncol_name]))
-
-        # declare and initialise a mesh object if required
-        if config.DISTRIBUTED_MEMORY:
-            from psyclone.f2pygen import UseGen
-            # we will need a mesh object for any loop bounds
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
-                                  funcnames=["mesh_type"]))
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub, datatype="mesh_type", pointer=True,
-                            entity_decls=[mesh_obj_name+" => null()"]))
-            rhs = first_var.name_indexed + "%get_mesh()"
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, pointer=True,
-                                     lhs=mesh_obj_name, rhs=rhs))
 
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
@@ -2926,6 +3251,7 @@ class DynHaloExchange(HaloExchange):
             if depth_info.max_depth:
                 # return the maximum halo depth (which is returned by
                 # calling get_halo_depth with no depth argument)
+                # TODO fix hard-wired mesh name here
                 return "mesh%get_halo_depth()"
             else:  # return the variable and/or literal depth expression
                 return str(depth_info)
@@ -2938,8 +3264,8 @@ class DynHaloExchange(HaloExchange):
             return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
-        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and create
-        an equivalent list of `psyclone.dynamo0p3.HaloDepth`
+        '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
+        create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
         objects. Whilst doing this we simplify the
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
@@ -3405,6 +3731,11 @@ class HaloWriteAccess(HaloDepth):
             else:
                 # loop redundant computation is to the maximum depth
                 max_depth = True
+        # If this is an inter-grid kernel and we're writing to the
+        # field on the fine mesh then the halo depth is effectively
+        # doubled
+        if call.is_intergrid and field.mesh == "gh_fine":
+            depth *= 2
         # The third argument for set_by_value specifies the name of a
         # variable used to specify the depth. Variables are currently
         # not used when a halo is written to, so we pass None which
@@ -3540,6 +3871,13 @@ class HaloReadAccess(HaloDepth):
                     else:
                         # a variable is specified
                         self._var_depth = field.stencil.extent_arg.varName
+        # If this is an intergrid kernel and the field in question is on
+        # the fine mesh then we must double the halo depth
+        if call.is_intergrid and field.mesh == "gh_fine":
+            if self._literal_depth:
+                self._literal_depth *= 2
+            if self._var_depth:
+                self._var_depth = "2*" + self._var_depth
 
 
 class DynLoop(Loop):
@@ -3604,9 +3942,14 @@ class DynLoop(Loop):
             entity.view(indent=indent + 1)
 
     def load(self, kern):
-        ''' Load the state of this Loop using the supplied Kernel
+        '''
+        Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
-        construct Loop objects for a given kernel call. '''
+        construct Loop objects for a given kernel call.
+
+        :param kern: Kernel object to use to populate state of Loop
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        '''
         self._kern = kern
 
         self._field = kern.arguments.iteration_space_arg()
@@ -3753,6 +4096,24 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
+        # We only require a mesh object if distributed memory is enabled
+        # and the loop is over cells
+        if config.DISTRIBUTED_MEMORY and \
+           self._upper_bound_name in ["ncells", "cell_halo"]:
+            if self._kern.is_intergrid:
+                # We have more than one mesh object to choose from and we
+                # want the coarse one because that determines the iteration
+                # space. _field_name holds the name of the argument that
+                # determines the iteration space of this kernel and that
+                # is set-up to be the one on the coarse mesh (in
+                # DynKerelArguments.iteration_space_arg()).
+                mesh_name = "mesh_" + self._field_name
+            else:
+                # It's not an inter-grid kernel so there's only one mesh
+                mesh_name = "mesh"
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name=mesh_name, context="PSyVars", label=mesh_name)
+
         if self._upper_bound_name == "ncolours":
             if config.DISTRIBUTED_MEMORY:
                 # Extract the value in-place rather than extracting to
@@ -3793,8 +4154,6 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "ncells":
             if config.DISTRIBUTED_MEMORY:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 result = mesh_obj_name + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
@@ -3802,8 +4161,6 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "cell_halo":
             if config.DISTRIBUTED_MEMORY:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
                                                             halo_index)
             else:
@@ -3821,8 +4178,6 @@ class DynLoop(Loop):
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if config.DISTRIBUTED_MEMORY:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
                                                              halo_index)
             else:
@@ -3883,7 +4238,8 @@ class DynLoop(Loop):
         elif arg.is_operator:
             # operators do not have halos
             return False
-        elif arg.discontinuous and arg.access.lower() == "gh_read":
+        elif arg.discontinuous and arg.access.lower() in \
+                ["gh_read", "gh_readwrite"]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
@@ -4197,6 +4553,7 @@ class DynKern(Kern):
         self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
+        self._is_intergrid = False  # Whether this is an inter-grid kernel
 
     def load(self, call, parent=None):
         '''
@@ -4305,6 +4662,10 @@ class DynKern(Kern):
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
+        # Record whether or not the kernel meta-data specifies that this
+        # is an inter-grid kernel
+        self._is_intergrid = ktype.is_intergrid
+
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
@@ -4366,6 +4727,15 @@ class DynKern(Kern):
         (one of 'assembly', 'apply' or 'matrix-matrix') or None if the
         the kernel does not involve CMA operators '''
         return self._cma_operation
+
+    @property
+    def is_intergrid(self):
+        '''
+        Getter for whether or not this is an inter-grid kernel call
+        :return: True if it is an inter-grid kernel, False otherwise
+        :rtype: bool
+        '''
+        return self._is_intergrid
 
     @property
     def fs_descriptors(self):
@@ -4508,7 +4878,8 @@ class DynKern(Kern):
 
         # Check whether this kernel reads from an operator
         op_args = self.parent.args_filter(arg_types=VALID_OPERATOR_NAMES,
-                                          arg_accesses=["gh_read"])
+                                          arg_accesses=["gh_read",
+                                                        "gh_readwrite"])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
@@ -4630,9 +5001,14 @@ class ArgOrdering(object):
         self._kern = kern
 
     def generate(self):
-        '''specifies which arguments appear in an argument list, their type
+        '''
+        Specifies which arguments appear in an argument list, their type
         and their ordering. Calls methods for each type of argument
-        that can be specialised by a child class for its particular need'''
+        that can be specialised by a child class for its particular need.
+
+        :raises GenerationError: if the kernel arguments break the
+                                 rules for the Dynamo 0.3 API.
+        '''
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
@@ -4650,6 +5026,12 @@ class ArgOrdering(object):
         # operator argument
         if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
             self.mesh_ncell2d()
+
+        if self._kern.is_intergrid:
+            # Inter-grid kernels require special arguments
+            # The cell-map for the current column providing the mapping from
+            # the coarse to the fine mesh.
+            self.cell_map()
 
         # for each argument in the order they are specified in the
         # kernel metadata, call particular methods depending on what
@@ -4688,14 +5070,19 @@ class ArgOrdering(object):
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
-            # Provide arguments common to LMA operators and fields
-            # on a space *unless* this is a CMA matrix-matrix kernel
-            if self._kern.cma_operation not in ["matrix-matrix"]:
+            # Provide arguments common to LMA operators and fields on
+            # a space *unless* this is an inter-grid or CMA
+            # matrix-matrix kernel
+            if self._kern.cma_operation not in ["matrix-matrix"] and \
+               not self._kern.is_intergrid:
                 self.fs_common(unique_fs)
             # Provide additional arguments if there is a
             # field on this space
             if field_on_space(unique_fs, self._kern.arguments):
-                self.fs_compulsory_field(unique_fs)
+                if self._kern.is_intergrid:
+                    self.fs_intergrid(unique_fs)
+                else:
+                    self.fs_compulsory_field(unique_fs)
             cma_op = cma_on_space(unique_fs, self._kern.arguments)
             if cma_op:
                 if self._kern.cma_operation == "assembly":
@@ -4723,6 +5110,7 @@ class ArgOrdering(object):
             if self._kern.name.lower() == "enforce_bc_code" and \
                unique_fs.orig_name.lower() == "any_space_1":
                 self.field_bcs_kernel(unique_fs)
+
         # Add boundary dofs array to the operator boundary condition
         # kernel (enforce_operator_bc_kernel) arguments
         if self._kern.name.lower() == "enforce_operator_bc_code":
@@ -4739,13 +5127,11 @@ class ArgOrdering(object):
                     "Expected a LMA operator from which to look-up boundary "
                     "dofs but kernel {0} has argument {1}.".
                     format(self._kern.name, op_arg.type))
-            # TODO this access should really be "gh_readwrite". Support for
-            # this will be added under #25.
-            if op_arg.access != "gh_inc":
+            if op_arg.access != "gh_readwrite":
                 raise GenerationError(
                     "Kernel {0} is recognised as a kernel which applies "
-                    "boundary conditions to an operator. However its "
-                    "operator argument has access {1} rather than gh_inc.".
+                    "boundary conditions to an operator. However its operator "
+                    "argument has access {1} rather than gh_readwrite.".
                     format(self._kern.name, op_arg.access))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
@@ -4754,120 +5140,213 @@ class ArgOrdering(object):
             self.quad_rule()
 
     def cell_position(self):
-        ''' add cell position information'''
+        '''
+        Add cell position information
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.cell_position() must be implemented by "
             "subclass")
 
+    def cell_map(self):
+        '''
+        Add cell-map information (for inter-grid kernels)
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
+        raise NotImplementedError(
+            "Error: ArgOrdering.cell_map() must be implemented by subclass")
+
     def mesh_height(self):
-        ''' add height information'''
+        '''
+        Add height information (i.e. no. of layers)
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.mesh_height() must be implemented by subclass")
 
     def mesh_ncell2d(self):
-        ''' Add the number of columns in the mesh '''
+        '''
+        Add the number of columns in the mesh
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.mesh_ncell2d() must be implemented by"
             "subclass")
 
     def cma_operator(self, arg):
-        ''' Add information on the CMA operator '''
+        '''
+        Add information on the CMA operator
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError("Error: ArgOrdering.cma_operator() must "
                                   "be implemented by subclass")
 
     def field_vector(self, arg):
-        ''' add field-vector information for this field-vector argument '''
+        '''
+        Add field-vector information for this field-vector argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.field_vector() must be implemented by "
             "subclass")
 
     def field(self, arg):
-        ''' add field information for this field argument '''
+        '''
+        Add field information for this field argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.field() must be implemented by subclass")
 
     def stencil_unknown_extent(self, arg):
-        ''' add stencil extent information for this stencil argument '''
+        '''
+        Add stencil extent information for this stencil argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.stencil_unknown_extent() must be implemented "
             "by subclass")
 
     def stencil_unknown_direction(self, arg):
-        ''' add stencil direction information for this stencil argument '''
+        '''
+        Add stencil direction information for this stencil argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.stencil_unknown_direction() must be "
             "implemented by subclass")
 
     def stencil(self, arg):
-        ''' add stencil information for this stencil argument '''
+        '''
+        Add stencil information for this stencil argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.stencil() must be implemented by subclass")
 
     def operator(self, arg):
-        ''' add operator information for this operator argument '''
+        '''
+        Add operator information for this operator argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.operator() must be implemented by subclass")
 
     def scalar(self, arg):
-        ''' add scalar information for this scalar argument '''
+        '''
+        Add scalar information for this scalar argument
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.scalar() must be implemented by subclass")
 
     def fs_common(self, function_space):
-        '''add information common to LMA operators and fields for this
-        function space'''
+        '''
+        Add information common to LMA operators and fields for this
+        function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.fs_common() must be implemented by "
             "subclass")
 
     def fs_compulsory_field(self, function_space):
-        '''add compulsory information for this function space'''
+        '''
+        Add compulsory information for this function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.fs_compulsory_field() must be implemented "
             "by subclass")
 
     def basis(self, function_space):
-        '''add basis function information for this function space '''
+        '''
+        Add basis function information for this function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.basis() must be implemented by subclass")
 
     def diff_basis(self, function_space):
-        '''add differential basis function information for this function
-        space'''
+        '''
+        Add differential basis function information for this function
+        space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.diff_basis() must be implemented by subclass")
 
     def orientation(self, function_space):
-        '''add orientation information for this function space'''
+        '''
+        Add orientation information for this function space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.orientation() must be implemented by subclass")
 
     def field_bcs_kernel(self, function_space):
-        '''add boundary condition information for a field on this function
-        space'''
+        '''
+        Add boundary condition information for a field on this function
+        space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.field_bcs_kernel() must be implemented by "
             "subclass")
 
     def operator_bcs_kernel(self, function_space):
-        '''add boundary condition information for an operator on this function
-        space'''
+        '''
+        Add boundary condition information for an operator on this function
+        space
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.operator_bcs_kernel() must be implemented by "
             "subclass")
 
     def quad_rule(self):
-        '''add qr information'''
+        '''
+        Add qr information
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError(
             "Error: ArgOrdering.quad_rule() must be implemented by subclass")
 
     def banded_dofmap(self, function_space):
-        ''' Add banded dofmap (required for CMA operator assembly) '''
+        '''
+        Add banded dofmap (required for CMA operator assembly)
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
                                   " be implemented by subclass")
 
     def indirection_dofmap(self, arg, operator=None):
-        ''' Add indirection dofmap required when applying a CMA operator '''
+        '''
+        Add indirection dofmap required when applying a CMA operator
+
+        :raises NotImplementedError: because this is an abstract method
+        '''
         raise NotImplementedError("Error: ArgOrdering.indirection_dofmap() "
                                   "must be implemented by subclass")
 
@@ -4885,6 +5364,30 @@ class KernCallArgList(ArgOrdering):
     def cell_position(self):
         ''' add a cell argument to the argument list'''
         self._arglist.append(self._cell_ref_name)
+
+    def cell_map(self):
+        ''' Add cell-map and related cell counts to the argument list '''
+        cargs = psyGen.args_filter(self._kern.args,
+                                   arg_meshes=["gh_coarse"])
+        carg = cargs[0]
+        fargs = psyGen.args_filter(self._kern.args,
+                                   arg_meshes=["gh_fine"])
+        farg = fargs[0]
+        base_name = "cell_map_" + carg.name
+        map_name = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        # Add the cell map to our argument list
+        self._arglist.append(map_name+"(:,cell)")
+        # No. of fine cells per coarse cell
+        base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
+        ncellpercell = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        self._arglist.append(ncellpercell)
+        # No. of columns in the fine mesh
+        base_name = "ncell_{0}".format(farg.name)
+        ncell_fine = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        self._arglist.append(ncell_fine)
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list'''
@@ -4987,6 +5490,29 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(undf_name)
         map_name = get_fs_map_name(function_space)
         self._arglist.append(map_name+"(:,"+self._cell_ref_name+")")
+
+    def fs_intergrid(self, function_space):
+        '''
+        Add function-space related arguments for an intergrid kernel
+
+        :param function_space: the function space for which to add arguments
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        '''
+        # Is this FS associated with the coarse or fine mesh? (All fields
+        # on a given mesh must be on the same FS.)
+        arg = self._kern.arguments.get_arg_on_space(function_space)
+        if arg.mesh == "gh_fine":
+            # For the fine mesh, we need ndf, undf and the *whole*
+            # dofmap
+            self.fs_common(function_space)
+            undf_name = get_fs_undf_name(function_space)
+            self._arglist.append(undf_name)
+            map_name = get_fs_map_name(function_space)
+            self._arglist.append(map_name)
+        else:
+            # For the coarse mesh we only need undf and the dofmap for
+            # the current column
+            self.fs_compulsory_field(function_space)
 
     def basis(self, function_space):
         '''
@@ -5108,8 +5634,23 @@ class KernStubArgList(ArgOrdering):
     required arguments for a kernel subroutine.  The ordering and type
     of the arguments is captured by the base class '''
     def __init__(self, kern, parent):
+        '''
+        :param kern: Kernel for which to create argument list
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :param parent: Parent subroutine which calls the kernel
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises NotImplementedError: if kernel is inter-grid
+        '''
         from psyclone.f2pygen import UseGen
+
+        # We don't yet support inter-grid kernels (Issue #162)
+        if kern.is_intergrid:
+            raise NotImplementedError(
+                "Kernel {0} is an inter-grid kernel and stub generation "
+                "is not yet supported for inter-grid kernels".
+                format(kern.name))
+
         parent.add(UseGen(parent, name="constants_mod", only=True,
                           funcnames=["r_def"]))
         self._first_arg = True
@@ -5931,7 +6472,7 @@ class DynKernelArguments(Arguments):
         function space is used for comparison.
 
         :param func_space: The function space for which to find an argument.
-        :type func_space: :py:class:`dynamo0p3.xxxxxxx`
+        :type func_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         :return: the first kernel argument that is on the supplied function
                  space
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -5982,11 +6523,18 @@ class DynKernelArguments(Arguments):
         return self._unique_fs_names
 
     def iteration_space_arg(self, mapping=None):
-        '''Returns an argument we can use to dereference the iteration
+        '''
+        Returns an argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
         alternatively a field that is read if one or more scalars
         are modified. If a kernel writes to more than one argument then
-        that requiring the largest iteration space is selected.'''
+        that requiring the largest iteration space is selected.
+
+        :param dict mapping: un-used argument. Retained for consistency
+                             with base class.
+        :return: Kernel argument from which to obtain iteration space
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
 
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
@@ -5996,14 +6544,24 @@ class DynKernelArguments(Arguments):
         if op_args:
             return op_args[0]
 
-        # This kernel does not write to an operator. We now check for
-        # fields that are written to. We check first for any modified
-        # field on a continuous function space, failing that we try
-        # any_space function spaces (because we must assume such a
-        # space is continuous) and finally we try discontinuous
-        # function spaces. We do this because if a quantity on a
-        # continuous FS is modified then our iteration space must be
-        # larger (include L1 halo cells)
+        # Is this an inter-grid kernel? If so, then the iteration space
+        # is determined by the coarse mesh, irrespective of whether
+        # we are prolonging (and thus writing to a field on the fine mesh)
+        # or restricting.
+        if self._parent_call.is_intergrid:
+            fld_args = psyGen.args_filter(self._args,
+                                          arg_types=["gh_field"],
+                                          arg_meshes=["gh_coarse"])
+            return fld_args[0]
+
+        # This is not an inter-grid kernel and it does not write to an
+        # operator. We now check for fields that are written to. We
+        # check first for any modified field on a continuous function
+        # space, failing that we try any_space function spaces
+        # (because we must assume such a space is continuous) and
+        # finally we try discontinuous function spaces. We do this
+        # because if a quantity on a continuous FS is modified then
+        # our iteration space must be larger (include L1 halo cells)
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
                                       arg_accesses=GH_WRITE_ACCESSES)
@@ -6039,6 +6597,19 @@ class DynKernelArgument(KernelArgument):
     arguments as specified by the kernel argument metadata. '''
 
     def __init__(self, kernel_args, arg_meta_data, arg_info, call):
+        '''
+        :param kernel_args: Object encapsulating all arguments to the
+                            kernel call
+        :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
+        :param arg_meta_data: Information obtained from the meta-data for
+                              this kernel argument
+        :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
+        :param arg_info: Information on how this argument is specified in the
+                         Algorithm layer
+        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :param call: The kernel object with which this argument is associated
+        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+        '''
         KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         # Keep a reference to DynKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
@@ -6047,6 +6618,10 @@ class DynKernelArgument(KernelArgument):
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
         self._stencil = None
+        if arg_meta_data.mesh:
+            self._mesh = arg_meta_data.mesh.lower()
+        else:
+            self._mesh = None
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -6131,6 +6706,15 @@ class DynKernelArgument(KernelArgument):
     def type(self):
         ''' Returns the type of this argument. '''
         return self._type
+
+    @property
+    def mesh(self):
+        '''
+        Getter for the mesh associated with this argument
+        :return: Mesh associated with argument (GH_FINE or GH_COARSE)
+        :rtype: str
+        '''
+        return self._mesh
 
     @property
     def vector_size(self):
@@ -6240,17 +6824,25 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def intent(self):
-        ''' Returns the fortran intent of this argument. '''
+        '''
+        Returns the Fortran intent of this argument.
+
+        :return: the expected Fortran intent for this argument as specified
+                 by the kernel argument metadata
+        :rtype: str
+        '''
         if self.access == "gh_read":
             return "in"
         elif self.access == "gh_write":
             return "out"
+        elif self.access == "gh_readwrite":
+            return "inout"
         elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
             return "inout"
         else:
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc' or one of {0}, but found '{1}'".
+                "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
                 format(str(VALID_REDUCTION_NAMES), self.access))
 
     @property

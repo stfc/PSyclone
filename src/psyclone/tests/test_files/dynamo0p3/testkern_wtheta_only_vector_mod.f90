@@ -43,9 +43,9 @@ module testkern_wtheta_only_vector_mod
 
   ! Description: discontinuous field vector writer reader (wtheta)
   type, extends(kernel_type) :: testkern_wtheta_only_vector_type
-     type(arg_type), dimension(2) :: meta_args =      &
-          (/  arg_type(gh_field*3, gh_write, wtheta), &
-              arg_type(gh_field*3, gh_read,  wtheta)  &
+     type(arg_type), dimension(2) :: meta_args =          &
+          (/  arg_type(gh_field*3, gh_readwrite, wtheta), &
+              arg_type(gh_field*3, gh_read,  wtheta)      &
            /)
      integer :: iterates_over = cells
    contains
@@ -54,14 +54,16 @@ module testkern_wtheta_only_vector_mod
 
 contains
 
-  SUBROUTINE testkern_wtheta_only_vector_code(nlayers,       &
-                                          field_1_wtheta_v1, &
-                                          field_1_wtheta_v2, &
-                                          field_1_wtheta_v3, &
-                                          field_2_wtheta_v1, &
-                                          field_2_wtheta_v2, &
-                                          field_2_wtheta_v3, &
-                                          ndf_wtheta, undf_wtheta, map_wtheta)
+  SUBROUTINE testkern_wtheta_only_vector_code(nlayers,     &
+                                              field1_v1,   &
+                                              field1_v2,   &
+                                              field1_v3,   &
+                                              field2_v1,   &
+                                              field2_v2,   &
+                                              field2_v3,   &
+                                              ndf_wtheta,  &
+                                              undf_wtheta, &
+                                              map_wtheta)
 
     IMPLICIT NONE
 
@@ -69,12 +71,12 @@ contains
     INTEGER, intent(in) :: ndf_wtheta
     INTEGER, intent(in) :: undf_wtheta
     INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta
-    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta_v1
-    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta_v2
-    REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: field_1_wtheta_v3
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta_v1
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta_v2
-    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field_2_wtheta_v3
+    REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) :: field1_v1
+    REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) :: field1_v2
+    REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) :: field1_v3
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_v1
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_v2
+    REAL(KIND=r_def), intent(in), dimension(undf_wtheta) :: field2_v3
 
   END SUBROUTINE testkern_wtheta_only_vector_code
 

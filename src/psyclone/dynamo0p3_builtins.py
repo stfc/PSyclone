@@ -200,6 +200,15 @@ class DynBuiltIn(BuiltIn):
         operators '''
         return None
 
+    @property
+    def is_intergrid(self):
+        '''
+        We don't have any inter-grid Built-ins
+
+        :returns: False
+        :rtype: bool
+        '''
+        return False
 
 # ------------------------------------------------------------------- #
 # ============== Adding (scaled) fields ============================= #
