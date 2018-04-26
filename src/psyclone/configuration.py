@@ -47,20 +47,6 @@ Deals with reading the config file and storing default settings.
 '''
 
 import os
-from configparser import ConfigParser
-
-
-def WITHIN_VIRTUAL_ENV():
-    '''
-    Utility function that identifies whether we are running in a Python
-    virtual environment. Works for virtualenv and Python 3's venv.
-
-    :returns: True if we're running in a virtual environment
-    :rtype: bool
-    '''
-    import sys
-    return (hasattr(sys, 'real_prefix') or
-            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
 
 
 class ConfigurationError(Exception):
@@ -83,40 +69,26 @@ class ConfigurationError(Exception):
         return repr(self.value)
 
 
-
-class PsyConfigParser(ConfigParser):
+def _str_to_list(svalue):
     '''
-    Sub-class the ConfigParser class so that we can add a convertor for
-    handling lists.
+    Helper routine to take a string containing a list of values and return
+    a list of those values.
+
+    :param str svalue: string containing space- or comma-delimited list
+                       of items
+    :returns: list of strings
+    :rtype: list
     '''
-    def getlist(self, section, option, raw=False, vars=None, fallback=None):
-        '''
-        Convertor for configuration values that are lists. Supports both
-        comma and white-space delimited lists. Conforms to the
-        :py:class:`ConfigParser.get()` interface.
-
-        :param unicode section: the name of the section of the input file
-                                from which to obtain `option`
-        :param str option: the name of the option for which to obtain the
-                           corresponding entry
-        :param raw: unused argument - for compatibility with get()
-        :param vars: unused argument - for compatibility with get()
-        :param fallback: unused argument - for compatibility with get()
-
-        :returns: list of strings
-        :rtype: list
-        '''
-        value = self.get(section, option)
-        if "," in value:
-            # Comma delimited
-            return [
-                str(item.strip()) for item in value.split(",")
-                if item.strip() != '']
-        else:
-            # Space delimited
-            return [
-                str(item.strip()) for item in value.split(" ")
-                if item.strip() != '']
+    if "," in svalue:
+        # Comma delimited
+        return [
+            str(item.strip()) for item in svalue.split(",")
+            if item.strip() != '']
+    else:
+        # Space delimited
+        return [
+            str(item.strip()) for item in svalue.split(" ")
+            if item.strip() != '']
 
 
 class ConfigFactory(object):
@@ -170,8 +142,9 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-            
-        self._config = PsyConfigParser()
+
+        from configparser import ConfigParser
+        self._config = ConfigParser()
         self._config.read(self._config_file)
 
         # The call to the 'read' method above populates a dictionary.
@@ -188,14 +161,11 @@ class Config(object):
                 "error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(err.message), config=self)
 
+        # Default API and supported APIs for psyclone
         self._default_api = self._config['DEFAULT']['DEFAULTAPI']
 
-        try:
-            self._supported_api_list = self._config['DEFAULT'].getlist(
-                'SUPPORTEDAPIS')
-        except ValueError as err:
-            raise ConfigurationError("error while parsing SUPPORTEDAPIS: {0}".
-                                     format(err.message), config=self)
+        self._supported_api_list = _str_to_list(
+            self._config['DEFAULT']['SUPPORTEDAPIS'])
 
         # Sanity check
         if self._default_api not in self._supported_api_list:
@@ -205,14 +175,11 @@ class Config(object):
                                      self._supported_api_list),
                 config=self)
 
+        # Default API and supported APIs for stub-generator
         self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
-        try:
-            self._supported_stub_api_list = self._config['DEFAULT'].getlist(
-                'SUPPORTEDSTUBAPIS')
-        except ValueError as err:
-            raise ConfigurationError("error while parsing SUPPORTEDSTUBAPIS: "
-                                     "{0}".format(err.message), config=self)
+        self._supported_stub_api_list = _str_to_list(
+            self._config['DEFAULT']['SUPPORTEDSTUBAPIS'])
 
         # Sanity check
         if self._default_stub_api not in self._supported_stub_api_list:
@@ -257,6 +224,7 @@ class Config(object):
 
         :raises ConfigurationError: if no config file is found
         '''
+        from virtual_utils import WITHIN_VIRTUAL_ENV, VIRTUAL_BASE_DIR
         # Name of the config file we search for
         if name is not None:
             _name = name[:]
@@ -268,8 +236,7 @@ class Config(object):
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
         if WITHIN_VIRTUAL_ENV():
             # 2. the base directory of the running virtual environment
-            import sys
-            _file_paths.append(sys.prefix)
+            _file_paths.append(VIRTUAL_BASE_DIR())
         # 3. ~/.psyclone/ and 4. /etc/psyclone
         _file_paths += [os.path.join(os.path.expanduser("~"), ".psyclone"),
                         os.path.join(os.path.abspath("/etc"), "psyclone")]

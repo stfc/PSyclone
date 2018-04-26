@@ -78,15 +78,17 @@ CLASSIFIERS = [
 
 # We read the version number ('__VERSION__') from version.py in the
 # src/psyclone directory. Rather than importing it (which would require
-# that PSyclone already be installed), we read it using execfile():
+# that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
-    exec(f.read())
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
+    exec(vfile.read())
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
-# We need the WITHIN_VIRTUAL_ENV() helper function from the configuration
+# We need the WITHIN_VIRTUAL_ENV() helper function from the virtual_utils
 # module:
-execfile(os.path.join(BASE_PATH, "src", "psyclone", "configuration.py"))
+with open(os.path.join(BASE_PATH, "src", "psyclone",
+                       "virtual_utils.py")) as cfile:
+    exec(cfile.read())
 
 # Where to install the psyclone.cfg configuration file
 if WITHIN_VIRTUAL_ENV():
