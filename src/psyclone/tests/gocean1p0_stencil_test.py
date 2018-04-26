@@ -49,7 +49,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def test_stencil_information():
-    ''' Test that stencil ..... '''
+    '''Test that the GOStencil class provides the expected stencil
+    information'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "test28_invoke_kernel_stencil.f90"),
                            api=API)
@@ -57,12 +58,27 @@ def test_stencil_information():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     kernel = schedule.children[0].children[0].children[0]
-    for idx in range(3):
-        stencil_arg = kernel.args[idx]
-        print type(stencil_arg.stencil)
-        print stencil_arg.stencil.has_stencil
-        if stencil_arg.stencil.has_stencil:
-            for idx2 in range(3):
-                for idx1 in range(3):
-                    print idx1-1, idx2-1, stencil_arg.stencil.depth(idx1-1,idx2-1)
+
+    # args 1 and 3 specify pointwise as a stencil access
+    for idx in [0, 2]:
+        pointwise_arg = kernel.args[idx]
+        assert pointwise_arg.stencil
+        assert not pointwise_arg.stencil.has_stencil
+
+    # arg 4 provides grid information so knows nothing about stencils
+    grid_arg = kernel.args[3]
+    with pytest.raises(AttributeError) as err:
+        grid_arg.stencil
+    assert "object has no attribute 'stencil'" in str(err)
+
+    # arg 2 has a stencil
+    stencil_arg = kernel.args[1]
+    assert stencil_arg.stencil.has_stencil
+    for idx2 in range(-1,2):
+        for idx1 in range(-1,2):
+            if idx1 in [0, 1] and idx2 == 0:
+                expected_depth = 1
+            else:
+                expected_depth = 0
+            assert stencil_arg.stencil.depth(idx1,idx2) == expected_depth
 
