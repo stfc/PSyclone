@@ -46,6 +46,7 @@
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
+import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -70,7 +71,7 @@ VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
 # GOcean API altogether.
-VALID_STENCILS = ["pointwise"]
+VALID_STENCIL_NAMES = ["pointwise"]
 
 # A dictionary giving the mapping from meta-data names for
 # properties of the grid to their names in the Fortran grid_type.
@@ -879,6 +880,126 @@ class GOKernelGridArgument(Argument):
         '''
         return None
 
+class GOStencil(object):
+    '''GOcean 1.0 stencil information for a kernel argument
+    as obtained by parsing the kernel meta-data
+    
+    '''
+    def __init__(self):
+        ''' xxx '''
+        self._has_stencil = None
+        self._stencil = [[0 for x in range(3)] for y in range(3)]
+        self._initialised = False
+        self._name = None
+
+    @property
+    def has_stencil(self):
+        ''' xxx '''
+        return self._has_stencil
+
+    @property
+    def name(self):
+        ''' xxx '''
+        return self._name
+
+    def depth_idx(self, index0, index1):
+        ''' xxx '''
+        return self._stencil[index0+1][index1+1]
+
+    def stencil_idx(self, index0, index1):
+        ''' xxx '''
+        if not self._initialised:
+            raise ParseError("xxx")
+        if index0<-1 or index0>1 or index1<-1 or index1>1:
+            raise ParseError("xxx")
+        return self._stencil[index0+1][index1+1] > 0
+
+    def load(self, stencil_info, kernel_name):
+        '''Take parsed stencil information, check it is valid and store it in
+        a convenient form
+
+        '''
+        self._initialised = True
+        if isinstance(stencil_info, expr.FunctionVar):
+            # The stencil information has a name
+            name = stencil_info.name.lower()
+
+            if stencil_info.args:
+                # The stencil info is of the form 'name(a,b,...), so
+                # the name should be 'stencil' and there should be 3
+                # arguments'
+                self._has_stencil = True
+                args = stencil_info.args
+                if name != "stencil":
+                    raise ParseError(
+                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "(stencil) of field argument is '{1}' but must be "
+                        "'stencil(...) of {2}".format(kernel_name, name))
+                if len(args) != 3:
+                    raise ParseError(
+                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)', has {1} arguments but should have "
+                        "3".format(kernel_name, len(args)))
+                # Each of the 3 args should be of length 3 and each
+                # character should be a digit from 0-9
+                for arg_idx in range(3):
+                    arg = args[arg_idx]
+                    if len(arg) != 3:
+                        raise ParseError(
+                            "Meta-data error in kernel {0}: 3rd descriptor "
+                            "(stencil) of field argument with format "
+                            "'stencil(...)'. Argument index {1} should consist "
+                            "of 3 numbers but found "
+                            "{2}.".format(kernel_name, arg_idx, len(arg)))
+                    if not arg.isdigit():
+                            raise ParseError(
+                                "Meta-data error in kernel {0}: 3rd "
+                                "descriptor (stencil) of field argument "
+                                "with format 'stencil(...)'. Argument index "
+                                "{1} should be a number but found "
+                                "{3}.".format(kernel_name, arg_idx, char_idx,
+                                              arg[char_idx]))
+
+                if args[1][1] not in ["0", "1"]:
+                    raise ParseError(
+                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)'. Argument index 1 position 1 "
+                        "should be a number from 0-1"
+                        "but found {1}.".format(kernel_name,
+                                                arg[char_idx]))
+
+                if args[0] == "000" and \
+                   (args[1] == "000" or args[1] == "010") and \
+                   args[2] == "000":
+                    raise ParseError(
+                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)'. A zero sized stencil has been "
+                        "specified. This should be specified with the "
+                        "'pointwise' keyword.".format(kernel_name))
+
+                for idx0 in range(3):
+                    for idx1 in range(3):
+                        self._stencil[idx0][idx1] = int(args[idx0][idx1])
+            else:
+                # stencil info is of the form 'name' so should be one
+                # of our valid names
+                if name not in VALID_STENCIL_NAMES:
+                    raise ParseError("Meta-data error in kernel {0}: 3rd "
+                                     "descriptor (stencil) of field argument "
+                                     "is '{1}' but must be one "
+                                     "of {2}".format(kernel_name, name,
+                                                     VALID_STENCIL_NAMES))
+                self._name = name
+                # We currently only support one valid name ('pointwise')
+                # which indicates that there is no stencil
+                self._has_stencil = False
+        else:
+            print "unexpected format"
+            exit(1)
+        
 
 class GO1p0Descriptor(Descriptor):
     '''Description of a GOcean 1.0 kernel argument, as obtained by
@@ -889,6 +1010,7 @@ class GO1p0Descriptor(Descriptor):
     def __init__(self, kernel_name, kernel_arg):
 
         nargs = len(kernel_arg.args)
+        stencil_info = None
 
         if nargs == 3:
             # This kernel argument is supplied by the Algorithm layer
@@ -896,8 +1018,10 @@ class GO1p0Descriptor(Descriptor):
 
             access = kernel_arg.args[0].name
             funcspace = kernel_arg.args[1].name
-            stencil = kernel_arg.args[2].name
-
+            stencil_info = GOStencil()
+            stencil_info.load(kernel_arg.args[2],
+                                kernel_name)
+            
             # Valid values for the grid-point type that a kernel argument
             # may have. (We use the funcspace argument for this as it is
             # similar to the space in Finite-Element world.)
@@ -913,12 +1037,6 @@ class GO1p0Descriptor(Descriptor):
                                  "grid-point type is '{1}' but must be one "
                                  "of {2} ".format(kernel_name, funcspace,
                                                   valid_func_spaces))
-
-            if stencil.lower() not in VALID_STENCILS:
-                raise ParseError("Meta-data error in kernel {0}: 3rd "
-                                 "descriptor (stencil) of field argument "
-                                 "is '{1}' but must be one of {2}".
-                                 format(kernel_name, stencil, VALID_STENCILS))
 
         elif nargs == 2:
             # This kernel argument is a property of the grid
@@ -952,7 +1070,7 @@ class GO1p0Descriptor(Descriptor):
                              format(kernel_name, access, VALID_ARG_ACCESSES))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil)
+        Descriptor.__init__(self, access, funcspace, stencil_info)
 
     def __str__(self):
         return repr(self)
