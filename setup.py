@@ -94,7 +94,6 @@ with open(os.path.join(BASE_PATH, "src", "psyclone",
 if WITHIN_VIRTUAL_ENV():
     # We are running inside a virtual environment so we install to the
     # base directory of that environment
-    from distutils.sysconfig import get_python_lib
     CONFIG_INSTALL_PATH = "."
 else:
     # Do we have write access to /etc/ ?
