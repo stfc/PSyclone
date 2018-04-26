@@ -84,15 +84,26 @@ with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
     exec(f.read())
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
+# We need the WITHIN_VIRTUAL_ENV() helper function from the configuration
+# module:
+execfile(os.path.join(BASE_PATH, "src", "psyclone", "configuration.py"))
+
 # Where to install the psyclone.cfg configuration file
-# Do we have write access to /etc/ ?
-_ETC_PATH = os.path.abspath("/etc")
-if os.access(_ETC_PATH, os.W_OK):
-    # We do - we'll install the config file to /etc/psyclone/
-    CONFIG_INSTALL_PATH = os.path.join(_ETC_PATH, 'psyclone')
+if WITHIN_VIRTUAL_ENV():
+    # We are running inside a virtual environment so we install to the
+    # base directory of that environment
+    from distutils.sysconfig import get_python_lib
+    CONFIG_INSTALL_PATH = "."
 else:
-    # We don't - install to ~/.psyclone/
-    CONFIG_INSTALL_PATH = os.path.join(os.path.expanduser("~"), ".psyclone")
+    # Do we have write access to /etc/ ?
+    _ETC_PATH = os.path.abspath("/etc")
+    if os.access(_ETC_PATH, os.W_OK):
+        # We do - we'll install the config file to /etc/psyclone/
+        CONFIG_INSTALL_PATH = os.path.join(_ETC_PATH, 'psyclone')
+    else:
+        # We don't - install to ~/.psyclone/
+        CONFIG_INSTALL_PATH = os.path.join(os.path.expanduser("~"),
+                                           ".psyclone")
 
 if __name__ == '__main__':
 

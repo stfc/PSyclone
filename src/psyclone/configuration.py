@@ -50,6 +50,19 @@ import os
 from configparser import ConfigParser
 
 
+def WITHIN_VIRTUAL_ENV():
+    '''
+    Utility function that identifies whether we are running in a Python
+    virtual environment. Works for virtualenv and Python 3's venv.
+
+    :returns: True if we're running in a virtual environment
+    :rtype: bool
+    '''
+    import sys
+    return (hasattr(sys, 'real_prefix') or
+            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
+
+
 class ConfigurationError(Exception):
     '''
     Class for all configuration-related errors.
@@ -233,6 +246,8 @@ class Config(object):
         Static method that searches various locations for a configuration
         file. The locations that are searched, in order, are:
         ${PWD}/.psyclone/
+        if inside-a-virtual-environment:
+            <base-dir-of-virtual-env>/
         ${HOME}/.psyclone/
         /etc/psyclone/
 
@@ -249,14 +264,20 @@ class Config(object):
             _name = "psyclone.cfg"
 
         # Set up list of locations to search
-        _file_paths = [os.path.join(os.getcwd(), ".psyclone", _name),
-                       os.path.join(os.path.expanduser("~"), ".psyclone",
-                                    _name),
-                       os.path.join(os.path.abspath("/etc"), "psyclone",
-                                    _name)]
-        for cfile in _file_paths:
+        # 1. .psyclone/ in the CWD
+        _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
+        if WITHIN_VIRTUAL_ENV():
+            # 2. the base directory of the running virtual environment
+            import sys
+            _file_paths.append(sys.prefix)
+        # 3. ~/.psyclone/ and 4. /etc/psyclone
+        _file_paths += [os.path.join(os.path.expanduser("~"), ".psyclone"),
+                        os.path.join(os.path.abspath("/etc"), "psyclone")]
+
+        for cfile in [os.path.join(cdir, _name) for cdir in _file_paths]:
             if os.path.isfile(cfile):
                 return cfile
+
         # If we get to here then we have failed to find a config file
         raise ConfigurationError("{0} not found in any of {1}".
                                  format(_name, _file_paths))
