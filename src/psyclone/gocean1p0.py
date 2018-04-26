@@ -880,48 +880,75 @@ class GOKernelGridArgument(Argument):
         '''
         return None
 
+
 class GOStencil(object):
-    '''GOcean 1.0 stencil information for a kernel argument
-    as obtained by parsing the kernel meta-data
-    
+    '''GOcean 1.0 stencil information for a kernel argument as obtained by
+    parsing the kernel meta-data. The expected structure of the
+    metadata and its meaning is provided in the description of the
+    load method
+
     '''
     def __init__(self):
-        ''' xxx '''
+        ''' Set up any internal variables. '''
         self._has_stencil = None
         self._stencil = [[0 for x in range(3)] for y in range(3)]
-        self._initialised = False
         self._name = None
-
-    @property
-    def has_stencil(self):
-        ''' xxx '''
-        return self._has_stencil
-
-    @property
-    def name(self):
-        ''' xxx '''
-        return self._name
-
-    def depth_idx(self, index0, index1):
-        ''' xxx '''
-        return self._stencil[index0+1][index1+1]
-
-    def stencil_idx(self, index0, index1):
-        ''' xxx '''
-        if not self._initialised:
-            raise ParseError("xxx")
-        if index0<-1 or index0>1 or index1<-1 or index1>1:
-            raise ParseError("xxx")
-        return self._stencil[index0+1][index1+1] > 0
+        self._initialised = False
 
     def load(self, stencil_info, kernel_name):
-        '''Take parsed stencil information, check it is valid and store it in
-        a convenient form
+        '''Take parsed stencil metadata information, check it is valid and
+        store it in a convenient form. The kernel_name argument is
+        only used to provide the location if there is an error.
+
+        The stencil information should either be a name which
+        indicates a particular type of stencil or in the form
+        stencil(xxx,yyy,zzz) which explicitly specifies a stencil
+        shape where xxx, yyy and zzz are triplets of integers
+        indicating whether there is a stencil access in a particular
+        direction and the depth of that access. For example:
+
+        stencil(010,  !   N
+                212,  !  W E
+                010)  !   S
+
+        indicates that there is a stencil access of depth 1 in the
+        "North" and "South" directions and and stencil access of depth
+        1 and 2 in the "East" and "West" directions. The value at the
+        centre of the stencil will not be used by PSyclone but can be
+        0 or 1 and indicates whether the local field value is
+        accessed.
+
+        The convention is for the associated arrays to be
+        2-dimensional. If we denote the first dimension as "i" and the
+        second dimension as "j" then the following directions are
+        assumed:
+
+        j
+        ^
+        |
+        |
+        ---->i
+
+        For example a stencil access like:
+
+        a(i,j) + a(i+1,j) + a(i,j-1)
+
+        would be stored as:
+
+        stencil(000,
+                011,
+                010)
+
+        :param stencil_info: contains the appropriate part of the parser AST
+        :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
+        :param string kernel_name: the name of the kernel from where
+        this stencil information came from.
+        :raises ParseError: if the supplied stencil information is invalid
 
         '''
         self._initialised = True
         if isinstance(stencil_info, expr.FunctionVar):
-            # The stencil information has a name
+            # Get the name
             name = stencil_info.name.lower()
 
             if stencil_info.args:
@@ -934,7 +961,7 @@ class GOStencil(object):
                     raise ParseError(
                         "Meta-data error in kernel {0}: 3rd descriptor "
                         "(stencil) of field argument is '{1}' but must be "
-                        "'stencil(...) of {2}".format(kernel_name, name))
+                        "'stencil(...)".format(kernel_name, name))
                 if len(args) != 3:
                     raise ParseError(
                         "Meta-data error in kernel {0}: 3rd descriptor "
@@ -960,7 +987,7 @@ class GOStencil(object):
                                 "{1} should be a number but found "
                                 "{3}.".format(kernel_name, arg_idx, char_idx,
                                               arg[char_idx]))
-
+                # The central value is constrained to be 0 or 1
                 if args[1][1] not in ["0", "1"]:
                     raise ParseError(
                         "Meta-data error in kernel {0}: 3rd descriptor "
@@ -969,7 +996,8 @@ class GOStencil(object):
                         "should be a number from 0-1"
                         "but found {1}.".format(kernel_name,
                                                 arg[char_idx]))
-
+                # It is not valid to specify a zero stencil. This is
+                # indicated by the 'pointwise' name
                 if args[0] == "000" and \
                    (args[1] == "000" or args[1] == "010") and \
                    args[2] == "000":
@@ -979,10 +1007,11 @@ class GOStencil(object):
                         "'stencil(...)'. A zero sized stencil has been "
                         "specified. This should be specified with the "
                         "'pointwise' keyword.".format(kernel_name))
-
+                # store the values in an internal array as integers in
+                # i,j order
                 for idx0 in range(3):
                     for idx1 in range(3):
-                        self._stencil[idx0][idx1] = int(args[idx0][idx1])
+                        self._stencil[idx0][idx1] = int(args[idx1][idx0])
             else:
                 # stencil info is of the form 'name' so should be one
                 # of our valid names
@@ -997,9 +1026,78 @@ class GOStencil(object):
                 # which indicates that there is no stencil
                 self._has_stencil = False
         else:
-            print "unexpected format"
-            exit(1)
-        
+            # the stencil information is not in the expected format
+            raise ParseError(
+                "Meta-data error in kernel {0}: 3rd descriptor (stencil) of "
+                "field argument is '{1}' but expected either a name or the "
+                "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
+
+    def _check_init(self):
+        '''Internal method which checks that the stencil information has been
+        loaded.
+
+        :raises GenerationError: if the GOStencil object has not been
+        initialised i.e. the load() method has not been called
+
+        '''
+        if not self._initialised:
+            raise GenerationError(
+                "Error in class GOStencil the object has not yet been "
+                "initialised. Please ensure the load() method is called.")
+
+    @property
+    def has_stencil(self):
+        '''Specifies whether this argument has stencil information or not. The
+        only case when this is True is when the stencil information
+        specifies 'pointwise' as this indicates that there is no
+        stencil access.
+
+        :return Bool: True if this argument has stencil information
+        and False if not.
+
+        '''
+        self._check_init()
+        return self._has_stencil
+
+    @property
+    def name(self):
+        '''Provides the stencil name if one is provided
+
+        :return string: the name of the type of stencil if this is
+        provided and 'None' if not.
+
+        '''
+        self._check_init()
+        return self._name
+
+    def depth(self, index0, index1):
+        '''Provides the depth of the stencil in the 8 possible stencil
+        directions in a 2d regular grid (see the description in the
+        load class for more information). Values must be between -1
+        and 1 as they are considered to be relative to the centre of
+        the stencil For example:
+
+        stencil(234,
+                915,
+                876)
+
+        returns
+
+        depth(-1,0) = 9
+        depth(1,1) = 4
+
+        :return int: the depth of the stencil in the specified direction
+        :raises GenerationError: if the indices are out-of-bounds
+
+        '''
+        self._check_init()
+        if index0<-1 or index0>1 or index1<-1 or index1>1:
+            raise GenerationError(
+                "The indices arguments to the depth method in the GOStencil "
+                "object must be between -1 and 1 but found "
+                "({0},{1})".format(index0, index1))
+        return self._stencil[index0+1][index1+1]
+
 
 class GO1p0Descriptor(Descriptor):
     '''Description of a GOcean 1.0 kernel argument, as obtained by

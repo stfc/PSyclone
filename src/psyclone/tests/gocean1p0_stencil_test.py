@@ -61,6 +61,8 @@ def test_stencil_information():
         stencil_arg = kernel.args[idx]
         print type(stencil_arg.stencil)
         print stencil_arg.stencil.has_stencil
-        print stencil_arg.stencil.
-    exit(1)
+        if stencil_arg.stencil.has_stencil:
+            for idx2 in range(3):
+                for idx1 in range(3):
+                    print idx1-1, idx2-1, stencil_arg.stencil.depth(idx1-1,idx2-1)
 
