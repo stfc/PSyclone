@@ -959,12 +959,12 @@ class GOStencil(object):
                 args = stencil_info.args
                 if name != "stencil":
                     raise ParseError(
-                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument is '{1}' but must be "
                         "'stencil(...)".format(kernel_name, name))
                 if len(args) != 3:
                     raise ParseError(
-                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
                         "'stencil(...)', has {1} arguments but should have "
                         "3".format(kernel_name, len(args)))
@@ -972,37 +972,35 @@ class GOStencil(object):
                 # character should be a digit from 0-9
                 for arg_idx in range(3):
                     arg = args[arg_idx]
+                    if not isinstance(arg, str):
+                        raise ParseError(
+                            "Meta-data error in kernel '{0}': 3rd descriptor "
+                            "(stencil) of field argument with format "
+                            "'stencil(...)'. Argument index {1} should be a "
+                            "number but found "
+                            "'{2}'.".format(kernel_name, arg_idx, str(arg)))
                     if len(arg) != 3:
                         raise ParseError(
-                            "Meta-data error in kernel {0}: 3rd descriptor "
+                            "Meta-data error in kernel '{0}': 3rd descriptor "
                             "(stencil) of field argument with format "
                             "'stencil(...)'. Argument index {1} should consist "
                             "of 3 numbers but found "
                             "{2}.".format(kernel_name, arg_idx, len(arg)))
-                    if not arg.isdigit():
-                            raise ParseError(
-                                "Meta-data error in kernel {0}: 3rd "
-                                "descriptor (stencil) of field argument "
-                                "with format 'stencil(...)'. Argument index "
-                                "{1} should be a number but found "
-                                "{3}.".format(kernel_name, arg_idx, char_idx,
-                                              arg[char_idx]))
                 # The central value is constrained to be 0 or 1
                 if args[1][1] not in ["0", "1"]:
                     raise ParseError(
-                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
                         "'stencil(...)'. Argument index 1 position 1 "
-                        "should be a number from 0-1"
-                        "but found {1}.".format(kernel_name,
-                                                arg[char_idx]))
+                        "should be a number from 0-1 "
+                        "but found {1}.".format(kernel_name, args[1][1]))
                 # It is not valid to specify a zero stencil. This is
                 # indicated by the 'pointwise' name
                 if args[0] == "000" and \
                    (args[1] == "000" or args[1] == "010") and \
                    args[2] == "000":
                     raise ParseError(
-                        "Meta-data error in kernel {0}: 3rd descriptor "
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
                         "'stencil(...)'. A zero sized stencil has been "
                         "specified. This should be specified with the "
@@ -1016,11 +1014,11 @@ class GOStencil(object):
                 # stencil info is of the form 'name' so should be one
                 # of our valid names
                 if name not in VALID_STENCIL_NAMES:
-                    raise ParseError("Meta-data error in kernel {0}: 3rd "
-                                     "descriptor (stencil) of field argument "
-                                     "is '{1}' but must be one "
-                                     "of {2}".format(kernel_name, name,
-                                                     VALID_STENCIL_NAMES))
+                    raise ParseError(
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
+                        "(stencil) of field argument is '{1}' but must be one "
+                        "of {2} or stencil(...)".format(kernel_name, name,
+                                                        VALID_STENCIL_NAMES))
                 self._name = name
                 # We currently only support one valid name ('pointwise')
                 # which indicates that there is no stencil
@@ -1028,7 +1026,7 @@ class GOStencil(object):
         else:
             # the stencil information is not in the expected format
             raise ParseError(
-                "Meta-data error in kernel {0}: 3rd descriptor (stencil) of "
+                "Meta-data error in kernel '{0}': 3rd descriptor (stencil) of "
                 "field argument is '{1}' but expected either a name or the "
                 "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
 
