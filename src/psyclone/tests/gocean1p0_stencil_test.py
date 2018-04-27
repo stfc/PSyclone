@@ -47,10 +47,65 @@ API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
 
+# Section 1
+# Tests for the case where an object of type GOStencil has not been
+# initialised (i.e. the load method has not been called)
+
+def test_not_initialised():
+    '''A GOStencil object can be created in isolation and then have it's
+    stencil information initialised using the load() method. If a
+    GOStencil object's stencil information has not been initialised
+    then asking for stencil information using the has_stencil, name
+    and depth methods should return an exception. This test checks
+    that an exception is raised as expected.
+
+    '''
+    from psyclone.gocean1p0 import GOStencil
+    stencil = GOStencil()
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = stencil.has_stencil
+    assert "ensure the load() method is called" in str(excinfo.value)
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = stencil.name
+    assert "ensure the load() method is called" in str(excinfo.value)
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = stencil.depth(0,0)
+    assert "ensure the load() method is called" in str(excinfo.value)
+
+# Section 2
+# Tests for the case where the load method in an object of type
+# GOStencil is provided with invalid stencil information
+
+def test_stencil_invalid_format():
+    ''' xxx '''
+    stencil_string = "stencil(000,011,000)"
+    from fparser import api as fpapi
+    from psyclone.gocean1p0 import GOKernelType1p0
+    ast = fpapi.parse(os.path.join(BASE_PATH, "kernel_stencil.f90"))
+    print dir(ast)
+    print ast.content
+    exit(1)
+    metadata = GOKernelType1p0(ast, name="compute_cu")
+
+    
+# test failure if stencil info has invalid format
+# test failure if name is invalid
+# test failure if stencil(..) name is invalid
+# test failure if nargs in stencil is not 3
+# test failure if one of the args is not of length 3
+# test failure if one of the args is not 0-9
+# test failure if middle value is not 0 or 1
+# test failure if stencil is of zero size
 
 def test_stencil_information():
     '''Test that the GOStencil class provides the expected stencil
-    information'''
+    information. This exercises the "pointwise" name and the stencil
+    description
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "test28_invoke_kernel_stencil.f90"),
                            api=API)
@@ -64,6 +119,7 @@ def test_stencil_information():
         pointwise_arg = kernel.args[idx]
         assert pointwise_arg.stencil
         assert not pointwise_arg.stencil.has_stencil
+        assert pointwise_arg.stencil.name == "pointwise"
 
     # arg 4 provides grid information so knows nothing about stencils
     grid_arg = kernel.args[3]
