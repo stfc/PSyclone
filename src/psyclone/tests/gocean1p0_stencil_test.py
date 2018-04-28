@@ -162,7 +162,26 @@ def test_stencil_invalid_format():
     assert ("A zero sized stencil has been specified. This should be "
             "specified with the 'pointwise' keyword") in str(excinfo.value)
 
-# Section 3
+# Section 3 Test that GOStencil method arguments cause the object to
+# raise an exception if they are invalid
+
+def test_stencil_depth_args():
+    '''Check that invalid index values for the depth method in an instance
+    of the GOStencil class cause an exception to be raised.
+
+    '''
+    stencil=GOStencil()
+
+    stencil_string = "stencil(010,111,010)"
+    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
+    stencil.load(parsed_stencil, "kernel_stencil")
+    for i,j in [(-2,0), (2,0), (0,-2), (0,2)]:
+        with pytest.raises(GenerationError) as excinfo:
+            stencil.depth(i,j)
+        assert "must be between -1 and 1 but found ({0},{1})".format(i,j) \
+            in str(excinfo.value)
+
+# Section 4
 # Test that the GOStencil object captures valid stencil information correctly
 
 def test_stencil_information():
