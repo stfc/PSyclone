@@ -54,6 +54,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Tests for the case where an object of type GOStencil has not been
 # initialised (i.e. the load method has not been called)
 
+
 def test_not_initialised():
     '''A GOStencil object can be created in isolation and then have its
     stencil information initialised using the load() method. If a
@@ -74,16 +75,17 @@ def test_not_initialised():
     assert "ensure the load() method is called" in str(excinfo.value)
 
     with pytest.raises(GenerationError) as excinfo:
-        _ = stencil.depth(0,0)
+        _ = stencil.depth(0, 0)
     assert "ensure the load() method is called" in str(excinfo.value)
 
 # Section 2
 # Tests for the case where the load method in an object of type
 # GOStencil is provided with invalid stencil information
 
+
 def test_stencil_invalid_format():
     '''Check all the ways in which the stencil information can be invalid'''
-    stencil=GOStencil()
+    stencil = GOStencil()
 
     # this should work as it is valid
     stencil_string = "stencil(000,011,000)"
@@ -113,7 +115,7 @@ def test_stencil_invalid_format():
         stencil.load(parsed_stencil, "kernel_stencil")
     assert "argument is 'stenci' but must be 'stencil(...)" \
         in str(excinfo.value)
-    
+
     # this should cause a not-enough-args error
     stencil_string = "stencil(a)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
@@ -165,24 +167,26 @@ def test_stencil_invalid_format():
 # Section 3 Test that GOStencil method arguments cause the object to
 # raise an exception if they are invalid
 
+
 def test_stencil_depth_args():
     '''Check that invalid index values for the depth method in an instance
     of the GOStencil class cause an exception to be raised.
 
     '''
-    stencil=GOStencil()
+    stencil = GOStencil()
 
     stencil_string = "stencil(010,111,010)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
-    for i,j in [(-2,0), (2,0), (0,-2), (0,2)]:
+    for i, j in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
         with pytest.raises(GenerationError) as excinfo:
-            stencil.depth(i,j)
-        assert "must be between -1 and 1 but found ({0},{1})".format(i,j) \
+            stencil.depth(i, j)
+        assert "must be between -1 and 1 but found ({0},{1})".format(i, j) \
             in str(excinfo.value)
 
 # Section 4
 # Test that the GOStencil object captures valid stencil information correctly
+
 
 def test_stencil_information():
     '''Test that the GOStencil class provides the expected stencil
@@ -207,17 +211,17 @@ def test_stencil_information():
 
     # arg 4 provides grid information so knows nothing about stencils
     grid_arg = kernel.args[3]
-    with pytest.raises(AttributeError) as err:
-        grid_arg.stencil
-    assert "object has no attribute 'stencil'" in str(err)
+    with pytest.raises(AttributeError) as excinfo:
+        _ = grid_arg.stencil
+    assert "object has no attribute 'stencil'" in str(excinfo.value)
 
     # arg 2 has a stencil
     stencil_arg = kernel.args[1]
     assert stencil_arg.stencil.has_stencil
-    for idx2 in range(-1,2):
-        for idx1 in range(-1,2):
+    for idx2 in range(-1, 2):
+        for idx1 in range(-1, 2):
             if idx1 in [0, 1] and idx2 == 0:
                 expected_depth = 1
             else:
                 expected_depth = 0
-            assert stencil_arg.stencil.depth(idx1,idx2) == expected_depth
+            assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth

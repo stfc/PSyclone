@@ -891,7 +891,7 @@ class GOStencil(object):
     def __init__(self):
         ''' Set up any internal variables. '''
         self._has_stencil = None
-        self._stencil = [[0 for x in range(3)] for y in range(3)]
+        self._stencil = [[0 for _ in range(3)] for _ in range(3)]
         self._name = None
         self._initialised = False
 
@@ -983,8 +983,8 @@ class GOStencil(object):
                         raise ParseError(
                             "Meta-data error in kernel '{0}': 3rd descriptor "
                             "(stencil) of field argument with format "
-                            "'stencil(...)'. Argument index {1} should consist "
-                            "of 3 numbers but found "
+                            "'stencil(...)'. Argument index {1} should "
+                            "consist of 3 numbers but found "
                             "{2}.".format(kernel_name, arg_idx, len(arg)))
                 # The central value is constrained to be 0 or 1
                 if args[1][1] not in ["0", "1"]:
@@ -1089,7 +1089,7 @@ class GOStencil(object):
 
         '''
         self._check_init()
-        if index0<-1 or index0>1 or index1<-1 or index1>1:
+        if index0 < -1 or index0 > 1 or index1 < -1 or index1 > 1:
             raise GenerationError(
                 "The indices arguments to the depth method in the GOStencil "
                 "object must be between -1 and 1 but found "
@@ -1116,8 +1116,8 @@ class GO1p0Descriptor(Descriptor):
             funcspace = kernel_arg.args[1].name
             stencil_info = GOStencil()
             stencil_info.load(kernel_arg.args[2],
-                                kernel_name)
-            
+                              kernel_name)
+
             # Valid values for the grid-point type that a kernel argument
             # may have. (We use the funcspace argument for this as it is
             # similar to the space in Finite-Element world.)
