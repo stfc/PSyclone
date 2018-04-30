@@ -488,7 +488,7 @@ first rank as longitude (*x*) and the second as latitude (*y*).
 
 Scalars and fields contain a third argument-metadata entry which
 describes whether the kernel accesses the corresponding argument with
-a stencil. The value 'POINTWISE' indicates that there is no stencil
+a stencil. The value ``POINTWISE`` indicates that there is no stencil
 access. Metadata for a scalar field is limited to this value.
 Grid-property arguments have no third metadata argument. If there
 are no stencil accesses then the full argument meta-data for our
@@ -504,8 +504,8 @@ previous example will be:
        /)
 
 If a kernel accesses a field using a stencil then the third argument
-metadata entry should take the form `stencil(...)`. Note, a stencil
-access is only allowed for a field that is `READ` by a kernel.
+metadata entry should take the form ``stencil(...)``. Note, a stencil
+access is only allowed for a field that is ``READ`` by a kernel.
 
 In the GOcean API, fields are implemented as two-dimensional
 arrays. In fortran, a standard 5-point stencil would look something
@@ -516,11 +516,11 @@ like the following:
    a(i,j) + a(i+1,j) + a(i-1,j) + a(i,j+1) + a(i,j-1)
 
 
-If we view the above accesses as co-ordinates relative to the `a(i,j)`
-access we get `(0,0), (1,0), (-1,0), (0,1), (0,-1)`. If we then view
-these accesses in graphical form with 'i' being in the horizontal
-direction and 'j' in the vertical and with a `1` indicating a
-(depth-1) access and a `0` indicating there is no access we get the
+If we view the above accesses as co-ordinates relative to the ``a(i,j)``
+access we get ``(0,0), (1,0), (-1,0), (0,1), (0,-1)``. If we then view
+these accesses in graphical form with ``i`` being in the horizontal
+direction and ``j`` in the vertical and with a ``1`` indicating a
+(depth-1) access and a ``0`` indicating there is no access we get the
 following:
 
 ::
@@ -533,35 +533,40 @@ In the GOcean API a stencil access is captured as a triplet of
 integers (one row at a time from top to bottom) using the above view
 i.e.
 
-`stencil(010,111,010)`
+::
+   
+   stencil(010,111,010)
 
 So far we have only considered depth-1 stencils. In our notation
-the depth of access is captured by the integer value (`0` for no
-access, `1` for depth 1, `2` for depth 2 etc). For example:
+the depth of access is captured by the integer value (``0`` for no
+access, ``1`` for depth 1, ``2`` for depth 2 etc). For example:
 
 ::
+
    a(i,j) + a(i,j+1) + a(i,j+2)
 
 would be captured as:
 
-`stencil(020,010,000)`
+::
+
+   stencil(020,010,000)
 
 All forms of stencil can be **summarised** using this triplet notation
-up to a depth of `9` apart from the central `a(i,j)` value which can
-either be `0` (not accessed) or `1` (accessed). Note, the central
+up to a depth of ``9`` apart from the central ``a(i,j)`` value which can
+either be ``0`` (not accessed) or ``1`` (accessed). Note, the central
 value is not currently used by PSyclone. The notation is a **summary**
 in two ways
 
 1) it only captures the depth of the stencil in a particular
    direction, not the actual accesses. Therefore, there is no way to
-   distinguish between the stencil `a(i+2,j)` and the stencil
-   `a(i+1,j) + a(i+2,j)`.
+   distinguish between the stencil ``a(i+2,j)`` and the stencil
+   ``a(i+1,j) + a(i+2,j)``.
 
-2) when there are offsets for both `i` and `j` e.g. `a(i+1,j+1)` it
+2) when there are offsets for both ``i`` and ``j`` e.g. ``a(i+1,j+1)`` it
    only captures whether there is an access in that direction at a
    particular depth, not the details of the access. For example, there
-   is no way to distinguish between `a(i+2,j+2)` and `a(i+2,j+2) +
-   a(i+1,j+2) + a(i+2,j+1)`.
+   is no way to distinguish between ``a(i+2,j+2)`` and ``a(i+2,j+2) +
+   a(i+1,j+2) + a(i+2,j+1)``.
 
 Whilst the description is a summary, it is accurate enough for
 PSyclone as this information is primarily used to determine which grid
