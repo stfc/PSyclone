@@ -41,7 +41,8 @@
 import os
 from pyparsing import ParseException
 import fparser
-from fparser import parsefortran
+from fparser.one import parsefortran
+from fparser import one as fparser1
 from fparser import api as fpapi
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
@@ -357,7 +358,7 @@ class KernelProcedure(object):
     def get_procedure(ast, name, modast):
         bname = None
         for statement in ast.content:
-            if isinstance(statement, fparser.statements.SpecificBinding):
+            if isinstance(statement, fparser1.statements.SpecificBinding):
                 if statement.name == "code" and statement.bname != "":
                     # prototype gungho style
                     bname = statement.bname
@@ -381,18 +382,18 @@ class KernelProcedure(object):
         declared_private = False
         declared_public = False
         for statement, depth in fpapi.walk(modast, -1):
-            if isinstance(statement, fparser.statements.Private):
+            if isinstance(statement, fparser1.statements.Private):
                 if len(statement.items) == 0:
                     default_public = False
                 elif bname in statement.items:
                     declared_private = True
-            if isinstance(statement, fparser.statements.Public):
+            if isinstance(statement, fparser1.statements.Public):
                 if len(statement.items) == 0:
                     default_public = True
                 elif bname in statement.items:
                     declared_public = True
-            if isinstance(statement, fparser.block_statements.Subroutine) and \
-               statement.name == bname:
+            if isinstance(statement, fparser1.block_statements.Subroutine) \
+               and statement.name == bname:
                 if statement.is_public():
                     declared_public = True
                 code = statement
@@ -498,7 +499,7 @@ class KernelType(object):
             # <name/>_type
             found = False
             for statement, depth in fpapi.walk(ast, -1):
-                if isinstance(statement, fparser.block_statements.Module):
+                if isinstance(statement, fparser1.block_statements.Module):
                     module_name = statement.name
                     found = True
                     break
@@ -592,17 +593,17 @@ class KernelType(object):
         declared_private = False
         declared_public = False
         for statement, depth in fpapi.walk(ast, -1):
-            if isinstance(statement, fparser.statements.Private):
+            if isinstance(statement, fparser1.statements.Private):
                 if len(statement.items) == 0:
                     default_public = False
                 elif name in statement.items:
                     declared_private = True
-            if isinstance(statement, fparser.statements.Public):
+            if isinstance(statement, fparser1.statements.Public):
                 if len(statement.items) == 0:
                     default_public = True
                 elif name in statement.items:
                     declared_public = True
-            if isinstance(statement, fparser.block_statements.Type) \
+            if isinstance(statement, fparser1.block_statements.Type) \
                and statement.name == name and statement.is_public():
                     declared_public = True
         if declared_private or (not default_public and not declared_public):
@@ -611,7 +612,7 @@ class KernelType(object):
     def getKernelMetadata(self, name, ast):
         ktype = None
         for statement, depth in fpapi.walk(ast, -1):
-            if isinstance(statement, fparser.block_statements.Type) \
+            if isinstance(statement, fparser1.block_statements.Type) \
                and statement.name == name:
                 ktype = statement
         if ktype is None:
@@ -623,7 +624,7 @@ class KernelType(object):
         integer variable with the supplied name. Return None if no
         matching variable is found.'''
         for statement, _ in fpapi.walk(self._ktype, -1):
-            if isinstance(statement, fparser.typedecl_statements.Integer):
+            if isinstance(statement, fparser1.typedecl_statements.Integer):
                 # fparser only goes down to the statement level. We use
                 # the expression parser (expression.py) to parse the
                 # statement itself.
@@ -893,7 +894,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     builtin_names, builtin_defs_file = get_builtin_defs(api)
 
     # drop cache
-    fparser.parsefortran.FortranParser.cache.clear()
+    fparser1.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable('CRITICAL')
     if not os.path.isfile(alg_filename):
         raise IOError("File %s not found" % alg_filename)
@@ -941,9 +942,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     unique_invoke_labels = []
     container_name = None
     for child in ast.content:
-        if isinstance(child, fparser.block_statements.Program) or \
-           isinstance(child, fparser.block_statements.Module) or \
-           isinstance(child, fparser.block_statements.Subroutine):
+        if isinstance(child, fparser1.block_statements.Program) or \
+           isinstance(child, fparser1.block_statements.Module) or \
+           isinstance(child, fparser1.block_statements.Subroutine):
             container_name = child.name
             break
     if container_name is None:
@@ -951,10 +952,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             "Error, program, module or subroutine not found in ast")
 
     for statement, depth in fpapi.walk(ast, -1):
-        if isinstance(statement, fparser.statements.Use):
+        if isinstance(statement, fparser1.statements.Use):
             for name in statement.items:
                 name_to_module[name] = statement.name
-        if isinstance(statement, fparser.statements.Call) \
+        if isinstance(statement, fparser1.statements.Call) \
            and statement.designator == invoke_name:
             statement_kcalls = []
             invoke_label = None
@@ -993,7 +994,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # it contains spaces?
                     invoke_label = invoke_label.replace(" ", "_")
                     # Check that the resulting label is a valid Fortran Name
-                    from fparser import pattern_tools
+                    from fparser.two import pattern_tools
                     if not pattern_tools.abs_name.match(invoke_label):
                         raise ParseError(
                             "The (optional) name of an invoke must be a "
